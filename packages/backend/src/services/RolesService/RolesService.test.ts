@@ -9,11 +9,16 @@ import {
     ParameterError,
     ProjectMemberRole,
     PromotionAction,
+    UserAsCode,
+    UserAsCodeInvitationStatus,
+    UserAsCodeLifecycleStatus,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { GroupsModel } from '../../models/GroupsModel';
+import { InviteLinkModel } from '../../models/InviteLinkModel';
+import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../models/RolesModel';
@@ -27,8 +32,11 @@ import {
     mockAnalytics,
     mockCustomRole,
     mockCustomRoleWithScopes,
+    mockEmailClient,
     mockGroupsModel,
+    mockInviteLinkModel,
     mockNewRole,
+    mockOrganizationMemberProfileModel,
     mockOrganizationModel,
     mockProjectModel,
     mockRolesModel,
@@ -45,9 +53,12 @@ describe('RolesService', () => {
             mockOrganizationModel as unknown as OrganizationModel,
         groupsModel: mockGroupsModel as unknown as GroupsModel,
         projectModel: mockProjectModel as unknown as ProjectModel,
-        emailClient: {} as unknown as EmailClient,
+        emailClient: mockEmailClient as unknown as EmailClient,
         adminNotificationService:
             mockAdminNotificationService as unknown as AdminNotificationService,
+        inviteLinkModel: mockInviteLinkModel as unknown as InviteLinkModel,
+        organizationMemberProfileModel:
+            mockOrganizationMemberProfileModel as unknown as OrganizationMemberProfileModel,
     });
     beforeEach(() => {
         vi.clearAllMocks();
@@ -255,6 +266,225 @@ describe('RolesService', () => {
             ).rejects.toThrow(
                 'Cannot change custom role "Custom Role" level from project to organization',
             );
+        });
+    });
+
+    describe('users as code', () => {
+        const userAsCode = (
+            overrides: Partial<UserAsCode> = {},
+        ): UserAsCode => ({
+            version: 1,
+            email: 'new-user@example.com',
+            disabled: false,
+            pending: false,
+            role: {
+                type: 'system',
+                name: OrganizationMemberRole.MEMBER,
+            },
+            ...overrides,
+        });
+
+        const pendingUser = {
+            userUuid: 'pending-user-uuid',
+            email: 'new-user@example.com',
+            organizationUuid: 'test-org-uuid',
+            role: OrganizationMemberRole.MEMBER,
+            roleUuid: undefined,
+            isActive: true,
+            isPending: true,
+            firstName: '',
+            lastName: '',
+        };
+
+        it('downloads users with portable roles and lifecycle flags', async () => {
+            mockOrganizationMemberProfileModel.getAllOrganizationMembers.mockResolvedValue(
+                [
+                    {
+                        ...pendingUser,
+                        email: 'SYSTEM@EXAMPLE.COM',
+                        isActive: false,
+                    },
+                    {
+                        ...pendingUser,
+                        userUuid: 'custom-user-uuid',
+                        email: 'custom@example.com',
+                        roleUuid: 'organization-custom-role-uuid',
+                        isActive: true,
+                        isPending: false,
+                    },
+                ],
+            );
+            mockRolesModel.getRolesWithScopesByOrganizationUuid.mockResolvedValue(
+                [
+                    {
+                        ...mockCustomRoleWithScopes,
+                        roleUuid: 'organization-custom-role-uuid',
+                        name: 'Data steward',
+                        level: 'organization',
+                    },
+                ],
+            );
+
+            await expect(
+                service.getUsersAsCode(mockAccount, 'test-org-uuid'),
+            ).resolves.toStrictEqual([
+                {
+                    version: 1,
+                    email: 'system@example.com',
+                    disabled: true,
+                    pending: true,
+                    role: {
+                        type: 'system',
+                        name: OrganizationMemberRole.MEMBER,
+                    },
+                },
+                {
+                    version: 1,
+                    email: 'custom@example.com',
+                    disabled: false,
+                    pending: false,
+                    role: { type: 'custom', name: 'Data steward' },
+                },
+            ]);
+        });
+
+        it('stages a missing user without sending an invitation by default', async () => {
+            mockUserModel.findUserByEmail.mockResolvedValueOnce(undefined);
+            mockUserModel.createPendingUser.mockResolvedValueOnce(pendingUser);
+            mockUserModel.getUserDetailsByUuid
+                .mockResolvedValueOnce(pendingUser)
+                .mockResolvedValueOnce(pendingUser);
+
+            await expect(
+                service.upsertUserAsCode(
+                    mockAccount,
+                    'test-org-uuid',
+                    userAsCode(),
+                ),
+            ).resolves.toStrictEqual({
+                action: PromotionAction.CREATE,
+                lifecycle: UserAsCodeLifecycleStatus.AWAITING_AUTHENTICATION,
+                invitation: UserAsCodeInvitationStatus.NOT_REQUESTED,
+            });
+            expect(mockUserModel.createPendingUser).toHaveBeenCalledWith(
+                'test-org-uuid',
+                {
+                    email: 'new-user@example.com',
+                    firstName: '',
+                    lastName: '',
+                    role: OrganizationMemberRole.MEMBER,
+                },
+                true,
+            );
+            expect(mockEmailClient.sendInviteEmail).not.toHaveBeenCalled();
+        });
+
+        it('reconciles disabled and declared-pending flags', async () => {
+            mockUserModel.findUserByEmail.mockResolvedValueOnce(pendingUser);
+            mockUserModel.getUserDetailsByUuid.mockResolvedValueOnce({
+                ...pendingUser,
+                isActive: false,
+            });
+
+            await expect(
+                service.upsertUserAsCode(
+                    mockAccount,
+                    'test-org-uuid',
+                    userAsCode({ disabled: true, pending: true }),
+                    true,
+                ),
+            ).resolves.toStrictEqual({
+                action: PromotionAction.UPDATE,
+                lifecycle: UserAsCodeLifecycleStatus.READY,
+                invitation: UserAsCodeInvitationStatus.SKIPPED_DISABLED,
+            });
+            expect(mockUserModel.updateUser).toHaveBeenCalledWith(
+                pendingUser.userUuid,
+                pendingUser.email,
+                { isActive: false },
+            );
+            expect(mockEmailClient.sendInviteEmail).not.toHaveBeenCalled();
+        });
+
+        it('sends an opt-in invitation to an eligible staged user', async () => {
+            mockUserModel.findUserByEmail.mockResolvedValueOnce(pendingUser);
+            mockUserModel.getUserDetailsByUuid
+                .mockResolvedValueOnce(pendingUser)
+                .mockResolvedValueOnce(pendingUser);
+            mockInviteLinkModel.hasValidInviteLink.mockResolvedValueOnce(false);
+            mockInviteLinkModel.upsert.mockResolvedValueOnce({
+                inviteCode: 'invite-code',
+                inviteUrl: 'https://lightdash.example/invite/invite-code',
+                expiresAt: new Date('2026-01-01'),
+                organizationUuid: 'test-org-uuid',
+                userUuid: pendingUser.userUuid,
+                email: pendingUser.email,
+            });
+
+            await expect(
+                service.upsertUserAsCode(
+                    mockAccount,
+                    'test-org-uuid',
+                    userAsCode({ pending: true }),
+                    true,
+                ),
+            ).resolves.toStrictEqual({
+                action: PromotionAction.NO_CHANGES,
+                lifecycle: UserAsCodeLifecycleStatus.READY,
+                invitation: UserAsCodeInvitationStatus.SENT,
+            });
+            expect(mockEmailClient.sendInviteEmail).toHaveBeenCalledOnce();
+        });
+
+        it('does not remove credentials to reproduce a pending state', async () => {
+            mockUserModel.findUserByEmail.mockResolvedValueOnce({
+                ...pendingUser,
+                isPending: false,
+            });
+
+            await expect(
+                service.upsertUserAsCode(
+                    mockAccount,
+                    'test-org-uuid',
+                    userAsCode({ pending: true }),
+                ),
+            ).rejects.toThrow('upload never removes credentials');
+        });
+
+        it('refuses to disable or demote the last usable admin', async () => {
+            const admin = {
+                ...pendingUser,
+                userUuid: 'admin-user-uuid',
+                email: 'admin@example.com',
+                role: OrganizationMemberRole.ADMIN,
+                isPending: false,
+            };
+            mockUserModel.findUserByEmail.mockResolvedValueOnce(admin);
+            mockOrganizationMemberProfileModel.getOrganizationAdmins.mockResolvedValueOnce(
+                [admin],
+            );
+
+            await expect(
+                service.upsertUserAsCode(
+                    mockAccount,
+                    'test-org-uuid',
+                    userAsCode({
+                        email: admin.email,
+                        role: {
+                            type: 'system',
+                            name: OrganizationMemberRole.EDITOR,
+                        },
+                    }),
+                ),
+            ).rejects.toThrow(
+                'Organization must have at least one enabled authenticated admin',
+            );
+        });
+
+        it('requires organization-member permissions', async () => {
+            await expect(
+                service.getUsersAsCode(mockAccountNoAccess, 'test-org-uuid'),
+            ).rejects.toThrow(ForbiddenError);
         });
     });
 

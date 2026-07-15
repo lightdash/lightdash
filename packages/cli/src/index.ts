@@ -722,13 +722,24 @@ program
     .option('--verbose', undefined, false)
     .action(stopPreviewHandler);
 
-const ORGANIZATION_MODE_OPTIONS = new Set(['organization', 'path', 'verbose']);
+const ORGANIZATION_MODE_OPTIONS = new Set([
+    'organization',
+    'path',
+    'sendInvites',
+    'verbose',
+]);
 
 const withOrganizationMode =
-    <Options extends { organization: boolean }>(
+    <Options extends { organization: boolean; sendInvites?: boolean }>(
         handler: (options: Options) => Promise<void>,
     ) =>
     async (options: Options, command: Command): Promise<void> => {
+        if (!options.organization && options.sendInvites) {
+            command.error(
+                `error: option '--send-invites' requires option '--organization'`,
+                { code: 'commander.missingMandatoryOptionValue' },
+            );
+        }
         if (options.organization) {
             const conflictingOption = Object.keys(options).find(
                 (optionName) => {
@@ -962,6 +973,11 @@ const uploadCommand = program
     .option(
         '--organization',
         'upload all organization-scoped resources without selecting a project',
+        false,
+    )
+    .option(
+        '--send-invites',
+        'send invitations to eligible pending users during organization upload',
         false,
     );
 
