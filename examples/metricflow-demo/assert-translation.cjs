@@ -37,7 +37,8 @@ const result = translateMetricFlowMetrics({
 
 // Expected Lightdash metrics on the `orders` model (same for both specs).
 const expected = {
-    total_revenue: { type: 'sum', sql: '${TABLE}.amount' },
+    // group_label carried over from config.meta
+    total_revenue: { type: 'sum', sql: '${TABLE}.amount', group_label: 'Order Metrics' },
     order_count: { type: 'count', sql: '${TABLE}.order_id' },
     unique_customers: { type: 'count_distinct', sql: '${TABLE}.customer_id' },
     average_order_value: { type: 'average', sql: '${TABLE}.amount' },
@@ -55,6 +56,14 @@ const expected = {
         type: 'sum',
         sql: 'CASE WHEN (${TABLE}.is_food_order) THEN 1 ELSE 0 END',
     },
+    // create_metric measure (legacy) / simple metric (latest) whose
+    // config.meta hides it and groups it — hidden + group_label carry over.
+    internal_order_count: {
+        type: 'count_distinct',
+        sql: '${TABLE}.customer_id',
+        hidden: true,
+        group_label: 'Internal',
+    },
     // Ratio → number metric over the two input metrics
     revenue_per_order: {
         type: 'number',
@@ -69,6 +78,7 @@ const expected = {
         type: 'count',
         sql: "CASE WHEN (${TABLE}.status = 'completed') THEN (${TABLE}.order_id) END",
         hidden: true,
+        helper: true,
     },
     // Derived → number metric with the expression rewritten over input metrics
     revenue_per_customer: {
@@ -78,8 +88,8 @@ const expected = {
 };
 
 // Hidden helper metrics are emitted alongside a manifest metric and are not
-// counted in translatedCount.
-const helperCount = Object.values(expected).filter((e) => e.hidden).length;
+// counted in translatedCount (unlike a plain hidden metric, which is).
+const helperCount = Object.values(expected).filter((e) => e.helper).length;
 
 // Metrics that must be skipped (unsupported in the Lightdash translation).
 const expectedSkipped = [
@@ -109,8 +119,10 @@ for (const [name, exp] of Object.entries(expected)) {
         fail(`metric "${name}": percentile ${got.percentile} !== ${exp.percentile}`);
     } else if (exp.hidden !== undefined && got.hidden !== exp.hidden) {
         fail(`metric "${name}": hidden ${got.hidden} !== ${exp.hidden}`);
+    } else if (exp.group_label !== undefined && got.group_label !== exp.group_label) {
+        fail(`metric "${name}": group_label ${got.group_label} !== ${exp.group_label}`);
     } else {
-        ok(`${name} → ${exp.type}(${exp.sql})${exp.percentile ? ` p${exp.percentile}` : ''}${exp.hidden ? ' [hidden]' : ''}`);
+        ok(`${name} → ${exp.type}(${exp.sql})${exp.percentile ? ` p${exp.percentile}` : ''}${exp.hidden ? ' [hidden]' : ''}${exp.group_label ? ` {${exp.group_label}}` : ''}`);
     }
 }
 
