@@ -5,7 +5,7 @@ import {
     type HomepageAssignment,
     type HomepageAudience,
     type ProjectHomepage,
-    type PublishedProjectHomepage,
+    type ResolvedHomepage,
     type UpdateProjectHomepageDraftRequest,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -15,10 +15,34 @@ import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeature
 
 const PROJECT_HOMEPAGE_QUERY_KEY = 'project_homepage';
 
-const getPublishedHomepage = async (projectUuid: string) =>
-    lightdashApi<PublishedProjectHomepage | null>({
+const getResolvedHomepage = async (projectUuid: string) =>
+    lightdashApi<ResolvedHomepage | null>({
         url: `/projects/${projectUuid}/homepage`,
         method: 'GET',
+        body: undefined,
+    });
+
+const getPersonalHomepageApi = async (projectUuid: string) =>
+    lightdashApi<string | null>({
+        url: `/projects/${projectUuid}/homepage/personal-override`,
+        method: 'GET',
+        body: undefined,
+    });
+
+const setPersonalHomepageApi = async (
+    projectUuid: string,
+    dashboardUuid: string,
+) =>
+    lightdashApi<undefined>({
+        url: `/projects/${projectUuid}/homepage/personal-override`,
+        method: 'PATCH',
+        body: JSON.stringify({ dashboardUuid }),
+    });
+
+const clearPersonalHomepageApi = async (projectUuid: string) =>
+    lightdashApi<undefined>({
+        url: `/projects/${projectUuid}/homepage/personal-override`,
+        method: 'DELETE',
         body: undefined,
     });
 
@@ -73,11 +97,12 @@ const publishHomepageApi = async (
     projectUuid: string,
     homepageUuid: string,
     audience: HomepageAudience,
+    allowPersonal: boolean,
 ) =>
     lightdashApi<ProjectHomepage>({
         url: `/projects/${projectUuid}/homepage/${homepageUuid}/publish`,
         method: 'POST',
-        body: JSON.stringify({ audience }),
+        body: JSON.stringify({ audience, allowPersonal }),
     });
 
 const getAssignmentsApi = async (projectUuid: string) =>
@@ -104,15 +129,75 @@ export const useHomepageBuilderFlag = () => {
     return { isEnabled: !!flag?.enabled, isLoading };
 };
 
-export const usePublishedHomepage = (
+export const useResolvedHomepage = (
     projectUuid: string | undefined,
     { enabled = true }: { enabled?: boolean } = {},
 ) =>
-    useQuery<PublishedProjectHomepage | null, ApiError>({
+    useQuery<ResolvedHomepage | null, ApiError>({
         enabled: !!projectUuid && enabled,
-        queryKey: [PROJECT_HOMEPAGE_QUERY_KEY, projectUuid, 'published'],
-        queryFn: () => getPublishedHomepage(projectUuid!),
+        queryKey: [PROJECT_HOMEPAGE_QUERY_KEY, projectUuid, 'resolved'],
+        queryFn: () => getResolvedHomepage(projectUuid!),
     });
+
+export const usePersonalHomepage = (
+    projectUuid: string | undefined,
+    { enabled = true }: { enabled?: boolean } = {},
+) =>
+    useQuery<string | null, ApiError>({
+        enabled: !!projectUuid && enabled,
+        queryKey: [PROJECT_HOMEPAGE_QUERY_KEY, projectUuid, 'personal'],
+        queryFn: () => getPersonalHomepageApi(projectUuid!),
+    });
+
+export const useSetPersonalHomepage = (projectUuid: string) => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+    const queryClient = useQueryClient();
+    return useMutation<undefined, ApiError, string>(
+        (dashboardUuid) => setPersonalHomepageApi(projectUuid, dashboardUuid),
+        {
+            mutationKey: ['set_personal_homepage'],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries([
+                    PROJECT_HOMEPAGE_QUERY_KEY,
+                    projectUuid,
+                ]);
+                showToastSuccess({
+                    title: 'This dashboard is now your homepage',
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to set your homepage',
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
+
+export const useClearPersonalHomepage = (projectUuid: string) => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+    const queryClient = useQueryClient();
+    return useMutation<undefined, ApiError, void>(
+        () => clearPersonalHomepageApi(projectUuid),
+        {
+            mutationKey: ['clear_personal_homepage'],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries([
+                    PROJECT_HOMEPAGE_QUERY_KEY,
+                    projectUuid,
+                ]);
+                showToastSuccess({ title: 'Homepage reset to default' });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to reset your homepage',
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
 
 export const useHomepageForBuilder = (
     projectUuid: string | undefined,
@@ -257,8 +342,18 @@ export const usePublishHomepage = (
 ) => {
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
-    return useMutation<ProjectHomepage, ApiError, HomepageAudience>(
-        (audience) => publishHomepageApi(projectUuid, homepageUuid!, audience),
+    return useMutation<
+        ProjectHomepage,
+        ApiError,
+        { audience: HomepageAudience; allowPersonal: boolean }
+    >(
+        ({ audience, allowPersonal }) =>
+            publishHomepageApi(
+                projectUuid,
+                homepageUuid!,
+                audience,
+                allowPersonal,
+            ),
         {
             mutationKey: ['publish_project_homepage'],
             onSuccess: async () => {

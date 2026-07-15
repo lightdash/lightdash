@@ -116,6 +116,22 @@ const FavoritePills: FC<{
     );
 };
 
+export const PersonalFavoritesStrip: FC<{ projectUuid: string }> = ({
+    projectUuid,
+}) => (
+    <Stack gap="xs">
+        <Group gap="xs">
+            <Text size="xs" fw={600} tt="uppercase" c="dimmed">
+                Your favorites
+            </Text>
+            <Badge variant="default" size="xs" tt="none">
+                Only you see this
+            </Badge>
+        </Group>
+        <FavoritePills projectUuid={projectUuid} isInteractive />
+    </Stack>
+);
+
 export const FavoritesBlockView: FC<BlockComponentProps> = ({
     block,
     projectUuid,

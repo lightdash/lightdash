@@ -708,10 +708,14 @@ export const HomepageEditor: FC<Props> = ({
                 homepageUuid={homepage.homepageUuid}
                 homepageName={homepage.name}
                 isPublishing={publishMutation.isLoading}
-                onPublish={(audience) =>
-                    publishMutation.mutate(audience, {
-                        onSuccess: () => setIsPublishModalOpen(false),
-                    })
+                initialAllowPersonal={homepage.allowPersonal}
+                onPublish={(audience, allowPersonal) =>
+                    publishMutation.mutate(
+                        { audience, allowPersonal },
+                        {
+                            onSuccess: () => setIsPublishModalOpen(false),
+                        },
+                    )
                 }
             />
             <MantineModal

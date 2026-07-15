@@ -12,6 +12,7 @@ import {
 import { type Knex } from 'knex';
 import {
     HomepageAssignmentsTableName,
+    HomepagePersonalOverridesTableName,
     HomepagesTableName,
     type DbProjectHomepage,
 } from '../database/entities/projectHomepages';
@@ -31,6 +32,7 @@ export class ProjectHomepageModel {
             draftConfig: row.draft_config,
             publishedConfig: row.published_config,
             isDefault: row.is_default,
+            allowPersonal: row.allow_personal,
             createdByUserUuid: row.created_by_user_uuid,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
@@ -83,6 +85,7 @@ export class ProjectHomepageModel {
             homepageUuid: row.homepage_uuid,
             name: row.name,
             config: row.published_config,
+            allowPersonal: row.allow_personal,
         };
     }
 
@@ -169,6 +172,8 @@ export class ProjectHomepageModel {
                 JOIN projects p ON p.project_id = s.project_id
                 WHERE acv.user_uuid = :userUuid
                   AND p.project_uuid = :projectUuid
+                  AND sq.deleted_at IS NULL
+                  AND s.deleted_at IS NULL
                 UNION ALL
                 SELECT 'dashboard' AS content_type,
                        adv.dashboard_uuid AS content_uuid,
@@ -179,6 +184,8 @@ export class ProjectHomepageModel {
                 JOIN projects p ON p.project_id = s.project_id
                 WHERE adv.user_uuid = :userUuid
                   AND p.project_uuid = :projectUuid
+                  AND d.deleted_at IS NULL
+                  AND s.deleted_at IS NULL
             ) views
             GROUP BY content_type, content_uuid
             ORDER BY viewed_at DESC
@@ -193,10 +200,66 @@ export class ProjectHomepageModel {
         }));
     }
 
+    async getPersonalOverride(
+        userUuid: string,
+        projectUuid: string,
+    ): Promise<string | undefined> {
+        const row = await this.database(HomepagePersonalOverridesTableName)
+            .join(
+                'dashboards',
+                'dashboards.dashboard_uuid',
+                `${HomepagePersonalOverridesTableName}.dashboard_uuid`,
+            )
+            .where(`${HomepagePersonalOverridesTableName}.user_uuid`, userUuid)
+            .andWhere(
+                `${HomepagePersonalOverridesTableName}.project_uuid`,
+                projectUuid,
+            )
+            .whereNull('dashboards.deleted_at')
+            .select(`${HomepagePersonalOverridesTableName}.dashboard_uuid`)
+            .first();
+        return row?.dashboard_uuid;
+    }
+
+    async setPersonalOverride(
+        userUuid: string,
+        projectUuid: string,
+        dashboardUuid: string,
+    ): Promise<void> {
+        const dashboardInProject = await this.database('dashboards')
+            .join('spaces', 'spaces.space_id', 'dashboards.space_id')
+            .join('projects', 'projects.project_id', 'spaces.project_id')
+            .where('dashboards.dashboard_uuid', dashboardUuid)
+            .where('projects.project_uuid', projectUuid)
+            .whereNull('dashboards.deleted_at')
+            .first();
+        if (!dashboardInProject) {
+            throw new NotFoundError('Dashboard not found in this project');
+        }
+        await this.database(HomepagePersonalOverridesTableName)
+            .insert({
+                user_uuid: userUuid,
+                project_uuid: projectUuid,
+                dashboard_uuid: dashboardUuid,
+            })
+            .onConflict(['user_uuid', 'project_uuid'])
+            .merge({ dashboard_uuid: dashboardUuid });
+    }
+
+    async deletePersonalOverride(
+        userUuid: string,
+        projectUuid: string,
+    ): Promise<void> {
+        await this.database(HomepagePersonalOverridesTableName)
+            .where({ user_uuid: userUuid, project_uuid: projectUuid })
+            .delete();
+    }
+
     // Publishing to "everyone" promotes the homepage to the project default
     async publish(
         homepageUuid: string,
         audience: HomepageAudience,
+        allowPersonal: boolean,
     ): Promise<ProjectHomepage> {
         return this.database.transaction(async (trx) => {
             const existing = await trx(HomepagesTableName)
@@ -219,6 +282,7 @@ export class ProjectHomepageModel {
                 .where({ homepage_uuid: homepageUuid })
                 .update({
                     published_config: existing.draft_config,
+                    allow_personal: allowPersonal,
                     ...(makeDefault ? { is_default: true } : {}),
                     updated_at: new Date(),
                 })
@@ -378,6 +442,7 @@ export class ProjectHomepageModel {
                     homepageUuid: byGroup.homepage_uuid,
                     name: byGroup.name,
                     config: byGroup.published_config,
+                    allowPersonal: byGroup.allow_personal,
                 };
             }
         }
@@ -392,6 +457,7 @@ export class ProjectHomepageModel {
                     homepageUuid: byRole.homepage_uuid,
                     name: byRole.name,
                     config: byRole.published_config,
+                    allowPersonal: byRole.allow_personal,
                 };
             }
         }
