@@ -521,14 +521,23 @@ const ConfigurePhase: FC<ConfigurePhaseProps> = ({
                 </Alert>
             )}
 
-            <Button
-                style={{ alignSelf: 'flex-end' }}
-                loading={isSubmitting}
-                disabled={!database || !warehouse || isValidating}
-                onClick={handleContinue}
-            >
-                Continue
-            </Button>
+            <Group justify="space-between" wrap="nowrap">
+                <Button
+                    variant="subtle"
+                    size="compact-sm"
+                    color="gray"
+                    onClick={onReconnect}
+                >
+                    Connect again with a new code
+                </Button>
+                <Button
+                    loading={isSubmitting}
+                    disabled={!database || !warehouse || isValidating}
+                    onClick={handleContinue}
+                >
+                    Continue
+                </Button>
+            </Group>
         </Stack>
     );
 };

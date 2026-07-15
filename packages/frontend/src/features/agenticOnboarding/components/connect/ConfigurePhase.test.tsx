@@ -229,6 +229,18 @@ describe('ConfigurePhase', () => {
         expect(onReconnect).toHaveBeenCalledTimes(1);
     });
 
+    it('always offers a new-code path even when validation is healthy', async () => {
+        const onReconnect = vi.fn();
+        mutateAsync.mockResolvedValue(passed(null));
+        renderWithProviders(<Harness onReconnect={onReconnect} />);
+
+        const reconnect = screen.getByRole('button', {
+            name: /Connect again with a new code/,
+        });
+        fireEvent.click(reconnect);
+        expect(onReconnect).toHaveBeenCalledTimes(1);
+    });
+
     it('stops auto-validating once the credential is known to be dead', async () => {
         mutateAsync.mockResolvedValue(authFailed());
         renderWithProviders(<Harness />);
