@@ -4,7 +4,7 @@ Treat each numbered section as a gate. Satisfy its **Gate** before continuing.
 
 ## Prepared setup
 
-Use the warehouse type, prepared project UUID, and PAT from the original prompt. If any value is missing, ask the user for it and wait before continuing.
+Use the warehouse type and prepared project UUID from the original prompt. If either value is missing, ask the user for it and wait before continuing.
 
 ## 1. Install the CLI and skills
 
@@ -19,7 +19,7 @@ Use the warehouse type, prepared project UUID, and PAT from the original prompt.
 
 ## 2. Authenticate and bind the prepared project
 
-1. Run `lightdash login <Lightdash instance URL> --token <PAT>`.
+1. Run `lightdash login <Lightdash instance URL>` and complete OAuth authentication.
 2. Run `lightdash config set-project --uuid <Prepared project UUID>`.
 3. Run `lightdash config get-project`.
 
@@ -89,6 +89,6 @@ Return a compact handoff containing:
 - The working project and dashboard URLs.
 - One useful next action when further work would add value.
 
-Reference the Lightdash URLs instead of reproducing generated YAML. Keep the PAT, warehouse credentials, organization identity, user identity, and other secrets out of the handoff.
+Reference the Lightdash URLs instead of reproducing generated YAML. Keep warehouse credentials, organization identity, user identity, and other secrets out of the handoff.
 
 **Gate:** The user receives a concise, secret-free handoff with working project and dashboard URLs.

@@ -57,13 +57,7 @@ export const useAccessToken = (
     });
 };
 
-export const useCreateAccessToken = ({
-    retry = 3,
-    showErrorToast = true,
-}: {
-    retry?: number | boolean;
-    showErrorToast?: boolean;
-} = {}) => {
+export const useCreateAccessToken = () => {
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<
@@ -72,17 +66,15 @@ export const useCreateAccessToken = ({
         CreatePersonalAccessToken
     >((data) => createAccessToken(data), {
         mutationKey: ['personal_access_tokens'],
-        retry,
+        retry: 3,
         onSuccess: async () => {
             await queryClient.invalidateQueries(['personal_access_tokens']);
         },
         onError: ({ error }) => {
-            if (showErrorToast) {
-                showToastApiError({
-                    title: `Failed to create token`,
-                    apiError: error,
-                });
-            }
+            showToastApiError({
+                title: `Failed to create token`,
+                apiError: error,
+            });
         },
     });
 };

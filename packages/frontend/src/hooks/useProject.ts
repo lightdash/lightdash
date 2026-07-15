@@ -146,6 +146,7 @@ export const useCreateMutation = () => {
 
 export const useCreateProjectWithoutCompileMutation = () => {
     const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
     return useMutation<ApiCreateProjectResults, ApiError, CreateProject>(
         (data) => createProjectWithoutCompile(data),
         {
@@ -153,6 +154,12 @@ export const useCreateProjectWithoutCompileMutation = () => {
             retry: false,
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['projects']);
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to create project',
+                    apiError: error,
+                });
             },
         },
     );
