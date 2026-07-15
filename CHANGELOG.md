@@ -1,3 +1,15 @@
+# [0.3392.0](https://github.com/lightdash/lightdash/compare/0.3391.0...0.3392.0) (2026-07-15)
+
+
+### Bug Fixes
+
+* **cli:** replace ts-node with tsx ([#25532](https://github.com/lightdash/lightdash/issues/25532)) ([cec71fa](https://github.com/lightdash/lightdash/commit/cec71fa60f6d8da50ef6e1c670089871b000b8e3))
+
+
+### Features
+
+* **metricflow:** carry config.meta hidden and group_label into translated metrics ([#25607](https://github.com/lightdash/lightdash/issues/25607)) ([a76f07c](https://github.com/lightdash/lightdash/commit/a76f07cc760ea94835b44f540d873bb04ef63f3c))
+
 # [0.3391.0](https://github.com/lightdash/lightdash/compare/0.3390.0...0.3391.0) (2026-07-15)
 
 
