@@ -143,6 +143,22 @@ const PUBLIC_ROUTES: RouteObject[] = [
             };
         },
     },
+    {
+        path: '/organization-setup',
+        lazy: async () => {
+            const OrganizationSetup = await loadLazyRouteDefault(
+                './pages/OrganizationSetup',
+                () => import('./pages/OrganizationSetup'),
+            );
+            return {
+                Component: () => (
+                    <TrackPage name={PageName.ORGANIZATION_SETUP}>
+                        <OrganizationSetup />
+                    </TrackPage>
+                ),
+            };
+        },
+    },
 ];
 
 const MINIMAL_ROUTES: RouteObject[] = [

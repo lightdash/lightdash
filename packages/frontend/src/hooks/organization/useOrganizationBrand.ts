@@ -33,7 +33,10 @@ const fetchOrganizationBrand = async (data: UpdateOrganizationBrandRequest) =>
  * The caller decides what to do with the result (e.g. populate a form so the
  * user can review and edit before saving).
  */
-export const useFetchOrganizationBrand = () => {
+export const useFetchOrganizationBrand = (options?: {
+    showErrorToast?: boolean;
+}) => {
+    const showErrorToast = options?.showErrorToast ?? true;
     const { showToastApiError } = useToaster();
     return useMutation<
         OrganizationBrand,
@@ -42,6 +45,7 @@ export const useFetchOrganizationBrand = () => {
     >(fetchOrganizationBrand, {
         mutationKey: ['organization_brand_fetch'],
         onError: ({ error }) => {
+            if (!showErrorToast) return;
             showToastApiError({
                 title: 'Failed to fetch brand',
                 apiError: error,

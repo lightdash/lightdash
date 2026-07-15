@@ -288,6 +288,13 @@ export enum FeatureFlags {
      * default; enable per-org.
      */
     EmailWhitelabel = 'email-whitelabel',
+
+    /**
+     * Replaces the user-completion modal with a full-page organization setup
+     * experience (name your organization, pick a theme colour, and tell us
+     * about yourself) shown after registration. Off by default.
+     */
+    OrganizationSetupPage = 'organization-setup-page',
 }
 
 export type FeatureFlag = {
