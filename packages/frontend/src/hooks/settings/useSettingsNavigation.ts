@@ -664,10 +664,18 @@ export const useSettingsNavigation = (
 
             if (organization?.pgWire?.enabled) {
                 projectItems.push({
-                    label: 'Semantic layer',
+                    label: 'Metric SQL API',
                     to: `${base}/semanticLayer`,
                     icon: IconPlug,
-                    keywords: ['postgres', 'pgwire', 'connection', 'sql', 'bi'],
+                    keywords: [
+                        'postgres',
+                        'pgwire',
+                        'connection',
+                        'sql',
+                        'bi',
+                        'metric',
+                        'semantic layer',
+                    ],
                     children: [],
                     exact: true,
                 });

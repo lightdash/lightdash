@@ -116,3 +116,67 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+/* Generated-token success card: header, field, copy button and hint all live
+   inside one green-tinted surface so they read as a single connected unit. */
+.tokenCard {
+    background-color: var(--mantine-color-green-light);
+    border: 1px solid var(--mantine-color-green-light-hover);
+    border-radius: var(--mantine-radius-md);
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+}
+
+.tokenCardTitle {
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+    color: var(--mantine-color-green-light-color);
+}
+
+.tokenCardMeta {
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-green-light-color);
+    opacity: 0.85;
+}
+
+.tokenCardHint {
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-green-light-color);
+    opacity: 0.85;
+}
+
+.tokenField {
+    flex: 1;
+    min-width: 0;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    padding: 0 var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-green-light-hover);
+    border-radius: var(--mantine-radius-sm);
+    background-color: var(--mantine-color-body);
+    color: var(--mantine-color-green-light-color);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-sm);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tokenCopyBtn {
+    flex: none;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-green-light-hover);
+    border-radius: var(--mantine-radius-sm);
+    background-color: var(--mantine-color-body);
+    color: var(--mantine-color-green-light-color);
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+}
+
+.tokenCopyBtn:hover {
+    background-color: var(--mantine-color-green-light);
+}

@@ -80,7 +80,7 @@ export const GenerateTokenModal: FC<Props> = ({
 
     const form = useForm({
         initialValues: {
-            description: 'Semantic layer connection',
+            description: 'Metric SQL API',
             expiresAt: '90',
             role: ProjectMemberRole.INTERACTIVE_VIEWER as ProjectMemberRole,
         },
@@ -193,7 +193,7 @@ export const GenerateTokenModal: FC<Props> = ({
                             <Text span fw={600}>
                                 Interactive Viewer
                             </Text>{' '}
-                            is the minimum for the semantic layer — it can read
+                            is the minimum for the Metric SQL API — it can read
                             this project&apos;s explores and run queries against
                             them. Pick a higher role only if the same token is
                             reused elsewhere.

@@ -4,7 +4,6 @@ import {
     ActionIcon,
     Anchor,
     Box,
-    Button,
     CopyButton,
     Group,
     PasswordInput,
@@ -12,11 +11,15 @@ import {
     Switch,
     Tabs,
     Text,
-    TextInput,
     Title,
     Tooltip,
+    UnstyledButton,
 } from '@mantine-8/core';
-import { IconCheck, IconCopy } from '@tabler/icons-react';
+import {
+    IconCheck,
+    IconCircleCheckFilled,
+    IconCopy,
+} from '@tabler/icons-react';
 import { useMemo, useState, type FC, type ReactNode } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import {
@@ -148,6 +151,73 @@ const CodeBlock: FC<{ displayValue: ReactNode; copyValue: string }> = ({
     </Box>
 );
 
+// One connected green card: header, the masked token, its copy button, and the
+// reminder all live inside the same success-tinted surface so they read as a
+// single unit.
+const TokenAddedCard: FC<{
+    generated: GeneratedToken;
+    onReplace: () => void;
+}> = ({ generated, onReplace }) => {
+    const masked = maskToken(generated.token);
+    return (
+        <Box className={classes.tokenCard}>
+            <Group justify="space-between" wrap="nowrap" align="flex-start">
+                <Group gap="xs" wrap="nowrap" align="flex-start">
+                    <MantineIcon
+                        icon={IconCircleCheckFilled}
+                        color="green"
+                        size="lg"
+                    />
+                    <Box>
+                        <Text className={classes.tokenCardTitle}>
+                            Token added as your password
+                        </Text>
+                        <Text className={classes.tokenCardMeta}>
+                            Generated for {generated.description} ·{' '}
+                            {generated.expiresLabel}
+                        </Text>
+                    </Box>
+                </Group>
+                <Anchor
+                    component="button"
+                    type="button"
+                    fz="sm"
+                    fw={500}
+                    onClick={onReplace}
+                    style={{ flexShrink: 0 }}
+                >
+                    Replace
+                </Anchor>
+            </Group>
+            <Group gap="xs" wrap="nowrap" align="stretch" mt="sm">
+                <Box
+                    className={`${classes.tokenField} sentry-block ph-no-capture`}
+                    title={masked}
+                >
+                    {masked}
+                </Box>
+                <CopyButton value={generated.token} timeout={2000}>
+                    {({ copied, copy }) => (
+                        <UnstyledButton
+                            className={classes.tokenCopyBtn}
+                            onClick={copy}
+                        >
+                            <MantineIcon
+                                icon={copied ? IconCheck : IconCopy}
+                                size="sm"
+                            />
+                            {copied ? 'Copied' : 'Copy'}
+                        </UnstyledButton>
+                    )}
+                </CopyButton>
+            </Group>
+            <Text className={classes.tokenCardHint} mt="xs">
+                Remember to save your token — you can&apos;t access it again.
+            </Text>
+        </Box>
+    );
+};
+
 const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
     const { health, user } = useApp();
     const { data: organization } = useOrganization();
@@ -229,7 +299,7 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
             <SettingsCard>
                 <Group justify="space-between" wrap="nowrap" align="flex-start">
                     <Stack gap="xxs">
-                        <Title order={5}>Semantic layer connection</Title>
+                        <Title order={5}>Metric SQL API</Title>
                         <Text c="ldGray.6" size="sm">
                             Connect BI tools and SQL clients over the Postgres
                             wire protocol. Follow the three steps below.
@@ -277,89 +347,10 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                                 description="Paste an existing Lightdash token or generate a new one for this integration. You can use a service account or personal access token."
                             >
                                 {generated ? (
-                                    <Stack gap="xs">
-                                        <Callout variant="success" hideIcon>
-                                            <Group
-                                                justify="space-between"
-                                                wrap="nowrap"
-                                                align="flex-start"
-                                            >
-                                                <Group gap="xs" wrap="nowrap">
-                                                    <MantineIcon
-                                                        icon={IconCheck}
-                                                        color="green"
-                                                    />
-                                                    <Stack gap={0}>
-                                                        <Text fz="sm" fw={600}>
-                                                            Token added as your
-                                                            password
-                                                        </Text>
-                                                        <Text
-                                                            c="ldGray.6"
-                                                            fz="xs"
-                                                        >
-                                                            Generated for{' '}
-                                                            {
-                                                                generated.description
-                                                            }{' '}
-                                                            ·{' '}
-                                                            {
-                                                                generated.expiresLabel
-                                                            }
-                                                        </Text>
-                                                    </Stack>
-                                                </Group>
-                                                <Anchor
-                                                    component="button"
-                                                    type="button"
-                                                    fz="sm"
-                                                    fw={500}
-                                                    onClick={handleReplace}
-                                                    style={{ flexShrink: 0 }}
-                                                >
-                                                    Replace
-                                                </Anchor>
-                                            </Group>
-                                        </Callout>
-                                        <Group gap="xs" wrap="nowrap">
-                                            <TextInput
-                                                readOnly
-                                                style={{ flex: 1 }}
-                                                className="sentry-block ph-no-capture"
-                                                value={maskToken(
-                                                    generated.token,
-                                                )}
-                                            />
-                                            <CopyButton
-                                                value={generated.token}
-                                                timeout={2000}
-                                            >
-                                                {({ copied, copy }) => (
-                                                    <Button
-                                                        variant="default"
-                                                        leftSection={
-                                                            <MantineIcon
-                                                                icon={
-                                                                    copied
-                                                                        ? IconCheck
-                                                                        : IconCopy
-                                                                }
-                                                            />
-                                                        }
-                                                        onClick={copy}
-                                                    >
-                                                        {copied
-                                                            ? 'Copied'
-                                                            : 'Copy'}
-                                                    </Button>
-                                                )}
-                                            </CopyButton>
-                                        </Group>
-                                        <Text c="ldGray.6" fz="xs">
-                                            Remember to save your token — you
-                                            can&apos;t access it again.
-                                        </Text>
-                                    </Stack>
+                                    <TokenAddedCard
+                                        generated={generated}
+                                        onReplace={handleReplace}
+                                    />
                                 ) : (
                                     <Stack gap="xs">
                                         <PasswordInput
