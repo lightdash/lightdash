@@ -75,6 +75,14 @@ import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenMo
 import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import Transaction = Knex.Transaction;
 
+export type CreatePasswordlessUserArgs = {
+    firstName: string;
+    lastName: string;
+    email: CreateUserArgs['email'];
+};
+
+type CreateLocalUserArgs = CreateUserArgs | CreatePasswordlessUserArgs;
+
 export type DbUserDetails = {
     user_id: number;
     user_uuid: string;
@@ -325,7 +333,7 @@ export class UserModel {
                 email: createUser.email.toLowerCase(),
                 is_primary: true,
             });
-            if (createUser.password) {
+            if ('password' in createUser && createUser.password) {
                 if (!validatePassword(createUser.password)) {
                     throw new ParameterError(
                         "Password doesn't meet requirements",
@@ -1067,12 +1075,13 @@ export class UserModel {
     }
 
     async createUser(
-        createUser: CreateUserArgs | OpenIdUser,
+        createUser: CreateLocalUserArgs | OpenIdUser,
         isActive: boolean = true,
     ): Promise<LightdashUser> {
         const user = await this.database.transaction(async (trx) => {
             if (
                 !isOpenIdUser(createUser) &&
+                'password' in createUser &&
                 createUser.password &&
                 !validatePassword(createUser.password)
             ) {

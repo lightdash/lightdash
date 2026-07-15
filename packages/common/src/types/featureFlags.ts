@@ -288,6 +288,16 @@ export enum FeatureFlags {
      * default; enable per-org.
      */
     EmailWhitelabel = 'email-whitelabel',
+
+    /**
+     * Allow self-serve signup with just an email address: the register page
+     * collects only an email, the account is created without a password or
+     * names, and ownership is proven via the existing email OTP verification.
+     * Users can set a password later (settings or password reset). Off by
+     * default; instance-wide toggle (evaluated anonymously, so per-org
+     * overrides don't apply).
+     */
+    EmailOnlySignup = 'email-only-signup',
 }
 
 export type FeatureFlag = {

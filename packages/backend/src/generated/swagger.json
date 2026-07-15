@@ -14281,7 +14281,7 @@
                     },
                     "imageUrlSource": {
                         "type": "string",
-                        "enum": ["upload", "url", null],
+                        "enum": ["url", "upload", null],
                         "nullable": true
                     },
                     "groupAccess": {
@@ -15095,7 +15095,7 @@
                     },
                     "imageUrlSource": {
                         "type": "string",
-                        "enum": ["upload", "url", null],
+                        "enum": ["url", "upload", null],
                         "nullable": true
                     },
                     "groupAccess": {
@@ -27468,6 +27468,15 @@
                 "required": ["password", "email", "lastName", "firstName"],
                 "type": "object"
             },
+            "CreateEmailOnlyUserArgs": {
+                "properties": {
+                    "email": {
+                        "$ref": "#/components/schemas/Email"
+                    }
+                },
+                "required": ["email"],
+                "type": "object"
+            },
             "RegisterOrActivateUser": {
                 "anyOf": [
                     {
@@ -27475,6 +27484,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/CreateUserArgs"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreateEmailOnlyUserArgs"
                     }
                 ]
             },

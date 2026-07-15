@@ -10,6 +10,7 @@ import {
     assertRegisteredAccount,
     CreatePersonalAccessToken,
     getRequestMethod,
+    isEmailOnlyUser,
     LightdashRequestMethodHeader,
     NotFoundError,
     ParameterError,
@@ -106,10 +107,20 @@ export class UserController extends BaseController {
         @Body()
         body: RegisterOrActivateUser,
     ): Promise<ApiRegisterUserResponse> {
-        if (!validatePassword(req.body.password)) {
-            throw new ParameterError(
-                'Password must contain at least 8 characters, 1 letter and 1 number or 1 special character',
-            );
+        if (!isEmailOnlyUser(body)) {
+            if (!validatePassword(body.password)) {
+                throw new ParameterError(
+                    'Password must contain at least 8 characters, 1 letter and 1 number or 1 special character',
+                );
+            }
+            if (
+                typeof body.firstName !== 'string' ||
+                typeof body.lastName !== 'string'
+            ) {
+                throw new ParameterError(
+                    'First name and last name are required',
+                );
+            }
         }
         const sessionUser = await this.services
             .getUserService()
