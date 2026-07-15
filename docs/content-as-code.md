@@ -231,6 +231,43 @@ promotions are processed before admin demotions or disables, and the backend
 rejects any individual operation that would leave the organization without an
 enabled authenticated admin.
 
+## Groups
+
+Organization groups are stored under `lightdash/groups/*.yml`:
+
+```yaml
+version: 1
+name: Finance
+members:
+  - alice@example.com
+  - bob@example.com
+```
+
+The endpoints are:
+
+- `GET /api/v2/orgs/{orgUuid}/groups/code`
+- `POST /api/v2/orgs/{orgUuid}/groups/code`
+
+The exact, case-sensitive group name is the portable identity. Upload creates a
+missing group or replaces the complete membership of an existing group. Every
+member email must resolve to the primary email of a non-internal user in the
+destination organization before any mutation begins. Empty membership is
+represented explicitly as `members: []`.
+
+Group files intentionally exclude UUIDs, project roles, space access, AI-agent
+access, user attributes, and ownership metadata. Changing the name creates a
+new group and leaves the original group intact; missing files do not delete
+groups.
+
+Organization uploads run dependency phases sequentially: custom roles, then
+users, then groups. A failed phase prevents every dependent phase from
+starting, so group emails are resolved only after the complete users phase has
+succeeded.
+
+SCIM and content as code should not manage the same group. Groups do not yet
+record management provenance, so this limitation cannot be enforced by the
+first version.
+
 ## Adding another content-as-code resource
 
 Use this sequence when adding a new resource:

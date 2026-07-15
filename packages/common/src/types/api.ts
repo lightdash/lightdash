@@ -169,7 +169,11 @@ import {
     type PullRequestCreated,
     type PullRequestPreview,
 } from './gitIntegration';
-import type { ApiGroupListResponse } from './groups';
+import type {
+    ApiGroupAsCodeListResponse,
+    ApiGroupAsCodeUpsertResponse,
+    ApiGroupListResponse,
+} from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
 import { type MetricQuery, type QueryWarning } from './metricQuery';
 import type {
@@ -1145,6 +1149,8 @@ type ApiResults =
     | ApiMetricsCatalog['results']
     | ApiMetricsExplorerQueryResults['results']
     | ApiGroupListResponse['results']
+    | ApiGroupAsCodeListResponse['results']
+    | ApiGroupAsCodeUpsertResponse['results']
     | ApiPullRequestsResponse['results']
     | ApiCreateTagResponse['results']
     | ApiAgentAsCodeListResponse['results']
