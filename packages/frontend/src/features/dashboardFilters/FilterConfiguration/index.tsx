@@ -65,6 +65,7 @@ interface Props {
     isCreatingNew?: boolean;
     isTemporary?: boolean;
     onSave: (value: DashboardFilterRule) => void;
+    onEditRequirementRules?: () => void;
 }
 
 const getDefaultField = (
@@ -92,6 +93,7 @@ const FilterConfiguration: FC<Props> = ({
     defaultFilterRule,
     popoverProps,
     onSave,
+    onEditRequirementRules,
 }) => {
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>(DEFAULT_TAB);
     const [selectedField, setSelectedField] = useState<
@@ -519,6 +521,7 @@ const FilterConfiguration: FC<Props> = ({
                                 field={selectedField}
                                 filterRule={draftFilterRule}
                                 onChangeFilterRule={handleChangeFilterRule}
+                                onEditRequirementRules={onEditRequirementRules}
                                 popoverProps={inlinePopoverProps}
                             />
                         )}

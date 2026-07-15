@@ -16,13 +16,12 @@ describe('FilterBarPopoversProvider', () => {
         expect(screen.getByTestId('child')).not.toBeNull();
     });
 
-    it('exposes rules popover and filter popover state through the context hook', () => {
+    it('exposes rules popover state through the context hook', () => {
         const { result } = renderHook(() => useFilterBarPopovers(), {
             wrapper: FilterBarPopoversProvider,
         });
 
         expect(result.current?.isRulesPopoverOpen).toBe(false);
-        expect(result.current?.openFilterPopoverId).toBeUndefined();
 
         act(() => {
             result.current?.openRulesPopover();
@@ -33,15 +32,5 @@ describe('FilterBarPopoversProvider', () => {
             result.current?.closeRulesPopover();
         });
         expect(result.current?.isRulesPopoverOpen).toBe(false);
-
-        act(() => {
-            result.current?.openFilterPopover('chip-1');
-        });
-        expect(result.current?.openFilterPopoverId).toBe('chip-1');
-
-        act(() => {
-            result.current?.closeFilterPopover();
-        });
-        expect(result.current?.openFilterPopoverId).toBeUndefined();
     });
 });
