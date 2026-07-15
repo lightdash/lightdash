@@ -36,7 +36,6 @@ describe('Settings - Invites', () => {
             .each((input) => {
                 cy.wrap(input).type('0');
             });
-        cy.contains('Submit').click();
         cy.contains('Continue').click();
         cy.findByTestId('user-avatar').should('contain', 'MG');
     });

@@ -13,6 +13,7 @@ import {
     ApiVerifyLoginEmailOtpResponse,
     assertRegisteredAccount,
     CreatePersonalAccessToken,
+    getEmailSchema,
     getRequestMethod,
     hasInviteCode,
     isEmailOnlyUser,
@@ -577,6 +578,9 @@ export class UserController extends BaseController {
     async requestEmailOtpLogin(
         @Body() body: ApiLoginEmailOtpRequest,
     ): Promise<ApiLoginEmailOtpResponse> {
+        if (!getEmailSchema().safeParse(body.email).success) {
+            throw new ParameterError('Invalid email address');
+        }
         await this.services.getUserService().requestEmailOtpLogin(body.email);
         this.setStatus(200);
         return { status: 'ok' };
@@ -588,6 +592,9 @@ export class UserController extends BaseController {
         @Request() req: express.Request,
         @Body() body: ApiVerifyLoginEmailOtpRequest,
     ): Promise<ApiVerifyLoginEmailOtpResponse> {
+        if (!getEmailSchema().safeParse(body.email).success) {
+            throw new ParameterError('Invalid email address');
+        }
         const sessionUser = await this.services
             .getUserService()
             .loginWithEmailOtp(body.email, body.passcode, {

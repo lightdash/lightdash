@@ -23,15 +23,19 @@ const LoginWithEmailOtp: FC<{
     const { mutate: requestCode, isLoading: isRequesting } =
         useEmailOtpRequestMutation();
 
-    const requestCodeForEmail = useCallback(() => {
-        requestCode(email, {
-            onError: ({ error }) =>
-                showToastApiError({
-                    title: `Failed to send a code to ${email}`,
-                    apiError: error,
-                }),
-        });
-    }, [requestCode, email, showToastApiError]);
+    const requestCodeForEmail = useCallback(
+        (onRequestSuccess?: () => void) => {
+            requestCode(email, {
+                onSuccess: onRequestSuccess,
+                onError: ({ error }) =>
+                    showToastApiError({
+                        title: `Failed to send a code to ${email}`,
+                        apiError: error,
+                    }),
+            });
+        },
+        [requestCode, email, showToastApiError],
+    );
 
     const requestedRef = useRef(false);
     useEffect(() => {
@@ -120,9 +124,10 @@ const LoginWithEmailOtp: FC<{
                 disabled={isRequesting}
                 onClick={() => {
                     form.reset();
-                    requestCodeForEmail();
-                    showToastSuccess({
-                        title: `We've sent a new code to ${email}`,
+                    requestCodeForEmail(() => {
+                        showToastSuccess({
+                            title: `We've sent a new code to ${email}`,
+                        });
                     });
                 }}
             >
