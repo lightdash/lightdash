@@ -27,7 +27,11 @@ export type DbProjectHomepageIn = Pick<
 export type DbProjectHomepageUpdate = Partial<
     Pick<
         DbProjectHomepage,
-        'name' | 'draft_config' | 'published_config' | 'updated_at'
+        | 'name'
+        | 'draft_config'
+        | 'published_config'
+        | 'is_default'
+        | 'updated_at'
     >
 >;
 

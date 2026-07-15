@@ -40,6 +40,31 @@ export class ProjectHomepageModel {
         return row ? ProjectHomepageModel.mapDbHomepage(row) : undefined;
     }
 
+    async getByUuid(
+        homepageUuid: string,
+    ): Promise<ProjectHomepage | undefined> {
+        const row = await this.database(HomepagesTableName)
+            .where({ homepage_uuid: homepageUuid })
+            .first();
+        return row ? ProjectHomepageModel.mapDbHomepage(row) : undefined;
+    }
+
+    async list(projectUuid: string): Promise<ProjectHomepage[]> {
+        const rows = await this.database(HomepagesTableName)
+            .where({ project_uuid: projectUuid })
+            .orderBy('created_at', 'asc');
+        return rows.map(ProjectHomepageModel.mapDbHomepage);
+    }
+
+    async delete(homepageUuid: string): Promise<void> {
+        const deletedCount = await this.database(HomepagesTableName)
+            .where({ homepage_uuid: homepageUuid })
+            .delete();
+        if (deletedCount === 0) {
+            throw new NotFoundError('Homepage not found');
+        }
+    }
+
     async getPublishedDefault(
         projectUuid: string,
     ): Promise<PublishedProjectHomepage | undefined> {
@@ -61,16 +86,21 @@ export class ProjectHomepageModel {
         draftConfig: HomepageConfig;
         createdByUserUuid: string;
     }): Promise<ProjectHomepage> {
-        const [row] = await this.database(HomepagesTableName)
-            .insert({
-                project_uuid: data.projectUuid,
-                name: data.name,
-                draft_config: data.draftConfig,
-                is_default: true,
-                created_by_user_uuid: data.createdByUserUuid,
-            })
-            .returning('*');
-        return ProjectHomepageModel.mapDbHomepage(row);
+        return this.database.transaction(async (trx) => {
+            const existingDefault = await trx(HomepagesTableName)
+                .where({ project_uuid: data.projectUuid, is_default: true })
+                .first();
+            const [row] = await trx(HomepagesTableName)
+                .insert({
+                    project_uuid: data.projectUuid,
+                    name: data.name,
+                    draft_config: data.draftConfig,
+                    is_default: existingDefault === undefined,
+                    created_by_user_uuid: data.createdByUserUuid,
+                })
+                .returning('*');
+            return ProjectHomepageModel.mapDbHomepage(row);
+        });
     }
 
     async updateDraft(
@@ -91,6 +121,7 @@ export class ProjectHomepageModel {
         return ProjectHomepageModel.mapDbHomepage(row);
     }
 
+    // Publishing promotes the homepage to the project default viewers land on
     async publish(homepageUuid: string): Promise<ProjectHomepage> {
         return this.database.transaction(async (trx) => {
             const existing = await trx(HomepagesTableName)
@@ -99,10 +130,18 @@ export class ProjectHomepageModel {
             if (!existing) {
                 throw new NotFoundError('Homepage not found');
             }
+            await trx(HomepagesTableName)
+                .where({
+                    project_uuid: existing.project_uuid,
+                    is_default: true,
+                })
+                .whereNot({ homepage_uuid: homepageUuid })
+                .update({ is_default: false });
             const [row] = await trx(HomepagesTableName)
                 .where({ homepage_uuid: homepageUuid })
                 .update({
                     published_config: existing.draft_config,
+                    is_default: true,
                     updated_at: new Date(),
                 })
                 .returning('*');

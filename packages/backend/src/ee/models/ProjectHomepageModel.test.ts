@@ -69,10 +69,12 @@ describe('ProjectHomepageModel', () => {
             );
         });
 
-        it('copies the draft config into published_config', async () => {
+        it('copies the draft config into published_config and promotes to default', async () => {
             tracker.on
                 .select(HomepagesTableName)
                 .responseOnce([makeDbHomepage()]);
+            // first update unsets the previous default, second publishes
+            tracker.on.update(HomepagesTableName).responseOnce(1);
             tracker.on
                 .update(HomepagesTableName)
                 .responseOnce([
@@ -81,8 +83,11 @@ describe('ProjectHomepageModel', () => {
 
             const result = await model.publish(HOMEPAGE_UUID);
 
-            const updateQuery = tracker.history.update[0];
-            expect(updateQuery.bindings).toContainEqual(draftConfig);
+            expect(tracker.history.update).toHaveLength(2);
+            const unsetQuery = tracker.history.update[0];
+            expect(unsetQuery.sql).toContain('is_default');
+            const publishQuery = tracker.history.update[1];
+            expect(publishQuery.bindings).toContainEqual(draftConfig);
             expect(result.publishedConfig).toEqual(draftConfig);
         });
     });

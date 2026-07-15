@@ -86,6 +86,7 @@ export type PublishedProjectHomepage = {
 
 export type CreateProjectHomepageRequest = {
     name: string;
+    duplicateFrom?: string;
 };
 
 export type UpdateProjectHomepageDraftRequest = {
@@ -94,6 +95,7 @@ export type UpdateProjectHomepageDraftRequest = {
 };
 
 export type ApiProjectHomepageResponse = ApiSuccess<ProjectHomepage>;
+export type ApiProjectHomepagesResponse = ApiSuccess<ProjectHomepage[]>;
 export type ApiProjectHomepageOrNullResponse =
     ApiSuccess<ProjectHomepage | null>;
 export type ApiPublishedHomepageResponse =

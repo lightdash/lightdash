@@ -8,6 +8,7 @@ import {
     Button,
     Card,
     Group,
+    Menu,
     Paper,
     Stack,
     Text,
@@ -18,16 +19,21 @@ import {
     IconArrowDown,
     IconArrowLeft,
     IconArrowUp,
+    IconCheck,
+    IconChevronDown,
     IconCircleCheck,
     IconCopy,
     IconEye,
     IconPencil,
+    IconPlus,
     IconSend,
     IconTrash,
+    IconUsers,
 } from '@tabler/icons-react';
 import { useEffect, useRef, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal from '../../../components/common/MantineModal';
 import { useAiAgentButtonVisibility } from '../aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { blockLibrary, getBlockDefinition } from './blocks/registry';
 import {
@@ -41,6 +47,7 @@ import {
     replaceBlock,
 } from './configOps';
 import {
+    useDeleteHomepage,
     usePublishHomepage,
     useUpdateHomepageDraft,
 } from './hooks/useProjectHomepage';
@@ -49,9 +56,20 @@ import { PublishedHomepage } from './PublishedHomepage';
 type Props = {
     homepage: ProjectHomepageType;
     projectUuid: string;
+    homepages: ProjectHomepageType[];
+    onSwitchHomepage: (homepageUuid: string) => void;
+    onCreateNew: () => void;
+    onDeleted: () => void;
 };
 
-export const HomepageEditor: FC<Props> = ({ homepage, projectUuid }) => {
+export const HomepageEditor: FC<Props> = ({
+    homepage,
+    projectUuid,
+    homepages,
+    onSwitchHomepage,
+    onCreateNew,
+    onDeleted,
+}) => {
     const navigate = useNavigate();
     const updateMutation = useUpdateHomepageDraft(
         projectUuid,
@@ -61,6 +79,8 @@ export const HomepageEditor: FC<Props> = ({ homepage, projectUuid }) => {
         projectUuid,
         homepage.homepageUuid,
     );
+    const deleteMutation = useDeleteHomepage(projectUuid);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
     const isAiEnabled = useAiAgentButtonVisibility();
     const availableBlocks = blockLibrary.filter(
@@ -92,13 +112,68 @@ export const HomepageEditor: FC<Props> = ({ homepage, projectUuid }) => {
     return (
         <Stack gap="lg" w="100%">
             <Group justify="space-between">
-                <Button
-                    variant="default"
-                    leftSection={<MantineIcon icon={IconArrowLeft} />}
-                    onClick={() => navigate(`/projects/${projectUuid}/home`)}
-                >
-                    Exit
-                </Button>
+                <Group gap="sm">
+                    <Button
+                        variant="default"
+                        leftSection={<MantineIcon icon={IconArrowLeft} />}
+                        onClick={() =>
+                            navigate(`/projects/${projectUuid}/home`)
+                        }
+                    >
+                        Exit
+                    </Button>
+                    <Menu position="bottom-start" width={280}>
+                        <Menu.Target>
+                            <Button
+                                variant="default"
+                                leftSection={<MantineIcon icon={IconUsers} />}
+                                rightSection={
+                                    <MantineIcon icon={IconChevronDown} />
+                                }
+                            >
+                                Editing: {homepage.name}
+                                {homepage.isDefault ? ' (live)' : ' (draft)'}
+                            </Button>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                            <Menu.Label>Project homepages</Menu.Label>
+                            {homepages.map((item) => (
+                                <Menu.Item
+                                    key={item.homepageUuid}
+                                    leftSection={
+                                        item.homepageUuid ===
+                                        homepage.homepageUuid ? (
+                                            <MantineIcon
+                                                icon={IconCheck}
+                                                color="blue"
+                                            />
+                                        ) : undefined
+                                    }
+                                    onClick={() =>
+                                        onSwitchHomepage(item.homepageUuid)
+                                    }
+                                >
+                                    {item.name}
+                                    {item.isDefault ? ' · live' : ''}
+                                </Menu.Item>
+                            ))}
+                            <Menu.Divider />
+                            <Menu.Item
+                                leftSection={<MantineIcon icon={IconPlus} />}
+                                onClick={onCreateNew}
+                            >
+                                New homepage…
+                            </Menu.Item>
+                            <Menu.Item
+                                color="red"
+                                leftSection={<MantineIcon icon={IconTrash} />}
+                                onClick={() => setIsDeleteModalOpen(true)}
+                            >
+                                Delete this homepage
+                            </Menu.Item>
+                        </Menu.Dropdown>
+                    </Menu>
+                </Group>
                 <Group gap="sm">
                     {isDirty ? (
                         <Text size="xs" c="dimmed">
@@ -330,6 +405,23 @@ export const HomepageEditor: FC<Props> = ({ homepage, projectUuid }) => {
                     </Stack>
                 </Group>
             )}
+            <MantineModal
+                opened={isDeleteModalOpen}
+                onClose={() =>
+                    !deleteMutation.isLoading && setIsDeleteModalOpen(false)
+                }
+                title="Delete homepage"
+                variant="delete"
+                resourceType="homepage"
+                resourceLabel={homepage.name}
+                cancelDisabled={deleteMutation.isLoading}
+                onConfirm={() =>
+                    deleteMutation.mutate(homepage.homepageUuid, {
+                        onSuccess: onDeleted,
+                    })
+                }
+                confirmLoading={deleteMutation.isLoading}
+            />
         </Stack>
     );
 };

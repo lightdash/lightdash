@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    AlreadyExistsError,
     CommercialFeatureFlags,
     defaultHomepageConfig,
     ForbiddenError,
@@ -22,10 +21,13 @@ export type ProjectHomepageServiceArguments = {
     projectHomepageModel: Pick<
         ProjectHomepageModel,
         | 'getDefault'
+        | 'getByUuid'
         | 'getPublishedDefault'
+        | 'list'
         | 'create'
         | 'updateDraft'
         | 'publish'
+        | 'delete'
     >;
     featureFlagService: Pick<FeatureFlagService, 'get'>;
 };
@@ -108,8 +110,8 @@ export class ProjectHomepageService extends BaseService {
         homepageUuid: string,
     ): Promise<ProjectHomepage> {
         const homepage =
-            await this.projectHomepageModel.getDefault(projectUuid);
-        if (!homepage || homepage.homepageUuid !== homepageUuid) {
+            await this.projectHomepageModel.getByUuid(homepageUuid);
+        if (!homepage || homepage.projectUuid !== projectUuid) {
             throw new NotFoundError('Homepage not found');
         }
         return homepage;
@@ -129,12 +131,27 @@ export class ProjectHomepageService extends BaseService {
     async getHomepageForBuilder(
         user: SessionUser,
         projectUuid: string,
+        homepageUuid?: string,
     ): Promise<ProjectHomepage | null> {
         await this.assertFlagEnabled(user);
         this.assertCanManage(user, projectUuid);
+        if (homepageUuid) {
+            return this.getOwnedHomepage(projectUuid, homepageUuid);
+        }
         const homepage =
             await this.projectHomepageModel.getDefault(projectUuid);
-        return homepage ?? null;
+        if (homepage) return homepage;
+        const [first] = await this.projectHomepageModel.list(projectUuid);
+        return first ?? null;
+    }
+
+    async listHomepages(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ProjectHomepage[]> {
+        await this.assertFlagEnabled(user);
+        this.assertCanManage(user, projectUuid);
+        return this.projectHomepageModel.list(projectUuid);
     }
 
     async createHomepage(
@@ -144,17 +161,27 @@ export class ProjectHomepageService extends BaseService {
     ): Promise<ProjectHomepage> {
         await this.assertFlagEnabled(user);
         this.assertCanManage(user, projectUuid);
-        const existing =
-            await this.projectHomepageModel.getDefault(projectUuid);
-        if (existing) {
-            throw new AlreadyExistsError('This project already has a homepage');
-        }
+        const draftConfig = data.duplicateFrom
+            ? (await this.getOwnedHomepage(projectUuid, data.duplicateFrom))
+                  .draftConfig
+            : defaultHomepageConfig();
         return this.projectHomepageModel.create({
             projectUuid,
             name: data.name,
-            draftConfig: defaultHomepageConfig(),
+            draftConfig,
             createdByUserUuid: user.userUuid,
         });
+    }
+
+    async deleteHomepage(
+        user: SessionUser,
+        projectUuid: string,
+        homepageUuid: string,
+    ): Promise<void> {
+        await this.assertFlagEnabled(user);
+        this.assertCanManage(user, projectUuid);
+        await this.getOwnedHomepage(projectUuid, homepageUuid);
+        await this.projectHomepageModel.delete(homepageUuid);
     }
 
     async updateDraft(
