@@ -1,5 +1,6 @@
 import {
     type ApiDataTimezonePreviewResults,
+    type ApiCreateProjectResults,
     type ApiError,
     type ApiJobStartedResults,
     type CreateProject,
@@ -28,6 +29,14 @@ const createProject = async (data: CreateProject) =>
         url: `/org/projects/precompiled`,
         method: 'POST',
         body: JSON.stringify(data),
+    });
+
+const createProjectWithoutCompile = async (data: CreateProject) =>
+    lightdashApi<ApiCreateProjectResults>({
+        url: `/org/projects`,
+        method: 'POST',
+        body: JSON.stringify(data),
+        sensitive: true,
     });
 
 const updateProject = async (uuid: string, data: UpdateProject) =>
@@ -130,6 +139,20 @@ export const useCreateMutation = () => {
                     title: `Failed to create project`,
                     apiError: error,
                 });
+            },
+        },
+    );
+};
+
+export const useCreateProjectWithoutCompileMutation = () => {
+    const queryClient = useQueryClient();
+    return useMutation<ApiCreateProjectResults, ApiError, CreateProject>(
+        (data) => createProjectWithoutCompile(data),
+        {
+            mutationKey: ['project_create_without_compile'],
+            retry: false,
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['projects']);
             },
         },
     );

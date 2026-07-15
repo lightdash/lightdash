@@ -71,6 +71,8 @@ import { ProjectDbtSourcesController } from './../controllers/projectDbtSourcesC
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ProjectRolesController } from './../controllers/ProjectRolesController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { PromptController } from './../controllers/promptController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { PullRequestsController } from './../controllers/pullRequestsController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { RenameController } from './../controllers/renameController';
@@ -70913,6 +70915,59 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'listPullRequests',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsPromptController_getPrompt: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        name: { in: 'path', name: 'name', required: true, dataType: 'string' },
+    };
+    app.get(
+        '/api/v1/prompts/:name',
+        ...fetchMiddlewares<RequestHandler>(PromptController),
+        ...fetchMiddlewares<RequestHandler>(
+            PromptController.prototype.getPrompt,
+        ),
+
+        async function PromptController_getPrompt(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsPromptController_getPrompt,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<PromptController>(PromptController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getPrompt',
                     controller,
                     response,
                     next,

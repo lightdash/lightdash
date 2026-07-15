@@ -94,6 +94,7 @@ export enum EventName {
     TRY_DEMO_CLICKED = 'try_demo.clicked',
     CREATE_PROJECT_CLI_BUTTON_CLICKED = 'create_project_cli_button.click',
     CREATE_PROJECT_MANUALLY_BUTTON_CLICKED = 'create_project_manually_click.click',
+    CREATE_PROJECT_AGENT_BUTTON_CLICKED = 'create_project_agent_button.click',
     COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED = 'copy_create_project_code_click.click',
     ONBOARDING_STEP_CLICKED = 'onboarding_step.click',
     LANDING_RUN_QUERY_CLICKED = 'landing_run_query.click',

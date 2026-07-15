@@ -61380,6 +61380,48 @@
                 ]
             }
         },
+        "/api/v1/prompts/{name}": {
+            "get": {
+                "operationId": "GetPrompt",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "text/markdown": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "byte"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "text/markdown": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get public instructions for a named prompt",
+                "summary": "Get prompt",
+                "tags": ["Prompts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/dbt-sources": {
             "get": {
                 "operationId": "ListProjectDbtSources",

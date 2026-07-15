@@ -133,6 +133,7 @@ type LightdashApiPropsBase = {
     headers?: Record<string, string> | undefined;
     version?: 'v1' | 'v2';
     signal?: AbortSignal;
+    sensitive?: boolean;
 };
 
 type LightdashApiPropsGetOrDelete = LightdashApiPropsBase & {
@@ -148,6 +149,7 @@ type LightdashApiPropsWrite = LightdashApiPropsBase & {
 type LightdashApiProps = LightdashApiPropsGetOrDelete | LightdashApiPropsWrite;
 
 const MAX_NETWORK_HISTORY = 10;
+const SENSITIVE_DATA_REDACTED = '[REDACTED: sensitive request]';
 export let networkHistory: AnyType[] = [];
 
 export const lightdashApi = async <T extends ApiResponse['results']>({
@@ -157,6 +159,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
     headers,
     version = 'v1',
     signal,
+    sensitive = false,
 }: LightdashApiProps): Promise<T> => {
     const baseUrl = sessionStorage.getItem(
         LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
@@ -199,13 +202,23 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
         })
         .then(async (r) => {
             const js = await r.json();
-            networkHistory.push({
-                method,
-                url,
-                body,
-                status: r.status,
-                json: JSON.stringify(js).substring(0, 500),
-            });
+            networkHistory.push(
+                sensitive
+                    ? {
+                          method,
+                          url,
+                          body: SENSITIVE_DATA_REDACTED,
+                          status: r.status,
+                          json: SENSITIVE_DATA_REDACTED,
+                      }
+                    : {
+                          method,
+                          url,
+                          body,
+                          status: r.status,
+                          json: JSON.stringify(js).substring(0, 500),
+                      },
+            );
             return js;
         })
         .then((d: ApiResponse | ApiError) => {
@@ -221,14 +234,23 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
             }
         })
         .catch((err) => {
-            // TODO do not capture some requests, like passwords or sensitive data
-            networkHistory.push({
-                method,
-                status: err.status,
-                url,
-                body,
-                error: JSON.stringify(err).substring(0, 500),
-            });
+            networkHistory.push(
+                sensitive
+                    ? {
+                          method,
+                          status: err.status,
+                          url,
+                          body: SENSITIVE_DATA_REDACTED,
+                          error: SENSITIVE_DATA_REDACTED,
+                      }
+                    : {
+                          method,
+                          status: err.status,
+                          url,
+                          body,
+                          error: JSON.stringify(err).substring(0, 500),
+                      },
+            );
             // only store last MAX_NETWORK_HISTORY requests
             if (networkHistory.length > MAX_NETWORK_HISTORY)
                 networkHistory.shift();

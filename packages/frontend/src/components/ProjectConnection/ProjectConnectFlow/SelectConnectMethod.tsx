@@ -4,6 +4,7 @@ import {
     IconChecklist,
     IconChevronLeft,
     IconChevronRight,
+    IconRobot,
     IconTerminal,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -18,12 +19,14 @@ import { ConnectMethod } from './types';
 
 interface SelectConnectMethodProps {
     isCreatingFirstProject: boolean;
+    isCodingAgentOnboardingEnabled: boolean;
     onBack: () => void;
     onSelect: (method: ConnectMethod) => void;
 }
 
 const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
     isCreatingFirstProject,
+    isCodingAgentOnboardingEnabled,
     onSelect,
     onBack,
 }) => {
@@ -54,6 +57,35 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                     </Text>
 
                     <Stack>
+                        {isCodingAgentOnboardingEnabled && (
+                            <OnboardingButton
+                                onClick={() => {
+                                    track({
+                                        name: EventName.CREATE_PROJECT_AGENT_BUTTON_CLICKED,
+                                    });
+                                    onSelect(ConnectMethod.AGENT);
+                                }}
+                                leftIcon={
+                                    <Avatar radius="xl">
+                                        <MantineIcon
+                                            icon={IconRobot}
+                                            color="black"
+                                            size="lg"
+                                        />
+                                    </Avatar>
+                                }
+                                rightIcon={
+                                    <MantineIcon
+                                        icon={IconChevronRight}
+                                        color="black"
+                                    />
+                                }
+                                description="Connect your warehouse, then let your coding agent finish setup"
+                            >
+                                Using your coding agent
+                            </OnboardingButton>
+                        )}
+
                         <OnboardingButton
                             onClick={() => {
                                 track({

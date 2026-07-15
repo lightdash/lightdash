@@ -275,6 +275,12 @@ export enum FeatureFlags {
     CodingAgent = 'ai-coding-agent',
 
     /**
+     * Show the coding-agent project onboarding flow. This gates only the UI;
+     * the CLI, APIs, and installed skills remain available independently.
+     */
+    CodingAgentOnboarding = 'coding-agent-onboarding',
+
+    /**
      * Let org admins set their own Anthropic/OpenAI API keys for AI agents.
      */
     OrgAiProviderApiKeys = 'org-ai-provider-api-keys',

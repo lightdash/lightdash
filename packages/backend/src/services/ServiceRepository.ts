@@ -61,6 +61,7 @@ import { ProjectDbtSourcesService } from './ProjectDbtSourcesService';
 import { ProjectParametersService } from './ProjectParametersService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { PromoteService } from './PromoteService/PromoteService';
+import { PromptService } from './PromptService/PromptService';
 import { PullRequestsService } from './PullRequestsService/PullRequestsService';
 import { RenameService } from './RenameService/RenameService';
 import { RolesService } from './RolesService/RolesService';
@@ -117,6 +118,7 @@ interface ServiceManifest {
     pinningService: PinningService;
     pivotTableService: PivotTableService;
     projectService: ProjectService;
+    promptService: PromptService;
     savedChartService: SavedChartService;
     schedulerService: SchedulerService;
     searchService: SearchService;
@@ -839,6 +841,17 @@ export class ServiceRepository
                         this.providers.appGenerateService
                             ? this.getAppGenerateService<AppGenerateService>()
                             : undefined,
+                }),
+        );
+    }
+
+    public getPromptService(): PromptService {
+        return this.getService(
+            'promptService',
+            () =>
+                new PromptService({
+                    analytics: this.context.lightdashAnalytics,
+                    lightdashConfig: this.context.lightdashConfig,
                 }),
         );
     }
