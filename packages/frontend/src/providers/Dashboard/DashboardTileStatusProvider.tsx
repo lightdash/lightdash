@@ -26,7 +26,7 @@ export type DashboardTileStatusProviderProps = {
     dashboardTiles: Dashboard['tiles'] | undefined;
     dashboardTabs: Dashboard['tabs'];
     activeTab: Dashboard['tabs'][number] | undefined;
-    schedulerTabsSelected?: string[] | undefined;
+    schedulerTabsSelected?: (string | null)[] | undefined;
     defaultInvalidateCache?: boolean;
     children: React.ReactNode;
 };
@@ -151,14 +151,9 @@ const DashboardTileStatusProvider: React.FC<
                         isDashboardChartTileType(tile) ||
                         isDashboardSqlChartTile(tile),
                 )
-                .filter((tile) => {
-                    if (!tile.tabUuid) {
-                        return schedulerTabsSelected.includes(
-                            tile.tabUuid as unknown as string,
-                        );
-                    }
-                    return schedulerTabsSelected.includes(tile.tabUuid);
-                })
+                .filter((tile) =>
+                    schedulerTabsSelected.includes(tile.tabUuid ?? null),
+                )
                 .map((tile) => tile.uuid);
         }
 

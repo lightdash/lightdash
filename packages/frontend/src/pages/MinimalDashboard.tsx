@@ -386,7 +386,7 @@ const MinimalDashboard: FC = () => {
         return sendNowSchedulerParameters;
     }, [scheduler, schedulerUuid, sendNowSchedulerParameters]);
 
-    const schedulerTabsSelected = useMemo(() => {
+    const schedulerTabsSelected = useMemo<(string | null)[] | undefined>(() => {
         if (schedulerTabs) {
             return JSON.parse(schedulerTabs);
         }
@@ -588,7 +588,9 @@ const MinimalDashboard: FC = () => {
         return <span>Loading...</span>;
     }
 
-    if (dashboard.tiles.length === 0) {
+    // Paged export must still mount one page container per resolved tab
+    // (page-count invariant), so tile-less dashboards render empty-tab pages.
+    if (dashboard.tiles.length === 0 && !exportPagedTabs) {
         return <span>No tiles</span>;
     }
 
