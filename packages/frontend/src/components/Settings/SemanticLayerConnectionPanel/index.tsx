@@ -1,31 +1,39 @@
 import { subject } from '@casl/ability';
-import { CommercialFeatureFlags, ServiceAccountScope } from '@lightdash/common';
+import { CommercialFeatureFlags } from '@lightdash/common';
 import {
     ActionIcon,
-    Button,
+    Anchor,
+    Box,
     CopyButton,
     Group,
-    Select,
+    PasswordInput,
     Stack,
     Switch,
+    Tabs,
     Text,
-    TextInput,
     Title,
     Tooltip,
+    UnstyledButton,
 } from '@mantine-8/core';
-import { IconCheck, IconCopy, IconKey } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
-import { useServiceAccounts } from '../../../ee/features/serviceAccounts/useServiceAccounts';
+import {
+    IconCheck,
+    IconCircleCheckFilled,
+    IconCopy,
+} from '@tabler/icons-react';
+import { useMemo, useState, type FC, type ReactNode } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import {
     useOrganizationSettings,
     useUpdateOrganizationSettings,
 } from '../../../hooks/organization/useOrganizationSettings';
+import { useProject } from '../../../hooks/useProject';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import Callout from '../../common/Callout';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
+import { GenerateTokenModal, type GeneratedToken } from './GenerateTokenModal';
+import classes from './SemanticLayerConnectionPanel.module.css';
 
 type Props = {
     projectUuid: string;
@@ -34,19 +42,95 @@ type Props = {
 const DEFAULT_USER = 'lightdash';
 const TOKEN_PLACEHOLDER = '<token>';
 
-const CopyableField: FC<{
-    label: string;
-    value: string;
-    description?: string;
-}> = ({ label, value, description }) => (
-    <TextInput
-        label={label}
-        description={description}
-        readOnly
-        value={value}
-        className="sentry-block ph-no-capture"
-        rightSection={
-            <CopyButton value={value} timeout={2000}>
+type SnippetKey = 'libpqUrl' | 'psql' | 'jdbc';
+
+const SNIPPET_TABS: { value: SnippetKey; label: string }[] = [
+    { value: 'libpqUrl', label: 'Connection URL' },
+    { value: 'psql', label: 'psql' },
+    { value: 'jdbc', label: 'JDBC' },
+];
+
+// Keep the token recognisable (prefix + last 4) while hiding the secret body,
+// so it's safe to show on screen shares yet still identifiable.
+const maskToken = (token: string) => {
+    if (token.length <= 10) return '•'.repeat(token.length);
+    return `${token.slice(0, 6)}${'•'.repeat(12)}${token.slice(-4)}`;
+};
+
+const ConnectionChip: FC<{ label: string; value: string; span?: boolean }> = ({
+    label,
+    value,
+    span = false,
+}) => (
+    <Box
+        className={`${classes.chip}${
+            span ? ` ${classes.chipSpan2}` : ''
+        } sentry-block ph-no-capture`}
+    >
+        <Box className={classes.chipText}>
+            <Text className={classes.chipLabel}>{label}</Text>
+            <Text className={classes.chipValue} title={value}>
+                {value}
+            </Text>
+        </Box>
+        <CopyButton value={value} timeout={2000}>
+            {({ copied, copy }) => (
+                <Tooltip
+                    label={copied ? 'Copied' : 'Copy'}
+                    withArrow
+                    position="left"
+                >
+                    <ActionIcon variant="default" size="sm" onClick={copy}>
+                        <MantineIcon
+                            icon={copied ? IconCheck : IconCopy}
+                            size="sm"
+                        />
+                    </ActionIcon>
+                </Tooltip>
+            )}
+        </CopyButton>
+    </Box>
+);
+
+const Step: FC<{
+    index: number;
+    active: boolean;
+    title: string;
+    description?: ReactNode;
+    children: ReactNode;
+}> = ({ index, active, title, description, children }) => (
+    <Box className={classes.step}>
+        <Box
+            className={`${classes.bullet} ${
+                active ? classes.bulletActive : classes.bulletInactive
+            }`}
+        >
+            {index}
+        </Box>
+        <Box className={classes.content}>
+            <Stack gap="xs">
+                <Stack gap={2}>
+                    <Title order={6}>{title}</Title>
+                    {description && (
+                        <Text c="ldGray.6" fz="sm">
+                            {description}
+                        </Text>
+                    )}
+                </Stack>
+                {children}
+            </Stack>
+        </Box>
+    </Box>
+);
+
+const CodeBlock: FC<{ displayValue: ReactNode; copyValue: string }> = ({
+    displayValue,
+    copyValue,
+}) => (
+    <Box className={`${classes.codeBlock} sentry-block ph-no-capture`}>
+        {displayValue}
+        <Box className={classes.codeBlockCopy}>
+            <CopyButton value={copyValue} timeout={2000}>
                 {({ copied, copy }) => (
                     <Tooltip
                         label={copied ? 'Copied' : 'Copy'}
@@ -63,75 +147,81 @@ const CopyableField: FC<{
                     </Tooltip>
                 )}
             </CopyButton>
-        }
-    />
+        </Box>
+    </Box>
 );
 
-/**
- * Token step for the connection page. The pgwire password is a Lightdash token;
- * a token's plaintext is only ever returned once, at creation. So rather than
- * let the user pick an existing service account (whose token we can't recover),
- * we generate a fresh minimum-scope service account on the spot and reveal its
- * token once. It's lifted to the parent so the snippets can render a
- * ready-to-use password; a page reload clears it.
- */
-const GenerateTokenField: FC<{
-    generatedToken: string | null;
-    onTokenGenerated: (token: string) => void;
-}> = ({ generatedToken, onTokenGenerated }) => {
-    const { createAccount } = useServiceAccounts();
-
-    const handleGenerateToken = () => {
-        createAccount.mutate(
-            {
-                description: 'Semantic layer Postgres connection',
-                expiresAt: null,
-                // Minimum permissions needed to run semantic-layer queries.
-                scopes: [ServiceAccountScope.SYSTEM_INTERACTIVE_VIEWER],
-            },
-            {
-                onSuccess: (account) => onTokenGenerated(account.token),
-            },
-        );
-    };
-
-    if (generatedToken) {
-        return (
-            <Stack gap="xs">
-                <CopyableField
-                    label="Password (token)"
-                    value={generatedToken}
-                />
-                <Callout variant="info">
-                    Copy this token now — you won&apos;t be able to see it
-                    again. It&apos;s the password for every example below.
-                </Callout>
-            </Stack>
-        );
-    }
-
+// One connected green card: header, the masked token, its copy button, and the
+// reminder all live inside the same success-tinted surface so they read as a
+// single unit.
+const TokenAddedCard: FC<{
+    generated: GeneratedToken;
+    onReplace: () => void;
+}> = ({ generated, onReplace }) => {
+    const masked = maskToken(generated.token);
     return (
-        <Group justify="space-between" wrap="nowrap" align="center">
-            <Text c="ldGray.6" fz="xs">
-                Generate a service account token (created with the minimum scope
-                needed to run queries) to use as the password.
+        <Box className={classes.tokenCard}>
+            <Group justify="space-between" wrap="nowrap" align="flex-start">
+                <Group gap="xs" wrap="nowrap" align="flex-start">
+                    <MantineIcon
+                        icon={IconCircleCheckFilled}
+                        color="green"
+                        size="lg"
+                    />
+                    <Box>
+                        <Text className={classes.tokenCardTitle}>
+                            Token added as your password
+                        </Text>
+                        <Text className={classes.tokenCardMeta}>
+                            Generated for {generated.description} ·{' '}
+                            {generated.expiresLabel}
+                        </Text>
+                    </Box>
+                </Group>
+                <Anchor
+                    component="button"
+                    type="button"
+                    fz="sm"
+                    fw={500}
+                    onClick={onReplace}
+                    style={{ flexShrink: 0 }}
+                >
+                    Replace
+                </Anchor>
+            </Group>
+            <Group gap="xs" wrap="nowrap" align="stretch" mt="sm">
+                <Box
+                    className={`${classes.tokenField} sentry-block ph-no-capture`}
+                    title={masked}
+                >
+                    {masked}
+                </Box>
+                <CopyButton value={generated.token} timeout={2000}>
+                    {({ copied, copy }) => (
+                        <UnstyledButton
+                            className={classes.tokenCopyBtn}
+                            onClick={copy}
+                        >
+                            <MantineIcon
+                                icon={copied ? IconCheck : IconCopy}
+                                size="sm"
+                            />
+                            {copied ? 'Copied' : 'Copy'}
+                        </UnstyledButton>
+                    )}
+                </CopyButton>
+            </Group>
+            <Text className={classes.tokenCardHint} mt="xs">
+                Remember to save your token — you can&apos;t access it again.
             </Text>
-            <Button
-                variant="default"
-                leftSection={<MantineIcon icon={IconKey} />}
-                loading={createAccount.isLoading}
-                onClick={handleGenerateToken}
-                style={{ flexShrink: 0 }}
-            >
-                Generate token
-            </Button>
-        </Group>
+        </Box>
     );
 };
 
 const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
     const { health, user } = useApp();
     const { data: organization } = useOrganization();
+    const { data: project } = useProject(projectUuid);
     const { data: settings, isLoading: isSettingsLoading } =
         useOrganizationSettings();
     const update = useUpdateOrganizationSettings();
@@ -159,32 +249,60 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
         (serviceAccountsFlag?.enabled ?? false);
 
     // The plaintext token is only returned once, when a service account is
-    // generated on the spot. We hold it in memory so the snippets can render a
-    // ready-to-use password; a page reload clears it.
-    const [generatedToken, setGeneratedToken] = useState<string | null>(null);
+    // generated on the spot. `manualToken` holds a token the user pasted;
+    // `generated` holds one we minted (which we mask and can't recover). Either
+    // feeds the snippets; a page reload clears both.
+    const [manualToken, setManualToken] = useState('');
+    const [generated, setGenerated] = useState<GeneratedToken | null>(null);
+    const [isModalOpen, setModalOpen] = useState(false);
+    const [activeSnippet, setActiveSnippet] = useState<SnippetKey>('libpqUrl');
+
+    const activeToken = generated?.token ?? manualToken;
+    const hasToken = activeToken.length > 0;
+    const tokenForSnippet = activeToken || TOKEN_PLACEHOLDER;
 
     const host = organization?.pgWire?.host ?? '';
     const port = organization?.pgWire?.port ?? null;
     const portString = port !== null ? String(port) : '';
-    const token = generatedToken ?? TOKEN_PLACEHOLDER;
 
-    const snippets = useMemo(() => {
-        const libpqUrl = `postgresql://${DEFAULT_USER}:${token}@${host}:${portString}/${projectUuid}?sslmode=disable`;
-        const psql = `PGPASSWORD=${token} psql -h ${host} -p ${portString} -U ${DEFAULT_USER} -d ${projectUuid} "sslmode=disable"`;
+    const snippets = useMemo<Record<SnippetKey, string>>(() => {
+        const libpqUrl = `postgresql://${DEFAULT_USER}:${tokenForSnippet}@${host}:${portString}/${projectUuid}?sslmode=disable`;
+        const psql = `PGPASSWORD=${tokenForSnippet} psql -h ${host} -p ${portString} -U ${DEFAULT_USER} -d ${projectUuid} "sslmode=disable"`;
         const jdbc = `jdbc:postgresql://${host}:${portString}/${projectUuid}?sslmode=disable`;
         return { libpqUrl, psql, jdbc };
-    }, [host, portString, projectUuid, token]);
+    }, [host, portString, projectUuid, tokenForSnippet]);
+
+    // The visible snippet blots out the token so it's safe on screen, while the
+    // copy button still yields the exact, ready-to-paste string.
+    const displaySnippet = useMemo<ReactNode>(() => {
+        const snippet = snippets[activeSnippet];
+        if (!hasToken || !snippet.includes(activeToken)) return snippet;
+        const [before, after] = snippet.split(activeToken);
+        return (
+            <>
+                {before}
+                <Text span className={classes.codeMask}>
+                    {maskToken(activeToken)}
+                </Text>
+                {after}
+            </>
+        );
+    }, [snippets, activeSnippet, hasToken, activeToken]);
+
+    const handleReplace = () => {
+        setGenerated(null);
+        setManualToken('');
+    };
 
     return (
         <Stack gap="sm">
-            <SettingsCard mb="lg">
+            <SettingsCard>
                 <Group justify="space-between" wrap="nowrap" align="flex-start">
                     <Stack gap="xxs">
-                        <Title order={5}>Semantic layer connection</Title>
+                        <Title order={5}>Metric SQL API</Title>
                         <Text c="ldGray.6" size="sm">
-                            Connect BI tools and SQL clients to this
-                            project&apos;s semantic layer over the Postgres wire
-                            protocol.
+                            Connect BI tools and SQL clients over the Postgres
+                            wire protocol. Follow the three steps below.
                         </Text>
                     </Stack>
                     <Switch
@@ -203,7 +321,7 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
             </SettingsCard>
 
             {isEnabled && !isOrgAdmin && (
-                <SettingsCard mb="lg">
+                <SettingsCard>
                     <Callout variant="info">
                         Connection details are only visible to organization
                         admins.
@@ -212,90 +330,144 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
             )}
 
             {isEnabled && isOrgAdmin && (
-                <>
-                    <SettingsCard mb="lg">
-                        <Stack gap="md">
-                            <Callout variant="info" title="Before you connect">
-                                Only simple <code>SELECT</code> queries against
-                                a single explore are supported (no SQL joins),
-                                with a default limit of 500 rows. TLS is not yet
-                                available, so clients must use{' '}
-                                <code>sslmode=disable</code>.
-                            </Callout>
+                <SettingsCard p="lg">
+                    <Stack gap="lg">
+                        <Callout variant="info" title="Before you connect">
+                            Only simple <code>SELECT</code> queries against a
+                            single explore are supported (no SQL joins), with a
+                            default limit of 500 rows. TLS is not yet available,
+                            so clients must use <code>sslmode=disable</code>.
+                        </Callout>
 
-                            <Title order={6}>Connection details</Title>
-                            <Group grow align="flex-start" wrap="nowrap">
-                                <CopyableField label="Host" value={host} />
-                                <CopyableField
-                                    label="Port"
-                                    value={portString}
-                                />
-                            </Group>
-                            <CopyableField
-                                label="Database"
-                                description="Use the project UUID (unambiguous)."
-                                value={projectUuid}
-                            />
-                            <Group grow align="flex-start" wrap="nowrap">
-                                <CopyableField
-                                    label="User"
-                                    description="Not enforced — any value works."
-                                    value={DEFAULT_USER}
-                                />
-                                <Select
-                                    label="SSL mode"
-                                    description="SSL support is coming soon."
-                                    data={[
-                                        { value: 'disable', label: 'disable' },
-                                    ]}
-                                    value="disable"
-                                    disabled
-                                />
-                            </Group>
-                        </Stack>
-                    </SettingsCard>
+                        <Box>
+                            <Step
+                                index={1}
+                                active
+                                title="Token"
+                                description="Paste an existing Lightdash token or generate a new one for this integration. You can use a service account or personal access token."
+                            >
+                                {generated ? (
+                                    <TokenAddedCard
+                                        generated={generated}
+                                        onReplace={handleReplace}
+                                    />
+                                ) : (
+                                    <Stack gap="xs">
+                                        <PasswordInput
+                                            placeholder="ldsvc_… or ldpat_…"
+                                            className="sentry-block ph-no-capture"
+                                            value={manualToken}
+                                            onChange={(event) =>
+                                                setManualToken(
+                                                    event.currentTarget.value.trim(),
+                                                )
+                                            }
+                                        />
+                                        {isServiceAccountsEnabled ? (
+                                            <Text c="ldGray.6" fz="sm">
+                                                Don&apos;t have a token?{' '}
+                                                <Anchor
+                                                    component="button"
+                                                    type="button"
+                                                    fw={500}
+                                                    onClick={() =>
+                                                        setModalOpen(true)
+                                                    }
+                                                >
+                                                    Generate a new one
+                                                </Anchor>
+                                            </Text>
+                                        ) : (
+                                            <Text c="ldGray.6" fz="sm">
+                                                Paste a personal access token
+                                                from your account settings.
+                                            </Text>
+                                        )}
+                                    </Stack>
+                                )}
+                            </Step>
 
-                    <SettingsCard mb="lg">
-                        <Stack gap="md">
-                            <Stack gap="xxs">
-                                <Title order={6}>Authentication</Title>
-                                <Text c="ldGray.6" fz="sm">
-                                    Use a service account token (
-                                    <code>ldsvc_...</code>) or a personal access
-                                    token (<code>ldpat_...</code>) as the
-                                    password.
-                                </Text>
-                            </Stack>
-                            {isServiceAccountsEnabled ? (
-                                <GenerateTokenField
-                                    generatedToken={generatedToken}
-                                    onTokenGenerated={setGeneratedToken}
-                                />
-                            ) : (
-                                <Text c="ldGray.6" fz="xs">
-                                    Paste a personal access token from your
-                                    account settings to use as the password in
-                                    the examples below.
-                                </Text>
-                            )}
-                        </Stack>
-                    </SettingsCard>
+                            <Step
+                                index={2}
+                                active={false}
+                                title="Connection details"
+                            >
+                                <Box className={classes.chipGrid}>
+                                    <ConnectionChip
+                                        label="Host"
+                                        value={host}
+                                        span
+                                    />
+                                    <ConnectionChip
+                                        label="Port"
+                                        value={portString}
+                                    />
+                                    <ConnectionChip
+                                        label="User"
+                                        value={DEFAULT_USER}
+                                    />
+                                    <ConnectionChip
+                                        label="Database"
+                                        value={projectUuid}
+                                        span
+                                    />
+                                    <ConnectionChip
+                                        label="SSL mode"
+                                        value="disable"
+                                    />
+                                </Box>
+                            </Step>
 
-                    <SettingsCard mb="lg">
-                        <Stack gap="md">
-                            <Title order={6}>Ready-to-copy examples</Title>
-                            <CopyableField
-                                label="Connection URL"
-                                value={snippets.libpqUrl}
-                            />
-                            <CopyableField label="psql" value={snippets.psql} />
-                            <CopyableField
-                                label="JDBC (DBeaver / DataGrip)"
-                                value={snippets.jdbc}
-                            />
-                        </Stack>
-                    </SettingsCard>
-                </>
+                            <Step
+                                index={3}
+                                active={false}
+                                title="Connect your client"
+                                description="Pick your tool and copy the ready-made string."
+                            >
+                                <Stack gap="sm">
+                                    <Tabs
+                                        value={activeSnippet}
+                                        onChange={(value) => {
+                                            if (value)
+                                                setActiveSnippet(
+                                                    value as SnippetKey,
+                                                );
+                                        }}
+                                    >
+                                        <Tabs.List>
+                                            {SNIPPET_TABS.map((tab) => (
+                                                <Tabs.Tab
+                                                    key={tab.value}
+                                                    value={tab.value}
+                                                >
+                                                    {tab.label}
+                                                </Tabs.Tab>
+                                            ))}
+                                        </Tabs.List>
+                                    </Tabs>
+                                    <CodeBlock
+                                        displayValue={displaySnippet}
+                                        copyValue={snippets[activeSnippet]}
+                                    />
+                                </Stack>
+                            </Step>
+                        </Box>
+                    </Stack>
+                </SettingsCard>
+            )}
+
+            {isEnabled && isOrgAdmin && isServiceAccountsEnabled && (
+                <GenerateTokenModal
+                    opened={isModalOpen}
+                    onClose={() => setModalOpen(false)}
+                    projectUuid={projectUuid}
+                    projectName={project?.name ?? ''}
+                    onGenerated={(token) => {
+                        setManualToken('');
+                        setGenerated(token);
+                        setModalOpen(false);
+                    }}
+                />
             )}
         </Stack>
     );

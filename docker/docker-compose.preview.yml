@@ -73,6 +73,11 @@ services:
             S3_BUCKET: ${S3_BUCKET}
             MCP_ENABLED: true
             CUSTOM_ROLES_ENABLED: true
+            # Enable service accounts in preview envs so the semantic-layer
+            # connection page can generate project-scoped tokens. Sets the
+            # health flag and (via LEGACY_ENABLE_ENV_VARS in parseConfig.ts)
+            # the unified `service-accounts` feature flag.
+            SERVICE_ACCOUNT_ENABLED: true
 
             # Enterprise Postgres wire protocol server for the semantic layer.
             # Setting the port starts the listener and lights up the "Semantic
