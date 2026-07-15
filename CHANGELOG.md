@@ -1,3 +1,10 @@
+# [0.3389.0](https://github.com/lightdash/lightdash/compare/0.3388.0...0.3389.0) (2026-07-15)
+
+
+### Features
+
+* add coding agent project onboarding ([#25597](https://github.com/lightdash/lightdash/issues/25597)) ([c6f05ab](https://github.com/lightdash/lightdash/commit/c6f05ab89056c463c16d124043eb71d4b496a246))
+
 # [0.3388.0](https://github.com/lightdash/lightdash/compare/0.3387.0...0.3388.0) (2026-07-15)
 
 
