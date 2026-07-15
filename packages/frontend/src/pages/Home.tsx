@@ -168,16 +168,18 @@ const Home: FC = () => {
         onboarding.data.ranQuery
     ) {
         return (
-            <Page withPaddedContent withFooter>
-                <Stack gap="md">
-                    <Can
-                        I="manage"
-                        this={subject('ProjectHomepage', {
-                            organizationUuid: project.data.organizationUuid,
-                            projectUuid: project.data.projectUuid,
-                        })}
-                    >
-                        <Group justify="flex-end">
+            <Page withFooter noContentPadding>
+                <DayOneHomepage
+                    projectUuid={project.data.projectUuid}
+                    projectName={project.data.name}
+                    adminSlot={
+                        <Can
+                            I="manage"
+                            this={subject('ProjectHomepage', {
+                                organizationUuid: project.data.organizationUuid,
+                                projectUuid: project.data.projectUuid,
+                            })}
+                        >
                             <Button
                                 variant="default"
                                 size="xs"
@@ -190,13 +192,9 @@ const Home: FC = () => {
                             >
                                 Customize homepage
                             </Button>
-                        </Group>
-                    </Can>
-                    <DayOneHomepage
-                        projectUuid={project.data.projectUuid}
-                        projectName={project.data.name}
-                    />
-                </Stack>
+                        </Can>
+                    }
+                />
             </Page>
         );
     }
