@@ -1160,7 +1160,8 @@ const scopes: Scope[] = [
     },
     {
         name: 'manage:AiAgent',
-        description: 'Create and manage AI agents in a project',
+        description:
+            'Create and manage all AI agents in a project, including agents restricted to specific users or groups',
         isEnterprise: true,
         group: ScopeGroup.AI,
         dependencies: [{ name: 'view:Project' }],
