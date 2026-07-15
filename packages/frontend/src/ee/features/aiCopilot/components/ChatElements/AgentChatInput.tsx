@@ -22,6 +22,8 @@ import { ModelSelector } from '../../../../../components/common/ModelSelector/Mo
 import useUser from '../../../../../hooks/user/useUser';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
+import { subscribeToDeepResearchComposerPrompt } from '../../deepResearch/deepResearchRegistry';
+import { type StartDeepResearchArgs } from '../../deepResearch/types';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
 import {
     useCreateAiAgentThreadMessageSteerMutation,
@@ -30,6 +32,10 @@ import {
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
 import { AgentSelector } from '../AgentSelector';
 import { type Agent } from '../AgentSelector/AgentSelectorUtils';
+import {
+    DeepResearchModeControl,
+    type AgentComposerMode,
+} from '../DeepResearch/DeepResearchModeControl';
 import styles from './AgentChatInput.module.css';
 import { AgentSuggestionChips } from './AgentSuggestionChips';
 import {
@@ -71,6 +77,7 @@ type SubmitArgs = {
 
 interface AgentChatInputProps {
     onSubmit: (args: SubmitArgs) => void;
+    onStartDeepResearch?: (args: StartDeepResearchArgs) => Promise<void>;
     loading?: boolean;
     disabled?: boolean;
     disabledReason?: string;
@@ -117,6 +124,7 @@ const extractToolHints = (editor: Editor | null): string[] => {
 
 export const AgentChatInput = ({
     onSubmit,
+    onStartDeepResearch,
     loading = false,
     disabled = false,
     disabledReason,
@@ -152,6 +160,8 @@ export const AgentChatInput = ({
     const handleInputCardMouseDown = useCallback(() => {
         if (revealAgentSelectorOnFocus) setHasClickedInput(true);
     }, [revealAgentSelectorOnFocus]);
+    const [composerMode, setComposerMode] = useState<AgentComposerMode>('ask');
+    const [preflightRequest, setPreflightRequest] = useState(0);
     const navigate = useNavigate();
     const onSubmitRef = useRef(onSubmit);
     onSubmitRef.current = onSubmit;
@@ -339,6 +349,15 @@ export const AgentChatInput = ({
     }, [editor, disabled]);
 
     useEffect(() => {
+        if (!editor || !threadUuid) return undefined;
+        return subscribeToDeepResearchComposerPrompt((detail) => {
+            if (detail.threadUuid !== threadUuid) return;
+            editor.commands.setContent(detail.prompt);
+            editor.commands.focus('end');
+        });
+    }, [editor, threadUuid]);
+
+    useEffect(() => {
         if (hasRequestedInterrupt && !threadStream?.isStreaming) {
             setHasRequestedInterrupt(false);
         }
@@ -454,6 +473,10 @@ export const AgentChatInput = ({
         if (!ed) return;
         const text = ed.getText().trim();
         if (!text || disabled) return;
+        if (composerMode === 'deep_research' && onStartDeepResearch) {
+            setPreflightRequest((request) => request + 1);
+            return;
+        }
         if (canSteer) {
             if (steerMutation.isLoading) return;
             void handleSteer(text);
@@ -501,6 +524,32 @@ export const AgentChatInput = ({
         });
         setHasRequestedInterrupt(true);
     };
+
+    const handleStartDeepResearch = async (
+        depth: StartDeepResearchArgs['depth'],
+    ) => {
+        const ed = editorRef.current;
+        const question = ed?.getText().trim() ?? '';
+        if (!question || !onStartDeepResearch) {
+            return;
+        }
+        await onStartDeepResearch({ question, depth });
+        if (clearOnSubmitRef.current) {
+            ed?.commands.clearContent();
+            setValueState('');
+        }
+    };
+
+    const deepResearchControl = onStartDeepResearch ? (
+        <DeepResearchModeControl
+            question={value.trim()}
+            projectUuid={projectUuid}
+            agentUuid={agentUuid}
+            onStart={handleStartDeepResearch}
+            onModeChange={setComposerMode}
+            preflightRequest={preflightRequest}
+        />
+    ) : null;
 
     const chipRow = useMemo(() => {
         if (!emptyStateMode && !postResponseMode) return null;
@@ -676,10 +725,19 @@ export const AgentChatInput = ({
 
                 {showSqlModeControl && (
                     <Box className={styles.threadBelowControls}>
-                        {renderSqlModeControl({
-                            actionSize: 'sm',
-                            iconSize: 14,
-                        })}
+                        <Group gap="xs">
+                            {deepResearchControl}
+                            {renderSqlModeControl({
+                                actionSize: 'sm',
+                                iconSize: 14,
+                            })}
+                        </Group>
+                    </Box>
+                )}
+
+                {!showSqlModeControl && deepResearchControl && (
+                    <Box className={styles.threadBelowControls}>
+                        {deepResearchControl}
                     </Box>
                 )}
 
@@ -724,6 +782,7 @@ export const AgentChatInput = ({
 
                 <Box className={styles.toolbar}>
                     <Box className={styles.toolbarActions}>
+                        {!isThreadInput && deepResearchControl}
                         {!isThreadInput &&
                             renderSqlModeControl({
                                 actionSize: 30,
@@ -826,12 +885,16 @@ export const AgentChatInput = ({
             </Box>
 
             {isThreadInput
-                ? showSqlModeControl && (
+                ? (showSqlModeControl || deepResearchControl) && (
                       <Box className={styles.threadBelowControls}>
-                          {renderSqlModeControl({
-                              actionSize: 'sm',
-                              iconSize: 14,
-                          })}
+                          <Group gap="xs">
+                              {deepResearchControl}
+                              {showSqlModeControl &&
+                                  renderSqlModeControl({
+                                      actionSize: 'sm',
+                                      iconSize: 14,
+                                  })}
+                          </Group>
                       </Box>
                   )
                 : renderChipRow(

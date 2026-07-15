@@ -1,7 +1,9 @@
 import { subject } from '@casl/ability';
+import { FeatureFlags } from '@lightdash/common';
 import { Box, Center, Flex, Loader } from '@mantine-8/core';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useOutletContext, useParams, useSearchParams } from 'react-router';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import { ReviewVerificationPanel } from '../../features/aiCopilot/components/Admin/ReviewVerificationPanel';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
@@ -22,6 +24,7 @@ import {
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { useAiAgentThreadArtifact } from '../../features/aiCopilot/hooks/useAiAgentThreadArtifact';
+import { useStartDeepResearchMutation } from '../../features/aiCopilot/hooks/useDeepResearch';
 import { useModelOptions } from '../../features/aiCopilot/hooks/useModelOptions';
 import { usePendingThreadRefetch } from '../../features/aiCopilot/hooks/usePendingThreadRefetch';
 import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
@@ -165,6 +168,11 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const updateReviewItemStatus = useUpdateAiAgentReviewItemStatus();
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
+    const deepResearchFlag = useServerFeatureFlag(FeatureFlags.AiDeepResearch);
+    const startDeepResearch = useStartDeepResearchMutation({
+        projectUuid: projectUuid!,
+        threadUuid: threadUuid!,
+    });
     const sqlMode = useAiAgentStoreSelector(
         selectThreadSqlMode(threadUuid ?? ''),
     );
@@ -279,6 +287,19 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             toolHints,
         });
     };
+    const handleStartDeepResearch = async ({
+        question,
+        depth,
+    }: Parameters<typeof startDeepResearch.mutateAsync>[0]) => {
+        await createAgentThreadMessage({
+            prompt: question,
+            modelConfig: threadModelConfig ?? undefined,
+            context: pageContextInput,
+            optimisticContext: pagePreviewItems,
+            skipAgentResponse: true,
+        });
+        await startDeepResearch.mutateAsync({ question, depth });
+    };
     const isBusy = Boolean(isCreatingMessage || isStreaming || isPending);
     const retryPrompt = reviewItem?.remediation?.retryPrompt ?? null;
     const handleRetryOriginalQuestion = () => {
@@ -329,6 +350,11 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                         disabledReason={inputDisabledReason}
                         loading={isBusy}
                         onSubmit={handleSubmit}
+                        onStartDeepResearch={
+                            deepResearchFlag.data?.enabled
+                                ? handleStartDeepResearch
+                                : undefined
+                        }
                         placeholder={`Ask ${agent.name} anything about your data...`}
                         messageCount={thread.messages?.length || 0}
                         projectUuid={projectUuid}

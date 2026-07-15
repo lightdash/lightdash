@@ -1,0 +1,76 @@
+.workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 22rem;
+    height: calc(100vh - 3.75rem);
+    overflow: hidden;
+
+    @media (max-width: 62em) {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.reportScroll {
+    min-width: 0;
+}
+
+.report {
+    width: min(100%, 52rem);
+    margin-inline: auto;
+    padding: clamp(1.25rem, 4vw, 3.5rem);
+}
+
+.finding {
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-left: 3px solid var(--mantine-color-indigo-outline);
+}
+
+.marker {
+    display: inline-grid;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    place-items: center;
+    border: 1px solid var(--mantine-color-indigo-outline);
+    border-radius: 999px;
+    color: var(--mantine-color-indigo-light-color);
+    background: var(--mantine-color-indigo-light);
+    font: 700 var(--mantine-font-size-xs) var(--mantine-font-family-monospace);
+    cursor: pointer;
+
+    &[data-selected='true'] {
+        color: var(--mantine-color-white);
+        background: var(--mantine-color-indigo-filled);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--mantine-color-indigo-outline);
+        outline-offset: 2px;
+    }
+}
+
+.evidenceRail {
+    min-width: 0;
+    border-left: 1px solid var(--mantine-color-ldGray-3);
+    background: light-dark(
+        var(--mantine-color-ldGray-0),
+        var(--mantine-color-ldDark-7)
+    );
+}
+
+.reference {
+    overflow-wrap: anywhere;
+}
+
+.actions {
+    position: sticky;
+    bottom: 0;
+    padding-block: var(--mantine-spacing-md);
+    border-top: 1px solid var(--mantine-color-ldGray-3);
+    background: var(--mantine-color-body);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .marker {
+        transition: none;
+    }
+}
