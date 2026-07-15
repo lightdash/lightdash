@@ -815,7 +815,9 @@ export default class SchedulerTask {
                             sendNowSchedulerParameters,
                         });
                         if (!unfurlPdf.pdfFile) {
-                            throw new Error('Unable to generate PDF');
+                            throw new UnexpectedServerError(
+                                'Unable to generate PDF',
+                            );
                         }
                         pdfFile = unfurlPdf.pdfFile;
                     }

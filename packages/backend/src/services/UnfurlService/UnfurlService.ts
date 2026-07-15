@@ -29,6 +29,7 @@ import {
     SlackInstallationNotFoundError,
     sleep,
     snakeCaseName,
+    UnexpectedServerError,
     validateSelectedTabs,
     type DashboardFilterRule,
     type DashboardFilters,
@@ -837,7 +838,7 @@ export class UnfurlService extends BaseService {
                     pdfPagination: isUntabbed ? 'crop' : 'cssPaged',
                 });
                 if (!result?.pdfBuffer) {
-                    throw new Error(
+                    throw new UnexpectedServerError(
                         `Unable to render css-paged PDF for dashboard "${dashboard.name}"`,
                     );
                 }
@@ -850,7 +851,7 @@ export class UnfurlService extends BaseService {
                 const expectedPageCount = isUntabbed ? 1 : resolvedTabs.length;
                 const pdfPageCount = countPdfPages(result.pdfBuffer);
                 if (pdfPageCount !== expectedPageCount) {
-                    throw new Error(
+                    throw new UnexpectedServerError(
                         `css-paged PDF for dashboard ${dashboardUuid} rendered ${pdfPageCount} pages but expected ${expectedPageCount} (one per tab) - unfurlId: ${imageId}`,
                     );
                 }
