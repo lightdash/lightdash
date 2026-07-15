@@ -140,20 +140,20 @@ export const getContentAsCodeUploadPermissions = async (
     ]);
     const ability = new Ability<PossibleAbilities>(user.abilityRules);
 
+    const contentAsCodeSubject = subject('ContentAsCode', {
+        organizationUuid: project.organizationUuid,
+        projectUuid: project.projectUuid,
+        upstreamProjectUuid: project.upstreamProjectUuid,
+        type: project.type,
+        createdByUserUuid: project.createdByUserUuid,
+    });
+
     if (
-        ability.cannot(
-            'manage',
-            subject('ContentAsCode', {
-                organizationUuid: project.organizationUuid,
-                projectUuid: project.projectUuid,
-                upstreamProjectUuid: project.upstreamProjectUuid,
-                type: project.type,
-                createdByUserUuid: project.createdByUserUuid,
-            }),
-        )
+        ability.cannot('create', contentAsCodeSubject) &&
+        ability.cannot('manage', contentAsCodeSubject)
     ) {
         throw new ForbiddenError(
-            `You don't have permission to upload content as code to project "${project.name}". The manage:ContentAsCode permission is required.`,
+            `You don't have permission to upload content as code to project "${project.name}". The create:ContentAsCode or manage:ContentAsCode permission is required.`,
         );
     }
 
