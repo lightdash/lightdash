@@ -32,6 +32,7 @@ import type {
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiDashboardSummaryResponse,
     ApiAiGenerateChartMetadataResponse,
+    ApiAiGenerateCustomDimensionResponse,
     ApiAiGenerateFormulaTableCalculationResponse,
     ApiAiGenerateTableCalculationResponse,
     ApiAiGetDashboardSummaryResponse,
@@ -1105,6 +1106,7 @@ type ApiResults =
     | ApiAiDashboardSummaryResponse['results']
     | ApiAiGetDashboardSummaryResponse['results']
     | ApiAiGenerateChartMetadataResponse['results']
+    | ApiAiGenerateCustomDimensionResponse['results']
     | ApiAiGenerateFormulaTableCalculationResponse['results']
     | ApiAiGenerateTableCalculationResponse['results']
     | ApiCatalogMetadataResults
