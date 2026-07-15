@@ -436,11 +436,12 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                                 <Stack gap="sm">
                                     <Tabs
                                         value={activeSnippet}
-                                        onChange={(value) =>
-                                            setActiveSnippet(
-                                                value as SnippetKey,
-                                            )
-                                        }
+                                        onChange={(value) => {
+                                            if (value)
+                                                setActiveSnippet(
+                                                    value as SnippetKey,
+                                                );
+                                        }}
                                     >
                                         <Tabs.List>
                                             {SNIPPET_TABS.map((tab) => (
