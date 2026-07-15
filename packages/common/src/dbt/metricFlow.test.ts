@@ -8,9 +8,12 @@ import {
     type DbtSemanticModel,
 } from '../types/dbtSemanticLayer';
 import { type Explore } from '../types/explore';
-import { FieldType, MetricType } from '../types/field';
+import { DimensionType, FieldType, MetricType } from '../types/field';
 import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
-import { translateMetricFlowMetrics } from './metricFlow';
+import {
+    translateMetricFlowDimensions,
+    translateMetricFlowMetrics,
+} from './metricFlow';
 
 const ordersSemanticModel: DbtSemanticModel = {
     name: 'orders',
@@ -1189,5 +1192,327 @@ describe('translateMetricFlowMetrics', () => {
                 group_label: 'Claim Metrics',
             });
         });
+    });
+});
+
+describe('translateMetricFlowDimensions', () => {
+    const columnsByModel = {
+        orders: {
+            order_id: { name: 'order_id', data_type: DimensionType.NUMBER },
+            status: { name: 'status', data_type: DimensionType.STRING },
+            ordered_at: {
+                name: 'ordered_at',
+                data_type: DimensionType.TIMESTAMP,
+            },
+            customer_id: {
+                name: 'customer_id',
+                data_type: DimensionType.NUMBER,
+            },
+            // A wide-mart column that is NOT declared on the semantic model.
+            internal_note: {
+                name: 'internal_note',
+                data_type: DimensionType.STRING,
+            },
+        },
+    };
+
+    it('exposes only declared dimensions plus the primary entity key', () => {
+        const { columnsByModel: result } = translateMetricFlowDimensions({
+            semanticModels: {
+                [ordersSemanticModel.unique_id]: ordersSemanticModel,
+            },
+            modelNamesByUniqueId,
+            columnsByModel,
+        });
+
+        expect(Object.keys(result.orders).sort()).toEqual([
+            'order',
+            'ordered_at',
+            'status',
+        ]);
+        // internal_note (undeclared) is dropped.
+        expect(result.orders.internal_note).toBeUndefined();
+    });
+
+    it('qualifies a bare expr as ${TABLE}.col and defaults categorical type', () => {
+        const { columnsByModel: result } = translateMetricFlowDimensions({
+            semanticModels: {
+                sm: {
+                    ...ordersSemanticModel,
+                    entities: [],
+                    dimensions: [{ name: 'status', type: 'categorical' }],
+                },
+            },
+            modelNamesByUniqueId,
+            columnsByModel,
+        });
+        expect(result.orders.status).toEqual({
+            name: 'status',
+            data_type: DimensionType.STRING,
+            meta: {
+                dimension: {
+                    name: 'status',
+                    type: DimensionType.STRING,
+                    sql: '${TABLE}.status',
+                },
+            },
+        });
+    });
+
+    it('passes a complex expr through verbatim', () => {
+        const { columnsByModel: result } = translateMetricFlowDimensions({
+            semanticModels: {
+                sm: {
+                    ...ordersSemanticModel,
+                    entities: [],
+                    dimensions: [
+                        {
+                            name: 'is_completed',
+                            type: 'categorical',
+                            expr: "status = 'completed'",
+                        },
+                    ],
+                },
+            },
+            modelNamesByUniqueId,
+            columnsByModel,
+        });
+        expect(result.orders.is_completed.meta?.dimension?.sql).toBe(
+            "status = 'completed'",
+        );
+    });
+
+    it('maps time granularity to date vs timestamp and carries label/description', () => {
+        const { columnsByModel: result } = translateMetricFlowDimensions({
+            semanticModels: {
+                sm: {
+                    ...ordersSemanticModel,
+                    entities: [],
+                    dimensions: [
+                        {
+                            name: 'ordered_date',
+                            type: 'time',
+                            expr: 'ordered_at',
+                            label: 'Ordered date',
+                            description: 'When the order was placed',
+                            type_params: { time_granularity: 'day' },
+                        },
+                        {
+                            name: 'created_ts',
+                            type: 'time',
+                            expr: 'created_at',
+                            type_params: { time_granularity: 'second' },
+                        },
+                    ],
+                },
+            },
+            modelNamesByUniqueId,
+            columnsByModel,
+        });
+        expect(result.orders.ordered_date.meta?.dimension).toEqual({
+            name: 'ordered_date',
+            type: DimensionType.DATE,
+            sql: '${TABLE}.ordered_at',
+            label: 'Ordered date',
+            description: 'When the order was placed',
+        });
+        expect(result.orders.created_ts.meta?.dimension?.type).toBe(
+            DimensionType.TIMESTAMP,
+        );
+    });
+
+    it('carries config.meta group_label and hidden onto the dimension', () => {
+        const { columnsByModel: result } = translateMetricFlowDimensions({
+            semanticModels: {
+                sm: {
+                    ...ordersSemanticModel,
+                    entities: [],
+                    dimensions: [
+                        {
+                            name: 'status',
+                            type: 'categorical',
+                            config: {
+                                meta: {
+                                    group_label: 'Claim',
+                                    hidden: true,
+                                },
+                            },
+                        },
+                    ],
+                },
+            },
+            modelNamesByUniqueId,
+            columnsByModel,
+        });
+        expect(result.orders.status.meta?.dimension?.group_label).toBe('Claim');
+        expect(result.orders.status.meta?.dimension?.hidden).toBe(true);
+    });
+
+    it('preserves the categorical type of a numeric backing column', () => {
+        const { columnsByModel: result } = translateMetricFlowDimensions({
+            semanticModels: {
+                sm: {
+                    ...ordersSemanticModel,
+                    entities: [],
+                    dimensions: [
+                        {
+                            name: 'customer_id',
+                            type: 'categorical',
+                            expr: 'customer_id',
+                        },
+                    ],
+                },
+            },
+            modelNamesByUniqueId,
+            columnsByModel,
+        });
+        expect(result.orders.customer_id.meta?.dimension?.type).toBe(
+            DimensionType.NUMBER,
+        );
+    });
+
+    it('exposes the primary entity key as a hidden dimension', () => {
+        const { columnsByModel: result } = translateMetricFlowDimensions({
+            semanticModels: {
+                sm: {
+                    ...ordersSemanticModel,
+                    dimensions: [],
+                },
+            },
+            modelNamesByUniqueId,
+            columnsByModel,
+        });
+        expect(result.orders.order.meta?.dimension).toEqual({
+            name: 'order',
+            type: DimensionType.NUMBER,
+            sql: '${TABLE}.order_id',
+            hidden: true,
+        });
+    });
+
+    it('does not add the entity key when a declared dimension already claims its name', () => {
+        const { columnsByModel: result } = translateMetricFlowDimensions({
+            semanticModels: {
+                sm: {
+                    ...ordersSemanticModel,
+                    entities: [
+                        { name: 'status', type: 'primary', expr: 'status_id' },
+                    ],
+                    dimensions: [{ name: 'status', type: 'categorical' }],
+                },
+            },
+            modelNamesByUniqueId,
+            columnsByModel,
+        });
+        // The declared dimension wins: sql is the dimension's, not the entity's.
+        expect(result.orders.status.meta?.dimension?.sql).toBe(
+            '${TABLE}.status',
+        );
+        expect(result.orders.status.meta?.dimension?.hidden).toBeUndefined();
+    });
+
+    it('lets hand-authored YAML dimension config win per-field on collision', () => {
+        const { columnsByModel: result } = translateMetricFlowDimensions({
+            semanticModels: {
+                sm: {
+                    ...ordersSemanticModel,
+                    entities: [],
+                    dimensions: [{ name: 'status', type: 'categorical' }],
+                },
+            },
+            modelNamesByUniqueId,
+            columnsByModel: {
+                orders: {
+                    status: {
+                        name: 'status',
+                        data_type: DimensionType.STRING,
+                        meta: {
+                            dimension: {
+                                label: 'Order status',
+                                group_label: 'YAML group',
+                            },
+                        },
+                    },
+                },
+            },
+        });
+        expect(result.orders.status.meta?.dimension?.label).toBe(
+            'Order status',
+        );
+        expect(result.orders.status.meta?.dimension?.group_label).toBe(
+            'YAML group',
+        );
+        // Non-colliding fields still come from the semantic model.
+        expect(result.orders.status.meta?.dimension?.sql).toBe(
+            '${TABLE}.status',
+        );
+    });
+
+    it('keeps undeclared columns that carry explicit Lightdash config', () => {
+        const { columnsByModel: result } = translateMetricFlowDimensions({
+            semanticModels: {
+                sm: {
+                    ...ordersSemanticModel,
+                    entities: [],
+                    dimensions: [{ name: 'status', type: 'categorical' }],
+                },
+            },
+            modelNamesByUniqueId,
+            columnsByModel: {
+                orders: {
+                    status: { name: 'status', data_type: DimensionType.STRING },
+                    audited_by: {
+                        name: 'audited_by',
+                        data_type: DimensionType.STRING,
+                        meta: {
+                            dimension: { label: 'Audited by' },
+                        },
+                    },
+                    plain_column: {
+                        name: 'plain_column',
+                        data_type: DimensionType.STRING,
+                    },
+                },
+            },
+        });
+        // Hand-authored column survives; the plain undeclared column does not.
+        expect(result.orders.audited_by).toBeDefined();
+        expect(result.orders.plain_column).toBeUndefined();
+    });
+
+    it('skips models whose semantic model does not resolve, leaving columns untouched', () => {
+        const { columnsByModel: result, warnings } =
+            translateMetricFlowDimensions({
+                semanticModels: {
+                    sm: {
+                        ...ordersSemanticModel,
+                        depends_on: { nodes: [] },
+                    },
+                },
+                modelNamesByUniqueId,
+                columnsByModel,
+            });
+        expect(result.orders).toBeUndefined();
+        expect(warnings).toHaveLength(1);
+        expect(warnings[0]).toContain('Could not resolve the dbt model');
+    });
+
+    it('is a no-op for models not targeted by any semantic model', () => {
+        const { columnsByModel: result } = translateMetricFlowDimensions({
+            semanticModels: {
+                [ordersSemanticModel.unique_id]: ordersSemanticModel,
+            },
+            modelNamesByUniqueId,
+            columnsByModel: {
+                orders: columnsByModel.orders,
+                other_model: {
+                    some_column: {
+                        name: 'some_column',
+                        data_type: DimensionType.STRING,
+                    },
+                },
+            },
+        });
+        expect(result.other_model).toBeUndefined();
     });
 });

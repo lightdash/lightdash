@@ -58,10 +58,18 @@ export type DbtSemanticEntity = {
     expr?: string | null;
 };
 
+export type DbtSemanticDimensionTypeParams = {
+    /** MetricFlow base grain of a `time` dimension (e.g. "day", "month"). */
+    time_granularity?: string | null;
+};
+
 export type DbtSemanticDimension = {
     name: string;
     type: 'categorical' | 'time';
     expr?: string | null;
+    label?: string | null;
+    description?: string | null;
+    type_params?: DbtSemanticDimensionTypeParams | null;
     config?: DbtSemanticConfig | null;
 };
 

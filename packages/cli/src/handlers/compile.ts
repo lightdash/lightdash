@@ -17,6 +17,7 @@ import {
     LightdashProjectConfig,
     ParseError,
     preAggregatePostProcessor,
+    translateMetricFlowDimensions,
     translateMetricFlowMetrics,
     WarehouseCatalog,
 } from '@lightdash/common';
@@ -115,12 +116,19 @@ const getExploresFromLightdashYmlProject = async (
 
 /**
  * Translate dbt MetricFlow definitions (`semantic_models` + `metrics`) from the
- * manifest into Lightdash metrics and merge them into each model's meta so they
- * compile through the normal explore pipeline. YAML-defined metrics take
- * priority over translated ones on name collision. No-op when the manifest has
- * no semantic models.
+ * manifest into Lightdash fields and merge them into each model so they compile
+ * through the normal explore pipeline:
+ *
+ * - `metrics` (+ `create_metric` measures) become model metrics; YAML-defined
+ *   metrics win over translated ones on name collision.
+ * - For models targeted by a semantic model, columns are replaced with the
+ *   semantic model's declared `dimensions:` (plus the primary entity key as a
+ *   hidden dimension) so only the curated interface is exposed instead of every
+ *   warehouse column. Models without a semantic model keep all their columns.
+ *
+ * No-op when the manifest has no semantic models.
  */
-const applyMetricFlowMetrics = (
+const applyMetricFlow = (
     models: DbtModelNode[],
     manifest: DbtManifest,
 ): DbtModelNode[] => {
@@ -135,59 +143,85 @@ const applyMetricFlowMetrics = (
 
     // MetricFlow translation is best-effort: a malformed manifest must never
     // abort the compile/deploy, so degrade to "no translated metrics".
-    let translation: ReturnType<typeof translateMetricFlowMetrics>;
+    let metricsByModel: ReturnType<
+        typeof translateMetricFlowMetrics
+    >['metricsByModel'] = {};
+    let columnsByModel: ReturnType<
+        typeof translateMetricFlowDimensions
+    >['columnsByModel'] = {};
     try {
-        translation = translateMetricFlowMetrics({
+        const metricTranslation = translateMetricFlowMetrics({
             semanticModels,
             metrics: manifest.metrics ?? {},
             modelNamesByUniqueId,
         });
-    } catch (e) {
-        console.error(
-            styles.warning(
-                `> Failed to translate MetricFlow metrics, continuing without them: ${getErrorMessage(
-                    e,
-                )}`,
+        metricsByModel = metricTranslation.metricsByModel;
+
+        const dimensionTranslation = translateMetricFlowDimensions({
+            semanticModels,
+            modelNamesByUniqueId,
+            columnsByModel: Object.fromEntries(
+                models.map((model) => [model.name, model.columns]),
             ),
+        });
+        columnsByModel = dimensionTranslation.columnsByModel;
+
+        [...metricTranslation.warnings, ...dimensionTranslation.warnings].forEach(
+            (warning) => GlobalState.debug(`> ${warning}`),
         );
-        return models;
-    }
-    const { metricsByModel, warnings, translatedCount, skippedCount } =
-        translation;
 
-    warnings.forEach((warning) => GlobalState.debug(`> ${warning}`));
-
-    if (translatedCount === 0) {
-        if (skippedCount > 0) {
+        const { translatedCount, skippedCount } = metricTranslation;
+        if (translatedCount > 0) {
+            const skippedSuffix =
+                skippedCount > 0
+                    ? ` (skipped ${skippedCount} unsupported, run with --verbose for details)`
+                    : '';
+            console.error(
+                styles.info(
+                    `> Translated ${translatedCount} MetricFlow metric(s) into Lightdash metrics${skippedSuffix}`,
+                ),
+            );
+        } else if (skippedCount > 0) {
             console.error(
                 styles.warning(
                     `> Skipped ${skippedCount} unsupported MetricFlow metric(s). Run with --verbose for details.`,
                 ),
             );
         }
+
+        const modelsWithDimensions = Object.keys(columnsByModel).length;
+        if (modelsWithDimensions > 0) {
+            console.error(
+                styles.info(
+                    `> Restricted ${modelsWithDimensions} model(s) to their semantic model's declared dimensions`,
+                ),
+            );
+        }
+    } catch (e) {
+        console.error(
+            styles.warning(
+                `> Failed to translate MetricFlow definitions, continuing without them: ${getErrorMessage(
+                    e,
+                )}`,
+            ),
+        );
         return models;
     }
 
-    const skippedSuffix =
-        skippedCount > 0
-            ? ` (skipped ${skippedCount} unsupported, run with --verbose for details)`
-            : '';
-    console.error(
-        styles.info(
-            `> Translated ${translatedCount} MetricFlow metric(s) into Lightdash metrics${skippedSuffix}`,
-        ),
-    );
-
     return models.map((model) => {
         const modelMetrics = metricsByModel[model.name];
-        if (!modelMetrics) {
+        const modelColumns = columnsByModel[model.name];
+        if (!modelMetrics && !modelColumns) {
             return model;
         }
         return {
             ...model,
+            ...(modelColumns ? { columns: modelColumns } : {}),
             meta: {
                 ...model.meta,
-                metrics: { ...modelMetrics, ...model.meta.metrics },
+                ...(modelMetrics
+                    ? { metrics: { ...modelMetrics, ...model.meta.metrics } }
+                    : {}),
             },
         };
     });
@@ -397,7 +431,7 @@ export const compile = async (options: CompileHandlerOptions) => {
             GlobalState.debug('> Skipping warehouse catalog');
         }
 
-        const validModelsWithTypes = applyMetricFlowMetrics(
+        const validModelsWithTypes = applyMetricFlow(
             attachTypesToModels(validModels, catalog, false),
             manifest,
         );

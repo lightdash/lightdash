@@ -1,14 +1,19 @@
 import { type AnyType } from '../types/any';
-import { type DbtModelLightdashMetric } from '../types/dbt';
+import {
+    type DbtModelColumn,
+    type DbtModelLightdashMetric,
+} from '../types/dbt';
 import {
     MetricFlowAggregation,
+    type DbtSemanticDimension,
+    type DbtSemanticEntity,
     type DbtSemanticFilter,
     type DbtSemanticMeasure,
     type DbtSemanticMetric,
     type DbtSemanticMetricInput,
     type DbtSemanticModel,
 } from '../types/dbtSemanticLayer';
-import { MetricType } from '../types/field';
+import { DimensionType, MetricType } from '../types/field';
 
 /**
  * Translation for dbt's MetricFlow semantic layer as it appears in the dbt
@@ -814,4 +819,221 @@ export const translateMetricFlowMetrics = ({
     });
 
     return { metricsByModel, warnings, translatedCount, skippedCount };
+};
+
+/**
+ * MetricFlow `time` dimensions carry a base grain (`type_params.time_granularity`).
+ * Sub-day grains map to a timestamp dimension (so Lightdash offers hour/minute
+ * intervals and applies timezone conversion); day and coarser map to a date
+ * dimension. An unknown/absent grain defaults to date, which is the safer
+ * choice — it skips timezone conversion that would be wrong for a date column.
+ */
+const SUB_DAY_GRANULARITIES = new Set([
+    'nanosecond',
+    'microsecond',
+    'millisecond',
+    'second',
+    'minute',
+    'hour',
+]);
+const timeGranularityToDimensionType = (
+    granularity: string | null | undefined,
+): DimensionType =>
+    granularity && SUB_DAY_GRANULARITIES.has(granularity.toLowerCase())
+        ? DimensionType.TIMESTAMP
+        : DimensionType.DATE;
+
+/**
+ * SQL for a semantic-model dimension/entity expr: a bare column reference is
+ * qualified with `${TABLE}` so it resolves unambiguously; anything more complex
+ * is passed through verbatim. Mirrors `measureSql`.
+ */
+const dimensionSql = (expr: string): string =>
+    SIMPLE_COLUMN_REGEX.test(expr) ? `\${TABLE}.${expr}` : expr;
+
+/**
+ * A dbt column carries explicit Lightdash config when it has a `dimension`,
+ * `additional_dimensions` or column-level `metrics` block (under `meta` or
+ * `config.meta`). Such columns are hand-authored, so they survive the switch to
+ * semantic-model-declared dimensions even when the semantic model omits them.
+ */
+const hasLightdashColumnConfig = (column: DbtModelColumn): boolean => {
+    const meta = column.meta ?? {};
+    const configMeta = column.config?.meta ?? {};
+    return Boolean(
+        meta.dimension ||
+            meta.additional_dimensions ||
+            meta.metrics ||
+            configMeta.dimension ||
+            configMeta.additional_dimensions ||
+            configMeta.metrics,
+    );
+};
+
+export type TranslateMetricFlowDimensionsArgs = {
+    /** `manifest.semantic_models` */
+    semanticModels: Record<string, DbtSemanticModel>;
+    /** dbt model `unique_id` -> Lightdash table name, for models being deployed. */
+    modelNamesByUniqueId: Record<string, string>;
+    /** table name -> dbt columns (with warehouse types attached). */
+    columnsByModel: Record<string, Record<string, DbtModelColumn>>;
+};
+
+export type TranslateMetricFlowDimensionsResult = {
+    /**
+     * table name -> replacement columns, only for models targeted by a semantic
+     * model. Models absent from this map keep their original columns.
+     */
+    columnsByModel: Record<string, Record<string, DbtModelColumn>>;
+    warnings: string[];
+    translatedCount: number;
+};
+
+/**
+ * Build the replacement dimension columns for models targeted by a MetricFlow
+ * semantic model. The semantic model is the curated interface, so instead of
+ * turning every warehouse column into a dimension we expose only what the
+ * semantic model declares:
+ *
+ * - each `dimensions:` entry (name + expr -> sql, categorical/time -> type,
+ *   label/description, and `config.meta` group_label/hidden), and
+ * - the primary entity's key as a hidden dimension (a usable key for the mart),
+ *   unless a declared dimension already covers that name.
+ *
+ * Hand-authored dbt columns carrying explicit Lightdash config (`meta.dimension`
+ * etc.) are preserved and win per-field on a name collision, mirroring how
+ * YAML-defined metrics take priority over translated ones.
+ */
+export const translateMetricFlowDimensions = ({
+    semanticModels,
+    modelNamesByUniqueId,
+    columnsByModel,
+}: TranslateMetricFlowDimensionsArgs): TranslateMetricFlowDimensionsResult => {
+    const warnings: string[] = [];
+    const result: Record<string, Record<string, DbtModelColumn>> = {};
+    let translatedCount = 0;
+
+    // Resolve the warehouse type of a semantic dimension/entity when its expr is
+    // a bare column present in the original model columns; used so categorical
+    // dimensions keep their real type (e.g. a numeric id) instead of defaulting
+    // to string. Complex exprs have no single backing column, so return null.
+    const lookupColumnType = (
+        originalColumns: Record<string, DbtModelColumn>,
+        expr: string,
+    ): DimensionType | null => {
+        if (!SIMPLE_COLUMN_REGEX.test(expr)) {
+            return null;
+        }
+        return originalColumns[expr]?.data_type ?? null;
+    };
+
+    Object.values(semanticModels).forEach((semanticModel) => {
+        const modelName = resolveModelName(
+            semanticModel,
+            modelNamesByUniqueId,
+        );
+        if (!modelName) {
+            warnings.push(
+                `Could not resolve the dbt model for semantic model "${semanticModel.name}"; keeping all columns as dimensions.`,
+            );
+            return;
+        }
+
+        const originalColumns = columnsByModel[modelName] ?? {};
+        const dimensions = Array.isArray(semanticModel.dimensions)
+            ? semanticModel.dimensions
+            : [];
+        const entities = Array.isArray(semanticModel.entities)
+            ? semanticModel.entities
+            : [];
+
+        const columns: Record<string, DbtModelColumn> = {};
+
+        const buildColumn = (
+            name: string,
+            expr: string,
+            type: DimensionType,
+            overrides: {
+                label?: string | null;
+                description?: string | null;
+                hidden?: boolean | null;
+                groupLabel?: string | null;
+            },
+        ): DbtModelColumn => {
+            // Merge with any hand-authored YAML dimension config, YAML winning.
+            const original = originalColumns[name];
+            const yamlDimension =
+                original?.config?.meta?.dimension ??
+                original?.meta?.dimension ??
+                {};
+            return {
+                name,
+                data_type: type,
+                meta: {
+                    dimension: {
+                        name,
+                        type,
+                        sql: dimensionSql(expr),
+                        ...(overrides.label
+                            ? { label: overrides.label }
+                            : {}),
+                        ...(overrides.description
+                            ? { description: overrides.description }
+                            : {}),
+                        ...(overrides.hidden != null
+                            ? { hidden: overrides.hidden }
+                            : {}),
+                        ...(overrides.groupLabel
+                            ? { group_label: overrides.groupLabel }
+                            : {}),
+                        ...yamlDimension,
+                    },
+                },
+            };
+        };
+
+        dimensions.forEach((dimension: DbtSemanticDimension) => {
+            const expr = dimension.expr ?? dimension.name;
+            const type =
+                dimension.type === 'time'
+                    ? timeGranularityToDimensionType(
+                          dimension.type_params?.time_granularity,
+                      )
+                    : lookupColumnType(originalColumns, expr) ??
+                      DimensionType.STRING;
+            columns[dimension.name] = buildColumn(dimension.name, expr, type, {
+                label: dimension.label,
+                description: dimension.description,
+                hidden: dimension.config?.meta?.hidden,
+                groupLabel: dimension.config?.meta?.group_label,
+            });
+        });
+
+        // Expose the primary entity key as a hidden dimension, unless a declared
+        // dimension already claims that name.
+        const primaryEntity = entities.find(
+            (entity: DbtSemanticEntity) => entity.type === 'primary',
+        );
+        if (primaryEntity && !columns[primaryEntity.name]) {
+            const expr = primaryEntity.expr ?? primaryEntity.name;
+            columns[primaryEntity.name] = buildColumn(
+                primaryEntity.name,
+                expr,
+                lookupColumnType(originalColumns, expr) ?? DimensionType.STRING,
+                { hidden: true },
+            );
+        }
+
+        // Never silently drop hand-authored columns carrying Lightdash config.
+        Object.entries(originalColumns).forEach(([columnName, column]) => {
+            if (!columns[columnName] && hasLightdashColumnConfig(column)) {
+                columns[columnName] = column;
+            }
+        });
+
+        result[modelName] = columns;
+        translatedCount += Object.keys(columns).length;
+    });
+
+    return { columnsByModel: result, warnings, translatedCount };
 };
