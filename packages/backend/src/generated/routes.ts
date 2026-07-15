@@ -10765,7 +10765,10 @@ const models: TsoaRoute.Models = {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: { withPdf: { dataType: 'boolean' } },
+            nestedProperties: {
+                pagePerTab: { dataType: 'boolean' },
+                withPdf: { dataType: 'boolean' },
+            },
             validators: {},
         },
     },
@@ -10785,18 +10788,13 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.never_': {
+    SchedulerPdfOptions: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
+            nestedProperties: { pagePerTab: { dataType: 'boolean' } },
             validators: {},
         },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SchedulerPdfOptions: {
-        dataType: 'refAlias',
-        type: { ref: 'Record_string.never_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SchedulerOptions: {
@@ -23906,6 +23904,15 @@ const models: TsoaRoute.Models = {
                 effort: { ref: 'AiDeepResearchEffort' },
                 prompt: { dataType: 'string', required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.never_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
             validators: {},
         },
     },

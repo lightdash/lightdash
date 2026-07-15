@@ -20,7 +20,7 @@ describe('Scheduler model test', () => {
         });
     });
 
-    test('Test scheduler log sorting', () => {
+    test('scheduler log sorting', () => {
         const baseLog: SchedulerLog = {
             task: 'handleScheduledDelivery',
             schedulerUuid: '1',

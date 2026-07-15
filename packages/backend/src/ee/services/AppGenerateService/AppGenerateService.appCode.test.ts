@@ -445,8 +445,7 @@ describe('AppGenerateService.importAppCode', () => {
             targetAppUuid: EXISTING_APP_UUID,
         } as ImportAppCodeRequestBody);
 
-        expect(appModel.updateApp).toHaveBeenCalledOnce();
-        expect(appModel.updateApp).toHaveBeenCalledWith(
+        expect(appModel.updateApp).toHaveBeenCalledExactlyOnceWith(
             EXISTING_APP_UUID,
             PROJECT_UUID,
             { name: 'New Name', description: 'New description' },

@@ -86,14 +86,6 @@ describe('field util functions', () => {
             };
             expect(getItemId(tc)).toEqual('calc2');
         });
-        it('should return item id for table calculation', async () => {
-            const tc: TableCalculation = {
-                name: 'calc2',
-                displayName: '',
-                sql: 'dim reference ${table1.dim1}',
-            };
-            expect(getItemId(tc)).toEqual('calc2');
-        });
         it('should return item id for additional metric', async () => {
             const additionalMetric: AdditionalMetric = {
                 type: MetricType.AVERAGE,

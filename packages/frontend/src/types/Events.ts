@@ -49,6 +49,7 @@ export enum PageName {
     USER_ACTIVITY = 'user_activity',
     VERIFY_EMAIL = 'verify_email',
     JOIN_ORGANIZATION = 'join_organization',
+    ORGANIZATION_SETUP = 'organization_setup',
     EMBED_DASHBOARD = 'embed_dashboard',
     EMBED_SAVED_CHART = 'embed_saved_chart',
     EMBED_EXPLORE = 'embed_explore',

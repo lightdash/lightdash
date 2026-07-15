@@ -290,6 +290,13 @@ export enum FeatureFlags {
     EmailWhitelabel = 'email-whitelabel',
 
     /**
+     * Replaces the user-completion modal with a full-page organization setup
+     * experience (name your organization, pick a theme colour, and tell us
+     * about yourself) shown after registration. Off by default.
+     */
+    OrganizationSetupPage = 'organization-setup-page',
+
+    /**
      * Allow self-serve signup with just an email address: the register page
      * collects only an email, the account is created without a password or
      * names, and ownership is proven via the existing email OTP verification.

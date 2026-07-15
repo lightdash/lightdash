@@ -1861,7 +1861,7 @@ describe('UserService', () => {
                 userModel.createUser as import('vitest').Mock,
             ).toHaveBeenCalledTimes(0);
         });
-        test('should update openid ', async () => {
+        test('should update openid', async () => {
             // Mock that identity is found for that openid
             (
                 userModel.findSessionUserByOpenId as import('vitest').Mock

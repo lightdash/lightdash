@@ -9,13 +9,23 @@ import {
     assertUnreachable,
     DASHBOARD_GRID_CLASS,
     DashboardTileTypes,
+    EXPORT_TAB_PAGE_CLASS,
+    getPagedExportOrphanHomeTabUuid,
     isDashboardScheduler,
     isTileInSelectedTabs,
     SessionStorageKeys,
 } from '@lightdash/common';
+import { Stack, Text, Title } from '@mantine-8/core';
 import { useSessionStorage } from '@mantine/hooks';
 import { IconLayoutDashboard } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import {
+    Fragment,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type FC,
+} from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useParams } from 'react-router';
 import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
@@ -39,6 +49,7 @@ import useSearchParams from '../hooks/useSearchParams';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTileStatusContext';
+import '../styles/export-paged-tabs.css';
 import '../styles/react-grid.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -51,6 +62,7 @@ type TabWithUrls = DashboardTab & {
 
 type TabGroup = {
     key: string;
+    tab: DashboardTab | null;
     tiles: Dashboard['tiles'];
     layouts: { lg: Layout[]; md: Layout[] };
 };
@@ -64,6 +76,7 @@ type MinimalDashboardContentProps = {
     canNavigateBetweenTabs: boolean;
     tabsWithUrls: TabWithUrls[];
     activeTab: DashboardTab | null;
+    exportPagedTabs: boolean;
 };
 
 const renderDashboardTile = (tile: Dashboard['tiles'][number]) => {
@@ -146,6 +159,7 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
     canNavigateBetweenTabs,
     tabsWithUrls,
     activeTab,
+    exportPagedTabs,
 }) => {
     const dashboard = useDashboardContext((c) => c.dashboard);
     const isDashboardLoading = useDashboardContext((c) => c.isDashboardLoading);
@@ -206,46 +220,77 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
                 />
             )}
 
-            {isTabEmpty ? (
-                <SuboptimalState
-                    icon={IconLayoutDashboard}
-                    title="Tab is empty"
-                    mt="40px"
-                />
-            ) : (
-                // Wrapper is the deterministic screenshot/PDF target used by
-                // UnfurlService — it must encompass all grids so multi-tab
-                // exports are captured fully.
-                <div className={DASHBOARD_GRID_CLASS}>
-                    {tabGroups ? (
-                        // Multi-tab export: one grid per tab so each tab
-                        // keeps its own y=0 origin and react-grid-layout's
-                        // vertical compact cannot flow tiles from one tab
-                        // into another tab's empty cells.
-                        tabGroups.map((group) => (
-                            <ResponsiveGridLayout
+            {/* Wrapper is the deterministic screenshot/PDF target used by
+                UnfurlService — it must encompass all grids (and the empty
+                state) so multi-tab exports are captured fully. */}
+            <div className={DASHBOARD_GRID_CLASS}>
+                {isTabEmpty ? (
+                    <SuboptimalState
+                        icon={IconLayoutDashboard}
+                        title="Tab is empty"
+                        mt="40px"
+                    />
+                ) : tabGroups ? (
+                    // Multi-tab export: one grid per tab so each tab
+                    // keeps its own y=0 origin and react-grid-layout's
+                    // vertical compact cannot flow tiles from one tab
+                    // into another tab's empty cells.
+                    tabGroups.map((group) => {
+                        const grid =
+                            group.tiles.length === 0 ? (
+                                <SuboptimalState
+                                    icon={IconLayoutDashboard}
+                                    title="Tab is empty"
+                                    mt="40px"
+                                />
+                            ) : (
+                                <ResponsiveGridLayout
+                                    {...gridProps}
+                                    layouts={group.layouts}
+                                >
+                                    {group.tiles.map((tile) => (
+                                        <div key={tile.uuid}>
+                                            {renderDashboardTile(tile)}
+                                        </div>
+                                    ))}
+                                </ResponsiveGridLayout>
+                            );
+                        if (!exportPagedTabs) {
+                            return <Fragment key={group.key}>{grid}</Fragment>;
+                        }
+                        // One page per tab: header block + grid (or empty
+                        // state) inside a break-avoid page container.
+                        return (
+                            <div
                                 key={group.key}
-                                {...gridProps}
-                                layouts={group.layouts}
+                                className={EXPORT_TAB_PAGE_CLASS}
                             >
-                                {group.tiles.map((tile) => (
-                                    <div key={tile.uuid}>
-                                        {renderDashboardTile(tile)}
-                                    </div>
-                                ))}
-                            </ResponsiveGridLayout>
-                        ))
-                    ) : (
-                        <ResponsiveGridLayout {...gridProps} layouts={layouts}>
-                            {filteredAndSortedDashboardTiles.map((tile) => (
-                                <div key={tile.uuid}>
-                                    {renderDashboardTile(tile)}
-                                </div>
-                            ))}
-                        </ResponsiveGridLayout>
-                    )}
-                </div>
-            )}
+                                {dashboard && (
+                                    <Stack gap={0} p="md">
+                                        <Title order={3}>
+                                            {dashboard.name}
+                                        </Title>
+                                        {group.tab && (
+                                            <Text size="sm" c="ldGray.6">
+                                                {group.tab.name}
+                                            </Text>
+                                        )}
+                                    </Stack>
+                                )}
+                                {grid}
+                            </div>
+                        );
+                    })
+                ) : (
+                    <ResponsiveGridLayout {...gridProps} layouts={layouts}>
+                        {filteredAndSortedDashboardTiles.map((tile) => (
+                            <div key={tile.uuid}>
+                                {renderDashboardTile(tile)}
+                            </div>
+                        ))}
+                    </ResponsiveGridLayout>
+                )}
+            </div>
 
             <ScreenshotProgressIndicator
                 expectedTileUuids={expectedScreenshotTileUuids}
@@ -341,12 +386,24 @@ const MinimalDashboard: FC = () => {
         return sendNowSchedulerParameters;
     }, [scheduler, schedulerUuid, sendNowSchedulerParameters]);
 
-    const schedulerTabsSelected = useMemo(() => {
+    const schedulerTabsSelected = useMemo<(string | null)[] | undefined>(() => {
         if (schedulerTabs) {
             return JSON.parse(schedulerTabs);
         }
         return undefined;
     }, [schedulerTabs]);
+
+    // Render every selected tab in one page, paginated by print page breaks
+    // (see MinimalDashboardContent). Backend: unfurlPdfCssPaged.
+    const exportPagedTabs = useSearchParams('exportPagedTabs') === 'true';
+
+    // Chromium's page.pdf() uses document.title as the PDF /Title, so name the
+    // exported document after the dashboard in paged export mode.
+    useEffect(() => {
+        if (exportPagedTabs && dashboard?.name) {
+            document.title = dashboard.name;
+        }
+    }, [exportPagedTabs, dashboard?.name]);
 
     const generateTabUrl = useCallback(
         (tabId: string) =>
@@ -431,12 +488,13 @@ const MinimalDashboard: FC = () => {
     // lets react-grid-layout's vertical compact reflow tiles across tab
     // boundaries (PROD-2505-style overlap).
     //
-    // Orphan tiles (no tabUuid) are merged into the first tab's group so they
-    // share its grid coordinate space — matching how the regular dashboard
-    // view renders them on the first tab (PROD-2505 fix). If they had their
-    // own grid, orphans that were positioned to share a row with first-tab
-    // tiles (e.g. left/right halves at y=0) would get split into two stacked
-    // rows in the export. If no tabs have tiles, orphans get their own group.
+    // Orphan tiles (no tabUuid) are merged into the first group so they share
+    // its grid coordinate space — matching how the regular dashboard view
+    // renders them on the first tab. If they had their own grid, orphans that
+    // shared a row with first-tab tiles would get split into two stacked rows.
+    //
+    // In paged export every selected tab gets its own group (page), even when
+    // empty; the plain multi-tab image only groups tabs that have tiles.
     const tabGroups = useMemo<TabGroup[] | null>(() => {
         if (!schedulerTabsSelected) return null;
 
@@ -461,31 +519,49 @@ const MinimalDashboard: FC = () => {
             ),
         });
 
+        const selectedTabUuids = (
+            schedulerTabsSelected as (string | null)[]
+        ).filter((t): t is string => t !== null);
+        const groupTabs = sortedTabs.filter((tab) =>
+            exportPagedTabs
+                ? selectedTabUuids.includes(tab.uuid)
+                : (tilesByTab.get(tab.uuid)?.length ?? 0) > 0,
+        );
+
+        // Orphans ride the first RESOLVED tab's page (not the literal first
+        // dashboard tab), so a hidden/unselected first tab doesn't silently
+        // drop them. Shared with the backend readiness set via the common
+        // helper. The stacked image keeps riding orphans on the first group.
+        const orphanHomeTabUuid = getPagedExportOrphanHomeTabUuid(
+            groupTabs.map((t) => t.uuid),
+        );
         const groups: TabGroup[] = [];
         let orphansAssigned = false;
-        for (const tab of sortedTabs) {
-            const tabTiles = tilesByTab.get(tab.uuid);
-            if (!tabTiles || tabTiles.length === 0) continue;
-
-            const tiles =
-                !orphansAssigned && orphanTiles.length > 0
-                    ? [...orphanTiles, ...tabTiles]
-                    : tabTiles;
-            if (!orphansAssigned && orphanTiles.length > 0) {
-                orphansAssigned = true;
-            }
+        for (const tab of groupTabs) {
+            const tabTiles = tilesByTab.get(tab.uuid) ?? [];
+            const attachOrphansHere =
+                orphanTiles.length > 0 &&
+                !orphansAssigned &&
+                (!exportPagedTabs || tab.uuid === orphanHomeTabUuid);
+            const tiles = attachOrphansHere
+                ? [...orphanTiles, ...tabTiles]
+                : tabTiles;
+            if (attachOrphansHere) orphansAssigned = true;
             groups.push({
                 key: tab.uuid,
+                tab,
                 tiles,
                 layouts: buildLayouts(tiles),
             });
         }
 
-        // No selected tab has tiles — fall back to orphan-only group so they
-        // still render.
-        if (!orphansAssigned && orphanTiles.length > 0) {
+        // Orphans with no host tab render in their own group (untabbed
+        // selection). Never in paged export, where an extra page would break
+        // the one-page-per-selected-tab count.
+        if (!orphansAssigned && orphanTiles.length > 0 && !exportPagedTabs) {
             groups.push({
                 key: 'orphan-tiles',
+                tab: null,
                 tiles: orphanTiles,
                 layouts: buildLayouts(orphanTiles),
             });
@@ -493,6 +569,7 @@ const MinimalDashboard: FC = () => {
         return groups;
     }, [
         schedulerTabsSelected,
+        exportPagedTabs,
         filteredAndSortedDashboardTiles,
         sortedTabs,
         gridProps.cols,
@@ -511,12 +588,20 @@ const MinimalDashboard: FC = () => {
         return <span>Loading...</span>;
     }
 
-    if (dashboard.tiles.length === 0) {
+    // Paged export must still mount one page container per resolved tab
+    // (page-count invariant), so tile-less dashboards render empty-tab pages.
+    if (dashboard.tiles.length === 0 && !exportPagedTabs) {
         return <span>No tiles</span>;
     }
 
+    // In paged export the tabGroups branch renders a per-tab header + "Tab is
+    // empty" state inside each page container, so an all-empty selection must
+    // NOT short-circuit to a single bare empty state (which would emit zero
+    // page containers and break the one-page-per-tab count).
     const isTabEmpty =
-        activeTab && filteredAndSortedDashboardTiles.length === 0;
+        !exportPagedTabs &&
+        !!activeTab &&
+        filteredAndSortedDashboardTiles.length === 0;
 
     const canNavigateBetweenTabs =
         !schedulerTabsSelected && tabsWithUrls.length > 0;
@@ -542,6 +627,7 @@ const MinimalDashboard: FC = () => {
                 canNavigateBetweenTabs={canNavigateBetweenTabs}
                 tabsWithUrls={tabsWithUrls}
                 activeTab={activeTab}
+                exportPagedTabs={exportPagedTabs}
             />
         </DashboardProvider>
     );
