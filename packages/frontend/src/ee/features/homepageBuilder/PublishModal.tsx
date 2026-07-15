@@ -6,8 +6,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Badge,
-    Card,
+    Box,
     Checkbox,
     Group,
     SegmentedControl,
@@ -19,17 +18,40 @@ import {
     IconArrowDown,
     IconArrowUp,
     IconChevronRight,
+    IconSend,
+    IconShieldCheck,
+    IconUsersGroup,
+    IconWorld,
+    IconWorldCheck,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
+import { MiniPill } from './blocks/BlockShell';
+import blockClasses from './blocks/blockStyles.module.css';
 import {
     useHomepageAssignments,
     useUpdateGroupPriorities,
 } from './hooks/useProjectHomepage';
 
 const RESOLUTION_STEPS = ['Personal', 'Group priority', 'Role', 'Org default'];
+
+const ROLE_DESCRIPTIONS: Record<ProjectMemberRole, string> = {
+    [ProjectMemberRole.VIEWER]: 'Read-only consumers of dashboards',
+    [ProjectMemberRole.INTERACTIVE_VIEWER]:
+        'Can explore data behind the dashboards',
+    [ProjectMemberRole.EDITOR]: 'Builds charts and dashboards',
+    [ProjectMemberRole.DEVELOPER]: 'Works on the data model itself',
+    [ProjectMemberRole.ADMIN]: 'Full control of the project',
+};
+
+const segmentedLabel = (icon: typeof IconWorld, label: string) => (
+    <Group gap={5} justify="center" wrap="nowrap">
+        <MantineIcon icon={icon} size={15} />
+        {label}
+    </Group>
+);
 
 type Props = {
     opened: boolean;
@@ -79,9 +101,7 @@ export const PublishModal: FC<Props> = ({
 
     const elsewhereBadge = (assignment: HomepageAssignment | undefined) =>
         assignment && assignment.homepageUuid !== homepageUuid ? (
-            <Badge variant="default" size="xs" tt="none">
-                now on {assignment.homepageName}
-            </Badge>
+            <MiniPill>now on {assignment.homepageName}</MiniPill>
         ) : null;
 
     const movePriority = (groupUuid: string, direction: -1 | 1) => {
@@ -108,20 +128,37 @@ export const PublishModal: FC<Props> = ({
         }
     };
 
+    const confirmLabel =
+        mode === 'groups'
+            ? selectedGroups.length > 0
+                ? `Publish to ${selectedGroups.length} group${
+                      selectedGroups.length === 1 ? '' : 's'
+                  }`
+                : 'Publish'
+            : mode === 'roles'
+              ? selectedRoles.length > 0
+                  ? `Publish to ${selectedRoles.length} role${
+                        selectedRoles.length === 1 ? '' : 's'
+                    }`
+                  : 'Publish'
+              : 'Publish to everyone';
+
     return (
         <MantineModal
             opened={opened}
             onClose={onClose}
             title="Publish homepage"
+            icon={IconSend}
             size="lg"
             onConfirm={handlePublish}
+            confirmLabel={confirmLabel}
             confirmLoading={isPublishing}
             confirmDisabled={
                 (mode === 'groups' && selectedGroups.length === 0) ||
                 (mode === 'roles' && selectedRoles.length === 0)
             }
         >
-            <Stack gap="sm">
+            <Stack gap="md">
                 <Text size="sm" c="dimmed">
                     Choose who lands on{' '}
                     <Text span fw={600} c="inherit">
@@ -134,90 +171,156 @@ export const PublishModal: FC<Props> = ({
                     value={mode}
                     onChange={setMode}
                     data={[
-                        { value: 'everyone', label: 'Everyone' },
-                        { value: 'groups', label: 'By group' },
-                        { value: 'roles', label: 'By role' },
+                        {
+                            value: 'everyone',
+                            label: segmentedLabel(IconWorld, 'Everyone'),
+                        },
+                        {
+                            value: 'groups',
+                            label: segmentedLabel(IconUsersGroup, 'By group'),
+                        },
+                        {
+                            value: 'roles',
+                            label: segmentedLabel(IconShieldCheck, 'By role'),
+                        },
                     ]}
                 />
 
                 {mode === 'everyone' && (
-                    <Card withBorder p="sm">
-                        <Text size="sm" c="dimmed">
-                            This becomes the starting point everyone lands on —
-                            unless a group they’re in has its own homepage.
-                        </Text>
-                    </Card>
+                    <Box
+                        p={14}
+                        style={{
+                            border: '1px solid var(--mantine-color-ldGray-2)',
+                            borderRadius: 10,
+                            background: 'var(--mantine-color-ldGray-0)',
+                        }}
+                    >
+                        <Group gap={10} align="flex-start" wrap="nowrap">
+                            <MantineIcon
+                                icon={IconWorldCheck}
+                                size={18}
+                                color="green"
+                                style={{ marginTop: 1, flexShrink: 0 }}
+                            />
+                            <Text size="sm" c="ldGray.7" lh={1.5}>
+                                This becomes the{' '}
+                                <Text span fw={600} c="inherit">
+                                    starting point
+                                </Text>{' '}
+                                everyone lands on — unless a group they’re in
+                                has its own homepage, or they’ve set a personal
+                                one.
+                            </Text>
+                        </Group>
+                    </Box>
                 )}
 
                 {mode === 'groups' && (
                     <>
-                        <Card withBorder p="sm">
-                            <Stack gap="xs">
-                                {(groups ?? []).map((group) => (
-                                    <Group
-                                        key={group.uuid}
-                                        gap="sm"
-                                        wrap="nowrap"
-                                    >
-                                        <Checkbox
-                                            label={group.name}
-                                            checked={selectedGroups.includes(
-                                                group.uuid,
-                                            )}
-                                            onChange={(e) =>
-                                                setSelectedGroups(
-                                                    e.currentTarget.checked
-                                                        ? [
-                                                              ...selectedGroups,
-                                                              group.uuid,
-                                                          ]
-                                                        : selectedGroups.filter(
-                                                              (uuid) =>
-                                                                  uuid !==
-                                                                  group.uuid,
-                                                          ),
-                                                )
-                                            }
-                                        />
-                                        {elsewhereBadge(
-                                            assignmentByGroup.get(group.uuid),
+                        <div className={blockClasses.listCard}>
+                            {(groups ?? []).map((group) => (
+                                <label
+                                    key={group.uuid}
+                                    className={blockClasses.listRow}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    <Checkbox
+                                        size="xs"
+                                        checked={selectedGroups.includes(
+                                            group.uuid,
                                         )}
-                                    </Group>
-                                ))}
-                                {(groups ?? []).length === 0 && (
-                                    <Text size="sm" c="dimmed">
-                                        No groups in this organization yet.
+                                        onChange={(e) =>
+                                            setSelectedGroups(
+                                                e.currentTarget.checked
+                                                    ? [
+                                                          ...selectedGroups,
+                                                          group.uuid,
+                                                      ]
+                                                    : selectedGroups.filter(
+                                                          (uuid) =>
+                                                              uuid !==
+                                                              group.uuid,
+                                                      ),
+                                            )
+                                        }
+                                    />
+                                    <MantineIcon
+                                        icon={IconUsersGroup}
+                                        size={16}
+                                        color="ldGray.6"
+                                    />
+                                    <Text
+                                        fz={13.5}
+                                        fw={500}
+                                        style={{ flex: 1 }}
+                                    >
+                                        {group.name}
                                     </Text>
-                                )}
-                            </Stack>
-                        </Card>
+                                    {elsewhereBadge(
+                                        assignmentByGroup.get(group.uuid),
+                                    )}
+                                </label>
+                            ))}
+                            {(groups ?? []).length === 0 && (
+                                <Text size="sm" c="dimmed" p="sm">
+                                    No groups in this organization yet.
+                                </Text>
+                            )}
+                        </div>
                         {groupAssignments.length > 1 && (
-                            <Card withBorder p="sm">
-                                <Stack gap="xs">
-                                    <Text size="xs" fw={600} c="dimmed">
-                                        If someone’s in more than one group, the
-                                        higher-ranked group wins
-                                    </Text>
+                            <Box
+                                p="sm"
+                                style={{
+                                    border: '1px solid var(--mantine-color-ldGray-2)',
+                                    borderRadius: 10,
+                                }}
+                            >
+                                <Text
+                                    fz={11}
+                                    fw={600}
+                                    tt="uppercase"
+                                    lts="0.05em"
+                                    c="ldGray.6"
+                                    mb={4}
+                                >
+                                    If someone’s in more than one group
+                                </Text>
+                                <Text fz={12.5} c="dimmed" lh={1.45} mb={10}>
+                                    The higher-ranked group’s homepage wins.
+                                </Text>
+                                <Stack gap={6}>
                                     {groupAssignments.map(
                                         (assignment, index) => (
                                             <Group
                                                 key={assignment.assignmentUuid}
-                                                gap="xs"
+                                                gap={10}
                                                 wrap="nowrap"
+                                                p="8px 10px"
+                                                style={{
+                                                    border: '1px solid var(--mantine-color-ldGray-2)',
+                                                    borderRadius: 8,
+                                                    background:
+                                                        'var(--mantine-color-ldGray-0)',
+                                                }}
                                             >
-                                                <Badge
-                                                    variant="filled"
-                                                    size="sm"
+                                                <span
+                                                    className={
+                                                        blockClasses.rankBadge
+                                                    }
                                                 >
                                                     {index + 1}
-                                                </Badge>
-                                                <Text
-                                                    size="sm"
-                                                    style={{ flex: 1 }}
-                                                >
-                                                    {assignment.groupName} →{' '}
-                                                    {assignment.homepageName}
-                                                </Text>
+                                                </span>
+                                                <Box style={{ flex: 1 }}>
+                                                    <Text fz={13} fw={500}>
+                                                        {assignment.groupName}
+                                                    </Text>
+                                                    <Text fz={11.5} c="dimmed">
+                                                        →{' '}
+                                                        {
+                                                            assignment.homepageName
+                                                        }
+                                                    </Text>
+                                                </Box>
                                                 <ActionIcon
                                                     variant="subtle"
                                                     color="gray"
@@ -262,18 +365,22 @@ export const PublishModal: FC<Props> = ({
                                         ),
                                     )}
                                 </Stack>
-                            </Card>
+                            </Box>
                         )}
                     </>
                 )}
 
                 {mode === 'roles' && (
-                    <Card withBorder p="sm">
-                        <Stack gap="xs">
+                    <>
+                        <div className={blockClasses.listCard}>
                             {Object.values(ProjectMemberRole).map((role) => (
-                                <Group key={role} gap="sm" wrap="nowrap">
+                                <label
+                                    key={role}
+                                    className={blockClasses.listRow}
+                                    style={{ cursor: 'pointer' }}
+                                >
                                     <Checkbox
-                                        label={ProjectMemberRoleLabels[role]}
+                                        size="xs"
                                         checked={selectedRoles.includes(role)}
                                         onChange={(e) =>
                                             setSelectedRoles(
@@ -285,46 +392,71 @@ export const PublishModal: FC<Props> = ({
                                             )
                                         }
                                     />
+                                    <MantineIcon
+                                        icon={IconShieldCheck}
+                                        size={16}
+                                        color="ldGray.6"
+                                    />
+                                    <Box style={{ flex: 1 }}>
+                                        <Text fz={13.5} fw={500}>
+                                            {ProjectMemberRoleLabels[role]}
+                                        </Text>
+                                        <Text fz={12} c="dimmed">
+                                            {ROLE_DESCRIPTIONS[role]}
+                                        </Text>
+                                    </Box>
                                     {elsewhereBadge(assignmentByRole.get(role))}
-                                </Group>
+                                </label>
                             ))}
-                            <Text size="xs" c="dimmed">
-                                A group assignment always wins over a role.
-                            </Text>
-                        </Stack>
-                    </Card>
+                        </div>
+                        <Text fz={12} c="dimmed" lh={1.45}>
+                            A group assignment always wins over a role, and a
+                            personal choice wins over both.
+                        </Text>
+                    </>
                 )}
 
-                <Card withBorder p="sm">
-                    <Switch
-                        label="Let people set a dashboard as their own homepage"
-                        description="When off, everyone in this audience always lands here — personal picks are ignored."
-                        checked={allowPersonal}
-                        onChange={(e) =>
-                            setAllowPersonal(e.currentTarget.checked)
-                        }
-                    />
-                </Card>
-
-                <Group gap={4} wrap="nowrap">
-                    <Text size="xs" c="dimmed">
+                <Group
+                    gap={7}
+                    p="10px 12px"
+                    style={{
+                        background: 'var(--mantine-color-ldGray-0)',
+                        borderRadius: 9,
+                    }}
+                >
+                    <Text fz={11.5} fw={500} c="ldGray.5">
                         Resolves:
                     </Text>
                     {RESOLUTION_STEPS.map((step, index) => (
-                        <Group key={step} gap={4} wrap="nowrap">
-                            <Badge variant="default" size="xs" tt="none">
-                                {step}
-                            </Badge>
+                        <Group key={step} gap={7} wrap="nowrap">
+                            <MiniPill>{step}</MiniPill>
                             {index < RESOLUTION_STEPS.length - 1 && (
                                 <MantineIcon
                                     icon={IconChevronRight}
-                                    size="sm"
-                                    color="gray"
+                                    size={12}
+                                    color="ldGray.5"
                                 />
                             )}
                         </Group>
                     ))}
                 </Group>
+
+                <Box
+                    p="11px 13px"
+                    style={{
+                        border: '1px solid var(--mantine-color-ldGray-2)',
+                        borderRadius: 10,
+                    }}
+                >
+                    <Switch
+                        label="Allow personal customization"
+                        description="Viewers can favorite items or set a dashboard as their own homepage."
+                        checked={allowPersonal}
+                        onChange={(e) =>
+                            setAllowPersonal(e.currentTarget.checked)
+                        }
+                    />
+                </Box>
             </Stack>
         </MantineModal>
     );

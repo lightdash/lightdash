@@ -1,6 +1,8 @@
 import {
     ContentSortByColumns,
     ContentType,
+    ResourceViewItemType,
+    type ResourceViewItem,
     type SummaryContent,
 } from '@lightdash/common';
 import {
@@ -18,19 +20,33 @@ import {
     IconChartBar,
     IconFolder,
     IconLayoutDashboard,
+    IconPin,
+    IconSquareRoundedPlus,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../../hooks/favorites/useFavorites';
+import { usePinnedItems } from '../../../hooks/pinning/usePinnedItems';
 import { useInfiniteContent } from '../../../hooks/useContent';
+import { useProject } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
 import AiSearchBox from '../../components/Home/AiSearchBox';
 import { useAiAgentButtonVisibility } from '../aiCopilot/hooks/useAiAgentsButtonVisibility';
+import { BlockHeader } from './blocks/BlockShell';
+import blockClasses from './blocks/blockStyles.module.css';
 import { ContentCard } from './blocks/ContentCard';
+import { PersonalFavoritesStrip } from './blocks/FavoritesBlock';
 import { getDefaultQuickActions } from './blocks/quickActionDefaults';
 import { QuickActionCards } from './blocks/QuickActionsBlock';
+
+const dayPart = (): string => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'morning';
+    if (hour < 18) return 'afternoon';
+    return 'evening';
+};
 
 type DiscoverGroupDefinition = {
     key: string;
@@ -126,6 +142,67 @@ const GroupSection: FC<{
     );
 };
 
+const PINNED_ICONS: Partial<Record<ResourceViewItemType, typeof IconChartBar>> =
+    {
+        [ResourceViewItemType.CHART]: IconChartBar,
+        [ResourceViewItemType.DASHBOARD]: IconLayoutDashboard,
+        [ResourceViewItemType.SPACE]: IconFolder,
+    };
+
+const pinnedUrl = (projectUuid: string, item: ResourceViewItem): string => {
+    switch (item.type) {
+        case ResourceViewItemType.DASHBOARD:
+            return `/projects/${projectUuid}/dashboards/${item.data.uuid}/view`;
+        case ResourceViewItemType.SPACE:
+            return `/projects/${projectUuid}/spaces/${item.data.uuid}`;
+        default:
+            return `/projects/${projectUuid}/saved/${item.data.uuid}`;
+    }
+};
+
+const PersonalAndPinnedSections: FC<{ projectUuid: string }> = ({
+    projectUuid,
+}) => {
+    const { data: project } = useProject(projectUuid);
+    const { data: pinnedItems } = usePinnedItems(
+        projectUuid,
+        project?.pinnedListUuid,
+    );
+    return (
+        <Stack gap={26}>
+            <PersonalFavoritesStrip projectUuid={projectUuid} />
+            {(pinnedItems ?? []).length > 0 && (
+                <Stack gap={0}>
+                    <BlockHeader
+                        icon={IconPin}
+                        title="Pinned"
+                        pill="Pinned for everyone by admins"
+                        mb={10}
+                    />
+                    <Group gap={8}>
+                        {(pinnedItems ?? []).map((item) => (
+                            <Link
+                                key={item.data.uuid}
+                                to={pinnedUrl(projectUuid, item)}
+                                className={blockClasses.favPill}
+                            >
+                                <MantineIcon
+                                    icon={
+                                        PINNED_ICONS[item.type] ?? IconChartBar
+                                    }
+                                    size={15}
+                                    color="ldGray.6"
+                                />
+                                {item.data.name}
+                            </Link>
+                        ))}
+                    </Group>
+                </Stack>
+            )}
+        </Stack>
+    );
+};
+
 type Props = {
     projectUuid: string;
     projectName: string;
@@ -153,12 +230,17 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, projectName }) => {
         <Stack gap="xl">
             {isAiEnabled ? (
                 <Stack gap="md" align="center" py="lg">
-                    <Title order={1} fw={600} ta="center">
-                        What do you want to know, {user.data?.firstName}?
-                    </Title>
-                    <Text c="dimmed" ta="center">
-                        Ask in plain English — the agent queries your governed
-                        metrics and builds the chart.
+                    <Text
+                        component="h1"
+                        fz={30}
+                        fw={600}
+                        lts="-0.025em"
+                        lh={1.15}
+                        ta="center"
+                        m={0}
+                    >
+                        Good {dayPart()}, {user.data?.firstName}. What do you
+                        want to know?
                     </Text>
                     <Box w="100%" maw={720}>
                         <AiSearchBox projectUuid={projectUuid} />
@@ -166,21 +248,45 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, projectName }) => {
                 </Stack>
             ) : (
                 <Stack gap="md">
-                    <Box>
-                        <Title order={2} fw={600}>
-                            Welcome to {projectName}, {user.data?.firstName}
-                        </Title>
-                        <Text c="dimmed" size="sm">
-                            Nothing’s curated here yet — start exploring, or
-                            your data team can build this page.
-                        </Text>
-                    </Box>
+                    <Group
+                        justify="space-between"
+                        align="flex-end"
+                        wrap="nowrap"
+                    >
+                        <Box>
+                            <Text
+                                component="h1"
+                                fz={30}
+                                fw={600}
+                                lts="-0.02em"
+                                m={0}
+                            >
+                                Welcome to {projectName}, {user.data?.firstName}
+                            </Text>
+                            <Text c="dimmed" fz={15} mt={6}>
+                                Nothing’s here yet — start exploring, or your
+                                data team can curate this page.
+                            </Text>
+                        </Box>
+                        <Button
+                            component={Link}
+                            to={`/projects/${projectUuid}/tables`}
+                            leftSection={
+                                <MantineIcon icon={IconSquareRoundedPlus} />
+                            }
+                            style={{ flexShrink: 0 }}
+                        >
+                            New
+                        </Button>
+                    </Group>
                     <QuickActionCards
                         actions={getDefaultQuickActions(false)}
                         projectUuid={projectUuid}
                     />
                 </Stack>
             )}
+
+            <PersonalAndPinnedSections projectUuid={projectUuid} />
 
             <Stack gap="md">
                 <Box>
