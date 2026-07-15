@@ -154,7 +154,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
         useProjectUsersWithRoles(projectUuid);
 
     const { data: organizationRoles, isLoading: isLoadingOrganizationRoles } =
-        useOrganizationRoles();
+        useOrganizationRoles(true);
     const {
         data: organizationRoleAssignments,
         isLoading: isLoadingOrganizationRoleAssignments,
@@ -177,6 +177,20 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                 group:
                     role.ownerType === 'system' ? 'System role' : 'Custom role',
             }));
+    }, [organizationRoles]);
+
+    const roleScopesById = useMemo(() => {
+        if (!organizationRoles) return undefined;
+        return new Map(
+            organizationRoles.map((role) => [role.roleUuid, role.scopes]),
+        );
+    }, [organizationRoles]);
+
+    const roleNamesById = useMemo(() => {
+        if (!organizationRoles) return undefined;
+        return new Map(
+            organizationRoles.map((role) => [role.roleUuid, role.name]),
+        );
     }, [organizationRoles]);
 
     // Convert flat grouped format (v6) to nested grouped format (v8) for Select
@@ -256,24 +270,12 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
         ).length;
     }, [usersWithProjectRole]);
 
-    const filteredUsers = useMemo(() => {
-        if (search && usersAfterMemberFilter) {
-            return new Fuse(usersAfterMemberFilter, {
-                keys: ['firstName', 'lastName', 'email', 'role', 'projectRole'],
-                ignoreLocation: true,
-                threshold: 0.3,
-            })
-                .search(search)
-                .map((result) => result.item);
-        }
-        return usersAfterMemberFilter;
-    }, [usersAfterMemberFilter, search]);
-
-    // Enrich filtered users with pre-computed per-row values
+    // Enrich users with pre-computed per-row values (before the search
+    // filter, so warnings aren't recomputed on every keystroke)
     const enrichedUsers: EnrichedProjectUser[] = useMemo(() => {
-        if (!filteredUsers) return [];
+        if (!usersAfterMemberFilter) return [];
 
-        return filteredUsers.map((u) => {
+        return usersAfterMemberFilter.map((u) => {
             const hasProjectRole = !!u.projectRole;
             const isMember = u.role === OrganizationMemberRole.MEMBER;
 
@@ -328,9 +330,13 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
 
             const accessWarning = getAccessWarning({
                 organizationRole: organizationRoleId,
+                organizationRoleName: organizationRoleId
+                    ? roleNamesById?.get(organizationRoleId)
+                    : undefined,
                 hasProjectRole,
                 projectRole: u.projectRole,
                 userGroupAccesses,
+                roleScopesById,
             });
 
             return {
@@ -346,12 +352,27 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
             };
         });
     }, [
-        filteredUsers,
+        usersAfterMemberFilter,
         organizationRoleAssignments,
         organizationGroups,
         groupRoles,
         rolesData,
+        roleScopesById,
+        roleNamesById,
     ]);
+
+    const filteredUsers = useMemo(() => {
+        if (search && enrichedUsers) {
+            return new Fuse(enrichedUsers, {
+                keys: ['firstName', 'lastName', 'email', 'role', 'projectRole'],
+                ignoreLocation: true,
+                threshold: 0.3,
+            })
+                .search(search)
+                .map((result) => result.item);
+        }
+        return enrichedUsers;
+    }, [enrichedUsers, search]);
 
     const columns: ContentTableColumnDef<EnrichedProjectUser>[] =
         useMemo(() => {
@@ -555,7 +576,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
 
     const table = useContentTable({
         columns,
-        data: enrichedUsers,
+        data: filteredUsers,
         enableColumnResizing: false,
         enableRowNumbers: false,
         enablePagination: true,
@@ -591,7 +612,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
         },
         mantineTableProps: {
             highlightOnHover: true,
-            withColumnBorders: Boolean(enrichedUsers.length),
+            withColumnBorders: Boolean(filteredUsers.length),
         },
         mantinePaginationProps: {
             showRowsPerPage: false,

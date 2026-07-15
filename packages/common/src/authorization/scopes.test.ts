@@ -1,8 +1,11 @@
+import { ProjectMemberRole } from '../types/projectMemberRole';
+import { getAllScopesForRole } from './roleToScopeMapping';
 import {
     getScopeAncestors,
     getScopeDescendants,
     getScopes,
     getScopeSubstitutes,
+    getUncoveredProjectScopes,
     getUnsatisfiedScopeDependencies,
 } from './scopes';
 
@@ -229,6 +232,83 @@ describe('scope dependency graph helpers', () => {
                     'manage:dashboard',
                 ),
             ).toEqual([]);
+        });
+    });
+
+    describe('getUncoveredProjectScopes', () => {
+        it('returns granted scopes the covering scopes do not include', () => {
+            expect(
+                getUncoveredProjectScopes(
+                    ['manage:Dashboard', 'view:SavedChart'],
+                    ['view:SavedChart'],
+                ),
+            ).toEqual(['manage:Dashboard']);
+        });
+
+        it('treats stronger scopes on the same subject as covering', () => {
+            expect(
+                getUncoveredProjectScopes(
+                    ['view:Dashboard'],
+                    ['manage:Dashboard'],
+                ),
+            ).toEqual([]);
+        });
+
+        it('treats unmodified scopes as covering their modifier variants', () => {
+            expect(
+                getUncoveredProjectScopes(
+                    ['manage:Dashboard@space'],
+                    ['manage:Dashboard'],
+                ),
+            ).toEqual([]);
+        });
+
+        it('does not treat a modifier-restricted scope as covering the unrestricted one', () => {
+            expect(
+                getUncoveredProjectScopes(
+                    ['manage:Dashboard'],
+                    ['manage:Dashboard@space'],
+                ),
+            ).toEqual(['manage:Dashboard']);
+        });
+
+        it('excludes organization-only scopes from the result', () => {
+            expect(
+                getUncoveredProjectScopes(
+                    ['manage:OrganizationMemberProfile'],
+                    [],
+                ),
+            ).toEqual([]);
+        });
+
+        it('ignores unknown scope names on both sides', () => {
+            expect(
+                getUncoveredProjectScopes(
+                    ['not:aScope', 'view:Dashboard'],
+                    ['not-a-scope', 'view:Dashboard'],
+                ),
+            ).toEqual([]);
+        });
+
+        it('reports no conflict when a role is compared against itself', () => {
+            const editorScopes = getAllScopesForRole(ProjectMemberRole.EDITOR);
+
+            expect(
+                getUncoveredProjectScopes(editorScopes, editorScopes, {
+                    isEnterprise: true,
+                }),
+            ).toEqual([]);
+        });
+
+        it('reports conflicts when a system role grants more than a narrow custom role', () => {
+            const uncovered = getUncoveredProjectScopes(
+                getAllScopesForRole(ProjectMemberRole.EDITOR),
+                ['view:Dashboard', 'view:SavedChart', 'view:Project'],
+                { isEnterprise: true },
+            );
+
+            expect(uncovered).toContain('manage:Dashboard@space');
+            expect(uncovered).toContain('create:Space');
         });
     });
 });
