@@ -1,5 +1,6 @@
 import { type HomepageBlock } from '@lightdash/common';
 import {
+    IconBolt,
     IconBook,
     IconChartDots,
     IconClock,
@@ -23,6 +24,11 @@ import { FavoritesBlockBuild, FavoritesBlockView } from './FavoritesBlock';
 import { HeroBlockBuild, HeroBlockView } from './HeroBlock';
 import { MarkdownBlockBuild, MarkdownBlockView } from './MarkdownBlock';
 import { MetricsBlockBuild, MetricsBlockView } from './MetricsBlock';
+import { getDefaultQuickActions } from './quickActionDefaults';
+import {
+    QuickActionsBlockBuild,
+    QuickActionsBlockView,
+} from './QuickActionsBlock';
 import { RecentBlockBuild, RecentBlockView } from './RecentBlock';
 import { ResourcesBlockBuild, ResourcesBlockView } from './ResourcesBlock';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
@@ -69,6 +75,19 @@ export const blockLibrary: BlockDefinition[] = [
         }),
         View: AiBlockView,
         Build: AiBlockBuild,
+    },
+    {
+        type: 'quick-actions',
+        label: 'Quick actions',
+        description: 'Primary CTA cards — tailor the main action per audience.',
+        icon: IconBolt,
+        create: () => ({
+            id: uuidv4(),
+            type: 'quick-actions',
+            config: { actions: getDefaultQuickActions(true) },
+        }),
+        View: QuickActionsBlockView,
+        Build: QuickActionsBlockBuild,
     },
     {
         type: 'metrics',
