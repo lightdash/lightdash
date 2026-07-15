@@ -19,6 +19,7 @@ import { Fragment, useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal from '../../../components/common/MantineModal';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -251,7 +252,11 @@ const FilterRequirementsButton: FC = () => {
         [addMemberToGroup],
     );
 
-    const handleRemoveMember = useCallback(
+    const [memberIdPendingRemoval, setMemberIdPendingRemoval] = useState<
+        string | null
+    >(null);
+
+    const stageMemberRemoval = useCallback(
         (filterId: string) => {
             stageRuleUpdate(filterId, {
                 required: false,
@@ -259,6 +264,24 @@ const FilterRequirementsButton: FC = () => {
             });
         },
         [stageRuleUpdate],
+    );
+
+    const handleRemoveMember = useCallback(
+        (filterId: string) => {
+            // Removing the only member silently dissolves the rule, so that
+            // one asks for confirmation
+            const rule = requirementRules.find((requirementRule) =>
+                requirementRule.members.some(
+                    (member) => member.id === filterId,
+                ),
+            );
+            if (rule && rule.members.length === 1) {
+                setMemberIdPendingRemoval(filterId);
+                return;
+            }
+            stageMemberRemoval(filterId);
+        },
+        [requirementRules, stageMemberRemoval],
     );
 
     const handleDeleteRule = useCallback(
@@ -477,6 +500,20 @@ const FilterRequirementsButton: FC = () => {
                         </Button>
                     </Group>
                 )}
+                <MantineModal
+                    opened={memberIdPendingRemoval !== null}
+                    onClose={() => setMemberIdPendingRemoval(null)}
+                    title="Remove filter rule?"
+                    variant="delete"
+                    confirmLabel="Remove rule"
+                    description="This is the only filter in this rule. Removing it deletes the rule, so viewers will no longer be required to set a filter before this dashboard loads."
+                    onConfirm={() => {
+                        if (memberIdPendingRemoval) {
+                            stageMemberRemoval(memberIdPendingRemoval);
+                        }
+                        setMemberIdPendingRemoval(null);
+                    }}
+                />
             </Popover.Dropdown>
         </Popover>
     );
