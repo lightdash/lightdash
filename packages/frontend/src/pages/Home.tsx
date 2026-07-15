@@ -14,6 +14,11 @@ import PageSpinner from '../components/PageSpinner';
 import PinnedAndFavoritesSection from '../components/PinnedAndFavoritesSection';
 import AiSearchBox from '../ee/components/Home/AiSearchBox';
 import { useAiAgentButtonVisibility } from '../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
+import {
+    useHomepageBuilderFlag,
+    usePublishedHomepage,
+} from '../ee/features/homepageBuilder/hooks/useProjectHomepage';
+import { PublishedHomepage } from '../ee/features/homepageBuilder/PublishedHomepage';
 import { ManagedAgentHomeCard } from '../ee/features/managedAgent/ManagedAgentHomeCard';
 import { useFavorites } from '../hooks/favorites/useFavorites';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
@@ -43,6 +48,10 @@ const Home: FC = () => {
 
     const { user } = useApp();
     const isAiAgentsEnabled = useAiAgentButtonVisibility();
+    const { isEnabled: isHomepageBuilderEnabled } = useHomepageBuilderFlag();
+    const publishedHomepage = usePublishedHomepage(selectedProjectUuid, {
+        enabled: isHomepageBuilderEnabled,
+    });
 
     const isLoading =
         onboarding.isInitialLoading ||
@@ -74,6 +83,17 @@ const Home: FC = () => {
     const isGitHubProject =
         project.data.type !== ProjectType.PREVIEW &&
         project.data.dbtConnection.type === DbtProjectType.GITHUB;
+
+    if (isHomepageBuilderEnabled && publishedHomepage.data) {
+        return (
+            <Page withFixedContent withPaddedContent withFooter>
+                <PublishedHomepage
+                    config={publishedHomepage.data.config}
+                    projectUuid={project.data.projectUuid}
+                />
+            </Page>
+        );
+    }
 
     return (
         <Page withFixedContent withPaddedContent withFooter>
