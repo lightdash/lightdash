@@ -29,6 +29,7 @@ export type SchedulerCsvOptions = {
 
 export type SchedulerImageOptions = {
     withPdf?: boolean;
+    pagePerTab?: boolean;
 };
 
 export type SchedulerGsheetsOptions = {
@@ -38,7 +39,9 @@ export type SchedulerGsheetsOptions = {
     url: string;
     tabName?: string;
 };
-export type SchedulerPdfOptions = Record<string, never>;
+export type SchedulerPdfOptions = {
+    pagePerTab?: boolean;
+};
 export type SchedulerOptions =
     | SchedulerCsvOptions
     | SchedulerImageOptions
@@ -653,6 +656,7 @@ export type NotificationPayloadBase = {
             source: string;
             fileName: string;
         };
+        pdfPageCount?: number;
         failures?: PartialFailure[];
     };
     scheduler: CreateSchedulerAndTargets;

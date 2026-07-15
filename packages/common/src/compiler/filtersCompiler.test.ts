@@ -473,7 +473,7 @@ describe('Filter SQL', () => {
         ).toStrictEqual(TrinoInTheLast1YearFilterSQL);
     });
 
-    test('should return in the last completed date filter sql ', () => {
+    test('should return in the last completed date filter sql', () => {
         expect(
             renderDateFilterSql({
                 dimensionSql: DimensionSqlMock,

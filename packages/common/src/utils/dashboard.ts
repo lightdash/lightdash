@@ -29,7 +29,7 @@ export const convertChartSourceTypeToDashboardTileType = (
  */
 export const isTileInSelectedTabs = (
     tile: { tabUuid?: string | null },
-    selectedTabs: string[] | null,
+    selectedTabs: (string | null)[] | null,
 ): boolean =>
     !selectedTabs || !tile.tabUuid || selectedTabs.includes(tile.tabUuid);
 

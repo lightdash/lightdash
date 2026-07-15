@@ -448,8 +448,7 @@ describe('AiDeepResearchClient', () => {
             createConfig({ onProgress: progress }),
         );
 
-        expect(progress).toHaveBeenCalledOnce();
-        expect(progress).toHaveBeenCalledWith({
+        expect(progress).toHaveBeenCalledExactlyOnceWith({
             type: 'model_usage',
             inputTokens: 100,
             outputTokens: 20,

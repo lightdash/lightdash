@@ -1,3 +1,27 @@
+# [0.3387.0](https://github.com/lightdash/lightdash/compare/0.3386.0...0.3387.0) (2026-07-15)
+
+
+### Features
+
+* full-page organization setup experience behind feature flag ([#25580](https://github.com/lightdash/lightdash/issues/25580)) ([5bdb8ad](https://github.com/lightdash/lightdash/commit/5bdb8ad165e000bb6cf1acee315a205081f1c2d5))
+* gate scheduled deliveries on unmet dashboard filter requirements ([#25449](https://github.com/lightdash/lightdash/issues/25449)) ([b4eb1a2](https://github.com/lightdash/lightdash/commit/b4eb1a252f4d4c6de48028d7321e48624e665ee3))
+* render each dashboard tab as its own PDF page via CSS pagination (opt-in) ([#25572](https://github.com/lightdash/lightdash/issues/25572)) ([943e929](https://github.com/lightdash/lightdash/commit/943e929887418668e9ef6727e05a0f8b2c02cd09))
+
+# [0.3386.0](https://github.com/lightdash/lightdash/compare/0.3385.0...0.3386.0) (2026-07-15)
+
+
+### Bug Fixes
+
+* align content as code dashboard-attach checks with UI SavedChart permissions ([#25518](https://github.com/lightdash/lightdash/issues/25518)) ([8e3cb23](https://github.com/lightdash/lightdash/commit/8e3cb23df2fd2ce909b35ff38c8c6244797c0d86)), closes [#25219](https://github.com/lightdash/lightdash/issues/25219)
+* include content slugs and failing resources in content as code error messages ([#25564](https://github.com/lightdash/lightdash/issues/25564)) ([f909245](https://github.com/lightdash/lightdash/commit/f9092451841da637ca63c48df831ee9d48d50dcb))
+* keep authentication state out of users as code ([#25584](https://github.com/lightdash/lightdash/issues/25584)) ([3af5a4b](https://github.com/lightdash/lightdash/commit/3af5a4b8d11968d800485a1c05b1de2a91f24307))
+
+
+### Features
+
+* add users as organization content as code ([#25574](https://github.com/lightdash/lightdash/issues/25574)) ([637cac2](https://github.com/lightdash/lightdash/commit/637cac217add26592181eb1576281bcfbf86969f))
+* unlock content as code writes for editors ([#25219](https://github.com/lightdash/lightdash/issues/25219)) ([a06dab5](https://github.com/lightdash/lightdash/commit/a06dab5c0a9ff104fbea17cbad0a82a8c42d2146))
+
 # [0.3385.0](https://github.com/lightdash/lightdash/compare/0.3384.0...0.3385.0) (2026-07-15)
 
 

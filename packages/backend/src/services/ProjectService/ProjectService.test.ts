@@ -1573,11 +1573,11 @@ describe('ProjectService', () => {
         });
     });
     describe('getJobStatus', () => {
-        test('should get job with projectUuid if user belongs to org ', async () => {
+        test('should get job with projectUuid if user belongs to org', async () => {
             const result = await service.getJobStatus('jobUuid', user);
             expect(result).toEqual(job);
         });
-        test('should get job without projectUuid if user created the job ', async () => {
+        test('should get job without projectUuid if user created the job', async () => {
             const jobWithoutProjectUuid = { ...job, projectUuid: undefined };
             (jobModel.get as import('vitest').Mock).mockImplementationOnce(
                 async () => jobWithoutProjectUuid,

@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     FilterOperator,
     FilterType,
     getFilterTypeFromItem,
@@ -39,9 +40,11 @@ import FiltersProvider from '../../../../components/common/Filters/FiltersProvid
 import useFiltersContext from '../../../../components/common/Filters/useFiltersContext';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useProject } from '../../../../hooks/useProject';
+import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../../providers/Dashboard/useDashboardTileStatusContext';
 import { hasSavedFilterValueChanged } from '../../../dashboardFilters/FilterConfiguration/utils';
+import { getSchedulerFilterRequirements } from '../../utils/filterRequirements';
 
 const isValidFilterOperator = (value: unknown): value is FilterOperator =>
     Object.values(FilterOperator).includes(value as FilterOperator);
@@ -75,6 +78,7 @@ const FilterSummaryLabel: FC<
 type SchedulerFilterItemProps = {
     dashboardFilter: DashboardFilterRule;
     schedulerFilter?: DashboardFilterRule;
+    isMissingRequiredValue: boolean;
     onChange: (schedulerFilter: DashboardFilterRule) => void;
     onRevert: () => void;
     hasChanged: boolean;
@@ -85,6 +89,7 @@ type SchedulerFilterItemProps = {
 const FilterItem: FC<SchedulerFilterItemProps> = ({
     dashboardFilter,
     schedulerFilter,
+    isMissingRequiredValue,
     onChange,
     onRevert,
     hasChanged,
@@ -162,14 +167,11 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                             isDisabled={isDisabled}
                         />
                     )}
-                    {dashboardFilter.required &&
-                        !isEditing &&
-                        (!schedulerFilter?.values ||
-                            schedulerFilter?.values?.length === 0) && (
-                            <Text fz="sm" color="red">
-                                *
-                            </Text>
-                        )}
+                    {isMissingRequiredValue && !isEditing && (
+                        <Text fz="sm" color="red">
+                            *
+                        </Text>
+                    )}
                     {tilesWithFilter && tilesWithFilter.length > 0 && (
                         <Tooltip
                             label={`Applies to: ${tilesWithFilter.join(', ')}`}
@@ -347,6 +349,12 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
 
     const tileNamesById = useDashboardTileStatusContext((c) => c.tileNamesById);
 
+    const { data: filterRequirementsFlag } = useServerFeatureFlag(
+        FeatureFlags.DashboardFilterRequirements,
+    );
+    const isFilterRequirementsEnabled =
+        filterRequirementsFlag?.enabled === true;
+
     const { savedFiltersInDashboard, savedFiltersNotInDashboard } =
         useMemo(() => {
             const inDashboard: typeof savedFilters = [];
@@ -426,10 +434,32 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
         );
     }
 
-    const requiredFiltersWithoutValues = (draftFilters ?? []).filter(
-        (filter) =>
-            filter.required && (!filter.values || filter.values.length === 0),
+    const { unmetRequirements, filtersWithUnmetRequirements } =
+        getSchedulerFilterRequirements(
+            currentDashboardFilters,
+            draftFilters,
+            isFilterRequirementsEnabled,
+        );
+    const unmetFilterIds = new Set(
+        filtersWithUnmetRequirements.map((filter) => filter.id),
     );
+    const hasUnmetSingles = unmetRequirements.some(
+        (requirement) => requirement.type === 'single',
+    );
+    const hasUnmetGroups = unmetRequirements.some(
+        (requirement) => requirement.type === 'group',
+    );
+    const isMissingRequiredValue = (
+        dashboardFilter: DashboardFilterRule,
+        schedulerFilter: DashboardFilterRule | undefined,
+    ) =>
+        isFilterRequirementsEnabled
+            ? unmetFilterIds.has(dashboardFilter.id)
+            : Boolean(
+                  dashboardFilter.required &&
+                  (!schedulerFilter?.values ||
+                      schedulerFilter?.values?.length === 0),
+              );
 
     return (
         <FiltersProvider<Record<string, FilterableDimension>>
@@ -442,9 +472,15 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
             {(draftFilters?.length ?? 0) + savedFiltersNotInDashboard?.length >
             0 ? (
                 <Stack mb="sm">
-                    {requiredFiltersWithoutValues.length > 0 && (
+                    {hasUnmetSingles && (
                         <Text fz="xs" color="ldGray.6">
                             All required filters must have values
+                        </Text>
+                    )}
+                    {hasUnmetGroups && (
+                        <Text fz="xs" color="ldGray.6">
+                            Set a value for at least one filter in each
+                            requirement group
                         </Text>
                     )}
                     {draftFilters?.map((filter) => {
@@ -465,6 +501,10 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                                 key={filter.id}
                                 dashboardFilter={originalFilter}
                                 schedulerFilter={filter}
+                                isMissingRequiredValue={isMissingRequiredValue(
+                                    originalFilter,
+                                    filter,
+                                )}
                                 onChange={(updatedFilter) =>
                                     handleUpdateSchedulerFilter(
                                         updatedFilter,
@@ -519,6 +559,10 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                                     key={filter.id}
                                     dashboardFilter={filter}
                                     schedulerFilter={schedulerFilter}
+                                    isMissingRequiredValue={isMissingRequiredValue(
+                                        filter,
+                                        schedulerFilter,
+                                    )}
                                     onChange={(updatedFilter) =>
                                         handleUpdateSchedulerFilter(
                                             updatedFilter,

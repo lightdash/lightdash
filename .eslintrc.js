@@ -28,5 +28,21 @@ module.exports = {
         "@typescript-eslint/no-unsafe-assignment": "off",
         "@typescript-eslint/no-unsafe-call": "off"
     },
-    
+    overrides: [
+        {
+            files: [
+                '**/*.test.{js,jsx,ts,tsx}',
+                '**/*.spec.{js,jsx,ts,tsx}',
+            ],
+            extends: ['plugin:@vitest/legacy-recommended'],
+            rules: {
+                '@vitest/expect-expect': 'off',
+                '@vitest/no-commented-out-tests': 'warn',
+                '@vitest/no-conditional-expect': 'off',
+                '@vitest/no-focused-tests': 'error',
+                '@vitest/no-standalone-expect': 'off',
+                '@vitest/valid-title': ['error', { allowArguments: true }],
+            },
+        },
+    ],
 };

@@ -215,12 +215,11 @@ describe('PostgresWarehouseClient statement timeout', () => {
         const resultPromise = warehouse.runQuery('select pg_sleep(9999)');
         // Attach the rejection handler before advancing the clock so the
         // rejection is never momentarily unhandled.
-        const assertion = expect(resultPromise).rejects.toThrow(
-            'Query timed out after 570s',
-        );
-        // 9-minute statement_timeout + 30s client buffer = 570s
-        await vi.advanceTimersByTimeAsync(570 * 1000 + 1000);
-        await assertion;
+        await Promise.all([
+            expect(resultPromise).rejects.toThrow('Query timed out after 570s'),
+            // 9-minute statement_timeout + 30s client buffer = 570s
+            vi.advanceTimersByTimeAsync(570 * 1000 + 1000),
+        ]);
     });
 });
 
