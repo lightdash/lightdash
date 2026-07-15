@@ -95,6 +95,10 @@ interface AgentChatInputProps {
     clearOnSubmit?: boolean;
     showSuggestions?: boolean;
     contentMentionPriorityItems?: ContentMentionSuggestionItem[];
+    // Reveals the agent selector on first focus instead of showing it always.
+    revealAgentSelectorOnFocus?: boolean;
+    // Shrinks padding/min-heights for a more compact composer.
+    dense?: boolean;
 }
 
 const extractToolHints = (editor: Editor | null): string[] => {
@@ -137,9 +141,17 @@ export const AgentChatInput = ({
     clearOnSubmit = true,
     showSuggestions = true,
     contentMentionPriorityItems = [],
+    revealAgentSelectorOnFocus = false,
+    dense = false,
 }: AgentChatInputProps) => {
     const user = useUser(true);
     const [value, setValueState] = useState(defaultValue ?? '');
+    const [hasClickedInput, setHasClickedInput] = useState(
+        !revealAgentSelectorOnFocus,
+    );
+    const handleInputCardMouseDown = useCallback(() => {
+        if (revealAgentSelectorOnFocus) setHasClickedInput(true);
+    }, [revealAgentSelectorOnFocus]);
     const navigate = useNavigate();
     const onSubmitRef = useRef(onSubmit);
     onSubmitRef.current = onSubmit;
@@ -692,10 +704,14 @@ export const AgentChatInput = ({
             className={`${styles.container} ${
                 showDisabledBanner ? styles.disabledBannerVisible : ''
             }`}
+            data-dense={dense}
         >
             {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
-            <Box className={styles.inputCard}>
+            <Box
+                className={styles.inputCard}
+                onMouseDown={handleInputCardMouseDown}
+            >
                 <RichTextEditor
                     editor={editor}
                     classNames={{
@@ -717,12 +733,17 @@ export const AgentChatInput = ({
 
                     <Group gap="xs" align="center" wrap="nowrap">
                         {showAgentSelector && (
-                            <AgentSelector
-                                projectUuid={projectUuid!}
-                                agents={agents!}
-                                selectedAgent={selectedAgent!}
-                                compact
-                            />
+                            <Box
+                                className={styles.agentSelectorReveal}
+                                data-visible={hasClickedInput}
+                            >
+                                <AgentSelector
+                                    projectUuid={projectUuid!}
+                                    agents={agents!}
+                                    selectedAgent={selectedAgent!}
+                                    compact
+                                />
+                            </Box>
                         )}
 
                         {(showModelSelector || onExtendedThinkingChange) &&

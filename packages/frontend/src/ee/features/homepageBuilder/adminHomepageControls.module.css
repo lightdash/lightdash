@@ -1,0 +1,59 @@
+.corner {
+    position: fixed;
+    top: calc(var(--navbar-height) + 16px);
+    right: 24px;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tbBtn {
+    border: 1px solid var(--mantine-color-ldGray-2);
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    border-radius: 8px;
+    padding: 0 9px;
+    height: 32px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    color: var(--mantine-color-ldGray-7);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    white-space: nowrap;
+    box-shadow: var(--mantine-shadow-subtle);
+    transition:
+        background 0.12s ease-in-out,
+        gap 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tbBtn:hover,
+.tbBtn:focus-visible {
+    background: var(--mantine-color-ldGray-1);
+    gap: 6px;
+}
+
+.tbBtnLabel {
+    display: inline-block;
+    max-width: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition:
+        max-width 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 0.15s ease;
+}
+
+.tbBtn:hover .tbBtnLabel,
+.tbBtn:focus-visible .tbBtnLabel {
+    max-width: 160px;
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tbBtn,
+    .tbBtnLabel {
+        transition: none;
+    }
+}

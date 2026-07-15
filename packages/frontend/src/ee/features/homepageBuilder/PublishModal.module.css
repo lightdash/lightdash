@@ -1,0 +1,26 @@
+.borderedPanel {
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 10px;
+}
+
+.infoPanel {
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 10px;
+    background: var(--mantine-color-ldGray-0);
+}
+
+.infoPanelIcon {
+    margin-top: 1px;
+    flex-shrink: 0;
+}
+
+.priorityRow {
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 8px;
+    background: var(--mantine-color-ldGray-0);
+}
+
+.resolvesBar {
+    background: var(--mantine-color-ldGray-0);
+    border-radius: 9px;
+}

@@ -4,6 +4,7 @@ import {
     type CreateProjectHomepageRequest,
     type HomepageAssignment,
     type HomepageAudience,
+    type HomepageConfig,
     type HomepageViewAsResult,
     type HomepageViewAsTarget,
     type ProjectHomepage,
@@ -272,6 +273,42 @@ export const useCreateHomepage = (projectUuid: string) => {
         (data) => createHomepageApi(projectUuid, data),
         {
             mutationKey: ['create_project_homepage'],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries([
+                    PROJECT_HOMEPAGE_QUERY_KEY,
+                    projectUuid,
+                ]);
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to create homepage',
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
+
+// Creates a homepage, then immediately overwrites its draft — used by the
+// first-time empty state, which skips the blank/duplicate name modal and
+// seeds the draft straight from the caller instead.
+export const useCreateHomepageWithDraft = (projectUuid: string) => {
+    const { showToastApiError } = useToaster();
+    const queryClient = useQueryClient();
+    return useMutation<
+        ProjectHomepage,
+        ApiError,
+        { name: string; draftConfig: HomepageConfig }
+    >(
+        async ({ name, draftConfig }) => {
+            const created = await createHomepageApi(projectUuid, { name });
+            return updateHomepageDraftApi(projectUuid, created.homepageUuid, {
+                draftConfig,
+                baseUpdatedAt: created.updatedAt,
+            });
+        },
+        {
+            mutationKey: ['create_project_homepage_with_draft'],
             onSuccess: async () => {
                 await queryClient.invalidateQueries([
                     PROJECT_HOMEPAGE_QUERY_KEY,

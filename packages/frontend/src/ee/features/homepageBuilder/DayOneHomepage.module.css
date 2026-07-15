@@ -1,63 +1,33 @@
-.band {
-    background: light-dark(#fff, var(--mantine-color-dark-7));
-    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+.page {
+    display: flex;
+    flex-direction: column;
+    padding: 0 24px 64px;
 }
 
-.bandInner {
+.heroSection {
+    min-height: calc(100vh - var(--navbar-height) - 72px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.hero {
+    width: 100%;
     max-width: 720px;
-    margin: 0 auto;
-    padding: 56px 24px 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
-.container {
+.welcome {
+    width: 100%;
     max-width: 1040px;
     margin: 0 auto;
-    padding: 40px 32px 60px;
 }
 
-.dayChip {
-    font-size: 13px;
-    font-weight: 500;
-    padding: 7px 13px;
-    border-radius: 999px;
-    cursor: pointer;
-    background: light-dark(#fff, var(--mantine-color-dark-6));
-    border: 1px solid var(--mantine-color-ldGray-2);
-    color: var(--mantine-color-ldGray-7);
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-family: inherit;
-    transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.dayChip:hover {
-    border-color: var(--mantine-color-ldGray-4);
-    color: var(--mantine-color-ldGray-9);
-    box-shadow: var(--mantine-shadow-subtle);
-}
-
-.itemRow {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
-    color: inherit;
-    text-decoration: none;
-}
-
-.itemName {
-    font-size: 13.5px;
-    font-weight: 500;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.itemMeta {
-    font-size: 12px;
-    color: var(--mantine-color-ldGray-6);
-    display: flex;
-    align-items: center;
-    gap: 5px;
+.secondary {
+    width: 100%;
+    max-width: 1040px;
+    margin: 24px auto 0;
 }

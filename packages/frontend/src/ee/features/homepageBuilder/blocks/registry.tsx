@@ -6,7 +6,7 @@ import {
     IconClock,
     IconLayoutGrid,
     IconMarkdown,
-    IconSparkles,
+    IconMessageChatbot,
     IconSpeakerphone,
     IconStar,
     IconTypography,
@@ -14,11 +14,11 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { AiBlockBuild, AiBlockView } from './AiBlock';
 import {
     AnnouncementsBlockBuild,
     AnnouncementsBlockView,
 } from './AnnouncementsBlock';
+import { AskAiHeroBlockBuild, AskAiHeroBlockView } from './AskAiHeroBlock';
 import { CollectionBlockBuild, CollectionBlockView } from './CollectionBlock';
 import { FavoritesBlockBuild, FavoritesBlockView } from './FavoritesBlock';
 import { HeroBlockBuild, HeroBlockView } from './HeroBlock';
@@ -63,18 +63,18 @@ export const blockLibrary: BlockDefinition[] = [
         Build: HeroBlockBuild,
     },
     {
-        type: 'ai',
+        type: 'ask-ai-hero',
         label: 'Ask AI',
-        description: 'Natural-language ask box with curated suggestions.',
-        icon: IconSparkles,
+        description: 'AI chat composer with live suggestions, and a greeting.',
+        icon: IconMessageChatbot,
         requiresAi: true,
         create: () => ({
             id: uuidv4(),
-            type: 'ai',
-            config: { chips: ['What drove revenue last month?'] },
+            type: 'ask-ai-hero',
+            config: { showGreeting: true },
         }),
-        View: AiBlockView,
-        Build: AiBlockBuild,
+        View: AskAiHeroBlockView,
+        Build: AskAiHeroBlockBuild,
     },
     {
         type: 'quick-actions',

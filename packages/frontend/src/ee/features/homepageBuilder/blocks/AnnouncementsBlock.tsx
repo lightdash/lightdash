@@ -15,13 +15,13 @@ const AnnouncementRow: FC<{
 }> = ({ item, onRemove }) => {
     const timeAgo = useTimeAgo(item.date);
     return (
-        <div className={classes.listRow} style={{ alignItems: 'flex-start' }}>
+        <div className={`${classes.listRow} ${classes.listRowTop}`}>
             <span className={classes.announcementDot} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, lineHeight: 1.45 }}>
-                    {item.text}
-                </div>
-                <div className={classes.rowAside} style={{ marginTop: 2 }}>
+            <div className={classes.flexFill}>
+                <div className={classes.announcementText}>{item.text}</div>
+                <div
+                    className={`${classes.rowAside} ${classes.rowAsideSpaced}`}
+                >
                     {timeAgo} · {item.author}
                 </div>
             </div>
@@ -101,7 +101,7 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
                 iconColor="#7262FF"
                 title={block.config.title}
             />
-            <div className={classes.listCard} style={{ marginBottom: 8 }}>
+            <div className={`${classes.listCard} ${classes.listCardSpaced}`}>
                 {block.config.items.map((item, index) => (
                     <AnnouncementRow
                         key={`${item.date}-${item.author}`}
@@ -124,7 +124,7 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
                 <Textarea
                     aria-label="New announcement"
                     size="xs"
-                    style={{ flex: 1 }}
+                    flex={1}
                     autosize
                     minRows={1}
                     maxRows={4}

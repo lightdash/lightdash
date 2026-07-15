@@ -54,7 +54,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                     <Button
                         variant={minimal ? 'transparent' : 'subtle'}
                         color="ldGray.7"
-                        p="xs"
+                        size="xs"
                         fw="500"
                         leftSection={<Logo />}
                         loading={healthState.isInitialLoading}
@@ -81,13 +81,12 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                         >
                             <ActionIcon
                                 color="ldGray.7"
-                                p="xs"
-                                size="lg"
+                                size="md"
                                 variant="subtle"
                             >
                                 <MantineIcon
                                     icon={IconBook}
-                                    size="lg"
+                                    size="sm"
                                     color="ldGray.7"
                                 />
                             </ActionIcon>
@@ -99,14 +98,14 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                             leftSection={
                                 <MantineIcon
                                     icon={IconBook}
-                                    size="lg"
+                                    size="sm"
                                     color="ldGray.7"
                                 />
                             }
-                            variant="light"
+                            variant="subtle"
                             color="ldGray.7"
+                            size="xs"
                             fw="500"
-                            p="xs"
                         >
                             Documentation
                         </MantineLinkButton>

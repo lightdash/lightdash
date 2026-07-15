@@ -21,6 +21,10 @@
     white-space: nowrap;
 }
 
+.clickable {
+    cursor: pointer;
+}
+
 .hoverCard {
     border: 1px solid var(--mantine-color-ldGray-2);
     border-radius: 10px;
@@ -56,6 +60,25 @@ a .hoverCard:hover,
 
 .listRow.clickable:hover {
     background: var(--mantine-color-ldGray-0);
+}
+
+.pickerRow {
+    cursor: pointer;
+    border-radius: 8px;
+}
+
+.pickerScrollList {
+    overflow-y: auto;
+}
+
+.actionRow {
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-radius: 8px;
+}
+
+.plainLink {
+    color: inherit;
+    text-decoration: none;
 }
 
 .iconSquare {
@@ -143,6 +166,28 @@ a .hoverCard:hover,
     flex-shrink: 0;
 }
 
+.listRowTop {
+    align-items: flex-start;
+}
+
+.flexFill {
+    flex: 1;
+    min-width: 0;
+}
+
+.announcementText {
+    font-size: 13.5px;
+    line-height: 1.45;
+}
+
+.rowAsideSpaced {
+    margin-top: 2px;
+}
+
+.listCardSpaced {
+    margin-bottom: 8px;
+}
+
 .kpiLabel {
     font-size: 12px;
     color: var(--mantine-color-ldGray-6);
@@ -162,6 +207,14 @@ a .hoverCard:hover,
     font-weight: 500;
 }
 
+.kpiDeltaUp {
+    color: var(--mantine-color-teal-7);
+}
+
+.kpiDeltaDown {
+    color: var(--mantine-color-red-7);
+}
+
 .buildHint {
     font-size: 11.5px;
     color: var(--mantine-color-ldGray-5);
@@ -172,12 +225,15 @@ a .hoverCard:hover,
     border: 1px dashed var(--mantine-color-ldGray-3);
     border-radius: 10px;
     min-height: 108px;
-    display: grid;
-    place-items: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
     color: var(--mantine-color-ldGray-5);
     cursor: pointer;
     font-size: 13px;
     font-weight: 500;
+    line-height: 1;
     background: transparent;
     font-family: inherit;
     transition: all 0.15s ease-in-out;
@@ -209,24 +265,4 @@ a .hoverCard:hover,
     background: var(--mantine-color-ldGray-1);
     border-radius: 5px;
     padding: 2px 7px;
-}
-
-.aiChip {
-    font-size: 12px;
-    font-weight: 500;
-    padding: 5px 11px;
-    border-radius: 7px;
-    cursor: pointer;
-    background: var(--mantine-color-ldGray-0);
-    border: 1px solid transparent;
-    color: var(--mantine-color-ldGray-7);
-    transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
-    font-family: inherit;
-}
-
-.aiChip:hover {
-    background: light-dark(#fff, var(--mantine-color-dark-6));
-    border-color: var(--mantine-color-ldGray-3);
-    color: var(--mantine-color-ldGray-9);
-    box-shadow: var(--mantine-shadow-subtle);
 }

@@ -80,20 +80,20 @@ const CollectionPickerModal: FC<{
                     onChange={(e) => setSearch(e.currentTarget.value)}
                     rightSection={isFetching ? <Loader size="xs" /> : null}
                 />
-                <Stack gap={4} mah={360} style={{ overflowY: 'auto' }}>
+                <Stack gap={4} mah={360} className={classes.pickerScrollList}>
                     {results.map((content) => (
                         <Group
                             key={content.uuid}
                             gap="sm"
                             wrap="nowrap"
                             p="xs"
-                            style={{ cursor: 'pointer', borderRadius: 8 }}
+                            className={classes.pickerRow}
                             onClick={() => onAdd(toItemRef(content))}
                         >
                             <ResourceIcon
                                 item={contentToResourceViewItem(content)}
                             />
-                            <Box style={{ flex: 1, minWidth: 0 }}>
+                            <Box flex={1} miw={0}>
                                 <Text size="sm" fw={500} truncate>
                                     {content.name}
                                 </Text>
@@ -244,14 +244,8 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
                     className={classes.addContentTile}
                     onClick={() => setIsPickerOpen(true)}
                 >
-                    <span>
-                        <MantineIcon
-                            icon={IconPlus}
-                            size={14}
-                            style={{ marginRight: 5, verticalAlign: -2 }}
-                        />
-                        Add content
-                    </span>
+                    <MantineIcon icon={IconPlus} size={14} />
+                    Add content
                 </button>
             </SimpleGrid>
             {block.config.items.length === 0 && importablePins.length > 0 && (

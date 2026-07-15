@@ -37,7 +37,7 @@ const ResourceRow: FC<{
     const body = (
         <>
             <IconSquare icon={KIND_ICONS[item.kind] ?? IconLink} />
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className={classes.flexFill}>
                 <div className={classes.rowName}>{item.title}</div>
                 <div className={classes.rowMeta}>{item.url}</div>
             </div>
@@ -67,8 +67,7 @@ const ResourceRow: FC<{
             href={item.url}
             target="_blank"
             rel="noopener noreferrer"
-            className={`${classes.listRow} ${classes.clickable}`}
-            style={{ color: 'inherit', textDecoration: 'none' }}
+            className={`${classes.listRow} ${classes.clickable} ${classes.plainLink}`}
         >
             {body}
         </a>
@@ -162,7 +161,7 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
                 <TextInput
                     label="Title"
                     size="xs"
-                    style={{ flex: 1 }}
+                    flex={1}
                     placeholder="e.g. Intro to Lightdash (3 min)"
                     value={title}
                     onChange={(e) => setTitle(e.currentTarget.value)}
@@ -170,7 +169,7 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
                 <TextInput
                     label="URL"
                     size="xs"
-                    style={{ flex: 1 }}
+                    flex={1}
                     placeholder="https://…"
                     value={url}
                     onChange={(e) => setUrl(e.currentTarget.value)}

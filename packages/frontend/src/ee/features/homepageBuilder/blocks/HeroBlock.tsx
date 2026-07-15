@@ -53,7 +53,7 @@ export const HeroBlockView: FC<BlockComponentProps> = ({
                     component={Link}
                     to={`/projects/${projectUuid}/tables`}
                     leftSection={<MantineIcon icon={IconSquareRoundedPlus} />}
-                    style={{ flexShrink: 0 }}
+                    flex="0 0 auto"
                 >
                     New
                 </Button>

@@ -146,6 +146,10 @@
     transform: scale(0.98);
 }
 
+.railCard[data-dragging='true'] {
+    opacity: 0.4;
+}
+
 .railCardLabel {
     font-size: 13px;
     font-weight: 500;
@@ -337,6 +341,11 @@
     font-size: 13px;
     font-weight: 500;
     transition: all 0.15s ease-in-out;
+}
+
+.endZoneIcon {
+    margin-right: 6px;
+    vertical-align: -2px;
 }
 
 .endZoneActive {

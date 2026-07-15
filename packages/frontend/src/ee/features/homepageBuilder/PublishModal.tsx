@@ -1,6 +1,7 @@
 import {
     ProjectMemberRole,
     ProjectMemberRoleLabels,
+    type Group as OrgGroup,
     type HomepageAssignment,
     type HomepageAudience,
 } from '@lightdash/common';
@@ -24,7 +25,7 @@ import {
     IconWorld,
     IconWorldCheck,
 } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
@@ -34,6 +35,7 @@ import {
     useHomepageAssignments,
     useUpdateGroupPriorities,
 } from './hooks/useProjectHomepage';
+import classes from './PublishModal.module.css';
 
 const RESOLUTION_STEPS = ['Personal', 'Group priority', 'Role', 'Org default'];
 
@@ -64,27 +66,90 @@ type Props = {
     onPublish: (audience: HomepageAudience, allowPersonal: boolean) => void;
 };
 
-export const PublishModal: FC<Props> = ({
+// Thin loader: PublishModal itself stays mounted for the lifetime of the
+// editor (only `opened` toggles), so it can't seed form state from props at
+// mount time. It waits for assignments to load, then mounts PublishModalBody
+// keyed on an open-epoch counter — a fresh instance (fresh useState) every
+// time the modal is opened, seeded from that session's real assignments.
+export const PublishModal: FC<Props> = (props) => {
+    const { opened, onClose, projectUuid } = props;
+    const { data: groups } = useOrganizationGroups({}, { enabled: opened });
+    const { data: assignments, isInitialLoading: assignmentsLoading } =
+        useHomepageAssignments(projectUuid, { enabled: opened });
+    const { mutate: reorderGroups } = useUpdateGroupPriorities(projectUuid);
+
+    const openEpochRef = useRef(0);
+    const wasOpenedRef = useRef(opened);
+    if (opened && !wasOpenedRef.current) {
+        openEpochRef.current += 1;
+    }
+    wasOpenedRef.current = opened;
+
+    if (opened && (assignmentsLoading || !assignments)) {
+        return (
+            <MantineModal
+                opened={opened}
+                onClose={onClose}
+                title="Publish homepage"
+                icon={IconSend}
+                size="lg"
+            />
+        );
+    }
+
+    return (
+        <PublishModalBody
+            key={`${props.homepageUuid}-${openEpochRef.current}`}
+            {...props}
+            groups={groups ?? []}
+            assignments={assignments ?? []}
+            reorderGroups={reorderGroups}
+        />
+    );
+};
+
+type BodyProps = Props & {
+    groups: OrgGroup[];
+    assignments: HomepageAssignment[];
+    reorderGroups: (groupUuids: string[]) => void;
+};
+
+const PublishModalBody: FC<BodyProps> = ({
     opened,
     onClose,
-    projectUuid,
     homepageUuid,
     homepageName,
     isPublishing,
     initialAllowPersonal,
     onPublish,
+    groups,
+    assignments,
+    reorderGroups,
 }) => {
-    const [mode, setMode] = useState<string>('everyone');
-    const [allowPersonal, setAllowPersonal] = useState(initialAllowPersonal);
-    const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
-    const [selectedRoles, setSelectedRoles] = useState<ProjectMemberRole[]>([]);
-    const { data: groups } = useOrganizationGroups({}, { enabled: opened });
-    const { data: assignments } = useHomepageAssignments(projectUuid, {
-        enabled: opened,
-    });
-    const { mutate: reorderGroups } = useUpdateGroupPriorities(projectUuid);
+    const ownAssignments = assignments.filter(
+        (assignment) => assignment.homepageUuid === homepageUuid,
+    );
+    const initialMode = ownAssignments.some((a) => a.targetType === 'group')
+        ? 'groups'
+        : ownAssignments.some((a) => a.targetType === 'role')
+          ? 'roles'
+          : 'everyone';
 
-    const groupAssignments = (assignments ?? []).filter(
+    const [mode, setMode] = useState<string>(initialMode);
+    const [allowPersonal, setAllowPersonal] = useState(initialAllowPersonal);
+    const [selectedGroups, setSelectedGroups] = useState<string[]>(() =>
+        ownAssignments
+            .filter((a) => a.targetType === 'group')
+            .flatMap((a) => (a.groupUuid ? [a.groupUuid] : [])),
+    );
+    const [selectedRoles, setSelectedRoles] = useState<ProjectMemberRole[]>(
+        () =>
+            ownAssignments
+                .filter((a) => a.targetType === 'role')
+                .flatMap((a) => (a.role ? [a.role] : [])),
+    );
+
+    const groupAssignments = assignments.filter(
         (assignment) => assignment.targetType === 'group',
     );
     const assignmentByGroup = new Map(
@@ -94,7 +159,7 @@ export const PublishModal: FC<Props> = ({
         ]),
     );
     const assignmentByRole = new Map(
-        (assignments ?? [])
+        assignments
             .filter((assignment) => assignment.targetType === 'role')
             .map((assignment) => [assignment.role, assignment]),
     );
@@ -187,20 +252,13 @@ export const PublishModal: FC<Props> = ({
                 />
 
                 {mode === 'everyone' && (
-                    <Box
-                        p={14}
-                        style={{
-                            border: '1px solid var(--mantine-color-ldGray-2)',
-                            borderRadius: 10,
-                            background: 'var(--mantine-color-ldGray-0)',
-                        }}
-                    >
+                    <Box p={14} className={classes.infoPanel}>
                         <Group gap={10} align="flex-start" wrap="nowrap">
                             <MantineIcon
                                 icon={IconWorldCheck}
                                 size={18}
                                 color="green"
-                                style={{ marginTop: 1, flexShrink: 0 }}
+                                className={classes.infoPanelIcon}
                             />
                             <Text size="sm" c="ldGray.7" lh={1.5}>
                                 This becomes the{' '}
@@ -218,11 +276,10 @@ export const PublishModal: FC<Props> = ({
                 {mode === 'groups' && (
                     <>
                         <div className={blockClasses.listCard}>
-                            {(groups ?? []).map((group) => (
+                            {groups.map((group) => (
                                 <label
                                     key={group.uuid}
-                                    className={blockClasses.listRow}
-                                    style={{ cursor: 'pointer' }}
+                                    className={`${blockClasses.listRow} ${blockClasses.clickable}`}
                                 >
                                     <Checkbox
                                         size="xs"
@@ -249,11 +306,7 @@ export const PublishModal: FC<Props> = ({
                                         size={16}
                                         color="ldGray.6"
                                     />
-                                    <Text
-                                        fz={13.5}
-                                        fw={500}
-                                        style={{ flex: 1 }}
-                                    >
+                                    <Text fz={13.5} fw={500} flex={1}>
                                         {group.name}
                                     </Text>
                                     {elsewhereBadge(
@@ -261,20 +314,14 @@ export const PublishModal: FC<Props> = ({
                                     )}
                                 </label>
                             ))}
-                            {(groups ?? []).length === 0 && (
+                            {groups.length === 0 && (
                                 <Text size="sm" c="dimmed" p="sm">
                                     No groups in this organization yet.
                                 </Text>
                             )}
                         </div>
                         {groupAssignments.length > 1 && (
-                            <Box
-                                p="sm"
-                                style={{
-                                    border: '1px solid var(--mantine-color-ldGray-2)',
-                                    borderRadius: 10,
-                                }}
-                            >
+                            <Box p="sm" className={classes.borderedPanel}>
                                 <Text
                                     fz={11}
                                     fw={600}
@@ -296,12 +343,7 @@ export const PublishModal: FC<Props> = ({
                                                 gap={10}
                                                 wrap="nowrap"
                                                 p="8px 10px"
-                                                style={{
-                                                    border: '1px solid var(--mantine-color-ldGray-2)',
-                                                    borderRadius: 8,
-                                                    background:
-                                                        'var(--mantine-color-ldGray-0)',
-                                                }}
+                                                className={classes.priorityRow}
                                             >
                                                 <span
                                                     className={
@@ -310,7 +352,7 @@ export const PublishModal: FC<Props> = ({
                                                 >
                                                     {index + 1}
                                                 </span>
-                                                <Box style={{ flex: 1 }}>
+                                                <Box flex={1}>
                                                     <Text fz={13} fw={500}>
                                                         {assignment.groupName}
                                                     </Text>
@@ -376,8 +418,7 @@ export const PublishModal: FC<Props> = ({
                             {Object.values(ProjectMemberRole).map((role) => (
                                 <label
                                     key={role}
-                                    className={blockClasses.listRow}
-                                    style={{ cursor: 'pointer' }}
+                                    className={`${blockClasses.listRow} ${blockClasses.clickable}`}
                                 >
                                     <Checkbox
                                         size="xs"
@@ -397,7 +438,7 @@ export const PublishModal: FC<Props> = ({
                                         size={16}
                                         color="ldGray.6"
                                     />
-                                    <Box style={{ flex: 1 }}>
+                                    <Box flex={1}>
                                         <Text fz={13.5} fw={500}>
                                             {ProjectMemberRoleLabels[role]}
                                         </Text>
@@ -416,14 +457,7 @@ export const PublishModal: FC<Props> = ({
                     </>
                 )}
 
-                <Group
-                    gap={7}
-                    p="10px 12px"
-                    style={{
-                        background: 'var(--mantine-color-ldGray-0)',
-                        borderRadius: 9,
-                    }}
-                >
+                <Group gap={7} p="10px 12px" className={classes.resolvesBar}>
                     <Text fz={11.5} fw={500} c="ldGray.5">
                         Resolves:
                     </Text>
@@ -441,13 +475,7 @@ export const PublishModal: FC<Props> = ({
                     ))}
                 </Group>
 
-                <Box
-                    p="11px 13px"
-                    style={{
-                        border: '1px solid var(--mantine-color-ldGray-2)',
-                        borderRadius: 10,
-                    }}
-                >
+                <Box p="11px 13px" className={classes.borderedPanel}>
                     <Switch
                         label="Allow personal customization"
                         description="Viewers can favorite items or set a dashboard as their own homepage."

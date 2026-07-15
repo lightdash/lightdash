@@ -2,8 +2,13 @@ import { type HomepageBlock, type HomepageConfig } from '@lightdash/common';
 import { Box, Group, Paper, Stack, Text } from '@mantine-8/core';
 import { type FC } from 'react';
 import { getBlockDefinition } from './blocks/registry';
+import classes from './PublishedHomepage.module.css';
 
 const PERSONAL_BLOCK_TYPES: HomepageBlock['type'][] = ['favorites', 'recent'];
+
+// Composer-style blocks read better narrow and centered, like day-0's own
+// hero, instead of stretching to the full row width other blocks use.
+const NARROW_BLOCK_TYPES: HomepageBlock['type'][] = ['ask-ai-hero'];
 
 // Unknown block types render nothing so newer configs degrade gracefully
 const BlockRenderer: FC<{
@@ -29,7 +34,12 @@ const BlockRenderer: FC<{
         );
     }
     const { View } = definition;
-    return <View block={block} projectUuid={projectUuid} />;
+    const rendered = <View block={block} projectUuid={projectUuid} />;
+    return NARROW_BLOCK_TYPES.includes(block.type) ? (
+        <Box className={classes.narrowBlock}>{rendered}</Box>
+    ) : (
+        rendered
+    );
 };
 
 type Props = {
@@ -44,11 +54,11 @@ export const PublishedHomepage: FC<Props> = ({
     projectUuid,
     personalPlaceholders = false,
 }) => (
-    <Stack gap={26} maw={1100} mx="auto" w="100%">
+    <Stack gap={28} className={classes.container}>
         {config.rows.map((row) => (
             <Group key={row.id} gap={14} align="stretch" wrap="nowrap">
                 {row.blocks.map((block) => (
-                    <Box key={block.id} style={{ flex: 1, minWidth: 0 }}>
+                    <Box key={block.id} flex={1} miw={0}>
                         <BlockRenderer
                             block={block}
                             projectUuid={projectUuid}

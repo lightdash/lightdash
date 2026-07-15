@@ -169,26 +169,21 @@ const DashboardPickerModal: FC<{
                     onChange={(e) => setSearch(e.currentTarget.value)}
                     rightSection={isFetching ? <Loader size="xs" /> : null}
                 />
-                <Stack gap={4} mah={320} style={{ overflowY: 'auto' }}>
+                <Stack gap={4} mah={320} className={classes.pickerScrollList}>
                     {results.map((content) => (
                         <Group
                             key={content.uuid}
                             gap="sm"
                             wrap="nowrap"
                             p="xs"
-                            style={{ cursor: 'pointer', borderRadius: 8 }}
+                            className={classes.pickerRow}
                             onClick={() => onPick(content.uuid, content.name)}
                         >
                             <MantineIcon
                                 icon={IconLayoutDashboard}
                                 color="gray"
                             />
-                            <Text
-                                size="sm"
-                                fw={500}
-                                style={{ flex: 1 }}
-                                truncate
-                            >
+                            <Text size="sm" fw={500} flex={1} truncate>
                                 {content.name}
                             </Text>
                             <MantineIcon icon={IconPlus} color="gray" />
@@ -252,16 +247,13 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                             gap="xs"
                             wrap="nowrap"
                             p="xs"
-                            style={{
-                                border: '1px solid var(--mantine-color-gray-3)',
-                                borderRadius: 8,
-                            }}
+                            className={classes.actionRow}
                         >
                             <MantineIcon
                                 icon={presentation.icon}
                                 color="gray"
                             />
-                            <Text size="sm" fw={500} style={{ flex: 1 }}>
+                            <Text size="sm" fw={500} flex={1}>
                                 {presentation.title}
                             </Text>
                             <ActionIcon

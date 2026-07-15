@@ -1,104 +1,24 @@
 import { subject } from '@casl/ability';
 import { type ProjectHomepage } from '@lightdash/common';
-import {
-    Button,
-    Card,
-    Radio,
-    Stack,
-    Text,
-    TextInput,
-    Title,
-} from '@mantine-8/core';
-import { IconArrowLeft } from '@tabler/icons-react';
+import { Button, Stack, Text, Title } from '@mantine-8/core';
+import { IconSquareRoundedPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, type FC } from 'react';
 import { useParams, useSearchParams } from 'react-router';
+import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../../components/common/MantineIcon';
 import Page from '../../../components/common/Page/Page';
 import ForbiddenPanel from '../../../components/ForbiddenPanel';
 import PageSpinner from '../../../components/PageSpinner';
 import useApp from '../../../providers/App/useApp';
+import { CreateHomepageModal } from './CreateHomepageModal';
 import { HomepageEditor } from './HomepageEditor';
 import {
-    useCreateHomepage,
+    useCreateHomepageWithDraft,
     useHomepageBuilderFlag,
     useHomepageForBuilder,
     useProjectHomepages,
 } from './hooks/useProjectHomepage';
-
-const CreateHomepageForm: FC<{
-    projectUuid: string;
-    homepages: ProjectHomepage[];
-    onCreated: (homepage: ProjectHomepage) => void;
-    onCancel: (() => void) | null;
-}> = ({ projectUuid, homepages, onCreated, onCancel }) => {
-    const createMutation = useCreateHomepage(projectUuid);
-    const [name, setName] = useState('');
-    const [startFrom, setStartFrom] = useState('blank');
-
-    return (
-        <Stack gap="sm" maw={560}>
-            {onCancel && (
-                <Button
-                    variant="subtle"
-                    size="xs"
-                    w="fit-content"
-                    leftSection={<MantineIcon icon={IconArrowLeft} />}
-                    onClick={onCancel}
-                >
-                    Back
-                </Button>
-            )}
-            <Title order={3}>Create a homepage</Title>
-            <Text c="dimmed" size="sm">
-                Curate a landing page for this project. Publishing makes it what
-                everyone sees when they land in Lightdash.
-            </Text>
-            <TextInput
-                label="Name"
-                placeholder="e.g. Team homepage"
-                value={name}
-                onChange={(e) => setName(e.currentTarget.value)}
-            />
-            <Radio.Group
-                label="Start from"
-                value={startFrom}
-                onChange={setStartFrom}
-            >
-                <Stack gap="xs" mt="xs">
-                    <Card withBorder p="sm">
-                        <Radio value="blank" label="Blank" />
-                    </Card>
-                    {homepages.map((homepage) => (
-                        <Card key={homepage.homepageUuid} withBorder p="sm">
-                            <Radio
-                                value={homepage.homepageUuid}
-                                label={`Duplicate “${homepage.name}”`}
-                            />
-                        </Card>
-                    ))}
-                </Stack>
-            </Radio.Group>
-            <Button
-                w="fit-content"
-                disabled={name.trim().length === 0}
-                loading={createMutation.isLoading}
-                onClick={() =>
-                    createMutation.mutate(
-                        {
-                            name: name.trim(),
-                            duplicateFrom:
-                                startFrom === 'blank' ? undefined : startFrom,
-                        },
-                        { onSuccess: onCreated },
-                    )
-                }
-            >
-                Create homepage
-            </Button>
-        </Stack>
-    );
-};
 
 // ts-unused-exports:disable-next-line
 export const HomepageBuilderPage: FC = () => {
@@ -106,18 +26,21 @@ export const HomepageBuilderPage: FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const queryClient = useQueryClient();
     const [editorEpoch, setEditorEpoch] = useState(0);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(
+        searchParams.get('create') === '1',
+    );
     const selectedHomepageUuid = searchParams.get('homepage') ?? undefined;
-    const isCreating = searchParams.get('create') === '1';
     const { user } = useApp();
     const { isEnabled: isFlagEnabled, isLoading: isFlagLoading } =
         useHomepageBuilderFlag();
     const homepage = useHomepageForBuilder(projectUuid, {
-        enabled: isFlagEnabled && !isCreating,
+        enabled: isFlagEnabled,
         homepageUuid: selectedHomepageUuid,
     });
     const homepages = useProjectHomepages(projectUuid, {
         enabled: isFlagEnabled,
     });
+    const createFirstHomepage = useCreateHomepageWithDraft(projectUuid ?? '');
 
     const canManage =
         user.data?.ability?.can(
@@ -130,10 +53,7 @@ export const HomepageBuilderPage: FC = () => {
 
     // Wait for a fresh fetch: the editor snapshots the draft on mount, so
     // seeding it from a stale cache would autosave old state over the server
-    if (
-        isFlagLoading ||
-        (isFlagEnabled && !isCreating && !homepage.isFetchedAfterMount)
-    ) {
+    if (isFlagLoading || (isFlagEnabled && !homepage.isFetchedAfterMount)) {
         return <PageSpinner />;
     }
 
@@ -141,49 +61,96 @@ export const HomepageBuilderPage: FC = () => {
         return <ForbiddenPanel />;
     }
 
-    const openHomepage = (created: ProjectHomepage) =>
+    const openHomepage = (created: ProjectHomepage) => {
+        setIsCreateModalOpen(false);
         setSearchParams({ homepage: created.homepageUuid });
+    };
 
-    if (isCreating || !homepage.data) {
+    const closeCreateModal = () => {
+        setIsCreateModalOpen(false);
+        if (searchParams.get('create')) {
+            const next = new URLSearchParams(searchParams);
+            next.delete('create');
+            setSearchParams(next, { replace: true });
+        }
+    };
+
+    if (!homepage.data) {
+        const handleCreateFirst = () =>
+            createFirstHomepage.mutate(
+                {
+                    name: 'Homepage',
+                    draftConfig: {
+                        version: 1,
+                        rows: [
+                            {
+                                id: uuidv4(),
+                                blocks: [
+                                    {
+                                        id: uuidv4(),
+                                        type: 'ask-ai-hero',
+                                        config: { showGreeting: true },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+                { onSuccess: openHomepage },
+            );
+
         return (
             <Page withFixedContent withPaddedContent>
-                <CreateHomepageForm
-                    projectUuid={projectUuid}
-                    homepages={homepages.data ?? []}
-                    onCreated={openHomepage}
-                    onCancel={
-                        isCreating && (homepages.data ?? []).length > 0
-                            ? () => setSearchParams({})
-                            : null
-                    }
-                />
+                <Stack gap="sm" maw={420} mx="auto" mt="15vh" align="center">
+                    <Title order={3} ta="center">
+                        Create your first homepage
+                    </Title>
+                    <Text c="dimmed" size="sm" ta="center">
+                        Curate a landing page for this project. Publishing makes
+                        it what everyone sees when they land in Lightdash.
+                    </Text>
+                    <Button
+                        leftSection={
+                            <MantineIcon icon={IconSquareRoundedPlus} />
+                        }
+                        loading={createFirstHomepage.isLoading}
+                        onClick={handleCreateFirst}
+                    >
+                        Create homepage
+                    </Button>
+                </Stack>
             </Page>
         );
     }
 
     return (
         <Page noContentPadding>
-            {
-                <HomepageEditor
-                    key={`${homepage.data.homepageUuid}-${editorEpoch}`}
-                    homepage={homepage.data}
-                    projectUuid={projectUuid}
-                    homepages={homepages.data ?? []}
-                    onSwitchHomepage={(homepageUuid) =>
-                        setSearchParams({ homepage: homepageUuid })
-                    }
-                    onCreateNew={() => setSearchParams({ create: '1' })}
-                    onDeleted={() => setSearchParams({})}
-                    onConflictReload={async () => {
-                        await queryClient.refetchQueries([
-                            'project_homepage',
-                            projectUuid,
-                            'builder',
-                        ]);
-                        setEditorEpoch((epoch) => epoch + 1);
-                    }}
-                />
-            }
+            <HomepageEditor
+                key={`${homepage.data.homepageUuid}-${editorEpoch}`}
+                homepage={homepage.data}
+                projectUuid={projectUuid}
+                homepages={homepages.data ?? []}
+                onSwitchHomepage={(homepageUuid) =>
+                    setSearchParams({ homepage: homepageUuid })
+                }
+                onCreateNew={() => setIsCreateModalOpen(true)}
+                onDeleted={() => setSearchParams({})}
+                onConflictReload={async () => {
+                    await queryClient.refetchQueries([
+                        'project_homepage',
+                        projectUuid,
+                        'builder',
+                    ]);
+                    setEditorEpoch((epoch) => epoch + 1);
+                }}
+            />
+            <CreateHomepageModal
+                opened={isCreateModalOpen}
+                onClose={closeCreateModal}
+                projectUuid={projectUuid}
+                homepages={homepages.data ?? []}
+                onCreated={openHomepage}
+            />
         </Page>
     );
 };

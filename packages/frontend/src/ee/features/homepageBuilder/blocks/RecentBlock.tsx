@@ -48,8 +48,7 @@ const RecentRow: FC<{
     return (
         <Link
             to={contentUrl(projectUuid, content)}
-            className={`${classes.listRow} ${classes.clickable}`}
-            style={{ color: 'inherit', textDecoration: 'none' }}
+            className={`${classes.listRow} ${classes.clickable} ${classes.plainLink}`}
         >
             <div className={classes.iconSquare}>
                 {isDashboard ? (
@@ -58,7 +57,7 @@ const RecentRow: FC<{
                     <IconChartBar size={16} />
                 )}
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className={classes.flexFill}>
                 <div className={classes.rowName}>{content.name}</div>
                 <div className={classes.rowMeta}>
                     {isDashboard ? 'Dashboard' : 'Chart'}

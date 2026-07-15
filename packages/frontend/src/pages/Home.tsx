@@ -1,12 +1,10 @@
 import { subject } from '@casl/ability';
 import { DbtProjectType, ProjectType } from '@lightdash/common';
-import { Box, Button, Group, Stack } from '@mantine-8/core';
-import { IconEdit, IconPlus } from '@tabler/icons-react';
+import { Box, Stack } from '@mantine-8/core';
 import { type FC } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router';
+import { Navigate, useParams } from 'react-router';
 import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
-import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { HomepageContentPanel } from '../components/Home/HomepageContentPanel';
@@ -16,6 +14,7 @@ import PageSpinner from '../components/PageSpinner';
 import PinnedAndFavoritesSection from '../components/PinnedAndFavoritesSection';
 import AiSearchBox from '../ee/components/Home/AiSearchBox';
 import { useAiAgentButtonVisibility } from '../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
+import { AdminHomepageControls } from '../ee/features/homepageBuilder/AdminHomepageControls';
 import { PersonalFavoritesStrip } from '../ee/features/homepageBuilder/blocks/FavoritesBlock';
 import { DayOneHomepage } from '../ee/features/homepageBuilder/DayOneHomepage';
 import {
@@ -23,6 +22,7 @@ import {
     useResolvedHomepage,
 } from '../ee/features/homepageBuilder/hooks/useProjectHomepage';
 import { PublishedHomepage } from '../ee/features/homepageBuilder/PublishedHomepage';
+import publishedHomepageClasses from '../ee/features/homepageBuilder/PublishedHomepage.module.css';
 import { ManagedAgentHomeCard } from '../ee/features/managedAgent/ManagedAgentHomeCard';
 import { useFavorites } from '../hooks/favorites/useFavorites';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
@@ -31,14 +31,12 @@ import {
     useMostPopularAndRecentlyUpdated,
     useProject,
 } from '../hooks/useProject';
-import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
 import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
 import { PinnedItemsProvider } from '../providers/PinnedItems/PinnedItemsProvider';
 
 const Home: FC = () => {
     const params = useParams<{ projectUuid: string }>();
-    const navigate = useNavigate();
     const selectedProjectUuid = params.projectUuid;
     const project = useProject(selectedProjectUuid);
     const onboarding = useOnboardingStatus();
@@ -112,42 +110,14 @@ const Home: FC = () => {
         );
         return (
             <Page withPaddedContent withFooter>
-                <Stack gap="md">
-                    <Can
-                        I="manage"
-                        this={subject('ProjectHomepage', {
-                            organizationUuid: project.data.organizationUuid,
-                            projectUuid: project.data.projectUuid,
-                        })}
-                    >
-                        <Group justify="flex-end" gap="xs">
-                            <Button
-                                variant="default"
-                                size="xs"
-                                leftSection={<MantineIcon icon={IconPlus} />}
-                                onClick={() =>
-                                    navigate(
-                                        `/projects/${project.data.projectUuid}/homepage-builder?create=1`,
-                                    )
-                                }
-                            >
-                                New homepage
-                            </Button>
-                            <Button
-                                size="xs"
-                                leftSection={<MantineIcon icon={IconEdit} />}
-                                onClick={() =>
-                                    navigate(
-                                        `/projects/${project.data.projectUuid}/homepage-builder`,
-                                    )
-                                }
-                            >
-                                Customize homepage
-                            </Button>
-                        </Group>
-                    </Can>
+                <AdminHomepageControls
+                    projectUuid={project.data.projectUuid}
+                    organizationUuid={project.data.organizationUuid}
+                    showNewHomepage
+                />
+                <Stack gap="md" pt={40} pb={64}>
                     {homepage.allowPersonal && !hasFavoritesBlock && (
-                        <Box maw={1100} mx="auto" w="100%">
+                        <Box className={publishedHomepageClasses.container}>
                             <PersonalFavoritesStrip
                                 projectUuid={project.data.projectUuid}
                             />
@@ -169,32 +139,31 @@ const Home: FC = () => {
     ) {
         return (
             <Page withFooter noContentPadding>
-                <DayOneHomepage
+                <AdminHomepageControls
                     projectUuid={project.data.projectUuid}
-                    projectName={project.data.name}
-                    adminSlot={
-                        <Can
-                            I="manage"
-                            this={subject('ProjectHomepage', {
-                                organizationUuid: project.data.organizationUuid,
-                                projectUuid: project.data.projectUuid,
-                            })}
-                        >
-                            <Button
-                                variant="default"
-                                size="xs"
-                                leftSection={<MantineIcon icon={IconEdit} />}
-                                onClick={() =>
-                                    navigate(
-                                        `/projects/${project.data.projectUuid}/homepage-builder`,
-                                    )
-                                }
-                            >
-                                Customize homepage
-                            </Button>
-                        </Can>
-                    }
+                    organizationUuid={project.data.organizationUuid}
                 />
+                <FavoritesProvider projectUuid={project.data.projectUuid}>
+                    <PinnedItemsProvider
+                        organizationUuid={project.data.organizationUuid}
+                        projectUuid={project.data.projectUuid}
+                        pinnedListUuid={project.data.pinnedListUuid || ''}
+                        allowDelete={false}
+                    >
+                        <DayOneHomepage
+                            projectUuid={project.data.projectUuid}
+                            projectName={project.data.name}
+                            pinnedItems={pinnedItems.data ?? []}
+                            favoriteItems={favorites.data ?? []}
+                            pinnedIsEnabled={Boolean(
+                                mostPopularAndRecentlyUpdated?.mostPopular
+                                    .length ||
+                                mostPopularAndRecentlyUpdated?.recentlyUpdated
+                                    .length,
+                            )}
+                        />
+                    </PinnedItemsProvider>
+                </FavoritesProvider>
             </Page>
         );
     }

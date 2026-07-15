@@ -105,13 +105,11 @@ const MetricKpiCard: FC<{
                         <Group gap={6}>
                             {change !== undefined && (
                                 <span
-                                    className={classes.kpiDelta}
-                                    style={{
-                                        color:
-                                            change >= 0
-                                                ? 'var(--mantine-color-teal-7)'
-                                                : 'var(--mantine-color-red-7)',
-                                    }}
+                                    className={`${classes.kpiDelta} ${
+                                        change >= 0
+                                            ? classes.kpiDeltaUp
+                                            : classes.kpiDeltaDown
+                                    }`}
                                 >
                                     {change >= 0 ? '↑' : '↓'}{' '}
                                     {applyCustomFormat(change, {
@@ -170,14 +168,14 @@ const MetricsPickerModal: FC<{
                     onChange={(e) => setSearch(e.currentTarget.value)}
                     rightSection={isFetching ? <Loader size="xs" /> : null}
                 />
-                <Stack gap={4} mah={360} style={{ overflowY: 'auto' }}>
+                <Stack gap={4} mah={360} className={classes.pickerScrollList}>
                     {results.map((metric) => (
                         <Group
                             key={metric.catalogSearchUuid}
                             gap="sm"
                             wrap="nowrap"
                             p="xs"
-                            style={{ cursor: 'pointer', borderRadius: 8 }}
+                            className={classes.pickerRow}
                             onClick={() =>
                                 onAdd({
                                     tableName: metric.tableName,
@@ -187,7 +185,7 @@ const MetricsPickerModal: FC<{
                             }
                         >
                             <MantineIcon icon={IconHash} color="gray" />
-                            <Box style={{ flex: 1, minWidth: 0 }}>
+                            <Box flex={1} miw={0}>
                                 <Text size="sm" fw={500} truncate>
                                     {metric.label ?? metric.name}
                                 </Text>
@@ -269,7 +267,7 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
                         p="sm"
                     >
                         <Group gap="xs" wrap="nowrap" justify="space-between">
-                            <Box style={{ minWidth: 0 }}>
+                            <Box miw={0}>
                                 <Text size="sm" fw={500} truncate>
                                     {metricRef.label}
                                 </Text>
