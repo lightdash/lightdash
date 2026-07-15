@@ -340,6 +340,7 @@ const FilterRequirementsButton: FC = () => {
         setStagedRuleUpdates(null);
         setNoteDraft(null);
         setDraftRuleIds([]);
+        setMemberIdPendingRemoval(null);
     }, [close]);
 
     const requirementCount = savedRequirementRules.length;
@@ -355,6 +356,10 @@ const FilterRequirementsButton: FC = () => {
             opened={isPopoverOpen}
             onClose={handleClose}
             onDismiss={handleClose}
+            // The removal confirm modal portals outside the dropdown, so its
+            // clicks would otherwise count as outside clicks and close the
+            // popover, discarding staged edits
+            closeOnClickOutside={memberIdPendingRemoval === null}
             transitionProps={{ transition: 'pop-top-left' }}
             withArrow
             shadow="md"

@@ -149,6 +149,10 @@ describe('FilterRequirementsButton explicit save', () => {
             }),
         );
 
+        // Clicks inside the portalled confirm modal must not count as
+        // popover outside clicks
+        expect(closeRulesPopover).not.toHaveBeenCalled();
+
         // Staged: the chip is gone from the draft view, nothing committed yet
         expect(queryRemoveChipButton()).toBeNull();
         expect(updateFilterRule).not.toHaveBeenCalled();
@@ -171,6 +175,7 @@ describe('FilterRequirementsButton explicit save', () => {
             }),
         );
 
+        expect(closeRulesPopover).not.toHaveBeenCalled();
         expect(queryRemoveChipButton()).not.toBeNull();
         expect(updateFilterRule).not.toHaveBeenCalled();
     });
