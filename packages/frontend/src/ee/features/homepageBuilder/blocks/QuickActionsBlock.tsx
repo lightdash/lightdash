@@ -4,7 +4,6 @@ import {
     Anchor,
     Box,
     Button,
-    Card,
     Group,
     Loader,
     Menu,
@@ -33,6 +32,8 @@ import { useInfiniteContent } from '../../../../hooks/useContent';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
 import { useAiAgentButtonVisibility } from '../../aiCopilot/hooks/useAiAgentsButtonVisibility';
+import { IconSquare } from './BlockShell';
+import classes from './blockStyles.module.css';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 type StaticActionDefinition = {
@@ -116,20 +117,25 @@ export const QuickActionCards: FC<{
                             })
                         }
                     >
-                        <Card withBorder p="md" h="100%">
-                            <Stack gap="xs">
-                                <MantineIcon
-                                    icon={presentation.icon}
-                                    size="xl"
-                                />
-                                <Text fw={600} size="sm">
-                                    {presentation.title}
-                                </Text>
-                                <Text size="xs" c="dimmed">
-                                    {presentation.description}
-                                </Text>
-                            </Stack>
-                        </Card>
+                        <Box
+                            className={`${classes.hoverCard} ${classes.clickable}`}
+                            p={18}
+                            h="100%"
+                        >
+                            <IconSquare
+                                icon={presentation.icon}
+                                tint={
+                                    action.type === 'ask-ai' ? 'violet' : 'gray'
+                                }
+                                size="lg"
+                            />
+                            <Text fw={600} fz={15} mt={13} mb={3}>
+                                {presentation.title}
+                            </Text>
+                            <Text fz={13} c="dimmed" lh={1.45}>
+                                {presentation.description}
+                            </Text>
+                        </Box>
                     </Anchor>
                 );
             })}

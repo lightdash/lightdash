@@ -1,0 +1,230 @@
+.sectionHeader {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.sectionTitle {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--mantine-color-ldGray-6);
+}
+
+.miniPill {
+    font-size: 11px;
+    color: var(--mantine-color-ldGray-5);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 5px;
+    padding: 1px 6px;
+    white-space: nowrap;
+}
+
+.hoverCard {
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 10px;
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    box-shadow: var(--mantine-shadow-subtle);
+    transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+a .hoverCard:hover,
+.hoverCard.clickable:hover {
+    box-shadow: var(--mantine-shadow-heavy);
+    transform: translateY(-1px);
+}
+
+.listCard {
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 10px;
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    box-shadow: var(--mantine-shadow-subtle);
+    overflow: hidden;
+}
+
+.listRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+}
+
+.listRow + .listRow {
+    border-top: 1px solid var(--mantine-color-ldGray-1);
+}
+
+.listRow.clickable:hover {
+    background: var(--mantine-color-ldGray-0);
+}
+
+.iconSquare {
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+    background: var(--mantine-color-ldGray-1);
+    display: grid;
+    place-items: center;
+    color: var(--mantine-color-ldGray-7);
+    flex-shrink: 0;
+}
+
+.iconSquareLg {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+}
+
+.tintDimension {
+    background: light-dark(#edf0fd, #202539);
+    color: light-dark(#3b5bdb, #95aaf0);
+}
+
+.tintMetric {
+    background: light-dark(#fbe9e0, #3e2f1a);
+    color: light-dark(#de7f0b, #e08a20);
+}
+
+.tintCalculation {
+    background: light-dark(#ebf5ed, #1d3525);
+    color: light-dark(#2b8a3e, #38af4d);
+}
+
+.tintViolet {
+    background: linear-gradient(135deg, #7262ff, #9a8cff);
+    color: #fff;
+}
+
+.dashedEmpty {
+    font-size: 12.5px;
+    color: var(--mantine-color-ldGray-5);
+    border: 1px dashed var(--mantine-color-ldGray-3);
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.favPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 8px;
+    padding: 7px 11px;
+    font-size: 13px;
+    font-weight: 500;
+    color: inherit;
+    text-decoration: none;
+    box-shadow: var(--mantine-shadow-subtle);
+    transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+    cursor: pointer;
+}
+
+.favPill:hover {
+    color: inherit;
+}
+
+.favPill:hover {
+    box-shadow: var(--mantine-shadow-heavy);
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+.starAccent {
+    color: light-dark(#de7f0b, #e08a20);
+}
+
+.violetAccent {
+    color: #7262ff;
+}
+
+.rowName {
+    font-size: 13.5px;
+    font-weight: 500;
+}
+
+.rowMeta {
+    font-size: 12px;
+    color: var(--mantine-color-ldGray-6);
+}
+
+.rowAside {
+    font-size: 12px;
+    color: var(--mantine-color-ldGray-5);
+    white-space: nowrap;
+}
+
+.announcementDot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #7262ff;
+    margin-top: 6px;
+    flex-shrink: 0;
+}
+
+.kpiLabel {
+    font-size: 12px;
+    color: var(--mantine-color-ldGray-6);
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.kpiValue {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin-bottom: 2px;
+}
+
+.kpiDelta {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.buildHint {
+    font-size: 11.5px;
+    color: var(--mantine-color-ldGray-5);
+    margin-top: 8px;
+}
+
+.addContentTile {
+    border: 1px dashed var(--mantine-color-ldGray-3);
+    border-radius: 10px;
+    min-height: 108px;
+    display: grid;
+    place-items: center;
+    color: var(--mantine-color-ldGray-5);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    background: transparent;
+    font-family: inherit;
+    transition: all 0.15s ease-in-out;
+}
+
+.addContentTile:hover {
+    border-color: var(--mantine-color-ldGray-5);
+    color: var(--mantine-color-ldGray-7);
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+}
+
+.aiChip {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 11px;
+    border-radius: 7px;
+    cursor: pointer;
+    background: var(--mantine-color-ldGray-0);
+    border: 1px solid transparent;
+    color: var(--mantine-color-ldGray-7);
+    transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+    font-family: inherit;
+}
+
+.aiChip:hover {
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    border-color: var(--mantine-color-ldGray-3);
+    color: var(--mantine-color-ldGray-9);
+    box-shadow: var(--mantine-shadow-subtle);
+}

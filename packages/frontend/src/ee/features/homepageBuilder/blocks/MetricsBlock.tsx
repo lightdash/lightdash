@@ -11,7 +11,6 @@ import {
 import {
     ActionIcon,
     Anchor,
-    Badge,
     Box,
     Button,
     Card,
@@ -24,7 +23,7 @@ import {
     TextInput,
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconHash, IconPlus, IconX } from '@tabler/icons-react';
+import { IconChartDots, IconHash, IconPlus, IconX } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -32,6 +31,8 @@ import MantineModal from '../../../../components/common/MantineModal';
 import { useMetricsCatalog } from '../../../../features/metricsCatalog/hooks/useMetricsCatalog';
 import { useRunMetricTotal } from '../../../../features/metricsCatalog/hooks/useRunMetricExplorerQuery';
 import { calculateComparisonValue } from '../../../../hooks/useBigNumberConfig';
+import { BlockHeader } from './BlockShell';
+import classes from './blockStyles.module.css';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 const KPI_TIME_FRAME = TimeFrames.MONTH;
@@ -79,48 +80,53 @@ const MetricKpiCard: FC<{
             underline="never"
             c="inherit"
         >
-            <Card withBorder p="sm" h="100%">
-                <Stack gap={4}>
-                    <Text size="xs" c="dimmed" fw={500} truncate>
-                        {totalQuery.data?.metric.label ?? metricRef.label}
+            <Box
+                className={`${classes.hoverCard} ${classes.clickable}`}
+                p={14}
+                h="100%"
+            >
+                <div className={classes.kpiLabel}>
+                    {totalQuery.data?.metric.label ?? metricRef.label}
+                </div>
+                {totalQuery.isError ? (
+                    <Text size="sm" c="dimmed">
+                        Couldn’t load this metric
                     </Text>
-                    {totalQuery.isError ? (
-                        <Text size="sm" c="dimmed">
-                            Couldn’t load this metric
-                        </Text>
-                    ) : (
-                        <>
-                            <Text size="xl" fw={600}>
-                                {totalQuery.data
-                                    ? formatItemValue(
-                                          totalQuery.data.metric,
-                                          totalQuery.data.value,
-                                      )
-                                    : '-'}
+                ) : (
+                    <>
+                        <div className={classes.kpiValue}>
+                            {totalQuery.data
+                                ? formatItemValue(
+                                      totalQuery.data.metric,
+                                      totalQuery.data.value,
+                                  )
+                                : '-'}
+                        </div>
+                        <Group gap={6}>
+                            {change !== undefined && (
+                                <span
+                                    className={classes.kpiDelta}
+                                    style={{
+                                        color:
+                                            change >= 0
+                                                ? 'var(--mantine-color-teal-7)'
+                                                : 'var(--mantine-color-red-7)',
+                                    }}
+                                >
+                                    {change >= 0 ? '↑' : '↓'}{' '}
+                                    {applyCustomFormat(change, {
+                                        round: 2,
+                                        type: CustomFormatType.PERCENT,
+                                    })}
+                                </span>
+                            )}
+                            <Text size="xs" c="dimmed">
+                                vs previous period
                             </Text>
-                            <Group gap={4}>
-                                {change !== undefined && (
-                                    <Badge
-                                        variant="light"
-                                        size="sm"
-                                        tt="none"
-                                        color={change >= 0 ? 'teal' : 'red'}
-                                    >
-                                        {change >= 0 ? '↑' : '↓'}{' '}
-                                        {applyCustomFormat(change, {
-                                            round: 2,
-                                            type: CustomFormatType.PERCENT,
-                                        })}
-                                    </Badge>
-                                )}
-                                <Text size="xs" c="dimmed">
-                                    vs previous period
-                                </Text>
-                            </Group>
-                        </>
-                    )}
-                </Stack>
-            </Card>
+                        </Group>
+                    </>
+                )}
+            </Box>
         </Anchor>
     );
 };
@@ -211,11 +217,13 @@ export const MetricsBlockView: FC<BlockComponentProps> = ({
         return null;
     }
     return (
-        <Stack gap="xs">
-            <Text size="xs" fw={600} tt="uppercase" c="dimmed">
-                {block.config.title}
-            </Text>
-            <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="sm">
+        <Stack gap={0}>
+            <BlockHeader
+                icon={IconChartDots}
+                iconColor="light-dark(#de7f0b, #e08a20)"
+                title={block.config.title}
+            />
+            <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing={12}>
                 {block.config.items.map((metricRef) => (
                     <MetricKpiCard
                         key={`${metricRef.tableName}-${metricRef.metricName}`}

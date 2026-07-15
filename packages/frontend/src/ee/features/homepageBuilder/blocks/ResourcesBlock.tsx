@@ -2,18 +2,7 @@ import {
     type HomepageResourceItem,
     type HomepageResourceKind,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Anchor,
-    Badge,
-    Box,
-    Card,
-    Group,
-    Select,
-    Stack,
-    Text,
-    TextInput,
-} from '@mantine-8/core';
+import { ActionIcon, Group, Select, Stack, TextInput } from '@mantine-8/core';
 import {
     IconBook,
     IconExternalLink,
@@ -25,6 +14,8 @@ import {
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { BlockHeader, IconSquare, MiniPill } from './BlockShell';
+import classes from './blockStyles.module.css';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 const KIND_ICONS: Record<HomepageResourceKind, Icon> = {
@@ -33,24 +24,24 @@ const KIND_ICONS: Record<HomepageResourceKind, Icon> = {
     link: IconLink,
 };
 
+const KIND_LABELS: Record<HomepageResourceKind, string> = {
+    video: 'Video',
+    doc: 'Doc',
+    link: 'Link',
+};
+
 const ResourceRow: FC<{
     item: HomepageResourceItem;
     onRemove?: () => void;
 }> = ({ item, onRemove }) => {
-    const row = (
-        <Group gap="sm" wrap="nowrap" p="xs">
-            <MantineIcon icon={KIND_ICONS[item.kind] ?? IconLink} size="lg" />
-            <Box style={{ flex: 1, minWidth: 0 }}>
-                <Text size="sm" fw={500} truncate>
-                    {item.title}
-                </Text>
-                <Text size="xs" c="dimmed" truncate>
-                    {item.url}
-                </Text>
-            </Box>
-            <Badge variant="default" size="sm" tt="capitalize">
-                {item.kind}
-            </Badge>
+    const body = (
+        <>
+            <IconSquare icon={KIND_ICONS[item.kind] ?? IconLink} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+                <div className={classes.rowName}>{item.title}</div>
+                <div className={classes.rowMeta}>{item.url}</div>
+            </div>
+            <MiniPill>{KIND_LABELS[item.kind] ?? 'Link'}</MiniPill>
             {onRemove ? (
                 <ActionIcon
                     variant="subtle"
@@ -62,21 +53,25 @@ const ResourceRow: FC<{
                     <MantineIcon icon={IconX} />
                 </ActionIcon>
             ) : (
-                <MantineIcon icon={IconExternalLink} color="gray" />
+                <MantineIcon
+                    icon={IconExternalLink}
+                    size={14}
+                    color="ldGray.4"
+                />
             )}
-        </Group>
+        </>
     );
-    if (onRemove) return row;
+    if (onRemove) return <div className={classes.listRow}>{body}</div>;
     return (
-        <Anchor
+        <a
             href={item.url}
             target="_blank"
             rel="noopener noreferrer"
-            underline="never"
-            c="inherit"
+            className={`${classes.listRow} ${classes.clickable}`}
+            style={{ color: 'inherit', textDecoration: 'none' }}
         >
-            {row}
-        </Anchor>
+            {body}
+        </a>
     );
 };
 
@@ -85,17 +80,13 @@ export const ResourcesBlockView: FC<BlockComponentProps> = ({ block }) => {
         return null;
     }
     return (
-        <Stack gap="xs">
-            <Text size="xs" fw={600} tt="uppercase" c="dimmed">
-                {block.config.title}
-            </Text>
-            <Card withBorder p={0}>
-                <Stack gap={0}>
-                    {block.config.items.map((item) => (
-                        <ResourceRow key={item.url} item={item} />
-                    ))}
-                </Stack>
-            </Card>
+        <Stack gap={0}>
+            <BlockHeader icon={IconBook} title={block.config.title} />
+            <div className={classes.listCard}>
+                {block.config.items.map((item) => (
+                    <ResourceRow key={item.url} item={item} />
+                ))}
+            </div>
         </Stack>
     );
 };
@@ -148,27 +139,25 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
                     })
                 }
             />
-            <Card withBorder p={0}>
-                <Stack gap={0}>
-                    {block.config.items.map((item) => (
-                        <ResourceRow
-                            key={item.url}
-                            item={item}
-                            onRemove={() =>
-                                onChange({
-                                    ...block,
-                                    config: {
-                                        ...block.config,
-                                        items: block.config.items.filter(
-                                            (i) => i.url !== item.url,
-                                        ),
-                                    },
-                                })
-                            }
-                        />
-                    ))}
-                </Stack>
-            </Card>
+            <div className={classes.listCard}>
+                {block.config.items.map((item) => (
+                    <ResourceRow
+                        key={item.url}
+                        item={item}
+                        onRemove={() =>
+                            onChange({
+                                ...block,
+                                config: {
+                                    ...block.config,
+                                    items: block.config.items.filter(
+                                        (i) => i.url !== item.url,
+                                    ),
+                                },
+                            })
+                        }
+                    />
+                ))}
+            </div>
             <Group gap="xs" align="flex-end">
                 <TextInput
                     label="Title"

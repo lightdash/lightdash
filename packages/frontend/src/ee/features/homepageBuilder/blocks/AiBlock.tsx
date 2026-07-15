@@ -7,7 +7,7 @@ import {
     Text,
     TextInput,
 } from '@mantine-8/core';
-import { IconArrowUpRight, IconPlus, IconX } from '@tabler/icons-react';
+import { IconPlus, IconX } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -18,6 +18,7 @@ import {
 } from '../../aiCopilot/components/AgentSelector/AgentSelectorUtils';
 import { usePendingPrompt } from '../../aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { useAiAgentButtonVisibility } from '../../aiCopilot/hooks/useAiAgentsButtonVisibility';
+import classes from './blockStyles.module.css';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 const SuggestionChips: FC<{ chips: string[]; projectUuid: string }> = ({
@@ -28,17 +29,12 @@ const SuggestionChips: FC<{ chips: string[]; projectUuid: string }> = ({
     const { setPendingPrompt } = usePendingPrompt();
     if (chips.length === 0) return null;
     return (
-        <Group gap="xs" mt="xs">
+        <Group gap={6} mt={13}>
             {chips.map((chip) => (
-                <Badge
+                <button
                     key={chip}
-                    variant="default"
-                    size="lg"
-                    radius="sm"
-                    tt="none"
-                    fw={500}
-                    style={{ cursor: 'pointer' }}
-                    leftSection={<MantineIcon icon={IconArrowUpRight} />}
+                    type="button"
+                    className={classes.aiChip}
                     onClick={() => {
                         setPendingPrompt(chip);
                         void navigate(
@@ -57,7 +53,7 @@ const SuggestionChips: FC<{ chips: string[]; projectUuid: string }> = ({
                     }}
                 >
                     {chip}
-                </Badge>
+                </button>
             ))}
         </Group>
     );

@@ -1,14 +1,23 @@
 import {
+    ContentType,
     type ApiError,
     type HomepageRecentlyViewedItem,
+    type SummaryContent,
 } from '@lightdash/common';
-import { Badge, Card, Group, Skeleton, Stack, Text } from '@mantine-8/core';
+import { Skeleton, Stack } from '@mantine-8/core';
+import {
+    IconChartBar,
+    IconClock,
+    IconLayoutDashboard,
+} from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { type FC } from 'react';
+import { Link } from 'react-router';
 import { lightdashApi } from '../../../../api';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
 import { useCollectionContent } from '../hooks/useCollectionContent';
-import { ContentCard } from './ContentCard';
+import { BlockHeader } from './BlockShell';
+import classes from './blockStyles.module.css';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 const getRecentlyViewed = async (projectUuid: string) =>
@@ -24,12 +33,41 @@ const useRecentlyViewed = (projectUuid: string) =>
         queryFn: () => getRecentlyViewed(projectUuid),
     });
 
-const ViewedAt: FC<{ date: Date }> = ({ date }) => {
-    const timeAgo = useTimeAgo(date);
+const contentUrl = (projectUuid: string, content: SummaryContent): string =>
+    content.contentType === ContentType.DASHBOARD
+        ? `/projects/${projectUuid}/dashboards/${content.uuid}/view`
+        : `/projects/${projectUuid}/saved/${content.uuid}`;
+
+const RecentRow: FC<{
+    content: SummaryContent;
+    projectUuid: string;
+    viewedAt: Date | undefined;
+}> = ({ content, projectUuid, viewedAt }) => {
+    const timeAgo = useTimeAgo(viewedAt ?? new Date(0));
+    const isDashboard = content.contentType === ContentType.DASHBOARD;
     return (
-        <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
-            {timeAgo}
-        </Text>
+        <Link
+            to={contentUrl(projectUuid, content)}
+            className={`${classes.listRow} ${classes.clickable}`}
+            style={{ color: 'inherit', textDecoration: 'none' }}
+        >
+            <div className={classes.iconSquare}>
+                {isDashboard ? (
+                    <IconLayoutDashboard size={16} />
+                ) : (
+                    <IconChartBar size={16} />
+                )}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+                <div className={classes.rowName}>{content.name}</div>
+                <div className={classes.rowMeta}>
+                    {isDashboard ? 'Dashboard' : 'Chart'}
+                </div>
+            </div>
+            {viewedAt ? (
+                <span className={classes.rowAside}>{timeAgo}</span>
+            ) : null}
+        </Link>
     );
 };
 
@@ -43,53 +81,32 @@ const RecentList: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         return (
             <Stack gap="xs">
                 {[0, 1, 2].map((i) => (
-                    <Skeleton key={i} h={56} radius="md" />
+                    <Skeleton key={i} h={52} radius="md" />
                 ))}
             </Stack>
         );
     }
     if (!contents || contents.length === 0) {
         return (
-            <Text
-                size="xs"
-                c="dimmed"
-                p="sm"
-                style={{
-                    border: '1px dashed var(--mantine-color-gray-4)',
-                    borderRadius: 8,
-                }}
-            >
+            <div className={classes.dashedEmpty}>
                 Charts and dashboards you open will show up here.
-            </Text>
+            </div>
         );
     }
     const viewedAtByUuid = new Map(
         (recents ?? []).map((item) => [item.uuid, item.viewedAt]),
     );
     return (
-        <Card withBorder p="sm">
-            <Stack gap="xs">
-                {contents.map((content) => {
-                    const viewedAt = viewedAtByUuid.get(content.uuid);
-                    return (
-                        <Group
-                            key={content.uuid}
-                            gap="sm"
-                            wrap="nowrap"
-                            align="center"
-                        >
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                                <ContentCard
-                                    content={content}
-                                    projectUuid={projectUuid}
-                                />
-                            </div>
-                            {viewedAt && <ViewedAt date={viewedAt} />}
-                        </Group>
-                    );
-                })}
-            </Stack>
-        </Card>
+        <div className={classes.listCard}>
+            {contents.map((content) => (
+                <RecentRow
+                    key={content.uuid}
+                    content={content}
+                    projectUuid={projectUuid}
+                    viewedAt={viewedAtByUuid.get(content.uuid)}
+                />
+            ))}
+        </div>
     );
 };
 
@@ -99,15 +116,12 @@ export const RecentBlockView: FC<BlockComponentProps> = ({
 }) => {
     if (block.type !== 'recent') return null;
     return (
-        <Stack gap="xs">
-            <Group gap="xs">
-                <Text size="xs" fw={600} tt="uppercase" c="dimmed">
-                    {block.config.title}
-                </Text>
-                <Badge variant="default" size="xs" tt="none">
-                    Personal per viewer
-                </Badge>
-            </Group>
+        <Stack gap={0}>
+            <BlockHeader
+                icon={IconClock}
+                title={block.config.title}
+                pill="Personal per viewer"
+            />
             <RecentList projectUuid={projectUuid} />
         </Stack>
     );
@@ -119,20 +133,17 @@ export const RecentBlockBuild: FC<BuildComponentProps> = ({
 }) => {
     if (block.type !== 'recent') return null;
     return (
-        <Stack gap="xs">
-            <Group gap="xs">
-                <Text size="xs" fw={600} tt="uppercase" c="dimmed">
-                    {block.config.title}
-                </Text>
-                <Badge variant="default" size="xs" tt="none">
-                    Personal per viewer
-                </Badge>
-            </Group>
+        <Stack gap={0}>
+            <BlockHeader
+                icon={IconClock}
+                title={block.config.title}
+                pill="Personal per viewer"
+            />
             <RecentList projectUuid={projectUuid} />
-            <Text size="xs" c="dimmed">
+            <div className={classes.buildHint}>
                 Showing your recent activity as a sample — every viewer sees
                 their own.
-            </Text>
+            </div>
         </Stack>
     );
 };
