@@ -1,3 +1,38 @@
+# [0.3391.0](https://github.com/lightdash/lightdash/compare/0.3390.0...0.3391.0) (2026-07-15)
+
+
+### Bug Fixes
+
+* **ai:** ignore field-less default_time_dimension instead of crashing field discovery ([#25601](https://github.com/lightdash/lightdash/issues/25601)) ([c3fe807](https://github.com/lightdash/lightdash/commit/c3fe807790a69acefb3bfb19b55d5301868834da))
+* **frontend:** only show custom role override warning on real scope conflicts ([#25609](https://github.com/lightdash/lightdash/issues/25609)) ([13bdf28](https://github.com/lightdash/lightdash/commit/13bdf286be018150746bc6d600b42d180ca08e8a))
+* **mcp:** gate run_sql tool on manage:SqlRunner permission ([#25612](https://github.com/lightdash/lightdash/issues/25612)) ([ecf7337](https://github.com/lightdash/lightdash/commit/ecf73376e0717f8fa3b23eda0d0da68fb10d5cc2)), closes [lightdash/lightdash#25611](https://github.com/lightdash/lightdash/issues/25611)
+
+
+### Features
+
+* **common:** homepage builder types and commercial feature flag ([#25521](https://github.com/lightdash/lightdash/issues/25521)) ([20cc314](https://github.com/lightdash/lightdash/commit/20cc314a0cbde6100d7b1a66260adc511ff25bc7))
+* **data-apps:** handle apps with no ready version gracefully in preview ([#25610](https://github.com/lightdash/lightdash/issues/25610)) ([8907aa3](https://github.com/lightdash/lightdash/commit/8907aa3fa8d841ee1983befecdde79eba0165ae7))
+* favorites and recently-viewed homepage blocks ([#25550](https://github.com/lightdash/lightdash/issues/25550)) ([4ddaa30](https://github.com/lightdash/lightdash/commit/4ddaa309ac818eee52ab7e201e2d1257d5bdcbf0)), closes [#25548](https://github.com/lightdash/lightdash/issues/25548)
+* **frontend:** day-one default homepage with discovery grid ([#25535](https://github.com/lightdash/lightdash/issues/25535)) ([4163627](https://github.com/lightdash/lightdash/commit/4163627602b4c64e65a9f71af37f7fccbcaaa7f7)), closes [#25533](https://github.com/lightdash/lightdash/issues/25533)
+* **frontend:** drag and drop in the homepage builder ([#25553](https://github.com/lightdash/lightdash/issues/25553)) ([e73e070](https://github.com/lightdash/lightdash/commit/e73e070d7b0b6ce6e305c9f201a00769152b5943)), closes [#25552](https://github.com/lightdash/lightdash/issues/25552)
+* **frontend:** hero and ask-ai homepage blocks ([#25529](https://github.com/lightdash/lightdash/issues/25529)) ([28c165e](https://github.com/lightdash/lightdash/commit/28c165e895e33cbb42898eb8fb8b68cad468a030)), closes [#25527](https://github.com/lightdash/lightdash/issues/25527)
+* **frontend:** homepage builder block engine ([#25527](https://github.com/lightdash/lightdash/issues/25527)) ([665e864](https://github.com/lightdash/lightdash/commit/665e864deec0f1e16392916c8c1b5562d8f8f40b)), closes [#25523](https://github.com/lightdash/lightdash/issues/25523)
+* **frontend:** homepage builder page with autosave and publish ([#25523](https://github.com/lightdash/lightdash/issues/25523)) ([50d4628](https://github.com/lightdash/lightdash/commit/50d46281306ab885368af1971f7bc1871923ad10)), closes [#25522](https://github.com/lightdash/lightdash/issues/25522)
+* **frontend:** homepage preset gallery ([#25548](https://github.com/lightdash/lightdash/issues/25548)) ([a7fcef9](https://github.com/lightdash/lightdash/commit/a7fcef94038c4b14ff6a85c6a67e091dbdcab00c)), closes [#25542](https://github.com/lightdash/lightdash/issues/25542)
+* **frontend:** metrics KPI homepage block ([#25565](https://github.com/lightdash/lightdash/issues/25565)) ([c66d1cb](https://github.com/lightdash/lightdash/commit/c66d1cbec81b744fd38fb4a867a53ab7cc8b3a72)), closes [#25563](https://github.com/lightdash/lightdash/issues/25563)
+* **frontend:** quick actions homepage block ([#25566](https://github.com/lightdash/lightdash/issues/25566)) ([c46106e](https://github.com/lightdash/lightdash/commit/c46106ee2318d89fead14f3b13cfa176b0b7cbb4)), closes [#25565](https://github.com/lightdash/lightdash/issues/25565)
+* **frontend:** render published homepage on project home ([#25522](https://github.com/lightdash/lightdash/issues/25522)) ([484085a](https://github.com/lightdash/lightdash/commit/484085a97a6d0c393f67f15f9410d4a1b7e0ad19)), closes [#25521](https://github.com/lightdash/lightdash/issues/25521)
+* **frontend:** resources and announcements homepage blocks ([#25542](https://github.com/lightdash/lightdash/issues/25542)) ([8d925e9](https://github.com/lightdash/lightdash/commit/8d925e9866682e784f2faac1677af651a24feba9)), closes [#25541](https://github.com/lightdash/lightdash/issues/25541)
+* homepage audience assignment with group and role resolution ([#25563](https://github.com/lightdash/lightdash/issues/25563)) ([26297ff](https://github.com/lightdash/lightdash/commit/26297ff461c547777759db166fbd80c861036751)), closes [#25553](https://github.com/lightdash/lightdash/issues/25553) [#25541](https://github.com/lightdash/lightdash/issues/25541)
+* homepage collection block with uuid content filter ([#25533](https://github.com/lightdash/lightdash/issues/25533)) ([fb1af43](https://github.com/lightdash/lightdash/commit/fb1af43823f9443b1b20b93820c44c669997b163)), closes [#25529](https://github.com/lightdash/lightdash/issues/25529)
+* **homepage:** admin view-as — preview any audience through the real resolver ([#25570](https://github.com/lightdash/lightdash/issues/25570)) ([8c677cd](https://github.com/lightdash/lightdash/commit/8c677cd60431ac443db42c95b1c194ff723d2f68))
+* **homepage:** dnd-kit drag and drop, hover-reveal block controls, subtle gray icons, design toolbar buttons ([#25579](https://github.com/lightdash/lightdash/issues/25579)) ([837d564](https://github.com/lightdash/lightdash/commit/837d5644fbb53fdd48c99be8a2c0a2240260c2ba))
+* **homepage:** personal homepage layer — per-user dashboard override + allow-personal publish toggle ([#25568](https://github.com/lightdash/lightdash/issues/25568)) ([97618ef](https://github.com/lightdash/lightdash/commit/97618efcab9ba5256362757e4f0f16b4ad0fa545))
+* **homepage:** reuse the real agent chat input on day-0, modal-based homepage creation, block builder polish ([#25591](https://github.com/lightdash/lightdash/issues/25591)) ([b630d75](https://github.com/lightdash/lightdash/commit/b630d755554002303daaac452cef549d590dc250))
+* multiple project homepages with create flow and switcher ([#25541](https://github.com/lightdash/lightdash/issues/25541)) ([03c394b](https://github.com/lightdash/lightdash/commit/03c394b5fe81c97f0dc34b4719c8103d4a1e0ea7)), closes [#25535](https://github.com/lightdash/lightdash/issues/25535)
+* optimistic locking for homepage draft saves ([#25552](https://github.com/lightdash/lightdash/issues/25552)) ([0d1e010](https://github.com/lightdash/lightdash/commit/0d1e010f3e9166859caacc30c487d39b6d7e4a19)), closes [#25550](https://github.com/lightdash/lightdash/issues/25550)
+* **slack:** native thinking status for AI agents, task card on first tool call ([#25602](https://github.com/lightdash/lightdash/issues/25602)) ([ceaca98](https://github.com/lightdash/lightdash/commit/ceaca9821a4820f34a9b746e01ffe12ec625ee95))
+
 # [0.3390.0](https://github.com/lightdash/lightdash/compare/0.3389.1...0.3390.0) (2026-07-15)
 
 

@@ -17998,19 +17998,6 @@
                                             },
                                             {
                                                 "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
                                                     "ranking": {
                                                         "properties": {
                                                             "topMatchingFields": {
@@ -18291,8 +18278,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
                                                             "error",
+                                                            "success",
                                                             "not_found"
                                                         ]
                                                     }
@@ -18619,15 +18606,15 @@
                                                                     "type": "string",
                                                                     "nullable": true
                                                                 },
-                                                                "repository": {
-                                                                    "type": "string",
-                                                                    "nullable": true
-                                                                },
                                                                 "isPrimary": {
                                                                     "type": "boolean"
                                                                 },
                                                                 "projectDbtSourceUuid": {
                                                                     "type": "string"
+                                                                },
+                                                                "repository": {
+                                                                    "type": "string",
+                                                                    "nullable": true
                                                                 },
                                                                 "name": {
                                                                     "type": "string"
@@ -18636,9 +18623,9 @@
                                                             "required": [
                                                                 "projectSubPath",
                                                                 "branch",
-                                                                "repository",
                                                                 "isPrimary",
                                                                 "projectDbtSourceUuid",
+                                                                "repository",
                                                                 "name"
                                                             ],
                                                             "type": "object"
@@ -18648,32 +18635,6 @@
                                                     },
                                                     "needsDbtSourceSelection": {
                                                         "type": "boolean",
-                                                        "nullable": true
-                                                    },
-                                                    "steps": {
-                                                        "items": {
-                                                            "properties": {
-                                                                "kind": {
-                                                                    "type": "string",
-                                                                    "enum": [
-                                                                        "read",
-                                                                        "edit",
-                                                                        "search",
-                                                                        "compile",
-                                                                        "stage"
-                                                                    ]
-                                                                },
-                                                                "label": {
-                                                                    "type": "string"
-                                                                }
-                                                            },
-                                                            "required": [
-                                                                "kind",
-                                                                "label"
-                                                            ],
-                                                            "type": "object"
-                                                        },
-                                                        "type": "array",
                                                         "nullable": true
                                                     },
                                                     "previewUrl": {
@@ -18703,6 +18664,32 @@
                                                         ],
                                                         "nullable": true
                                                     },
+                                                    "steps": {
+                                                        "items": {
+                                                            "properties": {
+                                                                "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "search",
+                                                                        "read",
+                                                                        "edit",
+                                                                        "compile",
+                                                                        "stage"
+                                                                    ]
+                                                                },
+                                                                "label": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "kind",
+                                                                "label"
+                                                            ],
+                                                            "type": "object"
+                                                        },
+                                                        "type": "array",
+                                                        "nullable": true
+                                                    },
                                                     "prUrl": {
                                                         "type": "string",
                                                         "nullable": true
@@ -18722,9 +18709,9 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "unknown",
+                                                            "unsupported_source_control",
                                                             "github_not_installed",
                                                             "gitlab_not_installed",
-                                                            "unsupported_source_control",
                                                             "pull_request_not_open",
                                                             "git_write_permission",
                                                             null
@@ -18787,10 +18774,10 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "timeout",
                                                             "error",
                                                             "rejected",
-                                                            "success"
+                                                            "success",
+                                                            "timeout"
                                                         ]
                                                     }
                                                 },
@@ -47961,7 +47948,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3389.0",
+        "version": "0.3391.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
