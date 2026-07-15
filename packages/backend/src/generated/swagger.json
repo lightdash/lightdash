@@ -27000,16 +27000,157 @@
                 "required": ["status"],
                 "type": "object"
             },
+            "Pick_CreateSnowflakeCredentials.Exclude_keyofCreateSnowflakeCredentials.database-or-warehouse-or-schema__": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
+                    },
+                    "user": {
+                        "type": "string"
+                    },
+                    "password": {
+                        "type": "string"
+                    },
+                    "privateKey": {
+                        "type": "string"
+                    },
+                    "privateKeyPass": {
+                        "type": "string"
+                    },
+                    "token": {
+                        "type": "string"
+                    },
+                    "refreshToken": {
+                        "type": "string"
+                    },
+                    "account": {
+                        "type": "string"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/SnowflakeAuthenticationType"
+                    },
+                    "role": {
+                        "type": "string"
+                    },
+                    "threads": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "clientSessionKeepAlive": {
+                        "type": "boolean"
+                    },
+                    "queryTag": {
+                        "type": "string"
+                    },
+                    "accessUrl": {
+                        "type": "string"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "dataTimezone": {
+                        "type": "string"
+                    },
+                    "quotedIdentifiersIgnoreCase": {
+                        "type": "boolean"
+                    },
+                    "disableTimestampConversion": {
+                        "type": "boolean"
+                    },
+                    "timeoutSeconds": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "override": {
+                        "type": "boolean"
+                    },
+                    "organizationWarehouseCredentialsUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "user", "account"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateSnowflakeCredentials.database-or-warehouse-or-schema_": {
+                "$ref": "#/components/schemas/Pick_CreateSnowflakeCredentials.Exclude_keyofCreateSnowflakeCredentials.database-or-warehouse-or-schema__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "Partial_Pick_CreateSnowflakeCredentials.database-or-warehouse-or-schema__": {
+                "properties": {
+                    "database": {
+                        "type": "string"
+                    },
+                    "warehouse": {
+                        "type": "string"
+                    },
+                    "schema": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "DepositSnowflakeCredentials": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateSnowflakeCredentials.database-or-warehouse-or-schema_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_Pick_CreateSnowflakeCredentials.database-or-warehouse-or-schema__"
+                    }
+                ]
+            },
+            "WarehouseConnectInventory": {
+                "properties": {
+                    "roles": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "warehouses": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "databases": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["roles", "warehouses", "databases"],
+                "type": "object"
+            },
             "DepositWarehouseConnectionRequest": {
                 "properties": {
+                    "inventory": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WarehouseConnectInventory"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "credentials": {
-                        "$ref": "#/components/schemas/CreateSnowflakeCredentials"
+                        "$ref": "#/components/schemas/DepositSnowflakeCredentials"
                     },
                     "code": {
                         "type": "string"
                     }
                 },
-                "required": ["credentials", "code"],
+                "required": ["inventory", "credentials", "code"],
                 "type": "object"
             },
             "WarehouseConnectCodeClaimResult": {
@@ -27027,8 +27168,16 @@
                     },
                     {
                         "properties": {
+                            "inventory": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/WarehouseConnectInventory"
+                                    }
+                                ],
+                                "nullable": true
+                            },
                             "credentials": {
-                                "$ref": "#/components/schemas/CreateSnowflakeCredentials"
+                                "$ref": "#/components/schemas/DepositSnowflakeCredentials"
                             },
                             "status": {
                                 "type": "string",
@@ -27036,7 +27185,7 @@
                                 "nullable": false
                             }
                         },
-                        "required": ["credentials", "status"],
+                        "required": ["inventory", "credentials", "status"],
                         "type": "object"
                     }
                 ]

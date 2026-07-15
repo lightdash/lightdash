@@ -9,7 +9,6 @@ import {
     SnowflakeWarehouseClient,
     type SnowflakeSessionDiscovery,
 } from '@lightdash/warehouses';
-import inquirer from 'inquirer';
 import fetch, { Response } from 'node-fetch';
 import { categorizeError } from '../analytics/analytics';
 import {
@@ -18,12 +17,6 @@ import {
 } from './connectSnowflake';
 
 vi.mock('../analytics/analytics');
-
-vi.mock('inquirer', () => ({
-    default: {
-        prompt: vi.fn(),
-    },
-}));
 
 const options: ConnectSnowflakeOptions = {
     code: '11111111_random-code',
@@ -96,13 +89,17 @@ const warehouseClientFactory = vi.fn(() => ({
 const fetchMock = vi.fn<typeof fetch>();
 const write = vi.fn<(message: string) => void>();
 const sleep = vi.fn(async () => undefined);
-const isTTY = vi.fn(() => false);
 
 const responseForDeposit = (): Response =>
     new Response(JSON.stringify({ status: 'ok' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
     });
+
+const getDepositRequest = (): DepositWarehouseConnectionRequest =>
+    JSON.parse(
+        String(vi.mocked(fetchMock).mock.calls[0][1]?.body),
+    ) as DepositWarehouseConnectionRequest;
 
 const getDependencies = () => ({
     warehouseClientFactory,
@@ -111,8 +108,13 @@ const getDependencies = () => ({
     now: () => new Date('2026-07-14T12:00:00.000Z'),
     fetch: fetchMock,
     write,
-    isTTY,
 });
+
+const depositInventory = {
+    databases: ['analytics'],
+    warehouses: ['lightdash_wh'],
+    roles: ['lightdash_role', 'PUBLIC'],
+};
 
 const privateKeyCredentials = (
     values: Partial<CreateSnowflakeCredentials> = {},
@@ -150,7 +152,6 @@ describe('connectSnowflakeHandler', () => {
         vi.mocked(selectOneDiagnosticConnection).mockResolvedValue(undefined);
         vi.mocked(closeDiagnosticConnection).mockResolvedValue(undefined);
         vi.mocked(fetchMock).mockResolvedValue(responseForDeposit());
-        vi.mocked(isTTY).mockReturnValue(false);
     });
 
     it('deposits private-key credentials using session defaults', async () => {
@@ -175,19 +176,25 @@ describe('connectSnowflakeHandler', () => {
             'RSA_PUBLIC_KEY',
             publicKey,
         );
+        expect(warehouseClientFactory).toHaveBeenNthCalledWith(
+            2,
+            privateKeyCredentials({
+                database: '',
+                warehouse: '',
+                schema: '',
+                role: undefined,
+            }),
+        );
         const request: DepositWarehouseConnectionRequest = {
             code: options.code,
             credentials: privateKeyCredentials(),
+            inventory: depositInventory,
         };
-        expect(fetchMock).toHaveBeenCalledWith(
-            'https://lightdash.example.com/api/v1/warehouse-connect/deposit',
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(request),
-            },
-        );
+        expect(getDepositRequest()).toEqual(request);
         expect(write).toHaveBeenCalledWith('Secured with a key pair');
+        expect(write).toHaveBeenCalledWith(
+            'Connection values resolved: database (session default), warehouse (session default), schema (session default), role (session default)',
+        );
         expect(write).not.toHaveBeenCalledWith(
             expect.stringContaining(options.code),
         );
@@ -226,80 +233,64 @@ describe('connectSnowflakeHandler', () => {
                 role: 'flag_role',
                 schema: 'flag_schema',
             }),
+            inventory: depositInventory,
         };
-        expect(fetchMock).toHaveBeenCalledWith(
-            'https://lightdash.example.com/api/v1/warehouse-connect/deposit',
-            expect.objectContaining({ body: JSON.stringify(request) }),
+        expect(getDepositRequest()).toEqual(request);
+        expect(write).toHaveBeenCalledWith(
+            'Connection values resolved: database (flag), warehouse (flag), schema (flag), role (flag)',
         );
     });
 
-    it('prompts for missing values in an interactive terminal', async () => {
+    it('omits missing values and deposits capped inventory names', async () => {
+        const inventoryNames = Array.from(
+            { length: 105 },
+            (_, index) => `item_${index}`,
+        );
         vi.mocked(getSessionDiscovery).mockResolvedValue({
             ...discovery,
             defaults: {
-                ...discovery.defaults,
                 database: null,
                 warehouse: null,
+                role: null,
                 schema: null,
             },
-        });
-        vi.mocked(isTTY).mockReturnValue(true);
-        vi.mocked(inquirer.prompt).mockResolvedValue({
-            database: 'prompt_db',
-            warehouse: 'prompt_wh',
-            schema: 'prompt_schema',
+            inventory: {
+                databases: inventoryNames.map((name) => ({
+                    name,
+                    comment: null,
+                    kind: null,
+                })),
+                warehouses: inventoryNames.map((name) => ({
+                    name,
+                    size: null,
+                    state: null,
+                    autoSuspendSeconds: null,
+                })),
+                roles: inventoryNames.map((name) => ({
+                    name,
+                    isDefault: false,
+                })),
+            },
         });
 
         await expect(
             connectSnowflakeHandler(options, getDependencies()),
         ).resolves.toBeUndefined();
 
-        expect(inquirer.prompt).toHaveBeenCalledWith([
-            expect.objectContaining({
-                type: 'list',
-                name: 'database',
-                choices: ['analytics'],
-            }),
-            expect.objectContaining({
-                type: 'list',
-                name: 'warehouse',
-                choices: ['lightdash_wh'],
-            }),
-            expect.objectContaining({ type: 'input', name: 'schema' }),
-        ]);
-        const request: DepositWarehouseConnectionRequest = {
-            code: options.code,
-            credentials: privateKeyCredentials({
-                database: 'prompt_db',
-                warehouse: 'prompt_wh',
-                schema: 'prompt_schema',
-            }),
-        };
-        expect(fetchMock).toHaveBeenCalledWith(
-            'https://lightdash.example.com/api/v1/warehouse-connect/deposit',
-            expect.objectContaining({ body: JSON.stringify(request) }),
-        );
-    });
-
-    it('reports required flags when values are missing in a non-TTY terminal', async () => {
-        vi.mocked(getSessionDiscovery).mockResolvedValue({
-            ...discovery,
-            defaults: {
-                ...discovery.defaults,
-                database: null,
-                warehouse: null,
-                schema: null,
-            },
+        const request = getDepositRequest();
+        expect(request.credentials).not.toHaveProperty('database');
+        expect(request.credentials).not.toHaveProperty('warehouse');
+        expect(request.credentials).not.toHaveProperty('schema');
+        expect(request.credentials).not.toHaveProperty('role');
+        expect(request.inventory).toEqual({
+            databases: inventoryNames.slice(0, 100),
+            warehouses: inventoryNames.slice(0, 100),
+            roles: inventoryNames.slice(0, 100),
         });
-
-        await expect(
-            connectSnowflakeHandler(options, getDependencies()),
-        ).rejects.toThrow(
-            'Pass --database, --warehouse, --schema when running in a non-interactive terminal.',
+        expect(write).toHaveBeenCalledWith('Connection values resolved: none');
+        expect(write).toHaveBeenCalledWith(
+            'Finish choosing database, warehouse, schema, role in the browser.',
         );
-        expect(inquirer.prompt).not.toHaveBeenCalled();
-        expect(getUserPublicKeySlots).not.toHaveBeenCalled();
-        expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it('selects the first free Snowflake public-key slot', async () => {
@@ -349,11 +340,9 @@ describe('connectSnowflakeHandler', () => {
                 schema: discovery.defaults.schema ?? '',
                 password: 'pat-secret',
             },
+            inventory: depositInventory,
         };
-        expect(fetchMock).toHaveBeenCalledWith(
-            'https://lightdash.example.com/api/v1/warehouse-connect/deposit',
-            expect.objectContaining({ body: JSON.stringify(request) }),
-        );
+        expect(getDepositRequest()).toEqual(request);
     });
 
     it('unsets an unverified key before falling back to a PAT', async () => {

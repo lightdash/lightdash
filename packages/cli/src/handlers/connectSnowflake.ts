@@ -4,7 +4,9 @@ import {
     WarehouseConnectionError,
     WarehouseTypes,
     type CreateSnowflakeCredentials,
+    type DepositSnowflakeCredentials,
     type DepositWarehouseConnectionRequest,
+    type WarehouseConnectInventory,
 } from '@lightdash/common';
 import {
     snowflakeIdentifier,
@@ -12,7 +14,6 @@ import {
     type SnowflakePublicKeySlot,
     type SnowflakeSessionDiscovery,
 } from '@lightdash/warehouses';
-import inquirer from 'inquirer';
 import fetch, { type Response } from 'node-fetch';
 import { generateKeyPairSync } from 'node:crypto';
 import { categorizeError, LightdashAnalytics } from '../analytics/analytics';
@@ -54,17 +55,21 @@ type ConnectSnowflakeDependencies = {
     now: () => Date;
     fetch: typeof fetch;
     write: (message: string) => void;
-    isTTY: () => boolean;
 };
+
+type ConnectionValueName = 'database' | 'warehouse' | 'schema' | 'role';
 
 type ConnectionValues = {
-    database: string;
-    warehouse: string;
-    role: string | null;
-    schema: string;
+    database?: string;
+    warehouse?: string;
+    role?: string;
+    schema?: string;
 };
 
-type PromptValue = 'database' | 'warehouse' | 'schema';
+type ResolvedConnectionValues = {
+    values: ConnectionValues;
+    sources: Partial<Record<ConnectionValueName, 'flag' | 'session default'>>;
+};
 
 const PAT_EXPIRY_DAYS = 365;
 const PAT_NETWORK_POLICY_BYPASS_MINUTES = 1440;
@@ -94,7 +99,6 @@ const defaultDependencies: ConnectSnowflakeDependencies = {
     now: () => new Date(),
     fetch,
     write: (message) => console.error(message),
-    isTTY: () => Boolean(process.stdout.isTTY),
 };
 
 const parseDepositResponse = async (response: Response): Promise<void> => {
@@ -131,83 +135,84 @@ const parseDepositResponse = async (response: Response): Promise<void> => {
 const resolveValue = (
     flagValue: string | undefined,
     defaultValue: string | null,
-): string | null => flagValue ?? defaultValue;
-
-const requiredPromptValues = ['database', 'warehouse', 'schema'] as const;
-
-const getMissingValues = (
-    values: Record<PromptValue, string | null>,
-): PromptValue[] =>
-    requiredPromptValues.filter((name) => !values[name]?.trim());
-
-const promptForMissingValues = async (
-    values: Record<PromptValue, string | null>,
-    missingValues: PromptValue[],
-    discovery: SnowflakeSessionDiscovery,
-): Promise<Record<PromptValue, string>> => {
-    const questions = missingValues.map((name) => {
-        let choices: string[] = [];
-        if (name === 'database') {
-            choices = discovery.inventory.databases.map(
-                ({ name: value }) => value,
-            );
-        } else if (name === 'warehouse') {
-            choices = discovery.inventory.warehouses.map(
-                ({ name: value }) => value,
-            );
-        }
-        return {
-            type: choices.length > 0 ? 'list' : 'input',
-            name,
-            message: `Select a Snowflake ${name}`,
-            choices: choices.length > 0 ? choices : undefined,
-            validate: (value: string) =>
-                value.trim().length > 0 || `${name} is required`,
-        };
-    });
-    const answers =
-        await inquirer.prompt<Partial<Record<PromptValue, string>>>(questions);
-    return {
-        database: answers.database ?? values.database ?? '',
-        warehouse: answers.warehouse ?? values.warehouse ?? '',
-        schema: answers.schema ?? values.schema ?? '',
-    };
+): string | undefined => {
+    const value = flagValue ?? defaultValue ?? undefined;
+    return value?.trim() ? value : undefined;
 };
 
-const resolveConnectionValues = async (
+const resolveConnectionValues = (
     options: ConnectSnowflakeOptions,
     discovery: SnowflakeSessionDiscovery,
-    dependencies: ConnectSnowflakeDependencies,
-): Promise<ConnectionValues> => {
-    const unresolvedValues = {
+): ResolvedConnectionValues => {
+    const values: ConnectionValues = {
         database: resolveValue(options.database, discovery.defaults.database),
         warehouse: resolveValue(
             options.warehouse,
             discovery.defaults.warehouse,
         ),
         schema: resolveValue(options.schema, discovery.defaults.schema),
-    };
-    const missingValues = getMissingValues(unresolvedValues);
-    let resolvedValues = unresolvedValues;
-    if (missingValues.length > 0) {
-        if (!dependencies.isTTY()) {
-            const flags = missingValues.map((name) => `--${name}`).join(', ');
-            throw new WarehouseConnectionError(
-                `Snowflake did not provide defaults for ${missingValues.join(', ')}. Pass ${flags} when running in a non-interactive terminal.`,
-            );
-        }
-        resolvedValues = await promptForMissingValues(
-            unresolvedValues,
-            missingValues,
-            discovery,
-        );
-    }
-    return {
-        database: resolvedValues.database ?? '',
-        warehouse: resolvedValues.warehouse ?? '',
-        schema: resolvedValues.schema ?? '',
         role: resolveValue(options.role, discovery.defaults.role),
     };
+    const sources: ResolvedConnectionValues['sources'] = {};
+    (Object.keys(values) as ConnectionValueName[]).forEach((name) => {
+        if (values[name] !== undefined) {
+            sources[name] =
+                options[name] !== undefined ? 'flag' : 'session default';
+        }
+    });
+    return {
+        values,
+        sources,
+    };
+};
+
+const buildInventory = (
+    discovery: SnowflakeSessionDiscovery,
+): WarehouseConnectInventory | null => {
+    if (!discovery.inventory) {
+        return null;
+    }
+    return {
+        databases: discovery.inventory.databases
+            .map(({ name }) => name)
+            .slice(0, 100),
+        warehouses: discovery.inventory.warehouses
+            .map(({ name }) => name)
+            .slice(0, 100),
+        roles: discovery.inventory.roles.map(({ name }) => name).slice(0, 100),
+    };
+};
+
+const writeConnectionValuesSummary = (
+    resolvedValues: ResolvedConnectionValues,
+    write: (message: string) => void,
+): void => {
+    const names: ConnectionValueName[] = [
+        'database',
+        'warehouse',
+        'schema',
+        'role',
+    ];
+    const resolved = names.filter(
+        (name) => resolvedValues.values[name] !== undefined,
+    );
+    const missing = names.filter(
+        (name) => resolvedValues.values[name] === undefined,
+    );
+    write(
+        `Connection values resolved: ${
+            resolved.length === 0
+                ? 'none'
+                : resolved
+                      .map(
+                          (name) => `${name} (${resolvedValues.sources[name]})`,
+                      )
+                      .join(', ')
+        }`,
+    );
+    if (missing.length > 0) {
+        write(`Finish choosing ${missing.join(', ')} in the browser.`);
+    }
 };
 
 const isInsufficientPrivilegesError = (error: unknown): boolean => {
@@ -288,7 +293,7 @@ const writeAdminRemedies = (
 };
 
 type DurableCredential = {
-    credentials: CreateSnowflakeCredentials;
+    credentials: DepositSnowflakeCredentials;
     successMessage: string;
     method: 'key_pair' | 'pat';
 };
@@ -329,14 +334,15 @@ const createDurableCredential = async (
     }
 
     const keyPairCredentials: CreateSnowflakeCredentials = {
-        ...authorizationCodeCredentials,
+        type: WarehouseTypes.SNOWFLAKE,
+        account: authorizationCodeCredentials.account,
         user: discovery.user,
         authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
         privateKey: keyPair.privateKey,
-        database: connectionValues.database,
-        warehouse: connectionValues.warehouse,
-        schema: connectionValues.schema,
-        role: connectionValues.role ?? undefined,
+        database: connectionValues.database ?? '',
+        warehouse: connectionValues.warehouse ?? '',
+        schema: connectionValues.schema ?? '',
+        role: connectionValues.role,
     };
     if (keyRegistered && slot !== null) {
         try {
@@ -351,7 +357,12 @@ const createDurableCredential = async (
                 dependencies,
             );
             return {
-                credentials: keyPairCredentials,
+                credentials: {
+                    ...keyPairCredentials,
+                    database: connectionValues.database,
+                    warehouse: connectionValues.warehouse,
+                    schema: connectionValues.schema,
+                },
                 successMessage: 'Secured with a key pair',
                 method: 'key_pair',
             };
@@ -376,14 +387,15 @@ const createDurableCredential = async (
         );
         return {
             credentials: {
-                ...authorizationCodeCredentials,
+                type: WarehouseTypes.SNOWFLAKE,
+                account: authorizationCodeCredentials.account,
                 user: discovery.user,
                 authenticationType: SnowflakeAuthenticationType.PASSWORD,
                 password: tokenSecret,
                 database: connectionValues.database,
                 warehouse: connectionValues.warehouse,
                 schema: connectionValues.schema,
-                role: connectionValues.role ?? undefined,
+                role: connectionValues.role,
             },
             successMessage: `Secured with a programmatic access token (expires ${expiresAt.toISOString().slice(0, 10)})`,
             method: 'pat',
@@ -429,16 +441,15 @@ export const connectSnowflakeHandler = async (
         const discovery = await warehouseClient.getSessionDiscovery(
             options.user,
         );
-        const connectionValues = await resolveConnectionValues(
+        const resolvedConnectionValues = resolveConnectionValues(
             options,
             discovery,
-            dependencies,
         );
         const durableCredential = await createDurableCredential(
             authorizationCodeCredentials,
             warehouseClient,
             discovery,
-            connectionValues,
+            resolvedConnectionValues.values,
             dependencies,
         );
         const depositUrl = new URL(
@@ -448,6 +459,7 @@ export const connectSnowflakeHandler = async (
         const request: DepositWarehouseConnectionRequest = {
             code: options.code,
             credentials: durableCredential.credentials,
+            inventory: buildInventory(discovery),
         };
         const response = await dependencies.fetch(depositUrl.href, {
             method: 'POST',
@@ -460,6 +472,10 @@ export const connectSnowflakeHandler = async (
             properties: { method: durableCredential.method },
         });
         dependencies.write(durableCredential.successMessage);
+        writeConnectionValuesSummary(
+            resolvedConnectionValues,
+            dependencies.write,
+        );
         dependencies.write(
             'Authenticated and connected! Return to Lightdash to finish setup.',
         );

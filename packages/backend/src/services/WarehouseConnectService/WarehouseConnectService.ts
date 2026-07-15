@@ -7,10 +7,12 @@ import {
     UnexpectedServerError,
     WarehouseTypes,
     type CreateSnowflakeCredentials,
+    type DepositSnowflakeCredentials,
     type DepositWarehouseConnectionRequest,
     type SessionUser,
     type WarehouseConnectCode,
     type WarehouseConnectCodeClaimResult,
+    type WarehouseConnectInventory,
 } from '@lightdash/common';
 import { createHash, randomBytes } from 'node:crypto';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -24,7 +26,7 @@ export const hashWarehouseConnectCode = (code: string): string =>
     createHash('sha256').update(code).digest('hex');
 
 const isDurableSnowflakeCredential = (
-    credentials: CreateSnowflakeCredentials,
+    credentials: DepositSnowflakeCredentials,
 ): boolean =>
     credentials.type === WarehouseTypes.SNOWFLAKE &&
     typeof credentials.user === 'string' &&
@@ -119,6 +121,7 @@ export class WarehouseConnectService extends BaseService {
     async deposit({
         code,
         credentials,
+        inventory,
     }: DepositWarehouseConnectionRequest): Promise<undefined> {
         if (!isDurableSnowflakeCredential(credentials)) {
             throw new ParameterError(
@@ -129,7 +132,7 @@ export class WarehouseConnectService extends BaseService {
         let encryptedCredentials: Buffer;
         try {
             encryptedCredentials = this.encryptionUtil.encrypt(
-                JSON.stringify(credentials),
+                JSON.stringify({ credentials, inventory }),
             );
         } catch {
             throw new UnexpectedServerError('Could not save credentials.');
@@ -191,9 +194,12 @@ export class WarehouseConnectService extends BaseService {
         }
 
         try {
-            const credentials = JSON.parse(
+            const deposit = JSON.parse(
                 this.encryptionUtil.decrypt(claimed.encryptedCredentials),
-            ) as CreateSnowflakeCredentials;
+            ) as {
+                credentials: DepositSnowflakeCredentials;
+                inventory: WarehouseConnectInventory | null;
+            };
             this.analytics.track({
                 userId: claimed.createdByUserUuid,
                 event: 'warehouse_connect.claimed',
@@ -201,7 +207,11 @@ export class WarehouseConnectService extends BaseService {
                     organizationId: claimed.organizationUuid,
                 },
             });
-            return { status: 'deposited', credentials };
+            return {
+                status: 'deposited',
+                credentials: deposit.credentials,
+                inventory: deposit.inventory ?? null,
+            };
         } catch {
             throw new UnexpectedServerError(
                 'Could not read deposited credentials.',

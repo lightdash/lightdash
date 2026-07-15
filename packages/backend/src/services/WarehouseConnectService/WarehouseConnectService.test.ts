@@ -61,10 +61,16 @@ const createModelMock = () => ({
         vi.fn<WarehouseConnectCodeModel['deleteDepositedForClaim']>(),
 });
 
+const testInventory = {
+    databases: ['ANALYTICS'],
+    warehouses: ['COMPUTE_WH'],
+    roles: ['ANALYST'],
+};
+
 const createEncryptionUtilMock = () => ({
     encrypt: vi.fn<EncryptionUtil['encrypt']>(() => encryptedCredentials),
     decrypt: vi.fn<EncryptionUtil['decrypt']>(() =>
-        JSON.stringify(credentials),
+        JSON.stringify({ credentials, inventory: testInventory }),
     ),
 });
 
@@ -185,7 +191,7 @@ describe('WarehouseConnectService', () => {
             });
 
             await expect(
-                service.deposit({ code, credentials: value }),
+                service.deposit({ code, credentials: value, inventory: null }),
             ).rejects.toThrow(ParameterError);
             expect(encryptionUtil.encrypt).not.toHaveBeenCalled();
             expect(model.consumeForDeposit).not.toHaveBeenCalled();
@@ -204,12 +210,12 @@ describe('WarehouseConnectService', () => {
             analytics,
         });
 
-        await expect(service.deposit({ code, credentials })).resolves.toBe(
-            undefined,
-        );
-        await expect(service.deposit({ code, credentials })).rejects.toThrow(
-            NotFoundError,
-        );
+        await expect(
+            service.deposit({ code, credentials, inventory: testInventory }),
+        ).resolves.toBe(undefined);
+        await expect(
+            service.deposit({ code, credentials, inventory: testInventory }),
+        ).rejects.toThrow(NotFoundError);
         expect(model.consumeForDeposit).toHaveBeenCalledWith(
             hashWarehouseConnectCode(code),
             encryptedCredentials,
@@ -234,9 +240,9 @@ describe('WarehouseConnectService', () => {
             analytics: createAnalyticsMock(),
         });
 
-        await expect(service.deposit({ code, credentials })).rejects.toThrow(
-            NotFoundError,
-        );
+        await expect(
+            service.deposit({ code, credentials, inventory: testInventory }),
+        ).rejects.toThrow(NotFoundError);
     });
 
     it('returns NotFound when a non-creator tries to claim', async () => {
@@ -291,6 +297,7 @@ describe('WarehouseConnectService', () => {
         await expect(service.claim(user, code)).resolves.toEqual({
             status: 'deposited',
             credentials,
+            inventory: testInventory,
         });
         await expect(service.claim(user, code)).rejects.toThrow(NotFoundError);
         expect(model.deleteDepositedForClaim).toHaveBeenCalledWith(

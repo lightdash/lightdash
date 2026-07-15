@@ -2,7 +2,7 @@ import {
     FeatureFlags,
     SnowflakeAuthenticationType,
     WarehouseTypes,
-    type CreateSnowflakeCredentials,
+    type DepositSnowflakeCredentials,
 } from '@lightdash/common';
 import {
     TextInput,
@@ -143,7 +143,7 @@ const SnowflakeForm: FC<{
         !savedProject && (warehouseConnectFlag.data?.enabled ?? false);
     const [isCliSsoMode, setIsCliSsoMode] = useState(false);
     const [cliSsoCredentials, setCliSsoCredentials] =
-        useState<CreateSnowflakeCredentials | null>(null);
+        useState<DepositSnowflakeCredentials | null>(null);
 
     if (form.values.warehouse?.type !== WarehouseTypes.SNOWFLAKE) {
         throw new Error('Snowflake form is not used for this warehouse type');
@@ -233,7 +233,7 @@ const SnowflakeForm: FC<{
     ];
 
     const handleCliSsoDeposited = useCallback(
-        (credentials: CreateSnowflakeCredentials) => {
+        (credentials: DepositSnowflakeCredentials) => {
             form.setFieldValue('warehouse', {
                 ...SnowflakeDefaultValues,
                 ...credentials,

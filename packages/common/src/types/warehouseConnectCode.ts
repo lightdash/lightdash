@@ -10,9 +10,24 @@ export type ApiWarehouseConnectCodeResponse = {
     results: WarehouseConnectCode;
 };
 
+export type DepositSnowflakeCredentials = Omit<
+    CreateSnowflakeCredentials,
+    'database' | 'warehouse' | 'schema'
+> &
+    Partial<
+        Pick<CreateSnowflakeCredentials, 'database' | 'warehouse' | 'schema'>
+    >;
+
+export type WarehouseConnectInventory = {
+    databases: string[];
+    warehouses: string[];
+    roles: string[];
+};
+
 export type DepositWarehouseConnectionRequest = {
     code: string;
-    credentials: CreateSnowflakeCredentials;
+    credentials: DepositSnowflakeCredentials;
+    inventory: WarehouseConnectInventory | null;
 };
 
 export type ApiDepositWarehouseConnectionResponse = {
@@ -26,7 +41,11 @@ export type ClaimWarehouseConnectCodeRequest = {
 
 export type WarehouseConnectCodeClaimResult =
     | { status: 'pending' }
-    | { status: 'deposited'; credentials: CreateSnowflakeCredentials };
+    | {
+          status: 'deposited';
+          credentials: DepositSnowflakeCredentials;
+          inventory: WarehouseConnectInventory | null;
+      };
 
 export type ApiWarehouseConnectCodeClaimResponse = {
     status: 'ok';

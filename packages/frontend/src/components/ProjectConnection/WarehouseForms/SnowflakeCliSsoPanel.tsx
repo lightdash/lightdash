@@ -1,4 +1,8 @@
-import { type CreateSnowflakeCredentials } from '@lightdash/common';
+import {
+    WarehouseTypes,
+    type DepositSnowflakeCredentials,
+    type WarehouseConnectInventory,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Alert,
@@ -7,8 +11,10 @@ import {
     CopyButton,
     Group,
     Loader,
+    Select,
     Stack,
     Text,
+    TextInput,
     Tooltip,
 } from '@mantine-8/core';
 import { IconAlertTriangle, IconCheck, IconCopy } from '@tabler/icons-react';
@@ -19,6 +25,7 @@ import {
 } from '../../../hooks/useWarehouseConnectCode';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
+import { useFormContext } from '../formContext';
 import {
     buildSnowflakeConnectCommand,
     SNOWFLAKE_CLI_INSTALL_COMMAND,
@@ -49,9 +56,12 @@ const CopyableCommand: FC<{ command: string }> = ({ command }) => (
 type Props = {
     account: string;
     disabled: boolean;
-    connectedCredentials: CreateSnowflakeCredentials | null;
-    onDeposited: (credentials: CreateSnowflakeCredentials) => void;
+    connectedCredentials: DepositSnowflakeCredentials | null;
+    onDeposited: (credentials: DepositSnowflakeCredentials) => void;
 };
+
+const withCurrentValue = (options: string[], current: string | undefined) =>
+    current && !options.includes(current) ? [current, ...options] : options;
 
 const SnowflakeCliSsoPanel: FC<Props> = ({
     account,
@@ -60,6 +70,7 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
     onDeposited,
 }) => {
     const { health } = useApp();
+    const form = useFormContext();
     const siteUrl = health.data?.siteUrl ?? '';
     const mint = useMintWarehouseConnectCode();
     const [code, setCode] = useState<string | null>(null);
@@ -67,6 +78,8 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
         null,
     );
     const [claimed, setClaimed] = useState(false);
+    const [inventory, setInventory] =
+        useState<WarehouseConnectInventory | null>(null);
 
     const isConnected = connectedCredentials !== null;
     const isExpired = secondsRemaining !== null && secondsRemaining <= 0;
@@ -77,6 +90,7 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
     useEffect(() => {
         if (!claimed && claim.data?.status === 'deposited') {
             setClaimed(true);
+            setInventory(claim.data.inventory);
             onDeposited(claim.data.credentials);
         }
     }, [claimed, claim.data, onDeposited]);
@@ -103,17 +117,66 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
     };
 
     if (isConnected) {
+        const warehouseValues =
+            form.values.warehouse?.type === WarehouseTypes.SNOWFLAKE
+                ? form.values.warehouse
+                : undefined;
         return (
-            <Alert
-                color="green"
-                icon={<MantineIcon icon={IconCheck} />}
-                title={`Connected as ${connectedCredentials.user} ✓`}
-            >
-                <Text size="sm">
-                    Your Snowflake connection is ready. Deploy your project to
-                    finish.
-                </Text>
-            </Alert>
+            <Stack gap="md">
+                <Alert
+                    color="green"
+                    icon={<MantineIcon icon={IconCheck} />}
+                    title={`Connected as ${connectedCredentials.user} ✓`}
+                >
+                    <Text size="sm">
+                        Choose where Lightdash should query, then deploy your
+                        project to finish.
+                    </Text>
+                </Alert>
+                <Select
+                    label="Database"
+                    description="This is the database name."
+                    data={withCurrentValue(
+                        inventory?.databases ?? [],
+                        warehouseValues?.database,
+                    )}
+                    searchable
+                    required
+                    disabled={disabled}
+                    {...form.getInputProps('warehouse.database')}
+                />
+                <Select
+                    label="Warehouse"
+                    description="This is the warehouse name."
+                    data={withCurrentValue(
+                        inventory?.warehouses ?? [],
+                        warehouseValues?.warehouse,
+                    )}
+                    searchable
+                    required
+                    disabled={disabled}
+                    {...form.getInputProps('warehouse.warehouse')}
+                />
+                <Select
+                    label="Role"
+                    description="This is the role to assume when running queries."
+                    data={withCurrentValue(
+                        inventory?.roles ?? [],
+                        warehouseValues?.role,
+                    )}
+                    searchable
+                    clearable
+                    disabled={disabled}
+                    {...form.getInputProps('warehouse.role')}
+                />
+                <TextInput
+                    label="Schema"
+                    description="This is the schema name."
+                    required
+                    disabled={disabled}
+                    {...form.getInputProps('warehouse.schema')}
+                />
+            </Stack>
         );
     }
 
