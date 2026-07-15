@@ -25,7 +25,7 @@ export const PresetsModal: FC<Props> = ({ opened, onClose, onApply }) => {
             .map((configRow) => ({
                 ...configRow,
                 blocks: configRow.blocks.filter(
-                    (block) => block.type !== 'ai' || isAiEnabled,
+                    (block) => block.type !== 'ask-ai-hero' || isAiEnabled,
                 ),
             }))
             .filter((configRow) => configRow.blocks.length > 0);

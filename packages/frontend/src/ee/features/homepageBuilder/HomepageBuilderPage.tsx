@@ -5,6 +5,7 @@ import { IconSquareRoundedPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, type FC } from 'react';
 import { useParams, useSearchParams } from 'react-router';
+import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../../components/common/MantineIcon';
 import Page from '../../../components/common/Page/Page';
 import ForbiddenPanel from '../../../components/ForbiddenPanel';
@@ -13,6 +14,7 @@ import useApp from '../../../providers/App/useApp';
 import { CreateHomepageModal } from './CreateHomepageModal';
 import { HomepageEditor } from './HomepageEditor';
 import {
+    useCreateHomepageWithDraft,
     useHomepageBuilderFlag,
     useHomepageForBuilder,
     useProjectHomepages,
@@ -38,6 +40,7 @@ export const HomepageBuilderPage: FC = () => {
     const homepages = useProjectHomepages(projectUuid, {
         enabled: isFlagEnabled,
     });
+    const createFirstHomepage = useCreateHomepageWithDraft(projectUuid ?? '');
 
     const canManage =
         user.data?.ability?.can(
@@ -73,6 +76,29 @@ export const HomepageBuilderPage: FC = () => {
     };
 
     if (!homepage.data) {
+        const handleCreateFirst = () =>
+            createFirstHomepage.mutate(
+                {
+                    name: 'Homepage',
+                    draftConfig: {
+                        version: 1,
+                        rows: [
+                            {
+                                id: uuidv4(),
+                                blocks: [
+                                    {
+                                        id: uuidv4(),
+                                        type: 'ask-ai-hero',
+                                        config: { showGreeting: true },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+                { onSuccess: openHomepage },
+            );
+
         return (
             <Page withFixedContent withPaddedContent>
                 <Stack gap="sm" maw={420} mx="auto" mt="15vh" align="center">
@@ -87,18 +113,12 @@ export const HomepageBuilderPage: FC = () => {
                         leftSection={
                             <MantineIcon icon={IconSquareRoundedPlus} />
                         }
-                        onClick={() => setIsCreateModalOpen(true)}
+                        loading={createFirstHomepage.isLoading}
+                        onClick={handleCreateFirst}
                     >
                         Create homepage
                     </Button>
                 </Stack>
-                <CreateHomepageModal
-                    opened={isCreateModalOpen}
-                    onClose={closeCreateModal}
-                    projectUuid={projectUuid}
-                    homepages={homepages.data ?? []}
-                    onCreated={openHomepage}
-                />
             </Page>
         );
     }

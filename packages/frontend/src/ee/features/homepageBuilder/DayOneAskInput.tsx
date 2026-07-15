@@ -63,7 +63,7 @@ const SuggestionPills: FC<{
 }> = ({ chips, onPick }) => {
     if (chips.length === 0) return null;
     return (
-        <Group gap={8} justify="center" mt={16}>
+        <Group gap={6} justify="center" mt={12}>
             {chips.map((chip) => (
                 <button
                     key={chip.label}
@@ -73,7 +73,7 @@ const SuggestionPills: FC<{
                 >
                     <MantineIcon
                         icon={IconArrowUpRight}
-                        size={14}
+                        size={12}
                         color="ldGray.5"
                     />
                     {chip.label}
@@ -212,6 +212,8 @@ const DayOneAskInputInner: FC<Props> = ({ projectUuid }) => {
                 loading={isCreatingThread}
                 showSuggestions={false}
                 fullWidth
+                revealAgentSelectorOnFocus
+                dense
             />
             <SuggestionPills
                 chips={suggestionsQuery.data?.chips ?? []}

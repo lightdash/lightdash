@@ -30,6 +30,7 @@ export const AdminHomepageControls: FC<Props> = ({
                     <button
                         type="button"
                         className={classes.tbBtn}
+                        aria-label="New homepage"
                         onClick={() =>
                             navigate(
                                 `/projects/${projectUuid}/homepage-builder?create=1`,
@@ -37,18 +38,23 @@ export const AdminHomepageControls: FC<Props> = ({
                         }
                     >
                         <MantineIcon icon={IconPlus} size={15} />
-                        New homepage
+                        <span className={classes.tbBtnLabel} aria-hidden="true">
+                            New homepage
+                        </span>
                     </button>
                 )}
                 <button
                     type="button"
                     className={classes.tbBtn}
+                    aria-label="Customize homepage"
                     onClick={() =>
                         navigate(`/projects/${projectUuid}/homepage-builder`)
                     }
                 >
                     <MantineIcon icon={IconEdit} size={15} />
-                    Customize homepage
+                    <span className={classes.tbBtnLabel} aria-hidden="true">
+                        Customize homepage
+                    </span>
                 </button>
             </div>
         </Can>

@@ -13,10 +13,10 @@ export type HomepageHeroBlock = {
     config: { title: string; subtitle: string };
 };
 
-export type HomepageAiBlock = {
+export type HomepageAskAiHeroBlock = {
     id: string;
-    type: 'ai';
-    config: { chips: string[] };
+    type: 'ask-ai-hero';
+    config: { showGreeting: boolean };
 };
 
 export type HomepageCollectionItemRef = {
@@ -96,7 +96,7 @@ export type HomepageRecentBlock = {
 export type HomepageBlock =
     | HomepageMarkdownBlock
     | HomepageHeroBlock
-    | HomepageAiBlock
+    | HomepageAskAiHeroBlock
     | HomepageCollectionBlock
     | HomepageResourcesBlock
     | HomepageAnnouncementsBlock

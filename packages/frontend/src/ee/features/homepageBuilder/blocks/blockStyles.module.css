@@ -213,23 +213,3 @@ a .hoverCard:hover,
     border-radius: 5px;
     padding: 2px 7px;
 }
-
-.aiChip {
-    font-size: 12px;
-    font-weight: 500;
-    padding: 5px 11px;
-    border-radius: 7px;
-    cursor: pointer;
-    background: var(--mantine-color-ldGray-0);
-    border: 1px solid transparent;
-    color: var(--mantine-color-ldGray-7);
-    transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
-    font-family: inherit;
-}
-
-.aiChip:hover {
-    background: light-dark(#fff, var(--mantine-color-dark-6));
-    border-color: var(--mantine-color-ldGray-3);
-    color: var(--mantine-color-ldGray-9);
-    box-shadow: var(--mantine-shadow-subtle);
-}

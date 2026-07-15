@@ -22,6 +22,7 @@ import {
     useResolvedHomepage,
 } from '../ee/features/homepageBuilder/hooks/useProjectHomepage';
 import { PublishedHomepage } from '../ee/features/homepageBuilder/PublishedHomepage';
+import publishedHomepageClasses from '../ee/features/homepageBuilder/PublishedHomepage.module.css';
 import { ManagedAgentHomeCard } from '../ee/features/managedAgent/ManagedAgentHomeCard';
 import { useFavorites } from '../hooks/favorites/useFavorites';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
@@ -114,9 +115,9 @@ const Home: FC = () => {
                     organizationUuid={project.data.organizationUuid}
                     showNewHomepage
                 />
-                <Stack gap="md">
+                <Stack gap="md" pt={40} pb={64}>
                     {homepage.allowPersonal && !hasFavoritesBlock && (
-                        <Box maw={1100} mx="auto" w="100%">
+                        <Box className={publishedHomepageClasses.container}>
                             <PersonalFavoritesStrip
                                 projectUuid={project.data.projectUuid}
                             />
@@ -142,10 +143,27 @@ const Home: FC = () => {
                     projectUuid={project.data.projectUuid}
                     organizationUuid={project.data.organizationUuid}
                 />
-                <DayOneHomepage
-                    projectUuid={project.data.projectUuid}
-                    projectName={project.data.name}
-                />
+                <FavoritesProvider projectUuid={project.data.projectUuid}>
+                    <PinnedItemsProvider
+                        organizationUuid={project.data.organizationUuid}
+                        projectUuid={project.data.projectUuid}
+                        pinnedListUuid={project.data.pinnedListUuid || ''}
+                        allowDelete={false}
+                    >
+                        <DayOneHomepage
+                            projectUuid={project.data.projectUuid}
+                            projectName={project.data.name}
+                            pinnedItems={pinnedItems.data ?? []}
+                            favoriteItems={favorites.data ?? []}
+                            pinnedIsEnabled={Boolean(
+                                mostPopularAndRecentlyUpdated?.mostPopular
+                                    .length ||
+                                mostPopularAndRecentlyUpdated?.recentlyUpdated
+                                    .length,
+                            )}
+                        />
+                    </PinnedItemsProvider>
+                </FavoritesProvider>
             </Page>
         );
     }

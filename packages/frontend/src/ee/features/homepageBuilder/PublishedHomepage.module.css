@@ -1,0 +1,11 @@
+.container {
+    width: 100%;
+    max-width: 1160px;
+    margin: 0 auto;
+}
+
+.narrowBlock {
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto;
+}

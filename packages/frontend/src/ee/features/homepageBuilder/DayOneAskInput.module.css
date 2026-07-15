@@ -1,7 +1,7 @@
 .pill {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
-    padding: 7px 13px;
+    padding: 5px 11px;
     border-radius: 999px;
     cursor: pointer;
     background: light-dark(#fff, var(--mantine-color-dark-6));

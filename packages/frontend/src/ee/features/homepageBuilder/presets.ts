@@ -34,10 +34,10 @@ const hero = (title: string, subtitle: string): HomepageBlock => ({
     config: { title, subtitle },
 });
 
-const ai = (chips: string[]): HomepageBlock => ({
+const askAi = (showGreeting: boolean): HomepageBlock => ({
     id: uuidv4(),
-    type: 'ai',
-    config: { chips },
+    type: 'ask-ai-hero',
+    config: { showGreeting },
 });
 
 const collection = (title: string): HomepageBlock => ({
@@ -85,7 +85,7 @@ export const homepagePresets: HomepagePreset[] = [
                     ),
                 ),
                 row(collection('Company KPIs')),
-                row(ai(['Summarize this month vs. plan'])),
+                row(askAi(false)),
             ),
     },
     {
@@ -108,7 +108,7 @@ export const homepagePresets: HomepagePreset[] = [
                         'Your team’s snapshot — ask anything, or jump back in.',
                     ),
                 ),
-                row(ai(['What drove revenue last month?'])),
+                row(askAi(false)),
                 row(collection('Team dashboards')),
                 row(
                     resources('Getting started'),
@@ -148,7 +148,7 @@ export const homepagePresets: HomepagePreset[] = [
                         'Here’s what’s been happening.',
                     ),
                 ),
-                row(ai(['Charts nobody has viewed in 90 days'])),
+                row(askAi(false)),
                 row(
                     markdown('## Notes\n\nKeep links, TODOs and context here.'),
                 ),
