@@ -919,8 +919,24 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'create:ContentAsCode',
+        description:
+            'Upload charts, dashboards and spaces as code. Respects CustomSql, CustomFields and CustomSqlTableCalculations scopes',
+        isEnterprise: true,
+        group: ScopeGroup.CONTENT,
+        dependencies: [
+            { name: 'view:Project' },
+            { name: 'view:Space' },
+            {
+                name: 'view:ContentAsCode',
+                description: 'Download content as code',
+            },
+        ],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:ContentAsCode',
-        description: 'Download and upload content as code',
+        description: 'Download and upload any content as code',
         isEnterprise: true,
         group: ScopeGroup.CONTENT,
         dependencies: [
