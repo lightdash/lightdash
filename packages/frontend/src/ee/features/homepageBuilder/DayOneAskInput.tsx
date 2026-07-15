@@ -1,0 +1,228 @@
+import {
+    type AgentSuggestion,
+    type AiPromptContextInput,
+    type AiPromptContextItem,
+    type AiRouter,
+} from '@lightdash/common';
+import { Anchor, Group, Skeleton } from '@mantine-8/core';
+import { IconArrowUpRight } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState, type FC } from 'react';
+import { useNavigate } from 'react-router';
+import MantineIcon from '../../../components/common/MantineIcon';
+import {
+    AI_ROUTING_AUTO_VALUE,
+    AI_ROUTING_SEARCH_PARAM,
+} from '../aiCopilot/components/AgentSelector/AgentSelectorUtils';
+import { AgentChatInput } from '../aiCopilot/components/ChatElements/AgentChatInput';
+import { usePendingPrompt } from '../aiCopilot/components/PendingPromptContext/PendingPromptContext';
+import { useAgentSuggestions } from '../aiCopilot/hooks/useAgentSuggestions';
+import {
+    useCreateAgentThreadMutation,
+    useProjectAiAgents,
+} from '../aiCopilot/hooks/useProjectAiAgents';
+import { useGetUserAgentPreferences } from '../aiCopilot/hooks/useUserAgentPreferences';
+import blockClasses from './blocks/blockStyles.module.css';
+import classes from './DayOneAskInput.module.css';
+
+const AI_ROUTER_QUERY_KEY = 'ai-router';
+
+type Props = { projectUuid: string };
+
+// AgentSelector (rendered inside AgentChatInput below) already calls
+// useAiRouterConfig() to build its own dropdown. Calling that same hook a
+// second time here — a second live observer on the exact same query key —
+// triggers an infinite refetch loop (reproduced locally: 2000+ renders/sec).
+// Reading the cache directly, with no observer, avoids it while still
+// letting day-0 default to Auto once the config is known.
+const useAiRouterEnabledFromCache = (): boolean | undefined => {
+    const queryClient = useQueryClient();
+    const [enabled, setEnabled] = useState<boolean | undefined>(
+        () =>
+            queryClient.getQueryData<AiRouter>([AI_ROUTER_QUERY_KEY])?.enabled,
+    );
+    useEffect(
+        () =>
+            queryClient.getQueryCache().subscribe((event) => {
+                const key = event.query.queryKey;
+                if (key.length === 1 && key[0] === AI_ROUTER_QUERY_KEY) {
+                    setEnabled(
+                        (event.query.state.data as AiRouter | undefined)
+                            ?.enabled,
+                    );
+                }
+            }),
+        [queryClient],
+    );
+    return enabled;
+};
+
+const SuggestionPills: FC<{
+    chips: AgentSuggestion[];
+    onPick: (chip: AgentSuggestion) => void;
+}> = ({ chips, onPick }) => {
+    if (chips.length === 0) return null;
+    return (
+        <Group gap={8} justify="center" mt={16}>
+            {chips.map((chip) => (
+                <button
+                    key={chip.label}
+                    type="button"
+                    className={classes.pill}
+                    onClick={() => onPick(chip)}
+                >
+                    <MantineIcon
+                        icon={IconArrowUpRight}
+                        size={14}
+                        color="ldGray.5"
+                    />
+                    {chip.label}
+                </button>
+            ))}
+        </Group>
+    );
+};
+
+// The exact composer used on real agent threads — reused here so day-0's ask
+// experience looks and feels identical, not a lookalike. Selecting a
+// different agent from the built-in AgentSelector navigates to that agent's
+// thread page (same as everywhere else it's used); picking one before typing
+// leaves day-0, which is expected. No sql-mode toggle: onSqlModeChange is
+// intentionally omitted. Suggestion chips are fetched and rendered locally
+// (not via AgentChatInput's own `showSuggestions`) so they keep the design's
+// pill styling, and so a specific reference agent can power them even when
+// the composer itself is in Auto mode.
+const DayOneAskInputInner: FC<Props> = ({ projectUuid }) => {
+    const navigate = useNavigate();
+    const { setPendingPrompt } = usePendingPrompt();
+    const { data: agents, isLoading: isLoadingAgents } = useProjectAiAgents({
+        projectUuid,
+        redirectOnUnauthorized: false,
+    });
+    const { data: userAgentPreferences, isLoading: isLoadingPreferences } =
+        useGetUserAgentPreferences(projectUuid);
+    const routerEnabled = useAiRouterEnabledFromCache();
+    const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
+        useCreateAgentThreadMutation(projectUuid);
+
+    const showAutoOption = (agents?.length ?? 0) > 1 && routerEnabled === true;
+    const validDefaultAgent = agents?.find(
+        (agent) => agent.uuid === userAgentPreferences?.defaultAgentUuid,
+    );
+    // Auto is the default whenever it's available — Auto mode can't have its
+    // own suggestions, so the chip row below always sources from a concrete
+    // reference agent regardless of what the composer is currently set to.
+    const activeSelection =
+        validDefaultAgent ?? (showAutoOption ? 'auto' : agents?.[0]);
+    const referenceAgent = validDefaultAgent ?? agents?.[0];
+
+    const suggestionsQuery = useAgentSuggestions({
+        projectUuid,
+        agentUuid: referenceAgent?.uuid,
+        enableSqlMode: false,
+        enabled: !!referenceAgent,
+    });
+
+    const submitPrompt = (
+        prompt: string,
+        toolHints: string[] = [],
+        context?: AiPromptContextInput,
+        optimisticContext?: AiPromptContextItem[],
+    ) => {
+        if (activeSelection === 'auto') {
+            setPendingPrompt(prompt);
+            void navigate(
+                {
+                    pathname: `/projects/${projectUuid}/ai-agents`,
+                    search: new URLSearchParams({
+                        [AI_ROUTING_SEARCH_PARAM]: AI_ROUTING_AUTO_VALUE,
+                    }).toString(),
+                },
+                { state: { autoSubmitPrompt: prompt }, viewTransition: true },
+            );
+            return;
+        }
+        if (!activeSelection) {
+            void navigate(`/projects/${projectUuid}/ai-agents`);
+            return;
+        }
+        void createAgentThread({
+            agentUuid: activeSelection.uuid,
+            prompt,
+            toolHints,
+            context,
+            optimisticContext,
+        });
+    };
+
+    const handleSubmit = ({
+        message,
+        toolHints,
+        context,
+        optimisticContext,
+    }: {
+        message: string;
+        toolHints: string[];
+        context?: AiPromptContextInput;
+        optimisticContext?: AiPromptContextItem[];
+    }) => {
+        const prompt = message.trim();
+        if (!prompt) return;
+        submitPrompt(prompt, toolHints, context, optimisticContext);
+    };
+
+    const handleChipPick = (chip: AgentSuggestion) => {
+        if (chip.kind === 'navigate') {
+            void navigate(chip.url);
+            return;
+        }
+        submitPrompt(chip.label, [chip.tool]);
+    };
+
+    if (isLoadingAgents || isLoadingPreferences) {
+        return <Skeleton h={64} radius="lg" />;
+    }
+
+    if (!agents || agents.length === 0) {
+        return (
+            <div className={blockClasses.dashedEmpty}>
+                Set up an AI agent to enable Ask AI here —{' '}
+                <Anchor size="xs" href="/generalSettings/ai/agents">
+                    go to settings
+                </Anchor>
+                .
+            </div>
+        );
+    }
+
+    return (
+        <>
+            <AgentChatInput
+                projectUuid={projectUuid}
+                agents={agents}
+                selectedAgent={activeSelection ?? agents[0]}
+                placeholder={
+                    activeSelection === 'auto'
+                        ? 'Ask anything about your data…'
+                        : activeSelection
+                          ? `Ask ${activeSelection.name}…`
+                          : 'Ask anything about your data…'
+                }
+                onSubmit={handleSubmit}
+                loading={isCreatingThread}
+                showSuggestions={false}
+                fullWidth
+            />
+            <SuggestionPills
+                chips={suggestionsQuery.data?.chips ?? []}
+                onPick={handleChipPick}
+            />
+        </>
+    );
+};
+
+// No local Provider/AbortController wrap: AiAgentsGlobalProvider already
+// wraps the whole app once.
+export const DayOneAskInput: FC<Props> = (props) => (
+    <DayOneAskInputInner {...props} />
+);

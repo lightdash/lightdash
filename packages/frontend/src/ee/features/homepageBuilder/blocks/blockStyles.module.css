@@ -172,12 +172,15 @@ a .hoverCard:hover,
     border: 1px dashed var(--mantine-color-ldGray-3);
     border-radius: 10px;
     min-height: 108px;
-    display: grid;
-    place-items: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
     color: var(--mantine-color-ldGray-5);
     cursor: pointer;
     font-size: 13px;
     font-weight: 500;
+    line-height: 1;
     background: transparent;
     font-family: inherit;
     transition: all 0.15s ease-in-out;

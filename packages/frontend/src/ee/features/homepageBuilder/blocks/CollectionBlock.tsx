@@ -244,14 +244,8 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
                     className={classes.addContentTile}
                     onClick={() => setIsPickerOpen(true)}
                 >
-                    <span>
-                        <MantineIcon
-                            icon={IconPlus}
-                            size={14}
-                            style={{ marginRight: 5, verticalAlign: -2 }}
-                        />
-                        Add content
-                    </span>
+                    <MantineIcon icon={IconPlus} size={14} />
+                    Add content
                 </button>
             </SimpleGrid>
             {block.config.items.length === 0 && importablePins.length > 0 && (

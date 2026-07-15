@@ -1,20 +1,20 @@
-import { Box, useMantineColorScheme } from '@mantine-8/core';
+import { Text, Textarea, useMantineColorScheme } from '@mantine-8/core';
 import MarkdownPreview from '@uiw/react-markdown-preview';
-import MDEditor from '@uiw/react-md-editor';
 import { type FC } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
+import classes from './MarkdownBlock.module.css';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 export const MarkdownBlockView: FC<BlockComponentProps> = ({ block }) => {
     const { colorScheme } = useMantineColorScheme();
     if (block.type !== 'markdown') return null;
     return (
-        <Box data-color-mode={colorScheme} w="100%">
+        <div className={classes.preview} data-color-mode={colorScheme}>
             <MarkdownPreview
                 source={block.config.content}
                 rehypePlugins={[[rehypeExternalLinks, { target: '_blank' }]]}
             />
-        </Box>
+        </div>
     );
 };
 
@@ -22,20 +22,25 @@ export const MarkdownBlockBuild: FC<BuildComponentProps> = ({
     block,
     onChange,
 }) => {
-    const { colorScheme } = useMantineColorScheme();
     if (block.type !== 'markdown') return null;
     return (
-        <Box data-color-mode={colorScheme} w="100%">
-            <MDEditor
+        <div className={classes.editorWrap}>
+            <Textarea
+                aria-label="Markdown content"
+                variant="unstyled"
+                autosize
+                minRows={4}
+                maxRows={16}
                 value={block.config.content}
-                onChange={(value) =>
-                    onChange({ ...block, config: { content: value ?? '' } })
+                onChange={(e) =>
+                    onChange({
+                        ...block,
+                        config: { content: e.currentTarget.value },
+                    })
                 }
-                preview="edit"
-                minHeight={140}
-                height={220}
-                visibleDragbar
+                classNames={{ input: classes.editorTextarea }}
             />
-        </Box>
+            <Text className={classes.editorHint}>Markdown supported</Text>
+        </div>
     );
 };
