@@ -8,7 +8,7 @@ import { useForm } from '@mantine/form';
 import { IconKey } from '@tabler/icons-react';
 import { addDays } from 'date-fns';
 import { zodResolver } from 'mantine-form-zod-resolver';
-import { useMemo, type FC } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import { z } from 'zod';
 import { useServiceAccounts } from '../../../ee/features/serviceAccounts/useServiceAccounts';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -94,10 +94,10 @@ export const GenerateTokenModal: FC<Props> = ({
         [form.values.expiresAt],
     );
 
-    const handleClose = () => {
+    const handleClose = useCallback(() => {
         form.reset();
         onClose();
-    };
+    }, [form, onClose]);
 
     const handleSubmit = form.onSubmit(({ description, expiresAt, role }) => {
         const expiresAtValue = expiresAt
