@@ -120,7 +120,7 @@ export const BigQuerySchemaInput: FC<{
             }}
             disabled={disabled || !hasProject}
             data={datasets?.map((dataset) => dataset.datasetId) ?? []}
-            limit={5}
+            maxDropdownHeight={220}
             rightSectionPointerEvents={datasetsError ? 'all' : 'none'}
             rightSection={
                 isLoadingDatasets ? (
@@ -338,7 +338,7 @@ const BigQueryForm: FC<{
                             labelProps={{ style: { marginTop: '8px' } }}
                             w={hasDatasets ? '90%' : '100%'}
                             data={gcpProjects?.map((p) => p.projectId) ?? []}
-                            limit={5}
+                            maxDropdownHeight={220}
                             renderOption={({ option }) => {
                                 const projectOption = gcpProjects?.find(
                                     (projectItem) =>
