@@ -33,7 +33,6 @@
 
     &[data-checked] {
         border-color: var(--mantine-color-indigo-outline);
-        background: var(--mantine-color-indigo-light);
     }
 
     &:focus-visible {
