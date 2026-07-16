@@ -299,6 +299,14 @@ export const checkProjectCreationPermission = async (
                     return;
                 }
 
+                if (!upstreamProjectUuid) {
+                    throw new ForbiddenError(
+                        `No source project is selected. If your role allows creating previews from specific projects, that permission only applies when a source project is selected.\n` +
+                            `Run 'lightdash config set-project' to select a source project and try again.\n` +
+                            `If that doesn't help, contact your organization admin to request access to preview projects.`,
+                    );
+                }
+
                 throw new ForbiddenError(
                     `You don't have permission to create preview projects in this organization.\n` +
                         `This typically requires the 'developer' or 'admin' role.\n` +
