@@ -133,7 +133,6 @@ const DebouncedSearchInput = memo(
                         input: {
                             height: 32,
                             width: 309,
-                            padding: `${inputTheme.spacing.xs} ${inputTheme.spacing.sm}`,
                             textOverflow: 'ellipsis',
                             fontSize: inputTheme.fontSizes.sm,
                             fontWeight: 400,
