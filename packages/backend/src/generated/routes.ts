@@ -9141,6 +9141,51 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageRecommendedActionKey: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['connect-warehouse'] },
+                { dataType: 'enum', enums: ['add-semantic-layer'] },
+                { dataType: 'enum', enums: ['connect-github'] },
+                { dataType: 'enum', enums: ['connect-slack'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageRecommendedActionsBlock: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                config: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        actions: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'HomepageRecommendedActionKey',
+                            },
+                            required: true,
+                        },
+                        title: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                type: {
+                    dataType: 'enum',
+                    enums: ['recommended-actions'],
+                    required: true,
+                },
+                id: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     HomepageBlock: {
         dataType: 'refAlias',
         type: {
@@ -9155,6 +9200,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'HomepageQuickActionsBlock' },
                 { ref: 'HomepageFavoritesBlock' },
                 { ref: 'HomepageRecentBlock' },
+                { ref: 'HomepageRecommendedActionsBlock' },
             ],
             validators: {},
         },

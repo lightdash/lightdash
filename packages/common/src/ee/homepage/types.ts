@@ -113,6 +113,18 @@ export type HomepageRecentBlock = {
     config: { title: string };
 };
 
+export type HomepageRecommendedActionKey =
+    | 'connect-warehouse'
+    | 'add-semantic-layer'
+    | 'connect-github'
+    | 'connect-slack';
+
+export type HomepageRecommendedActionsBlock = {
+    id: string;
+    type: 'recommended-actions';
+    config: { title: string; actions: HomepageRecommendedActionKey[] };
+};
+
 export type HomepageBlock =
     | HomepageMarkdownBlock
     | HomepageAskAiHeroBlock
@@ -122,7 +134,8 @@ export type HomepageBlock =
     | HomepageMetricsBlock
     | HomepageQuickActionsBlock
     | HomepageFavoritesBlock
-    | HomepageRecentBlock;
+    | HomepageRecentBlock
+    | HomepageRecommendedActionsBlock;
 
 export type HomepageAudience =
     | { type: 'everyone' }
