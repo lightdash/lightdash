@@ -3,7 +3,6 @@
 }
 
 .answer {
-    border-left: 3px solid var(--mantine-color-indigo-outline);
     background: light-dark(
         var(--mantine-color-ldGray-0),
         var(--mantine-color-ldDark-6)

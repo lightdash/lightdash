@@ -56,7 +56,7 @@ const EvidenceDetail = ({
                 <Text className={styles.bodyText}>{evidence.description}</Text>
             </Stack>
             {evidence.queryUuid && (
-                <Stack gap={4} className={styles.queryDetails}>
+                <Stack gap={4}>
                     <Text className={styles.caption}>Query UUID</Text>
                     <Text ff="monospace" className={styles.reference}>
                         {evidence.queryUuid}

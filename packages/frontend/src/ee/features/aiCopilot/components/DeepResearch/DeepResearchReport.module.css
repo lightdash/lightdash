@@ -137,11 +137,6 @@
     font: 700 0.6875rem/1.4 var(--mantine-font-family-monospace);
 }
 
-.queryDetails {
-    padding-left: var(--mantine-spacing-sm);
-    border-left: 1px solid var(--mantine-color-ldGray-3);
-}
-
 .reference {
     overflow-wrap: anywhere;
     color: var(--mantine-color-dimmed);
