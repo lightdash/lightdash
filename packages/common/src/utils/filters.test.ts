@@ -975,6 +975,115 @@ describe('trackWhichTimeBasedMetricFiltersToOverride', () => {
         );
     });
 
+    test('should track chart filter on interval base dimension when dashboard filter targets an interval dimension', () => {
+        const metricQueryDimensionFilters: AndFilterGroup = {
+            id: 'dim-filter-group',
+            and: [
+                {
+                    id: 'base-filter',
+                    target: { fieldId: 'order_date' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['2024-06-26'],
+                },
+            ],
+        };
+
+        const dashboardFilter: DashboardFilterRule = {
+            id: 'month-filter',
+            label: 'Month Filter',
+            target: {
+                fieldId: 'order_date_month',
+                tableName: 'orders',
+            },
+            operator: FilterOperator.EQUALS,
+            values: ['2025-01'],
+        };
+
+        const result = trackWhichTimeBasedMetricFiltersToOverride(
+            metricQueryDimensionFilters,
+            dashboardFilter,
+            mockExplore,
+        );
+
+        expect(result.overrideData?.fieldsToChange).toEqual(['order_date']);
+    });
+
+    test('should track chart filters on base and interval dimensions when dashboard filter targets an interval dimension', () => {
+        const metricQueryDimensionFilters: AndFilterGroup = {
+            id: 'dim-filter-group',
+            and: [
+                {
+                    id: 'base-filter',
+                    target: { fieldId: 'order_date' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['2024-03-01'],
+                },
+                {
+                    id: 'week-filter',
+                    target: { fieldId: 'order_date_week' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['2024-03-25'],
+                },
+            ],
+        };
+
+        const dashboardFilter: DashboardFilterRule = {
+            id: 'year-filter',
+            label: 'Year Filter',
+            target: {
+                fieldId: 'order_date_year',
+                tableName: 'orders',
+            },
+            operator: FilterOperator.EQUALS,
+            values: ['2024'],
+        };
+
+        const result = trackWhichTimeBasedMetricFiltersToOverride(
+            metricQueryDimensionFilters,
+            dashboardFilter,
+            mockExplore,
+        );
+
+        expect(result.overrideData?.fieldsToChange).toEqual(
+            expect.arrayContaining(['order_date', 'order_date_week']),
+        );
+    });
+
+    test('should track chart filter on interval dimension when dashboard filter targets the interval base dimension', () => {
+        const metricQueryDimensionFilters: AndFilterGroup = {
+            id: 'dim-filter-group',
+            and: [
+                {
+                    id: 'month-filter',
+                    target: { fieldId: 'order_date_month' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['2024-03'],
+                },
+            ],
+        };
+
+        const dashboardFilter: DashboardFilterRule = {
+            id: 'base-filter',
+            label: 'Order Date Filter',
+            target: {
+                fieldId: 'order_date',
+                tableName: 'orders',
+            },
+            operator: FilterOperator.EQUALS,
+            values: ['2024-03-01'],
+        };
+
+        const result = trackWhichTimeBasedMetricFiltersToOverride(
+            metricQueryDimensionFilters,
+            dashboardFilter,
+            mockExplore,
+        );
+
+        expect(result.overrideData?.fieldsToChange).toEqual([
+            'order_date_month',
+        ]);
+    });
+
     test('should not track fields when dashboard filter targets non-base dimension', () => {
         const metricQueryDimensionFilters: AndFilterGroup = {
             id: 'dim-filter-group',

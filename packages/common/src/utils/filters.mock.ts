@@ -444,6 +444,21 @@ export const mockExplore: Explore = {
             metrics: {},
             lineageGraph: {},
             dimensions: {
+                // Interval base dimensions have isIntervalBase set and no
+                // timeIntervalBaseDimensionName (see convertDimension in translator.ts)
+                order_date: {
+                    name: 'order_date',
+                    label: 'Order Date',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    compiledSql: 'order_date',
+                    tablesReferences: [],
+                    sql: 'order_date',
+                    hidden: false,
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    isIntervalBase: true,
+                },
                 order_date_year: {
                     name: 'order_date_year',
                     label: 'Order Date Year',
