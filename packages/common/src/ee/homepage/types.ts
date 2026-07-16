@@ -156,7 +156,7 @@ export type HomepageConfig = {
     rows: HomepageRow[];
 };
 
-export const HOMEPAGE_MAX_BLOCKS_PER_ROW = 3;
+export const HOMEPAGE_MAX_BLOCKS_PER_ROW = 2;
 
 export const defaultHomepageConfig = (): HomepageConfig => ({
     version: 1,

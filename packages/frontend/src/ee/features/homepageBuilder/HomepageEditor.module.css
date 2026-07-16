@@ -336,7 +336,10 @@
     border: 2px dashed var(--mantine-color-ldGray-3);
     border-radius: 12px;
     padding: 26px;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     color: var(--mantine-color-ldGray-5);
     font-size: 13px;
     font-weight: 500;
@@ -344,8 +347,7 @@
 }
 
 .endZoneIcon {
-    margin-right: 6px;
-    vertical-align: -2px;
+    flex-shrink: 0;
 }
 
 /* Explicit "add column" gutters. Idle: a slim "+" rail that collapses to zero
@@ -354,34 +356,34 @@
 .columnRail {
     flex: 0 0 0;
     align-self: stretch;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: visible;
+    overflow: hidden;
     transition: flex-basis 0.15s ease;
 }
 
 .rowColumns:hover .columnRail,
 .columnRail[data-menu-open='true'] {
-    flex-basis: 24px;
+    flex-basis: 60px;
 }
 
+/* A ghost dashed column revealed flush beside the card on row hover — the same
+   shape as the drag drop-slot, so adding vs dropping a column read alike. */
 .columnRailBtn {
-    width: 22px;
-    height: 22px;
-    border-radius: 999px;
-    border: 1px solid var(--mantine-color-ldGray-3);
-    background: light-dark(#fff, var(--mantine-color-dark-6));
-    color: var(--mantine-color-ldGray-6);
+    width: 100%;
+    height: 100%;
+    min-height: 76px;
+    border: 2px dashed var(--mantine-color-ldGray-3);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--mantine-color-ldGray-4);
     display: grid;
     place-items: center;
     cursor: pointer;
     opacity: 0;
-    box-shadow: var(--mantine-shadow-subtle);
     transition:
         opacity 0.15s ease,
         color 0.12s ease,
-        border-color 0.12s ease;
+        border-color 0.12s ease,
+        background 0.12s ease;
 }
 
 .rowColumns:hover .columnRailBtn,
@@ -390,8 +392,12 @@
 }
 
 .columnRailBtn:hover {
-    color: var(--mantine-color-ldGray-9);
-    border-color: var(--mantine-color-ldGray-5);
+    color: var(--mantine-color-blue-5);
+    border-color: var(--mantine-color-blue-5);
+    background: light-dark(
+        var(--mantine-color-blue-0),
+        var(--mantine-color-dark-5)
+    );
 }
 
 .columnSlot {

@@ -53,7 +53,7 @@ import {
     IconUserSearch,
     IconUsers,
 } from '@tabler/icons-react';
-import { Fragment, useEffect, useRef, useState, type FC } from 'react';
+import { useEffect, useRef, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
@@ -269,7 +269,7 @@ const ColumnGutter: FC<{
                         className={classes.columnRailBtn}
                         aria-label="Add column"
                     >
-                        <MantineIcon icon={IconPlus} size={13} />
+                        <MantineIcon icon={IconPlus} size={18} />
                     </button>
                 </Menu.Target>
                 <Menu.Dropdown>
@@ -912,138 +912,91 @@ export const HomepageEditor: FC<Props> = ({
                                                         classes.rowColumns
                                                     }
                                                 >
-                                                    {row.blocks.map(
-                                                        (block, blockIndex) => {
-                                                            const definition =
-                                                                getBlockDefinition(
-                                                                    block.type,
-                                                                );
-                                                            if (!definition)
-                                                                return null;
-                                                            return (
-                                                                <Fragment
-                                                                    key={
-                                                                        block.id
-                                                                    }
-                                                                >
-                                                                    {canAddColumn(
-                                                                        draft,
-                                                                        rowIndex,
-                                                                    ) && (
-                                                                        <ColumnGutter
-                                                                            rowIndex={
-                                                                                rowIndex
-                                                                            }
-                                                                            insertIndex={
-                                                                                blockIndex
-                                                                            }
-                                                                            isDragActive={
-                                                                                activeDrag !==
-                                                                                null
-                                                                            }
-                                                                            blocks={
-                                                                                availableBlocks
-                                                                            }
-                                                                            onAdd={(
-                                                                                def,
-                                                                            ) =>
-                                                                                setDraft(
-                                                                                    (
-                                                                                        prev,
-                                                                                    ) =>
-                                                                                        dropNewBlock(
-                                                                                            prev,
-                                                                                            def.create(),
-                                                                                            {
-                                                                                                kind: 'cell',
-                                                                                                rowIndex,
-                                                                                                blockIndex,
-                                                                                            },
-                                                                                        ),
-                                                                                )
-                                                                            }
-                                                                        />
-                                                                    )}
-                                                                    <BlockCard
-                                                                        block={
-                                                                            block
-                                                                        }
-                                                                        definition={
-                                                                            definition
-                                                                        }
-                                                                        projectUuid={
-                                                                            projectUuid
-                                                                        }
-                                                                        canUp={canMoveUp(
-                                                                            draft,
-                                                                            block.id,
-                                                                        )}
-                                                                        canDown={canMoveDown(
-                                                                            draft,
-                                                                            block.id,
-                                                                        )}
-                                                                        onUp={() =>
-                                                                            setDraft(
-                                                                                (
-                                                                                    prev,
-                                                                                ) =>
-                                                                                    moveBlockUp(
-                                                                                        prev,
-                                                                                        block.id,
-                                                                                    ),
-                                                                            )
-                                                                        }
-                                                                        onDown={() =>
-                                                                            setDraft(
-                                                                                (
-                                                                                    prev,
-                                                                                ) =>
-                                                                                    moveBlockDown(
-                                                                                        prev,
-                                                                                        block.id,
-                                                                                    ),
-                                                                            )
-                                                                        }
-                                                                        onDuplicate={() =>
-                                                                            setDraft(
-                                                                                (
-                                                                                    prev,
-                                                                                ) =>
-                                                                                    duplicateBlock(
-                                                                                        prev,
-                                                                                        block.id,
-                                                                                    ),
-                                                                            )
-                                                                        }
-                                                                        onRemove={() =>
-                                                                            setDraft(
-                                                                                (
-                                                                                    prev,
-                                                                                ) =>
-                                                                                    removeBlock(
-                                                                                        prev,
-                                                                                        block.id,
-                                                                                    ),
-                                                                            )
-                                                                        }
-                                                                        onChange={(
-                                                                            updated,
-                                                                        ) =>
-                                                                            setDraft(
-                                                                                (
-                                                                                    prev,
-                                                                                ) =>
-                                                                                    replaceBlock(
-                                                                                        prev,
-                                                                                        updated,
-                                                                                    ),
-                                                                            )
-                                                                        }
-                                                                    />
-                                                                </Fragment>
+                                                    {row.blocks.map((block) => {
+                                                        const definition =
+                                                            getBlockDefinition(
+                                                                block.type,
                                                             );
-                                                        },
-                                                    )}
+                                                        if (!definition)
+                                                            return null;
+                                                        return (
+                                                            <BlockCard
+                                                                key={block.id}
+                                                                block={block}
+                                                                definition={
+                                                                    definition
+                                                                }
+                                                                projectUuid={
+                                                                    projectUuid
+                                                                }
+                                                                canUp={canMoveUp(
+                                                                    draft,
+                                                                    block.id,
+                                                                )}
+                                                                canDown={canMoveDown(
+                                                                    draft,
+                                                                    block.id,
+                                                                )}
+                                                                onUp={() =>
+                                                                    setDraft(
+                                                                        (
+                                                                            prev,
+                                                                        ) =>
+                                                                            moveBlockUp(
+                                                                                prev,
+                                                                                block.id,
+                                                                            ),
+                                                                    )
+                                                                }
+                                                                onDown={() =>
+                                                                    setDraft(
+                                                                        (
+                                                                            prev,
+                                                                        ) =>
+                                                                            moveBlockDown(
+                                                                                prev,
+                                                                                block.id,
+                                                                            ),
+                                                                    )
+                                                                }
+                                                                onDuplicate={() =>
+                                                                    setDraft(
+                                                                        (
+                                                                            prev,
+                                                                        ) =>
+                                                                            duplicateBlock(
+                                                                                prev,
+                                                                                block.id,
+                                                                            ),
+                                                                    )
+                                                                }
+                                                                onRemove={() =>
+                                                                    setDraft(
+                                                                        (
+                                                                            prev,
+                                                                        ) =>
+                                                                            removeBlock(
+                                                                                prev,
+                                                                                block.id,
+                                                                            ),
+                                                                    )
+                                                                }
+                                                                onChange={(
+                                                                    updated,
+                                                                ) =>
+                                                                    setDraft(
+                                                                        (
+                                                                            prev,
+                                                                        ) =>
+                                                                            replaceBlock(
+                                                                                prev,
+                                                                                updated,
+                                                                            ),
+                                                                    )
+                                                                }
+                                                            />
+                                                        );
+                                                    })}
                                                     {canAddColumn(
                                                         draft,
                                                         rowIndex,

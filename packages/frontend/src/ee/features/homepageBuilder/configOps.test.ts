@@ -45,21 +45,18 @@ describe('configOps', () => {
     });
 
     it('duplicateBlock copies within the row when there is space', () => {
-        const config = makeConfig([[block('a'), block('b')]]);
+        const config = makeConfig([[block('a')]]);
         const result = duplicateBlock(config, 'a');
-        expect(result.rows[0].blocks).toHaveLength(3);
+        expect(result.rows[0].blocks).toHaveLength(2);
         expect(result.rows[0].blocks[1].config).toEqual({ content: 'a' });
         expect(result.rows[0].blocks[1].id).not.toBe('a');
     });
 
     it('duplicateBlock overflows a full row into a new row below', () => {
-        const config = makeConfig([
-            [block('a'), block('b'), block('c')],
-            [block('d')],
-        ]);
+        const config = makeConfig([[block('a'), block('b')], [block('d')]]);
         const result = duplicateBlock(config, 'b');
         expect(result.rows).toHaveLength(3);
-        expect(result.rows[0].blocks).toHaveLength(3);
+        expect(result.rows[0].blocks).toHaveLength(2);
         expect(result.rows[1].blocks[0].config).toEqual({ content: 'b' });
         expect(result.rows[2].blocks[0].id).toBe('d');
     });
@@ -173,21 +170,17 @@ describe('configOps', () => {
         });
 
         it('dropExistingBlock reorders within the same row', () => {
-            const config = makeConfig([[block('a'), block('b'), block('c')]]);
+            const config = makeConfig([[block('a'), block('b')]]);
             const result = dropExistingBlock(config, 'a', {
                 kind: 'cell',
                 rowIndex: 0,
-                blockIndex: 3,
+                blockIndex: 2,
             });
-            expect(result.rows[0].blocks.map((b) => b.id)).toEqual([
-                'b',
-                'c',
-                'a',
-            ]);
+            expect(result.rows[0].blocks.map((b) => b.id)).toEqual(['b', 'a']);
         });
 
-        it('canDropInRow respects the 3-block cap but allows same-row moves', () => {
-            const config = makeConfig([[block('a'), block('b'), block('c')]]);
+        it('canDropInRow respects the column cap but allows same-row moves', () => {
+            const config = makeConfig([[block('a'), block('b')]]);
             expect(canDropInRow(config, 0)).toBe(false);
             expect(canDropInRow(config, 0, 'a')).toBe(true);
         });
