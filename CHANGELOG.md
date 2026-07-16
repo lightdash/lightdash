@@ -1,3 +1,12 @@
+# [0.3404.0](https://github.com/lightdash/lightdash/compare/0.3403.0...0.3404.0) (2026-07-16)
+
+
+### Features
+
+* **homepage:** "Viewing as" switcher as a sub-bar under the preview toolbar ([#25691](https://github.com/lightdash/lightdash/issues/25691)) ([7733d52](https://github.com/lightdash/lightdash/commit/7733d5250d22cd950b933ea68c575bd1a40121c4))
+* **homepage:** fold "View as" into Preview mode as inline switcher ([#25687](https://github.com/lightdash/lightdash/issues/25687)) ([1ff89c1](https://github.com/lightdash/lightdash/commit/1ff89c18d2c683a563f6385f5814420cb50f64a9))
+* **homepage:** premium drag-and-drop — frozen layout + ghost preview ([#25690](https://github.com/lightdash/lightdash/issues/25690)) ([ee9994c](https://github.com/lightdash/lightdash/commit/ee9994c06e8d69873c519b4be73413f06eb451f9))
+
 # [0.3403.0](https://github.com/lightdash/lightdash/compare/0.3402.0...0.3403.0) (2026-07-16)
 
 
