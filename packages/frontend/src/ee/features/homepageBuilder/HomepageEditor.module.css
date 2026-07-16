@@ -350,53 +350,81 @@
     flex-shrink: 0;
 }
 
-/* Explicit "add column" gutters. Idle: a slim "+" rail that collapses to zero
-   width so single-column rows stay full-width, expanding on row hover. During
-   a drag: a dashed drop slot that accepts the dragged block as a new column. */
+.rowColumns {
+    position: relative;
+}
+
+/* "Add column" opens just outside the card's right edge on row hover — it never resizes the existing card.
+   The left padding is a transparent hover bridge flush with the card, so moving card → column never drops the hover. */
 .columnRail {
-    flex: 0 0 0;
-    align-self: stretch;
-    overflow: hidden;
-    transition: flex-basis 0.15s ease;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 100%;
+    width: 70px;
+    padding-left: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
 }
 
 .rowColumns:hover .columnRail,
 .columnRail[data-menu-open='true'] {
-    flex-basis: 60px;
+    opacity: 1;
+    pointer-events: auto;
 }
 
-/* A ghost dashed column revealed flush beside the card on row hover — the same
-   shape as the drag drop-slot, so adding vs dropping a column read alike. */
+/* Full-height dashed drop-slot echoing the card; the "+" rides a centered chip so it never floats. */
 .columnRailBtn {
     width: 100%;
     height: 100%;
-    min-height: 76px;
     border: 2px dashed var(--mantine-color-ldGray-3);
-    border-radius: 10px;
+    border-radius: 12px;
     background: transparent;
-    color: var(--mantine-color-ldGray-4);
+    color: var(--mantine-color-ldGray-5);
     display: grid;
     place-items: center;
     cursor: pointer;
-    opacity: 0;
     transition:
-        opacity 0.15s ease,
         color 0.12s ease,
         border-color 0.12s ease,
         background 0.12s ease;
 }
 
-.rowColumns:hover .columnRailBtn,
-.columnRail[data-menu-open='true'] .columnRailBtn {
-    opacity: 1;
+.columnRailBtn::before {
+    content: '';
+    grid-area: 1 / 1;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: light-dark(
+        var(--mantine-color-ldGray-1),
+        var(--mantine-color-dark-5)
+    );
+    transition: background 0.12s ease;
+}
+
+.columnRailBtn svg {
+    grid-area: 1 / 1;
+    z-index: 1;
 }
 
 .columnRailBtn:hover {
-    color: var(--mantine-color-blue-5);
+    color: var(--mantine-color-blue-6);
     border-color: var(--mantine-color-blue-5);
     background: light-dark(
         var(--mantine-color-blue-0),
         var(--mantine-color-dark-5)
+    );
+}
+
+.columnRailBtn:hover::before {
+    background: light-dark(
+        var(--mantine-color-blue-1),
+        var(--mantine-color-dark-4)
     );
 }
 
