@@ -12,6 +12,7 @@ import { AskAiHero } from './blocks/AskAiHeroBlock';
 import { getDefaultQuickActions } from './blocks/quickActionDefaults';
 import { QuickActionCards } from './blocks/QuickActionsBlock';
 import classes from './DayOneHomepage.module.css';
+import layout from './homepageLayout.module.css';
 
 type Props = {
     projectUuid: string;
@@ -32,10 +33,10 @@ export const DayOneHomepage: FC<Props> = ({
     const isAiEnabled = useAiAgentButtonVisibility();
 
     return (
-        <div className={classes.page}>
-            <div className={classes.heroSection}>
+        <div className={layout.page}>
+            <div className={layout.heroSection}>
                 {isAiEnabled ? (
-                    <div className={classes.hero}>
+                    <div className={layout.hero}>
                         <AskAiHero projectUuid={projectUuid} showGreeting />
                     </div>
                 ) : (

@@ -39,6 +39,8 @@ export type BlockDefinition = {
     description: string;
     icon: Icon;
     requiresAi?: boolean;
+    /** Can only be added once per homepage. */
+    singleton?: boolean;
     create: () => HomepageBlock;
     View: FC<BlockComponentProps>;
     Build: FC<BuildComponentProps>;
@@ -94,6 +96,7 @@ export const blockLibrary: BlockDefinition[] = [
         label: 'Metrics',
         description: 'KPI cards from the metrics catalog, with deltas.',
         icon: IconChartDots,
+        singleton: true,
         create: () => ({
             id: uuidv4(),
             type: 'metrics',

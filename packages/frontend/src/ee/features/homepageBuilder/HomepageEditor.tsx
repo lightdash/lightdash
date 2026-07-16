@@ -285,7 +285,7 @@ const BlockCard: FC<BlockCardProps> = ({
                     aria-label={`Drag ${definition.label} block`}
                 >
                     <span className={classes.blockHandle}>
-                        <MantineIcon icon={IconGripVertical} color="gray" />
+                        <MantineIcon icon={IconGripVertical} color="ldGray.6" />
                     </span>
                     <span className={classes.blockTypeLabel}>
                         {definition.label}
@@ -295,7 +295,7 @@ const BlockCard: FC<BlockCardProps> = ({
                     <Tooltip label="Move up">
                         <ActionIcon
                             variant="subtle"
-                            color="gray"
+                            color="ldGray.6"
                             disabled={!canUp}
                             onClick={onUp}
                         >
@@ -305,7 +305,7 @@ const BlockCard: FC<BlockCardProps> = ({
                     <Tooltip label="Move down">
                         <ActionIcon
                             variant="subtle"
-                            color="gray"
+                            color="ldGray.6"
                             disabled={!canDown}
                             onClick={onDown}
                         >
@@ -315,7 +315,7 @@ const BlockCard: FC<BlockCardProps> = ({
                     <Tooltip label="Duplicate">
                         <ActionIcon
                             variant="subtle"
-                            color="gray"
+                            color="ldGray.6"
                             onClick={onDuplicate}
                         >
                             <MantineIcon icon={IconCopy} />
@@ -375,9 +375,6 @@ export const HomepageEditor: FC<Props> = ({
     const [isViewAsModalOpen, setIsViewAsModalOpen] = useState(false);
 
     const isAiEnabled = useAiAgentButtonVisibility();
-    const availableBlocks = blockLibrary.filter(
-        (definition) => !definition.requiresAi || isAiEnabled,
-    );
 
     const [draft, setDraft] = useState<HomepageConfig>(homepage.draftConfig);
     const [isPreviewing, setIsPreviewing] = useState(false);
@@ -392,6 +389,16 @@ export const HomepageEditor: FC<Props> = ({
     const preDragDraftRef = useRef<HomepageConfig | null>(null);
     // Instance created for a library drag, once it first enters the canvas
     const pendingNewBlockRef = useRef<HomepageBlock | null>(null);
+
+    // Singleton blocks (e.g. metrics) drop out of the library once placed.
+    const usedSingletonTypes = new Set(
+        draft.rows.flatMap((row) => row.blocks).map((block) => block.type),
+    );
+    const availableBlocks = blockLibrary.filter(
+        (definition) =>
+            (!definition.requiresAi || isAiEnabled) &&
+            !(definition.singleton && usedSingletonTypes.has(definition.type)),
+    );
 
     const { mutate: saveDraft } = updateMutation;
     useEffect(() => {
@@ -452,6 +459,14 @@ export const HomepageEditor: FC<Props> = ({
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     );
 
+    // A block being hovered is split into zones: the top/bottom bands reorder
+    // the dragged block into its own row above/below (the common case), the
+    // narrow left/right edges split it into the same row side-by-side, and
+    // the center defaults to reordering above — so merely passing over a
+    // block on the way elsewhere doesn't accidentally split it.
+    const ROW_ZONE_FRACTION = 0.3;
+    const CELL_EDGE_FRACTION = 0.15;
+
     // Where would the dragged block land, given what the pointer is over?
     const computeTarget = (
         config: HomepageConfig,
@@ -467,15 +482,37 @@ export const HomepageEditor: FC<Props> = ({
         const location = locateBlock(config, overId);
         if (!location) return null;
         const activeRect = event.active.rect.current.translated;
-        const activeCenter = activeRect
+        const activeCenterX = activeRect
             ? activeRect.left + activeRect.width / 2
             : over.rect.left;
-        const isAfter = activeCenter > over.rect.left + over.rect.width / 2;
-        return {
-            kind: 'cell',
-            rowIndex: location.rowIndex,
-            blockIndex: location.blockIndex + (isAfter ? 1 : 0),
-        };
+        const activeCenterY = activeRect
+            ? activeRect.top + activeRect.height / 2
+            : over.rect.top;
+        const relY = (activeCenterY - over.rect.top) / over.rect.height;
+
+        if (relY < ROW_ZONE_FRACTION) {
+            return { kind: 'row', rowIndex: location.rowIndex };
+        }
+        if (relY > 1 - ROW_ZONE_FRACTION) {
+            return { kind: 'row', rowIndex: location.rowIndex + 1 };
+        }
+
+        const relX = (activeCenterX - over.rect.left) / over.rect.width;
+        if (relX < CELL_EDGE_FRACTION) {
+            return {
+                kind: 'cell',
+                rowIndex: location.rowIndex,
+                blockIndex: location.blockIndex,
+            };
+        }
+        if (relX > 1 - CELL_EDGE_FRACTION) {
+            return {
+                kind: 'cell',
+                rowIndex: location.rowIndex,
+                blockIndex: location.blockIndex + 1,
+            };
+        }
+        return { kind: 'row', rowIndex: location.rowIndex };
     };
 
     // Live-preview move: relocate the block in the draft as the drag hovers,
@@ -636,7 +673,7 @@ export const HomepageEditor: FC<Props> = ({
                                         homepage.homepageUuid ? (
                                             <MantineIcon
                                                 icon={IconCheck}
-                                                color="blue"
+                                                color="ldGray.7"
                                             />
                                         ) : undefined
                                     }

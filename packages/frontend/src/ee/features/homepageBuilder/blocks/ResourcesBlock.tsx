@@ -45,7 +45,7 @@ const ResourceRow: FC<{
             {onRemove ? (
                 <ActionIcon
                     variant="subtle"
-                    color="gray"
+                    color="ldGray.6"
                     size="sm"
                     aria-label={`Remove resource ${item.title}`}
                     onClick={onRemove}

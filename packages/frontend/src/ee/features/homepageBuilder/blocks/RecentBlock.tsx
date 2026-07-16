@@ -27,6 +27,8 @@ const getRecentlyViewed = async (projectUuid: string) =>
         body: undefined,
     });
 
+const MAX_RECENT_ITEMS = 4;
+
 const useRecentlyViewed = (projectUuid: string) =>
     useQuery<HomepageRecentlyViewedItem[], ApiError>({
         queryKey: ['homepage_recently_viewed', projectUuid],
@@ -72,7 +74,9 @@ const RecentRow: FC<{
 
 const RecentList: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { data: recents, isInitialLoading } = useRecentlyViewed(projectUuid);
-    const uuids = (recents ?? []).map((item) => item.uuid);
+    const uuids = (recents ?? [])
+        .slice(0, MAX_RECENT_ITEMS)
+        .map((item) => item.uuid);
     const { data: contents, isInitialLoading: isResolving } =
         useCollectionContent(projectUuid, uuids);
 

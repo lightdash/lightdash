@@ -18,8 +18,6 @@ import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
-const STAR_COLOR = 'light-dark(#de7f0b, #e08a20)';
-
 const FAVORITE_ICONS: Partial<Record<ResourceViewItemType, Icon>> = {
     [ResourceViewItemType.CHART]: IconChartBar,
     [ResourceViewItemType.DASHBOARD]: IconLayoutDashboard,
@@ -78,7 +76,7 @@ const FavoritePills: FC<{
                         <MantineIcon
                             icon={IconStarFilled}
                             size={13}
-                            color={STAR_COLOR}
+                            color="ldGray.7"
                             className={classes.clickable}
                             aria-label={`Remove ${item.data.name} from favorites`}
                             onClick={(e) => handleUnfavorite(e, item)}
@@ -87,7 +85,7 @@ const FavoritePills: FC<{
                         <MantineIcon
                             icon={IconStarFilled}
                             size={13}
-                            color={STAR_COLOR}
+                            color="ldGray.7"
                         />
                     )}
                 </Link>
@@ -102,7 +100,6 @@ export const PersonalFavoritesStrip: FC<{ projectUuid: string }> = ({
     <Stack gap={0}>
         <BlockHeader
             icon={IconStar}
-            iconColor={STAR_COLOR}
             title="My favorites"
             pill="Only you see this"
             mb={10}
@@ -124,7 +121,6 @@ export const FavoritesBlockView: FC<BlockComponentProps> = ({
         <Stack gap={0}>
             <BlockHeader
                 icon={IconStar}
-                iconColor={STAR_COLOR}
                 title={block.config.title}
                 pill="Only you see this"
             />
@@ -146,7 +142,6 @@ export const FavoritesBlockBuild: FC<BuildComponentProps> = ({
         <Stack gap={0}>
             <BlockHeader
                 icon={IconStar}
-                iconColor={STAR_COLOR}
                 title={block.config.title}
                 pill="Personal per viewer"
             />

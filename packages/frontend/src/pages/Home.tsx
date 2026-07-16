@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { DbtProjectType, ProjectType } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
+import { Stack } from '@mantine-8/core';
 import { type FC } from 'react';
 import { Navigate, useParams } from 'react-router';
 import { useUnmount } from 'react-use';
@@ -22,7 +22,6 @@ import {
     useResolvedHomepage,
 } from '../ee/features/homepageBuilder/hooks/useProjectHomepage';
 import { PublishedHomepage } from '../ee/features/homepageBuilder/PublishedHomepage';
-import publishedHomepageClasses from '../ee/features/homepageBuilder/PublishedHomepage.module.css';
 import { ManagedAgentHomeCard } from '../ee/features/managedAgent/ManagedAgentHomeCard';
 import { useFavorites } from '../hooks/favorites/useFavorites';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
@@ -109,25 +108,23 @@ const Home: FC = () => {
             row.blocks.some((block) => block.type === 'favorites'),
         );
         return (
-            <Page withPaddedContent withFooter>
+            <Page withFooter noContentPadding>
                 <AdminHomepageControls
                     projectUuid={project.data.projectUuid}
                     organizationUuid={project.data.organizationUuid}
                     showNewHomepage
                 />
-                <Stack gap="md" pt={40} pb={64}>
-                    {homepage.allowPersonal && !hasFavoritesBlock && (
-                        <Box className={publishedHomepageClasses.container}>
+                <PublishedHomepage
+                    config={homepage.config}
+                    projectUuid={project.data.projectUuid}
+                    secondaryTop={
+                        homepage.allowPersonal && !hasFavoritesBlock ? (
                             <PersonalFavoritesStrip
                                 projectUuid={project.data.projectUuid}
                             />
-                        </Box>
-                    )}
-                    <PublishedHomepage
-                        config={homepage.config}
-                        projectUuid={project.data.projectUuid}
-                    />
-                </Stack>
+                        ) : null
+                    }
+                />
             </Page>
         );
     }
