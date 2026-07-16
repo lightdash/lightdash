@@ -88,7 +88,7 @@ Run a final `lightdash lint`, execute every chart with `lightdash run-chart -p <
 1. Run `lightdash config get-project` and confirm the prepared UUID and existing project name.
 2. Run `lightdash validate --project <Prepared project UUID>` and resolve every reported semantic-layer error.
 3. Do not perform a round-trip download or call internal APIs for additional verification.
-4. Create `LIGHTDASH_HANDOFF.md` in the repository root as the durable, secret-free audit report for this setup. If that file already contains unrelated user content, preserve it and create `LIGHTDASH_ONBOARDING_HANDOFF.md` instead.
+4. Create `LIGHTDASH_HANDOFF.md` in the repository root as the durable, secret-free audit report for this setup. If that file already exists, preserve it and create `LIGHTDASH_ONBOARDING_HANDOFF_<YYYY-MM-DD>.md` using the current date. If that path also exists, append `-2` before `.md`, incrementing the suffix until the path is unused. Never overwrite an existing handoff file.
 
 The report must describe what was discovered, why the use case was selected, what was built, and how it was verified. Make it easy to audit with concise prose and Markdown tables. Include:
 
