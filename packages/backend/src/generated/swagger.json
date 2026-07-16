@@ -18336,19 +18336,19 @@
                                                         "type": "number",
                                                         "format": "double"
                                                     },
-                                                    "name": {
-                                                        "type": "string"
-                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "contentSizeBytes",
-                                                    "name",
-                                                    "status"
+                                                    "status",
+                                                    "name"
                                                 ],
                                                 "type": "object"
                                             },
@@ -18369,8 +18369,8 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "error",
-                                                            "not_found",
-                                                            "success"
+                                                            "success",
+                                                            "not_found"
                                                         ]
                                                     }
                                                 },
@@ -18822,23 +18822,23 @@
                                                     "href": {
                                                         "type": "string"
                                                     },
-                                                    "name": {
-                                                        "type": "string"
-                                                    },
-                                                    "slug": {
-                                                        "type": "string"
-                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
+                                                    },
+                                                    "slug": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "href",
-                                                    "name",
+                                                    "status",
                                                     "slug",
-                                                    "status"
+                                                    "name"
                                                 ],
                                                 "type": "object"
                                             },
@@ -48280,7 +48280,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3400.0",
+        "version": "0.3401.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

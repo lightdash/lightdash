@@ -1,3 +1,21 @@
+# [0.3401.0](https://github.com/lightdash/lightdash/compare/0.3400.0...0.3401.0) (2026-07-16)
+
+
+### Bug Fixes
+
+* **homepage:** inert builder composer, bigger day-0 chat font, announcements mention content-only ([#25674](https://github.com/lightdash/lightdash/issues/25674)) ([bd2a667](https://github.com/lightdash/lightdash/commit/bd2a6677785cc49dd623f41ed3e55b6ebc902d83))
+* make prod image boot fully offline under non-root users ([#25668](https://github.com/lightdash/lightdash/issues/25668)) ([fdab219](https://github.com/lightdash/lightdash/commit/fdab219a31ef7c48bace37cfbd6d14bc8a67b45c))
+* prevent stale cross-tab prune from collapsing active AI launcher thread ([#25671](https://github.com/lightdash/lightdash/issues/25671)) ([70b4d29](https://github.com/lightdash/lightdash/commit/70b4d2995136ed522c79a53b591ef9816f7591a5))
+
+
+### Features
+
+* allow copying service account user UUID ([#25672](https://github.com/lightdash/lightdash/issues/25672)) ([14c6116](https://github.com/lightdash/lightdash/commit/14c6116091d3474db0ced0d6740bab4b73933dc5))
+* **homepage:** adaptive layout framework — permutation-driven widths, weighted columns, rhythm ([#25657](https://github.com/lightdash/lightdash/issues/25657)) ([1ac2e41](https://github.com/lightdash/lightdash/commit/1ac2e41be3363071d42005572527c9f3f7ad915f))
+* **homepage:** drop Greeting block, add {name} to Text/banner ([#25669](https://github.com/lightdash/lightdash/issues/25669)) ([376a819](https://github.com/lightdash/lightdash/commit/376a819ba8c0d5f980b7f2ecdf07a73373a4aa39))
+* **homepage:** metric sparklines on KPI tiles ([#25663](https://github.com/lightdash/lightdash/issues/25663)) ([8c1a7ac](https://github.com/lightdash/lightdash/commit/8c1a7ac9ba127cd49a1c95b7edb2eba54fcc246a))
+* **homepage:** singleton blocks, 2-column cap, direct-to-builder, ghost-column add affordance ([#25660](https://github.com/lightdash/lightdash/issues/25660)) ([350ca35](https://github.com/lightdash/lightdash/commit/350ca358e114011743e196db52859cbc87461063))
+
 # [0.3400.0](https://github.com/lightdash/lightdash/compare/0.3399.1...0.3400.0) (2026-07-16)
 
 
