@@ -53,7 +53,7 @@ export type DbAiThreadShare = {
     project_uuid: string;
     organization_uuid: string;
     snapshot_prompt_uuid: string;
-    created_by_user_uuid: string;
+    created_by_user_uuid: string | null;
     created_at: Date;
     revoked_at: Date | null;
 };
@@ -68,8 +68,7 @@ export type AiThreadShareTable = Knex.CompositeTableType<
         | 'project_uuid'
         | 'organization_uuid'
         | 'snapshot_prompt_uuid'
-        | 'created_by_user_uuid'
-    >,
+    > & { created_by_user_uuid: string },
     Pick<DbAiThreadShare, 'revoked_at'>
 >;
 
@@ -243,13 +242,15 @@ export const AiPromptInterruptTableName = 'ai_prompt_interrupt';
 export type DbAiPromptInterrupt = {
     ai_prompt_interrupt_uuid: string;
     ai_prompt_uuid: string;
-    created_by_user_uuid: string;
+    created_by_user_uuid: string | null;
     created_at: Date;
 };
 
 export type AiPromptInterruptTable = Knex.CompositeTableType<
     DbAiPromptInterrupt,
-    Pick<DbAiPromptInterrupt, 'ai_prompt_uuid' | 'created_by_user_uuid'>,
+    Pick<DbAiPromptInterrupt, 'ai_prompt_uuid'> & {
+        created_by_user_uuid: string;
+    },
     never
 >;
 

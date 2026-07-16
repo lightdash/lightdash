@@ -272,7 +272,7 @@ export type CreateAiThreadShareResult = {
     projectUuid: string;
     organizationUuid: string;
     snapshotPromptUuid: string;
-    createdByUserUuid: string;
+    createdByUserUuid: string | null;
     createdAt: Date;
     revokedAt: Date | null;
 };
