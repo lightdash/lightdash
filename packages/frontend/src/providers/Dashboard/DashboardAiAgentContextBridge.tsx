@@ -11,6 +11,7 @@ import { useParams } from 'react-router';
 import { scrollToDashboardTile } from '../../components/common/Dashboard/scrollToDashboardTile';
 import { setCurrentDashboard } from '../../ee/features/aiCopilot/store/aiAgentLauncherSlice';
 import {
+    addActiveTabToDashboardRuntimeOverrides,
     getDashboardParametersValuesMap,
     getNonDefaultDashboardRuntimeOverrides,
 } from '../../ee/features/aiCopilot/store/dashboardPageContext';
@@ -109,8 +110,8 @@ const DashboardAiAgentContextBridge = () => {
             dateZoomGranularity ? { granularity: dateZoomGranularity } : null,
         [dateZoomGranularity],
     );
-    const dashboardRuntimeOverrides = useMemo(
-        () =>
+    const dashboardRuntimeOverrides = useMemo(() => {
+        const nonDefaultRuntimeOverrides =
             getNonDefaultDashboardRuntimeOverrides({
                 defaultFilters: originalDashboardFilters,
                 effectiveFilters: allFilters,
@@ -118,16 +119,20 @@ const DashboardAiAgentContextBridge = () => {
                 effectiveParameters: parameterValues,
                 defaultDateZoom,
                 effectiveDateZoom,
-            }),
-        [
-            allFilters,
-            defaultDateZoom,
-            defaultParameterValues,
-            effectiveDateZoom,
-            originalDashboardFilters,
-            parameterValues,
-        ],
-    );
+            });
+        return addActiveTabToDashboardRuntimeOverrides({
+            activeTab,
+            runtimeOverrides: nonDefaultRuntimeOverrides,
+        });
+    }, [
+        activeTab,
+        allFilters,
+        defaultDateZoom,
+        defaultParameterValues,
+        effectiveDateZoom,
+        originalDashboardFilters,
+        parameterValues,
+    ]);
     const dashboardQueryKey = useMemo(
         () => ['saved_dashboard_query', dashboardUuidOrSlug, projectUuid],
         [dashboardUuidOrSlug, projectUuid],

@@ -44,7 +44,13 @@ export type AiDashboardFilters = {
     tableCalculations: AiDashboardFilterRule[];
 };
 
+export type AiDashboardActiveTab = {
+    uuid: string;
+    name: string;
+};
+
 export type AiDashboardRuntimeOverrides = {
+    activeTab?: AiDashboardActiveTab;
     dashboardFilters?: AiDashboardFilters;
     dashboardParameters?: ParametersValuesMap;
     dateZoom?: DateZoom | null;

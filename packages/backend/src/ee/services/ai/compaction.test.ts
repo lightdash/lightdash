@@ -127,6 +127,38 @@ describe('AI context compaction helpers', () => {
         );
     });
 
+    it('preserves the active dashboard tab in compacted context', () => {
+        const serialized = Compaction.serializeConversation([
+            {
+                role: 'user',
+                uuid: 'prompt-1',
+                threadUuid: 'thread-1',
+                message: 'Summarize this dashboard',
+                createdAt: new Date().toISOString(),
+                user: { uuid: 'user-1', name: 'Test User' },
+                context: [
+                    {
+                        type: 'dashboard',
+                        dashboardUuid: 'dashboard-1',
+                        dashboardSlug: 'dashboard-1',
+                        displayName: 'Executive dashboard',
+                        pinnedVersionUuid: null,
+                        runtimeOverrides: {
+                            activeTab: {
+                                uuid: 'tab-1',
+                                name: 'Customers',
+                            },
+                        },
+                    },
+                ],
+                steers: [],
+                hidden: false,
+            },
+        ]);
+
+        expect(serialized).toContain('active tab "Customers"');
+    });
+
     it('filters raw prompt rows after the latest compaction boundary', () => {
         const filtered = Compaction.filterThreadMessagesAfterCompaction(
             [

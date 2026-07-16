@@ -5,6 +5,7 @@ import {
     type AiPromptContextInput,
     type DashboardFilters,
     type DashboardParameters,
+    type DashboardTab,
     type DateZoom,
     type ParametersValuesMap,
 } from '@lightdash/common';
@@ -51,6 +52,20 @@ export const getNonDefaultDashboardRuntimeOverrides = ({
 
     return Object.keys(overrides).length > 0 ? overrides : null;
 };
+
+export const addActiveTabToDashboardRuntimeOverrides = ({
+    activeTab,
+    runtimeOverrides,
+}: {
+    activeTab: Pick<DashboardTab, 'uuid' | 'name'> | null | undefined;
+    runtimeOverrides: AiDashboardRuntimeOverrides | null;
+}): AiDashboardRuntimeOverrides | null =>
+    activeTab
+        ? {
+              ...runtimeOverrides,
+              activeTab: { uuid: activeTab.uuid, name: activeTab.name },
+          }
+        : runtimeOverrides;
 
 export const getDashboardParametersValuesMap = (
     parameters: DashboardParameters,

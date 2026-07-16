@@ -2,6 +2,7 @@ import { type DashboardFilters } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { type LauncherCurrentDashboard } from './aiAgentLauncherSlice';
 import {
+    addActiveTabToDashboardRuntimeOverrides,
     getCurrentDashboardPromptContext,
     getDashboardParametersValuesMap,
     getNonDefaultDashboardRuntimeOverrides,
@@ -46,6 +47,26 @@ const currentDashboard = (
 });
 
 describe('dashboard page context', () => {
+    it('adds the active tab to the dashboard context snapshot', () => {
+        expect(
+            addActiveTabToDashboardRuntimeOverrides({
+                activeTab: { uuid: 'tab-1', name: 'Overview' },
+                runtimeOverrides: null,
+            }),
+        ).toEqual({
+            activeTab: { uuid: 'tab-1', name: 'Overview' },
+        });
+    });
+
+    it('leaves tabless dashboards without runtime context', () => {
+        expect(
+            addActiveTabToDashboardRuntimeOverrides({
+                activeTab: undefined,
+                runtimeOverrides: null,
+            }),
+        ).toBeNull();
+    });
+
     it('omits default runtime values', () => {
         expect(
             getNonDefaultDashboardRuntimeOverrides({
@@ -117,6 +138,7 @@ describe('dashboard page context', () => {
 
     it('does not attach unchanged runtime values again', () => {
         const runtimeOverrides = {
+            activeTab: { uuid: 'tab-1', name: 'Overview' },
             dashboardFilters: filtered,
             dashboardParameters: { region: 'EU' },
             dateZoom: { granularity: 'Week' },
@@ -132,6 +154,32 @@ describe('dashboard page context', () => {
                 projectUuid: 'project-1',
             }),
         ).toEqual([]);
+    });
+
+    it('attaches a changed active tab', () => {
+        expect(
+            getCurrentDashboardPromptContext({
+                currentDashboard: currentDashboard({
+                    activeTab: { uuid: 'tab-2', name: 'Customers' },
+                }),
+                previousDashboardContext: {
+                    type: 'dashboard',
+                    dashboardUuid: 'dashboard-1',
+                    runtimeOverrides: {
+                        activeTab: { uuid: 'tab-1', name: 'Overview' },
+                    },
+                },
+                projectUuid: 'project-1',
+            }),
+        ).toEqual([
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-1',
+                runtimeOverrides: {
+                    activeTab: { uuid: 'tab-2', name: 'Customers' },
+                },
+            },
+        ]);
     });
 
     it('attaches changed filters', () => {
