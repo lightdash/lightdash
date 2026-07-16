@@ -3,6 +3,21 @@ import { Knex } from 'knex';
 const AiWritebackThreadTableName = 'ai_writeback_thread';
 const ProjectDbtSourcesTableName = 'project_dbt_sources';
 const ColumnName = 'project_dbt_source_uuid';
+// Knex derives this name from table + column when the FK is created below; it is
+// the constraint that actually exists in already-migrated databases.
+const ForeignKeyName = 'ai_writeback_thread_project_dbt_source_uuid_foreign';
+
+async function hasForeignKey(knex: Knex): Promise<boolean> {
+    const result = await knex.raw(
+        `SELECT 1
+           FROM pg_constraint
+          WHERE conname = ?
+            AND conrelid = to_regclass(?)
+            AND contype = 'f'`,
+        [ForeignKeyName, AiWritebackThreadTableName],
+    );
+    return result.rows.length > 0;
+}
 
 // Bind a writeback thread to the dbt source it targets so every resumed turn
 // edits the same repo (one thread, one PR). Null means the project's primary
@@ -16,9 +31,17 @@ export async function up(knex: Knex): Promise<void> {
     );
     if (!hasColumn) {
         await knex.schema.alterTable(AiWritebackThreadTableName, (table) => {
+            table.uuid(ColumnName).nullable();
+        });
+    }
+
+    // Add the FK separately and only when absent, so a fresh install and a
+    // reapply after down() (which keeps the column but drops the FK) both end up
+    // with the constraint in place.
+    if (!(await hasForeignKey(knex))) {
+        await knex.schema.alterTable(AiWritebackThreadTableName, (table) => {
             table
-                .uuid(ColumnName)
-                .nullable()
+                .foreign(ColumnName)
                 .references('project_dbt_source_uuid')
                 .inTable(ProjectDbtSourcesTableName)
                 .onDelete('SET NULL');
@@ -26,8 +49,14 @@ export async function up(knex: Knex): Promise<void> {
     }
 }
 
-export async function down(_knex: Knex): Promise<void> {
-    // Intentionally a no-op. Dropping a column is a destructive operation that
-    // can lose data (the thread→source bindings) and break a running old pod
-    // mid-rollback, so per the migration rules the column is left in place.
+export async function down(knex: Knex): Promise<void> {
+    // Drop ONLY the foreign key, never the column or its data. A full rollback
+    // reverts this migration before 20260630140000_add_project_dbt_sources drops
+    // project_dbt_sources; the lingering FK would otherwise block that DROP TABLE.
+    // The thread→source bindings are preserved and up() restores the FK on reapply.
+    if (await hasForeignKey(knex)) {
+        await knex.schema.alterTable(AiWritebackThreadTableName, (table) => {
+            table.dropForeign([ColumnName]);
+        });
+    }
 }
