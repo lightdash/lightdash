@@ -1,40 +1,8 @@
-.preview :global(.wmde-markdown) {
-    background-color: transparent;
-    font-family: var(--mantine-font-family);
-    font-size: 14px;
-    color: var(--mantine-color-ldGray-8);
-    padding: 0;
-}
-
-.preview :global(.wmde-markdown) :global(p:first-child) {
-    margin-top: 0;
-}
-
-.preview :global(.wmde-markdown) :global(p:last-child) {
-    margin-bottom: 0;
-}
-
 .editorWrap {
     border: 1px solid var(--mantine-color-ldGray-2);
     border-radius: 10px;
     background: light-dark(#fff, var(--mantine-color-dark-6));
     padding: 16px;
-}
-
-.editorTextarea {
-    width: 100%;
-    border: none;
-    background: transparent;
-    font-size: 14px;
-    line-height: 1.55;
-    color: var(--mantine-color-ldGray-8);
-    font-family: var(--mantine-font-family);
-    resize: vertical;
-    padding: 0;
-}
-
-.editorTextarea:focus {
-    outline: none;
 }
 
 .editorHint {
