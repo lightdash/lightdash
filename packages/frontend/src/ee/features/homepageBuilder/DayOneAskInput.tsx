@@ -1,4 +1,5 @@
 import {
+    DbtProjectType,
     type AgentSuggestion,
     type AiPromptContextInput,
     type AiPromptContextItem,
@@ -10,6 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useProject } from '../../../hooks/useProject';
 import {
     AI_ROUTING_AUTO_VALUE,
     AI_ROUTING_SEARCH_PARAM,
@@ -18,6 +20,7 @@ import { AgentChatInput } from '../aiCopilot/components/ChatElements/AgentChatIn
 import { usePendingPrompt } from '../aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { useAgentSuggestions } from '../aiCopilot/hooks/useAgentSuggestions';
 import { useCanCreateAiAgentThread } from '../aiCopilot/hooks/useAiAgentPermission';
+import { useAiAgentSqlModeAvailable } from '../aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import {
     useCreateAgentThreadMutation,
     useProjectAiAgents,
@@ -139,10 +142,20 @@ const DayOneAskInputInner: FC<Props> = ({
         validDefaultAgent ?? (showAutoOption ? 'auto' : agents?.[0]);
     const referenceAgent = validDefaultAgent ?? agents?.[0];
 
+    const { data: project } = useProject(projectUuid ?? undefined);
+    const sqlModeAvailable = useAiAgentSqlModeAvailable(
+        projectUuid ?? undefined,
+    );
+    // Dbt-less projects have no explores yet — the agent queries the
+    // warehouse catalog directly via SQL mode until a semantic layer exists.
+    const enableSqlMode =
+        sqlModeAvailable &&
+        project?.dbtConnection?.type === DbtProjectType.NONE;
+
     const suggestionsQuery = useAgentSuggestions({
         projectUuid: projectUuid ?? '',
         agentUuid: referenceAgent?.uuid,
-        enableSqlMode: false,
+        enableSqlMode,
         enabled: !!projectUuid && !!referenceAgent && !hideSuggestions,
     });
 
@@ -176,6 +189,7 @@ const DayOneAskInputInner: FC<Props> = ({
             toolHints,
             context,
             optimisticContext,
+            enableSqlMode,
         });
     };
 
