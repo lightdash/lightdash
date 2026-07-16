@@ -1,9 +1,17 @@
-import { type HomepageBlock, type HomepageConfig } from '@lightdash/common';
+import {
+    assertUnreachable,
+    type HomepageBlock,
+    type HomepageConfig,
+} from '@lightdash/common';
 import { type BlockWidthTier, traitFor } from './blockLayout';
 
 // Only a single-block leading row of one of these types gets the day-0 style
 // vertically-centred hero treatment.
 const LEADING_HERO_TYPES: HomepageBlock['type'][] = ['ask-ai-hero'];
+
+// Chrome-like rows that may sit above the composer without demoting it — they
+// join the hero composition instead (day-0 has its chips above the hero too).
+const HERO_COMPANION_TYPES: HomepageBlock['type'][] = ['quick-actions'];
 
 // Gap before a row, as a token resolved to px in CSS. The first row of a
 // section has no gap (the section's own spacing separates it).
@@ -34,14 +42,52 @@ export type ResolvedRow = {
 };
 
 export type ResolvedLayout = {
-    // The leading hero, rendered vertically-centred above everything, or null.
-    hero: { row: ResolvedRow; presentation: HeroPresentation } | null;
+    // The leading hero composition, rendered vertically-centred above
+    // everything: optional chrome rows (quick-actions) + the composer row.
+    hero: {
+        companions: ResolvedRow[];
+        row: ResolvedRow;
+        presentation: HeroPresentation;
+    } | null;
     // Every other row, in order, with gaps derived from adjacency.
     rows: ResolvedRow[];
 };
 
 const isLeadingHero = (blocks: HomepageBlock[]): boolean =>
     blocks.length === 1 && LEADING_HERO_TYPES.includes(blocks[0].type);
+
+// Blocks whose config makes them provably render nothing (their Views return
+// null). The layout reasons about what will actually paint: an invisible block
+// must not demote the hero, leave a phantom row gap, or hold a ghost column.
+const isConfigEmptyBlock = (block: HomepageBlock): boolean => {
+    switch (block.type) {
+        case 'announcements':
+        case 'collection':
+        case 'resources':
+        case 'metrics':
+            return block.config.items.length === 0;
+        case 'quick-actions':
+            return block.config.actions.length === 0;
+        case 'markdown':
+            return block.config.content.trim() === '';
+        // Visibility depends on runtime data (viewer, AI availability), not
+        // config — always treat as visible.
+        case 'ask-ai-hero':
+        case 'favorites':
+        case 'recent':
+            return false;
+        default:
+            return assertUnreachable(block, 'Unknown homepage block type');
+    }
+};
+
+const toVisibleRows = (rows: HomepageConfig['rows']): HomepageConfig['rows'] =>
+    rows
+        .map((row) => ({
+            ...row,
+            blocks: row.blocks.filter((block) => !isConfigEmptyBlock(block)),
+        }))
+        .filter((row) => row.blocks.length > 0);
 
 const resolveRow = (
     row: HomepageConfig['rows'][number],
@@ -98,9 +144,18 @@ const applyIntroRole = (rows: ResolvedRow[]): ResolvedRow[] => {
 export const resolveHomepageLayout = (
     config: HomepageConfig,
 ): ResolvedLayout => {
-    const [first, ...rest] = config.rows;
-    const hasLeadingHero = !!first && isLeadingHero(first.blocks);
-    const bodyRows = hasLeadingHero ? rest : config.rows;
+    const visibleRows = toVisibleRows(config.rows);
+    // Leading chrome rows join the hero rather than demoting it: the composer
+    // is still "leading" with a quick-actions strip above it.
+    const composerIdx = visibleRows.findIndex(
+        (row) =>
+            !row.blocks.every((b) => HERO_COMPANION_TYPES.includes(b.type)),
+    );
+    const composerRow = composerIdx >= 0 ? visibleRows[composerIdx] : undefined;
+    const hasLeadingHero = !!composerRow && isLeadingHero(composerRow.blocks);
+    const bodyRows = hasLeadingHero
+        ? visibleRows.slice(composerIdx + 1)
+        : visibleRows;
     const resolved = bodyRows.map((row, index) => resolveRow(row, index === 0));
     const smoothed = smoothWidthTiers(resolved);
     const rows = hasLeadingHero ? smoothed : applyIntroRole(smoothed);
@@ -108,7 +163,10 @@ export const resolveHomepageLayout = (
     // yields so the first row peeks above the fold.
     const hero = hasLeadingHero
         ? {
-              row: resolveRow(first, true),
+              companions: visibleRows
+                  .slice(0, composerIdx)
+                  .map((row) => resolveRow(row, true)),
+              row: resolveRow(composerRow, true),
               presentation:
                   rows.length > 0 ? ('shared' as const) : ('viewport' as const),
           }

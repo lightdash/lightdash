@@ -71,6 +71,17 @@
     align-items: center;
 }
 
+/* Chrome rows (quick-actions) riding above the composer inside the hero.
+ * They share the composer's axis so the opening reads as one composition. */
+.heroCompanions {
+    width: 100%;
+    margin-bottom: 26px;
+}
+
+.heroCompanions .row {
+    max-width: 720px;
+}
+
 .secondary {
     width: 100%;
     max-width: 1160px;
@@ -121,6 +132,16 @@
 .col {
     flex: 1 1 0;
     min-width: 0;
+    /* In multi-column rows the shorter column centres vertically instead of
+     * hugging the top edge next to a taller neighbour. Single-block rows are
+     * unaffected (column height equals content height). */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.col > * {
+    width: 100%;
 }
 
 .col[data-weight='2'] {

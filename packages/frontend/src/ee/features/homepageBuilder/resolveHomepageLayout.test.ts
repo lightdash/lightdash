@@ -1,8 +1,81 @@
-import { type HomepageBlock, type HomepageConfig } from '@lightdash/common';
+import {
+    assertUnreachable,
+    type HomepageBlock,
+    type HomepageConfig,
+} from '@lightdash/common';
 import { resolveHomepageLayout } from './resolveHomepageLayout';
 
+// Typed per-block factory; `empty` builds the config-empty variant the
+// visibility filter drops.
+const makeBlock = (
+    id: string,
+    type: HomepageBlock['type'],
+    empty = false,
+): HomepageBlock => {
+    switch (type) {
+        case 'markdown':
+            return { id, type, config: { content: empty ? '  ' : 'hello' } };
+        case 'ask-ai-hero':
+            return { id, type, config: { showGreeting: true } };
+        case 'collection':
+            return {
+                id,
+                type,
+                config: {
+                    title: 't',
+                    items: empty ? [] : [{ contentType: 'chart', uuid: 'u' }],
+                },
+            };
+        case 'resources':
+            return {
+                id,
+                type,
+                config: {
+                    title: 't',
+                    items: empty
+                        ? []
+                        : [{ title: 'r', url: 'https://x', kind: 'link' }],
+                },
+            };
+        case 'announcements':
+            return {
+                id,
+                type,
+                config: {
+                    title: 't',
+                    items: empty ? [] : [{ text: 'x', date: 'd', author: 'a' }],
+                },
+            };
+        case 'quick-actions':
+            return {
+                id,
+                type,
+                config: { actions: empty ? [] : [{ type: 'ask-ai' }] },
+            };
+        case 'metrics':
+            return {
+                id,
+                type,
+                config: {
+                    title: 't',
+                    items: empty
+                        ? []
+                        : [{ tableName: 't', metricName: 'm', label: 'l' }],
+                },
+            };
+        case 'favorites':
+        case 'recent':
+            return { id, type, config: { title: 't' } };
+        default:
+            return assertUnreachable(type, 'Unknown homepage block type');
+    }
+};
+
 const block = (id: string, type: HomepageBlock['type']): HomepageBlock =>
-    ({ id, type, config: {} }) as HomepageBlock;
+    makeBlock(id, type);
+
+const emptyBlock = (id: string, type: HomepageBlock['type']): HomepageBlock =>
+    makeBlock(id, type, true);
 
 const makeConfig = (rows: HomepageBlock[][]): HomepageConfig => ({
     version: 1,
@@ -73,6 +146,68 @@ describe('resolveHomepageLayout', () => {
         ]);
         const { rows } = resolveHomepageLayout(config);
         expect(rows.map((r) => r.gap)).toEqual(['none', 'section']);
+    });
+
+    describe('config-empty blocks are invisible to the layout', () => {
+        it('an empty leading block does not demote the hero', () => {
+            const config = makeConfig([
+                [emptyBlock('ann', 'announcements')],
+                [block('a', 'ask-ai-hero')],
+                [block('c', 'collection')],
+            ]);
+            const { hero, rows } = resolveHomepageLayout(config);
+            expect(hero?.row.columns[0].block.type).toBe('ask-ai-hero');
+            expect(hero?.presentation).toBe('shared');
+            expect(rows.map((r) => r.id)).toEqual(['row-2']);
+        });
+
+        it('drops empty blocks from multi-column rows and empty rows entirely', () => {
+            const config = makeConfig([
+                [emptyBlock('r', 'resources'), block('f', 'favorites')],
+                [emptyBlock('m', 'metrics')],
+                [block('c', 'collection')],
+            ]);
+            const { rows } = resolveHomepageLayout(config);
+            expect(rows).toHaveLength(2);
+            expect(rows[0].columns.map((c) => c.block.id)).toEqual(['f']);
+            expect(rows[1].id).toBe('row-2');
+        });
+
+        it('a blank leading markdown does not claim the intro role', () => {
+            const config = makeConfig([
+                [emptyBlock('blank', 'markdown')],
+                [block('t', 'markdown')],
+                [block('c', 'collection')],
+            ]);
+            const { rows } = resolveHomepageLayout(config);
+            expect(rows[0].columns[0].block.id).toBe('t');
+            expect(rows[0].role).toBe('intro');
+        });
+    });
+
+    describe('hero companions', () => {
+        it('quick-actions above the composer join the hero instead of demoting it', () => {
+            const config = makeConfig([
+                [block('q', 'quick-actions')],
+                [block('a', 'ask-ai-hero')],
+                [block('c', 'collection')],
+            ]);
+            const { hero, rows } = resolveHomepageLayout(config);
+            expect(hero?.row.columns[0].block.type).toBe('ask-ai-hero');
+            expect(hero?.companions.map((r) => r.id)).toEqual(['row-0']);
+            expect(hero?.presentation).toBe('shared');
+            expect(rows.map((r) => r.id)).toEqual(['row-2']);
+        });
+
+        it('chrome rows without a composer after them stay ordinary body rows', () => {
+            const config = makeConfig([
+                [block('q', 'quick-actions')],
+                [block('c', 'collection')],
+            ]);
+            const { hero, rows } = resolveHomepageLayout(config);
+            expect(hero).toBeNull();
+            expect(rows.map((r) => r.id)).toEqual(['row-0', 'row-1']);
+        });
     });
 
     describe('fold-aware hero', () => {
