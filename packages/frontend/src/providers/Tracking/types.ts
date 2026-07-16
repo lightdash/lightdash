@@ -125,6 +125,13 @@ export type HomepageRecommendedActionClickedEvent = {
     };
 };
 
+export type HomepageRecommendedActionSkippedEvent = {
+    name: EventName.HOMEPAGE_RECOMMENDED_ACTION_SKIPPED;
+    properties: {
+        actionKey: HomepageRecommendedActionKey;
+    };
+};
+
 export type SetupStepClickedEvent = {
     name: EventName.SETUP_STEP_CLICKED;
     properties: {
@@ -581,6 +588,7 @@ export type EventData =
     | GenericEvent
     | HomepageQuickActionClickedEvent
     | HomepageRecommendedActionClickedEvent
+    | HomepageRecommendedActionSkippedEvent
     | SetupStepClickedEvent
     | DocumentationClickedEvent
     | SearchResultClickedEvent

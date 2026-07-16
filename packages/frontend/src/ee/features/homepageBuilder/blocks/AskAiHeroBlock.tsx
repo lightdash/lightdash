@@ -6,6 +6,7 @@ import { DayOneAskInput } from '../DayOneAskInput';
 import { getGreeting } from '../greeting';
 import { RecommendedActionsChecklist } from './RecommendedActionsChecklist';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
+import { useRecommendedActions } from './useRecommendedActions';
 
 // The day-0 hero, as a reusable unit: greeting + the real agent chat
 // composer with live suggestions. Shared between DayOneHomepage (always
@@ -25,6 +26,10 @@ export const AskAiHero: FC<{
     preview = false,
 }) => {
     const { user } = useApp();
+    const actions = useRecommendedActions(projectUuid);
+    // Once everything is done or skipped the checklist retires and the
+    // prompt suggestions take its place
+    const showChecklist = showRecommendedActions && actions.hasPendingActions;
     return (
         <Stack gap={16} align="center" w="100%">
             {showGreeting && (
@@ -45,11 +50,14 @@ export const AskAiHero: FC<{
                 <DayOneAskInput
                     projectUuid={projectUuid}
                     preview={preview}
-                    hideSuggestions={showRecommendedActions}
+                    hideSuggestions={showChecklist}
                 />
             </Box>
-            {showRecommendedActions && (
-                <RecommendedActionsChecklist projectUuid={projectUuid} />
+            {showChecklist && (
+                <RecommendedActionsChecklist
+                    projectUuid={projectUuid}
+                    actions={actions}
+                />
             )}
         </Stack>
     );

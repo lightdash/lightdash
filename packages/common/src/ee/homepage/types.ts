@@ -121,7 +121,7 @@ export type HomepageRecentBlock = {
 export type HomepageRecommendedActionKey =
     | 'connect-warehouse'
     | 'add-semantic-layer'
-    | 'connect-github'
+    | 'connect-source-control'
     | 'connect-slack';
 
 export type HomepageBlock =

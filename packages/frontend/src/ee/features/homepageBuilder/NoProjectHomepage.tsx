@@ -5,6 +5,7 @@ import PageSpinner from '../../../components/PageSpinner';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useApp from '../../../providers/App/useApp';
 import { RecommendedActionsChecklist } from './blocks/RecommendedActionsChecklist';
+import { useRecommendedActions } from './blocks/useRecommendedActions';
 import { DayOneAskInput } from './DayOneAskInput';
 import { getGreeting } from './greeting';
 import layout from './homepageLayout.module.css';
@@ -12,6 +13,7 @@ import layout from './homepageLayout.module.css';
 const NoProjectHomepage: FC = () => {
     const { user } = useApp();
     const { data: organization, isInitialLoading } = useOrganization();
+    const actions = useRecommendedActions(null);
 
     if (isInitialLoading) {
         return <PageSpinner />;
@@ -43,7 +45,12 @@ const NoProjectHomepage: FC = () => {
                                 hideSuggestions
                             />
                         </Box>
-                        <RecommendedActionsChecklist projectUuid={null} />
+                        {actions.hasPendingActions && (
+                            <RecommendedActionsChecklist
+                                projectUuid={null}
+                                actions={actions}
+                            />
+                        )}
                     </Stack>
                 </div>
             </div>

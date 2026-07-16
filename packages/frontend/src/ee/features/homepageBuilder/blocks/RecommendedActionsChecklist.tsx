@@ -1,30 +1,33 @@
-import {
-    DbtProjectType,
-    type HomepageRecommendedActionKey,
-} from '@lightdash/common';
-import { Button, Stack, Text } from '@mantine-8/core';
+import { type HomepageRecommendedActionKey } from '@lightdash/common';
+import { ActionIcon, Button, Stack, Tooltip } from '@mantine-8/core';
 import {
     IconActivity,
-    IconBrandGithub,
+    IconArrowBackUp,
     IconBrandSlack,
     IconCheck,
+    IconChevronDown,
     IconChevronRight,
+    IconChevronUp,
     IconDatabase,
+    IconGitBranch,
+    IconX,
     type Icon,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useCallback, useState, type FC } from 'react';
 import { Link } from 'react-router';
-import { useGithubConfig } from '../../../../components/common/GithubIntegration/hooks/useGithubIntegration';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { useOrganization } from '../../../../hooks/organization/useOrganization';
-import { useGetSlack } from '../../../../hooks/slack/useSlack';
-import { useProject } from '../../../../hooks/useProject';
-import useApp from '../../../../providers/App/useApp';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
 import classes from './blockStyles.module.css';
-import { RECOMMENDED_ACTION_KEYS } from './recommendedActionDefaults';
+import {
+    RECOMMENDED_ACTION_KEYS,
+    writeSkippedActions,
+} from './recommendedActionDefaults';
 import styles from './RecommendedActionsChecklist.module.css';
+import {
+    type ActionStatus,
+    type RecommendedActionsState,
+} from './useRecommendedActions';
 
 type ActionDefinition = {
     icon: Icon;
@@ -46,9 +49,9 @@ const ACTION_DEFINITIONS: Record<
         title: 'Add a semantic layer',
         subtitle: 'Answers grounded in your business definitions',
     },
-    'connect-github': {
-        icon: IconBrandGithub,
-        title: 'Connect GitHub',
+    'connect-source-control': {
+        icon: IconGitBranch,
+        title: 'Connect source control',
         subtitle: 'Sync dbt models & version control',
     },
     'connect-slack': {
@@ -58,70 +61,50 @@ const ACTION_DEFINITIONS: Record<
     },
 };
 
-type ActionStatus = {
-    isVisible: boolean;
-    isComplete: boolean;
-    annotation: string | null;
-    url: string;
-};
+const POSITION_CLASSES = [styles.pos0, styles.pos1, styles.pos2, styles.pos3];
+const STACK_HEIGHT_CLASSES = [
+    styles.stackHeight1,
+    styles.stackHeight2,
+    styles.stackHeight3,
+    styles.stackHeight4,
+];
 
-const useActionStatuses = (
-    projectUuid: string | null,
-): Record<HomepageRecommendedActionKey, ActionStatus> => {
-    const { health } = useApp();
-    const { data: organization } = useOrganization();
-    const { data: project } = useProject(projectUuid ?? undefined);
-    const { data: githubConfig } = useGithubConfig();
-    const { data: slack, isSuccess: isSlackSuccess } = useGetSlack();
+const depthClass = (depth: number) =>
+    POSITION_CLASSES[Math.min(depth, POSITION_CLASSES.length - 1)];
 
-    const dbtConnection = project?.dbtConnection;
-    const hasSemanticLayer =
-        !!dbtConnection && dbtConnection.type !== DbtProjectType.NONE;
-    const isSlackConnected =
-        isSlackSuccess && !!slack && slack.hasRequiredScopes !== false;
-
-    return {
-        'connect-warehouse': {
-            isVisible: true,
-            isComplete: organization?.needsProject === false,
-            annotation: project?.warehouseConnection?.type ?? null,
-            url: '/onboarding/data-source',
-        },
-        'add-semantic-layer': {
-            isVisible: !!projectUuid,
-            isComplete: hasSemanticLayer,
-            annotation: dbtConnection?.type ?? null,
-            url: `/generalSettings/projectManagement/${projectUuid}/settings`,
-        },
-        'connect-github': {
-            isVisible: !!health.data?.hasGithub,
-            isComplete: githubConfig?.enabled === true,
-            annotation: 'Connected',
-            url: '/generalSettings/integrations',
-        },
-        'connect-slack': {
-            isVisible: !!health.data?.hasSlack,
-            isComplete: isSlackConnected,
-            annotation: slack?.slackTeamName ?? 'Connected',
-            url: '/generalSettings/integrations',
-        },
-    };
-};
+const stackHeightClass = (count: number) =>
+    STACK_HEIGHT_CLASSES[Math.min(count, STACK_HEIGHT_CLASSES.length) - 1];
 
 const ActionRow: FC<{
     actionKey: HomepageRecommendedActionKey;
     status: ActionStatus;
-}> = ({ actionKey, status }) => {
+    isSkipped: boolean;
+    onSkip: (actionKey: HomepageRecommendedActionKey) => void;
+    onRestore: (actionKey: HomepageRecommendedActionKey) => void;
+    className?: string;
+    isBehind: boolean;
+}> = ({
+    actionKey,
+    status,
+    isSkipped,
+    onSkip,
+    onRestore,
+    className,
+    isBehind,
+}) => {
     const { track } = useTracking();
     const definition = ACTION_DEFINITIONS[actionKey];
+    const rowClassName = [
+        styles.actionRow,
+        status.isComplete ? styles.actionRowDone : null,
+        !status.isComplete && isSkipped ? styles.actionRowSkipped : null,
+        isBehind ? styles.cardBehind : null,
+        className,
+    ]
+        .filter(Boolean)
+        .join(' ');
     return (
-        <div
-            className={
-                status.isComplete
-                    ? `${styles.actionRow} ${styles.actionRowDone}`
-                    : styles.actionRow
-            }
-        >
+        <div className={rowClassName} aria-hidden={isBehind}>
             {status.isComplete ? (
                 <div className={styles.doneCircle}>
                     <MantineIcon icon={IconCheck} size={16} />
@@ -136,7 +119,11 @@ const ActionRow: FC<{
                         : styles.iconTile
                 }
             >
-                <MantineIcon icon={definition.icon} size={22} />
+                {status.isComplete && status.doneIcon ? (
+                    status.doneIcon
+                ) : (
+                    <MantineIcon icon={definition.icon} size={22} />
+                )}
             </div>
             <div className={styles.rowBody}>
                 <div
@@ -151,27 +138,57 @@ const ActionRow: FC<{
                 <div className={styles.rowSubtitle}>
                     {status.isComplete
                         ? status.annotation
-                        : definition.subtitle}
+                        : isSkipped
+                          ? 'Skipped'
+                          : definition.subtitle}
                 </div>
             </div>
-            {!status.isComplete && (
-                <Button
-                    component={Link}
-                    to={status.url}
-                    variant="subtle"
-                    size="compact-sm"
-                    rightSection={
-                        <MantineIcon icon={IconChevronRight} size={14} />
-                    }
-                    onClick={() =>
-                        track({
-                            name: EventName.HOMEPAGE_RECOMMENDED_ACTION_CLICKED,
-                            properties: { actionKey },
-                        })
-                    }
-                >
-                    Set up
-                </Button>
+            {!status.isComplete && isSkipped && (
+                <Tooltip label="Restore this step" withinPortal>
+                    <ActionIcon
+                        className={styles.skipButton}
+                        variant="subtle"
+                        color="gray"
+                        size="sm"
+                        aria-label={`Restore ${definition.title}`}
+                        onClick={() => onRestore(actionKey)}
+                    >
+                        <MantineIcon icon={IconArrowBackUp} size={14} />
+                    </ActionIcon>
+                </Tooltip>
+            )}
+            {!status.isComplete && !isSkipped && (
+                <>
+                    <Button
+                        component={Link}
+                        to={status.url}
+                        variant="subtle"
+                        size="compact-sm"
+                        rightSection={
+                            <MantineIcon icon={IconChevronRight} size={14} />
+                        }
+                        onClick={() =>
+                            track({
+                                name: EventName.HOMEPAGE_RECOMMENDED_ACTION_CLICKED,
+                                properties: { actionKey },
+                            })
+                        }
+                    >
+                        Set up
+                    </Button>
+                    <Tooltip label="Skip this step" withinPortal>
+                        <ActionIcon
+                            className={styles.skipButton}
+                            variant="subtle"
+                            color="gray"
+                            size="sm"
+                            aria-label={`Skip ${definition.title}`}
+                            onClick={() => onSkip(actionKey)}
+                        >
+                            <MantineIcon icon={IconX} size={14} />
+                        </ActionIcon>
+                    </Tooltip>
+                </>
             )}
         </div>
     );
@@ -179,32 +196,142 @@ const ActionRow: FC<{
 
 export const RecommendedActionsChecklist: FC<{
     projectUuid: string | null;
-}> = ({ projectUuid }) => {
-    const statuses = useActionStatuses(projectUuid);
-    const visibleActions = RECOMMENDED_ACTION_KEYS.filter(
-        (key) => statuses[key].isVisible,
+    actions: RecommendedActionsState;
+}> = ({ projectUuid, actions }) => {
+    const { track } = useTracking();
+    const { statuses, skippedActions, setSkippedActions, visibleActions } =
+        actions;
+    const [carouselIndex, setCarouselIndex] = useState(0);
+
+    const handleSkip = useCallback(
+        (actionKey: HomepageRecommendedActionKey) => {
+            setSkippedActions((previous) => {
+                if (previous.includes(actionKey)) return previous;
+                const next = [...previous, actionKey];
+                writeSkippedActions(projectUuid, next);
+                return next;
+            });
+            track({
+                name: EventName.HOMEPAGE_RECOMMENDED_ACTION_SKIPPED,
+                properties: { actionKey },
+            });
+        },
+        [projectUuid, track, setSkippedActions],
     );
+
+    const handleRestore = useCallback(
+        (actionKey: HomepageRecommendedActionKey) => {
+            setSkippedActions((previous) => {
+                if (!previous.includes(actionKey)) return previous;
+                const next = previous.filter((key) => key !== actionKey);
+                writeSkippedActions(projectUuid, next);
+                // Keep the restored card active — it moves groups, which
+                // would otherwise silently change what's on top
+                const nextIncomplete = RECOMMENDED_ACTION_KEYS.filter(
+                    (key) =>
+                        statuses[key].isVisible &&
+                        !statuses[key].isComplete &&
+                        !next.includes(key),
+                );
+                setCarouselIndex(
+                    Math.max(nextIncomplete.indexOf(actionKey), 0),
+                );
+                return next;
+            });
+        },
+        [projectUuid, statuses, setSkippedActions],
+    );
+
     if (visibleActions.length === 0) return null;
 
-    const sortedActions = [...visibleActions].sort(
-        (a, b) =>
-            Number(statuses[a].isComplete) - Number(statuses[b].isComplete),
-    );
-    const doneCount = visibleActions.filter(
+    const isSkipped = (key: HomepageRecommendedActionKey) =>
+        skippedActions.includes(key) && !statuses[key].isComplete;
+    const doneActions = visibleActions.filter(
         (key) => statuses[key].isComplete,
-    ).length;
+    );
+    const skippedList = visibleActions.filter(isSkipped);
+    const incompleteActions = visibleActions.filter(
+        (key) => !statuses[key].isComplete && !isSkipped(key),
+    );
+
+    // Pending first, then skipped, then done at the back — all cyclable
+    const orderedAll = [...incompleteActions, ...skippedList, ...doneActions];
+
+    // Clamped rather than synced, so a shrinking list can't strand the index
+    const activeIndex = Math.min(
+        carouselIndex,
+        Math.max(orderedAll.length - 1, 0),
+    );
+    const showArrows = orderedAll.length > 1;
+
+    // Active card first, everything else in cycle order
+    const carouselOrder = [
+        ...orderedAll.slice(activeIndex),
+        ...orderedAll.slice(0, activeIndex),
+    ];
 
     return (
-        <Stack gap={8} w="100%">
+        <Stack gap={8} className={styles.checklistRoot}>
             <div className={styles.headerRow}>
                 <span className={classes.sectionTitle}>Finish setting up</span>
-                <Text size="xs" c="dimmed">
-                    {doneCount} of {visibleActions.length} done
-                </Text>
+                <div className={styles.headerControls}>
+                    {showArrows && (
+                        <>
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                size="sm"
+                                aria-label="Previous step"
+                                onClick={() =>
+                                    setCarouselIndex(
+                                        (activeIndex - 1 + orderedAll.length) %
+                                            orderedAll.length,
+                                    )
+                                }
+                            >
+                                <MantineIcon icon={IconChevronUp} size={14} />
+                            </ActionIcon>
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                size="sm"
+                                aria-label="Next step"
+                                onClick={() =>
+                                    setCarouselIndex(
+                                        (activeIndex + 1) % orderedAll.length,
+                                    )
+                                }
+                            >
+                                <MantineIcon icon={IconChevronDown} size={14} />
+                            </ActionIcon>
+                        </>
+                    )}
+                </div>
             </div>
-            {sortedActions.map((key) => (
-                <ActionRow key={key} actionKey={key} status={statuses[key]} />
-            ))}
+            <div
+                className={`${styles.cardStack} ${stackHeightClass(
+                    orderedAll.length,
+                )}`}
+            >
+                {/* Fixed render order keeps DOM nodes put; depth classes do the shuffling */}
+                {visibleActions.map((key) => {
+                    const depth = carouselOrder.indexOf(key);
+                    return (
+                        <ActionRow
+                            key={key}
+                            actionKey={key}
+                            status={statuses[key]}
+                            isSkipped={isSkipped(key)}
+                            onSkip={handleSkip}
+                            onRestore={handleRestore}
+                            isBehind={depth > 0}
+                            className={`${styles.stackCard} ${
+                                styles.animatedCard
+                            } ${depthClass(depth)}`}
+                        />
+                    );
+                })}
+            </div>
         </Stack>
     );
 };
