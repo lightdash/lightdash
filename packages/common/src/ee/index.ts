@@ -9,6 +9,7 @@ export * from './ambientAi';
 export * from './commercialFeatureFlags';
 export * from './designs/types';
 export * from './embed';
+export * from './homepage/onboardingHomepage';
 export * from './homepage/types';
 export * from './preAggregates';
 export * from './preAggregates/types';

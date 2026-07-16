@@ -354,6 +354,11 @@ export type ProjectServiceArguments = {
     // create a construction cycle. Resolves undefined in core (non-EE) builds.
     getAppGenerateService?: () => AppGenerateService | undefined;
     getAiAgentService?: () => AiAgentService | undefined;
+    onProjectCreated?: (args: {
+        user: SessionUser;
+        projectUuid: string;
+        projectType: ProjectType;
+    }) => Promise<void>;
 };
 
 const isValidDbtCloudWebhookSignature = (
@@ -464,6 +469,8 @@ export class ProjectService extends BaseService {
 
     getAiAgentService: (() => AiAgentService | undefined) | undefined;
 
+    onProjectCreated: ProjectServiceArguments['onProjectCreated'];
+
     constructor({
         lightdashConfig,
         analytics,
@@ -506,6 +513,7 @@ export class ProjectService extends BaseService {
         isProjectContextEnabled,
         getAppGenerateService,
         getAiAgentService,
+        onProjectCreated,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -551,6 +559,7 @@ export class ProjectService extends BaseService {
         this.isProjectContextEnabled = isProjectContextEnabled;
         this.getAppGenerateService = getAppGenerateService;
         this.getAiAgentService = getAiAgentService;
+        this.onProjectCreated = onProjectCreated;
     }
 
     private async provisionDefaultAiAgent(
@@ -589,6 +598,22 @@ export class ProjectService extends BaseService {
         } catch (error) {
             this.logger.warn(
                 `Failed to provision default AI agent for project ${projectUuid}: ${error instanceof Error ? error.message : String(error)}`,
+            );
+        }
+    }
+
+    private async runPostProjectCreationProvisioning(
+        user: SessionUser,
+        projectUuid: string,
+        projectType: ProjectType,
+    ): Promise<void> {
+        await this.provisionDefaultAiAgent(user, projectUuid, projectType);
+
+        try {
+            await this.onProjectCreated?.({ user, projectUuid, projectType });
+        } catch (error) {
+            this.logger.warn(
+                `Failed to run post-creation provisioning for project ${projectUuid}: ${error instanceof Error ? error.message : String(error)}`,
             );
         }
     }
@@ -2363,7 +2388,7 @@ export class ProjectService extends BaseService {
             ),
         });
 
-        await this.provisionDefaultAiAgent(
+        await this.runPostProjectCreationProvisioning(
             user,
             projectUuid,
             createProject.type,
@@ -2790,7 +2815,7 @@ export class ProjectService extends BaseService {
                 ),
             });
 
-            await this.provisionDefaultAiAgent(
+            await this.runPostProjectCreationProvisioning(
                 user,
                 projectUuid,
                 createProject.type,
