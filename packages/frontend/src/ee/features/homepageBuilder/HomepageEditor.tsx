@@ -24,6 +24,7 @@ import {
     migrateHomepageConfig,
     type HomepageBlock,
     type HomepageConfig,
+    type HomepageViewAsTarget,
     type ProjectHomepage as ProjectHomepageType,
 } from '@lightdash/common';
 import {
@@ -85,7 +86,11 @@ import {
     usePublishHomepage,
     useUpdateHomepageDraft,
 } from './hooks/useProjectHomepage';
-import { PreviewPane } from './PreviewPane';
+import {
+    PreviewPane,
+    ViewAsControl,
+    type HomepageViewType,
+} from './PreviewPane';
 import { PublishModal } from './PublishModal';
 
 type DragSource =
@@ -466,6 +471,15 @@ export const HomepageEditor: FC<Props> = ({
         migrateHomepageConfig(homepage.draftConfig),
     );
     const [isPreviewing, setIsPreviewing] = useState(false);
+    const [viewType, setViewType] = useState<HomepageViewType>('everyone');
+    const [viewTarget, setViewTarget] = useState<HomepageViewAsTarget | null>(
+        null,
+    );
+    const togglePreview = () => {
+        setIsPreviewing((prev) => !prev);
+        setViewType('everyone');
+        setViewTarget(null);
+    };
     const [debouncedDraft] = useDebouncedValue(draft, 800);
     const [hasConflict, setHasConflict] = useState(false);
     // Share the exact initial draft reference so the autosave effect's identity
@@ -761,7 +775,7 @@ export const HomepageEditor: FC<Props> = ({
                 <button
                     type="button"
                     className={classes.tbBtn}
-                    onClick={() => setIsPreviewing((prev) => !prev)}
+                    onClick={togglePreview}
                 >
                     <MantineIcon
                         icon={isPreviewing ? IconPencil : IconEye}
@@ -788,6 +802,17 @@ export const HomepageEditor: FC<Props> = ({
                     <Button size="xs" onClick={onConflictReload}>
                         Reload homepage
                     </Button>
+                </div>
+            )}
+            {isPreviewing && (
+                <div className={classes.previewBar}>
+                    <ViewAsControl
+                        projectUuid={projectUuid}
+                        viewType={viewType}
+                        target={viewTarget}
+                        onViewTypeChange={setViewType}
+                        onTargetChange={setViewTarget}
+                    />
                 </div>
             )}
 
@@ -833,6 +858,7 @@ export const HomepageEditor: FC<Props> = ({
                                 <PreviewPane
                                     draft={draft}
                                     projectUuid={projectUuid}
+                                    target={viewTarget}
                                 />
                             ) : (
                                 <Stack gap={0} flex={1} miw={0}>

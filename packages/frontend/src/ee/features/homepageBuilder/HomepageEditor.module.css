@@ -546,11 +546,21 @@
     white-space: nowrap;
 }
 
+/* Slim sub-bar directly under the toolbar, holding the "Viewing as" switcher. */
+.previewBar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    background: light-dark(
+        var(--mantine-color-ldGray-0),
+        var(--mantine-color-dark-7)
+    );
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+}
+
 .viewAsBar {
-    padding: 8px 12px;
-    border: 1px solid var(--mantine-color-ldGray-2);
-    border-radius: 10px;
-    background: light-dark(#fff, var(--mantine-color-dark-6));
+    align-items: center;
 }
 
 .viewAsLabel {
@@ -560,4 +570,5 @@
 
 .viewAsBadge {
     flex-shrink: 0;
+    max-width: 260px;
 }
