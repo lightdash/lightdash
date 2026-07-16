@@ -4,7 +4,7 @@ Treat each numbered section as a gate. Satisfy its **Gate** before continuing.
 
 ## Prepared setup
 
-Use the warehouse type and prepared project UUID from the original prompt. If either value is missing, ask the user for it and wait before continuing.
+Use the warehouse type, prepared project UUID, and, when listed, the configured database and schema from the original prompt. If the warehouse type or project UUID is missing, ask the user for it and wait before continuing.
 
 ## 1. Install the CLI and skills
 
@@ -40,7 +40,7 @@ Run `lightdash config rename-project --name "<chosen name>"`, then run `lightdas
 ## 4. Discover, author, and deploy the semantic layer
 
 1. Inspect the repository and working tree. Preserve unrelated files and uncommitted work.
-2. Run `lightdash warehouse-catalog --json`, followed by narrower catalog queries where useful.
+2. Run `lightdash warehouse-catalog --json`, followed by narrower catalog queries where useful. Prioritize tables in the configured database and schema from the original prompt (matching names case-insensitively) unless repository evidence points elsewhere. If the catalog spans many databases or schemas and neither the configured connection nor repository evidence identifies where to look, ask the user which database and schema to use and wait before continuing.
 3. Select one coherent analytics use case supported by repository and warehouse evidence. Use that evidence as the sole source of business context.
 4. Use Lightdash as the sole warehouse access path.
 5. Use `developing-in-lightdash` for semantic-layer authoring. Prepare the existing dbt project when it is usable; otherwise, build a pure Lightdash semantic layer from the warehouse catalog.
