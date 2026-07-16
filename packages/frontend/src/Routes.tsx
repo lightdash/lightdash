@@ -764,6 +764,21 @@ const PRIVATE_ROUTES: RouteObject[] = [
                 element: <Navigate to="/projects" replace />,
             },
             {
+                path: '/get-started',
+                lazy: async () => {
+                    const { default: NoProjectHomepage } =
+                        await import('./ee/features/homepageBuilder/NoProjectHomepage');
+                    return {
+                        Component: () => (
+                            <>
+                                <NavBar />
+                                <NoProjectHomepage />
+                            </>
+                        ),
+                    };
+                },
+            },
+            {
                 path: '/onboarding/data-source/:warehouse?',
                 handle: { hideAILauncher: true },
                 lazy: async () => {

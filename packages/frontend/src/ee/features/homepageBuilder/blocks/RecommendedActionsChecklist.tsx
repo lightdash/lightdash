@@ -66,11 +66,11 @@ type ActionStatus = {
 };
 
 const useActionStatuses = (
-    projectUuid: string,
+    projectUuid: string | null,
 ): Record<HomepageRecommendedActionKey, ActionStatus> => {
     const { health } = useApp();
     const { data: organization } = useOrganization();
-    const { data: project } = useProject(projectUuid);
+    const { data: project } = useProject(projectUuid ?? undefined);
     const { data: githubConfig } = useGithubConfig();
     const { data: slack, isSuccess: isSlackSuccess } = useGetSlack();
 
@@ -88,7 +88,7 @@ const useActionStatuses = (
             url: '/onboarding/data-source',
         },
         'add-semantic-layer': {
-            isVisible: true,
+            isVisible: !!projectUuid,
             isComplete: hasSemanticLayer,
             annotation: dbtConnection?.type ?? null,
             url: `/generalSettings/projectManagement/${projectUuid}/settings`,
@@ -177,9 +177,9 @@ const ActionRow: FC<{
     );
 };
 
-export const RecommendedActionsChecklist: FC<{ projectUuid: string }> = ({
-    projectUuid,
-}) => {
+export const RecommendedActionsChecklist: FC<{
+    projectUuid: string | null;
+}> = ({ projectUuid }) => {
     const statuses = useActionStatuses(projectUuid);
     const visibleActions = RECOMMENDED_ACTION_KEYS.filter(
         (key) => statuses[key].isVisible,

@@ -3,7 +3,7 @@ import { type FC } from 'react';
 import useApp from '../../../../providers/App/useApp';
 import { useAiAgentButtonVisibility } from '../../aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { DayOneAskInput } from '../DayOneAskInput';
-import { dayPart } from './dayPart';
+import { getGreeting } from '../greeting';
 import { RecommendedActionsChecklist } from './RecommendedActionsChecklist';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
@@ -25,7 +25,6 @@ export const AskAiHero: FC<{
     preview = false,
 }) => {
     const { user } = useApp();
-    const firstName = user.data?.firstName?.trim();
     return (
         <Stack gap={16} align="center" w="100%">
             {showGreeting && (
@@ -38,8 +37,7 @@ export const AskAiHero: FC<{
                     ta="center"
                     m={0}
                 >
-                    Good {dayPart(new Date().getHours())}
-                    {firstName ? `, ${firstName}` : ''}. What do you want to
+                    {getGreeting(user.data?.firstName)}. What do you want to
                     know?
                 </Text>
             )}
@@ -70,7 +68,9 @@ export const AskAiHeroBlockView: FC<BlockComponentProps> = ({
         <AskAiHero
             projectUuid={projectUuid}
             showGreeting={presentation === 'hero' && block.config.showGreeting}
-            showRecommendedActions={block.config.showRecommendedActions === true}
+            showRecommendedActions={
+                block.config.showRecommendedActions === true
+            }
         />
     );
 };

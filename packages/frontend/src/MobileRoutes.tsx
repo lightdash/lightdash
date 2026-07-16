@@ -200,6 +200,7 @@ const routesNotSupportedInMobile = [
     '/join-organization',
     '/createProject/:method?',
     '/createProjectSettings/:projectUuid',
+    '/get-started',
     '/generalSettings/:tab?',
     '/projects/:projectUuid/saved/:savedQueryUuid/history',
     '/projects/:projectUuid/sql-runner',

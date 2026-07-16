@@ -28,7 +28,6 @@ import { DocumentTitle } from '../components/common/DocumentTitle';
 import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 import PageSpinner from '../components/PageSpinner';
 import { jobTitles } from '../components/UserCompletionModal/jobTitles';
-import { useOrganization } from '../hooks/organization/useOrganization';
 import {
     useDetectOrganizationBrand,
     useSaveOrganizationBrand,
@@ -468,14 +467,8 @@ const OrganizationSetup: FC = () => {
     const orgSetupPageFlag = useServerFeatureFlag(
         FeatureFlags.OrganizationSetupPage,
     );
-    const { data: organization } = useOrganization();
     const completeMutation = useUserCompleteMutation({
-        onSuccess: () =>
-            void navigate(
-                organization?.needsProject === false
-                    ? '/'
-                    : '/onboarding/data-source',
-            ),
+        onSuccess: () => void navigate('/'),
     });
     const isCompletingSetup =
         completeMutation.isLoading || completeMutation.isSuccess;

@@ -1,5 +1,6 @@
 import { type FC } from 'react';
 import { Navigate, useLocation } from 'react-router';
+import { useHomepageBuilderFlag } from '../ee/features/homepageBuilder/hooks/useProjectHomepage';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useApp from '../providers/App/useApp';
 import ErrorState from './common/ErrorState';
@@ -9,6 +10,7 @@ const AppRoute: FC<React.PropsWithChildren> = ({ children }) => {
     const { health } = useApp();
     const location = useLocation();
     const orgRequest = useOrganization();
+    const homepageBuilderFlag = useHomepageBuilderFlag();
 
     if (health.isInitialLoading || orgRequest.isInitialLoading) {
         return <PageSpinner />;
@@ -23,10 +25,15 @@ const AppRoute: FC<React.PropsWithChildren> = ({ children }) => {
     }
 
     if (orgRequest?.data?.needsProject) {
+        if (homepageBuilderFlag.isLoading) {
+            return <PageSpinner />;
+        }
         return (
             <Navigate
                 to={{
-                    pathname: '/createProject',
+                    pathname: homepageBuilderFlag.isEnabled
+                        ? '/get-started'
+                        : '/createProject',
                 }}
                 state={{ from: location }}
             />

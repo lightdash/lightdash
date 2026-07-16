@@ -4,7 +4,7 @@ import {
     type AiPromptContextItem,
     type AiRouter,
 } from '@lightdash/common';
-import { Anchor, Skeleton } from '@mantine-8/core';
+import { Anchor, Skeleton, Text } from '@mantine-8/core';
 import { IconArrowUpRight } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type FC } from 'react';
@@ -29,7 +29,7 @@ import classes from './DayOneAskInput.module.css';
 const AI_ROUTER_QUERY_KEY = 'ai-router';
 
 type Props = {
-    projectUuid: string;
+    projectUuid: string | null;
     preview?: boolean;
     hideSuggestions?: boolean;
 };
@@ -111,16 +111,22 @@ const DayOneAskInputInner: FC<Props> = ({
 }) => {
     const navigate = useNavigate();
     const { setPendingPrompt } = usePendingPrompt();
-    const { data: agents, isLoading: isLoadingAgents } = useProjectAiAgents({
-        projectUuid,
-        redirectOnUnauthorized: false,
-    });
-    const { data: userAgentPreferences, isLoading: isLoadingPreferences } =
-        useGetUserAgentPreferences(projectUuid);
-    const canCreateThread = useCanCreateAiAgentThread(projectUuid);
+    const { data: agents, isInitialLoading: isLoadingAgents } =
+        useProjectAiAgents({
+            projectUuid,
+            redirectOnUnauthorized: false,
+            options: { enabled: !!projectUuid },
+        });
+    const {
+        data: userAgentPreferences,
+        isInitialLoading: isLoadingPreferences,
+    } = useGetUserAgentPreferences(projectUuid);
+    const canCreateThread = useCanCreateAiAgentThread(
+        projectUuid ?? undefined,
+    );
     const routerEnabled = useAiRouterEnabledFromCache();
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
-        useCreateAgentThreadMutation(projectUuid);
+        useCreateAgentThreadMutation(projectUuid ?? '');
 
     const showAutoOption = (agents?.length ?? 0) > 1 && routerEnabled === true;
     const validDefaultAgent = agents?.find(
@@ -134,10 +140,10 @@ const DayOneAskInputInner: FC<Props> = ({
     const referenceAgent = validDefaultAgent ?? agents?.[0];
 
     const suggestionsQuery = useAgentSuggestions({
-        projectUuid,
+        projectUuid: projectUuid ?? '',
         agentUuid: referenceAgent?.uuid,
         enableSqlMode: false,
-        enabled: !!referenceAgent && !hideSuggestions,
+        enabled: !!projectUuid && !!referenceAgent && !hideSuggestions,
     });
 
     const submitPrompt = (
@@ -146,6 +152,7 @@ const DayOneAskInputInner: FC<Props> = ({
         context?: AiPromptContextInput,
         optimisticContext?: AiPromptContextItem[],
     ) => {
+        if (!projectUuid) return;
         if (activeSelection === 'auto') {
             setPendingPrompt(prompt);
             void navigate(
@@ -200,7 +207,7 @@ const DayOneAskInputInner: FC<Props> = ({
         return <Skeleton h={64} radius="lg" />;
     }
 
-    if (!agents || agents.length === 0) {
+    if (projectUuid && (!agents || agents.length === 0)) {
         return (
             <div className={blockClasses.dashedEmpty}>
                 Set up an AI agent to enable Ask AI here —{' '}
@@ -218,9 +225,9 @@ const DayOneAskInputInner: FC<Props> = ({
         // shows what viewers will get.
         <div className={classes.composer} inert={preview}>
             <AgentChatInput
-                projectUuid={projectUuid}
+                projectUuid={projectUuid ?? undefined}
                 agents={agents}
-                selectedAgent={activeSelection ?? agents[0]}
+                selectedAgent={activeSelection ?? agents?.[0]}
                 placeholder={
                     activeSelection === 'auto'
                         ? 'Ask anything about your data…'
@@ -234,13 +241,18 @@ const DayOneAskInputInner: FC<Props> = ({
                 fullWidth
                 revealAgentSelectorOnFocus
                 dense
-                disabled={!canCreateThread}
+                disabled={!projectUuid || !canCreateThread}
                 disabledReason={
-                    !canCreateThread
+                    projectUuid && !canCreateThread
                         ? "Your role can view AI agents but can't start conversations. Ask a workspace admin for access."
                         : undefined
                 }
             />
+            {!projectUuid && (
+                <Text size="xs" c="dimmed" ta="center" mt={10}>
+                    Connect your data to start asking questions
+                </Text>
+            )}
             {!hideSuggestions && (canCreateThread || preview) && (
                 <SuggestionPills
                     chips={suggestionsQuery.data?.chips ?? []}
