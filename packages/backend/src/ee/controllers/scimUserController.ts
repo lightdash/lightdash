@@ -69,6 +69,7 @@ export class ScimUserController extends BaseController {
                         value: 'viewer',
                         display: 'Viewer',
                         type: 'Organization',
+                        primary: true,
                     },
                     {
                         value: '3675b69e-8324-4110-bdca-059031aa8da3:editor',
@@ -136,6 +137,7 @@ export class ScimUserController extends BaseController {
                 value: 'viewer',
                 display: 'Viewer',
                 type: 'Organization',
+                primary: true,
             },
             {
                 value: '3675b69e-8324-4110-bdca-059031aa8da3:editor',

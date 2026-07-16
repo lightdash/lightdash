@@ -70,6 +70,15 @@ type ScimServiceArguments = {
 
 const NO_ROLE_KEYWORD = 'no-role';
 
+// Entra exposes roles[primary eq "True"].value as a target mapping, even
+// though SCIM defines primary as a boolean. Normalize that specific filter
+// so the patch library can match our standards-compliant primary: true value.
+const normalizeScimPatchPath = (path: string): string =>
+    path.replace(
+        /roles\s*\[\s*primary\s+eq\s+["']true["']\s*\]/gi,
+        'roles[primary eq true]',
+    );
+
 export class ScimService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -1003,7 +1012,14 @@ export class ScimService extends BaseService {
             // use lib to construct patched user object
             const patchedDbUserObj = scimPatch(
                 scimDbUser as PatchLibScimResource,
-                patchOp.Operations,
+                patchOp.Operations.map((operation) =>
+                    operation.path === undefined
+                        ? operation
+                        : {
+                              ...operation,
+                              path: normalizeScimPatchPath(operation.path),
+                          },
+                ),
             );
             this.logger.info('SCIM: Applied patch operations to user', {
                 userUuid,
@@ -2053,7 +2069,12 @@ export class ScimService extends BaseService {
                     (role) => role.value === user.role,
                 );
                 if (scimRole) {
-                    allRoles.push(scimRole);
+                    allRoles.push({
+                        value: scimRole.value,
+                        display: scimRole.display,
+                        type: scimRole.type,
+                        primary: true,
+                    });
                 }
             }
 
