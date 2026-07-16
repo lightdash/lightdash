@@ -1,4 +1,4 @@
-import { Group, Stack, Text } from '@mantine-8/core';
+import { Group, Text } from '@mantine-8/core';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../../../components/common/PolymorphicGroupButton';
 import suggestionStyles from '../../../../../components/common/SuggestionList/SuggestionList.module.css';
@@ -12,19 +12,12 @@ export const renderSlashCommandItem = (
 ) => (
     <PolymorphicGroupButton
         onClick={onClick}
-        className={suggestionStyles.suggestionItem}
+        className={`${suggestionStyles.suggestionItem} ${classes.item}`}
         data-selected={isSelected}
     >
-        <Group wrap="nowrap" gap="xs">
-            <div className={classes.iconSquare}>
-                <MantineIcon icon={item.icon} size={14} />
-            </div>
-            <Stack gap={0} className={classes.text}>
-                <Text className={classes.label}>{item.label}</Text>
-                <Text className={classes.description} truncate>
-                    {item.description}
-                </Text>
-            </Stack>
+        <Group wrap="nowrap" gap={8}>
+            <MantineIcon icon={item.icon} size={14} className={classes.icon} />
+            <Text className={classes.label}>{item.label}</Text>
         </Group>
     </PolymorphicGroupButton>
 );
