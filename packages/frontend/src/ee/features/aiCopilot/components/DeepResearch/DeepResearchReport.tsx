@@ -254,7 +254,6 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                                                 <Badge
                                                     size="xs"
                                                     variant="light"
-                                                    radius="xl"
                                                     color={
                                                         confidenceColors[
                                                             finding.confidence
