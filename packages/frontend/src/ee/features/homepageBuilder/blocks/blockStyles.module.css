@@ -350,6 +350,14 @@ a .hoverCard:hover,
     display: grid;
 }
 
+/* The blockifying grid gives its single child (the card) a fresh min-width:
+ * auto default of its own, sized to the untruncated title's natural width —
+ * so a long title (e.g. via Text truncate's white-space: nowrap) overflows
+ * the narrow cell instead of shrinking into it. */
+.hugGridItem > * {
+    min-width: 0;
+}
+
 @media (max-width: 47.99em) {
     .hugGridItem {
         flex-basis: 100%;
