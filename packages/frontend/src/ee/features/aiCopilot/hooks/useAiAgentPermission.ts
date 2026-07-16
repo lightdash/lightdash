@@ -18,6 +18,17 @@ export const useAiAgentPermission = ({
     );
 };
 
+export const useCanCreateAiAgentThread = (projectUuid?: string) => {
+    const { user } = useApp();
+    return !!user.data?.ability.can(
+        'create',
+        subject('AiAgentThread', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+};
+
 export const useAiAgentOrgPermission = ({
     action,
 }: {
