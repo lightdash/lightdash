@@ -3545,6 +3545,14 @@ export class McpService extends BaseService {
         );
     }
 
+    public async isContentToolsEnabled(user: SessionUser): Promise<boolean> {
+        const settingEnabled = await this.isMcpContentWritesEnabled(user);
+        return (
+            settingEnabled &&
+            this.createAuditedAbility(user).can('create', 'ContentAsCode')
+        );
+    }
+
     public async isCreateScheduledDeliveryEnabled(
         user: SessionUser,
     ): Promise<boolean> {

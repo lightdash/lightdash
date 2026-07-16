@@ -294,7 +294,7 @@ mcpRouter.all(
                     scheduledDeliveryEnabled,
                 ] = await Promise.all([
                     mcpService.isAiGrepFieldsEnabled(req.user!),
-                    mcpService.isMcpContentWritesEnabled(req.user!),
+                    mcpService.isContentToolsEnabled(req.user!),
                     mcpService.isCreateScheduledDeliveryEnabled(req.user!),
                 ]);
                 const mcpServer = await mcpService.createServer({
