@@ -109,6 +109,18 @@ export const PublishedHomepage: FC<Props> = ({
                     className={layout.heroSection}
                     data-presentation={hero.presentation}
                 >
+                    {hero.companions.length > 0 && (
+                        <div className={layout.heroCompanions}>
+                            {hero.companions.map((row) => (
+                                <RowRenderer
+                                    key={row.id}
+                                    row={row}
+                                    projectUuid={projectUuid}
+                                    personalPlaceholders={personalPlaceholders}
+                                />
+                            ))}
+                        </div>
+                    )}
                     <div className={layout.hero}>
                         <BlockRenderer
                             block={hero.row.columns[0].block}

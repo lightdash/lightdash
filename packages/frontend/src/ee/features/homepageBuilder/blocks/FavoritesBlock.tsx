@@ -49,12 +49,14 @@ const FavoritePills: FC<{
     emptyText: string | null;
     maxVisible?: number;
     wrap?: 'wrap' | 'nowrap';
+    justify?: 'flex-start' | 'center';
 }> = ({
     projectUuid,
     isInteractive,
     emptyText,
     maxVisible = FAVORITES_DEFAULT_VISIBLE,
     wrap = 'wrap',
+    justify = 'flex-start',
 }) => {
     const { data: favorites } = useFavorites(projectUuid);
     const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
@@ -80,7 +82,7 @@ const FavoritePills: FC<{
     const hiddenCount = favorites.length - maxVisible;
 
     return (
-        <Group gap={8} wrap={expanded ? 'wrap' : wrap}>
+        <Group gap={8} wrap={expanded ? 'wrap' : wrap} justify={justify}>
             {visible.map((item) => (
                 <Link
                     key={item.data.uuid}
@@ -164,10 +166,12 @@ export const FavoritesBlockView: FC<BlockComponentProps> = ({
                 icon={IconStar}
                 title={block.config.title}
                 pill="Only you see this"
+                centered
             />
             <FavoritePills
                 projectUuid={projectUuid}
                 isInteractive
+                justify="center"
                 emptyText="Star any dashboard or chart to keep it here — each person sees their own favorites."
             />
         </Stack>
@@ -185,10 +189,12 @@ export const FavoritesBlockBuild: FC<BuildComponentProps> = ({
                 icon={IconStar}
                 title={block.config.title}
                 pill="Personal per viewer"
+                centered
             />
             <FavoritePills
                 projectUuid={projectUuid}
                 isInteractive={false}
+                justify="center"
                 emptyText="Empty until this viewer stars something — each person sees their own favorites here."
             />
             <div className={classes.buildHint}>
