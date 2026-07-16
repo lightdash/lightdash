@@ -1,3 +1,9 @@
+/* Bump the composer text to a comfortable reading size on the homepage —
+   overrides AgentChatInput's dense (sm) editor font, which only applies here. */
+.composer :global(.ProseMirror) {
+    font-size: var(--mantine-font-size-md) !important;
+}
+
 .pill {
     font-size: 12px;
     font-weight: 500;

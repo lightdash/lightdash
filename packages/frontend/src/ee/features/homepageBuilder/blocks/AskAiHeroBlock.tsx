@@ -15,10 +15,13 @@ const dayPart = (): string => {
 // The day-0 hero, as a reusable unit: greeting + the real agent chat
 // composer with live suggestions. Shared between DayOneHomepage (always
 // greets) and this block (greeting is a per-homepage toggle).
-export const AskAiHero: FC<{ projectUuid: string; showGreeting: boolean }> = ({
-    projectUuid,
-    showGreeting,
-}) => {
+export const AskAiHero: FC<{
+    projectUuid: string;
+    showGreeting: boolean;
+    // In the builder the composer is shown as a preview: it looks real but is
+    // inert, so editing admins can't accidentally start a conversation.
+    preview?: boolean;
+}> = ({ projectUuid, showGreeting, preview = false }) => {
     const { user } = useApp();
     return (
         <Stack gap={16} align="center" w="100%">
@@ -37,7 +40,7 @@ export const AskAiHero: FC<{ projectUuid: string; showGreeting: boolean }> = ({
                 </Text>
             )}
             <Box w="100%">
-                <DayOneAskInput projectUuid={projectUuid} />
+                <DayOneAskInput projectUuid={projectUuid} preview={preview} />
             </Box>
         </Stack>
     );
@@ -68,6 +71,7 @@ export const AskAiHeroBlockBuild: FC<BuildComponentProps> = ({
             <AskAiHero
                 projectUuid={projectUuid}
                 showGreeting={block.config.showGreeting}
+                preview
             />
             <Switch
                 label="Show greeting"

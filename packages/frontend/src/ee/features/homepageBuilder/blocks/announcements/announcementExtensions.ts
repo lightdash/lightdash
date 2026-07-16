@@ -20,5 +20,6 @@ export const createAnnouncementExtensions = (
     createContentMentionExtension({
         getProjectUuid,
         getPriorityItems: () => [],
+        includeFilesAndRepositories: false,
     }),
 ];
