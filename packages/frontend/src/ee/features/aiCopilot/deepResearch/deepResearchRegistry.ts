@@ -104,15 +104,6 @@ export const useDeepResearchRunsForThread = (
 
 const COMPOSER_EVENT = 'lightdash:deep-research-composer-prompt';
 
-export const requestDeepResearchComposerPrompt = (
-    threadUuid: string,
-    prompt: string,
-) => {
-    window.dispatchEvent(
-        new CustomEvent(COMPOSER_EVENT, { detail: { threadUuid, prompt } }),
-    );
-};
-
 export const subscribeToDeepResearchComposerPrompt = (
     listener: (detail: { threadUuid: string; prompt: string }) => void,
 ) => {

@@ -5,20 +5,12 @@ import {
     Divider,
     Drawer,
     Group,
-    Paper,
     ScrollArea,
     Stack,
     Text,
     Title,
 } from '@mantine-8/core';
-import { useMediaQuery } from '@mantine-8/hooks';
-import {
-    IconArrowUpRight,
-    IconMessageQuestion,
-    IconRefresh,
-    IconScale,
-    IconShare,
-} from '@tabler/icons-react';
+import { IconArrowUpRight } from '@tabler/icons-react';
 import {
     useEffect,
     useMemo,
@@ -32,101 +24,112 @@ import {
 } from '../../deepResearch/types';
 import styles from './DeepResearchReport.module.css';
 
-const EvidenceDetail = ({ evidence }: { evidence: DeepResearchEvidence }) => (
-    <Stack gap="md" data-testid="evidence-detail">
-        <Stack gap={4}>
-            <Text size="xs" c="indigo" fw={700} tt="uppercase">
-                {evidence.sourceLabel}
-            </Text>
-            <Title order={4}>{evidence.title}</Title>
-            <Text size="sm">{evidence.description}</Text>
-        </Stack>
-        {evidence.queryUuid && (
-            <Stack gap="xs">
-                <Text size="xs" c="dimmed">
-                    Query UUID
-                </Text>
-                <Text size="xs" ff="monospace" className={styles.reference}>
-                    {evidence.queryUuid}
-                </Text>
-                {evidence.metrics.length > 0 && (
-                    <Text size="sm">
-                        <Text span fw={600}>
-                            Metrics:{' '}
-                        </Text>
-                        {evidence.metrics.join(', ')}
-                    </Text>
-                )}
-                {evidence.filters.length > 0 && (
-                    <Text size="sm">
-                        <Text span fw={600}>
-                            Filters:{' '}
-                        </Text>
-                        {evidence.filters.join(', ')}
-                    </Text>
-                )}
-                {evidence.dateRange && (
-                    <Text size="sm">
-                        <Text span fw={600}>
-                            Date range:{' '}
-                        </Text>
-                        {evidence.dateRange}
-                    </Text>
-                )}
+const EvidenceDetail = ({
+    evidence,
+    number,
+    isSelected,
+    elementRef,
+}: {
+    evidence: DeepResearchEvidence;
+    number: number;
+    isSelected: boolean;
+    elementRef: (element: HTMLElement | null) => void;
+}) => (
+    <Box
+        component="li"
+        id={`deep-research-evidence-${evidence.uuid}`}
+        className={styles.evidenceItem}
+        data-selected={isSelected}
+        data-testid={`evidence-detail-${evidence.uuid}`}
+        tabIndex={-1}
+        ref={elementRef}
+    >
+        <Text className={styles.evidenceNumber} aria-hidden>
+            {number}
+        </Text>
+        <Stack gap="xs">
+            <Stack gap={2}>
+                <Text className={styles.eyebrow}>{evidence.sourceLabel}</Text>
+                <Title order={4} className={styles.evidenceTitle}>
+                    {evidence.title}
+                </Title>
+                <Text className={styles.bodyText}>{evidence.description}</Text>
             </Stack>
-        )}
-        {evidence.sourceUrl && (
-            <Button
-                component="a"
-                href={evidence.sourceUrl}
-                target="_blank"
-                rel="noreferrer"
-                variant="light"
-                rightSection={<IconArrowUpRight size={14} />}
-            >
-                {evidence.queryUuid ? 'Open in Lightdash' : 'Open source'}
-            </Button>
-        )}
-    </Stack>
+            {evidence.queryUuid && (
+                <Stack gap={4} className={styles.queryDetails}>
+                    <Text className={styles.caption}>Query UUID</Text>
+                    <Text ff="monospace" className={styles.reference}>
+                        {evidence.queryUuid}
+                    </Text>
+                    {evidence.metrics.length > 0 && (
+                        <Text className={styles.caption}>
+                            <Text span fw={600} inherit>
+                                Metrics:{' '}
+                            </Text>
+                            {evidence.metrics.join(', ')}
+                        </Text>
+                    )}
+                    {evidence.filters.length > 0 && (
+                        <Text className={styles.caption}>
+                            <Text span fw={600} inherit>
+                                Filters:{' '}
+                            </Text>
+                            {evidence.filters.join(', ')}
+                        </Text>
+                    )}
+                    {evidence.dateRange && (
+                        <Text className={styles.caption}>
+                            <Text span fw={600} inherit>
+                                Date range:{' '}
+                            </Text>
+                            {evidence.dateRange}
+                        </Text>
+                    )}
+                </Stack>
+            )}
+            {evidence.sourceUrl && (
+                <Button
+                    component="a"
+                    href={evidence.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    variant="subtle"
+                    size="compact-xs"
+                    w="fit-content"
+                    rightSection={<IconArrowUpRight size={13} />}
+                >
+                    {evidence.queryUuid ? 'Open in Lightdash' : 'Open source'}
+                </Button>
+            )}
+        </Stack>
+    </Box>
 );
 
 type Props = {
     run: DeepResearchRunView;
     opened: boolean;
     onClose: () => void;
-    onAskFollowUp?: () => void;
-    onChallenge?: () => void;
-    onRerun?: () => void;
 };
 
-export const DeepResearchReport = ({
-    run,
-    opened,
-    onClose,
-    onAskFollowUp,
-    onChallenge,
-    onRerun,
-}: Props) => {
-    const isNarrow = useMediaQuery('(max-width: 62em)');
+export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
     const artifact = run.artifact;
-    const allEvidence = useMemo(
-        () => artifact?.findings.flatMap((finding) => finding.evidence) ?? [],
+    const numberedEvidence = useMemo(
+        () =>
+            artifact?.findings
+                .flatMap((finding) => finding.evidence)
+                .map((evidence, index) => ({ evidence, number: index + 1 })) ??
+            [],
         [artifact],
     );
     const [selectedEvidenceUuid, setSelectedEvidenceUuid] = useState<
         string | null
     >(null);
-    const selectedEvidence =
-        allEvidence.find((item) => item.uuid === selectedEvidenceUuid) ?? null;
-    const [isMobileEvidenceOpen, setIsMobileEvidenceOpen] = useState(false);
-    const lastMarkerRef = useRef<HTMLButtonElement | null>(null);
     const markerRefs = useRef(new Map<string, HTMLButtonElement>());
-    const evidenceRailId = `deep-research-evidence-${run.uuid}`;
+    const evidenceRefs = useRef(new Map<string, HTMLElement>());
 
     useEffect(() => {
         if (!opened) {
             setSelectedEvidenceUuid(null);
-            setIsMobileEvidenceOpen(false);
         }
     }, [opened]);
 
@@ -134,20 +137,11 @@ export const DeepResearchReport = ({
         return null;
     }
 
-    const selectEvidence = (
-        evidence: DeepResearchEvidence,
-        marker: HTMLButtonElement,
-    ) => {
-        lastMarkerRef.current = marker;
+    const selectEvidence = (evidence: DeepResearchEvidence) => {
         setSelectedEvidenceUuid(evidence.uuid);
-        if (isNarrow) {
-            setIsMobileEvidenceOpen(true);
-        }
-    };
-
-    const closeMobileEvidence = () => {
-        setIsMobileEvidenceOpen(false);
-        window.requestAnimationFrame(() => lastMarkerRef.current?.focus());
+        window.requestAnimationFrame(() => {
+            evidenceRefs.current.get(evidence.uuid)?.focus();
+        });
     };
 
     const handleMarkerKeyDown = (
@@ -158,39 +152,22 @@ export const DeepResearchReport = ({
             return;
         }
         event.preventDefault();
-        const currentIndex = allEvidence.findIndex(
-            (item) => item.uuid === evidence.uuid,
+        const currentIndex = numberedEvidence.findIndex(
+            (item) => item.evidence.uuid === evidence.uuid,
         );
         const direction = event.key === 'ArrowRight' ? 1 : -1;
         const nextIndex =
-            (currentIndex + direction + allEvidence.length) %
-            allEvidence.length;
-        const nextEvidence = allEvidence[nextIndex];
+            (currentIndex + direction + numberedEvidence.length) %
+            numberedEvidence.length;
+        const nextEvidence = numberedEvidence[nextIndex]?.evidence;
         const nextMarker = nextEvidence
             ? markerRefs.current.get(nextEvidence.uuid)
             : undefined;
         if (!nextEvidence || !nextMarker) {
             return;
         }
-        selectEvidence(nextEvidence, nextMarker);
+        setSelectedEvidenceUuid(nextEvidence.uuid);
         nextMarker.focus();
-    };
-
-    const handleShare = async () => {
-        const shareData = {
-            title: `Deep research: ${run.question}`,
-            text: artifact.executiveAnswer,
-            url: window.location.href,
-        };
-        try {
-            if (navigator.share) {
-                await navigator.share(shareData);
-                return;
-            }
-            await navigator.clipboard?.writeText(window.location.href);
-        } catch {
-            // Cancelling the platform share sheet should leave the report open.
-        }
     };
 
     return (
@@ -202,284 +179,286 @@ export const DeepResearchReport = ({
             size="100%"
             padding={0}
         >
-            <Box className={styles.workspace}>
-                <ScrollArea className={styles.reportScroll}>
-                    <Stack className={styles.report} gap="xl">
-                        <Stack gap="xs">
+            <ScrollArea className={styles.reportScroll}>
+                <Box component="article" className={styles.report}>
+                    <Stack gap="xl">
+                        <Box component="header" className={styles.reportHeader}>
                             <Group justify="space-between" align="flex-start">
-                                <Stack gap={4}>
-                                    <Text
-                                        size="xs"
-                                        c="indigo"
-                                        fw={700}
-                                        tt="uppercase"
-                                    >
-                                        Deep research
-                                    </Text>
-                                    <Title order={2}>{run.question}</Title>
-                                </Stack>
-                                <Badge variant="light" color="indigo">
+                                <Text className={styles.eyebrow}>
+                                    Deep research report
+                                </Text>
+                                <Badge
+                                    size="xs"
+                                    variant="light"
+                                    color="indigo"
+                                    tt="none"
+                                >
                                     {artifact.confidence} confidence
                                 </Badge>
                             </Group>
-                            <Text size="lg" lh={1.6}>
+                            <Title order={1} className={styles.reportTitle}>
+                                {run.question}
+                            </Title>
+                            <Text className={styles.executiveAnswer}>
                                 {artifact.executiveAnswer}
                             </Text>
-                        </Stack>
+                        </Box>
 
                         <Divider />
 
-                        <Stack gap="lg">
-                            <Title order={3}>Key findings</Title>
-                            {artifact.findings.map((finding, findingIndex) => (
-                                <Paper
-                                    key={finding.uuid}
-                                    className={styles.finding}
-                                    p="lg"
-                                    radius="md"
-                                >
-                                    <Stack gap="sm">
-                                        <Group
-                                            justify="space-between"
-                                            align="flex-start"
+                        <Box component="section" className={styles.section}>
+                            <Title order={2} className={styles.sectionTitle}>
+                                Key findings
+                            </Title>
+                            <Stack gap={0}>
+                                {artifact.findings.map(
+                                    (finding, findingIndex) => (
+                                        <Box
+                                            component="section"
+                                            key={finding.uuid}
+                                            className={styles.finding}
                                         >
-                                            <Title order={4}>
-                                                {finding.title}
-                                            </Title>
-                                            <Badge size="sm" variant="outline">
-                                                {finding.confidence}
-                                            </Badge>
-                                        </Group>
-                                        <Text size="sm" lh={1.6}>
-                                            {finding.summary}
-                                        </Text>
-                                        {finding.evidence.length > 0 && (
                                             <Group
-                                                gap="xs"
-                                                aria-label={`Evidence for ${finding.title}`}
+                                                justify="space-between"
+                                                align="baseline"
+                                                gap="md"
                                             >
-                                                {finding.evidence.map(
-                                                    (
-                                                        evidence,
-                                                        evidenceIndex,
-                                                    ) => {
-                                                        const markerNumber =
-                                                            artifact.findings
-                                                                .slice(
-                                                                    0,
-                                                                    findingIndex,
-                                                                )
-                                                                .reduce(
-                                                                    (
-                                                                        count,
-                                                                        item,
-                                                                    ) =>
-                                                                        count +
-                                                                        item
-                                                                            .evidence
-                                                                            .length,
-                                                                    0,
-                                                                ) +
-                                                            evidenceIndex +
-                                                            1;
-                                                        return (
-                                                            <button
-                                                                key={
-                                                                    evidence.uuid
-                                                                }
-                                                                type="button"
-                                                                className={
-                                                                    styles.marker
-                                                                }
-                                                                data-selected={
-                                                                    selectedEvidenceUuid ===
-                                                                    evidence.uuid
-                                                                }
-                                                                aria-label={`Evidence ${markerNumber}: ${evidence.title}`}
-                                                                aria-pressed={
-                                                                    selectedEvidenceUuid ===
-                                                                    evidence.uuid
-                                                                }
-                                                                aria-controls={
-                                                                    evidenceRailId
-                                                                }
-                                                                ref={(
-                                                                    element,
-                                                                ) => {
-                                                                    if (
-                                                                        element
-                                                                    ) {
-                                                                        markerRefs.current.set(
-                                                                            evidence.uuid,
-                                                                            element,
-                                                                        );
-                                                                    } else {
-                                                                        markerRefs.current.delete(
-                                                                            evidence.uuid,
-                                                                        );
-                                                                    }
-                                                                }}
-                                                                onClick={(
-                                                                    event,
-                                                                ) =>
-                                                                    selectEvidence(
-                                                                        evidence,
-                                                                        event.currentTarget,
-                                                                    )
-                                                                }
-                                                                onKeyDown={(
-                                                                    event,
-                                                                ) =>
-                                                                    handleMarkerKeyDown(
-                                                                        event,
-                                                                        evidence,
-                                                                    )
-                                                                }
-                                                            >
-                                                                {markerNumber}
-                                                            </button>
-                                                        );
-                                                    },
-                                                )}
+                                                <Title
+                                                    order={3}
+                                                    className={
+                                                        styles.findingTitle
+                                                    }
+                                                >
+                                                    {finding.title}
+                                                </Title>
+                                                <Text
+                                                    className={styles.caption}
+                                                    tt="capitalize"
+                                                >
+                                                    {finding.confidence}
+                                                </Text>
                                             </Group>
-                                        )}
-                                    </Stack>
-                                </Paper>
-                            ))}
-                        </Stack>
+                                            <Text className={styles.bodyText}>
+                                                {finding.summary}
+                                            </Text>
+                                            {finding.evidence.length > 0 && (
+                                                <Group
+                                                    gap={3}
+                                                    mt="xs"
+                                                    aria-label={`Evidence for ${finding.title}`}
+                                                >
+                                                    {finding.evidence.map(
+                                                        (
+                                                            evidence,
+                                                            evidenceIndex,
+                                                        ) => {
+                                                            const markerNumber =
+                                                                artifact.findings
+                                                                    .slice(
+                                                                        0,
+                                                                        findingIndex,
+                                                                    )
+                                                                    .reduce(
+                                                                        (
+                                                                            count,
+                                                                            item,
+                                                                        ) =>
+                                                                            count +
+                                                                            item
+                                                                                .evidence
+                                                                                .length,
+                                                                        0,
+                                                                    ) +
+                                                                evidenceIndex +
+                                                                1;
+                                                            return (
+                                                                <button
+                                                                    key={
+                                                                        evidence.uuid
+                                                                    }
+                                                                    type="button"
+                                                                    className={
+                                                                        styles.marker
+                                                                    }
+                                                                    data-selected={
+                                                                        selectedEvidenceUuid ===
+                                                                        evidence.uuid
+                                                                    }
+                                                                    aria-label={`Evidence ${markerNumber}: ${evidence.title}`}
+                                                                    aria-pressed={
+                                                                        selectedEvidenceUuid ===
+                                                                        evidence.uuid
+                                                                    }
+                                                                    aria-controls={`deep-research-evidence-${evidence.uuid}`}
+                                                                    ref={(
+                                                                        element,
+                                                                    ) => {
+                                                                        if (
+                                                                            element
+                                                                        ) {
+                                                                            markerRefs.current.set(
+                                                                                evidence.uuid,
+                                                                                element,
+                                                                            );
+                                                                        } else {
+                                                                            markerRefs.current.delete(
+                                                                                evidence.uuid,
+                                                                            );
+                                                                        }
+                                                                    }}
+                                                                    onClick={() =>
+                                                                        selectEvidence(
+                                                                            evidence,
+                                                                        )
+                                                                    }
+                                                                    onKeyDown={(
+                                                                        event,
+                                                                    ) =>
+                                                                        handleMarkerKeyDown(
+                                                                            event,
+                                                                            evidence,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    [
+                                                                    {
+                                                                        markerNumber
+                                                                    }
+                                                                    ]
+                                                                </button>
+                                                            );
+                                                        },
+                                                    )}
+                                                </Group>
+                                            )}
+                                        </Box>
+                                    ),
+                                )}
+                            </Stack>
+                        </Box>
 
-                        <Stack gap="md">
-                            <Title order={3}>
+                        <Box component="section" className={styles.section}>
+                            <Title order={2} className={styles.sectionTitle}>
                                 Alternative explanations and contradictory
                                 evidence
                             </Title>
                             {artifact.contradictoryEvidence.length ? (
-                                artifact.contradictoryEvidence.map((item) => (
-                                    <Text key={item} size="sm">
-                                        • {item}
-                                    </Text>
-                                ))
+                                <Box component="ul" className={styles.list}>
+                                    {artifact.contradictoryEvidence.map(
+                                        (item) => (
+                                            <Text
+                                                component="li"
+                                                key={item}
+                                                className={styles.bodyText}
+                                            >
+                                                {item}
+                                            </Text>
+                                        ),
+                                    )}
+                                </Box>
                             ) : (
-                                <Text size="sm" c="dimmed">
+                                <Text className={styles.bodyText} c="dimmed">
                                     No material contradictory evidence was
                                     found.
                                 </Text>
                             )}
-                        </Stack>
+                        </Box>
 
-                        <Stack gap="md">
-                            <Title order={3}>Definitions and methodology</Title>
-                            <Text size="sm" lh={1.6}>
+                        <Box component="section" className={styles.section}>
+                            <Title order={2} className={styles.sectionTitle}>
+                                Definitions and methodology
+                            </Title>
+                            <Text className={styles.bodyText}>
                                 {artifact.definitionsAndMethodology}
                             </Text>
-                        </Stack>
+                        </Box>
 
-                        <Stack gap="md">
-                            <Title order={3}>Confidence and limitations</Title>
-                            {artifact.limitations.map((limitation) => (
-                                <Text key={limitation} size="sm">
-                                    • {limitation}
-                                </Text>
-                            ))}
-                        </Stack>
-
-                        <Stack gap="md">
-                            <Title order={3}>Recommended next questions</Title>
-                            {artifact.nextQuestions.map((question) => (
-                                <Text key={question} size="sm">
-                                    • {question}
-                                </Text>
-                            ))}
-                        </Stack>
-
-                        <Group className={styles.actions} gap="xs">
-                            {onAskFollowUp && (
-                                <Button
-                                    variant="light"
-                                    leftSection={
-                                        <IconMessageQuestion size={16} />
-                                    }
-                                    onClick={onAskFollowUp}
-                                >
-                                    Ask a follow-up
-                                </Button>
-                            )}
-                            {onChallenge && (
-                                <Button
-                                    variant="default"
-                                    leftSection={<IconScale size={16} />}
-                                    onClick={onChallenge}
-                                >
-                                    Challenge this finding
-                                </Button>
-                            )}
-                            {onRerun && (
-                                <Button
-                                    variant="default"
-                                    leftSection={<IconRefresh size={16} />}
-                                    onClick={onRerun}
-                                >
-                                    Rerun with more depth
-                                </Button>
-                            )}
-                            <Button
-                                variant="subtle"
-                                leftSection={<IconShare size={16} />}
-                                onClick={() => void handleShare()}
-                            >
-                                Share report
-                            </Button>
-                        </Group>
-                    </Stack>
-                </ScrollArea>
-
-                {!isNarrow && (
-                    <aside
-                        id={evidenceRailId}
-                        className={styles.evidenceRail}
-                        aria-label="Supporting evidence"
-                        aria-live="polite"
-                    >
-                        <ScrollArea h="100%">
-                            <Stack p="lg" gap="lg">
-                                <Stack gap={4}>
-                                    <Text fw={700}>Evidence</Text>
-                                    <Text size="xs" c="dimmed">
-                                        Select a numbered marker to inspect the
-                                        source.
+                        <Box component="section" className={styles.section}>
+                            <Title order={2} className={styles.sectionTitle}>
+                                Confidence and limitations
+                            </Title>
+                            <Box component="ul" className={styles.list}>
+                                {artifact.limitations.map((limitation) => (
+                                    <Text
+                                        component="li"
+                                        key={limitation}
+                                        className={styles.bodyText}
+                                    >
+                                        {limitation}
                                     </Text>
-                                </Stack>
-                                {selectedEvidence ? (
-                                    <EvidenceDetail
-                                        evidence={selectedEvidence}
-                                    />
-                                ) : (
-                                    <Paper variant="dotted" p="md">
-                                        <Text size="sm" c="dimmed">
-                                            No evidence selected.
-                                        </Text>
-                                    </Paper>
-                                )}
-                            </Stack>
-                        </ScrollArea>
-                    </aside>
-                )}
-            </Box>
+                                ))}
+                            </Box>
+                        </Box>
 
-            {isNarrow && (
-                <Drawer
-                    opened={isMobileEvidenceOpen}
-                    onClose={closeMobileEvidence}
-                    title="Supporting evidence"
-                    position="bottom"
-                    size="85%"
-                    trapFocus
-                >
-                    {selectedEvidence && (
-                        <EvidenceDetail evidence={selectedEvidence} />
-                    )}
-                </Drawer>
-            )}
+                        <Box component="section" className={styles.section}>
+                            <Title order={2} className={styles.sectionTitle}>
+                                Recommended next questions
+                            </Title>
+                            <Box component="ul" className={styles.list}>
+                                {artifact.nextQuestions.map((question) => (
+                                    <Text
+                                        component="li"
+                                        key={question}
+                                        className={styles.bodyText}
+                                    >
+                                        {question}
+                                    </Text>
+                                ))}
+                            </Box>
+                        </Box>
+
+                        {numberedEvidence.length > 0 && (
+                            <Box
+                                component="section"
+                                className={styles.section}
+                                aria-labelledby="deep-research-evidence-title"
+                            >
+                                <Divider mb="xl" />
+                                <Title
+                                    order={2}
+                                    id="deep-research-evidence-title"
+                                    className={styles.sectionTitle}
+                                >
+                                    Evidence
+                                </Title>
+                                <Text className={styles.sectionIntro}>
+                                    Sources cited in the findings above.
+                                </Text>
+                                <Box
+                                    component="ol"
+                                    className={styles.evidenceList}
+                                >
+                                    {numberedEvidence.map(
+                                        ({ evidence, number }) => (
+                                            <EvidenceDetail
+                                                key={evidence.uuid}
+                                                evidence={evidence}
+                                                number={number}
+                                                isSelected={
+                                                    selectedEvidenceUuid ===
+                                                    evidence.uuid
+                                                }
+                                                elementRef={(element) => {
+                                                    if (element) {
+                                                        evidenceRefs.current.set(
+                                                            evidence.uuid,
+                                                            element,
+                                                        );
+                                                    } else {
+                                                        evidenceRefs.current.delete(
+                                                            evidence.uuid,
+                                                        );
+                                                    }
+                                                }}
+                                            />
+                                        ),
+                                    )}
+                                </Box>
+                            </Box>
+                        )}
+                    </Stack>
+                </Box>
+            </ScrollArea>
         </Drawer>
     );
 };

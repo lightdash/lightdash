@@ -1,25 +1,12 @@
 import { Alert, Button, Paper, Skeleton, Stack, Text } from '@mantine-8/core';
 import useUser from '../../../../../hooks/user/useUser';
-import {
-    requestDeepResearchComposerPrompt,
-    useDeepResearchRunsForThread,
-} from '../../deepResearch/deepResearchRegistry';
+import { useDeepResearchRunsForThread } from '../../deepResearch/deepResearchRegistry';
 import { type DeepResearchRunRegistration } from '../../deepResearch/types';
 import {
     useContinueDeepResearchMutation,
     useDeepResearchRun,
 } from '../../hooks/useDeepResearch';
 import { DeepResearchRunCard } from './DeepResearchRunCard';
-
-const NEXT_DEPTH: Record<
-    DeepResearchRunRegistration['depth'],
-    DeepResearchRunRegistration['depth']
-> = {
-    quick: 'standard',
-    standard: 'deep',
-    deep: 'exhaustive',
-    exhaustive: 'exhaustive',
-};
 
 const DeepResearchThreadRun = ({
     registration,
@@ -108,24 +95,6 @@ const DeepResearchThreadRun = ({
         <DeepResearchRunCard
             run={runQuery.data}
             projectUuid={registration.projectUuid}
-            onAskFollowUp={() =>
-                requestDeepResearchComposerPrompt(
-                    registration.threadUuid,
-                    `Follow up on the research about “${registration.question}”: `,
-                )
-            }
-            onChallenge={() =>
-                requestDeepResearchComposerPrompt(
-                    registration.threadUuid,
-                    `Challenge the research findings about “${registration.question}”. Look for contradictory evidence and test the weakest assumption: `,
-                )
-            }
-            onRerun={() =>
-                continueMutation.mutate({
-                    question: registration.question,
-                    depth: NEXT_DEPTH[registration.depth],
-                })
-            }
         />
     );
 };

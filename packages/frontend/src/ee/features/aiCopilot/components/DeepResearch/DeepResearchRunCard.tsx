@@ -62,9 +62,6 @@ type Props = {
     projectUuid: string;
     onReconnect?: (integrationName?: string) => void;
     onContinueWithoutSource?: (integrationName?: string) => void;
-    onAskFollowUp?: () => void;
-    onChallenge?: () => void;
-    onRerun?: () => void;
 };
 
 export const DeepResearchRunCard = ({
@@ -72,9 +69,6 @@ export const DeepResearchRunCard = ({
     projectUuid,
     onReconnect,
     onContinueWithoutSource,
-    onAskFollowUp,
-    onChallenge,
-    onRerun,
 }: Props) => {
     const status = STATUS_CONFIG[run.status];
     const cancelMutation = useCancelDeepResearchMutation(projectUuid, run.uuid);
@@ -351,9 +345,6 @@ export const DeepResearchRunCard = ({
                 run={run}
                 opened={isReportOpen}
                 onClose={() => setIsReportOpen(false)}
-                onAskFollowUp={onAskFollowUp}
-                onChallenge={onChallenge}
-                onRerun={onRerun}
             />
         </Paper>
     );
