@@ -2018,6 +2018,7 @@ export type AiAgentCreatedEvent = BaseTrack & {
         agentName: string;
         tagsCount: number;
         integrationsCount: number;
+        autoProvisioned?: boolean;
     };
 };
 

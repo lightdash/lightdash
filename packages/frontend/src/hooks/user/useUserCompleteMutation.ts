@@ -13,7 +13,13 @@ const completeUserQuery = async (data: CompleteUserArgs) =>
         body: JSON.stringify(data),
     });
 
-export const useUserCompleteMutation = () => {
+type UserCompleteMutationOptions = {
+    onSuccess?: () => void;
+};
+
+export const useUserCompleteMutation = (
+    options?: UserCompleteMutationOptions,
+) => {
     const queryClient = useQueryClient();
     return useMutation<LightdashUser, ApiError, CompleteUserArgs>(
         completeUserQuery,
@@ -22,6 +28,7 @@ export const useUserCompleteMutation = () => {
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['user']);
                 await queryClient.invalidateQueries(['organization']);
+                options?.onSuccess?.();
             },
         },
     );

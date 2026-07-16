@@ -229,6 +229,7 @@ import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preA
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import { enhanceExploresForPreAggregates } from '../../ee/preAggregates/enhanceExploresForPreAggregates';
 import { preAggregatePostProcessor } from '../../ee/preAggregates/postProcessor';
+import type { AiAgentService } from '../../ee/services/AiAgentService/AiAgentService';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
 import { buildMaterializationMetricQuery } from '../../ee/services/PreAggregateMaterializationService/buildMaterializationMetricQuery';
 import { errorHandler } from '../../errors';
@@ -352,6 +353,7 @@ export type ProjectServiceArguments = {
     // AppGenerateService depends on ProjectService, so eager injection would
     // create a construction cycle. Resolves undefined in core (non-EE) builds.
     getAppGenerateService?: () => AppGenerateService | undefined;
+    getAiAgentService?: () => AiAgentService | undefined;
 };
 
 const isValidDbtCloudWebhookSignature = (
@@ -460,6 +462,8 @@ export class ProjectService extends BaseService {
 
     getAppGenerateService: (() => AppGenerateService | undefined) | undefined;
 
+    getAiAgentService: (() => AiAgentService | undefined) | undefined;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -501,6 +505,7 @@ export class ProjectService extends BaseService {
         projectContextModel,
         isProjectContextEnabled,
         getAppGenerateService,
+        getAiAgentService,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -545,6 +550,47 @@ export class ProjectService extends BaseService {
         this.projectContextModel = projectContextModel;
         this.isProjectContextEnabled = isProjectContextEnabled;
         this.getAppGenerateService = getAppGenerateService;
+        this.getAiAgentService = getAiAgentService;
+    }
+
+    private async provisionDefaultAiAgent(
+        user: SessionUser,
+        projectUuid: string,
+        projectType: ProjectType,
+    ): Promise<void> {
+        if (projectType === ProjectType.PREVIEW) {
+            return;
+        }
+
+        try {
+            const { organizationUuid } = user;
+            if (!organizationUuid) {
+                return;
+            }
+
+            const projects =
+                await this.projectModel.getAllByOrganizationUuid(
+                    organizationUuid,
+                );
+            const nonPreviewProjects = projects.filter(
+                (project) => project.type !== ProjectType.PREVIEW,
+            );
+            if (
+                nonPreviewProjects.length !== 1 ||
+                nonPreviewProjects[0].projectUuid !== projectUuid
+            ) {
+                return;
+            }
+
+            await this.getAiAgentService?.()?.provisionDefaultAgent(
+                user,
+                projectUuid,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `Failed to provision default AI agent for project ${projectUuid}: ${error instanceof Error ? error.message : String(error)}`,
+            );
+        }
     }
 
     static getMetricQueryExecutionProperties({
@@ -2317,6 +2363,12 @@ export class ProjectService extends BaseService {
             ),
         });
 
+        await this.provisionDefaultAiAgent(
+            user,
+            projectUuid,
+            createProject.type,
+        );
+
         // For preview projects: if the upstream requires user warehouse credentials
         // and the request includes CLI-obtained tokens, create user warehouse
         // credentials so the user doesn't have to re-authenticate in the UI
@@ -2737,6 +2789,12 @@ export class ProjectService extends BaseService {
                     method,
                 ),
             });
+
+            await this.provisionDefaultAiAgent(
+                user,
+                projectUuid,
+                createProject.type,
+            );
 
             return { projectUuid };
         } catch (error) {
@@ -7265,6 +7323,9 @@ export class ProjectService extends BaseService {
             return warehouseCatalog[database][schemaName][tableName];
         } catch (error) {
             this.logger.error('Error fetching warehouse fields', { error });
+            if (error instanceof WarehouseConnectionError) {
+                throw error;
+            }
             throw new NotFoundError(
                 `Could not find table "${tableName}" in schema "${schemaName}" of database "${database}". Please verify the table exists and you have access to it.`,
             );

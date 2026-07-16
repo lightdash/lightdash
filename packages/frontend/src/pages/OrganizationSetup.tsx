@@ -112,14 +112,14 @@ type OrganizationSetupFormValues = {
 type OrganizationSetupContentProps = {
     user: UserWithAbility;
     health: HealthState;
+    completeMutation: ReturnType<typeof useUserCompleteMutation>;
 };
 
 const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
     user,
     health,
+    completeMutation,
 }) => {
-    const navigate = useNavigate();
-
     const canEnterOrganizationName = user.organizationName === '';
     const emailDomain = user.email ? getEmailDomain(user.email) : '';
     const isCompanyDomain =
@@ -151,7 +151,6 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         health.hasBrandfetch && canEnterOrganizationName && isCompanyDomain,
     );
     const saveBrand = useSaveOrganizationBrand();
-    const completeMutation = useUserCompleteMutation();
 
     const { setValues, isDirty } = form;
     const hasAppliedDetectedBrand = useRef(false);
@@ -170,12 +169,6 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                 : {}),
         }));
     }, [brandDetection.data, isDirty, setValues]);
-
-    useEffect(() => {
-        if (completeMutation.isSuccess) {
-            void navigate('/');
-        }
-    }, [completeMutation.isSuccess, navigate]);
 
     const detectedBrand = brandDetection.data ?? null;
     const detectedColors = detectedBrand
@@ -470,9 +463,15 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
 
 const OrganizationSetup: FC = () => {
     const { health, user } = useApp();
+    const navigate = useNavigate();
     const orgSetupPageFlag = useServerFeatureFlag(
         FeatureFlags.OrganizationSetupPage,
     );
+    const completeMutation = useUserCompleteMutation({
+        onSuccess: () => void navigate('/onboarding/agent'),
+    });
+    const isCompletingSetup =
+        completeMutation.isLoading || completeMutation.isSuccess;
 
     if (health.isInitialLoading || health.error) {
         return <PageSpinner />;
@@ -494,7 +493,7 @@ const OrganizationSetup: FC = () => {
         return <Navigate to="/join-organization" />;
     }
 
-    if (user.data.isSetupComplete) {
+    if (user.data.isSetupComplete && !isCompletingSetup) {
         return <Navigate to="/" />;
     }
 
@@ -507,6 +506,7 @@ const OrganizationSetup: FC = () => {
             key={user.data.userUuid}
             user={user.data}
             health={health.data}
+            completeMutation={completeMutation}
         />
     );
 };

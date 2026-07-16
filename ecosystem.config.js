@@ -42,6 +42,10 @@ const venvBinPath = path.join(__dirname, 'venv', 'bin');
 const envWithPath = {
     ...env,
     PATH: `${venvBinPath}:${process.env.PATH}`,
+    // Production runs UTC. Without this, node-postgres parses the DB's naive-UTC
+    // timestamps as local time, skewing every timestamp by the host's UTC offset
+    // (false "message timed out" errors, wrong relative times in the UI).
+    TZ: 'UTC',
 };
 
 // Instance ID for namespacing PM2 process names (supports multiple worktrees)

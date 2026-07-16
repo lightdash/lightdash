@@ -82,9 +82,13 @@ const getIsAuthenticated = async () =>
     });
 
 export const useIsSnowflakeAuthenticated = () => {
+    const health = useHealth();
+
     return useQuery<ApiSuccessEmpty['results'], ApiError>({
-        queryKey: [],
+        queryKey: ['snowflake-sso-is-authenticated'],
         queryFn: getIsAuthenticated,
+        enabled: health.data?.auth.snowflake.enabled === true,
+        retry: false,
     });
 };
 

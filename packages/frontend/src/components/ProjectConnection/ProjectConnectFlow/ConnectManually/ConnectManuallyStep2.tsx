@@ -12,6 +12,7 @@ interface ConnectManuallyStep2Props {
     selectedWarehouse: WarehouseTypes;
     warehouseOnly?: boolean;
     onBack: () => void;
+    successRedirect?: (projectUuid: string) => string;
 }
 
 const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
@@ -19,6 +20,7 @@ const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
     selectedWarehouse,
     warehouseOnly = false,
     onBack,
+    successRedirect,
 }) => {
     return (
         <>
@@ -40,6 +42,7 @@ const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
                     isCreatingFirstProject={isCreatingFirstProject}
                     selectedWarehouse={selectedWarehouse}
                     warehouseOnly={warehouseOnly}
+                    successRedirect={successRedirect}
                 />
             </Stack>
         </>

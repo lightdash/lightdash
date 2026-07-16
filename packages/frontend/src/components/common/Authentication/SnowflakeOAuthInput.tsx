@@ -16,7 +16,7 @@ type Props = {
 export const SnowflakeOAuthInput: FC<Props> = ({ onAuthenticated }) => {
     const {
         data,
-        isLoading,
+        isInitialLoading,
         error: snowflakeAuthError,
         refetch: refetchAuth,
     } = useIsSnowflakeAuthenticated();
@@ -25,10 +25,10 @@ export const SnowflakeOAuthInput: FC<Props> = ({ onAuthenticated }) => {
 
     // Notify parent component when authentication status changes
     React.useEffect(() => {
-        if (!isLoading) {
+        if (!isInitialLoading) {
             onAuthenticated?.(isAuthenticated);
         }
-    }, [isAuthenticated, isLoading, onAuthenticated]);
+    }, [isAuthenticated, isInitialLoading, onAuthenticated]);
 
     const { mutate: openLoginPopup } = useSnowflakeLoginPopup({
         onLogin: async () => {
@@ -36,7 +36,7 @@ export const SnowflakeOAuthInput: FC<Props> = ({ onAuthenticated }) => {
         },
     });
 
-    if (isLoading) {
+    if (isInitialLoading) {
         return null;
     }
 

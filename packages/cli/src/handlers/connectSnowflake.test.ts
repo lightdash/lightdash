@@ -148,7 +148,7 @@ describe('connectSnowflakeHandler', () => {
         vi.mocked(setUserPublicKey).mockResolvedValue(undefined);
         vi.mocked(unsetUserPublicKey).mockResolvedValue(undefined);
         vi.mocked(createProgrammaticAccessToken).mockResolvedValue({
-            tokenName: 'LIGHTDASH_ONBOARDING',
+            tokenName: 'LIGHTDASH_ONBOARDING_1234567890',
             tokenSecret: 'pat-secret',
         });
         vi.mocked(openDiagnosticConnection).mockResolvedValue({
@@ -329,7 +329,7 @@ describe('connectSnowflakeHandler', () => {
         expect(createProgrammaticAccessToken).not.toHaveBeenCalled();
     });
 
-    it('uses the stable PAT name for collision replacement when both key slots are occupied', async () => {
+    it('uses a unique PAT name when both key slots are occupied', async () => {
         vi.mocked(getUserPublicKeySlots).mockResolvedValue({
             RSA_PUBLIC_KEY: 'SHA256:existing-key-1',
             RSA_PUBLIC_KEY_2: 'SHA256:existing-key-2',
@@ -341,7 +341,7 @@ describe('connectSnowflakeHandler', () => {
 
         expect(setUserPublicKey).not.toHaveBeenCalled();
         expect(createProgrammaticAccessToken).toHaveBeenCalledWith(
-            'LIGHTDASH_ONBOARDING',
+            expect.stringMatching(/^LIGHTDASH_ONBOARDING_\d+$/),
             365,
             1440,
         );
@@ -394,7 +394,7 @@ describe('connectSnowflakeHandler', () => {
         ).resolves.toBeUndefined();
 
         expect(createProgrammaticAccessToken).toHaveBeenCalledWith(
-            'LIGHTDASH_ONBOARDING',
+            expect.stringMatching(/^LIGHTDASH_ONBOARDING_\d+$/),
             365,
             1440,
         );

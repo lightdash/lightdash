@@ -764,6 +764,60 @@ const PRIVATE_ROUTES: RouteObject[] = [
                 element: <Navigate to="/projects" replace />,
             },
             {
+                path: '/onboarding/agent',
+                handle: { hideAILauncher: true },
+                lazy: async () => {
+                    const OnboardingAgent = await loadLazyRouteDefault(
+                        './pages/OnboardingAgent',
+                        () => import('./pages/OnboardingAgent'),
+                    );
+                    return {
+                        Component: () => (
+                            <>
+                                <NavBar />
+                                <TrackPage name={PageName.ONBOARDING_AGENT}>
+                                    <OnboardingAgent />
+                                </TrackPage>
+                            </>
+                        ),
+                    };
+                },
+            },
+            {
+                path: '/onboarding/data-source/:warehouse?',
+                handle: { hideAILauncher: true },
+                lazy: async () => {
+                    const OnboardingDataSource = await loadLazyRouteDefault(
+                        './pages/OnboardingDataSource',
+                        () => import('./pages/OnboardingDataSource'),
+                    );
+                    return {
+                        Component: () => (
+                            <TrackPage name={PageName.ONBOARDING_DATA_SOURCE}>
+                                <OnboardingDataSource />
+                            </TrackPage>
+                        ),
+                    };
+                },
+            },
+            {
+                path: '/onboarding/project-ready/:projectUuid',
+                handle: { hideAILauncher: true },
+                lazy: async () => {
+                    const OnboardingProjectReady = await loadLazyRouteDefault(
+                        './pages/OnboardingProjectReady',
+                        () => import('./pages/OnboardingProjectReady'),
+                    );
+                    return {
+                        Component: () => (
+                            <TrackPage name={PageName.ONBOARDING_PROJECT_READY}>
+                                <OnboardingProjectReady />
+                            </TrackPage>
+                        ),
+                    };
+                },
+            },
+            {
                 path: '/createProject/:method?',
                 lazy: async () => {
                     const CreateProject = await loadLazyRouteDefault(
