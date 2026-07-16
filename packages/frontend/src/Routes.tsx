@@ -764,26 +764,6 @@ const PRIVATE_ROUTES: RouteObject[] = [
                 element: <Navigate to="/projects" replace />,
             },
             {
-                path: '/onboarding/agent',
-                handle: { hideAILauncher: true },
-                lazy: async () => {
-                    const OnboardingAgent = await loadLazyRouteDefault(
-                        './pages/OnboardingAgent',
-                        () => import('./pages/OnboardingAgent'),
-                    );
-                    return {
-                        Component: () => (
-                            <>
-                                <NavBar />
-                                <TrackPage name={PageName.ONBOARDING_AGENT}>
-                                    <OnboardingAgent />
-                                </TrackPage>
-                            </>
-                        ),
-                    };
-                },
-            },
-            {
                 path: '/onboarding/data-source/:warehouse?',
                 handle: { hideAILauncher: true },
                 lazy: async () => {

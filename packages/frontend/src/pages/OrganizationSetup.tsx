@@ -28,6 +28,7 @@ import { DocumentTitle } from '../components/common/DocumentTitle';
 import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 import PageSpinner from '../components/PageSpinner';
 import { jobTitles } from '../components/UserCompletionModal/jobTitles';
+import { useOrganization } from '../hooks/organization/useOrganization';
 import {
     useDetectOrganizationBrand,
     useSaveOrganizationBrand,
@@ -150,7 +151,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         emailDomain,
         health.hasBrandfetch && canEnterOrganizationName && isCompanyDomain,
     );
-    const saveBrand = useSaveOrganizationBrand();
+    const saveBrand = useSaveOrganizationBrand({ showSuccessToast: false });
 
     const { setValues, isDirty } = form;
     const hasAppliedDetectedBrand = useRef(false);
@@ -467,8 +468,14 @@ const OrganizationSetup: FC = () => {
     const orgSetupPageFlag = useServerFeatureFlag(
         FeatureFlags.OrganizationSetupPage,
     );
+    const { data: organization } = useOrganization();
     const completeMutation = useUserCompleteMutation({
-        onSuccess: () => void navigate('/onboarding/agent'),
+        onSuccess: () =>
+            void navigate(
+                organization?.needsProject === false
+                    ? '/'
+                    : '/onboarding/data-source',
+            ),
     });
     const isCompletingSetup =
         completeMutation.isLoading || completeMutation.isSuccess;

@@ -577,19 +577,10 @@ type DashboardFilterRequirementsSavedEvent = {
     };
 };
 
-export type OnboardingAgentMessageSubmittedEvent = {
-    name: EventName.ONBOARDING_AGENT_MESSAGE_SUBMITTED;
-    properties: {
-        projectUuid: string;
-        isNewAgent: boolean;
-    };
-};
-
 export type EventData =
     | GenericEvent
     | HomepageQuickActionClickedEvent
     | HomepageRecommendedActionClickedEvent
-    | OnboardingAgentMessageSubmittedEvent
     | SetupStepClickedEvent
     | DocumentationClickedEvent
     | SearchResultClickedEvent
