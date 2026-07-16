@@ -104,6 +104,7 @@ export enum EventName {
     CREATE_PROJECT_CLI_SSO_OPTION_CLICKED = 'create_project_cli_sso_option.click',
     COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED = 'copy_create_project_code_click.click',
     ONBOARDING_STEP_CLICKED = 'onboarding_step.click',
+    ONBOARDING_AGENT_MESSAGE_SUBMITTED = 'onboarding_agent_message.submit',
     LANDING_RUN_QUERY_CLICKED = 'landing_run_query.click',
     SETUP_STEP_CLICKED = 'setup_step.click',
     ADD_FILTER_CLICKED = 'add_filter.click',

@@ -1,10 +1,11 @@
 import { Box, Button, Group, Paper, Stack, Text, Title } from '@mantine-8/core';
-import { IconDatabase } from '@tabler/icons-react';
+import { IconDatabase, IconSparkles } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import MantineIcon from '../components/common/MantineIcon';
 import { AgentChatInput } from '../ee/features/aiCopilot/components/ChatElements/AgentChatInput';
+import { useAiOrganizationSettings } from '../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import {
     useCreateAgentThreadMutation,
     useProjectAiAgents,
@@ -13,6 +14,8 @@ import {
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';
+import useTracking from '../providers/Tracking/useTracking';
+import { EventName } from '../types/Events';
 import classes from './OnboardingAgent.module.css';
 
 const DEFAULT_AGENT_NAME = 'Aurora';
@@ -48,10 +51,21 @@ const OnboardingAgentContent: FC = () => {
         useActiveProjectUuid();
     const projectUuid = isConnected ? activeProjectUuid : undefined;
 
-    const { data: agents, isLoading: isLoadingAgents } = useProjectAiAgents({
-        projectUuid,
-        redirectOnUnauthorized: false,
-    });
+    const aiOrganizationSettingsQuery = useAiOrganizationSettings();
+    const isAiCopilotEnabledOrTrial =
+        aiOrganizationSettingsQuery.isSuccess &&
+        (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
+            aiOrganizationSettingsQuery.data.isTrial);
+    const isCopilotUnavailable =
+        !aiOrganizationSettingsQuery.isInitialLoading &&
+        !isAiCopilotEnabledOrTrial;
+
+    const { data: agents, isInitialLoading: isLoadingAgents } =
+        useProjectAiAgents({
+            projectUuid,
+            redirectOnUnauthorized: false,
+            options: { enabled: isAiCopilotEnabledOrTrial },
+        });
 
     const existingAgent = agents?.[0];
     const agentName = existingAgent?.name ?? DEFAULT_AGENT_NAME;
@@ -65,16 +79,25 @@ const OnboardingAgentContent: FC = () => {
     );
 
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { track } = useTracking();
 
     const isComposerLoading =
-        isConnected && (isLoadingProject || !projectUuid || isLoadingAgents);
+        aiOrganizationSettingsQuery.isInitialLoading ||
+        (isConnected && (isLoadingProject || !projectUuid || isLoadingAgents));
 
     const handleSubmit = async ({ message }: { message: string }) => {
         const prompt = message.trim();
-        if (!prompt || !projectUuid || isSubmitting) {
+        if (!prompt || !projectUuid || isCopilotUnavailable || isSubmitting) {
             return;
         }
         setIsSubmitting(true);
+        track({
+            name: EventName.ONBOARDING_AGENT_MESSAGE_SUBMITTED,
+            properties: {
+                projectUuid,
+                isNewAgent: !existingAgent,
+            },
+        });
         try {
             let agentUuid = existingAgent?.uuid;
             if (!agentUuid) {
@@ -127,21 +150,51 @@ const OnboardingAgentContent: FC = () => {
                 <AgentChatInput
                     onSubmit={(args) => void handleSubmit(args)}
                     loading={isSubmitting}
-                    disabled={!isConnected || isComposerLoading || isSubmitting}
+                    disabled={
+                        !isConnected ||
+                        isCopilotUnavailable ||
+                        isComposerLoading ||
+                        isSubmitting
+                    }
                     disabledReason={
-                        isConnected
-                            ? undefined
-                            : 'Connect a data source to start asking questions'
+                        isCopilotUnavailable
+                            ? "AI isn't enabled for your organization"
+                            : isConnected
+                              ? undefined
+                              : 'Connect a data source to start asking questions'
                     }
                     placeholder={`Ask ${agentName} anything about your data...`}
                     showSuggestions={false}
                 />
 
-                {organization && !isConnected && (
+                {isCopilotUnavailable && (
+                    <Paper withBorder radius="md" p="lg">
+                        <Group gap="md">
+                            <Box className={classes.iconTile}>
+                                <MantineIcon
+                                    icon={IconSparkles}
+                                    color="orange"
+                                    size={24}
+                                />
+                            </Box>
+                            <Stack gap={2}>
+                                <Text fw={600}>
+                                    AI isn't enabled for your organization
+                                </Text>
+                                <Text size="sm" c="dimmed">
+                                    Ask an organization admin to enable AI
+                                    features so you can chat with {agentName}.
+                                </Text>
+                            </Stack>
+                        </Group>
+                    </Paper>
+                )}
+
+                {organization && !isConnected && !isCopilotUnavailable && (
                     <Paper withBorder radius="md" p="lg">
                         <Group justify="space-between" gap="lg">
                             <Group gap="md">
-                                <Box className={classes.dataSourceTile}>
+                                <Box className={classes.iconTile}>
                                     <MantineIcon
                                         icon={IconDatabase}
                                         color="orange"

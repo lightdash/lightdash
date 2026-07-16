@@ -24,7 +24,7 @@
     flex-shrink: 0;
 }
 
-.dataSourceTile {
+.iconTile {
     width: 40px;
     height: 40px;
     border-radius: var(--mantine-radius-md);
