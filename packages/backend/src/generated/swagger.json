@@ -1515,10 +1515,16 @@
             },
             "HomepageResourceKind": {
                 "type": "string",
-                "enum": ["video", "doc", "link"]
+                "enum": ["video", "doc", "link", "claude", "youtube"]
             },
             "HomepageResourceItem": {
                 "properties": {
+                    "imageUrl": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
                     "kind": {
                         "$ref": "#/components/schemas/HomepageResourceKind"
                     },
@@ -1532,10 +1538,17 @@
                 "required": ["kind", "url", "title"],
                 "type": "object"
             },
+            "HomepageResourcesLayout": {
+                "type": "string",
+                "enum": ["card", "list"]
+            },
             "HomepageResourcesBlock": {
                 "properties": {
                     "config": {
                         "properties": {
+                            "layout": {
+                                "$ref": "#/components/schemas/HomepageResourcesLayout"
+                            },
                             "items": {
                                 "items": {
                                     "$ref": "#/components/schemas/HomepageResourceItem"
@@ -2129,6 +2142,45 @@
             },
             "ApiProjectHomepageOrNullResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_ProjectHomepage-or-null_"
+            },
+            "HomepageLinkMetadata": {
+                "properties": {
+                    "imageUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/HomepageResourceKind"
+                    }
+                },
+                "required": ["imageUrl", "description", "title", "kind"],
+                "type": "object",
+                "description": "Detected metadata for a pasted resource URL (Claude Artifact / YouTube)."
+            },
+            "ApiSuccess_HomepageLinkMetadata_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/HomepageLinkMetadata"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiHomepageLinkMetadataResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_HomepageLinkMetadata_"
             },
             "HomepageRecentlyViewedItem": {
                 "properties": {
@@ -50100,6 +50152,53 @@
                         "required": false,
                         "schema": {
                             "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/homepage/link-metadata": {
+            "get": {
+                "operationId": "getHomepageLinkMetadata",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiHomepageLinkMetadataResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "url",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ]

@@ -11,6 +11,7 @@ import {
     type HomepageAssignment,
     type HomepageAudience,
     type HomepageConfig,
+    type HomepageLinkMetadata,
     type HomepageRecentlyViewedItem,
     type HomepageViewAsResult,
     type HomepageViewAsTarget,
@@ -25,6 +26,14 @@ import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type ProjectHomepageModel } from '../models/ProjectHomepageModel';
+import {
+    classifyResourceUrl,
+    parseOpenGraph,
+    parseYoutubeOembed,
+} from './homepageLinkMetadata';
+
+const LINK_METADATA_TIMEOUT_MS = 5_000;
+const LINK_METADATA_MAX_BYTES = 256 * 1024;
 
 export type ProjectHomepageServiceArguments = {
     projectHomepageModel: Pick<
@@ -417,5 +426,106 @@ export class ProjectHomepageService extends BaseService {
             audience,
             allowPersonal,
         );
+    }
+
+    // Bounded, request-scoped GET against an allowlisted host; caps time and
+    // body size and never follows redirects (SSRF hardening).
+    private static async fetchCapped(
+        url: string,
+        opts: { accept: string; requireContentType?: string },
+    ): Promise<string> {
+        const controller = new AbortController();
+        const timeout = setTimeout(
+            () => controller.abort(),
+            LINK_METADATA_TIMEOUT_MS,
+        );
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                redirect: 'manual',
+                signal: controller.signal,
+                headers: {
+                    accept: opts.accept,
+                    'user-agent':
+                        'LightdashBot/1.0 (+https://www.lightdash.com)',
+                },
+            });
+            if (!response.ok) {
+                throw new Error(`Unexpected status ${response.status}`);
+            }
+            if (
+                opts.requireContentType &&
+                !(response.headers.get('content-type') ?? '').includes(
+                    opts.requireContentType,
+                )
+            ) {
+                throw new Error('Unexpected content-type');
+            }
+            const reader = response.body?.getReader();
+            if (!reader) return '';
+            const decoder = new TextDecoder();
+            let received = 0;
+            let text = '';
+            let truncated = false;
+            for (;;) {
+                // eslint-disable-next-line no-await-in-loop
+                const { done, value } = await reader.read();
+                if (done) break;
+                received += value.byteLength;
+                text += decoder.decode(value, { stream: true });
+                if (received >= LINK_METADATA_MAX_BYTES) {
+                    truncated = true;
+                    break;
+                }
+            }
+            if (truncated) await reader.cancel();
+            return text;
+        } finally {
+            clearTimeout(timeout);
+        }
+    }
+
+    /**
+     * Unfurl a pasted resource URL for the homepage builder. Rejects any host
+     * outside the allowlist (400); for allowed hosts, returns the detected kind
+     * with title/description/imageUrl (nulls if the fetch or parse fails, so the
+     * author can still add the item and type a title).
+     */
+    async fetchLinkMetadata(
+        user: SessionUser,
+        projectUuid: string,
+        url: string,
+    ): Promise<HomepageLinkMetadata> {
+        await this.assertFlagEnabled(user);
+        this.assertCanManage(user, projectUuid);
+
+        const provider = classifyResourceUrl(url);
+        try {
+            if (provider.fetchKind === 'oembed') {
+                const body = await ProjectHomepageService.fetchCapped(
+                    provider.fetchUrl,
+                    { accept: 'application/json' },
+                );
+                let json: unknown = null;
+                try {
+                    json = JSON.parse(body);
+                } catch {
+                    json = null;
+                }
+                return { kind: provider.kind, ...parseYoutubeOembed(json) };
+            }
+            const html = await ProjectHomepageService.fetchCapped(
+                provider.fetchUrl,
+                { accept: 'text/html', requireContentType: 'text/html' },
+            );
+            return { kind: provider.kind, ...parseOpenGraph(html) };
+        } catch {
+            return {
+                kind: provider.kind,
+                title: null,
+                description: null,
+                imageUrl: null,
+            };
+        }
     }
 }
