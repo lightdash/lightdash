@@ -1,5 +1,6 @@
 import {
     type CustomFormatType,
+    type HomepageRecommendedActionKey,
     type SearchItemType,
     type TableCalculationType,
     type TimeFrames,
@@ -114,6 +115,13 @@ export type HomepageQuickActionClickedEvent = {
     name: EventName.HOMEPAGE_QUICK_ACTION_CLICKED;
     properties: {
         actionType: string;
+    };
+};
+
+export type HomepageRecommendedActionClickedEvent = {
+    name: EventName.HOMEPAGE_RECOMMENDED_ACTION_CLICKED;
+    properties: {
+        actionKey: HomepageRecommendedActionKey;
     };
 };
 
@@ -580,6 +588,7 @@ export type OnboardingAgentMessageSubmittedEvent = {
 export type EventData =
     | GenericEvent
     | HomepageQuickActionClickedEvent
+    | HomepageRecommendedActionClickedEvent
     | OnboardingAgentMessageSubmittedEvent
     | SetupStepClickedEvent
     | DocumentationClickedEvent

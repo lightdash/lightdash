@@ -1,0 +1,82 @@
+.headerRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.actionRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 10px;
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+.actionRowDone {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+}
+
+.emptyCircle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1.5px dashed var(--mantine-color-ldGray-4);
+    flex-shrink: 0;
+}
+
+.doneCircle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--mantine-color-green-6);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+}
+
+.iconTile {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: var(--mantine-color-ldGray-1);
+    color: var(--mantine-color-ldGray-7);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+}
+
+.iconTileDone {
+    opacity: 0.45;
+}
+
+.rowBody {
+    flex: 1;
+    min-width: 0;
+}
+
+.rowTitle {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.rowTitleDone {
+    font-weight: 500;
+    text-decoration: line-through;
+    color: var(--mantine-color-ldGray-5);
+}
+
+.rowSubtitle {
+    font-size: 13px;
+    color: var(--mantine-color-ldGray-6);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

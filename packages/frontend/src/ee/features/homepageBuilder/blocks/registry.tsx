@@ -3,6 +3,7 @@ import {
     IconBolt,
     IconBook,
     IconChartDots,
+    IconChecklist,
     IconClock,
     IconLayoutGrid,
     IconMarkdown,
@@ -28,6 +29,11 @@ import {
     QuickActionsBlockView,
 } from './QuickActionsBlock';
 import { RecentBlockBuild, RecentBlockView } from './RecentBlock';
+import { RECOMMENDED_ACTION_KEYS } from './recommendedActionDefaults';
+import {
+    RecommendedActionsBlockBuild,
+    RecommendedActionsBlockView,
+} from './RecommendedActionsBlock';
 import { ResourcesBlockBuild, ResourcesBlockView } from './ResourcesBlock';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
@@ -153,6 +159,24 @@ export const blockLibrary: BlockDefinition[] = [
         }),
         View: RecentBlockView,
         Build: RecentBlockBuild,
+    },
+    {
+        type: 'recommended-actions',
+        label: 'Recommended actions',
+        description:
+            'Setup checklist — what’s left to connect, with live status.',
+        icon: IconChecklist,
+        singleton: true,
+        create: () => ({
+            id: uuidv4(),
+            type: 'recommended-actions',
+            config: {
+                title: 'Finish setting up',
+                actions: [...RECOMMENDED_ACTION_KEYS],
+            },
+        }),
+        View: RecommendedActionsBlockView,
+        Build: RecommendedActionsBlockBuild,
     },
     {
         type: 'markdown',
