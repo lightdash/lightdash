@@ -21,12 +21,18 @@ export type ManifestSource = {
     manifest: DbtManifest;
 };
 
+/**
+ * Sections where a repeated key is surfaced as a collision. `macros` and `docs`
+ * are deliberately absent: dbt namespaces their unique_ids by package (`dbt`,
+ * `dbt_postgres`, `dbt_utils`, …), so any two projects on the same adapter
+ * share hundreds of byte-identical built-in ids (`macro.dbt.*`,
+ * `doc.dbt.__overview__`). Those are unioned silently — lowest precedence
+ * wins — because a duplicate definition there loses no user data.
+ */
 export type ManifestCollisionSection =
     | 'nodes'
     | 'metrics'
-    | 'docs'
     | 'sources'
-    | 'macros'
     | 'semantic_models';
 
 /**
@@ -50,13 +56,15 @@ export type CombineManifestSourcesResult = {
 /**
  * Fold one manifest section (a `Record` keyed by unique_id) across sources in
  * precedence order. The first source to define a key wins; later sources hitting
- * an existing key are recorded as collisions and skipped. Sources iterate
- * lowest-precedence-first, so the lowest precedence wins.
+ * an existing key are skipped and recorded as collisions — unless `section` is
+ * `null`, which unions silently (used for `macros`/`docs`, see
+ * {@link ManifestCollisionSection}). Sources iterate lowest-precedence-first,
+ * so the lowest precedence wins.
  */
 const mergeSection = <T>(
     orderedSources: ManifestSource[],
     pick: (manifest: DbtManifest) => Record<string, T> | undefined,
-    section: ManifestCollisionSection,
+    section: ManifestCollisionSection | null,
     collisions: ManifestCollision[],
 ): Record<string, T> => {
     const merged: Record<string, T> = {};
@@ -66,12 +74,14 @@ const mergeSection = <T>(
         if (!entries) return;
         Object.entries(entries).forEach(([key, value]) => {
             if (key in merged) {
-                collisions.push({
-                    section,
-                    key,
-                    winningSource: winningSourceByKey[key],
-                    supersededSource: source.name,
-                });
+                if (section !== null) {
+                    collisions.push({
+                        section,
+                        key,
+                        winningSource: winningSourceByKey[key],
+                        supersededSource: source.name,
+                    });
+                }
             } else {
                 merged[key] = value;
                 winningSourceByKey[key] = source.name;
@@ -93,8 +103,10 @@ const mergeSection = <T>(
  *
  * `metrics`, `docs`, `sources`, `macros` and `semantic_models` are unioned across
  * sources (lower precedence wins on collision) — unlike the legacy two-manifest
- * merge which took them from the primary only. `metadata` (a single object, not a
- * keyed record) comes from the primary source.
+ * merge which took them from the primary only. `macros` and `docs` collide
+ * silently (see {@link ManifestCollisionSection}); the other sections report
+ * collisions. `metadata` (a single object, not a keyed record) comes from the
+ * primary source.
  *
  * `addedModelIds` lists compiled model unique_ids contributed by non-primary
  * sources (not present in the primary). Server-side the node's own `compiled`
@@ -129,7 +141,7 @@ export const combineManifestSources = (
     const mergedDocs = mergeSection(
         orderedSources,
         (manifest) => manifest.docs,
-        'docs',
+        null,
         collisions,
     );
     const mergedSources = mergeSection<AnyType>(
@@ -141,7 +153,7 @@ export const combineManifestSources = (
     const mergedMacros = mergeSection<AnyType>(
         orderedSources,
         (manifest) => manifest.macros,
-        'macros',
+        null,
         collisions,
     );
     const mergedSemanticModels = mergeSection<AnyType>(

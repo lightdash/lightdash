@@ -347,6 +347,92 @@ describe('combineManifestSources (N-way fold)', () => {
         ]);
     });
 
+    test('duplicate macros and docs union silently (lowest precedence wins) instead of colliding', () => {
+        // dbt namespaces macro/doc unique_ids by package, so two projects on
+        // the same adapter always share built-in ids like macro.dbt.* and
+        // doc.dbt.__overview__ — these must not surface as collisions.
+        const primary = buildManifest(
+            { 'model.a': modelNode('model.a') },
+            {
+                docs: {
+                    'doc.dbt.__overview__': { id: 'primary' },
+                } as unknown as DbtManifest['docs'],
+                macros: { 'macro.dbt.run_query': { id: 'primary' } },
+            },
+        );
+        const secondary = buildManifest(
+            { 'model.b': modelNode('model.b') },
+            {
+                docs: {
+                    'doc.dbt.__overview__': { id: 'secondary' },
+                } as unknown as DbtManifest['docs'],
+                macros: {
+                    'macro.dbt.run_query': { id: 'secondary' },
+                    'macro.proj.custom': { id: 'secondary' },
+                },
+            },
+        );
+
+        const { manifest, collisions } = combineManifestSources([
+            source('primary', 0, primary),
+            source('secondary', 1, secondary),
+        ]);
+
+        expect(collisions).toEqual([]);
+        expect(
+            (manifest.docs['doc.dbt.__overview__'] as unknown as { id: string })
+                .id,
+        ).toBe('primary');
+        expect(manifest.macros?.['macro.dbt.run_query']).toEqual({
+            id: 'primary',
+        });
+        expect(manifest.macros?.['macro.proj.custom']).toEqual({
+            id: 'secondary',
+        });
+    });
+
+    test('duplicate metrics, sources and semantic_models still report collisions', () => {
+        const primary = buildManifest(
+            { 'model.a': modelNode('model.a') },
+            {
+                metrics: {
+                    'metric.dup': { id: 'primary' },
+                } as unknown as DbtManifest['metrics'],
+                sources: { 'source.dup': { id: 'primary' } },
+                semantic_models: {
+                    'sm.dup': { id: 'primary' },
+                } as unknown as DbtManifest['semantic_models'],
+            },
+        );
+        const secondary = buildManifest(
+            { 'model.b': modelNode('model.b') },
+            {
+                metrics: {
+                    'metric.dup': { id: 'secondary' },
+                } as unknown as DbtManifest['metrics'],
+                sources: { 'source.dup': { id: 'secondary' } },
+                semantic_models: {
+                    'sm.dup': { id: 'secondary' },
+                } as unknown as DbtManifest['semantic_models'],
+            },
+        );
+
+        const { collisions } = combineManifestSources([
+            source('primary', 0, primary),
+            source('secondary', 1, secondary),
+        ]);
+
+        expect(collisions.map((c) => [c.section, c.key]).sort()).toEqual([
+            ['metrics', 'metric.dup'],
+            ['semantic_models', 'sm.dup'],
+            ['sources', 'source.dup'],
+        ]);
+        collisions.forEach((c) => {
+            expect(c.winningSource).toBe('primary');
+            expect(c.supersededSource).toBe('secondary');
+        });
+    });
+
     test('non-compiled and non-model non-primary nodes merge but are not added', () => {
         const primary = buildManifest({ 'model.a': modelNode('model.a') });
         const secondary = buildManifest({
