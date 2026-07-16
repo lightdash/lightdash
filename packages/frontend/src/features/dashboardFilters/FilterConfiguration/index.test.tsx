@@ -310,6 +310,123 @@ describe('FilterConfiguration', () => {
         );
     });
 
+    it('allows applying when required is toggled on a filter with default value enabled but no value set', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const onSave = vi.fn();
+        const emptyDefaultValueRule: DashboardFilterRule = {
+            ...anyValueRule,
+            disabled: false,
+        };
+
+        renderWithProviders(
+            <FilterConfiguration
+                isEditMode
+                tiles={[]}
+                tabs={[]}
+                availableTileFilters={{}}
+                field={mockField}
+                defaultFilterRule={emptyDefaultValueRule}
+                originalFilterRule={emptyDefaultValueRule}
+                onSave={onSave}
+            />,
+        );
+
+        await user.click(screen.getByLabelText('Required'));
+
+        const applyButton = screen.getByRole('button', { name: 'Apply' });
+        expect(applyButton).toBeEnabled();
+        fireEvent.mouseDown(applyButton);
+
+        await waitFor(() => {
+            expect(onSave).toHaveBeenCalledTimes(1);
+        });
+        expect(onSave).toHaveBeenCalledWith(
+            expect.objectContaining({ required: true, disabled: true }),
+        );
+    });
+
+    it('also fixes the legacy checkbox when the flag is off: required with empty default value can apply', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const onSave = vi.fn();
+        mockDashboardContext.current.isFilterRequirementsEnabled = false;
+        const emptyDefaultValueRule: DashboardFilterRule = {
+            ...anyValueRule,
+            disabled: false,
+        };
+
+        renderWithProviders(
+            <FilterConfiguration
+                isEditMode
+                tiles={[]}
+                tabs={[]}
+                availableTileFilters={{}}
+                field={mockField}
+                defaultFilterRule={emptyDefaultValueRule}
+                originalFilterRule={emptyDefaultValueRule}
+                onSave={onSave}
+            />,
+        );
+
+        await user.click(
+            screen.getByLabelText(
+                'Require viewers to pick a value to load the dashboard',
+            ),
+        );
+
+        const applyButton = screen.getByRole('button', { name: 'Apply' });
+        expect(applyButton).toBeEnabled();
+        fireEvent.mouseDown(applyButton);
+
+        await waitFor(() => {
+            expect(onSave).toHaveBeenCalledTimes(1);
+        });
+        expect(onSave).toHaveBeenCalledWith(
+            expect.objectContaining({ required: true, disabled: true }),
+        );
+    });
+
+    it('keeps Apply available when a required filter temporary value is cleared', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const onSave = vi.fn();
+        const requiredWithTemporaryValue: DashboardFilterRule = {
+            ...anyValueRule,
+            disabled: false,
+            required: true,
+            values: ['adam'],
+        };
+
+        renderWithProviders(
+            <FilterConfiguration
+                isEditMode
+                tiles={[]}
+                tabs={[]}
+                availableTileFilters={{}}
+                field={mockField}
+                defaultFilterRule={requiredWithTemporaryValue}
+                originalFilterRule={requiredWithTemporaryValue}
+                onSave={onSave}
+            />,
+        );
+
+        const input = document.querySelector(
+            'input[type="search"]',
+        ) as HTMLInputElement;
+        expect(input).toBeTruthy();
+        fireEvent.focus(input);
+        await user.type(input, '{Backspace}');
+
+        const applyButton = screen.getByRole('button', { name: 'Apply' });
+        expect(applyButton).toBeEnabled();
+        fireEvent.mouseDown(applyButton);
+
+        await waitFor(() => {
+            expect(onSave).toHaveBeenCalledTimes(1);
+        });
+        expect(onSave).toHaveBeenCalledWith(
+            expect.objectContaining({ disabled: true, values: [] }),
+        );
+    });
+
     it('shows an enabled unchecked required toggle when the filter is not part of a rule', () => {
         renderWithProviders(
             <FilterConfiguration
