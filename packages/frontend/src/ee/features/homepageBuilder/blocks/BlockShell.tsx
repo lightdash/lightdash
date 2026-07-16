@@ -14,6 +14,9 @@ type BlockHeaderProps = {
     title: ReactNode;
     pill?: string;
     mb?: number;
+    /** Centre the header — used when the block's content is centred too, so
+     * header and content read as one unit. */
+    centered?: boolean;
 };
 
 export const BlockHeader: FC<PropsWithChildren<BlockHeaderProps>> = ({
@@ -22,9 +25,15 @@ export const BlockHeader: FC<PropsWithChildren<BlockHeaderProps>> = ({
     title,
     pill,
     mb = 12,
+    centered = false,
     children,
 }) => (
-    <Box className={classes.sectionHeader} mb={mb}>
+    <Box
+        className={`${classes.sectionHeader}${
+            centered ? ` ${classes.sectionHeaderCentered}` : ''
+        }`}
+        mb={mb}
+    >
         <MantineIcon icon={icon} size={14} color={iconColor ?? 'ldGray.6'} />
         {typeof title === 'string' ? (
             <span className={classes.sectionTitle}>{title}</span>
