@@ -37,6 +37,7 @@ import { flushSync } from 'react-dom';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import MantineIcon from '../../../components/common/MantineIcon';
+import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import { DEFAULT_TAB, FilterActions, FilterTabs } from './constants';
 import classes from './FilterConfiguration.module.css';
@@ -95,6 +96,9 @@ const FilterConfiguration: FC<Props> = ({
     onSave,
     onEditRequirementRules,
 }) => {
+    const isFilterRequirementsEnabled = useDashboardContext(
+        (c) => c.isFilterRequirementsEnabled,
+    );
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>(DEFAULT_TAB);
     const [selectedField, setSelectedField] = useState<
         DashboardFilterableField | undefined
@@ -169,13 +173,26 @@ const FilterConfiguration: FC<Props> = ({
                     !newFilterRule.required &&
                     !hasFilterValueSet(newFilterRule);
 
+                // In edit mode a required filter without a value is valueless
+                // by definition (dashboard save normalizes it to disabled),
+                // so it must not block Apply by demanding a default value
+                const isRequiredWithoutValue =
+                    isEditMode &&
+                    (!!newFilterRule.required ||
+                        (isFilterRequirementsEnabled &&
+                            !!newFilterRule.requiredGroupId)) &&
+                    !hasFilterValueSet(newFilterRule);
+
                 return {
                     ...newFilterRule,
-                    disabled: isNewFilterDisabled || shouldDisableInViewMode,
+                    disabled:
+                        isNewFilterDisabled ||
+                        shouldDisableInViewMode ||
+                        isRequiredWithoutValue,
                 };
             });
         },
-        [setDraftFilterRule, isEditMode],
+        [setDraftFilterRule, isEditMode, isFilterRequirementsEnabled],
     );
     const sqlChartTilesMetadata = useDashboardTileStatusContext(
         (c) => c.sqlChartTilesMetadata,
