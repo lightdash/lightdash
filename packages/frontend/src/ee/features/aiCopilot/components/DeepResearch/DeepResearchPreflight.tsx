@@ -33,8 +33,6 @@ type Props = {
 };
 
 export const DeepResearchPreflight = ({ depth, onDepthChange }: Props) => {
-    const config = DEEP_RESEARCH_DEPTH_CONFIG[depth];
-
     return (
         <Box
             className={styles.root}
@@ -42,47 +40,14 @@ export const DeepResearchPreflight = ({ depth, onDepthChange }: Props) => {
             aria-label="Deep research settings"
         >
             <Stack gap="md">
-                <Group justify="space-between" align="flex-start" wrap="wrap">
-                    <Stack gap={2}>
-                        <Text size="sm" fw={600}>
-                            Research depth
-                        </Text>
-                        <Text size="xs" c="dimmed">
-                            Runs in the background. You can safely leave this
-                            page.
-                        </Text>
-                    </Stack>
-                    <Group gap="lg">
-                        <Group
-                            gap={6}
-                            wrap="nowrap"
-                            className={styles.allowancePill}
-                        >
-                            <MantineIcon
-                                icon={IconClock}
-                                size={15}
-                                color="indigo.5"
-                            />
-                            <Text size="xs" fw={600}>
-                                {config.duration}
-                            </Text>
-                        </Group>
-                        <Group
-                            gap={6}
-                            wrap="nowrap"
-                            className={styles.allowancePill}
-                        >
-                            <MantineIcon
-                                icon={IconDatabase}
-                                size={15}
-                                color="indigo.5"
-                            />
-                            <Text size="xs" fw={600}>
-                                Up to {config.warehouseQueries} queries
-                            </Text>
-                        </Group>
-                    </Group>
-                </Group>
+                <Stack gap={2}>
+                    <Text size="sm" fw={600}>
+                        Research depth
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                        Runs in the background. You can safely leave this page.
+                    </Text>
+                </Stack>
 
                 <Radio.Group
                     value={depth}
@@ -116,6 +81,42 @@ export const DeepResearchPreflight = ({ depth, onDepthChange }: Props) => {
                                             >
                                                 {optionConfig.description}
                                             </Text>
+                                            <Group gap={4} mt={4} wrap="wrap">
+                                                <Group
+                                                    gap={4}
+                                                    wrap="nowrap"
+                                                    className={
+                                                        styles.depthAllowance
+                                                    }
+                                                >
+                                                    <MantineIcon
+                                                        icon={IconClock}
+                                                        size={11}
+                                                    />
+                                                    <Text size="9px" fw={600}>
+                                                        {optionConfig.duration}
+                                                    </Text>
+                                                </Group>
+                                                <Group
+                                                    gap={4}
+                                                    wrap="nowrap"
+                                                    className={
+                                                        styles.depthAllowance
+                                                    }
+                                                >
+                                                    <MantineIcon
+                                                        icon={IconDatabase}
+                                                        size={11}
+                                                    />
+                                                    <Text size="9px" fw={600}>
+                                                        Up to{' '}
+                                                        {
+                                                            optionConfig.warehouseQueries
+                                                        }{' '}
+                                                        queries
+                                                    </Text>
+                                                </Group>
+                                            </Group>
                                         </Stack>
                                     </Group>
                                 </Radio.Card>

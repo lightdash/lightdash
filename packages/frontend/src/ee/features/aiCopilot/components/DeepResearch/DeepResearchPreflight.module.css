@@ -45,8 +45,8 @@
     }
 }
 
-.allowancePill {
-    padding: rem(5px) rem(9px);
+.depthAllowance {
+    padding: rem(3px) rem(6px);
     border: 1px solid var(--mantine-color-indigo-2);
     border-radius: var(--mantine-radius-xl);
 
