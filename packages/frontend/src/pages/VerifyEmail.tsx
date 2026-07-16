@@ -1,3 +1,4 @@
+import { FeatureFlags } from '@lightdash/common';
 import {
     Anchor,
     Box,
@@ -13,7 +14,7 @@ import {
     IconMail,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useNavigate } from 'react-router';
+import { Navigate, useNavigate } from 'react-router';
 import { useIntercom } from 'react-use-intercom';
 import MantineModal from '../components/common/MantineModal';
 import Page from '../components/common/Page/Page';
@@ -22,6 +23,7 @@ import PageSpinner from '../components/PageSpinner';
 import { SuccessIconBounce } from '../components/RegisterForms/ProjectConnectFlow.styles';
 import VerifyEmailForm from '../components/RegisterForms/VerifyEmailForm';
 import { useEmailStatus } from '../hooks/useEmailVerification';
+import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 
 const VerificationSuccess: FC<{
@@ -68,9 +70,22 @@ const VerifyEmailPage: FC = () => {
     );
     const { show: showIntercom } = useIntercom();
     const navigate = useNavigate();
+    const emailOnlySignupFlag = useServerFeatureFlag(
+        FeatureFlags.EmailOnlySignup,
+    );
 
-    if (health.isInitialLoading || statusLoading) {
+    if (
+        health.isInitialLoading ||
+        statusLoading ||
+        emailOnlySignupFlag.isInitialLoading
+    ) {
         return <PageSpinner />;
+    }
+
+    const isEmailOnlySignup = emailOnlySignupFlag.data?.enabled ?? false;
+
+    if (isEmailOnlySignup && data?.isVerified) {
+        return <Navigate to="/" />;
     }
 
     return (
@@ -92,7 +107,7 @@ const VerifyEmailPage: FC = () => {
                         chat to support here.
                     </Anchor>
                 </Text>
-                {data && (
+                {!isEmailOnlySignup && data && (
                     <VerificationSuccess
                         isOpen={data.isVerified}
                         onClose={() => {
