@@ -1,3 +1,10 @@
+# [0.3396.0](https://github.com/lightdash/lightdash/compare/0.3395.2...0.3396.0) (2026-07-16)
+
+
+### Features
+
+* opt-in config to emit audit log actor as a JSON string ([#25647](https://github.com/lightdash/lightdash/issues/25647)) ([ec7c40d](https://github.com/lightdash/lightdash/commit/ec7c40d878b84303a1c042d35c9ca9c117fa29c1))
+
 ## [0.3395.2](https://github.com/lightdash/lightdash/compare/0.3395.1...0.3395.2) (2026-07-16)
 
 
