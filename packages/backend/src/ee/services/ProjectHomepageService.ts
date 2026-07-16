@@ -35,6 +35,11 @@ import {
 
 const LINK_METADATA_TIMEOUT_MS = 5_000;
 const LINK_METADATA_MAX_BYTES = 256 * 1024;
+// Some providers (e.g. claude.ai) only server-render per-page OpenGraph tags for
+// recognised link-unfurl crawlers, so identify as one while staying honest about
+// who we are.
+const LINK_PREVIEW_USER_AGENT =
+    'Lightdash-LinkPreview/1.0 (+https://www.lightdash.com; like Slackbot-LinkExpanding)';
 
 export type ProjectHomepageServiceArguments = {
     projectHomepageModel: Pick<
@@ -453,6 +458,7 @@ export class ProjectHomepageService extends BaseService {
                     timeoutMs: LINK_METADATA_TIMEOUT_MS,
                     maxResponseBytes: LINK_METADATA_MAX_BYTES,
                     allowedContentTypes: ['application/json'],
+                    headers: { 'User-Agent': LINK_PREVIEW_USER_AGENT },
                 });
                 let json: unknown = null;
                 try {
@@ -467,6 +473,7 @@ export class ProjectHomepageService extends BaseService {
                 timeoutMs: LINK_METADATA_TIMEOUT_MS,
                 maxResponseBytes: LINK_METADATA_MAX_BYTES,
                 allowedContentTypes: ['text/html'],
+                headers: { 'User-Agent': LINK_PREVIEW_USER_AGENT },
             });
             return { kind: provider.kind, ...parseOpenGraph(bodyText) };
         } catch {
