@@ -450,9 +450,9 @@ export const HomepageEditor: FC<Props> = ({
     const [isPreviewing, setIsPreviewing] = useState(false);
     const [debouncedDraft] = useDebouncedValue(draft, 800);
     const [hasConflict, setHasConflict] = useState(false);
-    const lastSavedRef = useRef<HomepageConfig>(
-        migrateHomepageConfig(homepage.draftConfig),
-    );
+    // Share the exact initial draft reference so the autosave effect's identity
+    // check sees no change on mount (avoids a spurious save on every load).
+    const lastSavedRef = useRef<HomepageConfig>(draft);
     // Compare-and-set token so a stale editor can never clobber newer state
     const baseUpdatedAtRef = useRef<Date>(homepage.updatedAt);
 
