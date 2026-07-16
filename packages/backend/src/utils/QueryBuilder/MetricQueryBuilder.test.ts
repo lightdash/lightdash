@@ -6365,3 +6365,197 @@ describe('relative date metric filters evaluate at query time', () => {
         expect(query).not.toContain('2026-05-05');
     });
 });
+
+describe('RAW time frame naive-column rebase', () => {
+    const buildRawExplore = (
+        adapter: SupportedDbtAdapter = SupportedDbtAdapter.POSTGRES,
+        skipTimezoneConversion?: boolean,
+    ): Explore => ({
+        targetDatabase: adapter,
+        name: 'events',
+        label: 'events',
+        baseTable: 'events',
+        tags: [],
+        joinedTables: [],
+        tables: {
+            events: {
+                name: 'events',
+                label: 'events',
+                database: 'db',
+                schema: 's',
+                sqlTable: '"events"',
+                primaryKey: ['id'],
+                dimensions: {
+                    occurred_at: {
+                        type: DimensionType.TIMESTAMP,
+                        name: 'occurred_at',
+                        label: 'occurred_at',
+                        table: 'events',
+                        tableLabel: 'events',
+                        fieldType: FieldType.DIMENSION,
+                        sql: '${TABLE}.occurred_at',
+                        compiledSql: '"events".occurred_at',
+                        tablesReferences: ['events'],
+                        hidden: false,
+                        ...(skipTimezoneConversion
+                            ? { skipTimezoneConversion }
+                            : {}),
+                    },
+                    occurred_at_raw: {
+                        type: DimensionType.TIMESTAMP,
+                        name: 'occurred_at_raw',
+                        label: 'occurred_at_raw',
+                        table: 'events',
+                        tableLabel: 'events',
+                        fieldType: FieldType.DIMENSION,
+                        sql: '${TABLE}.occurred_at',
+                        compiledSql: '"events".occurred_at',
+                        tablesReferences: ['events'],
+                        hidden: false,
+                        timeInterval: TimeFrames.RAW,
+                        timeIntervalBaseDimensionName: 'occurred_at',
+                        timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+                    },
+                },
+                metrics: {
+                    event_count: {
+                        type: MetricType.COUNT,
+                        fieldType: FieldType.METRIC,
+                        table: 'events',
+                        tableLabel: 'events',
+                        name: 'event_count',
+                        label: 'event_count',
+                        sql: '${TABLE}.id',
+                        compiledSql: 'COUNT("events".id)',
+                        tablesReferences: ['events'],
+                        hidden: false,
+                    },
+                },
+                lineageGraph: {},
+            },
+        },
+    });
+
+    const rawQuery: CompiledMetricQuery = {
+        exploreName: 'events',
+        dimensions: ['events_occurred_at_raw'],
+        metrics: ['events_event_count'],
+        filters: {},
+        sorts: [],
+        limit: 100,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
+
+    test('flag on + non-UTC column timezone rebases the RAW SELECT to an instant (Postgres)', () => {
+        const { query } = buildQuery({
+            explore: buildRawExplore(),
+            compiledMetricQuery: rawQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: 'Asia/Tokyo',
+        });
+        expect(query).toContain(
+            `("events".occurred_at)::timestamptz AS "events_occurred_at_raw"`,
+        );
+    });
+
+    test('flag on + non-UTC column timezone rebases the RAW SELECT to an instant (BigQuery)', () => {
+        const { query } = buildQuery({
+            explore: buildRawExplore(SupportedDbtAdapter.BIGQUERY),
+            compiledMetricQuery: rawQuery,
+            warehouseSqlBuilder: bigqueryClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: 'Asia/Tokyo',
+        });
+        expect(query).toContain(
+            'TIMESTAMP("events".occurred_at) AS `events_occurred_at_raw`',
+        );
+    });
+
+    test('UTC (default) column timezone leaves the RAW SELECT untouched', () => {
+        const { query } = buildQuery({
+            explore: buildRawExplore(),
+            compiledMetricQuery: rawQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(query).toContain(
+            `"events".occurred_at AS "events_occurred_at_raw"`,
+        );
+        expect(query).not.toContain('::timestamptz');
+    });
+
+    test('flag off leaves the RAW SELECT untouched even with a column timezone', () => {
+        const { query } = buildQuery({
+            explore: buildRawExplore(),
+            compiledMetricQuery: rawQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            useTimezoneAwareDateTrunc: false,
+            columnTimezone: 'Asia/Tokyo',
+        });
+        expect(query).toContain(
+            `"events".occurred_at AS "events_occurred_at_raw"`,
+        );
+        expect(query).not.toContain('::timestamptz');
+    });
+
+    test('convert_timezone: false opt-out leaves the RAW SELECT untouched', () => {
+        const { query } = buildQuery({
+            explore: buildRawExplore(SupportedDbtAdapter.POSTGRES, true),
+            compiledMetricQuery: rawQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: 'Asia/Tokyo',
+        });
+        expect(query).toContain(
+            `"events".occurred_at AS "events_occurred_at_raw"`,
+        );
+        expect(query).not.toContain('::timestamptz');
+    });
+
+    test('RAW filter keeps the bare column (sargable) while the SELECT is rebased', () => {
+        const { query } = buildQuery({
+            explore: buildRawExplore(),
+            compiledMetricQuery: {
+                ...rawQuery,
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'f1',
+                                target: { fieldId: 'events_occurred_at_raw' },
+                                operator: FilterOperator.GREATER_THAN,
+                                values: ['2024-01-15 02:00:00'],
+                            },
+                        ],
+                    },
+                },
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: 'Asia/Tokyo',
+        });
+        expect(query).toContain(
+            `("events".occurred_at)::timestamptz AS "events_occurred_at_raw"`,
+        );
+        // The WHERE clause must keep the bare column for partition pruning.
+        const whereClause = query.slice(query.indexOf('WHERE'));
+        expect(whereClause).not.toContain('::timestamptz');
+    });
+});

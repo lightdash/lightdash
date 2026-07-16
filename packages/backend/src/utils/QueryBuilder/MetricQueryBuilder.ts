@@ -7,6 +7,7 @@ import {
     CompiledTableCalculation,
     CompileError,
     createFilterRuleFromModelRequiredFilterRule,
+    dateTruncTimezoneConversions,
     DEFAULT_FILTER_CASE_SENSITIVE,
     DimensionType,
     Explore,
@@ -657,9 +658,10 @@ export class MetricQueryBuilder {
             return dimension.compiledSql;
         }
 
+        const isRaw = dimension.timeInterval === TimeFrames.RAW;
         const isTruncatable = truncatableTimeFrames.has(dimension.timeInterval);
         const isExtractable = extractableTimeFrames.has(dimension.timeInterval);
-        if (!isTruncatable && !isExtractable) {
+        if (!isRaw && !isTruncatable && !isExtractable) {
             return dimension.compiledSql;
         }
 
@@ -682,6 +684,19 @@ export class MetricQueryBuilder {
 
         if (respectConvertTimezone && baseDimension.skipTimezoneConversion) {
             return dimension.compiledSql;
+        }
+
+        // RAW passes the base column through untouched, so a naive column is
+        // misparsed as UTC downstream — rebase it to a true instant via the
+        // session timezone (identity in value for aware columns). SELECT only:
+        // filters keep the bare column so raw predicates stay sargable.
+        if (isRaw) {
+            if (!respectConvertTimezone || this.columnTimezone === 'UTC') {
+                return dimension.compiledSql;
+            }
+            return dateTruncTimezoneConversions[adapterType].castToInstant(
+                baseDimension.compiledSql,
+            );
         }
 
         if (isTruncatable) {

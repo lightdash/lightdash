@@ -336,6 +336,78 @@ describe('Data timezone — naive timestamps (Postgres)', () => {
     });
 });
 
+/**
+ * Raw time frame on naive columns. The raw frame passes the column through
+ * untouched, so its value must land on the same instant the truncated frames
+ * bucket into — event #1 stores wall-clock `2024-01-15 02:00:00`, which is
+ * instant 2024-01-14T17:00Z when the data timezone is Asia/Tokyo.
+ */
+const NTZ_RAW_KEY = 'timezone_test_event_timestamp_ntz_raw';
+const NTZ_HOUR_KEY = 'timezone_test_event_timestamp_ntz_hour';
+const AWARE_RAW_KEY = 'timezone_test_event_timestamp_raw';
+
+const toInstant = (
+    row: Record<string, { value: { raw: string; formatted: string } }>,
+    key: string,
+) => new Date(row[key].value.raw).toISOString();
+
+function runNaiveRawQuery(
+    client: ApiClient,
+    options: {
+        timezone: string;
+        projectUuid?: string;
+        maxAttempts?: number;
+    },
+) {
+    return runTimezoneTestQuery(client, {
+        dimensions: [NTZ_RAW_KEY, NTZ_HOUR_KEY, AWARE_RAW_KEY],
+        metrics: [],
+        eventIds: [1],
+        ...options,
+    });
+}
+
+describe('Data timezone — raw time frame on naive timestamps (Postgres)', () => {
+    beforeAll(async () => {
+        admin = await login();
+    });
+
+    afterAll(async () => {
+        await updateDataTimezone(admin, undefined);
+    });
+
+    it('dataTz=Asia/Tokyo, queryTz=Asia/Tokyo: raw equals the hour bucket and shows the stored wall clock', async () => {
+        await updateDataTimezone(admin, 'Asia/Tokyo');
+        const [row] = await runNaiveRawQuery(admin, {
+            timezone: 'Asia/Tokyo',
+        });
+        expect(toInstant(row, NTZ_RAW_KEY)).toBe('2024-01-14T17:00:00.000Z');
+        expect(toInstant(row, NTZ_RAW_KEY)).toBe(toInstant(row, NTZ_HOUR_KEY));
+        expect(row[NTZ_RAW_KEY].value.formatted).toContain('2024-01-15');
+        expect(row[NTZ_RAW_KEY].value.formatted).toContain('(+09:00)');
+        // Aware control: pinned instant, unaffected by the data timezone.
+        expect(toInstant(row, AWARE_RAW_KEY)).toBe('2024-01-15T02:00:00.000Z');
+    });
+
+    it('dataTz=Asia/Tokyo, queryTz=UTC: raw equals the hour bucket', async () => {
+        await updateDataTimezone(admin, 'Asia/Tokyo');
+        const [row] = await runNaiveRawQuery(admin, { timezone: 'UTC' });
+        expect(toInstant(row, NTZ_RAW_KEY)).toBe('2024-01-14T17:00:00.000Z');
+        expect(toInstant(row, NTZ_RAW_KEY)).toBe(toInstant(row, NTZ_HOUR_KEY));
+        expect(row[NTZ_RAW_KEY].value.formatted).toContain('2024-01-14');
+    });
+
+    it('without dataTimezone: raw naive values are read as UTC (unchanged baseline)', async () => {
+        await updateDataTimezone(admin, undefined);
+        const [row] = await runNaiveRawQuery(admin, {
+            timezone: 'Asia/Tokyo',
+        });
+        expect(toInstant(row, NTZ_RAW_KEY)).toBe('2024-01-15T02:00:00.000Z');
+        expect(toInstant(row, NTZ_RAW_KEY)).toBe(toInstant(row, NTZ_HOUR_KEY));
+        expect(toInstant(row, AWARE_RAW_KEY)).toBe('2024-01-15T02:00:00.000Z');
+    });
+});
+
 describe.skipIf(!hasBigqueryCredentials())(
     'Data timezone — naive timestamps (BigQuery)',
     () => {
@@ -449,6 +521,49 @@ describe.skipIf(!hasBigqueryCredentials())(
                 '2024-01-15': 4,
                 '2024-01-16': 2,
             });
+        });
+
+        it('raw frame, dataTz=Asia/Tokyo, queryTz=Asia/Tokyo: raw equals the hour bucket and shows the stored wall clock', async () => {
+            await updateDataTimezone(
+                bqAdmin,
+                'Asia/Tokyo',
+                bigqueryProjectUuid,
+            );
+            const [row] = await runNaiveRawQuery(bqAdmin, {
+                timezone: 'Asia/Tokyo',
+                projectUuid: bigqueryProjectUuid,
+                maxAttempts: BIGQUERY_MAX_ATTEMPTS,
+            });
+            expect(toInstant(row, NTZ_RAW_KEY)).toBe(
+                '2024-01-14T17:00:00.000Z',
+            );
+            expect(toInstant(row, NTZ_RAW_KEY)).toBe(
+                toInstant(row, NTZ_HOUR_KEY),
+            );
+            expect(row[NTZ_RAW_KEY].value.formatted).toContain('2024-01-15');
+            expect(row[NTZ_RAW_KEY].value.formatted).toContain('(+09:00)');
+            expect(toInstant(row, AWARE_RAW_KEY)).toBe(
+                '2024-01-15T02:00:00.000Z',
+            );
+        });
+
+        it('raw frame, dataTz=Asia/Tokyo, queryTz=UTC: raw equals the hour bucket', async () => {
+            await updateDataTimezone(
+                bqAdmin,
+                'Asia/Tokyo',
+                bigqueryProjectUuid,
+            );
+            const [row] = await runNaiveRawQuery(bqAdmin, {
+                timezone: 'UTC',
+                projectUuid: bigqueryProjectUuid,
+                maxAttempts: BIGQUERY_MAX_ATTEMPTS,
+            });
+            expect(toInstant(row, NTZ_RAW_KEY)).toBe(
+                '2024-01-14T17:00:00.000Z',
+            );
+            expect(toInstant(row, NTZ_RAW_KEY)).toBe(
+                toInstant(row, NTZ_HOUR_KEY),
+            );
         });
     },
 );

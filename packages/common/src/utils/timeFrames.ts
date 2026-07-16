@@ -88,12 +88,24 @@ type WarehouseConfig = {
  *  wrapped path truncates a naive project-local wall-clock, so `CAST(x AS DATE)`
  *  reads the right date. `sourceTimezone` is the timezone the
  *  column is in — only Snowflake uses it explicitly (in `CONVERT_TIMEZONE`);
- *  other adapters ignore it. */
+ *  other adapters ignore it.
+ *
+ *  `castToInstant` rebases a naive timestamp into a true instant via the
+ *  warehouse session timezone; identity in value for aware columns. It is the
+ *  inner term of `toProjectTz`, composed below so the two cannot drift. */
 type DateTruncTimezoneConversion = {
     toProjectTz: (sql: string, tz: string, sourceTimezone?: string) => string;
     toUTC: (sql: string, tz: string) => string;
     castAsDate: (sql: string, tz: string) => string;
+    castToInstant: (sql: string) => string;
 };
+
+const bigqueryCastToInstant = (sql: string) => `TIMESTAMP(${sql})`;
+const postgresLikeCastToInstant = (sql: string) => `(${sql})::timestamptz`;
+// ClickHouse DateTime values are instants; session_timezone only changes how
+// they serialize. Pinning to UTC keeps the wire value a parseable instant.
+const clickhouseCastToInstant = (sql: string) => `toTimeZone(${sql}, 'UTC')`;
+const identityCastToInstant = (sql: string) => sql;
 
 export const dateTruncTimezoneConversions: Record<
     SupportedDbtAdapter,
@@ -105,42 +117,55 @@ export const dateTruncTimezoneConversions: Record<
     // declared-TIMESTAMP dim can emit DATETIME at runtime; DATETIME(timestamp,
     // tz) requires a TIMESTAMP left side.
     [SupportedDbtAdapter.BIGQUERY]: {
-        toProjectTz: (sql, tz) => `DATETIME(TIMESTAMP(${sql}), '${tz}')`,
+        toProjectTz: (sql, tz) =>
+            `DATETIME(${bigqueryCastToInstant(sql)}, '${tz}')`,
         toUTC: (sql, tz) => `TIMESTAMP(${sql}, '${tz}')`,
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
+        castToInstant: bigqueryCastToInstant,
     },
     [SupportedDbtAdapter.SNOWFLAKE]: {
         toProjectTz: (sql, tz, sourceTimezone = 'UTC') =>
             `CONVERT_TIMEZONE('${sourceTimezone}', '${tz}', ${sql})`,
         toUTC: (sql, tz) => `CONVERT_TIMEZONE('${tz}', 'UTC', ${sql})`,
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
+        castToInstant: identityCastToInstant,
     },
     [SupportedDbtAdapter.POSTGRES]: {
-        toProjectTz: (sql, tz) => `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
+        toProjectTz: (sql, tz) =>
+            `${postgresLikeCastToInstant(sql)} AT TIME ZONE '${tz}'`,
         toUTC: (sql, tz) => `(${sql}) AT TIME ZONE '${tz}'`,
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
+        castToInstant: postgresLikeCastToInstant,
     },
     [SupportedDbtAdapter.REDSHIFT]: {
-        toProjectTz: (sql, tz) => `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
+        toProjectTz: (sql, tz) =>
+            `${postgresLikeCastToInstant(sql)} AT TIME ZONE '${tz}'`,
         toUTC: (sql, tz) => `(${sql}) AT TIME ZONE '${tz}'`,
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
+        castToInstant: postgresLikeCastToInstant,
     },
     [SupportedDbtAdapter.DUCKDB]: {
-        toProjectTz: (sql, tz) => `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
+        toProjectTz: (sql, tz) =>
+            `${postgresLikeCastToInstant(sql)} AT TIME ZONE '${tz}'`,
         toUTC: (sql, tz) => `(${sql}) AT TIME ZONE '${tz}'`,
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
+        castToInstant: postgresLikeCastToInstant,
     },
+    // Databricks TIMESTAMP is an instant (LTZ-like), so a session-tz rebase
+    // would double-shift it — castToInstant stays identity.
     [SupportedDbtAdapter.DATABRICKS]: {
         toProjectTz: (sql, tz) =>
             `from_utc_timestamp(to_utc_timestamp(${sql}, current_timezone()), '${tz}')`,
         toUTC: (sql, tz) => `to_utc_timestamp(${sql}, '${tz}')`,
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
+        castToInstant: identityCastToInstant,
     },
     [SupportedDbtAdapter.SPARK]: {
         toProjectTz: (sql, tz) =>
             `from_utc_timestamp(to_utc_timestamp(${sql}, current_timezone()), '${tz}')`,
         toUTC: (sql, tz) => `to_utc_timestamp(${sql}, '${tz}')`,
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
+        castToInstant: identityCastToInstant,
     },
     // Trino returns `timestamp with time zone` values as strings like
     // "2024-01-14 00:00:00.000 America/New_York", which dayjs/moment can't
@@ -153,6 +178,7 @@ export const dateTruncTimezoneConversions: Record<
         toUTC: (sql, tz) =>
             `CAST(with_timezone(${sql}, '${tz}') AT TIME ZONE 'UTC' AS timestamp)`,
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
+        castToInstant: identityCastToInstant,
     },
     [SupportedDbtAdapter.ATHENA]: {
         toProjectTz: (sql, tz) =>
@@ -160,6 +186,7 @@ export const dateTruncTimezoneConversions: Record<
         toUTC: (sql, tz) =>
             `CAST(with_timezone(${sql}, '${tz}') AT TIME ZONE 'UTC' AS timestamp)`,
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
+        castToInstant: identityCastToInstant,
     },
     // Merge the DST fall-back: ClickHouse DateTime always carries a zone and
     // toTimeZone only relabels (instant domain), so the two folded instants
@@ -174,6 +201,7 @@ export const dateTruncTimezoneConversions: Record<
         toUTC: (sql, tz) =>
             `toTimeZone(toDateTime64(formatDateTime(${sql}, '%Y-%m-%d %H:%i:%S.%f'), 3, '${tz}'), 'UTC')`,
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
+        castToInstant: clickhouseCastToInstant,
     },
 };
 
@@ -711,25 +739,47 @@ const warehouseConfigs: Record<SupportedDbtAdapter, WarehouseConfig> = {
  * performed in the project TZ and the result is converted back to a proper
  * UTC instant so downstream consumers apply .tz(project_tz) uniformly.
  */
-// Source defaults to UTC when unset (matches `getColumnTimezone`). A wrap when
-// target equals source is semantically a no-op and defeats partition pruning
-// on warehouses like BigQuery — every wrap site (dim trunc, extract, format,
-// filter literal) shares this predicate so symmetry is enforced centrally.
+// Adapters that keep the wider target == source skip: Databricks/Spark
+// timestamps are instants (their wrap double-shifts them at equal zones) and
+// Trino/Athena sessions do not rebase naive columns, so the wrap buys nothing
+// there. Naive-column handling for these is tracked separately.
+const equalZonesSkipAdapters: ReadonlySet<SupportedDbtAdapter> = new Set([
+    SupportedDbtAdapter.DATABRICKS,
+    SupportedDbtAdapter.SPARK,
+    SupportedDbtAdapter.TRINO,
+    SupportedDbtAdapter.ATHENA,
+]);
+
+// Source defaults to UTC when unset (matches `getColumnTimezone`). On
+// session-property warehouses the wrap is a genuine no-op only when both
+// sides are UTC: for a naive column, target == source still requires the
+// wrap's inner `castToInstant` rebase — skipping it misreads the wall clock
+// as UTC downstream. The all-UTC skip avoids the cast that defeats partition
+// pruning on warehouses like BigQuery. Every wrap site (dim trunc, extract,
+// format, filter literal) shares this predicate so symmetry is enforced
+// centrally.
 export const isTimezoneRoundTripNoOp = (
+    adapterType: SupportedDbtAdapter,
     timezone: string,
     sourceTimezone?: string,
-): boolean => timezone === (sourceTimezone ?? 'UTC');
+): boolean => {
+    const source = sourceTimezone ?? 'UTC';
+    if (equalZonesSkipAdapters.has(adapterType)) return timezone === source;
+    return timezone === 'UTC' && source === 'UTC';
+};
 
 // Returns the resolved (timezone, sourceTimezone) when the dim needs a tz
 // wrap, else null. Wrap conditions: TIMESTAMP-typed dim AND a target timezone
 // AND target != source.
 const resolveTimezoneWrap = (
+    adapterType: SupportedDbtAdapter,
     type: DimensionType,
     timezone?: string,
     sourceTimezone?: string,
 ): { timezone: string; sourceTimezone?: string } | null => {
     if (type !== DimensionType.TIMESTAMP || !timezone) return null;
-    if (isTimezoneRoundTripNoOp(timezone, sourceTimezone)) return null;
+    if (isTimezoneRoundTripNoOp(adapterType, timezone, sourceTimezone))
+        return null;
     return { timezone, sourceTimezone };
 };
 
@@ -743,7 +793,12 @@ export const getSqlForTruncatedDate = (
     sourceTimezone?: string,
     castDayOrCoarserToDate: boolean = false,
 ): string => {
-    const wrap = resolveTimezoneWrap(type, timezone, sourceTimezone);
+    const wrap = resolveTimezoneWrap(
+        adapterType,
+        type,
+        timezone,
+        sourceTimezone,
+    );
     // GLITCH-452: day-or-coarser grains emit a real DATE so the warehouse type
     // matches the metadata; sub-day grains stay TIMESTAMP.
     const castToDate = castDayOrCoarserToDate && !isSubDayTimeFrame(timeFrame);
@@ -788,7 +843,12 @@ export const getSqlForDatePart = (
     timezone?: string,
     sourceTimezone?: string,
 ): string => {
-    const wrap = resolveTimezoneWrap(type, timezone, sourceTimezone);
+    const wrap = resolveTimezoneWrap(
+        adapterType,
+        type,
+        timezone,
+        sourceTimezone,
+    );
     const wrappedSql = wrap
         ? dateExtractsTimezoneConversions[adapterType].toExtractInputTz(
               originalSql,
@@ -816,7 +876,12 @@ export const getSqlForDatePartName = (
     timezone?: string,
     sourceTimezone?: string,
 ): string => {
-    const wrap = resolveTimezoneWrap(type, timezone, sourceTimezone);
+    const wrap = resolveTimezoneWrap(
+        adapterType,
+        type,
+        timezone,
+        sourceTimezone,
+    );
     if (!wrap) {
         return warehouseConfigs[adapterType].getSqlForDatePartName(
             timeFrame,

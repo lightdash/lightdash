@@ -3672,6 +3672,19 @@ export class AsyncQueryService extends ProjectService {
                         );
                     }
 
+                    // Mirrors runAsyncWarehouseQuery's resolvedDataTimezone:
+                    // the session (data) timezone changes results without
+                    // changing the SQL text, so it is part of the cache key.
+                    const isTimezoneSupportEnabled =
+                        await this.isTimezoneSupportEnabled({
+                            userUuid: account.user.id,
+                            organizationUuid:
+                                account.organization.organizationUuid,
+                        });
+                    const resolvedDataTimezone = isTimezoneSupportEnabled
+                        ? warehouseCredentials.dataTimezone
+                        : undefined;
+
                     // Generate cache key from project and query identifiers
                     // Include user UUID to prevent cache sharing between users when user-specific credentials are in use
                     // Use the resolved timezone (not metricQuery.timezone) because the
@@ -3687,6 +3700,7 @@ export class AsyncQueryService extends ProjectService {
                                 warehouseCredentials.userWarehouseCredentialsUuid
                                     ? account.user.id
                                     : null,
+                            dataTimezone: resolvedDataTimezone,
                         },
                     );
 

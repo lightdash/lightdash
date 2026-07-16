@@ -322,7 +322,7 @@ const renderDateOrTimestampFilterSql = ({
     // TIMESTAMP boundary on BigQuery).
     const wrapTimezoneLiteral =
         !!useTimezoneAwareDateTrunc &&
-        !isTimezoneRoundTripNoOp(timezone, sourceTimezone);
+        !isTimezoneRoundTripNoOp(adapterType, timezone, sourceTimezone);
 
     const castValue = (value: string): string => {
         if (wrapTimezoneLiteral) {

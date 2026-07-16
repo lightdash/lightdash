@@ -147,7 +147,38 @@ describe('TimeFrames', () => {
             ).toEqual("DATE_TRUNC('DAY', ${TABLE}.created)");
         });
 
-        test('Matching non-UTC target and source short-circuits the wrap', () => {
+        // Databricks/Spark timestamps are instants (the wrap would double-shift
+        // them) and Trino/Athena sessions do not rebase naive columns — the
+        // equal-zones skip stays for those adapters.
+        test('Matching non-UTC target and source still short-circuits on instant-typed / session-inert adapters', () => {
+            const tz = 'America/New_York';
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.DATABRICKS,
+                    TimeFrames.DAY,
+                    '${TABLE}.created',
+                    DimensionType.TIMESTAMP,
+                    undefined,
+                    tz,
+                    tz,
+                ),
+            ).toEqual("DATE_TRUNC('DAY', ${TABLE}.created)");
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.TRINO,
+                    TimeFrames.DAY,
+                    '${TABLE}.created',
+                    DimensionType.TIMESTAMP,
+                    undefined,
+                    tz,
+                    tz,
+                ),
+            ).toEqual("DATE_TRUNC('DAY', ${TABLE}.created)");
+        });
+
+        // Only all-UTC short-circuits: a naive column needs the wrap's inner
+        // castToInstant rebase even when target and source match.
+        test('Matching non-UTC target and source keeps the wrap (naive columns need the rebase)', () => {
             const tz = 'America/New_York';
             expect(
                 getSqlForTruncatedDate(
@@ -159,7 +190,9 @@ describe('TimeFrames', () => {
                     tz,
                     tz,
                 ),
-            ).toEqual('TIMESTAMP_TRUNC(${TABLE}.created, DAY)');
+            ).toEqual(
+                "TIMESTAMP(DATETIME_TRUNC(DATETIME(TIMESTAMP(${TABLE}.created), 'America/New_York'), DAY), 'America/New_York')",
+            );
             expect(
                 getSqlForTruncatedDate(
                     SupportedDbtAdapter.SNOWFLAKE,
@@ -170,7 +203,9 @@ describe('TimeFrames', () => {
                     tz,
                     tz,
                 ),
-            ).toEqual("DATE_TRUNC('DAY', ${TABLE}.created)");
+            ).toEqual(
+                "CONVERT_TIMEZONE('America/New_York', 'UTC', DATE_TRUNC('DAY', CONVERT_TIMEZONE('America/New_York', 'America/New_York', ${TABLE}.created)))",
+            );
             expect(
                 getSqlForTruncatedDate(
                     SupportedDbtAdapter.POSTGRES,
@@ -181,7 +216,9 @@ describe('TimeFrames', () => {
                     tz,
                     tz,
                 ),
-            ).toEqual("DATE_TRUNC('DAY', ${TABLE}.created)");
+            ).toEqual(
+                "(DATE_TRUNC('DAY', (${TABLE}.created)::timestamptz AT TIME ZONE 'America/New_York')) AT TIME ZONE 'America/New_York'",
+            );
         });
 
         test('BigQuery 2-arg TIMESTAMP_TRUNC keeps original expr unchanged (DATETIME overload still applies)', () => {
@@ -1085,7 +1122,7 @@ describe('TimeFrames', () => {
             ).toEqual(`EXTRACT(MONTH FROM ${col})`);
         });
 
-        test('target timezone matching source timezone short-circuits the wrap', () => {
+        test('all-UTC short-circuits the wrap; matching non-UTC keeps it', () => {
             // UTC default source — most common BQ case, partition-pruning sensitive.
             expect(
                 getSqlForDatePart(
@@ -1107,7 +1144,8 @@ describe('TimeFrames', () => {
                     'UTC',
                 ),
             ).toEqual(`DATE_PART('DOW', ${col})`);
-            // Explicit matching non-UTC pair.
+            // Matching non-UTC pair: a naive column still needs the
+            // session-tz rebase inside the wrap.
             expect(
                 getSqlForDatePart(
                     SupportedDbtAdapter.BIGQUERY,
@@ -1118,7 +1156,9 @@ describe('TimeFrames', () => {
                     'America/New_York',
                     'America/New_York',
                 ),
-            ).toEqual(`EXTRACT(MONTH FROM ${col})`);
+            ).toEqual(
+                `EXTRACT(MONTH FROM TIMESTAMP(${col}) AT TIME ZONE 'America/New_York')`,
+            );
             expect(
                 getSqlForDatePart(
                     SupportedDbtAdapter.POSTGRES,
@@ -1129,7 +1169,9 @@ describe('TimeFrames', () => {
                     'America/New_York',
                     'America/New_York',
                 ),
-            ).toEqual(`DATE_PART('DOW', ${col})`);
+            ).toEqual(
+                `DATE_PART('DOW', (${col})::timestamptz AT TIME ZONE 'America/New_York')`,
+            );
         });
 
         test('DATE base dimension with timezone short-circuits (no wrap)', () => {
@@ -1310,7 +1352,7 @@ describe('TimeFrames', () => {
             ).toEqual(`FORMAT_DATETIME('%B', ${col})`);
         });
 
-        test('target timezone matching source timezone short-circuits the wrap', () => {
+        test('all-UTC short-circuits the wrap; matching non-UTC keeps it', () => {
             expect(
                 getSqlForDatePartName(
                     SupportedDbtAdapter.BIGQUERY,
@@ -1321,6 +1363,8 @@ describe('TimeFrames', () => {
                     'UTC',
                 ),
             ).toEqual(`FORMAT_DATETIME('%B', ${col})`);
+            // Matching non-UTC pair: a naive column still needs the
+            // session-tz rebase inside the wrap.
             expect(
                 getSqlForDatePartName(
                     SupportedDbtAdapter.POSTGRES,
@@ -1331,7 +1375,9 @@ describe('TimeFrames', () => {
                     'America/New_York',
                     'America/New_York',
                 ),
-            ).toEqual(`TO_CHAR(${col}, 'FMMonth')`);
+            ).toEqual(
+                `TO_CHAR((${col})::timestamptz AT TIME ZONE 'America/New_York', 'FMMonth')`,
+            );
             expect(
                 getSqlForDatePartName(
                     SupportedDbtAdapter.BIGQUERY,
@@ -1342,7 +1388,9 @@ describe('TimeFrames', () => {
                     'America/New_York',
                     'America/New_York',
                 ),
-            ).toEqual(`FORMAT_DATETIME('%B', ${col})`);
+            ).toEqual(
+                `FORMAT_TIMESTAMP('%B', TIMESTAMP(${col}), 'America/New_York')`,
+            );
         });
 
         test.each([
@@ -1437,6 +1485,86 @@ describe('TimeFrames', () => {
                 TimeFrames.QUARTER,
                 TimeFrames.YEAR,
             ]);
+        });
+    });
+
+    describe('castToInstant', () => {
+        const sql = '${TABLE}.created';
+
+        test('rebases a naive timestamp via the session timezone on session-property warehouses', () => {
+            expect(
+                dateTruncTimezoneConversions[
+                    SupportedDbtAdapter.BIGQUERY
+                ].castToInstant(sql),
+            ).toEqual('TIMESTAMP(${TABLE}.created)');
+            expect(
+                dateTruncTimezoneConversions[
+                    SupportedDbtAdapter.POSTGRES
+                ].castToInstant(sql),
+            ).toEqual('(${TABLE}.created)::timestamptz');
+            expect(
+                dateTruncTimezoneConversions[
+                    SupportedDbtAdapter.REDSHIFT
+                ].castToInstant(sql),
+            ).toEqual('(${TABLE}.created)::timestamptz');
+            expect(
+                dateTruncTimezoneConversions[
+                    SupportedDbtAdapter.DUCKDB
+                ].castToInstant(sql),
+            ).toEqual('(${TABLE}.created)::timestamptz');
+        });
+
+        test('pins ClickHouse serialization to UTC (values are instants)', () => {
+            expect(
+                dateTruncTimezoneConversions[
+                    SupportedDbtAdapter.CLICKHOUSE
+                ].castToInstant(sql),
+            ).toEqual("toTimeZone(${TABLE}.created, 'UTC')");
+        });
+
+        test('is identity where naive columns are handled elsewhere or the type is already an instant', () => {
+            // Snowflake: dbt translator already wraps naive columns to UTC.
+            // Databricks/Spark: TIMESTAMP is an instant — a rebase would double-shift.
+            // Trino/Athena: naive raw handling tracked separately.
+            [
+                SupportedDbtAdapter.SNOWFLAKE,
+                SupportedDbtAdapter.DATABRICKS,
+                SupportedDbtAdapter.SPARK,
+                SupportedDbtAdapter.TRINO,
+                SupportedDbtAdapter.ATHENA,
+            ].forEach((adapter) => {
+                expect(
+                    dateTruncTimezoneConversions[adapter].castToInstant(sql),
+                ).toEqual(sql);
+            });
+        });
+
+        test('is the inner term of toProjectTz (composition cannot drift)', () => {
+            const tz = 'America/New_York';
+            (
+                [
+                    [
+                        SupportedDbtAdapter.BIGQUERY,
+                        (inner: string) => `DATETIME(${inner}, '${tz}')`,
+                    ],
+                    [
+                        SupportedDbtAdapter.POSTGRES,
+                        (inner: string) => `${inner} AT TIME ZONE '${tz}'`,
+                    ],
+                    [
+                        SupportedDbtAdapter.REDSHIFT,
+                        (inner: string) => `${inner} AT TIME ZONE '${tz}'`,
+                    ],
+                    [
+                        SupportedDbtAdapter.DUCKDB,
+                        (inner: string) => `${inner} AT TIME ZONE '${tz}'`,
+                    ],
+                ] as const
+            ).forEach(([adapter, outer]) => {
+                const { toProjectTz, castToInstant } =
+                    dateTruncTimezoneConversions[adapter];
+                expect(toProjectTz(sql, tz)).toEqual(outer(castToInstant(sql)));
+            });
         });
     });
 });
