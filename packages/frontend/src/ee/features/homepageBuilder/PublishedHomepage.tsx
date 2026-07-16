@@ -1,22 +1,22 @@
-import {
-    type HomepageBlock,
-    type HomepageConfig,
-    type HomepageRow,
-} from '@lightdash/common';
-import { Box, Group, Paper, Stack, Text } from '@mantine-8/core';
+import { type HomepageBlock, type HomepageConfig } from '@lightdash/common';
+import { Box, Paper, Text } from '@mantine-8/core';
 import { type FC, type ReactNode } from 'react';
+import { type BlockWidthTier } from './blockLayout';
 import { getBlockDefinition } from './blocks/registry';
 import layout from './homepageLayout.module.css';
-import classes from './PublishedHomepage.module.css';
+import {
+    resolveHomepageLayout,
+    type ResolvedRow,
+} from './resolveHomepageLayout';
 
 const PERSONAL_BLOCK_TYPES: HomepageBlock['type'][] = ['favorites', 'recent'];
 
-// Composer-style blocks read better narrow and centered, like day-0's own
-// hero, instead of stretching to the full row width other blocks use.
-const NARROW_BLOCK_TYPES: HomepageBlock['type'][] = ['ask-ai-hero'];
-
-// A leading hero block gets the vertically-centred day-0 treatment.
-const HERO_BLOCK_TYPES: HomepageBlock['type'][] = ['ask-ai-hero'];
+const TIER_CLASS: Record<BlockWidthTier, string> = {
+    reading: layout.tierReading,
+    composer: layout.tierComposer,
+    content: layout.tierContent,
+    full: layout.tierFull,
+};
 
 // Unknown block types render nothing so newer configs degrade gracefully
 const BlockRenderer: FC<{
@@ -42,34 +42,32 @@ const BlockRenderer: FC<{
         );
     }
     const { View } = definition;
-    const rendered = <View block={block} projectUuid={projectUuid} />;
-    return NARROW_BLOCK_TYPES.includes(block.type) ? (
-        <Box className={classes.narrowBlock}>{rendered}</Box>
-    ) : (
-        rendered
-    );
+    return <View block={block} projectUuid={projectUuid} />;
 };
 
-const HomepageRows: FC<{
-    rows: HomepageRow[];
+const RowRenderer: FC<{
+    row: ResolvedRow;
     projectUuid: string;
     personalPlaceholders: boolean;
-}> = ({ rows, projectUuid, personalPlaceholders }) => (
-    <Stack gap={28}>
-        {rows.map((row) => (
-            <Group key={row.id} gap={14} align="stretch" wrap="nowrap">
-                {row.blocks.map((block) => (
-                    <Box key={block.id} flex={1} miw={0}>
-                        <BlockRenderer
-                            block={block}
-                            projectUuid={projectUuid}
-                            personalPlaceholders={personalPlaceholders}
-                        />
-                    </Box>
-                ))}
-            </Group>
+}> = ({ row, projectUuid, personalPlaceholders }) => (
+    <Box
+        className={`${layout.row} ${TIER_CLASS[row.widthTier]}`}
+        data-gap={row.gap}
+    >
+        {row.columns.map((column) => (
+            <Box
+                key={column.block.id}
+                className={layout.col}
+                data-weight={column.weight}
+            >
+                <BlockRenderer
+                    block={column.block}
+                    projectUuid={projectUuid}
+                    personalPlaceholders={personalPlaceholders}
+                />
+            </Box>
         ))}
-    </Stack>
+    </Box>
 );
 
 type Props = {
@@ -88,50 +86,34 @@ export const PublishedHomepage: FC<Props> = ({
     personalPlaceholders = false,
     topBar = null,
 }) => {
-    const [firstRow, ...restRows] = config.rows;
-    const leadingHero =
-        firstRow &&
-        firstRow.blocks.length === 1 &&
-        HERO_BLOCK_TYPES.includes(firstRow.blocks[0].type)
-            ? firstRow.blocks[0]
-            : null;
+    const { heroRow, rows } = resolveHomepageLayout(config);
 
-    if (leadingHero) {
-        return (
-            <div className={layout.page}>
-                {topBar}
+    return (
+        <div className={layout.page}>
+            {topBar}
+            {heroRow && (
                 <div className={layout.heroSection}>
                     <div className={layout.hero}>
                         <BlockRenderer
-                            block={leadingHero}
+                            block={heroRow.columns[0].block}
                             projectUuid={projectUuid}
                             personalPlaceholders={personalPlaceholders}
                         />
                     </div>
                 </div>
-                {restRows.length > 0 && (
-                    <div className={layout.secondary}>
-                        <HomepageRows
-                            rows={restRows}
+            )}
+            {rows.length > 0 && (
+                <div className={layout.secondary}>
+                    {rows.map((row) => (
+                        <RowRenderer
+                            key={row.id}
+                            row={row}
                             projectUuid={projectUuid}
                             personalPlaceholders={personalPlaceholders}
                         />
-                    </div>
-                )}
-            </div>
-        );
-    }
-
-    return (
-        <div className={layout.page}>
-            {topBar}
-            <div className={layout.secondary}>
-                <HomepageRows
-                    rows={config.rows}
-                    projectUuid={projectUuid}
-                    personalPlaceholders={personalPlaceholders}
-                />
-            </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };

@@ -67,3 +67,47 @@
     max-width: 1160px;
     margin: 0 auto;
 }
+
+/* Adaptive rows — width tier + weighted columns + adjacency-driven gap are
+ * chosen by resolveHomepageLayout from the block arrangement, so any
+ * permutation renders balanced. */
+.row {
+    display: flex;
+    gap: 14px;
+    align-items: stretch;
+    width: 100%;
+    margin-inline: auto;
+}
+
+.row[data-gap='grouped'] {
+    margin-top: 18px;
+}
+
+.row[data-gap='section'] {
+    margin-top: 40px;
+}
+
+.tierReading {
+    max-width: 680px;
+}
+
+.tierComposer {
+    max-width: 720px;
+}
+
+.tierContent {
+    max-width: 960px;
+}
+
+.tierFull {
+    max-width: 1160px;
+}
+
+.col {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.col[data-weight='2'] {
+    flex: 2 1 0;
+}
