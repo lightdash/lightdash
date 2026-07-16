@@ -485,6 +485,9 @@ export const AgentChatInput = ({
     const showMinimalPlaceholder = isMinimalMode && !hasValue;
     const showDisabledBanner = disabled && disabledReason;
     const isThreadInput = Boolean(threadUuid);
+    const canStartDeepResearch = Boolean(
+        onStartDeepResearch && messageCount === 0,
+    );
     const showSqlModeControl = Boolean(onSqlModeChange && !disabled);
     const activeMessageUuid = threadStream?.isStreaming
         ? threadStream.messageUuid
@@ -502,7 +505,12 @@ export const AgentChatInput = ({
     const handleStartDeepResearch = async () => {
         const ed = editorRef.current;
         const question = ed?.getText().trim() ?? '';
-        if (!question || !onStartDeepResearch || isStartingDeepResearch) {
+        if (
+            !question ||
+            !onStartDeepResearch ||
+            !canStartDeepResearch ||
+            isStartingDeepResearch
+        ) {
             return;
         }
 
@@ -526,7 +534,7 @@ export const AgentChatInput = ({
         if (!ed) return;
         const text = ed.getText().trim();
         if (!text || disabled) return;
-        if (composerMode === 'deep_research' && onStartDeepResearch) {
+        if (composerMode === 'deep_research' && canStartDeepResearch) {
             void handleStartDeepResearch();
             return;
         }
@@ -578,7 +586,13 @@ export const AgentChatInput = ({
         setHasRequestedInterrupt(true);
     };
 
-    const deepResearchControlElement = onStartDeepResearch ? (
+    useEffect(() => {
+        if (!canStartDeepResearch) {
+            setComposerMode('ask');
+        }
+    }, [canStartDeepResearch]);
+
+    const deepResearchControlElement = canStartDeepResearch ? (
         <DeepResearchModeControl
             mode={composerMode}
             onModeChange={setComposerMode}
@@ -589,7 +603,7 @@ export const AgentChatInput = ({
             ? deepResearchControlElement
             : null;
     const deepResearchPreflight =
-        composerMode === 'deep_research' && onStartDeepResearch ? (
+        composerMode === 'deep_research' && canStartDeepResearch ? (
             <DeepResearchPreflight
                 depth={deepResearchDepth}
                 onDepthChange={setDeepResearchDepth}

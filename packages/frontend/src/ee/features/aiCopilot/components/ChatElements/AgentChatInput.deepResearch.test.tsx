@@ -47,4 +47,35 @@ describe('AgentChatInput Deep research mode', () => {
         });
         expect(onSubmit).not.toHaveBeenCalled();
     });
+
+    it('is unavailable after the conversation has started', async () => {
+        const user = userEvent.setup();
+        const onSubmit = vi.fn();
+        const onStartDeepResearch = vi.fn().mockResolvedValue(undefined);
+
+        renderWithProviders(
+            <Provider store={store}>
+                <MemoryRouter>
+                    <AgentChatInput
+                        onSubmit={onSubmit}
+                        onStartDeepResearch={onStartDeepResearch}
+                        messageCount={1}
+                        defaultValue="What changed this month?"
+                        showSuggestions={false}
+                    />
+                </MemoryRouter>
+            </Provider>,
+        );
+
+        expect(
+            screen.queryByRole('button', { name: 'Deep research' }),
+        ).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+        expect(onSubmit).toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'What changed this month?' }),
+        );
+        expect(onStartDeepResearch).not.toHaveBeenCalled();
+    });
 });
