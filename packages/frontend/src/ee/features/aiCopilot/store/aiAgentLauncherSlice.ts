@@ -6,6 +6,8 @@ export type LauncherDockItem = {
     threadId: string;
     agentUuid: string;
     title: string;
+    // Optional: missing on items persisted before this field existed.
+    createdAt?: number;
 };
 
 export type LauncherPendingContext = {

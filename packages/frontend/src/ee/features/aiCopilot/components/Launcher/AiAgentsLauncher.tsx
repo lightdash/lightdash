@@ -48,7 +48,7 @@ const AiAgentsLauncherInner: FC = () => {
 
     const isAiAgentEnabled = useAiAgentButtonVisibility();
 
-    const { agents, selectedAgent, isResolving } =
+    const { agents, agentsUpdatedAt, selectedAgent, isResolving } =
         useDefaultAiAgent(activeProjectUuid);
 
     const dispatch = useAiAgentStoreDispatch();
@@ -169,6 +169,7 @@ const AiAgentsLauncherInner: FC = () => {
             <LauncherDock
                 projectUuid={activeProjectUuid}
                 agents={agents}
+                agentsUpdatedAt={agentsUpdatedAt}
                 selectedAgent={selectedAgent}
             />
             {transitionSavedChartPreview && (
