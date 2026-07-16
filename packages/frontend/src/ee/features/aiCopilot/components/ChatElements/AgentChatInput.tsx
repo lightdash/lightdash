@@ -9,6 +9,7 @@ import { RichTextEditor } from '@mantine/tiptap';
 import {
     IconArrowUp,
     IconPlayerStop,
+    IconReportSearch,
     IconTerminal2,
 } from '@tabler/icons-react';
 import Mention from '@tiptap/extension-mention';
@@ -24,7 +25,10 @@ import useUser from '../../../../../hooks/user/useUser';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { subscribeToDeepResearchComposerPrompt } from '../../deepResearch/deepResearchRegistry';
-import { type StartDeepResearchArgs } from '../../deepResearch/types';
+import {
+    type DeepResearchDepth,
+    type StartDeepResearchArgs,
+} from '../../deepResearch/types';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
 import {
     useCreateAiAgentThreadMessageSteerMutation,
@@ -37,6 +41,7 @@ import {
     DeepResearchModeControl,
     type AgentComposerMode,
 } from '../DeepResearch/DeepResearchModeControl';
+import { DeepResearchPreflight } from '../DeepResearch/DeepResearchPreflight';
 import styles from './AgentChatInput.module.css';
 import { AgentSuggestionChips } from './AgentSuggestionChips';
 import {
@@ -164,7 +169,9 @@ export const AgentChatInput = ({
         if (revealAgentSelectorOnFocus) setHasClickedInput(true);
     }, [revealAgentSelectorOnFocus]);
     const [composerMode, setComposerMode] = useState<AgentComposerMode>('ask');
-    const [preflightRequest, setPreflightRequest] = useState(0);
+    const [deepResearchDepth, setDeepResearchDepth] =
+        useState<DeepResearchDepth>('standard');
+    const [isStartingDeepResearch, setIsStartingDeepResearch] = useState(false);
     const [deepResearchHeaderTarget, setDeepResearchHeaderTarget] =
         useState<Element | null>(null);
     const navigate = useNavigate();
@@ -484,13 +491,35 @@ export const AgentChatInput = ({
     const canSteer = canInterrupt && !disabled && !hasRequestedInterrupt;
     canSteerRef.current = canSteer;
 
+    const handleStartDeepResearch = async () => {
+        const ed = editorRef.current;
+        const question = ed?.getText().trim() ?? '';
+        if (!question || !onStartDeepResearch || isStartingDeepResearch) {
+            return;
+        }
+
+        setIsStartingDeepResearch(true);
+        try {
+            await onStartDeepResearch({
+                question,
+                depth: deepResearchDepth,
+            });
+            if (clearOnSubmitRef.current) {
+                ed?.commands.clearContent();
+                setValueState('');
+            }
+        } finally {
+            setIsStartingDeepResearch(false);
+        }
+    };
+
     const handleSubmit = () => {
         const ed = editorRef.current;
         if (!ed) return;
         const text = ed.getText().trim();
         if (!text || disabled) return;
         if (composerMode === 'deep_research' && onStartDeepResearch) {
-            setPreflightRequest((request) => request + 1);
+            void handleStartDeepResearch();
             return;
         }
         if (canSteer) {
@@ -541,35 +570,23 @@ export const AgentChatInput = ({
         setHasRequestedInterrupt(true);
     };
 
-    const handleStartDeepResearch = async (
-        depth: StartDeepResearchArgs['depth'],
-    ) => {
-        const ed = editorRef.current;
-        const question = ed?.getText().trim() ?? '';
-        if (!question || !onStartDeepResearch) {
-            return;
-        }
-        await onStartDeepResearch({ question, depth });
-        if (clearOnSubmitRef.current) {
-            ed?.commands.clearContent();
-            setValueState('');
-        }
-    };
-
     const deepResearchControlElement = onStartDeepResearch ? (
         <DeepResearchModeControl
-            question={value.trim()}
-            projectUuid={projectUuid}
-            agentUuid={agentUuid}
-            onStart={handleStartDeepResearch}
+            mode={composerMode}
             onModeChange={setComposerMode}
-            preflightRequest={preflightRequest}
         />
     ) : null;
     const deepResearchControl =
         deepResearchControlPlacement === 'composer'
             ? deepResearchControlElement
             : null;
+    const deepResearchPreflight =
+        composerMode === 'deep_research' && onStartDeepResearch ? (
+            <DeepResearchPreflight
+                depth={deepResearchDepth}
+                onDepthChange={setDeepResearchDepth}
+            />
+        ) : null;
     const deepResearchControlPortal =
         deepResearchControlElement &&
         deepResearchControlPlacement === 'page_header' &&
@@ -669,7 +686,26 @@ export const AgentChatInput = ({
                 {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
                 <Box className={styles.threadInputStack}>
-                    <Box className={styles.minimalInputWrapper} pos="relative">
+                    <Box
+                        className={`${styles.minimalInputWrapper} ${
+                            composerMode === 'deep_research'
+                                ? styles.deepResearchInput
+                                : ''
+                        }`}
+                        pos="relative"
+                    >
+                        {composerMode === 'deep_research' && (
+                            <Box
+                                className={styles.minimalResearchIndicator}
+                                aria-label="Deep research mode"
+                            >
+                                <MantineIcon
+                                    icon={IconReportSearch}
+                                    size={15}
+                                    stroke={1.8}
+                                />
+                            </Box>
+                        )}
                         <RichTextEditor
                             editor={editor}
                             classNames={{
@@ -733,14 +769,30 @@ export const AgentChatInput = ({
                                 bottom={10}
                                 variant="filled"
                                 size="md"
-                                className={styles.minimalSubmitButton}
+                                className={`${styles.minimalSubmitButton} ${
+                                    composerMode === 'deep_research'
+                                        ? styles.deepResearchSubmitButton
+                                        : ''
+                                }`}
                                 disabled={disabled || !hasValue}
-                                loading={loading}
+                                loading={
+                                    composerMode === 'deep_research'
+                                        ? isStartingDeepResearch
+                                        : loading
+                                }
                                 onClick={handleSubmit}
-                                aria-label="Send message"
+                                aria-label={
+                                    composerMode === 'deep_research'
+                                        ? 'Start research'
+                                        : 'Send message'
+                                }
                             >
                                 <MantineIcon
-                                    icon={IconArrowUp}
+                                    icon={
+                                        composerMode === 'deep_research'
+                                            ? IconReportSearch
+                                            : IconArrowUp
+                                    }
                                     color="ldGray.0"
                                     size={18}
                                     stroke={2}
@@ -748,6 +800,7 @@ export const AgentChatInput = ({
                             </ActionIcon>
                         )}
                     </Box>
+                    {deepResearchPreflight}
                 </Box>
 
                 {showSqlModeControl && (
@@ -795,14 +848,38 @@ export const AgentChatInput = ({
             {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
             <Box
-                className={styles.inputCard}
+                className={`${styles.inputCard} ${
+                    composerMode === 'deep_research'
+                        ? styles.deepResearchInput
+                        : ''
+                }`}
                 onMouseDown={handleInputCardMouseDown}
             >
+                {composerMode === 'deep_research' && (
+                    <Group
+                        gap={6}
+                        className={styles.deepResearchIndicator}
+                        aria-label="Deep research mode"
+                    >
+                        <MantineIcon
+                            icon={IconReportSearch}
+                            size={15}
+                            stroke={1.8}
+                        />
+                        <Text size="xs" fw={600}>
+                            Deep research
+                        </Text>
+                    </Group>
+                )}
                 <RichTextEditor
                     editor={editor}
                     classNames={{
                         root: styles.editorRoot,
-                        content: styles.editorContent,
+                        content: `${styles.editorContent} ${
+                            composerMode === 'deep_research'
+                                ? styles.deepResearchEditorContent
+                                : ''
+                        }`,
                     }}
                 >
                     <RichTextEditor.Content />
@@ -894,14 +971,30 @@ export const AgentChatInput = ({
                             <ActionIcon
                                 variant="filled"
                                 size="lg"
-                                className={styles.submitButton}
+                                className={`${styles.submitButton} ${
+                                    composerMode === 'deep_research'
+                                        ? styles.deepResearchSubmitButton
+                                        : ''
+                                }`}
                                 disabled={disabled || !hasValue}
-                                loading={loading}
+                                loading={
+                                    composerMode === 'deep_research'
+                                        ? isStartingDeepResearch
+                                        : loading
+                                }
                                 onClick={handleSubmit}
-                                aria-label="Send message"
+                                aria-label={
+                                    composerMode === 'deep_research'
+                                        ? 'Start research'
+                                        : 'Send message'
+                                }
                             >
                                 <MantineIcon
-                                    icon={IconArrowUp}
+                                    icon={
+                                        composerMode === 'deep_research'
+                                            ? IconReportSearch
+                                            : IconArrowUp
+                                    }
                                     color="ldGray.0"
                                     size={20}
                                     stroke={2}
@@ -911,6 +1004,8 @@ export const AgentChatInput = ({
                     </Group>
                 </Box>
             </Box>
+
+            {deepResearchPreflight}
 
             {isThreadInput
                 ? (showSqlModeControl || deepResearchControl) && (

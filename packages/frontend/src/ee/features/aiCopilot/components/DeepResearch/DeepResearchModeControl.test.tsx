@@ -1,55 +1,72 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { useState } from 'react';
+import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
+import { type DeepResearchDepth } from '../../deepResearch/types';
 import { DeepResearchModeControl } from './DeepResearchModeControl';
+import { DeepResearchPreflight } from './DeepResearchPreflight';
 
-const renderControl = (onStart = vi.fn().mockResolvedValue(undefined)) => {
-    renderWithProviders(
-        <DeepResearchModeControl
-            question="Why did enterprise retention fall in Q2?"
-            projectUuid="project-1"
-            agentUuid="agent-1"
-            onStart={onStart}
-            preflightRequest={0}
-        />,
+const ModeHarness = () => {
+    const [mode, setMode] = useState<'ask' | 'deep_research'>('ask');
+    const [depth, setDepth] = useState<DeepResearchDepth>('standard');
+
+    return (
+        <>
+            <DeepResearchModeControl mode={mode} onModeChange={setMode} />
+            {mode === 'deep_research' && (
+                <DeepResearchPreflight depth={depth} onDepthChange={setDepth} />
+            )}
+        </>
     );
-    return onStart;
 };
 
 describe('DeepResearchModeControl', () => {
     it('keeps Ask as the unchanged default mode', () => {
-        const onStart = renderControl();
+        renderWithProviders(<ModeHarness />);
 
         expect(
             screen.getByRole('button', { name: 'Deep research' }),
         ).toHaveAttribute('aria-pressed', 'false');
-
-        expect(screen.queryByText('Research depth')).not.toBeInTheDocument();
-        expect(onStart).not.toHaveBeenCalled();
+        expect(
+            screen.queryByRole('region', {
+                name: 'Deep research settings',
+            }),
+        ).not.toBeInTheDocument();
     });
 
-    it('starts Deep Research from the composer preflight', async () => {
+    it('shows inline research settings and toggles back to Ask', async () => {
         const user = userEvent.setup();
-        const onStart = renderControl();
+        renderWithProviders(<ModeHarness />);
 
-        await user.click(screen.getByRole('button', { name: 'Deep research' }));
+        const modeButton = screen.getByRole('button', {
+            name: 'Deep research',
+        });
+        await user.click(modeButton);
 
-        expect(await screen.findByText('Research depth')).toBeInTheDocument();
+        expect(modeButton).toHaveAttribute('aria-pressed', 'true');
+        expect(
+            screen.getByRole('region', { name: 'Deep research settings' }),
+        ).toBeInTheDocument();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         expect(screen.getByText('Project data')).toBeInTheDocument();
         expect(screen.getByText('Public web')).toBeInTheDocument();
         expect(
             screen.getByText(/Connected AI Agent sources are not available/),
         ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Start research' }),
+        ).not.toBeInTheDocument();
 
         await user.click(screen.getByText('Quick'));
         expect(screen.getByText('Up to 15 minutes')).toBeInTheDocument();
         expect(screen.getByText('Up to 10 queries')).toBeInTheDocument();
 
-        await user.click(
-            screen.getByRole('button', { name: 'Start research' }),
-        );
-
-        expect(onStart).toHaveBeenCalledWith('quick');
+        await user.click(modeButton);
+        expect(
+            screen.queryByRole('region', {
+                name: 'Deep research settings',
+            }),
+        ).not.toBeInTheDocument();
     });
 });
