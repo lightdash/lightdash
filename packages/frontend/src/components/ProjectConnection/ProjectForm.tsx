@@ -10,6 +10,7 @@ import { useFormContext } from './formContext';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
 import { getWarehouseIcon } from './ProjectConnectFlow/utils';
 import { useProjectFormContext } from './useProjectFormContext';
+import WarehouseSchemaInput from './WarehouseSchemaInput';
 import WarehouseSettingsForm from './WarehouseSettingsForm';
 
 interface Props {
@@ -77,6 +78,14 @@ export const ProjectForm: FC<Props> = ({
                         disabled={disabled}
                         isProjectUpdate={isProjectUpdate}
                     />
+                    {warehouseOnly &&
+                        warehouse &&
+                        !form.values.organizationWarehouseCredentialsUuid && (
+                            <WarehouseSchemaInput
+                                warehouseType={warehouse}
+                                disabled={disabled}
+                            />
+                        )}
                 </div>
             </SettingsGridCard>
 

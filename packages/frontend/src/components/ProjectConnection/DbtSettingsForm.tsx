@@ -21,15 +21,7 @@ import { useFormContext } from './formContext';
 import FormSection from './Inputs/FormSection';
 import { MultiKeyValuePairsInput } from './Inputs/MultiKeyValuePairsInput';
 import { useProjectFormContext } from './useProjectFormContext';
-import { AthenaSchemaInput } from './WarehouseForms/AthenaForm';
-import { BigQuerySchemaInput } from './WarehouseForms/BigQueryForm';
-import { ClickhouseSchemaInput } from './WarehouseForms/ClickhouseForm';
-import { DatabricksSchemaInput } from './WarehouseForms/DatabricksForm';
-import { DuckdbSchemaInput } from './WarehouseForms/DuckdbForm';
-import { PostgresSchemaInput } from './WarehouseForms/PostgresForm';
-import { RedshiftSchemaInput } from './WarehouseForms/RedshiftForm';
-import { SnowflakeSchemaInput } from './WarehouseForms/SnowflakeForm';
-import { TrinoSchemaInput } from './WarehouseForms/TrinoForm';
+import WarehouseSchemaInput from './WarehouseSchemaInput';
 
 interface DbtSettingsFormProps {
     disabled: boolean;
@@ -144,35 +136,6 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
         },
     };
 
-    const WarehouseSchemaInput = useMemo(() => {
-        switch (warehouseType) {
-            case WarehouseTypes.BIGQUERY:
-                return BigQuerySchemaInput;
-            case WarehouseTypes.POSTGRES:
-                return PostgresSchemaInput;
-            case WarehouseTypes.TRINO:
-                return TrinoSchemaInput;
-            case WarehouseTypes.REDSHIFT:
-                return RedshiftSchemaInput;
-            case WarehouseTypes.SNOWFLAKE:
-                return SnowflakeSchemaInput;
-            case WarehouseTypes.DATABRICKS:
-                return DatabricksSchemaInput;
-            case WarehouseTypes.CLICKHOUSE:
-                return ClickhouseSchemaInput;
-            case WarehouseTypes.ATHENA:
-                return AthenaSchemaInput;
-            case WarehouseTypes.DUCKDB:
-                return DuckdbSchemaInput;
-            default: {
-                return assertUnreachable(
-                    warehouseType,
-                    `Unknown warehouse type ${warehouseType}`,
-                );
-            }
-        }
-    }, [warehouseType]);
-
     return (
         <div
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
@@ -228,7 +191,10 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                                 {isDbtSource ||
                                 form.values
                                     .organizationWarehouseCredentialsUuid ? null : (
-                                    <WarehouseSchemaInput disabled={disabled} />
+                                    <WarehouseSchemaInput
+                                        warehouseType={warehouseType}
+                                        disabled={disabled}
+                                    />
                                 )}
                             </Stack>
                         </FormSection>
