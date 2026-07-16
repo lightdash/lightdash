@@ -28,6 +28,15 @@
     );
 }
 
+/* Fold-aware hero: when body rows follow, the hero yields most of the viewport
+ * so the first row peeks above the fold. Solo heroes — and day-0, which never
+ * stamps the attribute — keep the full-viewport treatment above. The favBar
+ * variant is repeated so it can't win the specificity contest. */
+.heroSection[data-presentation='shared'],
+.page:has(.favBar) .heroSection[data-presentation='shared'] {
+    min-height: 56vh;
+}
+
 .favBar {
     display: flex;
     align-items: center;
@@ -85,6 +94,12 @@
 
 .row[data-gap='section'] {
     margin-top: 40px;
+}
+
+/* A lone leading text block opens the page: give it breathing room on top of
+ * the page padding so it reads as an intro, not just the first list item. */
+.row[data-role='intro'] {
+    padding-top: 24px;
 }
 
 .tierReading {
