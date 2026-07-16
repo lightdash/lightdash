@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    CONTENT_AS_CODE_VERSIONS,
     ContentAsCodeType,
     ForbiddenError,
     ParameterError,
@@ -15,7 +16,7 @@ import { BaseService } from '../../../services/BaseService';
 import { paginateAsCode } from '../../../services/CoderService/pagination';
 import { type AiAgentModel } from '../../models/AiAgentModel';
 
-const AGENT_AS_CODE_VERSION = 1;
+const AGENT_AS_CODE_VERSION = CONTENT_AS_CODE_VERSIONS.ai_agent;
 const AGENT_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 type AgentForCode = Awaited<

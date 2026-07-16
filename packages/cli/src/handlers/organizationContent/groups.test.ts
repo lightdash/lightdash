@@ -81,6 +81,7 @@ describe('groups as code', () => {
                 'empty.yml',
                 `finance-${financeBangHash}.yml`,
                 `finance-${financeQuestionHash}.yml`,
+                'stale.yml',
             ].sort(),
         );
         expect(

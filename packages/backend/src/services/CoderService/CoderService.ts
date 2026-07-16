@@ -35,7 +35,6 @@ import {
     DashboardMarkdownTileAsCode,
     DashboardScheduledDeliveryAsCode,
     DashboardSqlChartTileAsCode,
-    DashboardTile,
     DashboardTileAsCode,
     DashboardTileTarget,
     DashboardTileTypes,
@@ -48,7 +47,6 @@ import {
     getLtreePathFromContentAsCodePath,
     getParameterReferences,
     isChartScheduler,
-    isCustomSqlDimension,
     isDashboardScheduler,
     isEmailTarget,
     isExploreError,
@@ -58,7 +56,6 @@ import {
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
     isSlackTarget,
-    isSqlTableCalculation,
     NotFoundError,
     NotificationFrequency,
     OrganizationMemberRole,
@@ -84,21 +81,10 @@ import {
     validateEmail,
     VirtualViewAsCode,
     type ContentVerificationInfo,
-    type CustomDimension,
-    type DashboardConfig,
     type DashboardTileWithSlug,
-    type DateZoomConfig,
-    type DateZoomTileTarget,
-    type FilterGroup,
-    type FilterGroupInput,
-    type FilterGroupItem,
-    type FilterGroupItemInput,
-    type FilterRule,
     type Filters,
-    type FiltersInput,
     type GoogleSheetsSyncAsCode,
     type SpaceSummaryBase,
-    type TableCalculation,
 } from '@lightdash/common';
 import type { Knex } from 'knex';
 import isEqual from 'lodash/isEqual';
@@ -128,24 +114,37 @@ import { PromoteService } from '../PromoteService/PromoteService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SchedulerService } from '../SchedulerService/SchedulerService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import {
+    getChartContentAsCodePermissionChecks,
+    type ContentAsCodeSqlPermissionCheckResult,
+    type CurrentChartSqlItems,
+} from './chartPermissions';
+import {
+    getChartSlugForTileUuid,
+    getConfigWithDateZoomTileSlugs,
+    getConfigWithDateZoomTileUuids,
+    getFiltersWithTileSlugs,
+    getFiltersWithTileUuids,
+    isAnyChartTile,
+} from './dashboardReferences';
+import { normalizeFilterIds, stripFilterIds } from './filterIds';
+import { ScheduledContentCoder } from './handlers/ScheduledContentCoder';
+import { VirtualViewCoder } from './handlers/VirtualViewCoder';
 import { paginateAsCode } from './pagination';
+import {
+    getDashboardScheduledDeliveryFiltersWithTileSlugs,
+    getDashboardScheduledDeliveryFiltersWithTileUuids,
+    getDashboardTabSlug,
+    getDashboardTabUuid,
+    getScheduledDeliveryFormat,
+    getScheduledDeliveryTargetKey,
+    getScheduledDeliveryTargetsAsCode,
+} from './scheduledContent';
 
 type ContentAsCodeSpaceContentMetadata = {
     savedChartUuid?: string;
     dashboardUuid?: string;
     savedSqlUuid?: string | null;
-};
-
-type ContentAsCodeSqlPermissionCheckResult = {
-    check: 'customSqlDimension' | 'sqlTableCalculation';
-    message: string;
-};
-
-type CurrentChartSqlItems = {
-    metricQuery: {
-        customDimensions?: CustomDimension[];
-        tableCalculations?: TableCalculation[];
-    };
 };
 
 type CoderServiceArguments = {
@@ -177,88 +176,6 @@ type UpsertContentAsCodeOptions = {
     spaceNames?: Record<string, string>;
     mode?: 'upsert' | 'create';
 };
-
-const normalizeFilterGroupItem = (
-    item: FilterGroupItemInput,
-): FilterGroupItem => {
-    if ('or' in item) {
-        return {
-            ...item,
-            id: item.id ?? uuidv4(),
-            or: item.or.map(normalizeFilterGroupItem),
-        };
-    }
-    if ('and' in item) {
-        return {
-            ...item,
-            id: item.id ?? uuidv4(),
-            and: item.and.map(normalizeFilterGroupItem),
-        };
-    }
-    return { ...(item as FilterRule), id: item.id ?? uuidv4() };
-};
-
-const normalizeFilterGroup = (
-    group: FilterGroupInput | undefined,
-): FilterGroup | undefined => {
-    if (!group) return undefined;
-    return normalizeFilterGroupItem(group) as FilterGroup;
-};
-
-const normalizeFilterIds = (filters: FiltersInput): Filters => ({
-    dimensions: normalizeFilterGroup(filters.dimensions),
-    metrics: normalizeFilterGroup(filters.metrics),
-    tableCalculations: normalizeFilterGroup(filters.tableCalculations),
-});
-
-const stripFilterGroupItemIds = (
-    item: FilterGroupItemInput,
-): FilterGroupItemInput => {
-    if ('or' in item) {
-        return { or: item.or.map(stripFilterGroupItemIds) };
-    }
-    if ('and' in item) {
-        return { and: item.and.map(stripFilterGroupItemIds) };
-    }
-    const { id, ...filterRule } = item;
-    return filterRule;
-};
-
-const stripFilterIds = (
-    filters: FiltersInput | undefined,
-): FiltersInput | null => {
-    if (!filters) return null;
-    const result: FiltersInput = {};
-    if (filters.dimensions) {
-        result.dimensions = stripFilterGroupItemIds(
-            filters.dimensions,
-        ) as FilterGroupInput;
-    }
-    if (filters.metrics) {
-        result.metrics = stripFilterGroupItemIds(
-            filters.metrics,
-        ) as FilterGroupInput;
-    }
-    if (filters.tableCalculations) {
-        result.tableCalculations = stripFilterGroupItemIds(
-            filters.tableCalculations,
-        ) as FilterGroupInput;
-    }
-    return result;
-};
-
-type AnyChartTile = Extract<
-    DashboardTileAsCode | DashboardTile,
-    {
-        type: DashboardTileTypes.SAVED_CHART | DashboardTileTypes.SQL_CHART;
-    }
->;
-
-const isAnyChartTile = (
-    tile: DashboardTileAsCode | DashboardTile,
-): tile is AnyChartTile =>
-    tile.type === DashboardTileTypes.SAVED_CHART ||
-    tile.type === DashboardTileTypes.SQL_CHART;
 
 export class CoderService extends BaseService {
     lightdashConfig: LightdashConfig;
@@ -299,64 +216,15 @@ export class CoderService extends BaseService {
 
     userModel: UserModel;
 
+    private readonly virtualViewCoder: VirtualViewCoder;
+
+    private readonly scheduledContentCoder: ScheduledContentCoder;
+
     static getChartContentAsCodePermissionChecks(
         nextChart: ChartAsCode,
         currentChart?: CurrentChartSqlItems,
     ): ContentAsCodeSqlPermissionCheckResult[] {
-        const checks: ContentAsCodeSqlPermissionCheckResult[] = [];
-        const currentMetricQuery = currentChart?.metricQuery;
-
-        const currentSqlDimensionsById = new Map(
-            (currentMetricQuery?.customDimensions ?? [])
-                .filter(isCustomSqlDimension)
-                .map((dimension) => [dimension.id, dimension]),
-        );
-        const newOrChangedSqlDimensionIds = (
-            nextChart.metricQuery.customDimensions ?? []
-        )
-            .filter(isCustomSqlDimension)
-            .filter((dimension) => {
-                const current = currentSqlDimensionsById.get(dimension.id);
-                return !current || current.sql !== dimension.sql;
-            })
-            .map((dimension) => dimension.id);
-
-        if (newOrChangedSqlDimensionIds.length > 0) {
-            checks.push({
-                check: 'customSqlDimension',
-                message: `User cannot upload content with new or modified custom SQL dimensions: ${newOrChangedSqlDimensionIds.join(
-                    ', ',
-                )} (chart slug "${nextChart.slug}")`,
-            });
-        }
-
-        const currentSqlTableCalculationsByName = new Map(
-            (currentMetricQuery?.tableCalculations ?? [])
-                .filter(isSqlTableCalculation)
-                .map((calculation) => [calculation.name, calculation]),
-        );
-        const newOrChangedSqlTableCalculationNames = (
-            nextChart.metricQuery.tableCalculations ?? []
-        )
-            .filter(isSqlTableCalculation)
-            .filter((calculation) => {
-                const current = currentSqlTableCalculationsByName.get(
-                    calculation.name,
-                );
-                return !current || current.sql !== calculation.sql;
-            })
-            .map((calculation) => calculation.name);
-
-        if (newOrChangedSqlTableCalculationNames.length > 0) {
-            checks.push({
-                check: 'sqlTableCalculation',
-                message: `User cannot upload content with new or modified SQL table calculations: ${newOrChangedSqlTableCalculationNames.join(
-                    ', ',
-                )} (chart slug "${nextChart.slug}")`,
-            });
-        }
-
-        return checks;
+        return getChartContentAsCodePermissionChecks(nextChart, currentChart);
     }
 
     constructor({
@@ -400,44 +268,19 @@ export class CoderService extends BaseService {
         this.groupsModel = groupsModel;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.userModel = userModel;
-    }
-
-    private static transformVirtualView(
-        virtualView: Explore,
-    ): VirtualViewAsCode | null {
-        const table = virtualView.tables[virtualView.baseTable];
-        const dimensions = table ? Object.values(table.dimensions) : [];
-        const dimensionNames = dimensions.map(({ name }) => name);
-        if (
-            !virtualView.name?.trim() ||
-            !virtualView.label?.trim() ||
-            !table?.sqlTable ||
-            table.name !== virtualView.name ||
-            virtualView.baseTable !== virtualView.name ||
-            !table.sqlTable.startsWith('(') ||
-            !table.sqlTable.endsWith(')') ||
-            dimensionNames.some((name) => !name?.trim()) ||
-            new Set(dimensionNames).size !== dimensionNames.length ||
-            dimensions.some(
-                ({ type }) => !Object.values(DimensionType).includes(type),
-            )
-        ) {
-            return null;
-        }
-
-        return {
-            contentType: ContentAsCodeType.VIRTUAL_VIEW,
-            version: currentVersion,
-            slug: virtualView.name,
-            name: virtualView.label,
-            sql: table.sqlTable.slice(1, -1),
-            columns: dimensions
-                .map(({ name, type }) => ({ reference: name, type }))
-                .sort((left, right) =>
-                    left.reference.localeCompare(right.reference),
-                ),
-            parameters: virtualView.savedParameterValues ?? null,
-        };
+        this.virtualViewCoder = new VirtualViewCoder({
+            projectModel,
+            projectService,
+        });
+        this.scheduledContentCoder = new ScheduledContentCoder({
+            projectModel,
+            savedChartModel,
+            dashboardModel,
+            schedulerModel,
+            schedulerService,
+            savedChartService,
+            dashboardService,
+        });
     }
 
     async getVirtualViews(
@@ -445,61 +288,7 @@ export class CoderService extends BaseService {
         projectUuid: string,
         slugs?: string[],
     ): Promise<ApiVirtualViewAsCodeListResponse['results']> {
-        const project = await this.projectModel.getSummary(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('ContentAsCode', {
-                    projectUuid,
-                    organizationUuid: project.organizationUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'You are not allowed to download virtual views',
-            );
-        }
-
-        const requested = slugs ? new Set(slugs) : null;
-        const cached =
-            await this.projectModel.findVirtualViewsFromCache(projectUuid);
-        const virtualViews: VirtualViewAsCode[] = [];
-        const skipped: ApiVirtualViewAsCodeListResponse['results']['skipped'] =
-            [];
-        Object.values(cached)
-            .sort((left, right) => left.name.localeCompare(right.name))
-            .forEach((explore) => {
-                if (requested && !requested.has(explore.name)) return;
-                if (
-                    isExploreError(explore) ||
-                    explore.type !== ExploreType.VIRTUAL
-                ) {
-                    skipped.push({
-                        slug: explore.name,
-                        reason: 'Cached virtual view is malformed',
-                    });
-                    return;
-                }
-                const transformed = CoderService.transformVirtualView(explore);
-                if (transformed) virtualViews.push(transformed);
-                else {
-                    skipped.push({
-                        slug: explore.name,
-                        reason: 'Virtual view SQL is not stored as a subquery',
-                    });
-                }
-            });
-
-        const found = new Set([
-            ...virtualViews.map(({ slug }) => slug),
-            ...skipped.map(({ slug }) => slug),
-        ]);
-        return {
-            virtualViews,
-            skipped,
-            missingSlugs: slugs?.filter((slug) => !found.has(slug)) ?? [],
-        };
+        return this.virtualViewCoder.list(user, projectUuid, slugs);
     }
 
     async upsertVirtualView(
@@ -509,173 +298,13 @@ export class CoderService extends BaseService {
         virtualView: VirtualViewAsCode,
         force = false,
     ): Promise<ApiVirtualViewAsCodeUpsertResponse['results']> {
-        if (virtualView.contentType !== ContentAsCodeType.VIRTUAL_VIEW) {
-            throw new ParameterError('Invalid virtual view contentType');
-        }
-        if (virtualView.version !== currentVersion) {
-            throw new ParameterError(
-                `Unsupported virtual view version ${virtualView.version}`,
-            );
-        }
-        if (slug !== virtualView.slug) {
-            throw new ParameterError(
-                'Virtual view path and body slugs must match',
-            );
-        }
-        if (
-            !slug.trim() ||
-            !virtualView.name.trim() ||
-            !virtualView.sql.trim()
-        ) {
-            throw new ParameterError(
-                'Virtual view slug, name, and SQL are required',
-            );
-        }
-        if (
-            snakeCaseName(slug) !== slug ||
-            slug.includes('/') ||
-            slug.includes('\\') ||
-            Array.from(slug).some((character) => character.charCodeAt(0) < 32)
-        ) {
-            throw new ParameterError(
-                'Virtual view slug must be a canonical snake_case identifier',
-            );
-        }
-        if (virtualView.columns.length === 0) {
-            throw new ParameterError(
-                'Virtual view must define at least one column',
-            );
-        }
-        const references = virtualView.columns.map(
-            ({ reference }) => reference,
-        );
-        if (
-            references.some((reference) => !reference.trim()) ||
-            new Set(references).size !== references.length
-        ) {
-            throw new ParameterError(
-                'Virtual view column references must be non-empty and unique',
-            );
-        }
-        const dimensionTypes = new Set(Object.values(DimensionType));
-        if (virtualView.columns.some(({ type }) => !dimensionTypes.has(type))) {
-            throw new ParameterError(
-                'Virtual view columns must use valid types',
-            );
-        }
-        const parameterReferences = new Set(
-            getParameterReferences(virtualView.sql),
-        );
-        const unusedParameters = Object.keys(
-            virtualView.parameters ?? {},
-        ).filter((name) => !parameterReferences.has(name));
-        if (unusedParameters.length > 0) {
-            throw new ParameterError(
-                `Virtual view contains values for unreferenced parameters: ${unusedParameters.join(', ')}`,
-            );
-        }
-
-        const project = await this.projectModel.getSummary(projectUuid);
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('ContentAsCode', {
-                    projectUuid,
-                    organizationUuid: project.organizationUuid,
-                    metadata: { slug },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-        if (!this.projectService) {
-            throw new Error(
-                'ProjectService is required to upload virtual views',
-            );
-        }
-        await this.projectService.validateVirtualViewParameterReferences(
-            projectUuid,
-            virtualView.sql,
-            virtualView.parameters ?? undefined,
-        );
-
-        const existingByName = await this.projectModel.findExploresFromCache(
-            projectUuid,
-            'name',
-            [slug],
-        );
-        const existing = existingByName[slug];
-        if (
-            existing &&
-            (isExploreError(existing) || existing.type !== ExploreType.VIRTUAL)
-        ) {
-            throw new AlreadyExistsError(
-                `An explore named "${slug}" already exists and cannot be adopted`,
-            );
-        }
-        const normalized = {
-            ...virtualView,
-            columns: [...virtualView.columns].sort((left, right) =>
-                left.reference.localeCompare(right.reference),
-            ),
-        };
-        if (existing && existing.type === ExploreType.VIRTUAL) {
-            const current = CoderService.transformVirtualView(existing);
-            if (!current && !force) {
-                throw new ParameterError(
-                    'Malformed existing virtual view requires force to replace',
-                );
-            }
-            if (current && isEqual(current, normalized)) {
-                return { action: PromotionAction.NO_CHANGES };
-            }
-            if (current && !force) {
-                const desiredColumns = new Map(
-                    normalized.columns.map((column) => [
-                        column.reference,
-                        column.type,
-                    ]),
-                );
-                const destructive = current.columns.filter(
-                    (column) =>
-                        desiredColumns.get(column.reference) !== column.type,
-                );
-                if (destructive.length > 0) {
-                    throw new ParameterError(
-                        `Destructive virtual view column changes require force: ${destructive.map(({ reference }) => reference).join(', ')}`,
-                    );
-                }
-            }
-            await this.projectService.updateVirtualView(
-                account,
-                projectUuid,
-                slug,
-                {
-                    name: normalized.name,
-                    sql: normalized.sql,
-                    columns: normalized.columns,
-                    parameterValues: normalized.parameters ?? undefined,
-                },
-                false,
-                existing,
-            );
-            return { action: PromotionAction.UPDATE };
-        }
-
-        await this.projectService.createVirtualView(
+        return this.virtualViewCoder.upsert(
             account,
             projectUuid,
-            {
-                name: slug,
-                label: normalized.name,
-                sql: normalized.sql,
-                columns: normalized.columns,
-                parameterValues: normalized.parameters ?? undefined,
-            },
-            false,
+            slug,
+            virtualView,
+            force,
         );
-        return { action: PromotionAction.CREATE };
     }
 
     private static handleContentAsCodeSqlPermissionChecks({
@@ -1821,184 +1450,15 @@ export class CoderService extends BaseService {
         );
     }
 
-    static getChartSlugForTileUuid = (
-        dashboard: DashboardDAO,
-        uuid: string,
-    ) => {
-        const tile = dashboard.tiles.find((t) => t.uuid === uuid);
-        if (tile && isAnyChartTile(tile)) {
-            if (tile.properties.chartSlug == null) {
-                return undefined;
-            }
-            const hasMultipleTilesWithSameChartSlug =
-                dashboard.tiles.filter(
-                    (t) =>
-                        isAnyChartTile(t) &&
-                        t.properties.chartSlug === tile.properties.chartSlug,
-                ).length > 1;
-            if (hasMultipleTilesWithSameChartSlug) {
-                const chartSlugIndex = dashboard.tiles
-                    .filter(
-                        (t) =>
-                            isAnyChartTile(t) &&
-                            t.properties.chartSlug ===
-                                tile.properties.chartSlug,
-                    )
-                    .findIndex((t) => t.uuid === uuid);
-                return `${tile.properties.chartSlug}-${chartSlugIndex + 1}`;
-            }
-            return tile.properties.chartSlug;
-        }
-        return undefined;
-    };
+    static getChartSlugForTileUuid = getChartSlugForTileUuid;
 
-    /* Convert dashboard filters from tile uuids to tile slugs
-     * DashboardDAO to DashboardAsCode
-     */
-    static getFiltersWithTileSlugs(
-        dashboard: DashboardDAO,
-    ): Required<NonNullable<DashboardAsCode['filters']>> {
-        const dimensionFiltersWithoutUuids: NonNullable<
-            DashboardAsCode['filters']
-        >['dimensions'] = dashboard.filters.dimensions.map((filter) => {
-            const tileTargets = Object.entries(filter.tileTargets ?? {}).reduce<
-                Record<string, DashboardTileTarget>
-            >((acc, [tileUuid, target]) => {
-                const tileSlug = CoderService.getChartSlugForTileUuid(
-                    dashboard,
-                    tileUuid,
-                );
-                if (!tileSlug) return acc;
-                return {
-                    ...acc,
-                    [tileSlug]: target,
-                };
-            }, {});
-            return {
-                ...filter,
-                id: undefined,
-                tileTargets,
-            };
-        });
+    static getFiltersWithTileSlugs = getFiltersWithTileSlugs;
 
-        return {
-            ...dashboard.filters,
-            dimensions: dimensionFiltersWithoutUuids,
-        };
-    }
+    static getFiltersWithTileUuids = getFiltersWithTileUuids;
 
-    /* Convert dashboard filters from tile slugs to tile uuids
-     * DashboardAsCode to DashboardDAO
-     */
-    static getFiltersWithTileUuids(
-        dashboardAsCode: DashboardAsCode,
-        tilesWithUuids: DashboardTileWithSlug[],
-    ): DashboardDAO['filters'] {
-        const dimensionFiltersWithUuids: DashboardDAO['filters']['dimensions'] =
-            (dashboardAsCode.filters?.dimensions ?? []).map((filter) => {
-                const tileTargets = Object.entries(
-                    filter.tileTargets ?? {},
-                ).reduce<Record<string, DashboardTileTarget>>(
-                    (acc, [tileSlug, target]) => {
-                        const tileUuid = tilesWithUuids.find(
-                            (t) =>
-                                isAnyChartTile(t) &&
-                                // Match first by tileSlug, then by chartSlug (for the case of tile not having a slug)
-                                (t.tileSlug === tileSlug ||
-                                    t.properties.chartSlug === tileSlug),
-                        )?.uuid;
-                        if (!tileUuid) {
-                            console.error(
-                                `Tile with slug ${tileSlug} not found in tilesWithUuids`,
-                            );
-                            return acc;
-                        }
-                        return {
-                            ...acc,
-                            [tileUuid]: target,
-                        };
-                    },
-                    {},
-                );
-                return {
-                    ...filter,
-                    id: uuidv4(),
-                    tileTargets,
-                };
-            });
-        return {
-            metrics: dashboardAsCode.filters?.metrics ?? [],
-            tableCalculations: dashboardAsCode.filters?.tableCalculations ?? [],
-            dimensions: dimensionFiltersWithUuids,
-        };
-    }
+    static getConfigWithDateZoomTileSlugs = getConfigWithDateZoomTileSlugs;
 
-    /* Convert date zoom control tileTargets from tile uuids to tile slugs
-     * DashboardDAO to DashboardAsCode
-     */
-    static getConfigWithDateZoomTileSlugs(
-        dashboard: DashboardDAO,
-    ): DashboardConfig | undefined {
-        const { config } = dashboard;
-        if (!config?.dateZoomConfig) return config;
-
-        const tileTargets = Object.entries(
-            config.dateZoomConfig.tileTargets ?? {},
-        ).reduce<Record<string, DateZoomTileTarget>>(
-            (acc, [tileUuid, target]) => {
-                const tileSlug = CoderService.getChartSlugForTileUuid(
-                    dashboard,
-                    tileUuid,
-                );
-                if (!tileSlug) return acc;
-                return { ...acc, [tileSlug]: target };
-            },
-            {},
-        );
-
-        return {
-            ...config,
-            dateZoomConfig: { ...config.dateZoomConfig, tileTargets },
-        };
-    }
-
-    /* Convert date zoom control tileTargets from tile slugs to tile uuids
-     * DashboardAsCode to DashboardDAO
-     */
-    static getConfigWithDateZoomTileUuids(
-        config: DashboardConfig,
-        tilesWithUuids: DashboardTileWithSlug[],
-    ): DashboardConfig {
-        const { dateZoomConfig } = config;
-        if (!dateZoomConfig) return config;
-
-        const tileTargets = Object.entries(
-            dateZoomConfig.tileTargets ?? {},
-        ).reduce<Record<string, DateZoomTileTarget>>(
-            (acc, [tileSlug, target]) => {
-                const tileUuid = tilesWithUuids.find(
-                    (t) =>
-                        isAnyChartTile(t) &&
-                        // Match first by tileSlug, then by chartSlug (for the case of tile not having a slug)
-                        (t.tileSlug === tileSlug ||
-                            t.properties.chartSlug === tileSlug),
-                )?.uuid;
-                if (!tileUuid) {
-                    console.error(
-                        `Tile with slug ${tileSlug} not found for date zoom target`,
-                    );
-                    return acc;
-                }
-                return { ...acc, [tileUuid]: target };
-            },
-            {},
-        );
-
-        return {
-            ...config,
-            dateZoomConfig: { ...dateZoomConfig, tileTargets },
-        };
-    }
+    static getConfigWithDateZoomTileUuids = getConfigWithDateZoomTileUuids;
 
     private static transformDashboard(
         dashboard: DashboardDAO,
@@ -2758,324 +2218,9 @@ export class CoderService extends BaseService {
         };
     }
 
-    private static getScheduledDeliveryTargetsAsCode(
-        scheduler: SchedulerAndTargets,
-    ): ScheduledDeliveryTargetAsCode[] | null {
-        const targets: ScheduledDeliveryTargetAsCode[] = [];
-        for (const target of scheduler.targets) {
-            if (isEmailTarget(target)) {
-                targets.push({ type: 'email', recipient: target.recipient });
-            } else if (isSlackTarget(target)) {
-                targets.push({ type: 'slack', channel: target.channel });
-            } else if (isMsTeamsTarget(target) || isGoogleChatTarget(target)) {
-                return null;
-            } else {
-                assertUnreachable(target, 'Unknown scheduled delivery target');
-            }
-        }
-        return targets;
-    }
+    static getDashboardTabSlug = getDashboardTabSlug;
 
-    private static getScheduledDeliveryTargetKey(
-        target: ScheduledDeliveryTargetAsCode,
-    ): string {
-        switch (target.type) {
-            case 'email':
-                return `${target.type}:${target.recipient}`;
-            case 'slack':
-                return `${target.type}:${target.channel}`;
-            default:
-                return assertUnreachable(
-                    target,
-                    'Unknown scheduled delivery target',
-                );
-        }
-    }
-
-    private static getDashboardScheduledDeliveryFiltersWithTileSlugs(
-        dashboard: DashboardDAO,
-        filters: DashboardFilterRule[] | undefined,
-    ): Omit<DashboardFilterRule, 'id'>[] | null {
-        if (!filters) return null;
-        return filters.map((filter) => {
-            const tileTargets = Object.entries(filter.tileTargets ?? {}).reduce<
-                Record<string, DashboardTileTarget>
-            >((acc, [tileUuid, target]) => {
-                const tileSlug = CoderService.getChartSlugForTileUuid(
-                    dashboard,
-                    tileUuid,
-                );
-                return tileSlug ? { ...acc, [tileSlug]: target } : acc;
-            }, {});
-            return { ...filter, id: undefined, tileTargets };
-        });
-    }
-
-    private static getDashboardScheduledDeliveryFiltersWithTileUuids(
-        dashboard: DashboardDAO,
-        filters: Omit<DashboardFilterRule, 'id'>[] | null,
-    ): DashboardFilterRule[] | undefined {
-        if (!filters) return undefined;
-        return filters.map((filter) => {
-            const tileTargets = Object.entries(filter.tileTargets ?? {}).reduce<
-                Record<string, DashboardTileTarget>
-            >((acc, [tileSlug, target]) => {
-                const tileUuid = dashboard.tiles.find(
-                    (tile) =>
-                        CoderService.getChartSlugForTileUuid(
-                            dashboard,
-                            tile.uuid,
-                        ) === tileSlug,
-                )?.uuid;
-                if (!tileUuid) {
-                    throw new NotFoundError(
-                        `Dashboard tile '${tileSlug}' referenced by scheduled delivery was not found`,
-                    );
-                }
-                return { ...acc, [tileUuid]: target };
-            }, {});
-            return { ...filter, id: uuidv4(), tileTargets };
-        });
-    }
-
-    private static getDashboardTabBaseSlug(
-        tab: DashboardDAO['tabs'][number],
-    ): string {
-        const slug = tab.name
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-+|-+$/g, '');
-        return slug || `tab-${tab.order + 1}`;
-    }
-
-    static getDashboardTabSlug(
-        dashboard: Pick<DashboardDAO, 'tabs'>,
-        tabUuid: string,
-    ): string {
-        const tab = dashboard.tabs.find(({ uuid }) => uuid === tabUuid);
-        if (!tab) {
-            throw new NotFoundError(
-                `Dashboard tab '${tabUuid}' referenced by scheduled delivery was not found`,
-            );
-        }
-        const baseSlug = CoderService.getDashboardTabBaseSlug(tab);
-        const matchingTabs = dashboard.tabs.filter(
-            (candidate) =>
-                CoderService.getDashboardTabBaseSlug(candidate) === baseSlug,
-        );
-        if (matchingTabs.length === 1) return baseSlug;
-        const index = matchingTabs.findIndex(({ uuid }) => uuid === tabUuid);
-        return `${baseSlug}-${index + 1}`;
-    }
-
-    static getDashboardTabUuid(
-        dashboard: Pick<DashboardDAO, 'tabs'>,
-        tabSlug: string,
-    ): string {
-        const tab =
-            dashboard.tabs.find(
-                ({ uuid }) =>
-                    CoderService.getDashboardTabSlug(dashboard, uuid) ===
-                    tabSlug,
-            ) ?? dashboard.tabs.find(({ uuid }) => uuid === tabSlug);
-        if (!tab) {
-            throw new NotFoundError(
-                `Dashboard tab '${tabSlug}' referenced by scheduled delivery was not found`,
-            );
-        }
-        return tab.uuid;
-    }
-
-    private static getScheduledDeliveryFormat(
-        scheduler: SchedulerAndTargets,
-    ): ScheduledDeliveryFormatAsCode | null {
-        switch (scheduler.format) {
-            case SchedulerFormat.CSV:
-            case SchedulerFormat.XLSX:
-                return isSchedulerCsvOptions(scheduler.options)
-                    ? { format: scheduler.format, options: scheduler.options }
-                    : null;
-            case SchedulerFormat.IMAGE:
-                return isSchedulerImageOptions(scheduler.options)
-                    ? { format: scheduler.format, options: scheduler.options }
-                    : null;
-            case SchedulerFormat.PDF:
-                return { format: scheduler.format, options: {} };
-            case SchedulerFormat.GSHEETS:
-                return null;
-            default:
-                return assertUnreachable(
-                    scheduler.format,
-                    'Unknown scheduled delivery format',
-                );
-        }
-    }
-
-    private async transformScheduledDelivery(
-        scheduler: SchedulerAndTargets,
-    ): Promise<ScheduledDeliveryAsCode | null> {
-        if (
-            !scheduler.slug ||
-            (scheduler.thresholds && scheduler.thresholds.length > 0)
-        ) {
-            return null;
-        }
-        const targets =
-            CoderService.getScheduledDeliveryTargetsAsCode(scheduler);
-        if (!targets) return null;
-        const format = CoderService.getScheduledDeliveryFormat(scheduler);
-        if (!format) return null;
-
-        const common = {
-            contentType: ContentAsCodeType.SCHEDULED_DELIVERY as const,
-            version: currentVersion,
-            slug: scheduler.slug,
-            name: scheduler.name,
-            message: scheduler.message ?? null,
-            cron: scheduler.cron,
-            timezone: scheduler.timezone ?? null,
-            enabled: scheduler.enabled,
-            includeLinks: scheduler.includeLinks,
-            targets,
-            downloadedAt: new Date(),
-        };
-
-        if (isChartScheduler(scheduler)) {
-            const chart = await this.savedChartModel.getSummary(
-                scheduler.savedChartUuid,
-            );
-            return {
-                ...common,
-                ...format,
-                resource: { type: 'chart', slug: chart.slug },
-                filters: stripFilterIds(scheduler.filters),
-                parameters: scheduler.parameters ?? null,
-                customViewportWidth: null,
-                selectedTabs: null,
-            };
-        }
-
-        if (isDashboardScheduler(scheduler)) {
-            const dashboard = await this.dashboardModel.getByIdOrSlug(
-                scheduler.dashboardUuid,
-            );
-            return {
-                ...common,
-                ...format,
-                resource: { type: 'dashboard', slug: dashboard.slug },
-                filters:
-                    CoderService.getDashboardScheduledDeliveryFiltersWithTileSlugs(
-                        dashboard,
-                        scheduler.filters,
-                    ),
-                parameters: scheduler.parameters ?? null,
-                customViewportWidth: scheduler.customViewportWidth ?? null,
-                selectedTabs:
-                    scheduler.selectedTabs?.map((tabUuid) =>
-                        CoderService.getDashboardTabSlug(dashboard, tabUuid),
-                    ) ?? null,
-            };
-        }
-
-        return null;
-    }
-
-    private async transformGoogleSheetsSync(
-        scheduler: SchedulerAndTargets,
-    ): Promise<GoogleSheetsSyncAsCode | null> {
-        if (
-            !scheduler.slug ||
-            scheduler.format !== SchedulerFormat.GSHEETS ||
-            scheduler.thresholds?.length ||
-            !isSchedulerGsheetsOptions(scheduler.options)
-        ) {
-            return null;
-        }
-
-        const common = {
-            contentType: ContentAsCodeType.GOOGLE_SHEETS_SYNC as const,
-            version: currentVersion,
-            slug: scheduler.slug,
-            name: scheduler.name,
-            message: scheduler.message ?? null,
-            cron: scheduler.cron,
-            timezone: scheduler.timezone ?? null,
-            enabled: scheduler.enabled,
-            includeLinks: scheduler.includeLinks,
-            destination: {
-                spreadsheetId: scheduler.options.gdriveId,
-                spreadsheetName: scheduler.options.gdriveName,
-                organizationName: scheduler.options.gdriveOrganizationName,
-                url: scheduler.options.url,
-                tabName: scheduler.options.tabName ?? null,
-            },
-            downloadedAt: new Date(),
-        };
-
-        if (isChartScheduler(scheduler)) {
-            const chart = await this.savedChartModel.getSummary(
-                scheduler.savedChartUuid,
-            );
-            return {
-                ...common,
-                resource: { type: 'chart', slug: chart.slug },
-                filters: stripFilterIds(scheduler.filters),
-                parameters: scheduler.parameters ?? null,
-                customViewportWidth: null,
-                selectedTabs: null,
-            };
-        }
-
-        if (isDashboardScheduler(scheduler)) {
-            const dashboard = await this.dashboardModel.getByIdOrSlug(
-                scheduler.dashboardUuid,
-            );
-            return {
-                ...common,
-                resource: { type: 'dashboard', slug: dashboard.slug },
-                filters:
-                    CoderService.getDashboardScheduledDeliveryFiltersWithTileSlugs(
-                        dashboard,
-                        scheduler.filters,
-                    ),
-                parameters: scheduler.parameters ?? null,
-                customViewportWidth: scheduler.customViewportWidth ?? null,
-                selectedTabs:
-                    scheduler.selectedTabs?.map((tabUuid) =>
-                        CoderService.getDashboardTabSlug(dashboard, tabUuid),
-                    ) ?? null,
-            };
-        }
-
-        return null;
-    }
-
-    private static getScheduledContentNames(
-        contentType:
-            | ContentAsCodeType.SCHEDULED_DELIVERY
-            | ContentAsCodeType.ALERT
-            | ContentAsCodeType.GOOGLE_SHEETS_SYNC,
-    ): { singular: string; plural: string } {
-        switch (contentType) {
-            case ContentAsCodeType.SCHEDULED_DELIVERY:
-                return {
-                    singular: 'Scheduled delivery',
-                    plural: 'scheduled deliveries',
-                };
-            case ContentAsCodeType.ALERT:
-                return { singular: 'Alert', plural: 'alerts' };
-            case ContentAsCodeType.GOOGLE_SHEETS_SYNC:
-                return {
-                    singular: 'Google Sheets sync',
-                    plural: 'Google Sheets syncs',
-                };
-            default:
-                return assertUnreachable(
-                    contentType,
-                    'Unknown scheduled content type',
-                );
-        }
-    }
+    static getDashboardTabUuid = getDashboardTabUuid;
 
     async getScheduledDeliveries(
         user: SessionUser,
@@ -3111,289 +2256,34 @@ export class CoderService extends BaseService {
         | ApiAlertAsCodeListResponse['results']
         | ApiGoogleSheetsSyncAsCodeListResponse['results']
     > {
-        const project = await this.projectModel.getSummary(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('ContentAsCode', {
+        switch (contentType) {
+            case ContentAsCodeType.ALERT:
+                return this.scheduledContentCoder.getScheduledDeliveries(
+                    user,
                     projectUuid,
-                    organizationUuid: project.organizationUuid,
-                }),
-            ) ||
-            auditedAbility.cannot(
-                'manage',
-                subject('ScheduledDeliveries', {
+                    slugs,
+                    ContentAsCodeType.ALERT,
+                );
+            case ContentAsCodeType.GOOGLE_SHEETS_SYNC:
+                return this.scheduledContentCoder.getScheduledDeliveries(
+                    user,
                     projectUuid,
-                    organizationUuid: project.organizationUuid,
-                }),
-            ) ||
-            (contentType === ContentAsCodeType.GOOGLE_SHEETS_SYNC &&
-                auditedAbility.cannot(
-                    'manage',
-                    subject('GoogleSheets', {
-                        projectUuid,
-                        organizationUuid: project.organizationUuid,
-                    }),
-                ))
-        ) {
-            const { plural } =
-                CoderService.getScheduledContentNames(contentType);
-            throw new ForbiddenError(
-                `You are not allowed to download ${plural}`,
-            );
-        }
-
-        const schedulers =
-            await this.schedulerModel.getSchedulerForProject(projectUuid);
-        const filteredSchedulers = slugs?.length
-            ? schedulers.filter((scheduler) => slugs.includes(scheduler.slug))
-            : schedulers;
-        const matchingSchedulers = filteredSchedulers.filter((scheduler) => {
-            switch (contentType) {
-                case ContentAsCodeType.ALERT:
-                    return Boolean(scheduler.thresholds?.length);
-                case ContentAsCodeType.GOOGLE_SHEETS_SYNC:
-                    return (
-                        !scheduler.thresholds?.length &&
-                        scheduler.format === SchedulerFormat.GSHEETS
-                    );
-                case ContentAsCodeType.SCHEDULED_DELIVERY:
-                    return (
-                        !scheduler.thresholds?.length &&
-                        scheduler.format !== SchedulerFormat.GSHEETS
-                    );
-                default:
-                    return assertUnreachable(
-                        contentType,
-                        'Unknown scheduled content type',
-                    );
-            }
-        });
-        const transformed = await Promise.all(
-            matchingSchedulers.map((scheduler) => {
-                switch (contentType) {
-                    case ContentAsCodeType.ALERT:
-                        return this.transformAlert(scheduler);
-                    case ContentAsCodeType.GOOGLE_SHEETS_SYNC:
-                        return this.transformGoogleSheetsSync(scheduler);
-                    case ContentAsCodeType.SCHEDULED_DELIVERY:
-                        return this.transformScheduledDelivery(scheduler);
-                    default:
-                        return assertUnreachable(
-                            contentType,
-                            'Unknown scheduled content type',
-                        );
-                }
-            }),
-        );
-        const content: Array<
-            ScheduledDeliveryAsCode | AlertAsCode | GoogleSheetsSyncAsCode
-        > = [];
-        const skipped: Array<{ name: string; reason: string }> = [];
-        const { singular: contentName } =
-            CoderService.getScheduledContentNames(contentType);
-        const unsupportedReason = `${contentName} as code supports chart and dashboard resources`;
-
-        matchingSchedulers.forEach((scheduler, index) => {
-            const item = transformed[index];
-            if (item) {
-                content.push(item);
-            } else {
-                skipped.push({
-                    name: scheduler.name,
-                    reason: scheduler.slug
-                        ? unsupportedReason
-                        : `${contentName} is missing its portable identity and must be backfilled before export`,
-                });
-            }
-        });
-
-        if (contentType === ContentAsCodeType.ALERT) {
-            return { alerts: content as AlertAsCode[], skipped };
-        }
-        if (contentType === ContentAsCodeType.GOOGLE_SHEETS_SYNC) {
-            return {
-                googleSheetsSyncs: content as GoogleSheetsSyncAsCode[],
-                skipped,
-            };
-        }
-        return {
-            scheduledDeliveries: content as ScheduledDeliveryAsCode[],
-            skipped,
-        };
-    }
-
-    private async transformAlert(
-        scheduler: SchedulerAndTargets,
-    ): Promise<AlertAsCode | null> {
-        if (
-            !scheduler.slug ||
-            !isChartScheduler(scheduler) ||
-            !scheduler.thresholds?.length ||
-            scheduler.format !== SchedulerFormat.IMAGE
-        ) {
-            return null;
-        }
-        const targets =
-            CoderService.getScheduledDeliveryTargetsAsCode(scheduler);
-        if (!targets) return null;
-
-        const chart = await this.savedChartModel.getSummary(
-            scheduler.savedChartUuid,
-        );
-        return {
-            contentType: ContentAsCodeType.ALERT,
-            version: currentVersion,
-            slug: scheduler.slug,
-            name: scheduler.name,
-            message: scheduler.message ?? null,
-            cron: scheduler.cron,
-            timezone: scheduler.timezone ?? null,
-            enabled: scheduler.enabled,
-            includeLinks: scheduler.includeLinks,
-            targets,
-            resource: { type: 'chart', slug: chart.slug },
-            thresholds: scheduler.thresholds,
-            notificationFrequency:
-                scheduler.notificationFrequency ?? NotificationFrequency.ALWAYS,
-            filters: stripFilterIds(scheduler.filters),
-            parameters: scheduler.parameters ?? null,
-            downloadedAt: new Date(),
-        };
-    }
-
-    private async getScheduledDeliveryResource(
-        projectUuid: string,
-        delivery:
-            | ScheduledDeliveryAsCode
-            | AlertAsCode
-            | GoogleSheetsSyncAsCode,
-    ): Promise<
-        | { type: 'chart'; uuid: string }
-        | { type: 'dashboard'; uuid: string; dashboard: DashboardDAO }
-    > {
-        if (delivery.resource.type === 'chart') {
-            const charts = await this.savedChartModel.find({
-                projectUuid,
-                slug: delivery.resource.slug,
-                includeOrphanChartsWithinDashboard: true,
-            });
-            if (charts.length === 0) {
-                throw new NotFoundError(
-                    `Chart '${delivery.resource.slug}' was not found`,
+                    slugs,
+                    ContentAsCodeType.GOOGLE_SHEETS_SYNC,
                 );
-            }
-            if (charts.length > 1) {
-                throw new ParameterError(
-                    `Multiple charts match slug '${delivery.resource.slug}'`,
+            case ContentAsCodeType.SCHEDULED_DELIVERY:
+                return this.scheduledContentCoder.getScheduledDeliveries(
+                    user,
+                    projectUuid,
+                    slugs,
+                    ContentAsCodeType.SCHEDULED_DELIVERY,
                 );
-            }
-            return { type: 'chart', uuid: charts[0].uuid };
+            default:
+                return assertUnreachable(
+                    contentType,
+                    'Unknown scheduled content type',
+                );
         }
-
-        const dashboards = await this.dashboardModel.find({
-            projectUuid,
-            slug: delivery.resource.slug,
-        });
-        if (dashboards.length === 0) {
-            throw new NotFoundError(
-                `Dashboard '${delivery.resource.slug}' was not found`,
-            );
-        }
-        if (dashboards.length > 1) {
-            throw new ParameterError(
-                `Multiple dashboards match slug '${delivery.resource.slug}'`,
-            );
-        }
-        return {
-            type: 'dashboard',
-            uuid: dashboards[0].uuid,
-            dashboard: await this.dashboardModel.getByIdOrSlug(
-                dashboards[0].uuid,
-            ),
-        };
-    }
-
-    private static getScheduledDeliveryTargets(delivery: {
-        targets: ScheduledDeliveryTargetAsCode[];
-    }): CreateSchedulerTarget[] {
-        return delivery.targets.map((target) => {
-            switch (target.type) {
-                case 'email':
-                    return { recipient: target.recipient };
-                case 'slack':
-                    return { channel: target.channel };
-                default:
-                    return assertUnreachable(
-                        target,
-                        'Unknown scheduled delivery target',
-                    );
-            }
-        });
-    }
-
-    private static isChartScheduledDelivery(
-        delivery: ScheduledDeliveryAsCode,
-    ): delivery is ChartScheduledDeliveryAsCode {
-        return delivery.resource.type === 'chart';
-    }
-
-    private static isDashboardScheduledDelivery(
-        delivery: ScheduledDeliveryAsCode,
-    ): delivery is DashboardScheduledDeliveryAsCode {
-        return delivery.resource.type === 'dashboard';
-    }
-
-    private static isChartScheduledContent(
-        delivery:
-            | ScheduledDeliveryAsCode
-            | AlertAsCode
-            | GoogleSheetsSyncAsCode,
-    ): delivery is
-        | ChartScheduledDeliveryAsCode
-        | AlertAsCode
-        | ChartGoogleSheetsSyncAsCode {
-        return delivery.resource.type === 'chart';
-    }
-
-    private static isDashboardScheduledContent(
-        delivery:
-            | ScheduledDeliveryAsCode
-            | AlertAsCode
-            | GoogleSheetsSyncAsCode,
-    ): delivery is
-        | DashboardScheduledDeliveryAsCode
-        | DashboardGoogleSheetsSyncAsCode {
-        return delivery.resource.type === 'dashboard';
-    }
-
-    private static scheduledContentIsEqual(
-        current: ScheduledDeliveryAsCode | AlertAsCode | GoogleSheetsSyncAsCode,
-        desired: ScheduledDeliveryAsCode | AlertAsCode | GoogleSheetsSyncAsCode,
-    ): boolean {
-        const normalize = (
-            scheduledContent:
-                | ScheduledDeliveryAsCode
-                | AlertAsCode
-                | GoogleSheetsSyncAsCode,
-        ) => {
-            const { downloadedAt, ...rest } = scheduledContent;
-            if ('targets' in rest) {
-                return {
-                    ...rest,
-                    targets: [...rest.targets].sort((left, right) =>
-                        CoderService.getScheduledDeliveryTargetKey(
-                            left,
-                        ).localeCompare(
-                            CoderService.getScheduledDeliveryTargetKey(right),
-                        ),
-                    ),
-                };
-            }
-            return rest;
-        };
-        return isEqual(normalize(current), normalize(desired));
     }
 
     async upsertScheduledDelivery(
@@ -3410,215 +2300,13 @@ export class CoderService extends BaseService {
         | ApiAlertAsCodeUpsertResponse['results']
         | ApiGoogleSheetsSyncAsCodeUpsertResponse['results']
     > {
-        const isAlert = delivery.contentType === ContentAsCodeType.ALERT;
-        const isGoogleSheetsSync =
-            delivery.contentType === ContentAsCodeType.GOOGLE_SHEETS_SYNC;
-        const { singular: contentName, plural: contentPlural } =
-            CoderService.getScheduledContentNames(delivery.contentType);
-        if (slug !== delivery.slug) {
-            throw new ParameterError(
-                `${contentName} slug '${delivery.slug}' does not match path slug '${slug}'`,
-            );
-        }
-        const project = await this.projectModel.getSummary(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('ContentAsCode', {
-                    projectUuid,
-                    organizationUuid: project.organizationUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                `You are not allowed to upload ${contentPlural}`,
-            );
-        }
-
-        const resource = await this.getScheduledDeliveryResource(
-            projectUuid,
-            delivery,
-        );
-        const existing = await this.schedulerModel.findSchedulerByProjectSlug(
+        return this.scheduledContentCoder.upsertScheduledDelivery(
+            user,
             projectUuid,
             slug,
+            delivery,
+            force,
         );
-
-        if (
-            existing &&
-            (Boolean(existing.thresholds?.length) !== isAlert ||
-                isGoogleSheetsSync !==
-                    (!existing.thresholds?.length &&
-                        existing.format === SchedulerFormat.GSHEETS) ||
-                (resource.type === 'chart' &&
-                    (!isChartScheduler(existing) ||
-                        existing.savedChartUuid !== resource.uuid)) ||
-                (resource.type === 'dashboard' &&
-                    (!isDashboardScheduler(existing) ||
-                        existing.dashboardUuid !== resource.uuid)))
-        ) {
-            throw new ParameterError(
-                `${contentName} slug '${slug}' is already used by another resource in this project`,
-            );
-        }
-
-        if (existing) {
-            let current:
-                | ScheduledDeliveryAsCode
-                | AlertAsCode
-                | GoogleSheetsSyncAsCode
-                | null;
-            switch (delivery.contentType) {
-                case ContentAsCodeType.ALERT:
-                    current = await this.transformAlert(existing);
-                    break;
-                case ContentAsCodeType.GOOGLE_SHEETS_SYNC:
-                    current = await this.transformGoogleSheetsSync(existing);
-                    break;
-                case ContentAsCodeType.SCHEDULED_DELIVERY:
-                    current = await this.transformScheduledDelivery(existing);
-                    break;
-                default:
-                    current = assertUnreachable(
-                        delivery,
-                        'Unknown scheduled content type',
-                    );
-            }
-            if (
-                !force &&
-                current &&
-                CoderService.scheduledContentIsEqual(current, delivery)
-            ) {
-                return { action: PromotionAction.NO_CHANGES };
-            }
-        }
-
-        const targets = isGoogleSheetsSync
-            ? []
-            : CoderService.getScheduledDeliveryTargets(delivery);
-        let filters: Filters | DashboardFilterRule[] | undefined;
-        if (CoderService.isChartScheduledContent(delivery)) {
-            filters = delivery.filters
-                ? normalizeFilterIds(delivery.filters)
-                : undefined;
-        } else if (
-            CoderService.isDashboardScheduledContent(delivery) &&
-            resource.type === 'dashboard'
-        ) {
-            filters =
-                CoderService.getDashboardScheduledDeliveryFiltersWithTileUuids(
-                    resource.dashboard,
-                    delivery.filters,
-                );
-        } else {
-            throw new ParameterError(
-                'Scheduled delivery resource type does not match its payload',
-            );
-        }
-        let selectedTabs: string[] | null | undefined;
-        if (isAlert || delivery.resource.type === 'chart') {
-            selectedTabs = null;
-        } else if (resource.type === 'dashboard' && delivery.selectedTabs) {
-            selectedTabs = delivery.selectedTabs.map((tabSlug) =>
-                CoderService.getDashboardTabUuid(resource.dashboard, tabSlug),
-            );
-        } else {
-            selectedTabs = delivery.selectedTabs;
-        }
-
-        const formatAndOptions = (() => {
-            switch (delivery.contentType) {
-                case ContentAsCodeType.ALERT:
-                    return {
-                        format: SchedulerFormat.IMAGE,
-                        options: { withPdf: false },
-                    };
-                case ContentAsCodeType.GOOGLE_SHEETS_SYNC:
-                    return {
-                        format: SchedulerFormat.GSHEETS,
-                        options: {
-                            gdriveId: delivery.destination.spreadsheetId,
-                            gdriveName: delivery.destination.spreadsheetName,
-                            gdriveOrganizationName:
-                                delivery.destination.organizationName,
-                            url: delivery.destination.url,
-                            tabName: delivery.destination.tabName ?? undefined,
-                        },
-                    };
-                case ContentAsCodeType.SCHEDULED_DELIVERY:
-                    return {
-                        format: delivery.format,
-                        options: delivery.options,
-                    };
-                default:
-                    return assertUnreachable(
-                        delivery,
-                        'Unknown scheduled content type',
-                    );
-            }
-        })();
-
-        const schedulerInput = {
-            slug: delivery.slug,
-            name: delivery.name,
-            message: delivery.message ?? undefined,
-            cron: delivery.cron,
-            timezone: delivery.timezone ?? undefined,
-            ...formatAndOptions,
-            filters,
-            parameters: delivery.parameters ?? undefined,
-            customViewportWidth: isAlert
-                ? undefined
-                : (delivery.customViewportWidth ?? undefined),
-            selectedTabs,
-            thresholds: isAlert ? delivery.thresholds : undefined,
-            notificationFrequency: isAlert
-                ? delivery.notificationFrequency
-                : undefined,
-            enabled: delivery.enabled,
-            includeLinks: delivery.includeLinks,
-            targets,
-            appUuid: null,
-            appName: null,
-        };
-
-        if (!existing) {
-            const created =
-                resource.type === 'chart'
-                    ? await this.savedChartService.createScheduler(
-                          user,
-                          resource.uuid,
-                          schedulerInput,
-                      )
-                    : await this.dashboardService.createScheduler(
-                          user,
-                          resource.uuid,
-                          schedulerInput,
-                      );
-            if (!delivery.enabled) {
-                await this.schedulerService.setSchedulerEnabled(
-                    user,
-                    created.schedulerUuid,
-                    false,
-                );
-            }
-            return { action: PromotionAction.CREATE };
-        }
-
-        await this.schedulerService.updateScheduler(
-            user,
-            existing.schedulerUuid,
-            schedulerInput,
-        );
-        if (existing.enabled !== delivery.enabled) {
-            await this.schedulerService.setSchedulerEnabled(
-                user,
-                existing.schedulerUuid,
-                delivery.enabled,
-            );
-        }
-        return { action: PromotionAction.UPDATE };
     }
 
     private async syncVerification({

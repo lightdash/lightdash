@@ -115,6 +115,10 @@ type SavedChartServiceArguments = {
     organizationModel: OrganizationModel;
 };
 
+type GoogleSheetValidationOptions = {
+    validateGoogleSheet: boolean;
+};
+
 export class SavedChartService
     extends BaseService
     implements BulkActionable<Knex>, SoftDeletableService
@@ -1856,6 +1860,9 @@ export class SavedChartService
         user: SessionUser,
         chartUuid: string,
         newScheduler: CreateSchedulerAndTargetsWithoutIds,
+        { validateGoogleSheet }: GoogleSheetValidationOptions = {
+            validateGoogleSheet: true,
+        },
     ): Promise<SchedulerAndTargets> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1885,24 +1892,26 @@ export class SavedChartService
                 );
             }
 
-            try {
-                const refreshToken = await this.userService.getRefreshToken(
-                    user.userUuid,
-                );
-                await this.googleDriveClient.assertFileIsGoogleSheet(
-                    refreshToken,
-                    newScheduler.options.gdriveId,
-                );
-            } catch (error) {
-                if (error instanceof UnexpectedGoogleSheetsError) {
-                    throw error; // Already has clear user-facing message
+            if (validateGoogleSheet) {
+                try {
+                    const refreshToken = await this.userService.getRefreshToken(
+                        user.userUuid,
+                    );
+                    await this.googleDriveClient.assertFileIsGoogleSheet(
+                        refreshToken,
+                        newScheduler.options.gdriveId,
+                    );
+                } catch (error) {
+                    if (error instanceof UnexpectedGoogleSheetsError) {
+                        throw error; // Already has clear user-facing message
+                    }
+                    if (error instanceof GoogleSheetsTransientError) {
+                        throw error; // Allow transient errors to propagate for retry
+                    }
+                    throw new MissingConfigError(
+                        'Unable to validate Google Sheets file. Please ensure you have connected your Google account.',
+                    );
                 }
-                if (error instanceof GoogleSheetsTransientError) {
-                    throw error; // Allow transient errors to propagate for retry
-                }
-                throw new MissingConfigError(
-                    'Unable to validate Google Sheets file. Please ensure you have connected your Google account.',
-                );
             }
         }
 

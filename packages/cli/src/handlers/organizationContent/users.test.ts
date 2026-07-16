@@ -56,7 +56,7 @@ describe('users as code', () => {
         await fs.rm(tmpDir, { recursive: true, force: true });
     });
 
-    it('downloads deterministic portable users and removes stale YAML', async () => {
+    it('downloads deterministic portable users and preserves unknown YAML', async () => {
         const folder = getUsersFolder(tmpDir);
         await fs.mkdir(folder, { recursive: true });
         await fs.writeFile(path.join(folder, 'stale.yml'), 'stale: true');
@@ -76,6 +76,7 @@ describe('users as code', () => {
 
         expect((await fs.readdir(folder)).sort()).toStrictEqual([
             'a-example-com.yml',
+            'stale.yml',
             'z-example-com.yml',
         ]);
         expect(

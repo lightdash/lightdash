@@ -726,7 +726,7 @@ describe('CoderService Google Sheets syncs as code', () => {
         ]);
     });
 
-    it('creates a sync with Google Sheets scheduler options and no targets', async () => {
+    it('creates a sync without requiring Google Sheets validation', async () => {
         const { service, savedChartService } = buildService();
 
         const result = await service.upsertScheduledDelivery(
@@ -751,6 +751,7 @@ describe('CoderService Google Sheets syncs as code', () => {
                 },
                 targets: [],
             }),
+            { validateGoogleSheet: false },
         );
     });
 
@@ -830,11 +831,13 @@ describe('CoderService Google Sheets syncs as code', () => {
                     tabName: 'Updated orders',
                 }),
             }),
+            { validateGoogleSheet: false },
         );
         expect(schedulerService.updateScheduler).toHaveBeenCalledWith(
             user,
             googleSheetsScheduler.schedulerUuid,
             expect.not.objectContaining({ createdBy: expect.anything() }),
+            { validateGoogleSheet: false },
         );
     });
 
