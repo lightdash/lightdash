@@ -1,6 +1,7 @@
 import {
     METRICS_EXPLORER_DATE_FORMAT,
     type ApiCompiledQueryResults,
+    type ApiMetricsExplorerQueryResults,
     type ApiMetricsExplorerTotalResults,
     type MetricExplorerDateRange,
     type MetricTotalComparisonType,
@@ -110,6 +111,67 @@ const postCompileMetricTotalQuery = async ({
             comparisonType,
             rollingDays,
         }),
+    });
+};
+
+type RunMetricSeriesArgs = {
+    projectUuid: string;
+    exploreName: string;
+    metricName: string;
+    dateRange: MetricExplorerDateRange;
+    granularity: TimeFrames;
+};
+
+const postRunMetricSeries = async ({
+    projectUuid,
+    exploreName,
+    metricName,
+    dateRange,
+    granularity,
+}: RunMetricSeriesArgs) => {
+    const queryString = getUrlParams({
+        dateRange,
+        granularity,
+    });
+
+    return lightdashApi<ApiMetricsExplorerQueryResults['results']>({
+        url: `/projects/${projectUuid}/metricsExplorer/${exploreName}/${metricName}/runMetricSeries${
+            queryString ? `?${queryString}` : ''
+        }`,
+        method: 'POST',
+        body: undefined,
+    });
+};
+
+export const useRunMetricSeries = ({
+    projectUuid,
+    exploreName,
+    metricName,
+    dateRange,
+    granularity,
+    options,
+}: Partial<RunMetricSeriesArgs> & {
+    options?: UseQueryOptions<ApiMetricsExplorerQueryResults['results']>;
+}) => {
+    return useQuery({
+        queryKey: [
+            'runMetricSeries',
+            projectUuid,
+            exploreName,
+            metricName,
+            granularity,
+            dateRange?.[0],
+            dateRange?.[1],
+        ],
+        queryFn: () =>
+            postRunMetricSeries({
+                projectUuid: projectUuid!,
+                exploreName: exploreName!,
+                metricName: metricName!,
+                dateRange: dateRange!,
+                granularity: granularity!,
+            }),
+        ...options,
     });
 };
 

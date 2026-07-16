@@ -4,15 +4,19 @@ import {
     getDateRangeFromString,
     getFieldIdForDateDimension,
     getItemId,
+    getMetricExplorerDataPoints,
     getMetricExplorerDateRangeFilters,
     getRollingPeriodDates,
+    isDimension,
     MetricTotalComparisonType,
     MetricTotalResults,
+    ParameterError,
     parseMetricValue,
     QueryExecutionContext,
     TimeFrames,
     type MetricExplorerDateRange,
     type MetricQuery,
+    type MetricsExplorerQueryResults,
     type MetricWithAssociatedTimeDimension,
     type SessionUser,
 } from '@lightdash/common';
@@ -30,6 +34,64 @@ export type MetricsExplorerArguments = {
     catalogService: CatalogService;
     projectService: ProjectService;
     asyncQueryService: AsyncQueryService;
+};
+
+const METRIC_SERIES_LIMIT = 500;
+
+const buildMetricSeriesQuery = ({
+    exploreName,
+    metric,
+    granularity,
+    dateRange,
+}: {
+    exploreName: string;
+    metric: MetricWithAssociatedTimeDimension;
+    granularity: TimeFrames;
+    dateRange: MetricExplorerDateRange;
+}): MetricQuery => {
+    const baseMetricId = getItemId(metric);
+    const metricTimeDimension = metric.timeDimension;
+    if (!metricTimeDimension) {
+        throw new Error('Time dimension not found');
+    }
+
+    const groupByTimeDimensionId = getItemId({
+        table: metricTimeDimension.table,
+        name: getFieldIdForDateDimension(
+            metricTimeDimension.field,
+            granularity,
+        ),
+    });
+
+    const filterTimeDimension = {
+        table: metricTimeDimension.table,
+        field: metricTimeDimension.field,
+        interval: TimeFrames.DAY,
+    };
+    const dateFilters = getMetricExplorerDateRangeFilters(
+        filterTimeDimension,
+        dateRange,
+    );
+
+    return {
+        exploreName,
+        dimensions: [groupByTimeDimensionId],
+        metrics: [baseMetricId],
+        filters: {
+            dimensions: {
+                id: uuidv4(),
+                and: dateFilters,
+            },
+        },
+        sorts: [
+            {
+                fieldId: groupByTimeDimensionId,
+                descending: false,
+            },
+        ],
+        limit: METRIC_SERIES_LIMIT,
+        tableCalculations: [],
+    };
 };
 
 export class MetricsExplorerService extends BaseService {
@@ -143,6 +205,104 @@ export class MetricsExplorerService extends BaseService {
             comparisonValue: parseMetricValue(currentRows[1]?.[baseMetricId]),
             metric,
         };
+    }
+
+    async getMetricSeries(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+        metricName: string,
+        granularity: TimeFrames,
+        startDate: string,
+        endDate: string,
+    ): Promise<MetricsExplorerQueryResults> {
+        const { result } = await measureTime(
+            () =>
+                this._getMetricSeries(
+                    user,
+                    projectUuid,
+                    exploreName,
+                    metricName,
+                    granularity,
+                    startDate,
+                    endDate,
+                ),
+            'getMetricSeries',
+            this.logger,
+            { granularity },
+        );
+
+        return result;
+    }
+
+    private async _getMetricSeries(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+        metricName: string,
+        granularity: TimeFrames,
+        startDate: string,
+        endDate: string,
+    ): Promise<MetricsExplorerQueryResults> {
+        const metric = await this.catalogService.getMetric(
+            fromSession(user),
+            projectUuid,
+            exploreName,
+            metricName,
+        );
+
+        if (!metric.timeDimension) {
+            throw new ParameterError(
+                `Metric ${metricName} does not have a valid time dimension`,
+            );
+        }
+
+        const isIsoDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
+        if (!isIsoDate(startDate) || !isIsoDate(endDate)) {
+            throw new ParameterError(
+                'startDate and endDate must be YYYY-MM-DD dates',
+            );
+        }
+
+        const dateRange = getDateRangeFromString([startDate, endDate]);
+        const groupByTimeDimensionId = getItemId({
+            table: metric.timeDimension.table,
+            name: getFieldIdForDateDimension(
+                metric.timeDimension.field,
+                granularity,
+            ),
+        });
+        const metricQuery = buildMetricSeriesQuery({
+            exploreName,
+            metric,
+            granularity,
+            dateRange,
+        });
+
+        const { rows, fields } =
+            await this.asyncQueryService.executeMetricQueryAndGetResults({
+                account: fromSession(user),
+                projectUuid,
+                metricQuery,
+                context: QueryExecutionContext.METRICS_EXPLORER,
+            });
+
+        const timeDimension = fields[groupByTimeDimensionId];
+        if (!timeDimension || !isDimension(timeDimension)) {
+            throw new Error('Time dimension not found or invalid');
+        }
+
+        const { dataPoints } = getMetricExplorerDataPoints(
+            timeDimension,
+            metric,
+            rows,
+            null,
+        );
+        const points = dataPoints
+            .map((point) => ({ ...point, dateValue: point.date.valueOf() }))
+            .sort((a, b) => a.dateValue - b.dateValue);
+
+        return { metric, points };
     }
 
     private async buildMetricTotalQuery({

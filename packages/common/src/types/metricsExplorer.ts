@@ -1,5 +1,5 @@
 import { type MetricWithAssociatedTimeDimension } from './catalog';
-import { DimensionType, type Dimension, type ItemsMap } from './field';
+import { DimensionType, type Dimension } from './field';
 import { FilterOperator } from './filter';
 
 /**
@@ -68,11 +68,7 @@ export type MetricExploreDataPointWithDateValue = MetricExploreDataPoint & {
 
 export type MetricsExplorerQueryResults = {
     metric: MetricWithAssociatedTimeDimension;
-    compareMetric: MetricWithAssociatedTimeDimension | null;
-    segmentDimension: Dimension | null;
-    fields: ItemsMap;
-    results: MetricExploreDataPointWithDateValue[];
-    hasFilteredSeries: boolean;
+    points: MetricExploreDataPointWithDateValue[];
 };
 
 export type ApiMetricsExplorerQueryResults = {
