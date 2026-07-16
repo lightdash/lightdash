@@ -380,15 +380,17 @@ const BlockCard: FC<BlockCardProps> = ({
                             <MantineIcon icon={IconArrowDown} />
                         </ActionIcon>
                     </Tooltip>
-                    <Tooltip label="Duplicate">
-                        <ActionIcon
-                            variant="subtle"
-                            color="ldGray.6"
-                            onClick={onDuplicate}
-                        >
-                            <MantineIcon icon={IconCopy} />
-                        </ActionIcon>
-                    </Tooltip>
+                    {!definition.singleton && (
+                        <Tooltip label="Duplicate">
+                            <ActionIcon
+                                variant="subtle"
+                                color="ldGray.6"
+                                onClick={onDuplicate}
+                            >
+                                <MantineIcon icon={IconCopy} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
                     <Tooltip label="Remove">
                         <ActionIcon
                             variant="subtle"
