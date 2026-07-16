@@ -21,6 +21,7 @@ import { EventName } from '../../../../types/Events';
 import classes from './blockStyles.module.css';
 import {
     RECOMMENDED_ACTION_KEYS,
+    SKIPPABLE_ACTION_KEYS,
     writeSkippedActions,
 } from './recommendedActionDefaults';
 import styles from './RecommendedActionsChecklist.module.css';
@@ -176,18 +177,20 @@ const ActionRow: FC<{
                     >
                         Set up
                     </Button>
-                    <Tooltip label="Skip this step" withinPortal>
-                        <ActionIcon
-                            className={styles.skipButton}
-                            variant="subtle"
-                            color="gray"
-                            size="sm"
-                            aria-label={`Skip ${definition.title}`}
-                            onClick={() => onSkip(actionKey)}
-                        >
-                            <MantineIcon icon={IconX} size={14} />
-                        </ActionIcon>
-                    </Tooltip>
+                    {SKIPPABLE_ACTION_KEYS.includes(actionKey) && (
+                        <Tooltip label="Skip this step" withinPortal>
+                            <ActionIcon
+                                className={styles.skipButton}
+                                variant="subtle"
+                                color="gray"
+                                size="sm"
+                                aria-label={`Skip ${definition.title}`}
+                                onClick={() => onSkip(actionKey)}
+                            >
+                                <MantineIcon icon={IconX} size={14} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
                 </>
             )}
         </div>
