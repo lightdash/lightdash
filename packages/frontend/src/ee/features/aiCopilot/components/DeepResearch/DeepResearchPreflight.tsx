@@ -53,7 +53,11 @@ export const DeepResearchPreflight = ({ depth, onDepthChange }: Props) => {
                         </Text>
                     </Stack>
                     <Group gap="lg">
-                        <Group gap={6} wrap="nowrap">
+                        <Group
+                            gap={6}
+                            wrap="nowrap"
+                            className={styles.allowancePill}
+                        >
                             <MantineIcon
                                 icon={IconClock}
                                 size={15}
@@ -63,7 +67,11 @@ export const DeepResearchPreflight = ({ depth, onDepthChange }: Props) => {
                                 {config.duration}
                             </Text>
                         </Group>
-                        <Group gap={6} wrap="nowrap">
+                        <Group
+                            gap={6}
+                            wrap="nowrap"
+                            className={styles.allowancePill}
+                        >
                             <MantineIcon
                                 icon={IconDatabase}
                                 size={15}
