@@ -1,3 +1,10 @@
+## [0.3398.1](https://github.com/lightdash/lightdash/compare/0.3398.0...0.3398.1) (2026-07-16)
+
+
+### Bug Fixes
+
+* improve Autopilot run activity log hierarchy ([#25658](https://github.com/lightdash/lightdash/issues/25658)) ([2df2f5f](https://github.com/lightdash/lightdash/commit/2df2f5f0b7f40a373fb8b09012f063ac34063216))
+
 # [0.3398.0](https://github.com/lightdash/lightdash/compare/0.3397.0...0.3398.0) (2026-07-16)
 
 
