@@ -209,7 +209,7 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                         <Box component="header" className={styles.reportHeader}>
                             <Group gap="xs" align="center">
                                 <Text className={styles.eyebrow}>
-                                    Deep research report
+                                    Deep research
                                 </Text>
                                 <Badge
                                     size="xs"
