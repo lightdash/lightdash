@@ -288,11 +288,15 @@ mcpRouter.all(
                 // loop on) a tool they can never invoke.
                 // These lookups are independent, so resolve them together
                 // rather than paying each round trip serially per request.
-                const [grepFieldsEnabled, mcpContentWritesEnabled] =
-                    await Promise.all([
-                        mcpService.isAiGrepFieldsEnabled(req.user!),
-                        mcpService.isMcpContentWritesEnabled(req.user!),
-                    ]);
+                const [
+                    grepFieldsEnabled,
+                    mcpContentWritesEnabled,
+                    scheduledDeliveryEnabled,
+                ] = await Promise.all([
+                    mcpService.isAiGrepFieldsEnabled(req.user!),
+                    mcpService.isMcpContentWritesEnabled(req.user!),
+                    mcpService.isCreateScheduledDeliveryEnabled(req.user!),
+                ]);
                 const mcpServer = await mcpService.createServer({
                     projectPinned: headerProjectUuid !== undefined,
                     // The run_ai_writeback tool is always registered now that
@@ -300,6 +304,7 @@ mcpRouter.all(
                     aiWritebackEnabled: true,
                     grepFieldsEnabled,
                     mcpContentWritesEnabled,
+                    scheduledDeliveryEnabled,
                     runSqlEnabled: mcpService.isRunSqlEnabled(req.user!),
                 });
                 const transport = new StreamableHTTPServerTransport({

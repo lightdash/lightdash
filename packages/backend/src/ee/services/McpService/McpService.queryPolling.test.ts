@@ -574,6 +574,7 @@ const makeMcpService = ({
             aiWritebackEnabled: false,
             grepFieldsEnabled: true,
             mcpContentWritesEnabled: true,
+            scheduledDeliveryEnabled: true,
             runSqlEnabled: true,
         });
     }

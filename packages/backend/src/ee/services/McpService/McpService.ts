@@ -1311,7 +1311,9 @@ export class McpService extends BaseService {
                 );
             },
         );
+    }
 
+    private registerCreateScheduledDeliveryTool(): void {
         this.registerTrackedTool(
             mcpCreateScheduledDeliveryTool.name,
             {
@@ -1357,12 +1359,14 @@ export class McpService extends BaseService {
             aiWritebackEnabled: boolean;
             grepFieldsEnabled: boolean;
             mcpContentWritesEnabled: boolean;
+            scheduledDeliveryEnabled: boolean;
             runSqlEnabled: boolean;
         } = {
             projectPinned: false,
             aiWritebackEnabled: false,
             grepFieldsEnabled: false,
             mcpContentWritesEnabled: true,
+            scheduledDeliveryEnabled: true,
             runSqlEnabled: true,
         },
     ): void {
@@ -1844,6 +1848,10 @@ export class McpService extends BaseService {
         // admins can prevent MCP clients from modifying managed content.
         if (options.mcpContentWritesEnabled) {
             this.registerContentWriteTools();
+        }
+
+        if (options.scheduledDeliveryEnabled) {
+            this.registerCreateScheduledDeliveryTool();
         }
 
         // When the project is pinned via header, hide the project-selection
@@ -3259,6 +3267,7 @@ export class McpService extends BaseService {
         aiWritebackEnabled?: boolean;
         grepFieldsEnabled?: boolean;
         mcpContentWritesEnabled?: boolean;
+        scheduledDeliveryEnabled?: boolean;
         runSqlEnabled?: boolean;
     }): Promise<McpServer> {
         const newServer = Sentry.wrapMcpServerWithSentry(
@@ -3295,6 +3304,7 @@ export class McpService extends BaseService {
             aiWritebackEnabled: options?.aiWritebackEnabled ?? false,
             grepFieldsEnabled: options?.grepFieldsEnabled ?? false,
             mcpContentWritesEnabled: options?.mcpContentWritesEnabled ?? true,
+            scheduledDeliveryEnabled: options?.scheduledDeliveryEnabled ?? true,
             runSqlEnabled: options?.runSqlEnabled ?? true,
         });
         this.mcpServer = originalServer;
@@ -3532,6 +3542,16 @@ export class McpService extends BaseService {
     ): Promise<boolean> {
         return this.aiOrganizationSettingsService.isMcpContentWritesEnabled(
             user,
+        );
+    }
+
+    public async isCreateScheduledDeliveryEnabled(
+        user: SessionUser,
+    ): Promise<boolean> {
+        const settingEnabled = await this.isMcpContentWritesEnabled(user);
+        return (
+            settingEnabled &&
+            this.createAuditedAbility(user).can('create', 'ScheduledDeliveries')
         );
     }
 
