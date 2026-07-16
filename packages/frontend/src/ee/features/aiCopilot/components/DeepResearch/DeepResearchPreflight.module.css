@@ -59,10 +59,6 @@
     }
 }
 
-.warning {
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
-}
-
 @media (max-width: 48em) {
     .root {
         padding-right: var(--mantine-spacing-sm);

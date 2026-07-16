@@ -1,5 +1,4 @@
 import {
-    Alert,
     Box,
     Group,
     Radio,
@@ -8,12 +7,7 @@ import {
     Text,
     ThemeIcon,
 } from '@mantine-8/core';
-import {
-    IconAlertTriangle,
-    IconClock,
-    IconDatabase,
-    IconSearch,
-} from '@tabler/icons-react';
+import { IconClock, IconDatabase, IconSearch } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { DEEP_RESEARCH_DEPTH_CONFIG } from '../../deepResearch/deepResearchAdapter';
 import {
@@ -29,8 +23,7 @@ const SOURCES: DeepResearchSource[] = [
     {
         name: 'Knowledge and connected integrations',
         isAvailable: false,
-        warning:
-            'Connected AI Agent sources are not available to Deep Research yet and will not be used for this run.',
+        warning: null,
     },
 ];
 
@@ -40,9 +33,6 @@ type Props = {
 };
 
 export const DeepResearchPreflight = ({ depth, onDepthChange }: Props) => {
-    const warnings = SOURCES.flatMap((source) =>
-        source.warning ? [source.warning] : [],
-    );
     const config = DEEP_RESEARCH_DEPTH_CONFIG[depth];
 
     return (
@@ -163,20 +153,6 @@ export const DeepResearchPreflight = ({ depth, onDepthChange }: Props) => {
                             </Group>
                         ))}
                     </Group>
-                    {warnings.length > 0 && (
-                        <Alert
-                            color="yellow"
-                            variant="light"
-                            icon={<IconAlertTriangle size={15} />}
-                            className={styles.warning}
-                        >
-                            {warnings.map((warning) => (
-                                <Text key={warning} size="xs">
-                                    {warning}
-                                </Text>
-                            ))}
-                        </Alert>
-                    )}
                 </Stack>
             </Stack>
         </Box>

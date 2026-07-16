@@ -52,9 +52,6 @@ describe('DeepResearchModeControl', () => {
         expect(screen.getByText('Project data')).toBeInTheDocument();
         expect(screen.getByText('Public web')).toBeInTheDocument();
         expect(
-            screen.getByText(/Connected AI Agent sources are not available/),
-        ).toBeInTheDocument();
-        expect(
             screen.queryByRole('button', { name: 'Start research' }),
         ).not.toBeInTheDocument();
 

@@ -595,6 +595,7 @@ export const AgentChatInput = ({
             : null;
 
     const chipRow = useMemo(() => {
+        if (composerMode === 'deep_research') return null;
         if (!emptyStateMode && !postResponseMode) return null;
         if (suggestionsQuery.isError) return null;
         const chips = suggestionsQuery.data?.chips ?? [];
@@ -616,8 +617,10 @@ export const AgentChatInput = ({
         handleChipClick,
         handleImpression,
         isThreadInput,
+        composerMode,
     ]);
     const shouldReserveEmptyStateSuggestions =
+        composerMode !== 'deep_research' &&
         !isThreadInput &&
         emptyStateMode &&
         !chipRow &&
