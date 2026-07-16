@@ -46,6 +46,8 @@ export type AiDashboardFilters = {
 
 export type AiDashboardRuntimeOverrides = {
     dashboardFilters?: AiDashboardFilters;
+    dashboardParameters?: ParametersValuesMap;
+    dateZoom?: DateZoom | null;
 };
 
 export type AiThread = {

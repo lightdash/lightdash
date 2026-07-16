@@ -4,6 +4,9 @@ import {
     type AiPromptContext,
     type AiPromptContextInput,
     type DashboardFilters,
+    type DashboardParameters,
+    type DateZoom,
+    type ParametersValuesMap,
 } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
 import { type LauncherCurrentDashboard } from './aiAgentLauncherSlice';
@@ -21,16 +24,46 @@ type DashboardContext = DashboardContextInput | DashboardContextItem;
 export const getNonDefaultDashboardRuntimeOverrides = ({
     defaultFilters,
     effectiveFilters,
+    defaultParameters,
+    effectiveParameters,
+    defaultDateZoom,
+    effectiveDateZoom,
 }: {
     defaultFilters: DashboardFilters;
     effectiveFilters: DashboardFilters;
-}): AiDashboardRuntimeOverrides | null =>
-    isEqual(defaultFilters, effectiveFilters)
-        ? null
-        : {
-              dashboardFilters:
-                  serializeDashboardFiltersForAiContext(effectiveFilters),
-          };
+    defaultParameters: ParametersValuesMap;
+    effectiveParameters: ParametersValuesMap;
+    defaultDateZoom: DateZoom | null;
+    effectiveDateZoom: DateZoom | null;
+}): AiDashboardRuntimeOverrides | null => {
+    const overrides: AiDashboardRuntimeOverrides = {};
+
+    if (!isEqual(defaultFilters, effectiveFilters)) {
+        overrides.dashboardFilters =
+            serializeDashboardFiltersForAiContext(effectiveFilters);
+    }
+    if (!isEqual(defaultParameters, effectiveParameters)) {
+        overrides.dashboardParameters = effectiveParameters;
+    }
+    if (!isEqual(defaultDateZoom, effectiveDateZoom)) {
+        overrides.dateZoom = effectiveDateZoom;
+    }
+
+    return Object.keys(overrides).length > 0 ? overrides : null;
+};
+
+export const getDashboardParametersValuesMap = (
+    parameters: DashboardParameters,
+): ParametersValuesMap =>
+    Object.fromEntries(
+        Object.entries(parameters).flatMap(([key, parameter]) =>
+            parameter.value === null ||
+            parameter.value === undefined ||
+            parameter.value === ''
+                ? []
+                : [[key, parameter.value]],
+        ),
+    );
 
 export const getLastDashboardContext = (
     context: Array<AiPromptContextInput[number] | AiPromptContext[number]>,

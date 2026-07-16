@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { type LauncherCurrentDashboard } from './aiAgentLauncherSlice';
 import {
     getCurrentDashboardPromptContext,
+    getDashboardParametersValuesMap,
     getNonDefaultDashboardRuntimeOverrides,
 } from './dashboardPageContext';
 
@@ -45,11 +46,15 @@ const currentDashboard = (
 });
 
 describe('dashboard page context', () => {
-    it('omits default filters', () => {
+    it('omits default runtime values', () => {
         expect(
             getNonDefaultDashboardRuntimeOverrides({
                 defaultFilters: emptyFilters,
                 effectiveFilters: { ...emptyFilters },
+                defaultParameters: { region: 'US' },
+                effectiveParameters: { region: 'US' },
+                defaultDateZoom: { granularity: 'Month' },
+                effectiveDateZoom: { granularity: 'Month' },
             }),
         ).toBeNull();
     });
@@ -58,6 +63,10 @@ describe('dashboard page context', () => {
         const overrides = getNonDefaultDashboardRuntimeOverrides({
             defaultFilters: emptyFilters,
             effectiveFilters: filtered,
+            defaultParameters: {},
+            effectiveParameters: {},
+            defaultDateZoom: null,
+            effectiveDateZoom: null,
         });
         expect(overrides?.dashboardFilters?.dimensions[0]).toEqual({
             label: 'Country',
@@ -67,8 +76,51 @@ describe('dashboard page context', () => {
         });
     });
 
-    it('does not attach unchanged filters again', () => {
-        const runtimeOverrides = { dashboardFilters: filtered };
+    it('captures non-default parameter values and date zoom', () => {
+        expect(
+            getNonDefaultDashboardRuntimeOverrides({
+                defaultFilters: emptyFilters,
+                effectiveFilters: emptyFilters,
+                defaultParameters: { region: 'US' },
+                effectiveParameters: { region: 'EU', tiers: ['gold'] },
+                defaultDateZoom: { granularity: 'Month' },
+                effectiveDateZoom: { granularity: 'Week' },
+            }),
+        ).toEqual({
+            dashboardParameters: { region: 'EU', tiers: ['gold'] },
+            dateZoom: { granularity: 'Week' },
+        });
+    });
+
+    it('captures selecting no date zoom when a saved default exists', () => {
+        expect(
+            getNonDefaultDashboardRuntimeOverrides({
+                defaultFilters: emptyFilters,
+                effectiveFilters: emptyFilters,
+                defaultParameters: {},
+                effectiveParameters: {},
+                defaultDateZoom: { granularity: 'Month' },
+                effectiveDateZoom: null,
+            }),
+        ).toEqual({ dateZoom: null });
+    });
+
+    it('converts saved dashboard parameters to effective values', () => {
+        expect(
+            getDashboardParametersValuesMap({
+                region: { parameterName: 'region', value: 'US' },
+                tiers: { parameterName: 'tiers', value: ['gold'] },
+                empty: { parameterName: 'empty', value: '' },
+            }),
+        ).toEqual({ region: 'US', tiers: ['gold'] });
+    });
+
+    it('does not attach unchanged runtime values again', () => {
+        const runtimeOverrides = {
+            dashboardFilters: filtered,
+            dashboardParameters: { region: 'EU' },
+            dateZoom: { granularity: 'Week' },
+        };
         expect(
             getCurrentDashboardPromptContext({
                 currentDashboard: currentDashboard(runtimeOverrides),

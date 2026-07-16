@@ -17060,6 +17060,17 @@
             },
             "AiDashboardRuntimeOverrides": {
                 "properties": {
+                    "dateZoom": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DateZoom"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "dashboardParameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
                     "dashboardFilters": {
                         "$ref": "#/components/schemas/AiDashboardFilters"
                     }
