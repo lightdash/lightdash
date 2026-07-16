@@ -51,6 +51,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import { useIsCopilotEnabled } from '../../../ee/features/aiCopilot/hooks/useIsCopilotEnabled';
 import AIDashboardSummary from '../../../ee/features/ambientAi/components/aiDashboardSummary';
 import {
     useClearPersonalHomepage,
@@ -265,8 +266,13 @@ const DashboardHeader = memo(
             toggleDashboardPinning({ uuid: dashboardUuid });
         }, [dashboardUuid, toggleDashboardPinning]);
 
-        const { isEnabled: isHomepageBuilderEnabled } =
+        const { isEnabled: isHomepageBuilderFlagEnabled } =
             useHomepageBuilderFlag();
+        const { isCopilotEnabled } = useIsCopilotEnabled();
+        // Without copilot the homepage builder falls back to the classic
+        // homepage (see Home.tsx), so its personal-homepage controls are hidden.
+        const isHomepageBuilderEnabled =
+            isHomepageBuilderFlagEnabled && isCopilotEnabled;
         const { data: resolvedHomepage } = useResolvedHomepage(projectUuid, {
             enabled: isHomepageBuilderEnabled,
         });
