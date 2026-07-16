@@ -1,3 +1,15 @@
+# [0.3403.0](https://github.com/lightdash/lightdash/compare/0.3402.0...0.3403.0) (2026-07-16)
+
+
+### Bug Fixes
+
+* **homepage:** add-column affordance opens outside the card, hover-continuous ([#25689](https://github.com/lightdash/lightdash/issues/25689)) ([eaec2cc](https://github.com/lightdash/lightdash/commit/eaec2cc0ef565c4aa9826f31a0f7d29616caab44))
+
+
+### Features
+
+* **homepage:** label the block title input "Title" ([#25686](https://github.com/lightdash/lightdash/issues/25686)) ([9fd89d8](https://github.com/lightdash/lightdash/commit/9fd89d8a1ed0f37f05d2075557bce849903137e7))
+
 # [0.3402.0](https://github.com/lightdash/lightdash/compare/0.3401.2...0.3402.0) (2026-07-16)
 
 
