@@ -21,7 +21,9 @@ describe('DeepResearchModeControl', () => {
     it('keeps Ask as the unchanged default mode', () => {
         const onStart = renderControl();
 
-        expect(screen.getByRole('radio', { name: 'Ask' })).toBeChecked();
+        expect(
+            screen.getByRole('button', { name: 'Deep research' }),
+        ).toHaveAttribute('aria-pressed', 'false');
 
         expect(screen.queryByText('Research depth')).not.toBeInTheDocument();
         expect(onStart).not.toHaveBeenCalled();
@@ -31,7 +33,7 @@ describe('DeepResearchModeControl', () => {
         const user = userEvent.setup();
         const onStart = renderControl();
 
-        await user.click(screen.getByText('Deep research'));
+        await user.click(screen.getByRole('button', { name: 'Deep research' }));
 
         expect(await screen.findByText('Research depth')).toBeInTheDocument();
         expect(screen.getByText('Project data')).toBeInTheDocument();

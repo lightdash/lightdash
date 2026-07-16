@@ -1,5 +1,7 @@
-import { SegmentedControl } from '@mantine-8/core';
+import { Button } from '@mantine-8/core';
+import { IconReportSearch } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
+import MantineIcon from '../../../../../components/common/MantineIcon';
 import { type DeepResearchDepth } from '../../deepResearch/types';
 import { DeepResearchPreflight } from './DeepResearchPreflight';
 
@@ -41,6 +43,8 @@ export const DeepResearchModeControl = ({
         }
     };
 
+    const isDeepResearch = mode === 'deep_research';
+
     const handleStart = async () => {
         setIsStarting(true);
         try {
@@ -53,16 +57,24 @@ export const DeepResearchModeControl = ({
 
     return (
         <>
-            <SegmentedControl
+            <Button
                 size="xs"
-                value={mode}
-                onChange={(value) => selectMode(value as AgentComposerMode)}
-                data={[
-                    { label: 'Ask', value: 'ask' },
-                    { label: 'Deep research', value: 'deep_research' },
-                ]}
-                aria-label="Answer mode"
-            />
+                variant={isDeepResearch ? 'light' : 'default'}
+                color={isDeepResearch ? 'indigo' : 'gray'}
+                leftSection={
+                    <MantineIcon
+                        icon={IconReportSearch}
+                        size={14}
+                        stroke={1.8}
+                    />
+                }
+                onClick={() =>
+                    selectMode(isDeepResearch ? 'ask' : 'deep_research')
+                }
+                aria-pressed={isDeepResearch}
+            >
+                Deep research
+            </Button>
 
             <DeepResearchPreflight
                 opened={isPreflightOpen}

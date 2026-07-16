@@ -356,6 +356,7 @@ const AiAgentNewThreadPage: FC = () => {
                                 ? onStartDeepResearch
                                 : undefined
                         }
+                        deepResearchControlPlacement="page_header"
                         loading={isCreatingThread}
                         disabled={!isPinnedContextReady}
                         placeholder={`Ask ${agent.name} anything about your data...`}

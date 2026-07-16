@@ -16,6 +16,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { useEditor, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
@@ -106,6 +107,7 @@ interface AgentChatInputProps {
     revealAgentSelectorOnFocus?: boolean;
     // Shrinks padding/min-heights for a more compact composer.
     dense?: boolean;
+    deepResearchControlPlacement?: 'composer' | 'page_header';
 }
 
 const extractToolHints = (editor: Editor | null): string[] => {
@@ -151,6 +153,7 @@ export const AgentChatInput = ({
     contentMentionPriorityItems = [],
     revealAgentSelectorOnFocus = false,
     dense = false,
+    deepResearchControlPlacement = 'composer',
 }: AgentChatInputProps) => {
     const user = useUser(true);
     const [value, setValueState] = useState(defaultValue ?? '');
@@ -162,6 +165,8 @@ export const AgentChatInput = ({
     }, [revealAgentSelectorOnFocus]);
     const [composerMode, setComposerMode] = useState<AgentComposerMode>('ask');
     const [preflightRequest, setPreflightRequest] = useState(0);
+    const [deepResearchHeaderTarget, setDeepResearchHeaderTarget] =
+        useState<Element | null>(null);
     const navigate = useNavigate();
     const onSubmitRef = useRef(onSubmit);
     onSubmitRef.current = onSubmit;
@@ -186,6 +191,17 @@ export const AgentChatInput = ({
     // it loads), never submit, so we guard on this in addition to the plugin's
     // `active` flag — which can read stale in the keydown vs async-items race.
     const contentMentionPopupOpenRef = useRef(false);
+
+    useEffect(() => {
+        if (deepResearchControlPlacement !== 'page_header') {
+            setDeepResearchHeaderTarget(null);
+            return;
+        }
+
+        setDeepResearchHeaderTarget(
+            document.querySelector('[data-deep-research-control-target]'),
+        );
+    }, [deepResearchControlPlacement]);
 
     // Hide the chip strip while the user is scrolled away from the input.
     // Reappears as they scroll back toward the bottom of the thread — chips
@@ -540,7 +556,7 @@ export const AgentChatInput = ({
         }
     };
 
-    const deepResearchControl = onStartDeepResearch ? (
+    const deepResearchControlElement = onStartDeepResearch ? (
         <DeepResearchModeControl
             question={value.trim()}
             projectUuid={projectUuid}
@@ -550,6 +566,16 @@ export const AgentChatInput = ({
             preflightRequest={preflightRequest}
         />
     ) : null;
+    const deepResearchControl =
+        deepResearchControlPlacement === 'composer'
+            ? deepResearchControlElement
+            : null;
+    const deepResearchControlPortal =
+        deepResearchControlElement &&
+        deepResearchControlPlacement === 'page_header' &&
+        deepResearchHeaderTarget
+            ? createPortal(deepResearchControlElement, deepResearchHeaderTarget)
+            : null;
 
     const chipRow = useMemo(() => {
         if (!emptyStateMode && !postResponseMode) return null;
@@ -639,6 +665,7 @@ export const AgentChatInput = ({
                 }`}
                 ref={rootRef}
             >
+                {deepResearchControlPortal}
                 {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
                 <Box className={styles.threadInputStack}>
@@ -764,6 +791,7 @@ export const AgentChatInput = ({
             }`}
             data-dense={dense}
         >
+            {deepResearchControlPortal}
             {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
             <Box

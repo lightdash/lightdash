@@ -355,6 +355,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                                 ? handleStartDeepResearch
                                 : undefined
                         }
+                        deepResearchControlPlacement="page_header"
                         placeholder={`Ask ${agent.name} anything about your data...`}
                         messageCount={thread.messages?.length || 0}
                         projectUuid={projectUuid}

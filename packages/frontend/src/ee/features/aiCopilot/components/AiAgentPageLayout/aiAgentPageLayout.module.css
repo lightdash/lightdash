@@ -76,6 +76,17 @@
     );
 }
 
+.deepResearchBar {
+    display: flex;
+    flex-shrink: 0;
+    justify-content: flex-end;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md) 0;
+}
+
+.deepResearchBar:empty {
+    display: none;
+}
+
 .resizeHandle {
     width: 1px;
     background-color: var(--mantine-color-ldGray-2);

@@ -167,6 +167,13 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                             <Box className={styles.chatHeader}>{Header}</Box>
                         )}
 
+                        {Header && (
+                            <Box
+                                className={styles.deepResearchBar}
+                                data-deep-research-control-target
+                            />
+                        )}
+
                         <Box className={styles.chatContent}>{children}</Box>
                     </Panel>
                 </ErrorBoundary>
