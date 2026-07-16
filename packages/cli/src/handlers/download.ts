@@ -79,7 +79,6 @@ import {
     resolveAppsLimit,
     selectAppsToDownload,
     shouldFallBackToSpaceScopedListing,
-    shouldWarnAllSkipped,
     type AppDownloadFailure,
 } from './apps/appsDownload';
 import {
@@ -104,6 +103,27 @@ import {
     uploadOrganizationContent,
 } from './organizationContent';
 import { logSelectedProject, selectProject } from './selectProject';
+import {
+    assertUniqueSpacePaths,
+    createSpaceAsCodeDownloadError,
+    createSpaceAsCodeUploadError,
+    downloadSpaces,
+    getFlatSpaceFileNames,
+    getSpaceNames,
+    getUniqueExistingSpaceFilePathsBySlug,
+    isSpaceAsCodeDownloadError,
+    isSpaceAsCodeFetchError,
+    isSpaceAsCodeUploadError,
+    logUploadChanges,
+    readSpaceFiles,
+    readSpaceNames,
+    shouldFallBackToEmbeddedSpaces,
+    sortSpaceFilesParentFirst,
+    upsertSpaces,
+    validateSpaceIdentity,
+    writeSpaceFiles,
+    type SpaceCodeFile,
+} from './spacesAsCode';
 
 export type DownloadHandlerOptions = {
     verbose: boolean;
@@ -127,7 +147,9 @@ export type DownloadHandlerOptions = {
     public: boolean;
     includeCharts: boolean;
     nested: boolean; // Use nested folder structure (projectName/spaceSlug/charts|dashboards)
-    skipSpaces: boolean; // Skip writing space metadata files during download
+    rootSpaces: boolean; // Write new flat space files at the content root (legacy layout)
+    skipSpaces: boolean; // Skip first-class space definitions and access
+    spacesOnly?: boolean; // Download/upload only first-class space definitions
     skipCharts: boolean; // Skip downloading charts and SQL charts
     skipDashboards: boolean; // Skip downloading dashboards
     skipAlerts: boolean;
@@ -313,103 +335,21 @@ const writeContent = async (
     };
 };
 
-/**
- * Writes space YAML files for each space in the download results.
- * In flat mode, files go in the base download directory.
- * In nested mode, files go in the root of each space's directory.
- */
-const writeSpaceFiles = async (
-    spaces: SpaceAsCode[],
-    projectName: string,
-    customPath?: string,
-    folderScheme: FolderScheme = 'flat',
-): Promise<void> => {
-    if (spaces.length === 0) return;
-
-    const baseDir = getDownloadFolder(customPath);
-    const seen = new Set<string>();
-
-    for (const space of spaces) {
-        // Deduplicate across paginated API responses
-        if (!seen.has(space.slug)) {
-            seen.add(space.slug);
-
-            let outputDir: string;
-            if (folderScheme === 'nested') {
-                outputDir = path.join(baseDir, projectName, space.slug);
-            } else {
-                outputDir = baseDir;
-            }
-
-            await fs.mkdir(outputDir, { recursive: true });
-
-            const fileName = `${generateSlug(space.spaceName)}.space.yml`;
-            const filePath = path.join(outputDir, fileName);
-            const content = yaml.dump(space, {
-                quotingType: '"',
-                sortKeys: true,
-            });
-            await fs.writeFile(filePath, content);
-            GlobalState.debug(`Wrote space file: ${filePath}`);
-        }
+function getPromoteAction(action: PromotionAction) {
+    switch (action) {
+        case PromotionAction.CREATE:
+            return 'created';
+        case PromotionAction.UPDATE:
+            return 'updated';
+        case PromotionAction.DELETE:
+            return 'deleted';
+        case PromotionAction.NO_CHANGES:
+            return 'skipped';
+        default:
+            assertUnreachable(action, `Unknown promotion action: ${action}`);
     }
-};
-
-/**
- * Reads all .space.yml files from the download directory and returns
- * a map of space slug → original space name. Used during upload to
- * preserve human-readable space names instead of deriving them from slugs.
- */
-const readSpaceNames = async (
-    customPath?: string,
-): Promise<Record<string, string>> => {
-    const baseDir = getDownloadFolder(customPath);
-    const spaceNames: Record<string, string> = {};
-
-    try {
-        const allEntries = await fs.readdir(baseDir, {
-            recursive: true,
-            withFileTypes: true,
-        });
-
-        await Promise.all(
-            allEntries
-                .filter(
-                    (entry) =>
-                        entry.isFile() && entry.name.endsWith('.space.yml'),
-                )
-                .map(async (file) => {
-                    try {
-                        const filePath = path.join(file.parentPath, file.name);
-                        const fileContent = await fs.readFile(
-                            filePath,
-                            'utf-8',
-                        );
-                        const parsed = yaml.load(fileContent) as Record<
-                            string,
-                            unknown
-                        >;
-                        if (
-                            parsed?.contentType ===
-                                ContentAsCodeTypeEnum.SPACE &&
-                            typeof parsed.slug === 'string' &&
-                            typeof parsed.spaceName === 'string'
-                        ) {
-                            spaceNames[parsed.slug] = parsed.spaceName;
-                        }
-                    } catch (e) {
-                        GlobalState.debug(
-                            `Skipping space file ${file.name}: ${getErrorMessage(e)}`,
-                        );
-                    }
-                }),
-        );
-    } catch {
-        // Directory doesn't exist or can't be read — return empty map
-    }
-
-    return spaceNames;
-};
+    return 'skipped';
+}
 
 const hasUnsortedKeys = (obj: unknown): boolean => {
     if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
@@ -431,6 +371,7 @@ const isLightdashContentFile = (folder: string, entry: Dirent) =>
     entry.parentPath &&
     entry.parentPath.endsWith(path.sep + folder) &&
     entry.name.endsWith('.yml') &&
+    !entry.name.endsWith('.space.yml') &&
     !entry.name.endsWith('.language.map.yml');
 
 const isLooseContentFile = (entry: Dirent) =>
@@ -617,7 +558,7 @@ const readLooseCodeFiles = async (
                             ),
                         );
                     } else if (contentType === ContentAsCodeTypeEnum.SPACE) {
-                        // Space YAML files are metadata-only until the next PR
+                        // Space files are handled by the dedicated space phase.
                     } else {
                         GlobalState.debug(
                             `Skipping ${file.name}: no recognized contentType`,
@@ -767,6 +708,7 @@ export const downloadContent = async (
     nested: boolean = false,
     skipSpaces: boolean = false,
     stripPivotSeries: boolean = false,
+    rootSpaces: boolean = false,
 ): Promise<[number, string[], MetadataEntry[], SpaceAsCode[]]> => {
     const spinner = GlobalState.getActiveSpinner();
     const contentFilters = parseContentFilters(ids);
@@ -888,7 +830,17 @@ export const downloadContent = async (
 
     // Write space YAML files
     if (!skipSpaces) {
-        await writeSpaceFiles(allSpaces, projectName, customPath, folderScheme);
+        const uniqueSpaces = [
+            ...new Map(allSpaces.map((space) => [space.slug, space])).values(),
+        ];
+        await writeSpaceFiles(
+            uniqueSpaces,
+            projectName,
+            customPath,
+            folderScheme,
+            rootSpaces ? 'root' : 'folder',
+            true,
+        );
     }
 
     return [total, [...new Set(chartSlugs)], allMetadataEntries, allSpaces];
@@ -908,22 +860,6 @@ const getGoogleSheetsFolder = (customPath?: string): string =>
 
 const getVirtualViewsFolder = (customPath?: string): string =>
     path.join(getDownloadFolder(customPath), 'virtual-views');
-
-function getPromoteAction(action: PromotionAction) {
-    switch (action) {
-        case PromotionAction.CREATE:
-            return 'created';
-        case PromotionAction.UPDATE:
-            return 'updated';
-        case PromotionAction.DELETE:
-            return 'deleted';
-        case PromotionAction.NO_CHANGES:
-            return 'skipped';
-        default:
-            assertUnreachable(action, `Unknown promotion action: ${action}`);
-    }
-    return 'skipped';
-}
 
 const downloadVirtualViews = async (
     projectId: string,
@@ -1440,8 +1376,10 @@ export const downloadHandler = async (
     const isOrganizationDownload = options.organization === true;
 
     const includeAll = options.includeAll === true;
-    const includeApps = options.includeApps === true || includeAll;
-    const includeAllOptionalContent = includeAll && !options.appsOnly;
+    const includeApps =
+        !options.spacesOnly && (options.includeApps === true || includeAll);
+    const includeAllOptionalContent =
+        includeAll && !options.appsOnly && !options.spacesOnly;
     const { limit: appsLimit, noEffectWarning: appsLimitWarning } =
         resolveAppsLimit(options.appsLimit, includeApps);
     if (appsLimitWarning) {
@@ -1466,6 +1404,56 @@ export const downloadHandler = async (
         options.includeGoogleSheets = false;
         options.includeScheduledDeliveries = false;
         options.includeVirtualViews = false;
+    }
+
+    if (options.spacesOnly) {
+        if (options.skipSpaces) {
+            throw new ParameterError(
+                'Nothing to download: --spaces-only cannot be combined with --skip-spaces.',
+            );
+        }
+        options.skipCharts = true;
+        options.skipDashboards = true;
+        options.agents = [];
+        options.alerts = [];
+        options.apps = [];
+        options.googleSheets = [];
+        options.scheduledDeliveries = [];
+        options.virtualViews = [];
+        options.includeAgents = false;
+        options.includeApps = false;
+        options.includeAlerts = false;
+        options.includeGoogleSheets = false;
+        options.includeScheduledDeliveries = false;
+        options.includeVirtualViews = false;
+    }
+
+    if (options.rootSpaces && options.nested) {
+        throw new ParameterError(
+            '--root-spaces cannot be combined with --nested',
+        );
+    }
+
+    const hasFilters =
+        !options.spacesOnly &&
+        (options.charts.length > 0 ||
+            options.dashboards.length > 0 ||
+            options.agents.length > 0 ||
+            options.alerts.length > 0 ||
+            options.googleSheets.length > 0 ||
+            options.scheduledDeliveries.length > 0 ||
+            options.virtualViews.length > 0);
+    const shouldDownloadSpaces =
+        !isOrganizationDownload && !options.skipSpaces && !hasFilters;
+    let skipEmbeddedSpaces = !hasFilters || options.skipSpaces;
+    if (shouldDownloadSpaces) {
+        try {
+            await getUniqueExistingSpaceFilePathsBySlug(
+                getDownloadFolder(options.path),
+            );
+        } catch (error) {
+            throw createSpaceAsCodeDownloadError(getErrorMessage(error));
+        }
     }
 
     await checkLightdashVersion();
@@ -1499,8 +1487,11 @@ export const downloadHandler = async (
     // Log current project info
     logSelectedProject(projectSelection, config, 'Downloading from');
 
-    const spinner = GlobalState.startSpinner(`Downloading charts`);
-    spinner.start(`Downloading content from project`);
+    const spinner = GlobalState.startSpinner(
+        options.spacesOnly
+            ? `Downloading spaces`
+            : `Downloading content from project`,
+    );
 
     // Fetch project details to get project name for folder structure
     const project = await lightdashApi<Project>({
@@ -1524,20 +1515,38 @@ export const downloadHandler = async (
         },
     });
     try {
-        const hasFilters =
-            options.charts.length > 0 ||
-            options.dashboards.length > 0 ||
-            options.agents.length > 0 ||
-            options.alerts.length > 0 ||
-            options.googleSheets.length > 0 ||
-            options.scheduledDeliveries.length > 0 ||
-            options.virtualViews.length > 0;
-
-        // When downloading specific charts or dashboards, skip space metadata
-        const skipSpaces = options.skipSpaces || hasFilters;
-
         let allMetadataEntries: MetadataEntry[] = [];
-        let allSpaces: SpaceAsCode[] = [];
+
+        if (shouldDownloadSpaces) {
+            if (!options.spacesOnly) spinner.start(`Downloading spaces`);
+            try {
+                const spaceTotal = await downloadSpaces(
+                    projectId,
+                    projectName,
+                    options.path,
+                    options.nested,
+                    options.rootSpaces,
+                );
+                spinner.succeed(`Downloaded ${spaceTotal} spaces`);
+            } catch (error) {
+                if (
+                    !shouldFallBackToEmbeddedSpaces(error, options.spacesOnly)
+                ) {
+                    throw isSpaceAsCodeFetchError(error)
+                        ? createSpaceAsCodeDownloadError(getErrorMessage(error))
+                        : error;
+                }
+                skipEmbeddedSpaces = false;
+                spinner.warn(
+                    styles.warning(
+                        'Space access is unavailable; continuing with legacy space metadata where available.',
+                    ),
+                );
+                GlobalState.debug(
+                    `Could not download access-aware spaces: ${getErrorMessage(error)}`,
+                );
+            }
+        }
 
         if (
             includeAllOptionalContent ||
@@ -1560,46 +1569,41 @@ export const downloadHandler = async (
                     styles.warning(`No charts filters provided, skipping`),
                 );
             } else {
-                const [
-                    regularChartTotal,
-                    ,
-                    regularChartMeta,
-                    regularChartSpaces,
-                ] = await downloadContent(
-                    options.charts,
-                    'charts',
-                    projectId,
-                    projectName,
-                    options.path,
-                    options.languageMap,
-                    options.nested,
-                    skipSpaces,
-                    options.stripPivotSeries,
-                );
-                spinner.succeed(`Downloaded ${regularChartTotal} charts`);
-                allMetadataEntries = [
-                    ...allMetadataEntries,
-                    ...regularChartMeta,
-                ];
-                allSpaces = [...allSpaces, ...regularChartSpaces];
-
-                // Download SQL charts
-                spinner.start(`Downloading SQL charts`);
-                const [sqlChartTotal, , sqlChartMeta, sqlChartSpaces] =
+                const [regularChartTotal, , regularChartMeta] =
                     await downloadContent(
                         options.charts,
-                        'sqlCharts',
+                        'charts',
                         projectId,
                         projectName,
                         options.path,
                         options.languageMap,
                         options.nested,
-                        skipSpaces,
-                        false,
+                        skipEmbeddedSpaces,
+                        options.stripPivotSeries,
+                        options.rootSpaces,
                     );
+                spinner.succeed(`Downloaded ${regularChartTotal} charts`);
+                allMetadataEntries = [
+                    ...allMetadataEntries,
+                    ...regularChartMeta,
+                ];
+
+                // Download SQL charts
+                spinner.start(`Downloading SQL charts`);
+                const [sqlChartTotal, , sqlChartMeta] = await downloadContent(
+                    options.charts,
+                    'sqlCharts',
+                    projectId,
+                    projectName,
+                    options.path,
+                    options.languageMap,
+                    options.nested,
+                    skipEmbeddedSpaces,
+                    false,
+                    options.rootSpaces,
+                );
                 spinner.succeed(`Downloaded ${sqlChartTotal} SQL charts`);
                 allMetadataEntries = [...allMetadataEntries, ...sqlChartMeta];
-                allSpaces = [...allSpaces, ...sqlChartSpaces];
 
                 chartTotal = regularChartTotal + sqlChartTotal;
             }
@@ -1615,21 +1619,19 @@ export const downloadHandler = async (
                 let chartSlugs: string[] = [];
 
                 let dashMeta: MetadataEntry[];
-                let dashSpaces: SpaceAsCode[];
-                [dashboardTotal, chartSlugs, dashMeta, dashSpaces] =
-                    await downloadContent(
-                        options.dashboards,
-                        'dashboards',
-                        projectId,
-                        projectName,
-                        options.path,
-                        options.languageMap,
-                        options.nested,
-                        skipSpaces,
-                        false,
-                    );
+                [dashboardTotal, chartSlugs, dashMeta] = await downloadContent(
+                    options.dashboards,
+                    'dashboards',
+                    projectId,
+                    projectName,
+                    options.path,
+                    options.languageMap,
+                    options.nested,
+                    skipEmbeddedSpaces,
+                    false,
+                    options.rootSpaces,
+                );
                 allMetadataEntries = [...allMetadataEntries, ...dashMeta];
-                allSpaces = [...allSpaces, ...dashSpaces];
 
                 spinner.succeed(`Downloaded ${dashboardTotal} dashboards`);
 
@@ -1642,44 +1644,40 @@ export const downloadHandler = async (
                         `Downloading ${chartSlugs.length} charts linked to dashboards`,
                     );
 
-                    const [
-                        regularCharts,
-                        ,
-                        linkedChartMeta,
-                        linkedChartSpaces,
-                    ] = await downloadContent(
-                        chartSlugs,
-                        'charts',
-                        projectId,
-                        projectName,
-                        options.path,
-                        options.languageMap,
-                        options.nested,
-                        skipSpaces,
-                        options.stripPivotSeries,
-                    );
-                    allMetadataEntries = [
-                        ...allMetadataEntries,
-                        ...linkedChartMeta,
-                    ];
-                    allSpaces = [...allSpaces, ...linkedChartSpaces];
-
-                    const [sqlCharts, , linkedSqlMeta, linkedSqlSpaces] =
+                    const [regularCharts, , linkedChartMeta] =
                         await downloadContent(
                             chartSlugs,
-                            'sqlCharts',
+                            'charts',
                             projectId,
                             projectName,
                             options.path,
                             options.languageMap,
                             options.nested,
-                            skipSpaces,
+                            skipEmbeddedSpaces,
+                            options.stripPivotSeries,
+                            options.rootSpaces,
                         );
+                    allMetadataEntries = [
+                        ...allMetadataEntries,
+                        ...linkedChartMeta,
+                    ];
+
+                    const [sqlCharts, , linkedSqlMeta] = await downloadContent(
+                        chartSlugs,
+                        'sqlCharts',
+                        projectId,
+                        projectName,
+                        options.path,
+                        options.languageMap,
+                        options.nested,
+                        skipEmbeddedSpaces,
+                        false,
+                        options.rootSpaces,
+                    );
                     allMetadataEntries = [
                         ...allMetadataEntries,
                         ...linkedSqlMeta,
                     ];
-                    allSpaces = [...allSpaces, ...linkedSqlSpaces];
 
                     spinner.succeed(
                         `Downloaded ${
@@ -1690,7 +1688,7 @@ export const downloadHandler = async (
             }
         }
 
-        if (shouldDownloadAiAgents(options)) {
+        if (!options.spacesOnly && shouldDownloadAiAgents(options)) {
             spinner.start(`Downloading AI agents`);
             const agentTotal = await downloadAiAgents(
                 projectId,
@@ -1912,12 +1910,6 @@ export const downloadHandler = async (
             }
         }
 
-        // Report space definitions count
-        if (!skipSpaces) {
-            const uniqueSpaceCount = new Set(allSpaces.map((s) => s.slug)).size;
-            spinner.succeed(`Downloaded ${uniqueSpaceCount} space definitions`);
-        }
-
         // Write metadata file with all downloadedAt timestamps
         const metadataToWrite: LightdashMetadata = {
             version: 1,
@@ -1968,6 +1960,7 @@ export const downloadHandler = async (
                 error: `${error}`,
             },
         });
+        if (isSpaceAsCodeDownloadError(error)) throw error;
     }
 };
 
@@ -2005,20 +1998,6 @@ const storeUploadChanges = (
     });
 
     return updatedChanges;
-};
-
-const logUploadChanges = (changes: Record<string, number>) => {
-    Object.entries(changes).forEach(([key, value]) => {
-        console.info(`Total ${key}: ${value} `);
-    });
-
-    if (shouldWarnAllSkipped(changes)) {
-        console.warn(
-            styles.warning(
-                `\nAll content was skipped (no local changes detected). Use --force to upload all content, e.g. when uploading to a new project.`,
-            ),
-        );
-    }
 };
 
 // SQL charts have 'sql' field instead of 'tableName'/'metricQuery'
@@ -2404,7 +2383,32 @@ export const uploadHandler = async (
 ): Promise<void> => {
     GlobalState.setVerbose(options.verbose);
 
+    if (options.spacesOnly && options.skipSpaces) {
+        throw new ParameterError(
+            'Nothing to upload: --spaces-only cannot be combined with --skip-spaces.',
+        );
+    }
+
     const isOrganizationUpload = options.organization === true;
+    const hasFilters =
+        !options.spacesOnly &&
+        (options.charts.length > 0 ||
+            options.dashboards.length > 0 ||
+            options.agents.length > 0 ||
+            options.alerts.length > 0 ||
+            options.googleSheets.length > 0 ||
+            options.scheduledDeliveries.length > 0 ||
+            options.virtualViews.length > 0);
+    const shouldReconcileSpaces =
+        !isOrganizationUpload && !options.skipSpaces && !hasFilters;
+    let preflightSpaceFiles: SpaceCodeFile[] = [];
+    if (shouldReconcileSpaces) {
+        try {
+            preflightSpaceFiles = await readSpaceFiles(options.path);
+        } catch (error) {
+            throw createSpaceAsCodeUploadError(getErrorMessage(error));
+        }
+    }
 
     if (options.gzip) {
         setGzipEnabled(true);
@@ -2457,19 +2461,45 @@ export const uploadHandler = async (
 
     let uploadResource = 'content as code';
     try {
+        uploadResource = 'space definitions';
+        const spaceFiles = preflightSpaceFiles;
+        const spaceNames = shouldReconcileSpaces
+            ? getSpaceNames(spaceFiles)
+            : await readSpaceNames(options.path);
+        if (spaceFiles.length > 0) {
+            GlobalState.log(`Found ${spaceFiles.length} space definition(s)`);
+        }
+
+        if (shouldReconcileSpaces) {
+            changes = await upsertSpaces(
+                projectId,
+                spaceFiles,
+                changes,
+                options.skipSpaceCreate,
+                options.public,
+            );
+        } else if (hasFilters) {
+            GlobalState.debug(
+                'Skipping space access reconciliation for a filtered content upload',
+            );
+        }
+
+        if (options.spacesOnly) {
+            await LightdashAnalytics.track({
+                event: 'upload.completed',
+                properties: {
+                    userId: config.user?.userUuid,
+                    organizationId: config.user?.organizationUuid,
+                    projectId,
+                    timeToCompleted: (Date.now() - start) / 1000,
+                },
+            });
+            logUploadChanges(changes);
+            return;
+        }
+
         const uploadPermissions =
             await getContentAsCodeUploadPermissions(projectId);
-
-        // If any filter is provided, we skip those items without filters
-        // eg: if a --charts filter is provided, we skip dashboards if no --dashboards filter is provided
-        const hasFilters =
-            options.charts.length > 0 ||
-            options.dashboards.length > 0 ||
-            options.agents.length > 0 ||
-            options.alerts.length > 0 ||
-            options.googleSheets.length > 0 ||
-            options.scheduledDeliveries.length > 0 ||
-            options.virtualViews.length > 0;
 
         // Discover loose YAML files (outside charts/ and dashboards/) classified by contentType
         uploadResource = 'content files';
@@ -2510,15 +2540,6 @@ export const uploadHandler = async (
                 styles.warning(
                     `Concurrency limit exceeded. Using maximum of 1000 instead of ${options.concurrency}`,
                 ),
-            );
-        }
-
-        // Read space definition files to preserve original space names during upload
-        uploadResource = 'space definitions';
-        const spaceNames = await readSpaceNames(options.path);
-        if (Object.keys(spaceNames).length > 0) {
-            GlobalState.log(
-                `Found ${Object.keys(spaceNames).length} space definition(s)`,
             );
         }
 
@@ -3024,16 +3045,26 @@ export const uploadHandler = async (
                 error: getErrorMessage(error),
             },
         });
-        if (error instanceof AiAgentAsCodeUploadError) {
+        if (isSpaceAsCodeUploadError(error)) throw error;
+        if (error instanceof AiAgentAsCodeUploadError)
             throw error.originalError;
-        }
     }
 };
 
 export const testHelpers = {
+    assertUniqueSpacePaths,
+    downloadSpaces,
+    getFlatSpaceFileNames,
     getDashboardChartSlugs,
     readAiAgentFiles,
+    readSpaceFiles,
+    readSpaceNames,
     sanitizeChartForDownload,
+    shouldFallBackToEmbeddedSpaces,
     shouldDownloadAiAgents,
+    sortSpaceFilesParentFirst,
+    upsertSpaces,
     upsertVirtualViews,
+    validateSpaceIdentity,
+    writeSpaceFiles,
 };

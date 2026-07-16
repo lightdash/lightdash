@@ -11,6 +11,8 @@ import {
     ApiGoogleSheetsSyncAsCodeUpsertResponse,
     ApiScheduledDeliveryAsCodeListResponse,
     ApiScheduledDeliveryAsCodeUpsertResponse,
+    ApiSpaceAsCodeListResponse,
+    ApiSpaceAsCodeUpsertResponse,
     ApiVirtualViewAsCodeListResponse,
     ApiVirtualViewAsCodeUpsertResponse,
     assertUnreachable,
@@ -59,6 +61,7 @@ import {
     isSqlTableCalculation,
     NotFoundError,
     NotificationFrequency,
+    OrganizationMemberRole,
     ParameterError,
     Project,
     ProjectType,
@@ -74,9 +77,11 @@ import {
     snakeCaseName,
     Space,
     SpaceAsCode,
+    SpaceAsCodeAction,
     SpaceMemberRole,
     SqlChartAsCode,
     UpdatedByUser,
+    validateEmail,
     VirtualViewAsCode,
     type ContentVerificationInfo,
     type CustomDimension,
@@ -95,17 +100,26 @@ import {
     type SpaceSummaryBase,
     type TableCalculation,
 } from '@lightdash/common';
+import type { Knex } from 'knex';
 import isEqual from 'lodash/isEqual';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { getAccountApiAccessContext } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { GroupsModel } from '../../models/GroupsModel';
+import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
-import { SpaceModel } from '../../models/SpaceModel';
+import {
+    SpaceModel,
+    type ResolvedSpaceCodeUserAccess,
+} from '../../models/SpaceModel';
+import type { RawSpaceDirectAccess } from '../../models/SpacePermissionModel';
+import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { DashboardService } from '../DashboardService/DashboardService';
@@ -151,6 +165,9 @@ type CoderServiceArguments = {
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
     projectService?: ProjectService;
+    groupsModel: GroupsModel;
+    organizationMemberProfileModel: OrganizationMemberProfileModel;
+    userModel: UserModel;
 };
 
 type UpsertContentAsCodeOptions = {
@@ -276,6 +293,12 @@ export class CoderService extends BaseService {
 
     projectService?: ProjectService;
 
+    groupsModel: GroupsModel;
+
+    organizationMemberProfileModel: OrganizationMemberProfileModel;
+
+    userModel: UserModel;
+
     static getChartContentAsCodePermissionChecks(
         nextChart: ChartAsCode,
         currentChart?: CurrentChartSqlItems,
@@ -353,6 +376,9 @@ export class CoderService extends BaseService {
         spacePermissionService,
         contentVerificationModel,
         projectService,
+        groupsModel,
+        organizationMemberProfileModel,
+        userModel,
     }: CoderServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -371,6 +397,9 @@ export class CoderService extends BaseService {
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
         this.projectService = projectService;
+        this.groupsModel = groupsModel;
+        this.organizationMemberProfileModel = organizationMemberProfileModel;
+        this.userModel = userModel;
     }
 
     private static transformVirtualView(
@@ -702,6 +731,1019 @@ export class CoderService extends BaseService {
             spaceName: space.name,
             slug: getContentAsCodePathFromLtreePath(space.path),
         }));
+    }
+
+    private static assertObjectKeys(
+        value: unknown,
+        allowedKeys: readonly string[],
+        label: string,
+    ): asserts value is Record<string, unknown> {
+        if (
+            typeof value !== 'object' ||
+            value === null ||
+            Array.isArray(value)
+        ) {
+            throw new ParameterError(`${label} must be an object`);
+        }
+        const unknownKeys = Object.keys(value).filter(
+            (key) => !allowedKeys.includes(key),
+        );
+        if (unknownKeys.length > 0) {
+            throw new ParameterError(
+                `${label} contains unknown properties: ${unknownKeys.join(', ')}`,
+            );
+        }
+    }
+
+    private static normalizeSpaceAsCode(spaceInput: SpaceAsCode): SpaceAsCode {
+        CoderService.assertObjectKeys(
+            spaceInput,
+            ['contentType', 'version', 'spaceName', 'slug', 'access'],
+            'Space',
+        );
+        if (spaceInput.contentType !== ContentAsCodeType.SPACE) {
+            throw new ParameterError('Invalid space contentType');
+        }
+        if (spaceInput.version !== undefined && spaceInput.version !== 1) {
+            throw new ParameterError(
+                `Unsupported space version ${spaceInput.version}`,
+            );
+        }
+        if (
+            typeof spaceInput.spaceName !== 'string' ||
+            !spaceInput.spaceName.trim()
+        ) {
+            throw new ParameterError('Space name is required');
+        }
+        if (
+            typeof spaceInput.slug !== 'string' ||
+            spaceInput.slug !== spaceInput.slug.trim() ||
+            !/^[a-z0-9-]+(?:\/[a-z0-9-]+)*$/.test(spaceInput.slug) ||
+            getContentAsCodePathFromLtreePath(
+                getLtreePathFromContentAsCodePath(spaceInput.slug),
+            ) !== spaceInput.slug
+        ) {
+            throw new ParameterError(
+                'Space slug must be a canonical hierarchy path',
+            );
+        }
+        if (spaceInput.access === undefined) {
+            return {
+                contentType: ContentAsCodeType.SPACE,
+                ...(spaceInput.version === 1 ? { version: 1 as const } : {}),
+                spaceName: spaceInput.spaceName,
+                slug: spaceInput.slug,
+            };
+        }
+        if (spaceInput.version !== 1) {
+            throw new ParameterError(
+                'Space access requires space schema version 1',
+            );
+        }
+
+        CoderService.assertObjectKeys(
+            spaceInput.access,
+            [
+                'inheritParentPermissions',
+                'projectMemberAccessRole',
+                'users',
+                'groups',
+            ],
+            'Space access',
+        );
+        const { access } = spaceInput;
+        if (typeof access.inheritParentPermissions !== 'boolean') {
+            throw new ParameterError(
+                'inheritParentPermissions must be a boolean',
+            );
+        }
+        const validRoles = new Set(Object.values(SpaceMemberRole));
+        if (
+            access.projectMemberAccessRole !== null &&
+            !validRoles.has(access.projectMemberAccessRole)
+        ) {
+            throw new ParameterError(
+                'projectMemberAccessRole must be viewer, editor, admin, or null',
+            );
+        }
+        if (!Array.isArray(access.users) || !Array.isArray(access.groups)) {
+            throw new ParameterError(
+                'Space access users and groups must be arrays',
+            );
+        }
+
+        const users = access.users.map((entry, index) => {
+            CoderService.assertObjectKeys(
+                entry,
+                ['email', 'role'],
+                `Space access user ${index + 1}`,
+            );
+            if (
+                typeof entry.email !== 'string' ||
+                !validateEmail(entry.email.trim())
+            ) {
+                throw new ParameterError(
+                    `Space access user ${index + 1} has an invalid email`,
+                );
+            }
+            if (!validRoles.has(entry.role)) {
+                throw new ParameterError(
+                    `Space access user ${entry.email} has an invalid role`,
+                );
+            }
+            return {
+                email: entry.email.trim().toLowerCase(),
+                role: entry.role,
+            };
+        });
+        const duplicateEmails = users
+            .map(({ email }) => email)
+            .filter((email, index, emails) => emails.indexOf(email) !== index);
+        if (duplicateEmails.length > 0) {
+            throw new ParameterError(
+                `Space access contains duplicate users: ${[
+                    ...new Set(duplicateEmails),
+                ].join(', ')}`,
+            );
+        }
+
+        const groups = access.groups.map((entry, index) => {
+            CoderService.assertObjectKeys(
+                entry,
+                ['name', 'role'],
+                `Space access group ${index + 1}`,
+            );
+            if (typeof entry.name !== 'string' || !entry.name.trim()) {
+                throw new ParameterError(
+                    `Space access group ${index + 1} requires a name`,
+                );
+            }
+            if (!validRoles.has(entry.role)) {
+                throw new ParameterError(
+                    `Space access group ${entry.name} has an invalid role`,
+                );
+            }
+            return { name: entry.name, role: entry.role };
+        });
+        const duplicateGroups = groups
+            .map(({ name }) => name)
+            .filter((name, index, names) => names.indexOf(name) !== index);
+        if (duplicateGroups.length > 0) {
+            throw new ParameterError(
+                `Space access contains duplicate groups: ${[
+                    ...new Set(duplicateGroups),
+                ].join(', ')}`,
+            );
+        }
+
+        return {
+            contentType: ContentAsCodeType.SPACE,
+            version: 1,
+            spaceName: spaceInput.spaceName,
+            slug: spaceInput.slug,
+            access: {
+                inheritParentPermissions: access.inheritParentPermissions,
+                projectMemberAccessRole: access.projectMemberAccessRole,
+                users: users.sort((left, right) =>
+                    left.email.localeCompare(right.email),
+                ),
+                groups: groups.sort((left, right) =>
+                    left.name.localeCompare(right.name),
+                ),
+            },
+        };
+    }
+
+    async getSpaces(
+        account: Account,
+        projectUuid: string,
+    ): Promise<ApiSpaceAsCodeListResponse['results']> {
+        const { user } = getAccountApiAccessContext(account);
+        const project = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('ContentAsCode', {
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError('You are not allowed to download spaces');
+        }
+
+        const allProjectSpaces =
+            await this.spaceModel.getSpacesByProjectUuid(projectUuid);
+        const projectSpaces = allProjectSpaces.filter(
+            (space) => !space.isDefaultUserSpace,
+        );
+        const accessibleSpaceUuids = new Set(
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                projectSpaces.map(({ uuid }) => uuid),
+            ),
+        );
+        const rawAccess = await this.spacePermissionService.getRawDirectAccess(
+            projectSpaces.map(({ uuid }) => uuid),
+        );
+        const directUserEmails = [
+            ...new Set(
+                Object.values(rawAccess)
+                    .flatMap(({ users }) => users)
+                    .flatMap(({ email }) =>
+                        email === null ? [] : [email.toLowerCase()],
+                    ),
+            ),
+        ];
+        const organizationMembers =
+            await this.organizationMemberProfileModel.findOrganizationMembersByEmails(
+                project.organizationUuid,
+                directUserEmails,
+            );
+        const membersByUuid = new Map(
+            organizationMembers.map((member) => [member.userUuid, member]),
+        );
+        const memberEmailCounts = organizationMembers.reduce<
+            Map<string, number>
+        >((counts, member) => {
+            const email = member.email.toLowerCase();
+            counts.set(email, (counts.get(email) ?? 0) + 1);
+            return counts;
+        }, new Map());
+        const rawGroups = Object.values(rawAccess).flatMap(
+            ({ groups }) => groups,
+        );
+        const uniqueRawGroups = [
+            ...new Map(
+                rawGroups.map((group) => [group.groupUuid, group]),
+            ).values(),
+        ];
+        const portableGroupUuids = new Set(
+            (
+                await Promise.all(
+                    uniqueRawGroups.map(async (group) => {
+                        if (group.name === null) return null;
+                        const matches = (
+                            await this.groupsModel.find({
+                                organizationUuid: project.organizationUuid,
+                                name: group.name,
+                            })
+                        ).data;
+                        return matches.length === 1 &&
+                            matches[0].uuid === group.groupUuid
+                            ? group.groupUuid
+                            : null;
+                    }),
+                )
+            ).filter((groupUuid): groupUuid is string => groupUuid !== null),
+        );
+        const pathCounts = allProjectSpaces.reduce<Map<string, number>>(
+            (counts, space) =>
+                counts.set(space.path, (counts.get(space.path) ?? 0) + 1),
+            new Map(),
+        );
+        const spaces: SpaceAsCode[] = [];
+        const skipped: ApiSpaceAsCodeListResponse['results']['skipped'] = [];
+        const skippedPaths = new Set<string>();
+        const skippedSpaceUuids = new Set<string>();
+        const spacesByUuid = new Map(
+            allProjectSpaces.map((space) => [space.uuid, space]),
+        );
+
+        projectSpaces
+            .filter(({ uuid }) => accessibleSpaceUuids.has(uuid))
+            .sort((left, right) => {
+                const depthDifference =
+                    left.path.split('.').length - right.path.split('.').length;
+                return depthDifference || left.path.localeCompare(right.path);
+            })
+            .forEach((space) => {
+                const slug = getContentAsCodePathFromLtreePath(space.path);
+                if ((pathCounts.get(space.path) ?? 0) > 1) {
+                    skippedSpaceUuids.add(space.uuid);
+                    if (!skippedPaths.has(space.path)) {
+                        skipped.push({
+                            slug,
+                            reason: 'Multiple spaces use this hierarchy path',
+                        });
+                        skippedPaths.add(space.path);
+                    }
+                    return;
+                }
+                const directParentPath = space.path.includes('.')
+                    ? space.path.slice(0, space.path.lastIndexOf('.'))
+                    : null;
+                if (
+                    (directParentPath === null) !==
+                    (space.parentSpaceUuid === null)
+                ) {
+                    skippedSpaceUuids.add(space.uuid);
+                    skipped.push({
+                        slug,
+                        reason: 'Space parent does not match its hierarchy path',
+                    });
+                    return;
+                }
+                const visitedAncestorUuids = new Set<string>();
+                let ancestorUuid = space.parentSpaceUuid;
+                let descendantPath = space.path;
+                while (ancestorUuid !== null) {
+                    if (visitedAncestorUuids.has(ancestorUuid)) {
+                        skippedSpaceUuids.add(space.uuid);
+                        skipped.push({
+                            slug,
+                            reason: 'Space hierarchy contains a parent cycle',
+                        });
+                        return;
+                    }
+                    visitedAncestorUuids.add(ancestorUuid);
+                    const ancestor = spacesByUuid.get(ancestorUuid);
+                    const expectedAncestorPath = descendantPath.slice(
+                        0,
+                        descendantPath.lastIndexOf('.'),
+                    );
+                    if (
+                        !ancestor ||
+                        ancestor.isDefaultUserSpace ||
+                        !accessibleSpaceUuids.has(ancestorUuid) ||
+                        skippedSpaceUuids.has(ancestorUuid)
+                    ) {
+                        skippedSpaceUuids.add(space.uuid);
+                        skipped.push({
+                            slug,
+                            reason: skippedSpaceUuids.has(ancestorUuid)
+                                ? 'An ancestor space could not be exported portably'
+                                : 'An ancestor space is not accessible for portable export',
+                        });
+                        return;
+                    }
+                    if (ancestor.path !== expectedAncestorPath) {
+                        skippedSpaceUuids.add(space.uuid);
+                        skipped.push({
+                            slug,
+                            reason: 'Space parent does not match its hierarchy path',
+                        });
+                        return;
+                    }
+                    descendantPath = ancestor.path;
+                    ancestorUuid = ancestor.parentSpaceUuid;
+                }
+
+                const directAccess = rawAccess[space.uuid] ?? {
+                    users: [],
+                    groups: [],
+                };
+                const metadataOnlySpace: SpaceAsCode = {
+                    contentType: ContentAsCodeType.SPACE,
+                    spaceName: space.name,
+                    slug,
+                };
+                if (
+                    directAccess.users.some(
+                        ({ userUuid, email, isInternal }) => {
+                            if (isInternal || email === null) return true;
+                            const member = membersByUuid.get(userUuid);
+                            const normalizedEmail = email.toLowerCase();
+                            return (
+                                member === undefined ||
+                                member.email.toLowerCase() !==
+                                    normalizedEmail ||
+                                memberEmailCounts.get(normalizedEmail) !== 1
+                            );
+                        },
+                    )
+                ) {
+                    spaces.push(metadataOnlySpace);
+                    skipped.push({
+                        slug,
+                        reason: 'Direct access contains a user without a portable organization identity',
+                    });
+                    return;
+                }
+                if (
+                    directAccess.groups.some(
+                        ({ groupUuid, name }) =>
+                            name === null || !portableGroupUuids.has(groupUuid),
+                    )
+                ) {
+                    spaces.push(metadataOnlySpace);
+                    skipped.push({
+                        slug,
+                        reason: 'Direct access contains a group without a portable name',
+                    });
+                    return;
+                }
+
+                const users = directAccess.users.map(({ email, role }) => ({
+                    email: email!.toLowerCase(),
+                    role,
+                }));
+                const groups = directAccess.groups.map(({ name, role }) => ({
+                    name: name!,
+                    role,
+                }));
+                if (
+                    new Set(users.map(({ email }) => email)).size !==
+                        users.length ||
+                    new Set(groups.map(({ name }) => name)).size !==
+                        groups.length
+                ) {
+                    spaces.push(metadataOnlySpace);
+                    skipped.push({
+                        slug,
+                        reason: 'Direct access contains ambiguous portable principals',
+                    });
+                    return;
+                }
+
+                spaces.push({
+                    ...metadataOnlySpace,
+                    version: 1,
+                    access: {
+                        inheritParentPermissions:
+                            space.inheritParentPermissions,
+                        projectMemberAccessRole: space.projectMemberAccessRole,
+                        users: users.sort((left, right) =>
+                            left.email.localeCompare(right.email),
+                        ),
+                        groups: groups.sort((left, right) =>
+                            left.name.localeCompare(right.name),
+                        ),
+                    },
+                });
+            });
+
+        return { spaces, skipped };
+    }
+
+    private async assertSpaceUploaderRetainsManage({
+        user,
+        auditedAbility,
+        project,
+        parentSpaceUuid,
+        access,
+        trx,
+        resolvedUserAccess,
+    }: {
+        user: SessionUser;
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        project: Pick<Project, 'projectUuid' | 'organizationUuid'>;
+        parentSpaceUuid: string | null;
+        access: NonNullable<SpaceAsCode['access']>;
+        trx: Knex;
+        resolvedUserAccess: ResolvedSpaceCodeUserAccess[];
+    }): Promise<void> {
+        let inheritsFromOrgOrProject =
+            access.inheritParentPermissions && parentSpaceUuid === null;
+        const proposedUserAccess: Array<{
+            userUuid: string;
+            role: SpaceMemberRole;
+        }> = [];
+
+        if (access.inheritParentPermissions && parentSpaceUuid !== null) {
+            const parentContext =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    user.userUuid,
+                    parentSpaceUuid,
+                    { trx },
+                );
+            inheritsFromOrgOrProject = parentContext.inheritsFromOrgOrProject;
+            proposedUserAccess.push(...parentContext.access);
+        }
+        const directActorAccess = resolvedUserAccess.find(
+            ({ userUuid }) => userUuid === user.userUuid,
+        );
+        if (directActorAccess) {
+            proposedUserAccess.push({
+                userUuid: user.userUuid,
+                role: directActorAccess.role,
+            });
+        }
+        if (
+            access.projectMemberAccessRole !== null &&
+            ((await this.projectModel.hasProjectMembership(
+                project.projectUuid,
+                user.userUuid,
+                { trx },
+            )) ||
+                (user.role !== undefined &&
+                    user.role !== OrganizationMemberRole.MEMBER))
+        ) {
+            proposedUserAccess.push({
+                userUuid: user.userUuid,
+                role: access.projectMemberAccessRole,
+            });
+        }
+
+        const requestedGroups = access.groups.filter(
+            ({ role }) => role === SpaceMemberRole.ADMIN,
+        );
+        if (requestedGroups.length > 0) {
+            const groups = (
+                await Promise.all(
+                    requestedGroups.map(({ name }) =>
+                        this.groupsModel.find(
+                            {
+                                organizationUuid: project.organizationUuid,
+                                name,
+                            },
+                            undefined,
+                            { trx },
+                        ),
+                    ),
+                )
+            ).flatMap(({ data }) => data);
+            if (groups.length !== requestedGroups.length) {
+                // Let transactional principal validation report missing or
+                // ambiguous groups instead of masking it as a lockout.
+                return;
+            }
+            const memberships = await this.groupsModel.findUserInGroups(
+                {
+                    userUuid: user.userUuid,
+                    organizationUuid: project.organizationUuid,
+                    groupUuids: groups.map(({ uuid }) => uuid),
+                },
+                { trx },
+            );
+            if (
+                memberships.some(({ userUuid }) => userUuid === user.userUuid)
+            ) {
+                proposedUserAccess.push({
+                    userUuid: user.userUuid,
+                    role: SpaceMemberRole.ADMIN,
+                });
+            }
+        }
+
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Space', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid: project.projectUuid,
+                    inheritsFromOrgOrProject,
+                    access: proposedUserAccess,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Space access would remove your permission to manage the space',
+            );
+        }
+    }
+
+    private async validateSpaceAccessPrincipals(
+        organizationUuid: string,
+        access: NonNullable<SpaceAsCode['access']>,
+    ): Promise<void> {
+        const members =
+            await this.organizationMemberProfileModel.findOrganizationMembersByEmails(
+                organizationUuid,
+                access.users.map(({ email }) => email),
+            );
+        const membersByEmail = members.reduce<Map<string, typeof members>>(
+            (map, member) => {
+                const email = member.email.toLowerCase();
+                map.set(email, [...(map.get(email) ?? []), member]);
+                return map;
+            },
+            new Map(),
+        );
+        access.users.forEach(({ email }) => {
+            const matches = membersByEmail.get(email) ?? [];
+            if (matches.length === 0) {
+                throw new ParameterError(
+                    `User ${email} is not a member of this organization`,
+                );
+            }
+            if (matches.length > 1) {
+                throw new ParameterError(
+                    `User email ${email} is ambiguous in this organization`,
+                );
+            }
+        });
+
+        const groupMatches = await Promise.all(
+            access.groups.map(async ({ name }) => ({
+                name,
+                matches: (
+                    await this.groupsModel.find({
+                        organizationUuid,
+                        name,
+                    })
+                ).data,
+            })),
+        );
+        groupMatches.forEach(({ name, matches }) => {
+            if (matches.length === 0) {
+                throw new ParameterError(
+                    `Group ${name} does not exist in this organization`,
+                );
+            }
+            if (matches.length > 1) {
+                throw new ParameterError(
+                    `Group name ${name} is ambiguous in this organization`,
+                );
+            }
+        });
+    }
+
+    private async hasNonPortableDirectSpaceAccess(
+        organizationUuid: string,
+        access: RawSpaceDirectAccess,
+    ): Promise<boolean> {
+        const emails = access.users.flatMap(({ email }) =>
+            email === null ? [] : [email.toLowerCase()],
+        );
+        const members =
+            await this.organizationMemberProfileModel.findOrganizationMembersByEmails(
+                organizationUuid,
+                [...new Set(emails)],
+            );
+        const membersByUuid = new Map(
+            members.map((member) => [member.userUuid, member]),
+        );
+        const memberEmailCounts = members.reduce<Map<string, number>>(
+            (counts, member) => {
+                const email = member.email.toLowerCase();
+                counts.set(email, (counts.get(email) ?? 0) + 1);
+                return counts;
+            },
+            new Map(),
+        );
+        if (
+            access.users.some(({ userUuid, email, isInternal }) => {
+                if (isInternal || email === null) return true;
+                const normalizedEmail = email.toLowerCase();
+                const member = membersByUuid.get(userUuid);
+                return (
+                    member === undefined ||
+                    member.email.toLowerCase() !== normalizedEmail ||
+                    memberEmailCounts.get(normalizedEmail) !== 1
+                );
+            })
+        ) {
+            return true;
+        }
+
+        const portableGroups = await Promise.all(
+            access.groups.map(async ({ groupUuid, name }) => {
+                if (name === null) return false;
+                const matches = (
+                    await this.groupsModel.find({ organizationUuid, name })
+                ).data;
+                return matches.length === 1 && matches[0].uuid === groupUuid;
+            }),
+        );
+        return portableGroups.some((portable) => !portable);
+    }
+
+    async upsertSpace(
+        account: Account,
+        projectUuid: string,
+        spaceInput: SpaceAsCode,
+        options: {
+            skipSpaceCreate?: boolean;
+            publicSpaceCreate?: boolean;
+        } = {},
+    ): Promise<ApiSpaceAsCodeUpsertResponse['results']> {
+        const { user } = getAccountApiAccessContext(account);
+        const desiredSpace = CoderService.normalizeSpaceAsCode(spaceInput);
+        const project = await this.projectModel.get(projectUuid);
+        if (!project) {
+            throw new NotFoundError(`Project ${projectUuid} not found`);
+        }
+        const auditedAbility = this.createAuditedAbility(account);
+        CoderService.checkContentAsCodeWriteAccess({
+            auditedAbility,
+            project,
+            slug: desiredSpace.slug,
+        });
+
+        const path = getLtreePathFromContentAsCodePath(desiredSpace.slug);
+        const matches = await this.spaceModel.findByProjectAndPath(
+            projectUuid,
+            path,
+        );
+        if (matches.some(({ isDefaultUserSpace }) => isDefaultUserSpace)) {
+            throw new ParameterError(
+                `Generated personal space "${desiredSpace.slug}" cannot be managed as code`,
+            );
+        }
+        if (matches.length > 1) {
+            throw new ParameterError(
+                `Multiple spaces use hierarchy path "${desiredSpace.slug}"`,
+            );
+        }
+        const existingSpace = matches[0];
+        if (!existingSpace && options.skipSpaceCreate) {
+            throw new NotFoundError(
+                `Space ${desiredSpace.slug} does not exist, skipping creation`,
+            );
+        }
+
+        const parentPath = path.includes('.')
+            ? path.slice(0, path.lastIndexOf('.'))
+            : null;
+        let parentSpace = null;
+        if (parentPath !== null) {
+            let parentMatches = await this.spaceModel.findByProjectAndPath(
+                projectUuid,
+                parentPath,
+            );
+            if (
+                parentMatches.length === 0 &&
+                desiredSpace.access === undefined &&
+                !existingSpace
+            ) {
+                const parentSlug =
+                    getContentAsCodePathFromLtreePath(parentPath);
+                const parentPathSegment = parentPath.slice(
+                    parentPath.lastIndexOf('.') + 1,
+                );
+                await this.upsertSpace(
+                    account,
+                    projectUuid,
+                    {
+                        contentType: ContentAsCodeType.SPACE,
+                        spaceName: friendlyName(parentPathSegment),
+                        slug: parentSlug,
+                    },
+                    options,
+                );
+                parentMatches = await this.spaceModel.findByProjectAndPath(
+                    projectUuid,
+                    parentPath,
+                );
+            }
+            if (
+                parentMatches.some(
+                    ({ isDefaultUserSpace }) => isDefaultUserSpace,
+                )
+            ) {
+                throw new ParameterError(
+                    `Generated personal space "${getContentAsCodePathFromLtreePath(
+                        parentPath,
+                    )}" cannot be used as an as-code parent`,
+                );
+            }
+            if (parentMatches.length !== 1) {
+                throw new ParameterError(
+                    parentMatches.length === 0
+                        ? `Parent space "${getContentAsCodePathFromLtreePath(
+                              parentPath,
+                          )}" must exist before "${desiredSpace.slug}"`
+                        : `Multiple spaces use parent hierarchy path "${getContentAsCodePathFromLtreePath(
+                              parentPath,
+                          )}"`,
+                );
+            }
+            [parentSpace] = parentMatches;
+        }
+        const parentSpaceUuid = parentSpace?.uuid ?? null;
+        if (
+            existingSpace &&
+            existingSpace.parentSpaceUuid !== parentSpaceUuid
+        ) {
+            throw new ParameterError(
+                `Existing space "${desiredSpace.slug}" has an inconsistent parent`,
+            );
+        }
+
+        const metadataChanged =
+            !existingSpace || existingSpace.name !== desiredSpace.spaceName;
+        if (
+            existingSpace &&
+            desiredSpace.access === undefined &&
+            !metadataChanged
+        ) {
+            if (
+                !(await this.spacePermissionService.can(
+                    'view',
+                    user,
+                    existingSpace.uuid,
+                ))
+            ) {
+                throw new ForbiddenError(
+                    `You don't have permission to view space "${desiredSpace.slug}"`,
+                );
+            }
+            return { action: SpaceAsCodeAction.NO_CHANGES };
+        }
+
+        if (existingSpace) {
+            if (
+                !(await this.spacePermissionService.can(
+                    'manage',
+                    user,
+                    existingSpace.uuid,
+                ))
+            ) {
+                throw new ForbiddenError(
+                    `You don't have permission to manage space "${desiredSpace.slug}"`,
+                );
+            }
+        } else {
+            if (
+                auditedAbility.cannot(
+                    'create',
+                    subject('Space', {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid,
+                        metadata: { spaceName: desiredSpace.spaceName },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    `You don't have permission to create space "${desiredSpace.slug}"`,
+                );
+            }
+            if (
+                parentSpaceUuid !== null &&
+                !(await this.spacePermissionService.can(
+                    'manage',
+                    user,
+                    parentSpaceUuid,
+                ))
+            ) {
+                throw new ForbiddenError(
+                    `You don't have permission to create a child of space "${getContentAsCodePathFromLtreePath(
+                        parentPath!,
+                    )}"`,
+                );
+            }
+        }
+
+        const rawAccess = existingSpace
+            ? ((
+                  await this.spacePermissionService.getRawDirectAccess([
+                      existingSpace.uuid,
+                  ])
+              )[existingSpace.uuid] ?? { users: [], groups: [] })
+            : { users: [], groups: [] };
+        const hasNonPortableDirectAccess =
+            desiredSpace.access !== undefined && existingSpace !== undefined
+                ? await this.hasNonPortableDirectSpaceAccess(
+                      project.organizationUuid,
+                      rawAccess,
+                  )
+                : false;
+        const warnings =
+            desiredSpace.access && hasNonPortableDirectAccess
+                ? [
+                      'Applying this access policy will remove direct service-account, internal-user, or unresolved user/group grants that cannot be represented as code',
+                  ]
+                : [];
+
+        if (desiredSpace.access) {
+            await this.validateSpaceAccessPrincipals(
+                project.organizationUuid,
+                desiredSpace.access,
+            );
+        }
+
+        let accessChanged = desiredSpace.access !== undefined;
+        if (
+            existingSpace &&
+            desiredSpace.access &&
+            !hasNonPortableDirectAccess
+        ) {
+            const currentAccess = {
+                inheritParentPermissions:
+                    existingSpace.inheritParentPermissions,
+                projectMemberAccessRole: existingSpace.projectMemberAccessRole,
+                users: rawAccess.users
+                    .map(({ email, role }) => ({
+                        email: email!.toLowerCase(),
+                        role,
+                    }))
+                    .sort((left, right) =>
+                        left.email.localeCompare(right.email),
+                    ),
+                groups: rawAccess.groups
+                    .map(({ name, role }) => ({ name: name!, role }))
+                    .sort((left, right) => left.name.localeCompare(right.name)),
+            };
+            accessChanged = !isEqual(currentAccess, desiredSpace.access);
+        }
+        if (existingSpace && !metadataChanged && !accessChanged) {
+            return { action: SpaceAsCodeAction.NO_CHANGES };
+        }
+
+        const applyInput = {
+            projectUuid,
+            userId: user.userId,
+            actorUserUuid: user.userUuid,
+            actorServiceAccountUuid:
+                account.authentication.type === 'service-account'
+                    ? account.authentication.serviceAccountUuid
+                    : null,
+            spaceUuid: existingSpace?.uuid ?? null,
+            name: desiredSpace.spaceName,
+            path,
+            parentSpaceUuid,
+            inheritParentPermissionsOnCreate:
+                parentSpace?.inheritParentPermissions ??
+                options.publicSpaceCreate === true,
+            ...(desiredSpace.access === undefined && parentSpaceUuid !== null
+                ? { copyParentAccessOnLegacyCreate: true }
+                : {}),
+            ...(desiredSpace.access ? { access: desiredSpace.access } : {}),
+        };
+        await this.spaceModel.applySpaceAsCode(applyInput, {
+            beforeMutation: async (trx, { userAccess }) => {
+                const reloadedUser =
+                    await this.userModel.findSessionUserAndOrgByUuid(
+                        user.userUuid,
+                        project.organizationUuid,
+                        { trx },
+                    );
+                if (!reloadedUser.isActive) {
+                    throw new ForbiddenError(
+                        'The authenticated user is no longer active',
+                    );
+                }
+                const currentUser: SessionUser = {
+                    ...reloadedUser,
+                    requestContext: user.requestContext,
+                    serviceAccount: user.serviceAccount,
+                };
+                const currentAbility = this.createAuditedAbility(currentUser);
+                CoderService.checkContentAsCodeWriteAccess({
+                    auditedAbility: currentAbility,
+                    project,
+                    slug: desiredSpace.slug,
+                });
+
+                if (
+                    existingSpace &&
+                    !(await this.spacePermissionService.can(
+                        'manage',
+                        currentUser,
+                        existingSpace.uuid,
+                        { trx },
+                    ))
+                ) {
+                    throw new ForbiddenError(
+                        `You don't have permission to manage space "${desiredSpace.slug}"`,
+                    );
+                }
+                if (
+                    !existingSpace &&
+                    currentAbility.cannot(
+                        'create',
+                        subject('Space', {
+                            organizationUuid: project.organizationUuid,
+                            projectUuid,
+                            metadata: {
+                                spaceName: desiredSpace.spaceName,
+                            },
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError(
+                        `You don't have permission to create space "${desiredSpace.slug}"`,
+                    );
+                }
+                if (
+                    !existingSpace &&
+                    parentSpaceUuid !== null &&
+                    !(await this.spacePermissionService.can(
+                        'manage',
+                        currentUser,
+                        parentSpaceUuid,
+                        { trx },
+                    ))
+                ) {
+                    throw new ForbiddenError(
+                        `You don't have permission to create a child of space "${getContentAsCodePathFromLtreePath(
+                            parentPath!,
+                        )}"`,
+                    );
+                }
+                if (desiredSpace.access) {
+                    await this.assertSpaceUploaderRetainsManage({
+                        user: currentUser,
+                        auditedAbility: currentAbility,
+                        project,
+                        parentSpaceUuid,
+                        access: desiredSpace.access!,
+                        trx,
+                        resolvedUserAccess: userAccess,
+                    });
+                }
+            },
+        });
+
+        return {
+            action: existingSpace
+                ? SpaceAsCodeAction.UPDATE
+                : SpaceAsCodeAction.CREATE,
+            ...(warnings.length > 0 ? { warnings } : {}),
+        };
     }
 
     private static transformChart(

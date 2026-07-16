@@ -1,3 +1,4 @@
+import { Ability } from '@casl/ability';
 import {
     DirectSpaceAccessOrigin,
     NotFoundError,
@@ -6,10 +7,13 @@ import {
     type DirectSpaceAccess,
     type OrganizationMemberRole,
     type OrganizationSpaceAccess,
+    type PossibleAbilities,
     type ProjectMemberRole,
     type ProjectSpaceAccess,
+    type SessionUser,
     type SpaceInheritanceChain,
 } from '@lightdash/common';
+import { type Knex } from 'knex';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SpacePermissionModel } from '../../models/SpacePermissionModel';
 import { SpacePermissionService } from './SpacePermissionService';
@@ -19,6 +23,7 @@ const createMockSpacePermissionModel = () => ({
         vi.fn<
             (
                 spaceUuids: string[],
+                options?: { trx?: Knex },
             ) => Promise<Record<string, SpaceInheritanceChain>>
         >(),
     getDirectSpaceAccess:
@@ -26,6 +31,7 @@ const createMockSpacePermissionModel = () => ({
             (
                 spaceUuids: string[],
                 filters?: { userUuid?: string },
+                options?: { trx?: Knex },
             ) => Promise<Record<string, DirectSpaceAccess[]>>
         >(),
     getProjectSpaceAccess:
@@ -33,6 +39,7 @@ const createMockSpacePermissionModel = () => ({
             (
                 spaceUuids: string[],
                 filters?: { userUuid?: string },
+                options?: { trx?: Knex },
             ) => Promise<Record<string, ProjectSpaceAccess[]>>
         >(),
     getOrganizationSpaceAccess:
@@ -40,11 +47,15 @@ const createMockSpacePermissionModel = () => ({
             (
                 spaceUuids: string[],
                 filters?: { userUuid?: string },
+                options?: { trx?: Knex },
             ) => Promise<Record<string, OrganizationSpaceAccess[]>>
         >(),
     getSpaceInfo:
         vi.fn<
-            (spaceUuids: string[]) => Promise<
+            (
+                spaceUuids: string[],
+                options?: { trx?: Knex },
+            ) => Promise<
                 Record<
                     string,
                     {
@@ -67,6 +78,83 @@ describe('SpacePermissionService', () => {
 
     afterEach(() => {
         vi.resetAllMocks();
+    });
+
+    test('fails closed when any requested space has no access context', async () => {
+        mockPermissionModel.getInheritanceChains.mockResolvedValue({});
+        mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({});
+        mockPermissionModel.getProjectSpaceAccess.mockResolvedValue({});
+        mockPermissionModel.getOrganizationSpaceAccess.mockResolvedValue({});
+        mockPermissionModel.getSpaceInfo.mockResolvedValue({});
+        const user = {
+            userUuid: 'user-uuid',
+            ability: new Ability<PossibleAbilities>([
+                { action: 'manage', subject: 'Space' },
+            ]),
+        } as unknown as SessionUser;
+
+        await expect(
+            service.can('manage', user, 'missing-space'),
+        ).resolves.toBe(false);
+    });
+
+    test('uses the provided transaction for every access-context query', async () => {
+        const spaceUuid = 'space-uuid';
+        const userUuid = 'user-uuid';
+        const trx = {} as Knex;
+        mockPermissionModel.getInheritanceChains.mockResolvedValue({
+            [spaceUuid]: {
+                chain: [
+                    {
+                        spaceUuid,
+                        spaceName: 'Space',
+                        inheritParentPermissions: true,
+                    },
+                ],
+                inheritsFromOrgOrProject: true,
+            },
+        });
+        mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({});
+        mockPermissionModel.getProjectSpaceAccess.mockResolvedValue({});
+        mockPermissionModel.getOrganizationSpaceAccess.mockResolvedValue({});
+        mockPermissionModel.getSpaceInfo.mockResolvedValue({
+            [spaceUuid]: {
+                projectUuid: 'project-uuid',
+                organizationUuid: 'organization-uuid',
+            },
+        });
+        const user = {
+            userUuid,
+            ability: new Ability<PossibleAbilities>([
+                { action: 'manage', subject: 'Space' },
+            ]),
+        } as unknown as SessionUser;
+
+        await expect(
+            service.can('manage', user, spaceUuid, { trx }),
+        ).resolves.toBe(true);
+
+        expect(mockPermissionModel.getInheritanceChains).toHaveBeenCalledWith(
+            [spaceUuid],
+            { trx },
+        );
+        expect(mockPermissionModel.getDirectSpaceAccess).toHaveBeenCalledWith(
+            [spaceUuid],
+            { userUuid },
+            { trx },
+        );
+        expect(mockPermissionModel.getProjectSpaceAccess).toHaveBeenCalledWith(
+            [spaceUuid],
+            { userUuid },
+            { trx },
+        );
+        expect(
+            mockPermissionModel.getOrganizationSpaceAccess,
+        ).toHaveBeenCalledWith([spaceUuid], { userUuid }, { trx });
+        expect(mockPermissionModel.getSpaceInfo).toHaveBeenCalledWith(
+            [spaceUuid],
+            { trx },
+        );
     });
 
     describe('getSpacesCaslContext (via getAllSpaceAccessContext)', () => {
@@ -124,10 +212,14 @@ describe('SpacePermissionService', () => {
             // Project access was fetched for the root space
             expect(
                 mockPermissionModel.getProjectSpaceAccess,
-            ).toHaveBeenCalledWith(['root-space'], undefined);
+            ).toHaveBeenCalledWith(['root-space'], undefined, {
+                trx: undefined,
+            });
             expect(
                 mockPermissionModel.getOrganizationSpaceAccess,
-            ).toHaveBeenCalledWith(['root-space'], undefined);
+            ).toHaveBeenCalledWith(['root-space'], undefined, {
+                trx: undefined,
+            });
         });
 
         test('space with inherit=false is treated as private, direct access user gets role', async () => {
@@ -337,6 +429,7 @@ describe('SpacePermissionService', () => {
             ).toHaveBeenCalledWith(
                 expect.arrayContaining(['child-space', 'parent-space']),
                 undefined,
+                { trx: undefined },
             );
         });
 
@@ -393,7 +486,9 @@ describe('SpacePermissionService', () => {
             // Project access fetched for the root space (last in chain)
             expect(
                 mockPermissionModel.getProjectSpaceAccess,
-            ).toHaveBeenCalledWith(['root-space'], undefined);
+            ).toHaveBeenCalledWith(['root-space'], undefined, {
+                trx: undefined,
+            });
             // User gets access via project membership
             expect(result.access).toHaveLength(1);
             expect(result.access[0].userUuid).toBe(userUuid);

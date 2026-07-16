@@ -2,11 +2,14 @@ import {
     AddSpaceGroupAccess,
     AddSpaceUserAccess,
     ApiErrorPayload,
+    ApiSpaceAsCodeListResponse,
+    ApiSpaceAsCodeUpsertResponse,
     ApiSpaceDeleteImpactResponse,
     ApiSpaceResponse,
     ApiSuccessEmpty,
     assertRegisteredAccount,
     CreateSpace,
+    SpaceAsCode,
     UpdateSpace,
 } from '@lightdash/common';
 import {
@@ -18,6 +21,7 @@ import {
     Patch,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -37,6 +41,60 @@ import { BaseController } from './baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Spaces')
 export class SpaceController extends BaseController {
+    /**
+     * Get spaces and their direct access policy in code representation
+     * @summary List spaces as code
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('code')
+    @OperationId('getSpacesAsCode')
+    async getSpacesAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSpaceAsCodeListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .getSpaces(req.account!, projectUuid),
+        };
+    }
+
+    /**
+     * Create or update a space and its direct access policy from code
+     * @summary Upsert space as code
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('code')
+    @OperationId('upsertSpaceAsCode')
+    async upsertSpaceAsCode(
+        @Path() projectUuid: string,
+        @Body() space: SpaceAsCode,
+        @Request() req: express.Request,
+        @Query() skipSpaceCreate: boolean = false,
+        @Query() publicSpaceCreate: boolean = false,
+    ): Promise<ApiSpaceAsCodeUpsertResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .upsertSpace(req.account!, projectUuid, space, {
+                    skipSpaceCreate,
+                    publicSpaceCreate,
+                }),
+        };
+    }
+
     /**
      * Get details for a space in a project
      * @summary Get space

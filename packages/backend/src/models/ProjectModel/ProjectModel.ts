@@ -1726,6 +1726,30 @@ export class ProjectModel {
         };
     }
 
+    async hasProjectMembership(
+        projectUuid: string,
+        userUuid: string,
+        { trx = this.database }: { trx?: Knex } = {},
+    ): Promise<boolean> {
+        const membership = await trx(ProjectMembershipsTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectMembershipsTableName}.project_id`,
+                `${ProjectTableName}.project_id`,
+            )
+            .innerJoin(
+                UserTableName,
+                `${ProjectMembershipsTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .where(`${UserTableName}.user_uuid`, userUuid)
+            .first(`${ProjectMembershipsTableName}.user_id`)
+            .forShare();
+
+        return membership !== undefined;
+    }
+
     async getProjectAccess(
         projectUuid: string,
     ): Promise<ProjectMemberProfile[]> {

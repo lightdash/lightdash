@@ -17,6 +17,7 @@ type SlugTables =
 // Namespace 1 is already used by cached explores (ProjectModel), so use 2 here
 // to avoid clashing with that lock space.
 const CONTENT_AS_CODE_SLUG_LOCK_NAMESPACE = 2;
+const SPACE_ACCESS_LOCK_NAMESPACE = 3;
 
 /**
  * Take a transaction-scoped Postgres advisory lock keyed on (projectUuid, slug).
@@ -40,6 +41,16 @@ export const acquireProjectSlugLock = async (
     await trx.raw('SELECT pg_advisory_xact_lock(?, hashtext(?))', [
         CONTENT_AS_CODE_SLUG_LOCK_NAMESPACE,
         `${projectUuid}:${slug}`,
+    ]);
+};
+
+export const acquireSpaceAccessLock = async (
+    trx: Knex,
+    spaceUuid: string,
+): Promise<void> => {
+    await trx.raw('SELECT pg_advisory_xact_lock(?, hashtext(?))', [
+        SPACE_ACCESS_LOCK_NAMESPACE,
+        spaceUuid,
     ]);
 };
 

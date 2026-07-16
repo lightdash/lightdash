@@ -276,9 +276,12 @@ export class UserModel {
             .whereIn(`${UserTableName}.user_uuid`, filters.userUuids);
     }
 
-    private async hasAuthentication(userUuid: string): Promise<boolean> {
+    private async hasAuthentication(
+        userUuid: string,
+        trx: Knex = this.database,
+    ): Promise<boolean> {
         const [usersHaveAuthenticationRows] =
-            await UserModel.findIfUsersHaveAuthentication(this.database, {
+            await UserModel.findIfUsersHaveAuthentication(trx, {
                 userUuids: [userUuid],
             });
         if (usersHaveAuthenticationRows === undefined) {
@@ -586,6 +589,7 @@ export class UserModel {
 
     async getUserProjectRoles(
         userUuid: string,
+        { trx = this.database }: { trx?: Knex } = {},
     ): Promise<ProjectAbilityProfile[]> {
         type Row = {
             project_uuid: string;
@@ -594,7 +598,7 @@ export class UserModel {
             project_type: ProjectType;
             created_by_user_uuid: string | null;
         };
-        const projectMemberships = await this.database('project_memberships')
+        const projectMemberships = await trx('project_memberships')
             .leftJoin(
                 ProjectTableName,
                 'project_memberships.project_id',
@@ -624,9 +628,10 @@ export class UserModel {
         userId: number,
         organizationId: number,
         userUuid: string,
+        trx: Knex = this.database,
     ): Promise<ProjectAbilityProfile[]> {
         // Remember: primary key for an organization is organization_id,user_id - not user_id alone
-        const query = this.database('group_memberships')
+        const query = trx('group_memberships')
             .innerJoin(
                 'project_group_access',
                 'project_group_access.group_uuid',
@@ -659,12 +664,13 @@ export class UserModel {
 
     private async customRoleScopes(
         roleUuids: string[],
+        trx: Knex = this.database,
     ): Promise<Record<Role['roleUuid'], RoleWithScopes['scopes']>> {
         if (roleUuids.length === 0) {
             return {};
         }
 
-        const scopeData = await this.database(ScopedRolesTableName)
+        const scopeData = await trx(ScopedRolesTableName)
             .select('role_uuid', 'scope_name')
             .whereIn('role_uuid', roleUuids);
 
@@ -683,18 +689,22 @@ export class UserModel {
         return scopesRecord;
     }
 
-    private async generateUserAbilityBuilder(user: DbUserDetails): Promise<{
+    private async generateUserAbilityBuilder(
+        user: DbUserDetails,
+        trx: Knex = this.database,
+    ): Promise<{
         abilityBuilder: AbilityBuilder<MemberAbility>;
         lightdashUser: LightdashUser;
     }> {
         const [hasAuthentication, projectRoles, groupProjectRoles] =
             await Promise.all([
-                this.hasAuthentication(user.user_uuid),
-                this.getUserProjectRoles(user.user_uuid),
+                this.hasAuthentication(user.user_uuid, trx),
+                this.getUserProjectRoles(user.user_uuid, { trx }),
                 this.getUserGroupProjectRoles(
                     user.user_id,
                     user.organization_id,
                     user.user_uuid,
+                    trx,
                 ),
             ]);
         const lightdashUser = mapDbUserDetailsToLightdashUser(
@@ -723,9 +733,10 @@ export class UserModel {
             // the flag off, every CI workflow on those tokens would 403
             // overnight.
             if (user.role_uuid) {
-                const customRoleScopes = await this.customRoleScopes([
-                    user.role_uuid,
-                ]);
+                const customRoleScopes = await this.customRoleScopes(
+                    [user.role_uuid],
+                    trx,
+                );
                 const scopes = customRoleScopes[user.role_uuid];
                 if (scopes) {
                     const builder = new AbilityBuilder<MemberAbility>(Ability);
@@ -757,6 +768,7 @@ export class UserModel {
                         user.user_id,
                         user.user_uuid,
                         builder,
+                        trx,
                     );
                     builder.rules = collapseAbilityRules(builder.rules);
                     return {
@@ -771,6 +783,7 @@ export class UserModel {
             // ability set.
             const serviceAccount = await this.findServiceAccountByUserUuid(
                 user.user_uuid,
+                { trx },
             );
             if (serviceAccount) {
                 const builder = new AbilityBuilder<MemberAbility>(Ability);
@@ -784,6 +797,7 @@ export class UserModel {
                     user.user_id,
                     user.user_uuid,
                     builder,
+                    trx,
                 );
                 builder.rules = collapseAbilityRules(builder.rules);
                 return {
@@ -802,11 +816,14 @@ export class UserModel {
             ...groupProjectRoles.map((role) => role.roleUuid),
         ].filter((roleUuid): roleUuid is string => Boolean(roleUuid));
         const [customRoleScopes, customRolesFlag] = await Promise.all([
-            this.customRoleScopes(customRoleUuids),
-            this.featureFlagModel.get({
-                user: lightdashUser,
-                featureFlagId: CommercialFeatureFlags.CustomRoles,
-            }),
+            this.customRoleScopes(customRoleUuids, trx),
+            this.featureFlagModel.get(
+                {
+                    user: lightdashUser,
+                    featureFlagId: CommercialFeatureFlags.CustomRoles,
+                },
+                { trx },
+            ),
         ]);
         const { builder: abilityBuilder, invalidScopes } =
             getUserAbilityBuilder({
@@ -855,6 +872,7 @@ export class UserModel {
         userId: number,
         userUuid: string,
         builder: AbilityBuilder<MemberAbility>,
+        trx: Knex = this.database,
     ): Promise<void> {
         type Row = {
             project_uuid: string;
@@ -863,7 +881,7 @@ export class UserModel {
             project_type: ProjectType;
             created_by_user_uuid: string | null;
         };
-        const rows = await this.database(ProjectMembershipsTableName)
+        const rows = await trx(ProjectMembershipsTableName)
             .leftJoin(
                 ProjectTableName,
                 `${ProjectMembershipsTableName}.project_id`,
@@ -887,7 +905,7 @@ export class UserModel {
             .filter((u): u is string => u !== null);
         const customRoleScopes =
             customRoleUuids.length > 0
-                ? await this.customRoleScopes(customRoleUuids)
+                ? await this.customRoleScopes(customRoleUuids, trx)
                 : {};
         const isEnterprise =
             this.lightdashConfig.license.licenseKey !== undefined;
@@ -933,7 +951,10 @@ export class UserModel {
         }
     }
 
-    async findServiceAccountByUserUuid(userUuid: string): Promise<
+    async findServiceAccountByUserUuid(
+        userUuid: string,
+        { trx = this.database }: { trx?: Knex } = {},
+    ): Promise<
         | {
               uuid: string;
               description: string;
@@ -942,7 +963,7 @@ export class UserModel {
           }
         | undefined
     > {
-        const row = await this.database('service_accounts')
+        const row = await trx('service_accounts')
             .where('service_account_user_uuid', userUuid)
             .select<
                 {
@@ -1147,8 +1168,9 @@ export class UserModel {
     async findSessionUserAndOrgByUuid(
         userUuid: string,
         organizationUuid: string,
+        { trx = this.database }: { trx?: Knex } = {},
     ): Promise<SessionUser> {
-        const [user] = await userDetailsQueryBuilder(this.database)
+        const [user] = await userDetailsQueryBuilder(trx)
             .where('user_uuid', userUuid)
             .andWhere('organizations.organization_uuid', organizationUuid) // We filter organizationUuid here
             .select('*', 'organizations.created_at as organization_created_at');
@@ -1159,7 +1181,7 @@ export class UserModel {
             );
         }
         const { abilityBuilder, lightdashUser } =
-            await this.generateUserAbilityBuilder(user);
+            await this.generateUserAbilityBuilder(user, trx);
 
         return {
             ...lightdashUser,

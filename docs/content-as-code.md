@@ -17,12 +17,12 @@ validation against current server capabilities.
 
 ## Responsibility boundary
 
-| Layer | Responsibilities |
-|---|---|
-| Common | Defines the portable resource and API response types used by the CLI and backend. |
-| Backend controller | Exposes authenticated `/code` endpoints and generated OpenAPI contracts. |
-| Backend service | Loads resources, builds the portable representation, validates uploads, resolves identity, calculates changes, and persists them. |
-| CLI | Selects the project or organization, reads and writes files, chooses deterministic filenames, calls the `/code` API, and presents progress and per-file failures. |
+| Layer              | Responsibilities                                                                                                                                                  |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Common             | Defines the portable resource and API response types used by the CLI and backend.                                                                                 |
+| Backend controller | Exposes authenticated `/code` endpoints and generated OpenAPI contracts.                                                                                          |
+| Backend service    | Loads resources, builds the portable representation, validates uploads, resolves identity, calculates changes, and persists them.                                 |
+| CLI                | Selects the project or organization, reads and writes files, chooses deterministic filenames, calls the `/code` API, and presents progress and per-file failures. |
 
 The CLI should not contain lists of valid domain values, compare uploaded
 resources with database resources, or coordinate lower-level create and update
@@ -132,6 +132,95 @@ lightdash/
 
 The CLI success message refers to the shared `lightdash/` parent because future
 organization resources will use the same root.
+
+## Spaces and access
+
+Project space definitions use `.space.yml` files. New flat downloads place them
+under `lightdash/spaces/`:
+
+```text
+lightdash/
+  spaces/
+    finance.space.yml
+```
+
+Use `--root-spaces` to write new flat space files at the `lightdash/` root for
+the legacy layout. With `--nested`, each definition stays in its per-space
+folder alongside that space's `charts/` and `dashboards/` directories.
+Existing files are always updated in their current location, so downloading
+does not duplicate or automatically move root, `spaces/`, or nested files.
+Upload discovers all of these layouts recursively.
+
+Each space file contains:
+
+```yaml
+contentType: space
+version: 1
+spaceName: Finance
+slug: company/finance
+access:
+  inheritParentPermissions: false
+  projectMemberAccessRole: viewer
+  users:
+    - email: owner@example.com
+      role: admin
+  groups:
+    - name: Finance team
+      role: editor
+```
+
+The endpoints are:
+
+- `GET /api/v1/projects/{projectUuid}/spaces/code`
+- `POST /api/v1/projects/{projectUuid}/spaces/code`
+
+The full hierarchy path in `slug` is the portable identity. Uploads process
+parents before descendants and create missing spaces unless
+`--skip-space-create` is used. Changing the path creates another space; missing
+files do not move, delete, or revoke a remote space.
+
+For compatibility with older downloads that only contain a leaf space file,
+metadata-only uploads can recreate missing ancestor folders using names derived
+from each path segment. Version 1 files with an explicit `access` policy remain
+strict: every parent must already exist or have its own successfully applied
+space file. With `--skip-space-create`, missing spaces and their dependent
+content are reported as skipped while unrelated existing content continues.
+
+When `access` is present it replaces the complete direct policy: inheritance,
+the all-project-members role, direct human users, and direct groups. Empty
+arrays explicitly remove grants. Effective inherited access and expanded group
+members are never serialized. Legacy space files without `version` and
+`access` remain valid and update metadata without changing access.
+
+If direct access contains a principal without a portable identity, download
+still writes the space as a legacy metadata-only file and warns that access was
+omitted. Re-uploading that file leaves access unchanged; it never applies a
+partial policy that could revoke the unsupported grant. Descendant spaces are
+still downloaded independently when their own access is portable.
+
+Full project downloads and uploads include spaces by default. Use
+`--skip-spaces` to leave them alone or `--spaces-only` to operate only on space
+definitions. `--root-spaces` is a download-only legacy layout option and cannot
+be combined with `--nested`. Filtered chart and dashboard operations never
+reconcile unrelated space access. They still maintain metadata-only files for
+the referenced spaces so names remain portable; an existing versioned `access`
+block is preserved rather than replaced by embedded metadata.
+
+If the access-aware space endpoint is unavailable, a normal full download
+continues with the legacy metadata-only spaces embedded in chart and dashboard
+responses. `--spaces-only` remains strict because it has no content response to
+use as a fallback.
+
+Changing a space name or access policy requires actual permission to manage the
+resolved space. Broad content-as-code permission does not bypass restricted
+space authorization, and an unchanged legacy metadata-only file is treated as
+a no-op after confirming the caller can view the space.
+
+Keep organization deployments in this order:
+
+1. `lightdash upload --organization`
+2. Project spaces
+3. Project content
 
 ## Custom roles reference implementation
 

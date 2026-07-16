@@ -116,8 +116,9 @@ export class GroupsModel {
             name?: string; // will exact match on name
         },
         paginateArgs?: KnexPaginateArgs,
+        { trx = this.database }: { trx?: Knex } = {},
     ): Promise<KnexPaginatedData<Group[]>> {
-        let query = this.database('groups')
+        let query = trx('groups')
             .innerJoin(
                 'organizations',
                 'groups.organization_id',
@@ -239,12 +240,15 @@ export class GroupsModel {
         };
     }
 
-    async findUserInGroups(filters: {
-        userUuid: string;
-        organizationUuid: string;
-        groupUuids?: string[];
-    }): Promise<GroupMembership[]> {
-        const query = this.database(GroupMembershipTableName)
+    async findUserInGroups(
+        filters: {
+            userUuid: string;
+            organizationUuid: string;
+            groupUuids?: string[];
+        },
+        { trx = this.database }: { trx?: Knex } = {},
+    ): Promise<GroupMembership[]> {
+        const query = trx(GroupMembershipTableName)
             .innerJoin(
                 UserTableName,
                 `${GroupMembershipTableName}.user_id`,
@@ -272,7 +276,7 @@ export class GroupsModel {
             );
         }
 
-        const rows = await query;
+        const rows = await query.forShare();
         return rows.map((row) => ({
             groupUuid: row.group_uuid,
             userUuid: row.user_uuid,
@@ -701,7 +705,8 @@ export class GroupsModel {
                     organization_id: organization.organization_id,
                     name,
                 })
-                .first<Pick<DbGroup, 'group_uuid'>>('group_uuid');
+                .first<Pick<DbGroup, 'group_uuid'>>('group_uuid')
+                .forUpdate();
 
             if (!existingGroup) {
                 const [createdGroup] = await trx(GroupTableName)

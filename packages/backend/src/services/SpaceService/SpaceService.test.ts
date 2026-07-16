@@ -1,5 +1,6 @@
 import {
     AbilityAction,
+    NotFoundError,
     OrganizationMemberRole,
     ProjectMemberRole,
     SpaceMemberRole,
@@ -1011,6 +1012,22 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         });
         mockSpacePermissionService.getGroupAccess.mockResolvedValue([]);
         mockSpacePermissionService.getUserMetadataByUuids.mockResolvedValue({});
+    });
+
+    test('getSpace returns not found when the space is missing', async () => {
+        mockSpaceModel.get.mockRejectedValueOnce(
+            new NotFoundError('Space not found'),
+        );
+
+        await expect(
+            service.getSpace(
+                'project-uuid',
+                mockUser as unknown as SessionUser,
+                'deleted-space-uuid',
+            ),
+        ).rejects.toBeInstanceOf(NotFoundError);
+        expect(mockSpaceModel.get).toHaveBeenCalledOnce();
+        expect(mockSpacePermissionService.can).not.toHaveBeenCalled();
     });
 
     test('copies permissions when transitioning inheritParentPermissions true → false with flag enabled', async () => {

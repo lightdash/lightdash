@@ -1194,6 +1194,10 @@ export class ServiceRepository
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
                     projectService: this.getProjectService(),
+                    groupsModel: this.models.getGroupsModel(),
+                    organizationMemberProfileModel:
+                        this.models.getOrganizationMemberProfileModel(),
+                    userModel: this.models.getUserModel(),
                 }),
         );
     }

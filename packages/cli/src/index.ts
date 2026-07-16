@@ -831,6 +831,11 @@ const downloadCommand = program
         false,
     )
     .option(
+        '--root-spaces',
+        'write new flat space definitions at the content root instead of spaces/ (legacy layout)',
+        false,
+    )
+    .option(
         '--project <project uuid>',
         'specify a project UUID to download',
         parseProjectArgument,
@@ -838,7 +843,12 @@ const downloadCommand = program
     )
     .option(
         '--skip-spaces',
-        'skip writing space metadata files during download',
+        'skip downloading space definitions and access',
+        false,
+    )
+    .option(
+        '--spaces-only',
+        'download only space definitions and access',
         false,
     )
     .option('--skip-charts', 'skip downloading charts', false)
@@ -948,6 +958,12 @@ const uploadCommand = program
         'Skip space creation if it does not exist',
         false,
     )
+    .option(
+        '--skip-spaces',
+        'skip uploading space definitions and access',
+        false,
+    )
+    .option('--spaces-only', 'upload only space definitions and access', false)
     .option('--public', 'Create new spaces as public instead of private', false)
     .option('--skip-agents', 'skip uploading AI agents', false)
     .option('--skip-alerts', 'skip uploading alerts', false)

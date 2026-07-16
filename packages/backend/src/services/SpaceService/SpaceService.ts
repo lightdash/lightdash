@@ -217,6 +217,11 @@ export class SpaceService
         user: SessionUser,
         spaceUuid: string,
     ): Promise<Space> {
+        const space = await this.spaceModel.get(spaceUuid);
+        if (space.projectUuid !== projectUuid) {
+            throw new NotFoundError(`Space with uuid ${spaceUuid} not found`);
+        }
+
         if (!(await this.spacePermissionService.can('view', user, spaceUuid))) {
             throw new ForbiddenError();
         }
