@@ -78,6 +78,7 @@ export class QueryHistoryModel {
             sql: string;
             timezone?: string;
             userUuid: string | null;
+            dataTimezone?: string;
         },
     ) {
         const CACHE_VERSION = 'v3'; // change when we want to force invalidation
@@ -93,6 +94,13 @@ export class QueryHistoryModel {
 
         if (resultsIdentifiers.timezone) {
             queryHashKey += `.${resultsIdentifiers.timezone}`;
+        }
+
+        // The session (data) timezone changes results without changing the
+        // SQL text. Appended only when defined so existing keys stay stable;
+        // prefixed so it cannot collide with the display timezone above.
+        if (resultsIdentifiers.dataTimezone) {
+            queryHashKey += `.dtz:${resultsIdentifiers.dataTimezone}`;
         }
 
         return crypto.createHash('sha256').update(queryHashKey).digest('hex');
