@@ -255,29 +255,111 @@
 .dropLine {
     height: 3px;
     width: 100%;
-    border-radius: 2px;
+    border-radius: 999px;
     background: transparent;
-    transition: background 0.12s ease-in-out;
+    transition:
+        background 0.12s ease-in-out,
+        box-shadow 0.12s ease-in-out;
 }
 
 .dropLine[data-over='true'] {
     background: var(--mantine-color-blue-5);
+    box-shadow: 0 0 9px 0
+        light-dark(rgba(34, 113, 247, 0.55), rgba(77, 144, 255, 0.7));
 }
 
-/* The real card clone riding the cursor — tilt + heavy shadow, like the Kanban */
-.dragOverlayCard {
-    transform: rotate(2deg) scale(1.02);
-    box-shadow: 0 12px 28px rgba(20, 22, 28, 0.22);
+/* Vertical sibling of .dropLine, shown between columns while dragging. */
+.colIndicator {
+    align-self: stretch;
+    flex: 0 0 3px;
+    width: 3px;
+    border-radius: 999px;
+    background: transparent;
+    transition:
+        background 0.12s ease-in-out,
+        box-shadow 0.12s ease-in-out;
+}
+
+.colIndicator[data-over='true'] {
+    background: var(--mantine-color-blue-5);
+    box-shadow: 0 0 9px 0
+        light-dark(rgba(34, 113, 247, 0.55), rgba(77, 144, 255, 0.7));
+}
+
+/* Translucent preview of the block, opened up in the layout at the drop spot. */
+.ghostBlock {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 76px;
+    margin: 6px 0;
+    padding: 14px;
+    border: 2px dashed var(--mantine-color-blue-4);
     border-radius: 12px;
+    background: light-dark(
+        var(--mantine-color-blue-0),
+        var(--mantine-color-dark-5)
+    );
+}
+
+.ghostBlockLabel {
+    font-size: 13px;
+    font-weight: 600;
+    color: light-dark(var(--mantine-color-blue-7), var(--mantine-color-blue-3));
+}
+
+/* A block-shaped preview riding the cursor — reads as "carrying this block". */
+.dragOverlayBlock {
+    width: 340px;
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-radius: 12px;
+    padding: 14px;
+    box-shadow: 0 16px 34px rgba(20, 22, 28, 0.26);
+    transform: rotate(1.5deg);
     cursor: grabbing;
     pointer-events: none;
-    max-height: 260px;
-    overflow: hidden;
 }
 
-.dragOverlayCard .railCard {
-    width: 240px;
-    box-shadow: none;
+.dragOverlayHeader {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.dragOverlayLabel {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--mantine-color-ldGray-9);
+}
+
+.dragOverlayDesc {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--mantine-color-ldGray-6);
+    line-height: 1.4;
+}
+
+/* A just-dropped block springs into place. */
+@keyframes blockEnter {
+    from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.blockChrome[data-just-placed='true'] {
+    animation: blockEnter 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .blockChrome[data-just-placed='true'] {
+        animation: none;
+    }
 }
 
 .rowDropZone {
