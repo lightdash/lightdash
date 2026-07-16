@@ -56,8 +56,9 @@ describe('DeepResearchModeControl', () => {
         ).not.toBeInTheDocument();
 
         await user.click(screen.getByText('Quick'));
-        expect(screen.getByText('Up to 15 minutes')).toBeInTheDocument();
-        expect(screen.getByText('Up to 10 queries')).toBeInTheDocument();
+        expect(
+            screen.getByText(/Up to 15 minutes · Up to 10 queries/),
+        ).toBeInTheDocument();
 
         await user.click(modeButton);
         expect(

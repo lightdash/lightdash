@@ -3,8 +3,6 @@
     z-index: 0;
     margin-top: rem(-12px);
     padding: rem(24px) var(--mantine-spacing-md) var(--mantine-spacing-md);
-    border: 1px solid var(--mantine-color-indigo-2);
-    border-top: 0;
     border-radius: 0 0 rem(18px) rem(18px);
 
     @mixin light {
@@ -17,7 +15,6 @@
             var(--mantine-color-indigo-9) 28%,
             var(--mantine-color-dark-7)
         );
-        border-color: var(--mantine-color-indigo-8);
     }
 }
 
@@ -42,21 +39,6 @@
     &:focus-visible {
         outline: 2px solid var(--mantine-color-indigo-outline);
         outline-offset: 2px;
-    }
-}
-
-.depthAllowance {
-    padding: rem(3px) rem(6px);
-    border: 1px solid var(--mantine-color-indigo-2);
-    border-radius: var(--mantine-radius-xl);
-
-    @mixin light {
-        background-color: rgba(255, 255, 255, 0.64);
-    }
-
-    @mixin dark {
-        background-color: var(--mantine-color-dark-6);
-        border-color: var(--mantine-color-indigo-8);
     }
 }
 

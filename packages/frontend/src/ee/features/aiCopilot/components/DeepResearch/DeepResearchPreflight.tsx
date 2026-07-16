@@ -7,7 +7,7 @@ import {
     Text,
     ThemeIcon,
 } from '@mantine-8/core';
-import { IconClock, IconDatabase, IconSearch } from '@tabler/icons-react';
+import { IconDatabase, IconSearch } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { DEEP_RESEARCH_DEPTH_CONFIG } from '../../deepResearch/deepResearchAdapter';
 import {
@@ -81,42 +81,11 @@ export const DeepResearchPreflight = ({ depth, onDepthChange }: Props) => {
                                             >
                                                 {optionConfig.description}
                                             </Text>
-                                            <Group gap={4} mt={4} wrap="wrap">
-                                                <Group
-                                                    gap={4}
-                                                    wrap="nowrap"
-                                                    className={
-                                                        styles.depthAllowance
-                                                    }
-                                                >
-                                                    <MantineIcon
-                                                        icon={IconClock}
-                                                        size={11}
-                                                    />
-                                                    <Text size="9px" fw={600}>
-                                                        {optionConfig.duration}
-                                                    </Text>
-                                                </Group>
-                                                <Group
-                                                    gap={4}
-                                                    wrap="nowrap"
-                                                    className={
-                                                        styles.depthAllowance
-                                                    }
-                                                >
-                                                    <MantineIcon
-                                                        icon={IconDatabase}
-                                                        size={11}
-                                                    />
-                                                    <Text size="9px" fw={600}>
-                                                        Up to{' '}
-                                                        {
-                                                            optionConfig.warehouseQueries
-                                                        }{' '}
-                                                        queries
-                                                    </Text>
-                                                </Group>
-                                            </Group>
+                                            <Text size="10px" c="dimmed" mt={4}>
+                                                {optionConfig.duration} · Up to{' '}
+                                                {optionConfig.warehouseQueries}{' '}
+                                                queries
+                                            </Text>
                                         </Stack>
                                     </Group>
                                 </Radio.Card>
