@@ -79,6 +79,11 @@ a .hoverCard:hover,
 
 .pickerScrollList {
     overflow-y: auto;
+    /* Flex items default to min-height: auto (sized to content), so without
+     * this the list refuses to shrink to its allotted box and grows past it
+     * instead of scrolling internally — pushing the whole modal taller than
+     * the viewport instead of scrolling just this list. */
+    min-height: 0;
 }
 
 .actionRow {
