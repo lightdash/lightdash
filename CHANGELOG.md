@@ -1,3 +1,15 @@
+# [0.3398.0](https://github.com/lightdash/lightdash/compare/0.3397.0...0.3398.0) (2026-07-16)
+
+
+### Features
+
+* **frontend:** fall back to classic homepage when copilot is off ([#25639](https://github.com/lightdash/lightdash/issues/25639)) ([2786e33](https://github.com/lightdash/lightdash/commit/2786e33e999760ad92cf3733b0aaeb9fd4bc6038))
+* **frontend:** gate day-0 AI composer on create:AiAgentThread ([#25637](https://github.com/lightdash/lightdash/issues/25637)) ([a833ba5](https://github.com/lightdash/lightdash/commit/a833ba58a64b837e0cab878bab81eab7063c6f24))
+* **frontend:** homepage builder — reorder-only drag + explicit add-column ([#25640](https://github.com/lightdash/lightdash/issues/25640)) ([ca239f0](https://github.com/lightdash/lightdash/commit/ca239f0b9542079eb2d4dfc95f9c9039a36e69a9))
+* **homepage:** favorites top bar above hero + truncate/expand ([#25638](https://github.com/lightdash/lightdash/issues/25638)) ([6df2a37](https://github.com/lightdash/lightdash/commit/6df2a3766ee5a29ef8351f038185a7985d4d011a))
+* pass active dashboard tab to Ask AI ([#25654](https://github.com/lightdash/lightdash/issues/25654)) ([7ef4043](https://github.com/lightdash/lightdash/commit/7ef404361dd2e7a4f9f84a354920e07ab7f69300))
+* pass dashboard runtime context to Ask AI ([#25643](https://github.com/lightdash/lightdash/issues/25643)) ([3e75363](https://github.com/lightdash/lightdash/commit/3e75363665c084c29fc1854767d58b0ff011a9bb))
+
 # [0.3397.0](https://github.com/lightdash/lightdash/compare/0.3396.0...0.3397.0) (2026-07-16)
 
 

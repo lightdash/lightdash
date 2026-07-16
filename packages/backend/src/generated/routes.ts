@@ -15347,6 +15347,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiDashboardActiveTab: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                name: { dataType: 'string', required: true },
+                uuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId__':
         {
             dataType: 'refAlias',
@@ -15476,6 +15488,7 @@ const models: TsoaRoute.Models = {
                 },
                 dashboardParameters: { ref: 'ParametersValuesMap' },
                 dashboardFilters: { ref: 'AiDashboardFilters' },
+                activeTab: { ref: 'AiDashboardActiveTab' },
             },
             validators: {},
         },

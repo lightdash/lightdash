@@ -16982,6 +16982,18 @@
                 "type": "object",
                 "description": "Runtime state captured at pin time for a chart context. When a user pins a\nchart from a dashboard view, these are the dashboard-level overrides that\nwere applied to the chart on screen at that moment."
             },
+            "AiDashboardActiveTab": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "uuid"],
+                "type": "object"
+            },
             "Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId__": {
                 "properties": {
                     "label": {
@@ -17073,6 +17085,9 @@
                     },
                     "dashboardFilters": {
                         "$ref": "#/components/schemas/AiDashboardFilters"
+                    },
+                    "activeTab": {
+                        "$ref": "#/components/schemas/AiDashboardActiveTab"
                     }
                 },
                 "type": "object"
@@ -48062,7 +48077,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3397.0",
+        "version": "0.3398.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
