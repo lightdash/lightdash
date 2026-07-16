@@ -329,6 +329,29 @@ a .hoverCard:hover,
     border-color: var(--mantine-color-ldGray-3);
 }
 
+/* Collection card grid: three-up like SimpleGrid, but a partial row centres
+ * instead of leaving dead columns on the right. */
+.hugGrid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+}
+
+/* Single-cell grid so the child (an inline <a> card) is blockified and
+ * stretched exactly like a SimpleGrid cell would. */
+.hugGridItem {
+    flex: 0 1 calc((100% - 24px) / 3);
+    min-width: 0;
+    display: grid;
+}
+
+@media (max-width: 47.99em) {
+    .hugGridItem {
+        flex-basis: 100%;
+    }
+}
+
 /* --- Resource cards ---------------------------------------------------- */
 
 .mediaGrid {

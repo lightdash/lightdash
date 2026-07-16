@@ -12,7 +12,6 @@ import {
     Checkbox,
     Divider,
     Group,
-    SimpleGrid,
     Skeleton,
     Stack,
     Text,
@@ -320,30 +319,34 @@ export const CollectionBlockView: FC<BlockComponentProps> = ({
         <Stack gap={0}>
             <BlockHeader icon={IconLayoutGrid} title={block.config.title} />
             {isInitialLoading ? (
-                <SimpleGrid cols={{ base: 1, sm: 3 }} spacing={12}>
+                <div className={classes.hugGrid}>
                     {uuids.slice(0, 3).map((uuid) => (
-                        <Skeleton key={uuid} h={108} radius="md" />
+                        <div key={uuid} className={classes.hugGridItem}>
+                            <Skeleton h={108} radius="md" />
+                        </div>
                     ))}
-                </SimpleGrid>
+                </div>
             ) : (
-                <SimpleGrid cols={{ base: 1, sm: 3 }} spacing={12}>
+                <div className={classes.hugGrid}>
                     {(contents ?? []).map((content) => (
-                        <ContentCard
-                            key={content.uuid}
-                            content={content}
-                            projectUuid={projectUuid}
-                            variant="tile"
-                            star={{
-                                isFavorite: favoriteUuids.has(content.uuid),
-                                onToggle: () =>
-                                    toggleFavorite({
-                                        contentType: toFavoriteType(content),
-                                        contentUuid: content.uuid,
-                                    }),
-                            }}
-                        />
+                        <div key={content.uuid} className={classes.hugGridItem}>
+                            <ContentCard
+                                content={content}
+                                projectUuid={projectUuid}
+                                variant="tile"
+                                star={{
+                                    isFavorite: favoriteUuids.has(content.uuid),
+                                    onToggle: () =>
+                                        toggleFavorite({
+                                            contentType:
+                                                toFavoriteType(content),
+                                            contentUuid: content.uuid,
+                                        }),
+                                }}
+                            />
+                        </div>
                     ))}
-                </SimpleGrid>
+                </div>
             )}
         </Stack>
     );
@@ -400,35 +403,39 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
                     })
                 }
             />
-            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing={12}>
+            <div className={classes.hugGrid}>
                 {(contents ?? []).map((content) => (
-                    <ContentCard
-                        key={content.uuid}
-                        content={content}
-                        projectUuid={projectUuid}
-                        variant="tile"
-                        onRemove={() =>
-                            onChange({
-                                ...block,
-                                config: {
-                                    ...block.config,
-                                    items: block.config.items.filter(
-                                        (item) => item.uuid !== content.uuid,
-                                    ),
-                                },
-                            })
-                        }
-                    />
+                    <div key={content.uuid} className={classes.hugGridItem}>
+                        <ContentCard
+                            content={content}
+                            projectUuid={projectUuid}
+                            variant="tile"
+                            onRemove={() =>
+                                onChange({
+                                    ...block,
+                                    config: {
+                                        ...block.config,
+                                        items: block.config.items.filter(
+                                            (item) =>
+                                                item.uuid !== content.uuid,
+                                        ),
+                                    },
+                                })
+                            }
+                        />
+                    </div>
                 ))}
-                <button
-                    type="button"
-                    className={classes.addContentTile}
-                    onClick={() => setIsPickerOpen(true)}
-                >
-                    <MantineIcon icon={IconPlus} size={14} />
-                    Add content
-                </button>
-            </SimpleGrid>
+                <div className={classes.hugGridItem}>
+                    <button
+                        type="button"
+                        className={classes.addContentTile}
+                        onClick={() => setIsPickerOpen(true)}
+                    >
+                        <MantineIcon icon={IconPlus} size={14} />
+                        Add content
+                    </button>
+                </div>
+            </div>
             {block.config.items.length === 0 && importablePins.length > 0 && (
                 <Button
                     variant="subtle"

@@ -49,13 +49,16 @@ export const AskAiHero: FC<{
 export const AskAiHeroBlockView: FC<BlockComponentProps> = ({
     block,
     projectUuid,
+    presentation = 'inline',
 }) => {
     const isAiEnabled = useAiAgentButtonVisibility();
     if (block.type !== 'ask-ai-hero' || !isAiEnabled) return null;
+    // Mid-page the composer renders inline: the greeting is hero-context only,
+    // even when the homepage has it toggled on.
     return (
         <AskAiHero
             projectUuid={projectUuid}
-            showGreeting={block.config.showGreeting}
+            showGreeting={presentation === 'hero' && block.config.showGreeting}
         />
     );
 };

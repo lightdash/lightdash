@@ -9,6 +9,15 @@ const LEADING_HERO_TYPES: HomepageBlock['type'][] = ['ask-ai-hero'];
 // section has no gap (the section's own spacing separates it).
 export type RowGap = 'none' | 'grouped' | 'section';
 
+// 'viewport' = the hero is the only content, centred in the full viewport
+// (day-0 feel). 'shared' = body rows follow, so the hero yields part of the
+// viewport and the first row peeks above the fold.
+export type HeroPresentation = 'viewport' | 'shared';
+
+// 'intro' = a lone leading text block that opens the page and gets breathing
+// room; everything else is 'body'.
+export type RowRole = 'intro' | 'body';
+
 export type ResolvedColumn = {
     block: HomepageBlock;
     weight: number;
@@ -20,12 +29,13 @@ export type ResolvedRow = {
     // Max-width tier for the whole row. Single-block rows use their block's
     // tier; multi-column rows always span full width.
     widthTier: BlockWidthTier;
+    role: RowRole;
     columns: ResolvedColumn[];
 };
 
 export type ResolvedLayout = {
     // The leading hero, rendered vertically-centred above everything, or null.
-    heroRow: ResolvedRow | null;
+    hero: { row: ResolvedRow; presentation: HeroPresentation } | null;
     // Every other row, in order, with gaps derived from adjacency.
     rows: ResolvedRow[];
 };
@@ -53,7 +63,36 @@ const resolveRow = (
             ? 'grouped'
             : 'section';
     })();
-    return { id: row.id, gap, widthTier, columns };
+    return { id: row.id, gap, widthTier, role: 'body', columns };
+};
+
+// Width smoothing keeps the page to two visual axes. Focal rows (reading /
+// composer) are never widened — line length is sacred. Content rows join the
+// page's wide axis when any full row exists, so card-grid edges align instead
+// of zigzagging between four different widths.
+const smoothWidthTiers = (rows: ResolvedRow[]): ResolvedRow[] => {
+    if (!rows.some((row) => row.widthTier === 'full')) return rows;
+    return rows.map((row) =>
+        row.widthTier === 'content' ? { ...row, widthTier: 'full' } : row,
+    );
+};
+
+// A page that opens with a lone text block reads as a page intro: it gets
+// breathing room above, and the next row breaks away as its own section.
+const applyIntroRole = (rows: ResolvedRow[]): ResolvedRow[] => {
+    const [first, second, ...rest] = rows;
+    if (
+        !first ||
+        first.columns.length !== 1 ||
+        first.columns[0].block.type !== 'markdown'
+    ) {
+        return rows;
+    }
+    return [
+        { ...first, role: 'intro' as const },
+        ...(second ? [{ ...second, gap: 'section' as const }] : []),
+        ...rest,
+    ];
 };
 
 export const resolveHomepageLayout = (
@@ -61,8 +100,18 @@ export const resolveHomepageLayout = (
 ): ResolvedLayout => {
     const [first, ...rest] = config.rows;
     const hasLeadingHero = !!first && isLeadingHero(first.blocks);
-    const heroRow = hasLeadingHero ? resolveRow(first, true) : null;
     const bodyRows = hasLeadingHero ? rest : config.rows;
-    const rows = bodyRows.map((row, index) => resolveRow(row, index === 0));
-    return { heroRow, rows };
+    const resolved = bodyRows.map((row, index) => resolveRow(row, index === 0));
+    const smoothed = smoothWidthTiers(resolved);
+    const rows = hasLeadingHero ? smoothed : applyIntroRole(smoothed);
+    // A hero keeps the whole viewport only when it's alone; with body rows it
+    // yields so the first row peeks above the fold.
+    const hero = hasLeadingHero
+        ? {
+              row: resolveRow(first, true),
+              presentation:
+                  rows.length > 0 ? ('shared' as const) : ('viewport' as const),
+          }
+        : null;
+    return { hero, rows };
 };
