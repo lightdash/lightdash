@@ -53,6 +53,7 @@ export const blockLibrary: BlockDefinition[] = [
         description:
             'Personalized welcome headline — {name} becomes the viewer.',
         icon: IconTypography,
+        singleton: true,
         create: () => ({
             id: uuidv4(),
             type: 'hero',
@@ -70,6 +71,7 @@ export const blockLibrary: BlockDefinition[] = [
         description: 'AI chat composer with live suggestions, and a greeting.',
         icon: IconMessageChatbot,
         requiresAi: true,
+        singleton: true,
         create: () => ({
             id: uuidv4(),
             type: 'ask-ai-hero',
@@ -136,6 +138,7 @@ export const blockLibrary: BlockDefinition[] = [
         label: 'Announcements',
         description: 'Updates from the data team, newest first.',
         icon: IconSpeakerphone,
+        singleton: true,
         create: () => ({
             id: uuidv4(),
             type: 'announcements',
@@ -162,6 +165,7 @@ export const blockLibrary: BlockDefinition[] = [
         label: 'Recently viewed',
         description: 'Each viewer’s recently opened charts and dashboards.',
         icon: IconClock,
+        singleton: true,
         create: () => ({
             id: uuidv4(),
             type: 'recent',

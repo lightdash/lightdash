@@ -1,12 +1,14 @@
 import { subject } from '@casl/ability';
 import { type ProjectHomepage } from '@lightdash/common';
-import { Button, Stack, Text, Title } from '@mantine-8/core';
-import { IconSquareRoundedPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useState, type FC } from 'react';
-import { Navigate, useParams, useSearchParams } from 'react-router';
+import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import {
+    Navigate,
+    useNavigate,
+    useParams,
+    useSearchParams,
+} from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
-import MantineIcon from '../../../components/common/MantineIcon';
 import Page from '../../../components/common/Page/Page';
 import ForbiddenPanel from '../../../components/ForbiddenPanel';
 import PageSpinner from '../../../components/PageSpinner';
@@ -25,6 +27,7 @@ import {
 export const HomepageBuilderPage: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [searchParams, setSearchParams] = useSearchParams();
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [editorEpoch, setEditorEpoch] = useState(0);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(
@@ -54,6 +57,54 @@ export const HomepageBuilderPage: FC = () => {
             }),
         ) ?? false;
 
+    const openHomepage = useCallback(
+        (created: ProjectHomepage) => {
+            setIsCreateModalOpen(false);
+            setSearchParams({ homepage: created.homepageUuid });
+        },
+        [setSearchParams],
+    );
+
+    // When there's no homepage yet, skip any intermediate screen: create a
+    // default one and drop straight into the builder. Guarded so it fires once
+    // and never while we're navigating away after deleting the last homepage.
+    const isLeaving = useRef(false);
+    const didAutoCreate = useRef(false);
+    const shouldAutoCreate =
+        isFlagEnabled &&
+        isCopilotEnabled &&
+        canManage &&
+        !!projectUuid &&
+        homepage.isFetchedAfterMount &&
+        !homepage.data &&
+        !isLeaving.current;
+
+    useEffect(() => {
+        if (!shouldAutoCreate || didAutoCreate.current) return;
+        didAutoCreate.current = true;
+        createFirstHomepage.mutate(
+            {
+                name: 'Homepage',
+                draftConfig: {
+                    version: 1,
+                    rows: [
+                        {
+                            id: uuidv4(),
+                            blocks: [
+                                {
+                                    id: uuidv4(),
+                                    type: 'ask-ai-hero',
+                                    config: { showGreeting: true },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+            { onSuccess: openHomepage },
+        );
+    }, [shouldAutoCreate, createFirstHomepage, openHomepage]);
+
     if (isFlagLoading || isCopilotLoading) {
         return <PageSpinner />;
     }
@@ -78,11 +129,6 @@ export const HomepageBuilderPage: FC = () => {
         return <ForbiddenPanel />;
     }
 
-    const openHomepage = (created: ProjectHomepage) => {
-        setIsCreateModalOpen(false);
-        setSearchParams({ homepage: created.homepageUuid });
-    };
-
     const closeCreateModal = () => {
         setIsCreateModalOpen(false);
         if (searchParams.get('create')) {
@@ -92,58 +138,18 @@ export const HomepageBuilderPage: FC = () => {
         }
     };
 
+    // No homepage yet: the auto-create effect is handling it — show a spinner
+    // until it opens the new homepage.
     if (!homepage.data) {
-        const handleCreateFirst = () =>
-            createFirstHomepage.mutate(
-                {
-                    name: 'Homepage',
-                    draftConfig: {
-                        version: 1,
-                        rows: [
-                            {
-                                id: uuidv4(),
-                                blocks: [
-                                    {
-                                        id: uuidv4(),
-                                        type: 'ask-ai-hero',
-                                        config: { showGreeting: true },
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                },
-                { onSuccess: openHomepage },
-            );
-
-        return (
-            <Page withFixedContent withPaddedContent>
-                <Stack gap="sm" maw={420} mx="auto" mt="15vh" align="center">
-                    <Title order={3} ta="center">
-                        Create your first homepage
-                    </Title>
-                    <Text c="dimmed" size="sm" ta="center">
-                        Curate a landing page for this project. Publishing makes
-                        it what everyone sees when they land in Lightdash.
-                    </Text>
-                    <Button
-                        leftSection={
-                            <MantineIcon icon={IconSquareRoundedPlus} />
-                        }
-                        loading={createFirstHomepage.isLoading}
-                        onClick={handleCreateFirst}
-                    >
-                        Create homepage
-                    </Button>
-                </Stack>
-            </Page>
-        );
+        return <PageSpinner />;
     }
+
+    const currentHomepageUuid = homepage.data.homepageUuid;
 
     return (
         <Page noContentPadding>
             <HomepageEditor
-                key={`${homepage.data.homepageUuid}-${editorEpoch}`}
+                key={`${currentHomepageUuid}-${editorEpoch}`}
                 homepage={homepage.data}
                 projectUuid={projectUuid}
                 homepages={homepages.data ?? []}
@@ -151,7 +157,20 @@ export const HomepageBuilderPage: FC = () => {
                     setSearchParams({ homepage: homepageUuid })
                 }
                 onCreateNew={() => setIsCreateModalOpen(true)}
-                onDeleted={() => setSearchParams({})}
+                onDeleted={() => {
+                    const remaining = (homepages.data ?? []).filter(
+                        (h) => h.homepageUuid !== currentHomepageUuid,
+                    );
+                    if (remaining.length > 0) {
+                        setSearchParams({
+                            homepage: remaining[0].homepageUuid,
+                        });
+                    } else {
+                        // Deleted the last one — leave the builder for /home.
+                        isLeaving.current = true;
+                        void navigate(`/projects/${projectUuid}/home`);
+                    }
+                }}
                 onConflictReload={async () => {
                     await queryClient.refetchQueries([
                         'project_homepage',
