@@ -69,13 +69,6 @@ export const DeepResearchPreflight = ({ depth, onDepthChange }: Props) => {
                                             <Text size="xs" fw={600}>
                                                 {optionConfig.label}
                                             </Text>
-                                            <Text
-                                                size="10px"
-                                                c="dimmed"
-                                                lineClamp={1}
-                                            >
-                                                {optionConfig.description}
-                                            </Text>
                                             <Text size="10px" c="dimmed" mt={4}>
                                                 {optionConfig.duration} · Up to{' '}
                                                 {optionConfig.warehouseQueries}{' '}
