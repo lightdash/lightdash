@@ -270,4 +270,44 @@ describe('MCP tool contracts', () => {
             ).resolves.toBe(expected);
         },
     );
+
+    it.each<{
+        settingEnabled: boolean;
+        rules: ConstructorParameters<typeof Ability<PossibleAbilities>>[0];
+        expected: boolean;
+    }>([
+        {
+            settingEnabled: false,
+            rules: [{ action: 'create', subject: 'ContentAsCode' }],
+            expected: false,
+        },
+        {
+            settingEnabled: true,
+            rules: [],
+            expected: false,
+        },
+        {
+            settingEnabled: true,
+            rules: [{ action: 'create', subject: 'ContentAsCode' }],
+            expected: true,
+        },
+        {
+            settingEnabled: true,
+            rules: [{ action: 'manage', subject: 'ContentAsCode' }],
+            expected: true,
+        },
+    ])(
+        'gates MCP content tools by setting and permission',
+        async ({ settingEnabled, rules, expected }) => {
+            const mcpService = makeMcpService(settingEnabled);
+            const user: SessionUser = {
+                ...defaultSessionUser,
+                ability: new Ability<PossibleAbilities>(rules),
+            };
+
+            await expect(mcpService.isContentToolsEnabled(user)).resolves.toBe(
+                expected,
+            );
+        },
+    );
 });
