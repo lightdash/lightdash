@@ -4,7 +4,7 @@ Treat each numbered section as a gate. Satisfy its **Gate** before continuing, a
 
 ## Prepared setup
 
-Use the warehouse type and prepared project UUID from the original prompt. If either value is missing, ask the user for it and wait before continuing.
+Use the warehouse type, prepared project UUID, and, when listed, the configured database and schema from the original prompt. If the warehouse type or project UUID is missing, ask the user for it and wait before continuing.
 
 ## Safety rules
 
@@ -31,7 +31,7 @@ Do not rename the prepared project. Keep its existing name for compatibility wit
 ## 2. Discover, author, and deploy the semantic layer
 
 1. Inspect repository documentation, project metadata, and the working tree. Detect whether there is a usable dbt project or an existing pure Lightdash project.
-2. Run one broad catalog query: `lightdash warehouse-catalog --json`. Store large output only in a gitignored temporary location.
+2. Run one broad catalog query: `lightdash warehouse-catalog --json`. Store large output only in a gitignored temporary location. Prioritize tables in the configured database and schema from the original prompt (matching names case-insensitively) unless repository evidence points elsewhere. If the catalog spans many databases or schemas and neither the configured connection nor repository evidence identifies where to look, ask the user which database and schema to use and wait before continuing.
 3. Choose the smallest coherent analytics use case supported by repository and warehouse evidence. Do not infer business meaning from names alone.
 4. Narrow the catalog only for shortlisted relations. Use the complete command shape:
     - `lightdash warehouse-catalog --database <database> --schema <schema> --json`

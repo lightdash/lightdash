@@ -1,9 +1,12 @@
 import {
+    assertUnreachable,
     DbtProjectType,
+    DuckdbConnectionType,
     ProjectType,
+    WarehouseTypes,
     type CreateWarehouseCredentials,
     type Project,
-    type WarehouseTypes,
+    type WarehouseCredentials,
 } from '@lightdash/common';
 import { Button, Code, CopyButton, Stack, Text, Title } from '@mantine-8/core';
 import { IconCheck, IconChevronLeft, IconCopy } from '@tabler/icons-react';
@@ -25,7 +28,68 @@ import WarehouseSettingsForm from '../WarehouseSettingsForm';
 import { OnboardingTitle } from './common/OnboardingTitle';
 import { getWarehouseIcon, getWarehouseLabel } from './utils';
 
-type PreparedProject = Pick<Project, 'projectUuid'>;
+type PreparedProject = Pick<Project, 'projectUuid' | 'warehouseConnection'>;
+
+type ConnectionDefaults = {
+    database: string | undefined; // undefined when the warehouse has no database concept
+    schema: string | undefined;
+};
+
+// Treats empty strings as "not configured"
+const nonEmpty = (value: string | undefined): string | undefined =>
+    value || undefined;
+
+const getConnectionDefaults = (
+    credentials: WarehouseCredentials,
+): ConnectionDefaults => {
+    switch (credentials.type) {
+        case WarehouseTypes.POSTGRES:
+        case WarehouseTypes.REDSHIFT:
+        case WarehouseTypes.TRINO:
+            return {
+                database: nonEmpty(credentials.dbname),
+                schema: nonEmpty(credentials.schema),
+            };
+        case WarehouseTypes.SNOWFLAKE:
+        case WarehouseTypes.ATHENA:
+            return {
+                database: nonEmpty(credentials.database),
+                schema: nonEmpty(credentials.schema),
+            };
+        case WarehouseTypes.BIGQUERY:
+            return {
+                database: nonEmpty(credentials.project),
+                schema: nonEmpty(credentials.dataset),
+            };
+        case WarehouseTypes.DATABRICKS:
+            // `database` is semantically the schema for Databricks
+            return {
+                database: nonEmpty(credentials.catalog),
+                schema: nonEmpty(credentials.database),
+            };
+        case WarehouseTypes.CLICKHOUSE:
+            return {
+                database: undefined,
+                schema: nonEmpty(credentials.schema),
+            };
+        case WarehouseTypes.DUCKDB:
+            if (credentials.connectionType === DuckdbConnectionType.DUCKLAKE) {
+                return {
+                    database: nonEmpty(credentials.catalogAlias) ?? 'ducklake',
+                    schema: nonEmpty(credentials.schema),
+                };
+            }
+            return {
+                database: nonEmpty(credentials.database),
+                schema: nonEmpty(credentials.schema),
+            };
+        default:
+            return assertUnreachable(
+                credentials,
+                'Unknown warehouse type when getting connection defaults',
+            );
+    }
+};
 
 interface ConnectUsingAgentProps {
     selectedWarehouse: WarehouseTypes;
@@ -77,6 +141,7 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
 
             const project = {
                 projectUuid: result.project.projectUuid,
+                warehouseConnection: result.project.warehouseConnection,
             };
             setPreparedProject(project);
             form.reset();
@@ -93,6 +158,10 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
         const normalizedSiteUrl = siteUrl.replace(/\/+$/, '');
         const instructionsUrl = `${normalizedSiteUrl}/api/v1/prompts/project-onboarding`;
 
+        const connectionDefaults = preparedProject.warehouseConnection
+            ? getConnectionDefaults(preparedProject.warehouseConnection)
+            : undefined;
+
         return [
             '# Complete Lightdash project setup',
             '',
@@ -100,6 +169,12 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
             '',
             `- Warehouse type: ${selectedWarehouse}`,
             `- Prepared project UUID: ${preparedProject.projectUuid}`,
+            ...(connectionDefaults?.database
+                ? [`- Configured database: ${connectionDefaults.database}`]
+                : []),
+            ...(connectionDefaults?.schema
+                ? [`- Configured schema: ${connectionDefaults.schema}`]
+                : []),
             '',
             '## Next step',
             '',
