@@ -31,6 +31,7 @@ describe('AgentChatInput Deep research mode', () => {
         expect(
             screen.getByRole('region', { name: 'Deep research settings' }),
         ).toBeInTheDocument();
+        expect(screen.getAllByText('Beta')).toHaveLength(2);
         expect(
             screen.queryByRole('button', { name: 'Send message' }),
         ).not.toBeInTheDocument();

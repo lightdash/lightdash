@@ -4,7 +4,15 @@ import {
     type AiPromptContextItem,
     type AiModelOption,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Paper, Text, Tooltip } from '@mantine-8/core';
+import {
+    ActionIcon,
+    Badge,
+    Box,
+    Group,
+    Paper,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
 import { RichTextEditor } from '@mantine/tiptap';
 import {
     IconArrowUp,
@@ -698,16 +706,30 @@ export const AgentChatInput = ({
                         pos="relative"
                     >
                         {composerMode === 'deep_research' && (
-                            <Box
-                                className={styles.minimalResearchIndicator}
+                            <Group
+                                gap={4}
+                                wrap="nowrap"
                                 aria-label="Deep research mode"
                             >
-                                <MantineIcon
-                                    icon={IconReportSearch}
-                                    size={15}
-                                    stroke={1.8}
-                                />
-                            </Box>
+                                <Box
+                                    className={styles.minimalResearchIndicator}
+                                >
+                                    <MantineIcon
+                                        icon={IconReportSearch}
+                                        size={15}
+                                        stroke={1.8}
+                                    />
+                                </Box>
+                                <Badge
+                                    size="xs"
+                                    variant="light"
+                                    color="blue"
+                                    tt="none"
+                                    className={styles.minimalResearchBeta}
+                                >
+                                    Beta
+                                </Badge>
+                            </Group>
                         )}
                         <RichTextEditor
                             editor={editor}
@@ -872,6 +894,9 @@ export const AgentChatInput = ({
                         <Text size="xs" fw={600}>
                             Deep research
                         </Text>
+                        <Badge size="xs" variant="light" color="blue" tt="none">
+                            Beta
+                        </Badge>
                     </Group>
                 )}
                 <RichTextEditor

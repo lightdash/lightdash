@@ -372,6 +372,10 @@
     border-radius: var(--mantine-radius-xl);
 }
 
+.minimalResearchBeta {
+    flex-shrink: 0;
+}
+
 .minimalInputWrapper.deepResearchInput,
 .minimalInputWrapper.deepResearchInput:focus-within {
     @mixin light {
@@ -394,7 +398,7 @@
 }
 
 .minimalInputWrapper.deepResearchInput .minimalPlaceholder {
-    left: rem(48px);
+    left: rem(88px);
 }
 
 .minimalTextarea {
