@@ -182,12 +182,12 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
             opened={opened}
             onClose={onClose}
             title={
-                <Group justify="flex-end" w="100%" wrap="nowrap">
+                <Group className={styles.reportControls} wrap="nowrap">
                     <Text className={styles.visuallyHidden}>Deep research</Text>
                     <Button
-                        variant="light"
-                        color="gray"
-                        radius="xl"
+                        variant="filled"
+                        color="indigo"
+                        radius="sm"
                         size="xs"
                         leftSection={<IconArrowLeft size={14} />}
                         onClick={onClose}
@@ -203,6 +203,8 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
             classNames={{
                 inner: styles.drawerInner,
                 overlay: styles.drawerOverlay,
+                header: styles.drawerHeader,
+                title: styles.drawerTitle,
             }}
             __vars={{ '--drawer-top-offset': `${NAVBAR_HEIGHT}px` }}
         >

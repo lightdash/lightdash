@@ -4,6 +4,20 @@
     height: calc(100% - var(--drawer-top-offset, 0));
 }
 
+.drawerHeader {
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.drawerTitle {
+    width: 100%;
+}
+
+.reportControls {
+    width: min(100%, 46rem);
+    margin-inline: auto;
+    padding-inline: clamp(1.25rem, 4vw, 3rem);
+}
+
 .reportScroll {
     height: calc(100dvh - var(--navbar-height) - 3.75rem);
 }
