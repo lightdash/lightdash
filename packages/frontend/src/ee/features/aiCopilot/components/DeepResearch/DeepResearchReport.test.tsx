@@ -6,6 +6,22 @@ import { deepResearchRunFixture } from '../../deepResearch/fixtures';
 import { DeepResearchReport } from './DeepResearchReport';
 
 describe('DeepResearchReport', () => {
+    it('shows Lightdash branding and closes from the report header', async () => {
+        const user = userEvent.setup();
+        const onClose = vi.fn();
+        renderWithProviders(
+            <DeepResearchReport
+                run={deepResearchRunFixture}
+                opened
+                onClose={onClose}
+            />,
+        );
+
+        expect(screen.getByRole('img', { name: 'Lightdash' })).toBeVisible();
+        await user.click(screen.getByRole('button', { name: 'Close' }));
+        expect(onClose).toHaveBeenCalledOnce();
+    });
+
     it('navigates from a claim marker to its supporting query', async () => {
         const user = userEvent.setup();
         renderWithProviders(

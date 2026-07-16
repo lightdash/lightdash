@@ -1,3 +1,4 @@
+import { type AiDeepResearchConfidence } from '@lightdash/common';
 import {
     Badge,
     Box,
@@ -9,7 +10,7 @@ import {
     Text,
     Title,
 } from '@mantine-8/core';
-import { IconArrowUpRight } from '@tabler/icons-react';
+import { IconArrowUpRight, IconX } from '@tabler/icons-react';
 import {
     useEffect,
     useMemo,
@@ -17,11 +18,18 @@ import {
     useState,
     type KeyboardEvent,
 } from 'react';
+import LightdashLogo from '../../../../../components/LightdashLogo/LightdashLogo';
 import {
     type DeepResearchEvidence,
     type DeepResearchRunView,
 } from '../../deepResearch/types';
 import styles from './DeepResearchReport.module.css';
+
+const confidenceColors: Record<AiDeepResearchConfidence, string> = {
+    low: 'red',
+    medium: 'yellow',
+    high: 'green',
+};
 
 const EvidenceDetail = ({
     evidence,
@@ -173,7 +181,24 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
         <Drawer
             opened={opened}
             onClose={onClose}
-            title="Research report"
+            title={
+                <Group justify="space-between" w="100%" wrap="nowrap">
+                    <Box role="img" aria-label="Lightdash">
+                        <LightdashLogo />
+                    </Box>
+                    <Button
+                        variant="light"
+                        color="gray"
+                        radius="xl"
+                        size="xs"
+                        leftSection={<IconX size={14} />}
+                        onClick={onClose}
+                    >
+                        Close
+                    </Button>
+                </Group>
+            }
+            withCloseButton={false}
             position="right"
             size="100%"
             padding={0}
@@ -182,14 +207,16 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                 <Box component="article" className={styles.report}>
                     <Stack gap="xl">
                         <Box component="header" className={styles.reportHeader}>
-                            <Group justify="space-between" align="flex-start">
+                            <Group gap="xs" align="center">
                                 <Text className={styles.eyebrow}>
                                     Deep research report
                                 </Text>
                                 <Badge
                                     size="xs"
                                     variant="light"
-                                    color="indigo"
+                                    color={
+                                        confidenceColors[artifact.confidence]
+                                    }
                                     tt="none"
                                 >
                                     {artifact.confidence} confidence
@@ -215,11 +242,7 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                                             key={finding.uuid}
                                             className={styles.finding}
                                         >
-                                            <Group
-                                                justify="space-between"
-                                                align="baseline"
-                                                gap="md"
-                                            >
+                                            <Group align="center" gap="xs">
                                                 <Title
                                                     order={3}
                                                     className={
@@ -228,12 +251,20 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                                                 >
                                                     {finding.title}
                                                 </Title>
-                                                <Text
-                                                    className={styles.caption}
-                                                    tt="capitalize"
+                                                <Badge
+                                                    size="xs"
+                                                    variant="light"
+                                                    radius="xl"
+                                                    color={
+                                                        confidenceColors[
+                                                            finding.confidence
+                                                        ]
+                                                    }
+                                                    tt="none"
                                                 >
-                                                    {finding.confidence}
-                                                </Text>
+                                                    {finding.confidence}{' '}
+                                                    confidence
+                                                </Badge>
                                             </Group>
                                             <Text className={styles.bodyText}>
                                                 {finding.summary}
