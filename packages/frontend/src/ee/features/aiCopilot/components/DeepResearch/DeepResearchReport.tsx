@@ -182,8 +182,8 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
             opened={opened}
             onClose={onClose}
             title={
-                <Group justify="space-between" w="100%" wrap="nowrap">
-                    <Text fw={600}>Deep research</Text>
+                <Group justify="flex-end" w="100%" wrap="nowrap">
+                    <Text className={styles.visuallyHidden}>Deep research</Text>
                     <Button
                         variant="light"
                         color="gray"

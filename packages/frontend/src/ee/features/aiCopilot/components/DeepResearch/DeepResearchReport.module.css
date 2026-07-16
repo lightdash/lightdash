@@ -9,8 +9,21 @@
 }
 
 .report {
-    width: 100%;
-    padding: clamp(1.5rem, 5vw, 4rem) clamp(1.25rem, 4vw, 3rem) 6rem;
+    width: min(100%, 46rem);
+    margin-inline: auto;
+    padding: var(--mantine-spacing-lg) clamp(1.25rem, 4vw, 3rem) 6rem;
+}
+
+.visuallyHidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 .reportHeader {
