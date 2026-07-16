@@ -7,7 +7,7 @@ import { renderWithProviders } from '../../../../../testing/testUtils';
 import { store } from '../../store';
 import { AgentChatInput } from './AgentChatInput';
 
-describe('AgentChatInput Deep Research mode', () => {
+describe('AgentChatInput Deep research mode', () => {
     it('starts inline research instead of submitting a normal Ask message', async () => {
         const user = userEvent.setup();
         const onSubmit = vi.fn();

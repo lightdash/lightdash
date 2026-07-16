@@ -126,7 +126,7 @@ export const DeepResearchPreflight = ({ depth, onDepthChange }: Props) => {
                             Evidence sources
                         </Text>
                         <Text size="11px" c="dimmed" lh={1.4}>
-                            Deep Research will search the available sources
+                            Deep research will search the available sources
                             shown below.
                         </Text>
                     </Stack>
