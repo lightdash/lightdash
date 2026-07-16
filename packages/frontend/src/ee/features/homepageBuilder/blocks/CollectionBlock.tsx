@@ -315,9 +315,16 @@ export const CollectionBlockView: FC<BlockComponentProps> = ({
     const favoriteUuids = new Set(
         (favorites ?? []).map((item) => item.data.uuid),
     );
+    // A partial row centres its cards, so centre the header with them — the
+    // whole block reads as one unit instead of a left-anchored orphan title.
+    const cardCount = (contents ?? uuids).length;
     return (
         <Stack gap={0}>
-            <BlockHeader icon={IconLayoutGrid} title={block.config.title} />
+            <BlockHeader
+                icon={IconLayoutGrid}
+                title={block.config.title}
+                centered={cardCount > 0 && cardCount < 3}
+            />
             {isInitialLoading ? (
                 <div className={classes.hugGrid}>
                     {uuids.slice(0, 3).map((uuid) => (

@@ -34,7 +34,7 @@
  * variant is repeated so it can't win the specificity contest. */
 .heroSection[data-presentation='shared'],
 .page:has(.favBar) .heroSection[data-presentation='shared'] {
-    min-height: 56vh;
+    min-height: 50vh;
 }
 
 .favBar {
