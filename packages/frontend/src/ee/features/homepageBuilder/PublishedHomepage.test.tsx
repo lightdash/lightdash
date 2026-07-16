@@ -3,6 +3,11 @@ import { MantineProvider } from '@mantine-8/core';
 import { render, screen } from '@testing-library/react';
 import { PublishedHomepage } from './PublishedHomepage';
 
+// The markdown block reads the viewer's name via useApp to interpolate {name}.
+vi.mock('../../../providers/App/useApp', () => ({
+    default: () => ({ user: { data: { firstName: 'Test' } } }),
+}));
+
 const config: HomepageConfig = {
     version: 1,
     rows: [

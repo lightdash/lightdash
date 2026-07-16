@@ -1,4 +1,8 @@
-import { type HomepageBlock, type HomepageConfig } from '@lightdash/common';
+import {
+    migrateHomepageConfig,
+    type HomepageBlock,
+    type HomepageConfig,
+} from '@lightdash/common';
 import { Box, Paper, Text } from '@mantine-8/core';
 import { type FC, type ReactNode } from 'react';
 import { type BlockWidthTier } from './blockLayout';
@@ -86,7 +90,9 @@ export const PublishedHomepage: FC<Props> = ({
     personalPlaceholders = false,
     topBar = null,
 }) => {
-    const { heroRow, rows } = resolveHomepageLayout(config);
+    const { heroRow, rows } = resolveHomepageLayout(
+        migrateHomepageConfig(config),
+    );
 
     return (
         <div className={layout.page}>

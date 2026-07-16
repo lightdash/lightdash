@@ -9,7 +9,6 @@ import {
     IconMessageChatbot,
     IconSpeakerphone,
     IconStar,
-    IconTypography,
     type Icon,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -21,7 +20,6 @@ import {
 import { AskAiHeroBlockBuild, AskAiHeroBlockView } from './AskAiHeroBlock';
 import { CollectionBlockBuild, CollectionBlockView } from './CollectionBlock';
 import { FavoritesBlockBuild, FavoritesBlockView } from './FavoritesBlock';
-import { HeroBlockBuild, HeroBlockView } from './HeroBlock';
 import { MarkdownBlockBuild, MarkdownBlockView } from './MarkdownBlock';
 import { MetricsBlockBuild, MetricsBlockView } from './MetricsBlock';
 import { getDefaultQuickActions } from './quickActionDefaults';
@@ -47,24 +45,6 @@ export type BlockDefinition = {
 };
 
 export const blockLibrary: BlockDefinition[] = [
-    {
-        type: 'hero',
-        label: 'Greeting',
-        description:
-            'Personalized welcome headline — {name} becomes the viewer.',
-        icon: IconTypography,
-        singleton: true,
-        create: () => ({
-            id: uuidv4(),
-            type: 'hero',
-            config: {
-                title: 'Good morning, {name}',
-                subtitle: 'Everything your team needs, in one place.',
-            },
-        }),
-        View: HeroBlockView,
-        Build: HeroBlockBuild,
-    },
     {
         type: 'ask-ai-hero',
         label: 'Ask AI',
