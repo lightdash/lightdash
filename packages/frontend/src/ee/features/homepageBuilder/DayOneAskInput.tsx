@@ -17,6 +17,7 @@ import {
 import { AgentChatInput } from '../aiCopilot/components/ChatElements/AgentChatInput';
 import { usePendingPrompt } from '../aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { useAgentSuggestions } from '../aiCopilot/hooks/useAgentSuggestions';
+import { useCanCreateAiAgentThread } from '../aiCopilot/hooks/useAiAgentPermission';
 import {
     useCreateAgentThreadMutation,
     useProjectAiAgents,
@@ -101,6 +102,7 @@ const DayOneAskInputInner: FC<Props> = ({ projectUuid }) => {
     });
     const { data: userAgentPreferences, isLoading: isLoadingPreferences } =
         useGetUserAgentPreferences(projectUuid);
+    const canCreateThread = useCanCreateAiAgentThread(projectUuid);
     const routerEnabled = useAiRouterEnabledFromCache();
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
         useCreateAgentThreadMutation(projectUuid);
@@ -214,11 +216,19 @@ const DayOneAskInputInner: FC<Props> = ({ projectUuid }) => {
                 fullWidth
                 revealAgentSelectorOnFocus
                 dense
+                disabled={!canCreateThread}
+                disabledReason={
+                    !canCreateThread
+                        ? "Your role can view AI agents but can't start conversations. Ask a workspace admin for access."
+                        : undefined
+                }
             />
-            <SuggestionPills
-                chips={suggestionsQuery.data?.chips ?? []}
-                onPick={handleChipPick}
-            />
+            {canCreateThread && (
+                <SuggestionPills
+                    chips={suggestionsQuery.data?.chips ?? []}
+                    onPick={handleChipPick}
+                />
+            )}
         </>
     );
 };
