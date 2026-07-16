@@ -13,7 +13,12 @@
       "description": "EE license plus every AI feature: Copilot/agents, AI writeback (opens PRs via GitHub), and the reviews classifier. Bootstraps from the EE base snapshot. Requires the GitHub integration so writeback is turnkey. AI sandboxes default to the LOCAL Docker provider (SANDBOX_PROVIDER=docker) — no E2B account needed locally; build the images per the Sandboxes section of docker-dev.md.",
       "ee": true,
       "requires": ["github"],
-      "secrets": ["LIGHTDASH_LICENSE_KEY", "ANTHROPIC_API_KEY"],
+      "secrets": [
+        "LIGHTDASH_LICENSE_KEY",
+        "ANTHROPIC_API_KEY",
+        "AUTH_GOOGLE_OAUTH2_CLIENT_ID",
+        "AUTH_GOOGLE_OAUTH2_CLIENT_SECRET"
+      ],
       "env": { "AI_COPILOT_ENABLED": "true", "AI_DEFAULT_PROVIDER": "anthropic", "SANDBOX_PROVIDER": "docker" },
       "flags": ["ai-writeback", "github-mcp-one-click", "ai-preview-deploy-setup"],
       "orgSettings": { "ai_agent_reviews_enabled": true },
