@@ -1,3 +1,12 @@
+## [0.3395.2](https://github.com/lightdash/lightdash/compare/0.3395.1...0.3395.2) (2026-07-16)
+
+
+### Bug Fixes
+
+* allow user deletion when AI prompt interrupts or thread shares exist ([#25642](https://github.com/lightdash/lightdash/issues/25642)) ([ed600cf](https://github.com/lightdash/lightdash/commit/ed600cf65996742ca3adc5b72c71d27871669a55))
+* include editors in AI content tooltip ([#25645](https://github.com/lightdash/lightdash/issues/25645)) ([c823807](https://github.com/lightdash/lightdash/commit/c8238072d4c8f5b5495064b78d9d6961ee9a1482))
+* scheduler filter requirement display parity and requirements popover polish ([#25596](https://github.com/lightdash/lightdash/issues/25596)) ([85a8d11](https://github.com/lightdash/lightdash/commit/85a8d11e9313cd910df3396311225a5ed4fdf562))
+
 ## [0.3395.1](https://github.com/lightdash/lightdash/compare/0.3395.0...0.3395.1) (2026-07-16)
 
 
