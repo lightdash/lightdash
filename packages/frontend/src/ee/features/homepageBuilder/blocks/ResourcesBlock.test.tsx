@@ -2,11 +2,8 @@ import { type HomepageResourcesBlock } from '@lightdash/common';
 import { MantineProvider } from '@mantine-8/core';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { fetchHomepageLinkMetadata } from '../hooks/useHomepageLinkMetadata';
-import {
-    ResourcesBlockBuild,
-    ResourcesBlockView,
-    resolveResourceUrl,
-} from './ResourcesBlock';
+import { ResourcesBlockBuild, ResourcesBlockView } from './ResourcesBlock';
+import { resolveResourceUrl } from './resourceUrls';
 
 vi.mock('../hooks/useHomepageLinkMetadata', () => ({
     fetchHomepageLinkMetadata: vi.fn(),
@@ -65,7 +62,10 @@ describe('ResourcesBlockView', () => {
 
     it('renders nothing when there are no items', () => {
         wrap(
-            <ResourcesBlockView projectUuid="p1" block={block({ items: [] })} />,
+            <ResourcesBlockView
+                projectUuid="p1"
+                block={block({ items: [] })}
+            />,
         );
         expect(screen.queryByRole('link')).toBeNull();
         expect(screen.queryByText('Getting started')).toBeNull();
@@ -111,6 +111,36 @@ describe('ResourcesBlockBuild smart paste', () => {
             kind: 'link',
             title: 'example.com',
         });
+    });
+
+    it('ignores non-URL words when pasting prose around a link', async () => {
+        mockFetch.mockResolvedValue({
+            kind: 'claude',
+            title: 'Palette Lab',
+            description: null,
+            imageUrl: null,
+        });
+        const onChange = vi.fn();
+        wrap(
+            <ResourcesBlockBuild
+                projectUuid="p1"
+                onChange={onChange}
+                block={block({ layout: 'card', items: [] })}
+            />,
+        );
+
+        fireEvent.change(
+            screen.getByPlaceholderText(/Paste a Claude artifact/i),
+            { target: { value: `Check this out: ${claudeItem.url}` } },
+        );
+        fireEvent.click(screen.getByLabelText('Add resource'));
+
+        await waitFor(() => expect(onChange).toHaveBeenCalled());
+        const committed = onChange.mock.calls.at(-1)![0];
+        // Only the URL becomes a resource; "Check", "this", "out:" are dropped.
+        expect(committed.config.items).toHaveLength(1);
+        expect(committed.config.items[0].url).toBe(claudeItem.url);
+        expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
     it('adds https:// to a bare host before resolving', async () => {

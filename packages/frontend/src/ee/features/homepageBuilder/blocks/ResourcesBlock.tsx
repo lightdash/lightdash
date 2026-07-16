@@ -34,9 +34,14 @@ import {
     type KeyboardEvent,
 } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { fetchHomepageLinkMetadata } from '../hooks/useHomepageLinkMetadata';
 import { BlockHeader, IconSquare, MiniPill } from './BlockShell';
 import classes from './blockStyles.module.css';
+import {
+    faviconUrl,
+    hostnameOf,
+    looksLikeUrl,
+    resolveResourceUrl,
+} from './resourceUrls';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 const KIND_META: Record<
@@ -65,35 +70,21 @@ const KIND_OPTIONS = (Object.keys(KIND_META) as HomepageResourceKind[]).map(
 const kindMeta = (kind: HomepageResourceKind) =>
     KIND_META[kind] ?? KIND_META.link;
 
-const hostnameOf = (url: string): string => {
-    try {
-        return new URL(url).hostname.replace(/^www\./, '');
-    } catch {
-        return url;
-    }
-};
-
-const faviconUrl = (url: string): string | null => {
-    try {
-        return `https://www.google.com/s2/favicons?domain=${
-            new URL(url).hostname
-        }&sz=64`;
-    } catch {
-        return null;
-    }
-};
-
-const normalizeUrl = (raw: string): string =>
-    /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-
 // --- Thumbnails -------------------------------------------------------------
 
 const CardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
     const meta = kindMeta(item.kind);
-    if (item.imageUrl) {
+    const [imgFailed, setImgFailed] = useState(false);
+    const [faviconFailed, setFaviconFailed] = useState(false);
+    if (item.imageUrl && !imgFailed) {
         return (
             <div className={classes.resThumb}>
-                <img src={item.imageUrl} alt={item.title} loading="lazy" />
+                <img
+                    src={item.imageUrl}
+                    alt={item.title}
+                    loading="lazy"
+                    onError={() => setImgFailed(true)}
+                />
             </div>
         );
     }
@@ -102,12 +93,13 @@ const CardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
         <div
             className={`${classes.resThumb} ${classes.resThumbFallback} ${meta.thumbAccent}`}
         >
-            {favicon ? (
+            {favicon && !faviconFailed ? (
                 <img
                     className={classes.resFavicon}
                     src={favicon}
                     alt=""
                     loading="lazy"
+                    onError={() => setFaviconFailed(true)}
                 />
             ) : (
                 <MantineIcon icon={meta.icon} size={22} />
@@ -117,15 +109,22 @@ const CardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
 };
 
 const RowThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
-    if (item.imageUrl) {
+    const [imgFailed, setImgFailed] = useState(false);
+    const [faviconFailed, setFaviconFailed] = useState(false);
+    if (item.imageUrl && !imgFailed) {
         return (
             <div className={classes.rowThumb}>
-                <img src={item.imageUrl} alt="" loading="lazy" />
+                <img
+                    src={item.imageUrl}
+                    alt=""
+                    loading="lazy"
+                    onError={() => setImgFailed(true)}
+                />
             </div>
         );
     }
     const favicon = faviconUrl(item.url);
-    if (favicon) {
+    if (favicon && !faviconFailed) {
         return (
             <div className={`${classes.rowThumb} ${classes.rowThumbFallback}`}>
                 <img
@@ -133,6 +132,7 @@ const RowThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
                     src={favicon}
                     alt=""
                     loading="lazy"
+                    onError={() => setFaviconFailed(true)}
                 />
             </div>
         );
@@ -162,7 +162,9 @@ const ResourceCard: FC<{ item: HomepageResourceItem }> = ({ item }) => {
                         className={classes.mediaExternal}
                     />
                 </div>
-                <div className={classes.mediaTitle}>{item.title}</div>
+                <div className={classes.mediaTitle}>
+                    {item.title || hostnameOf(item.url)}
+                </div>
                 {item.description ? (
                     <div className={classes.mediaDesc}>{item.description}</div>
                 ) : null}
@@ -224,7 +226,9 @@ const SkeletonCard: FC = () => (
     <div className={classes.mediaCard}>
         <div className={`${classes.resThumb} ${classes.skeletonBlock}`} />
         <div className={classes.mediaBody}>
-            <div className={`${classes.skeletonLine} ${classes.skeletonKind}`} />
+            <div
+                className={`${classes.skeletonLine} ${classes.skeletonKind}`}
+            />
             <div className={classes.skeletonLine} />
             <div
                 className={`${classes.skeletonLine} ${classes.skeletonShort}`}
@@ -354,26 +358,6 @@ type BatchEntry = {
     item: HomepageResourceItem | null;
 };
 
-export const resolveResourceUrl = async (
-    projectUuid: string,
-    rawUrl: string,
-): Promise<HomepageResourceItem> => {
-    const url = normalizeUrl(rawUrl.trim());
-    try {
-        const meta = await fetchHomepageLinkMetadata(projectUuid, url);
-        return {
-            url,
-            kind: meta.kind,
-            title: meta.title ?? hostnameOf(url),
-            ...(meta.description ? { description: meta.description } : {}),
-            ...(meta.imageUrl ? { imageUrl: meta.imageUrl } : {}),
-        };
-    } catch {
-        // Host outside the allowlist (or fetch failure) → plain link.
-        return { url, kind: 'link', title: hostnameOf(url) };
-    }
-};
-
 export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
     block,
     projectUuid,
@@ -422,7 +406,7 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
                 text
                     .split(/\s+/)
                     .map((s) => s.trim())
-                    .filter(Boolean),
+                    .filter(looksLikeUrl),
             ),
         );
         if (urls.length === 0) return;
@@ -435,9 +419,7 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
         entries.forEach((entry) => {
             void resolveResourceUrl(projectUuid, entry.url).then((item) =>
                 setBatch((prev) =>
-                    prev.map((e) =>
-                        e.key === entry.key ? { ...e, item } : e,
-                    ),
+                    prev.map((e) => (e.key === entry.key ? { ...e, item } : e)),
                 ),
             );
         });

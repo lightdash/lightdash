@@ -1,4 +1,4 @@
-import { ParameterError, type HomepageResourceKind } from '@lightdash/common';
+import { ParameterError } from '@lightdash/common';
 
 /**
  * Pure helpers for the homepage link-metadata endpoint: URL classification and
@@ -52,38 +52,61 @@ export const classifyResourceUrl = (rawUrl: string): ResourceProvider => {
     );
 };
 
-const HTML_ENTITIES: Record<string, string> = {
-    '&amp;': '&',
-    '&lt;': '<',
-    '&gt;': '>',
-    '&quot;': '"',
-    '&#39;': "'",
-    '&#x27;': "'",
-    '&nbsp;': ' ',
+const NAMED_ENTITIES: Record<string, string> = {
+    amp: '&',
+    lt: '<',
+    gt: '>',
+    quot: '"',
+    apos: "'",
+    nbsp: ' ',
+    mdash: '—',
+    ndash: '–',
+    hellip: '…',
+    lsquo: '‘',
+    rsquo: '’',
+    ldquo: '“',
+    rdquo: '”',
 };
 
+// Decode numeric character references (decimal + hex) and the common named
+// entities. og:title / oEmbed titles routinely encode smart quotes and dashes
+// as numeric refs (e.g. &#8217;, &#x2014;).
 const decodeEntities = (value: string): string =>
-    value.replace(
-        /&(?:amp|lt|gt|quot|nbsp|#39|#x27);/gi,
-        (match) => HTML_ENTITIES[match.toLowerCase()] ?? match,
-    );
+    value.replace(/&(#x?[0-9a-f]+|[a-z0-9]+);/gi, (match, body: string) => {
+        const b = body.toLowerCase();
+        if (b[0] === '#') {
+            const code =
+                b[1] === 'x'
+                    ? parseInt(b.slice(2), 16)
+                    : parseInt(b.slice(1), 10);
+            if (Number.isNaN(code) || code < 0 || code > 0x10ffff) return match;
+            try {
+                return String.fromCodePoint(code);
+            } catch {
+                return match;
+            }
+        }
+        return NAMED_ENTITIES[b] ?? match;
+    });
 
 const readMeta = (html: string, key: string): string | null => {
     const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    // Handle both attribute orders: property-then-content and content-then-property.
+    // Capture the content with a back-referenced quote so an embedded apostrophe
+    // (in a "…") or quote doesn't truncate the value. Handle both attribute
+    // orders: property-then-content and content-then-property.
     const patterns = [
         new RegExp(
-            `<meta[^>]+(?:property|name)=["']${escaped}["'][^>]*content=["']([^"']*)["']`,
+            `<meta[^>]+(?:property|name)=["']${escaped}["'][^>]*content=("|')(.*?)\\1`,
             'i',
         ),
         new RegExp(
-            `<meta[^>]+content=["']([^"']*)["'][^>]*(?:property|name)=["']${escaped}["']`,
+            `<meta[^>]+content=("|')(.*?)\\1[^>]*(?:property|name)=["']${escaped}["']`,
             'i',
         ),
     ];
     for (const pattern of patterns) {
         const match = html.match(pattern);
-        if (match?.[1]) return decodeEntities(match[1].trim());
+        if (match?.[2]) return decodeEntities(match[2].trim());
     }
     return null;
 };
@@ -114,14 +137,15 @@ export const parseYoutubeOembed = (raw: unknown): ParsedLinkMetadata => {
     const data = raw as Record<string, unknown>;
     const asString = (value: unknown): string | null =>
         typeof value === 'string' && value.length > 0 ? value : null;
+    // oEmbed HTML-encodes title/author — decode to match the OpenGraph path.
+    const decoded = (value: unknown): string | null => {
+        const str = asString(value);
+        return str === null ? null : decodeEntities(str);
+    };
     return {
-        title: asString(data.title),
+        title: decoded(data.title),
         // oEmbed has no description; surface the channel as a subtle subtitle.
-        description: asString(data.author_name),
+        description: decoded(data.author_name),
         imageUrl: asString(data.thumbnail_url),
     };
 };
-
-export const resourceKindForProvider = (
-    provider: ResourceProvider,
-): HomepageResourceKind => provider.kind;

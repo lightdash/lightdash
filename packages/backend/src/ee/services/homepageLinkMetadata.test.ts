@@ -92,9 +92,19 @@ describe('parseOpenGraph', () => {
         );
     });
 
-    it('decodes HTML entities in content', () => {
-        const html = `<meta property="og:title" content="Sales &amp; Ops &#39;24">`;
-        expect(parseOpenGraph(html).title).toBe("Sales & Ops '24");
+    it('decodes named + numeric (decimal & hex) HTML entities', () => {
+        const html = `<meta property="og:title" content="Sales &amp; Ops &#39;24 &#8212; Caf&#xe9; &#8230;">`;
+        expect(parseOpenGraph(html).title).toBe("Sales & Ops '24 — Café …");
+    });
+
+    it('does not truncate a title containing an apostrophe', () => {
+        const html = `<meta property="og:title" content="Joao's dashboard">`;
+        expect(parseOpenGraph(html).title).toBe("Joao's dashboard");
+    });
+
+    it('leaves unknown/invalid entities untouched', () => {
+        const html = `<meta property="og:title" content="A &bogus; B &#zzz; C">`;
+        expect(parseOpenGraph(html).title).toBe('A &bogus; B &#zzz; C');
     });
 
     it('falls back to <title> when og:title is absent', () => {
@@ -112,17 +122,17 @@ describe('parseOpenGraph', () => {
 });
 
 describe('parseYoutubeOembed', () => {
-    it('maps oembed fields to metadata (channel as description)', () => {
+    it('maps + HTML-decodes oembed fields (channel as description)', () => {
         expect(
             parseYoutubeOembed({
-                title: 'Never Gonna Give You Up',
-                author_name: 'Rick Astley',
+                title: 'Ben &amp; Jerry&#39;s launch',
+                author_name: 'Ben &amp; Jerry',
                 thumbnail_url:
                     'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
             }),
         ).toEqual({
-            title: 'Never Gonna Give You Up',
-            description: 'Rick Astley',
+            title: "Ben & Jerry's launch",
+            description: 'Ben & Jerry',
             imageUrl: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
         });
     });
