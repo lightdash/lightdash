@@ -117,9 +117,15 @@ export const DeepResearchPreflight = ({ depth, onDepthChange }: Props) => {
                 </Radio.Group>
 
                 <Stack gap="xs">
-                    <Text size="xs" fw={600} c="dimmed">
-                        Evidence sources
-                    </Text>
+                    <Stack gap={2}>
+                        <Text size="sm" fw={600}>
+                            Evidence sources
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                            Deep Research will search the available sources
+                            shown below.
+                        </Text>
+                    </Stack>
                     <Group gap="xs">
                         {SOURCES.map((source) => (
                             <Group
