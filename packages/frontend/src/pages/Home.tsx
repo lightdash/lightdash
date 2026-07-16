@@ -14,6 +14,7 @@ import PageSpinner from '../components/PageSpinner';
 import PinnedAndFavoritesSection from '../components/PinnedAndFavoritesSection';
 import AiSearchBox from '../ee/components/Home/AiSearchBox';
 import { useAiAgentButtonVisibility } from '../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
+import { useIsCopilotEnabled } from '../ee/features/aiCopilot/hooks/useIsCopilotEnabled';
 import { AdminHomepageControls } from '../ee/features/homepageBuilder/AdminHomepageControls';
 import { PersonalFavoritesStrip } from '../ee/features/homepageBuilder/blocks/FavoritesBlock';
 import { DayOneHomepage } from '../ee/features/homepageBuilder/DayOneHomepage';
@@ -51,7 +52,15 @@ const Home: FC = () => {
 
     const { user } = useApp();
     const isAiAgentsEnabled = useAiAgentButtonVisibility();
-    const { isEnabled: isHomepageBuilderEnabled } = useHomepageBuilderFlag();
+    const { isEnabled: isHomepageBuilderFlagEnabled } =
+        useHomepageBuilderFlag();
+    const { isCopilotEnabled, isLoading: isCopilotLoading } =
+        useIsCopilotEnabled();
+    // The builder's centerpiece is the AI hero, so without copilot it is a
+    // degraded experience — fall back to the classic homepage and hide the
+    // builder/customization until that is addressed.
+    const isHomepageBuilderEnabled =
+        isHomepageBuilderFlagEnabled && isCopilotEnabled;
     const resolvedHomepage = useResolvedHomepage(selectedProjectUuid, {
         enabled: isHomepageBuilderEnabled,
     });
@@ -61,7 +70,8 @@ const Home: FC = () => {
         project.isInitialLoading ||
         isMostPopularAndRecentlyUpdatedLoading ||
         pinnedItems.isInitialLoading ||
-        favorites.isInitialLoading;
+        favorites.isInitialLoading ||
+        isCopilotLoading;
 
     const error = onboarding.error || project.error;
 

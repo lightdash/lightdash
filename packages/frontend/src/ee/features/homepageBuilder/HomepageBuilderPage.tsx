@@ -4,13 +4,14 @@ import { Button, Stack, Text, Title } from '@mantine-8/core';
 import { IconSquareRoundedPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, type FC } from 'react';
-import { useParams, useSearchParams } from 'react-router';
+import { Navigate, useParams, useSearchParams } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../../components/common/MantineIcon';
 import Page from '../../../components/common/Page/Page';
 import ForbiddenPanel from '../../../components/ForbiddenPanel';
 import PageSpinner from '../../../components/PageSpinner';
 import useApp from '../../../providers/App/useApp';
+import { useIsCopilotEnabled } from '../aiCopilot/hooks/useIsCopilotEnabled';
 import { CreateHomepageModal } from './CreateHomepageModal';
 import { HomepageEditor } from './HomepageEditor';
 import {
@@ -33,6 +34,8 @@ export const HomepageBuilderPage: FC = () => {
     const { user } = useApp();
     const { isEnabled: isFlagEnabled, isLoading: isFlagLoading } =
         useHomepageBuilderFlag();
+    const { isCopilotEnabled, isLoading: isCopilotLoading } =
+        useIsCopilotEnabled();
     const homepage = useHomepageForBuilder(projectUuid, {
         enabled: isFlagEnabled,
         homepageUuid: selectedHomepageUuid,
@@ -51,9 +54,23 @@ export const HomepageBuilderPage: FC = () => {
             }),
         ) ?? false;
 
+    if (isFlagLoading || isCopilotLoading) {
+        return <PageSpinner />;
+    }
+
+    // Without copilot the builder is disabled (see Home.tsx) — send anyone who
+    // reaches this route directly back to the classic homepage.
+    if (isFlagEnabled && !isCopilotEnabled) {
+        return projectUuid ? (
+            <Navigate to={`/projects/${projectUuid}/home`} replace />
+        ) : (
+            <ForbiddenPanel />
+        );
+    }
+
     // Wait for a fresh fetch: the editor snapshots the draft on mount, so
     // seeding it from a stale cache would autosave old state over the server
-    if (isFlagLoading || (isFlagEnabled && !homepage.isFetchedAfterMount)) {
+    if (isFlagEnabled && !homepage.isFetchedAfterMount) {
         return <PageSpinner />;
     }
 
