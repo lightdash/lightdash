@@ -17,7 +17,7 @@ import {
 import { NumberInput, Tooltip } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconCheck, IconExclamationCircle } from '@tabler/icons-react';
-import { useState, type ChangeEvent, type FC } from 'react';
+import { useState, type ChangeEvent, type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import { useGoogleLoginPopup } from '../../../hooks/gdrive/useGdrive';
 import useHealth from '../../../hooks/health/useHealth';
@@ -59,7 +59,8 @@ const bigQuerySchemaDescription = (
 
 export const BigQuerySchemaInput: FC<{
     disabled: boolean;
-}> = ({ disabled }) => {
+    description?: ReactNode;
+}> = ({ disabled, description }) => {
     const form = useFormContext();
     const { data, error: bigqueryAuthError } = useIsBigQueryAuthenticated();
     const isAuthenticated = data !== undefined && bigqueryAuthError === null;
@@ -84,7 +85,7 @@ export const BigQuerySchemaInput: FC<{
                 name="warehouse.dataset"
                 {...datasetField}
                 label="Data set"
-                description={bigQuerySchemaDescription}
+                description={description ?? bigQuerySchemaDescription}
                 required
                 disabled={disabled}
             />
@@ -95,7 +96,7 @@ export const BigQuerySchemaInput: FC<{
         <Autocomplete
             name="warehouse.dataset"
             label="Data set"
-            description={bigQuerySchemaDescription}
+            description={description ?? bigQuerySchemaDescription}
             placeholder={
                 !hasProject
                     ? 'Choose a project first'

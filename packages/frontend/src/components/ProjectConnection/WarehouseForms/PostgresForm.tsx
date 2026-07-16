@@ -11,7 +11,7 @@ import {
 } from '@mantine-8/core';
 import { NumberInput, Tooltip } from '@mantine/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
-import React, { type FC } from 'react';
+import React, { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import MantineIcon from '../../common/MantineIcon';
 import FormCollapseButton from '../FormCollapseButton';
@@ -27,14 +27,15 @@ import { useCreateSshKeyPair } from './sshHooks';
 
 export const PostgresSchemaInput: FC<{
     disabled: boolean;
-}> = ({ disabled }) => {
+    description?: ReactNode;
+}> = ({ disabled, description }) => {
     const form = useFormContext();
 
     return (
         <TextInput
             name="warehouse.schema"
             label="Schema"
-            description="This is the schema name."
+            description={description ?? 'This is the schema name.'}
             required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}

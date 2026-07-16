@@ -7,7 +7,7 @@ import {
     PasswordInput,
 } from '@mantine-8/core';
 import { NumberInput } from '@mantine/core';
-import React, { type FC } from 'react';
+import React, { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
@@ -20,14 +20,15 @@ import { TrinoDefaultValues } from './defaultValues';
 
 export const TrinoSchemaInput: FC<{
     disabled: boolean;
-}> = ({ disabled }) => {
+    description?: ReactNode;
+}> = ({ disabled, description }) => {
     const form = useFormContext();
 
     return (
         <TextInput
             name="warehouse.schema"
             label="Schema"
-            description="This is the schema name."
+            description={description ?? 'This is the schema name.'}
             required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}

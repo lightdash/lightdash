@@ -18,7 +18,14 @@ import {
 } from '@mantine-8/core';
 import { NumberInput, Tooltip } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
-import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
 import { useToggle } from 'react-use';
 import { useOrganizationWarehouseCredentials } from '../../../hooks/organization/useOrganizationWarehouseCredentials';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -55,13 +62,14 @@ const CLI_SSO_OPTION_VALUE = 'cli-sso';
 
 export const SnowflakeSchemaInput: FC<{
     disabled: boolean;
-}> = ({ disabled }) => {
+    description?: ReactNode;
+}> = ({ disabled, description }) => {
     const form = useFormContext();
     return (
         <TextInput
             name="warehouse.schema"
             label="Schema"
-            description="This is the schema name."
+            description={description ?? 'This is the schema name.'}
             required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}

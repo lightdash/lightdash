@@ -15,7 +15,7 @@ import {
 } from '@mantine-8/core';
 import { Tooltip } from '@mantine/core';
 import { IconCheck, IconPlus, IconTrash } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -37,7 +37,8 @@ import styles from './WarehouseButtons.module.css';
 
 export const DatabricksSchemaInput: FC<{
     disabled: boolean;
-}> = ({ disabled }) => {
+    description?: ReactNode;
+}> = ({ disabled, description }) => {
     const form = useFormContext();
 
     return (
@@ -47,18 +48,20 @@ export const DatabricksSchemaInput: FC<{
             {...form.getInputProps('warehouse.database')}
             label="Schema"
             description={
-                <p>
-                    Check out for more details in{' '}
-                    <Anchor
-                        inherit
-                        target="_blank"
-                        href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#database-1"
-                        rel="noreferrer"
-                    >
-                        given documentation
-                    </Anchor>
-                    .
-                </p>
+                description ?? (
+                    <p>
+                        Check out for more details in{' '}
+                        <Anchor
+                            inherit
+                            target="_blank"
+                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#database-1"
+                            rel="noreferrer"
+                        >
+                            given documentation
+                        </Anchor>
+                        .
+                    </p>
+                )
             }
             required
             disabled={disabled}
