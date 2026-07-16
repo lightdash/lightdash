@@ -2,7 +2,6 @@ import {
     Badge,
     Box,
     Button,
-    Divider,
     Drawer,
     Group,
     ScrollArea,
@@ -56,7 +55,7 @@ const EvidenceDetail = ({
                 <Text className={styles.bodyText}>{evidence.description}</Text>
             </Stack>
             {evidence.queryUuid && (
-                <Stack gap={4}>
+                <Stack gap={4} className={styles.queryDetails}>
                     <Text className={styles.caption}>Query UUID</Text>
                     <Text ff="monospace" className={styles.reference}>
                         {evidence.queryUuid}
@@ -203,8 +202,6 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                                 {artifact.executiveAnswer}
                             </Text>
                         </Box>
-
-                        <Divider />
 
                         <Box component="section" className={styles.section}>
                             <Title order={2} className={styles.sectionTitle}>
@@ -413,7 +410,6 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                                 className={styles.section}
                                 aria-labelledby="deep-research-evidence-title"
                             >
-                                <Divider mb="xl" />
                                 <Title
                                     order={2}
                                     id="deep-research-evidence-title"

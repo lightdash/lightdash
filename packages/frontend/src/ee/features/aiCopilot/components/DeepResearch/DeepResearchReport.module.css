@@ -65,7 +65,6 @@
     display: grid;
     gap: 0.4rem;
     padding-block: 1rem;
-    border-top: 1px solid var(--mantine-color-ldGray-3);
 }
 
 .findingTitle,
@@ -119,17 +118,17 @@
     grid-template-columns: 1.5rem minmax(0, 1fr);
     gap: var(--mantine-spacing-sm);
     padding-block: 1rem;
-    border-top: 1px solid var(--mantine-color-ldGray-3);
     scroll-margin-top: 1.5rem;
-
-    &[data-selected='true'] {
-        border-top-color: var(--mantine-color-indigo-outline);
-    }
 
     &:focus-visible {
         outline: 2px solid var(--mantine-color-indigo-outline);
         outline-offset: 4px;
     }
+}
+
+.queryDetails {
+    padding-left: var(--mantine-spacing-sm);
+    border-left: 1px solid var(--mantine-color-ldGray-3);
 }
 
 .evidenceNumber {

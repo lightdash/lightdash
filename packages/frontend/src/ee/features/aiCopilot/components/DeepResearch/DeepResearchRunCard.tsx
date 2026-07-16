@@ -3,7 +3,6 @@ import {
     Badge,
     Button,
     Collapse,
-    Divider,
     Group,
     Paper,
     SimpleGrid,
@@ -136,8 +135,6 @@ export const DeepResearchRunCard = ({
                 <Text className={styles.liveRegion} aria-live="polite">
                     Research status changed to {status.label}
                 </Text>
-
-                <Divider />
 
                 {run.phase && !isTerminal && (
                     <Group gap="xs" wrap="nowrap">
@@ -319,7 +316,6 @@ export const DeepResearchRunCard = ({
                     </>
                 )}
 
-                <Divider />
                 <Group justify="space-between" align="center">
                     <Text size="xs" c="dimmed">
                         {isTerminal
