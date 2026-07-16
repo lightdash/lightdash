@@ -206,6 +206,13 @@ export const previewHandler = async (
 
     const config = await getConfig();
 
+    if (!config.context?.project) {
+        spinner.fail();
+        throw new Error(
+            'No project set. Use `lightdash config set-project` to select a project.',
+        );
+    }
+
     // Validate upstream project before attempting to copy permissions or content
     let upstreamProjectValid = false;
     if (config.context?.project) {
@@ -248,14 +255,7 @@ export const previewHandler = async (
         }
     }
 
-    if (!config.context?.project) {
-        contentCopySkipReason = 'No upstream project configured';
-        console.error(
-            styles.warning(
-                `\n\nDeveloper preview will be deployed without any copied content!\nPlease set a project to copy content from by running 'lightdash config set-project'.\n`,
-            ),
-        );
-    } else if (options.skipCopyContent) {
+    if (options.skipCopyContent) {
         contentCopySkipReason = '--skip-copy-content flag was used';
         console.error(
             styles.warning(
@@ -275,8 +275,7 @@ export const previewHandler = async (
             ...options,
             name,
             type: ProjectType.PREVIEW,
-            upstreamProjectUuid:
-                config.context?.project && upstreamProjectValid
+            upstreamProjectUuid: upstreamProjectValid
                     ? config.context.project
                     : undefined,
             copyContent: !options.skipCopyContent && upstreamProjectValid,
@@ -534,12 +533,12 @@ export const startPreviewHandler = async (
         );
 
         if (!config.context?.project) {
-            console.error(
-                styles.warning(
-                    `\n\nDeveloper preview will be deployed without any copied content!\nPlease set a project to copy content from by running 'lightdash config set-project'.\n`,
-                ),
+            throw new Error(
+                'No project set. Use `lightdash config set-project` to select a project.',
             );
-        } else if (options.skipCopyContent) {
+        }
+
+        if (options.skipCopyContent) {
             console.error(
                 styles.warning(
                     `\n\nDeveloper preview will be deployed without any copied content!\n`,
@@ -560,7 +559,7 @@ export const startPreviewHandler = async (
             ...options,
             name: projectName,
             type: ProjectType.PREVIEW,
-            upstreamProjectUuid: config.context?.project,
+            upstreamProjectUuid: config.context.project,
             copyContent: !options.skipCopyContent,
             warehouseCredentials: projectTypeConfig.warehouseCredentials,
             expiresIn: options.expiresIn
