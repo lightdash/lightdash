@@ -78,6 +78,7 @@ describe('ContentController', () => {
                 ['project-uuid'],
                 ['requested-space-uuid'],
                 undefined,
+                undefined,
                 [ContentType.CHART],
                 50,
                 1,

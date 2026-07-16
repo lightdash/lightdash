@@ -1,4 +1,8 @@
-import { NotFoundError, type HomepageConfig } from '@lightdash/common';
+import {
+    ConflictError,
+    NotFoundError,
+    type HomepageConfig,
+} from '@lightdash/common';
 import knex, { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { HomepagesTableName } from '../database/entities/projectHomepages';
@@ -24,6 +28,7 @@ const draftConfig: HomepageConfig = {
 
 const makeDbHomepage = (overrides: Partial<Record<string, unknown>> = {}) => ({
     homepage_uuid: HOMEPAGE_UUID,
+    allow_personal: true,
     project_uuid: PROJECT_UUID,
     name: 'Team homepage',
     draft_config: draftConfig,
@@ -51,12 +56,47 @@ describe('ProjectHomepageModel', () => {
     });
 
     describe('updateDraft', () => {
-        it('throws NotFoundError when no row is updated', async () => {
+        const baseUpdatedAt = new Date('2026-01-02T00:00:00Z');
+
+        it('throws NotFoundError when the homepage does not exist', async () => {
             tracker.on.update(HomepagesTableName).responseOnce([]);
+            tracker.on.select(HomepagesTableName).responseOnce([]);
 
             await expect(
-                model.updateDraft(HOMEPAGE_UUID, { draftConfig }),
+                model.updateDraft(HOMEPAGE_UUID, {
+                    draftConfig,
+                    baseUpdatedAt,
+                }),
             ).rejects.toThrow(NotFoundError);
+        });
+
+        it('throws ConflictError when the base timestamp is stale', async () => {
+            tracker.on.update(HomepagesTableName).responseOnce([]);
+            tracker.on
+                .select(HomepagesTableName)
+                .responseOnce([makeDbHomepage()]);
+
+            await expect(
+                model.updateDraft(HOMEPAGE_UUID, {
+                    draftConfig,
+                    baseUpdatedAt,
+                }),
+            ).rejects.toThrow(ConflictError);
+        });
+
+        it('includes the compare-and-set condition in the update', async () => {
+            tracker.on
+                .update(HomepagesTableName)
+                .responseOnce([makeDbHomepage()]);
+
+            await model.updateDraft(HOMEPAGE_UUID, {
+                draftConfig,
+                baseUpdatedAt,
+            });
+
+            const updateQuery = tracker.history.update[0];
+            expect(updateQuery.sql).toContain('updated_at');
+            expect(updateQuery.bindings).toContainEqual(baseUpdatedAt);
         });
     });
 
@@ -64,26 +104,66 @@ describe('ProjectHomepageModel', () => {
         it('throws NotFoundError when homepage does not exist', async () => {
             tracker.on.select(HomepagesTableName).responseOnce([]);
 
-            await expect(model.publish(HOMEPAGE_UUID)).rejects.toThrow(
-                NotFoundError,
-            );
+            await expect(
+                model.publish(HOMEPAGE_UUID, { type: 'everyone' }, true),
+            ).rejects.toThrow(NotFoundError);
         });
 
-        it('copies the draft config into published_config', async () => {
+        it('publishing to everyone copies the draft and promotes to default', async () => {
             tracker.on
                 .select(HomepagesTableName)
                 .responseOnce([makeDbHomepage()]);
+            // first update unsets the previous default, second publishes
+            tracker.on.update(HomepagesTableName).responseOnce(1);
             tracker.on
                 .update(HomepagesTableName)
                 .responseOnce([
                     makeDbHomepage({ published_config: draftConfig }),
                 ]);
 
-            const result = await model.publish(HOMEPAGE_UUID);
+            const result = await model.publish(
+                HOMEPAGE_UUID,
+                { type: 'everyone' },
+                true,
+            );
 
-            const updateQuery = tracker.history.update[0];
-            expect(updateQuery.bindings).toContainEqual(draftConfig);
+            expect(tracker.history.update).toHaveLength(2);
+            const unsetQuery = tracker.history.update[0];
+            expect(unsetQuery.sql).toContain('is_default');
+            const publishQuery = tracker.history.update[1];
+            expect(publishQuery.bindings).toContainEqual(draftConfig);
             expect(result.publishedConfig).toEqual(draftConfig);
+        });
+
+        it('publishing to groups replaces assignments without touching the default', async () => {
+            tracker.on
+                .select(HomepagesTableName)
+                .responseOnce([makeDbHomepage({ is_default: false })]);
+            tracker.on.update(HomepagesTableName).responseOnce([
+                makeDbHomepage({
+                    is_default: false,
+                    published_config: draftConfig,
+                }),
+            ]);
+            tracker.on.delete('homepage_assignments').responseOnce(1);
+            tracker.on
+                .select('homepage_assignments')
+                .responseOnce([{ max: 1 }]);
+            tracker.on.insert('homepage_assignments').responseOnce([]);
+
+            const result = await model.publish(
+                HOMEPAGE_UUID,
+                { type: 'groups', groupUuids: ['group-a', 'group-b'] },
+                true,
+            );
+
+            // publish update must not set is_default for group audiences
+            const publishQuery = tracker.history.update[0];
+            expect(publishQuery.sql).not.toContain('is_default');
+            const insertQuery = tracker.history.insert[0];
+            expect(insertQuery.bindings).toContainEqual('group-a');
+            expect(insertQuery.bindings).toContainEqual('group-b');
+            expect(result.isDefault).toBe(false);
         });
     });
 

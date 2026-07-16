@@ -110,6 +110,13 @@ export type LandingRunQueryClickedEvent = {
     };
 };
 
+export type HomepageQuickActionClickedEvent = {
+    name: EventName.HOMEPAGE_QUICK_ACTION_CLICKED;
+    properties: {
+        actionType: string;
+    };
+};
+
 export type SetupStepClickedEvent = {
     name: EventName.SETUP_STEP_CLICKED;
     properties: {
@@ -554,6 +561,7 @@ type DashboardFilterLockToggledEvent = {
 
 export type EventData =
     | GenericEvent
+    | HomepageQuickActionClickedEvent
     | SetupStepClickedEvent
     | DocumentationClickedEvent
     | SearchResultClickedEvent

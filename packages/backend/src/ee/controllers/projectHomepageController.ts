@@ -1,21 +1,35 @@
 import {
     assertRegisteredAccount,
+    ParameterError,
     type ApiErrorPayload,
+    type ApiHomepageAssignmentsResponse,
+    type ApiHomepageViewAsResponse,
     type ApiProjectHomepageOrNullResponse,
     type ApiProjectHomepageResponse,
-    type ApiPublishedHomepageResponse,
+    type ApiProjectHomepagesResponse,
+    type ApiRecentlyViewedResponse,
+    type ApiResolvedHomepageResponse,
+    type ApiSuccess,
+    type ApiSuccessEmpty,
     type CreateProjectHomepageRequest,
+    type HomepageViewAsTarget,
+    type ProjectMemberRole,
+    type PublishProjectHomepageRequest,
+    type SetPersonalHomepageRequest,
+    type UpdateHomepageGroupPrioritiesRequest,
     type UpdateProjectHomepageDraftRequest,
     type UUID,
 } from '@lightdash/common';
 import {
     Body,
+    Delete,
     Get,
     Middlewares,
     OperationId,
     Patch,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -43,18 +57,117 @@ export class ProjectHomepageController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/')
-    @OperationId('getPublishedProjectHomepage')
-    async getPublished(
+    @OperationId('getResolvedProjectHomepage')
+    async getResolved(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
-    ): Promise<ApiPublishedHomepageResponse> {
+    ): Promise<ApiResolvedHomepageResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await this.getHomepageService().getPublishedHomepage(
+            results: await this.getHomepageService().getResolvedHomepage(
                 toSessionUser(req.account),
                 projectUuid,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/personal-override')
+    @OperationId('getPersonalHomepage')
+    async getPersonalOverride(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSuccess<string | null>> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getHomepageService().getPersonalHomepage(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/personal-override')
+    @OperationId('setPersonalHomepage')
+    async setPersonalOverride(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: SetPersonalHomepageRequest,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getHomepageService().setPersonalHomepage(
+            toSessionUser(req.account),
+            projectUuid,
+            body.dashboardUuid,
+        );
+        this.setStatus(200);
+        return { status: 'ok', results: undefined };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('/personal-override')
+    @OperationId('clearPersonalHomepage')
+    async clearPersonalOverride(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getHomepageService().clearPersonalHomepage(
+            toSessionUser(req.account),
+            projectUuid,
+        );
+        this.setStatus(200);
+        return { status: 'ok', results: undefined };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/view-as')
+    @OperationId('viewHomepageAs')
+    async viewAs(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Query() targetType: 'user' | 'group' | 'role',
+        @Query() userUuid?: UUID,
+        @Query() groupUuid?: UUID,
+        @Query() role?: ProjectMemberRole,
+    ): Promise<ApiHomepageViewAsResponse> {
+        assertRegisteredAccount(req.account);
+        let target: HomepageViewAsTarget;
+        if (targetType === 'user' && userUuid) {
+            target = { type: 'user', userUuid };
+        } else if (targetType === 'group' && groupUuid) {
+            target = { type: 'group', groupUuid };
+        } else if (targetType === 'role' && role) {
+            target = { type: 'role', role };
+        } else {
+            throw new ParameterError(
+                'View-as target requires a matching userUuid, groupUuid or role',
+            );
+        }
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getHomepageService().viewAsHomepage(
+                toSessionUser(req.account),
+                projectUuid,
+                target,
             ),
         };
     }
@@ -67,12 +180,97 @@ export class ProjectHomepageController extends BaseController {
     async getForBuilder(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
+        @Query() homepageUuid?: UUID,
     ): Promise<ApiProjectHomepageOrNullResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.getHomepageService().getHomepageForBuilder(
+                toSessionUser(req.account),
+                projectUuid,
+                homepageUuid,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/recently-viewed')
+    @OperationId('getHomepageRecentlyViewed')
+    async getRecentlyViewed(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiRecentlyViewedResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getHomepageService().getRecentlyViewed(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/assignments')
+    @OperationId('getHomepageAssignments')
+    async getAssignments(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiHomepageAssignmentsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getHomepageService().getAssignments(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/group-priorities')
+    @OperationId('updateHomepageGroupPriorities')
+    async updateGroupPriorities(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: UpdateHomepageGroupPrioritiesRequest,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getHomepageService().updateGroupPriorities(
+            toSessionUser(req.account),
+            projectUuid,
+            body.groupUuids,
+        );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/list')
+    @OperationId('listProjectHomepages')
+    async listHomepages(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiProjectHomepagesResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getHomepageService().listHomepages(
                 toSessionUser(req.account),
                 projectUuid,
             ),
@@ -137,12 +335,39 @@ export class ProjectHomepageController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')
+    @Delete('/{homepageUuid}')
+    @OperationId('deleteProjectHomepage')
+    async delete(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() homepageUuid: UUID,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getHomepageService().deleteHomepage(
+            toSessionUser(req.account),
+            projectUuid,
+            homepageUuid,
+        );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
     @Post('/{homepageUuid}/publish')
     @OperationId('publishProjectHomepage')
     async publish(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
         @Path() homepageUuid: UUID,
+        @Body() body: PublishProjectHomepageRequest,
     ): Promise<ApiProjectHomepageResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -152,6 +377,8 @@ export class ProjectHomepageController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 homepageUuid,
+                body.audience,
+                body.allowPersonal,
             ),
         };
     }

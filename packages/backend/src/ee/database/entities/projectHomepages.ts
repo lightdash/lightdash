@@ -10,6 +10,7 @@ export type DbProjectHomepage = {
     draft_config: HomepageConfig;
     published_config: HomepageConfig | null;
     is_default: boolean;
+    allow_personal: boolean;
     created_by_user_uuid: string | null;
     created_at: Date;
     updated_at: Date;
@@ -27,7 +28,12 @@ export type DbProjectHomepageIn = Pick<
 export type DbProjectHomepageUpdate = Partial<
     Pick<
         DbProjectHomepage,
-        'name' | 'draft_config' | 'published_config' | 'updated_at'
+        | 'name'
+        | 'draft_config'
+        | 'published_config'
+        | 'is_default'
+        | 'allow_personal'
+        | 'updated_at'
     >
 >;
 
@@ -35,4 +41,55 @@ export type ProjectHomepagesTable = Knex.CompositeTableType<
     DbProjectHomepage,
     DbProjectHomepageIn,
     DbProjectHomepageUpdate
+>;
+
+export const HomepagePersonalOverridesTableName = 'homepage_personal_overrides';
+
+export type DbHomepagePersonalOverride = {
+    user_uuid: string;
+    project_uuid: string;
+    dashboard_uuid: string;
+    created_at: Date;
+};
+
+export type HomepagePersonalOverridesTable = Knex.CompositeTableType<
+    DbHomepagePersonalOverride,
+    Pick<
+        DbHomepagePersonalOverride,
+        'user_uuid' | 'project_uuid' | 'dashboard_uuid'
+    >,
+    Pick<DbHomepagePersonalOverride, 'dashboard_uuid'>
+>;
+
+export const HomepageAssignmentsTableName = 'homepage_assignments';
+
+export type DbHomepageAssignment = {
+    assignment_uuid: string;
+    project_uuid: string;
+    homepage_uuid: string;
+    target_type: 'group' | 'role';
+    group_uuid: string | null;
+    role: string | null;
+    priority: number;
+    created_at: Date;
+};
+
+export type DbHomepageAssignmentIn = Pick<
+    DbHomepageAssignment,
+    | 'project_uuid'
+    | 'homepage_uuid'
+    | 'target_type'
+    | 'group_uuid'
+    | 'role'
+    | 'priority'
+>;
+
+export type DbHomepageAssignmentUpdate = Partial<
+    Pick<DbHomepageAssignment, 'priority'>
+>;
+
+export type HomepageAssignmentsTable = Knex.CompositeTableType<
+    DbHomepageAssignment,
+    DbHomepageAssignmentIn,
+    DbHomepageAssignmentUpdate
 >;

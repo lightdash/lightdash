@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/frontend",
-    "version": "0.3390.0",
+    "version": "0.3394.0",
     "private": true,
     "scripts": {
         "typecheck": "tsc6 --project tsconfig.json --noEmit",
@@ -134,6 +134,7 @@
         "streamdown": "2.5.0",
         "styled-components": "5.3.3",
         "tippy.js": "6.3.7",
+        "tiptap-markdown": "0.8.10",
         "topojson-client": "3.1.0",
         "type-fest": "4.32.0",
         "unique-names-generator": "4.7.1",

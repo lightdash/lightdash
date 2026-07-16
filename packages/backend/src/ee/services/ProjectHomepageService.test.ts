@@ -1,10 +1,10 @@
 import { Ability } from '@casl/ability';
 import {
-    AlreadyExistsError,
     ForbiddenError,
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
+    ProjectMemberRole,
     type HomepageConfig,
     type PossibleAbilities,
     type ProjectHomepage,
@@ -42,6 +42,7 @@ const makeHomepage = (
     draftConfig: validConfig,
     publishedConfig: null,
     isDefault: true,
+    allowPersonal: true,
     createdByUserUuid: USER_UUID,
     createdAt: NOW,
     updatedAt: NOW,
@@ -101,11 +102,15 @@ const makeViewerUser = (): SessionUser => ({
 const makeService = ({
     flagEnabled = true,
     projectHomepageModel = {},
+    groupsModel = {},
+    projectModel = {},
 }: {
     flagEnabled?: boolean;
     projectHomepageModel?: Partial<
         ProjectHomepageServiceArguments['projectHomepageModel']
     >;
+    groupsModel?: Partial<ProjectHomepageServiceArguments['groupsModel']>;
+    projectModel?: Partial<ProjectHomepageServiceArguments['projectModel']>;
 } = {}) =>
     new ProjectHomepageService({
         featureFlagService: {
@@ -116,11 +121,29 @@ const makeService = ({
         },
         projectHomepageModel: {
             getDefault: vi.fn().mockResolvedValue(undefined),
+            getByUuid: vi.fn().mockResolvedValue(makeHomepage()),
             getPublishedDefault: vi.fn().mockResolvedValue(undefined),
+            getRecentlyViewed: vi.fn().mockResolvedValue([]),
+            getAssignments: vi.fn().mockResolvedValue([]),
+            getPersonalOverride: vi.fn().mockResolvedValue(undefined),
+            setPersonalOverride: vi.fn().mockResolvedValue(undefined),
+            deletePersonalOverride: vi.fn().mockResolvedValue(undefined),
+            updateGroupPriorities: vi.fn().mockResolvedValue(undefined),
+            resolvePublished: vi.fn().mockResolvedValue(undefined),
+            list: vi.fn().mockResolvedValue([]),
             create: vi.fn().mockResolvedValue(makeHomepage()),
             updateDraft: vi.fn().mockResolvedValue(makeHomepage()),
             publish: vi.fn().mockResolvedValue(makeHomepage()),
+            delete: vi.fn().mockResolvedValue(undefined),
             ...projectHomepageModel,
+        },
+        groupsModel: {
+            findUserGroups: vi.fn().mockResolvedValue([]),
+            ...groupsModel,
+        },
+        projectModel: {
+            getProjectMemberAccess: vi.fn().mockResolvedValue(undefined),
+            ...projectModel,
         },
     });
 
@@ -129,7 +152,7 @@ describe('ProjectHomepageService', () => {
         const service = makeService({ flagEnabled: false });
 
         await expect(
-            service.getPublishedHomepage(makeAdminUser(), PROJECT_UUID),
+            service.getResolvedHomepage(makeAdminUser(), PROJECT_UUID),
         ).rejects.toThrow(ForbiddenError);
     });
 
@@ -137,7 +160,7 @@ describe('ProjectHomepageService', () => {
         const service = makeService();
 
         await expect(
-            service.getPublishedHomepage(makeViewerUser(), PROJECT_UUID),
+            service.getResolvedHomepage(makeViewerUser(), PROJECT_UUID),
         ).resolves.toBeNull();
     });
 
@@ -151,18 +174,50 @@ describe('ProjectHomepageService', () => {
         ).rejects.toThrow(ForbiddenError);
     });
 
-    it('createHomepage throws AlreadyExistsError when a default homepage exists', async () => {
+    it('createHomepage copies the draft config when duplicating', async () => {
+        const create = vi.fn().mockResolvedValue(makeHomepage());
         const service = makeService({
             projectHomepageModel: {
-                getDefault: vi.fn().mockResolvedValue(makeHomepage()),
+                getByUuid: vi
+                    .fn()
+                    .mockResolvedValue(
+                        makeHomepage({ draftConfig: validConfig }),
+                    ),
+                create,
+            },
+        });
+
+        await service.createHomepage(makeAdminUser(), PROJECT_UUID, {
+            name: 'Copy',
+            duplicateFrom: HOMEPAGE_UUID,
+        });
+
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                name: 'Copy',
+                draftConfig: validConfig,
+            }),
+        );
+    });
+
+    it('deleteHomepage rejects a homepage from another project', async () => {
+        const service = makeService({
+            projectHomepageModel: {
+                getByUuid: vi
+                    .fn()
+                    .mockResolvedValue(
+                        makeHomepage({ projectUuid: 'other-project-uuid' }),
+                    ),
             },
         });
 
         await expect(
-            service.createHomepage(makeAdminUser(), PROJECT_UUID, {
-                name: 'Another',
-            }),
-        ).rejects.toThrow(AlreadyExistsError);
+            service.deleteHomepage(
+                makeAdminUser(),
+                PROJECT_UUID,
+                HOMEPAGE_UUID,
+            ),
+        ).rejects.toThrow(NotFoundError);
     });
 
     it('updateDraft rejects a row with more than 3 blocks', async () => {
@@ -188,6 +243,7 @@ describe('ProjectHomepageService', () => {
                         },
                     ],
                 },
+                baseUpdatedAt: NOW,
             }),
         ).rejects.toThrow(ParameterError);
     });
@@ -195,10 +251,10 @@ describe('ProjectHomepageService', () => {
     it('updateDraft throws NotFoundError when the homepage belongs to another project', async () => {
         const service = makeService({
             projectHomepageModel: {
-                getDefault: vi
+                getByUuid: vi
                     .fn()
                     .mockResolvedValue(
-                        makeHomepage({ homepageUuid: 'other-homepage-uuid' }),
+                        makeHomepage({ projectUuid: 'other-project-uuid' }),
                     ),
             },
         });
@@ -206,6 +262,7 @@ describe('ProjectHomepageService', () => {
         await expect(
             service.updateDraft(makeAdminUser(), PROJECT_UUID, HOMEPAGE_UUID, {
                 draftConfig: validConfig,
+                baseUpdatedAt: NOW,
             }),
         ).rejects.toThrow(NotFoundError);
     });
@@ -225,9 +282,127 @@ describe('ProjectHomepageService', () => {
             makeAdminUser(),
             PROJECT_UUID,
             HOMEPAGE_UUID,
+            { type: 'everyone' },
+            true,
         );
 
-        expect(publish).toHaveBeenCalledWith(HOMEPAGE_UUID);
+        expect(publish).toHaveBeenCalledWith(
+            HOMEPAGE_UUID,
+            { type: 'everyone' },
+            true,
+        );
         expect(result.publishedConfig).toEqual(validConfig);
+    });
+
+    it('getPublishedHomepage resolves with the viewer’s groups and role', async () => {
+        const resolvePublished = vi.fn().mockResolvedValue({
+            homepage: {
+                homepageUuid: HOMEPAGE_UUID,
+                name: 'Sales homepage',
+                config: validConfig,
+                allowPersonal: true,
+            },
+            source: { type: 'group', groupUuid: 'group-1', priority: 1 },
+        });
+        const service = makeService({
+            projectHomepageModel: { resolvePublished },
+            groupsModel: {
+                findUserGroups: vi
+                    .fn()
+                    .mockResolvedValue([{ uuid: 'group-1', name: 'Sales' }]),
+            },
+            projectModel: {
+                getProjectMemberAccess: vi.fn().mockResolvedValue({
+                    userUuid: USER_UUID,
+                    projectUuid: PROJECT_UUID,
+                    role: 'editor',
+                    email: 'x@y.z',
+                    firstName: 'A',
+                    lastName: 'B',
+                }),
+            },
+        });
+
+        const result = await service.getResolvedHomepage(
+            makeViewerUser(),
+            PROJECT_UUID,
+        );
+
+        expect(resolvePublished).toHaveBeenCalledWith(PROJECT_UUID, {
+            groupUuids: ['group-1'],
+            role: 'editor',
+        });
+        expect(result).toEqual(
+            expect.objectContaining({
+                type: 'homepage',
+                homepage: expect.objectContaining({ name: 'Sales homepage' }),
+            }),
+        );
+    });
+
+    it('viewAsHomepage is forbidden for a viewer', async () => {
+        const service = makeService();
+
+        await expect(
+            service.viewAsHomepage(makeViewerUser(), PROJECT_UUID, {
+                type: 'role',
+                role: ProjectMemberRole.EDITOR,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('viewAsHomepage resolves a role target through the shared resolver with a reason', async () => {
+        const resolvePublished = vi.fn().mockResolvedValue({
+            homepage: {
+                homepageUuid: HOMEPAGE_UUID,
+                name: 'Editors homepage',
+                config: validConfig,
+                allowPersonal: true,
+            },
+            source: { type: 'role', role: 'editor' },
+        });
+        const getPersonalOverride = vi.fn();
+        const service = makeService({
+            projectHomepageModel: { resolvePublished, getPersonalOverride },
+        });
+
+        const result = await service.viewAsHomepage(
+            makeAdminUser(),
+            PROJECT_UUID,
+            { type: 'role', role: ProjectMemberRole.EDITOR },
+        );
+
+        expect(resolvePublished).toHaveBeenCalledWith(PROJECT_UUID, {
+            groupUuids: [],
+            role: 'editor',
+        });
+        // group/role targets never consult the target's personal override
+        expect(getPersonalOverride).not.toHaveBeenCalled();
+        expect(result.reason).toEqual({ type: 'role', role: 'editor' });
+        expect(result.resolved).toEqual(
+            expect.objectContaining({ type: 'homepage' }),
+        );
+    });
+
+    it("viewAsHomepage for a user target applies the target's personal override", async () => {
+        const service = makeService({
+            projectHomepageModel: {
+                getPersonalOverride: vi
+                    .fn()
+                    .mockResolvedValue('dashboard-uuid-1'),
+                resolvePublished: vi.fn().mockResolvedValue(undefined),
+            },
+        });
+
+        const result = await service.viewAsHomepage(
+            makeAdminUser(),
+            PROJECT_UUID,
+            { type: 'user', userUuid: USER_UUID },
+        );
+
+        expect(result).toEqual({
+            resolved: { type: 'dashboard', dashboardUuid: 'dashboard-uuid-1' },
+            reason: { type: 'personal', dashboardUuid: 'dashboard-uuid-1' },
+        });
     });
 });

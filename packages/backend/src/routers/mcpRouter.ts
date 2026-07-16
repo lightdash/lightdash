@@ -283,6 +283,9 @@ mcpRouter.all(
                 // afterwards).
                 // Content-write tools are only registered when the org-level
                 // setting allows it, so admins can lock down MCP edits.
+                // run_sql is only registered when the caller has
+                // manage:SqlRunner, so viewers don't see (and the LLM doesn't
+                // loop on) a tool they can never invoke.
                 // These lookups are independent, so resolve them together
                 // rather than paying each round trip serially per request.
                 const [grepFieldsEnabled, mcpContentWritesEnabled] =
@@ -297,6 +300,7 @@ mcpRouter.all(
                     aiWritebackEnabled: true,
                     grepFieldsEnabled,
                     mcpContentWritesEnabled,
+                    runSqlEnabled: mcpService.isRunSqlEnabled(req.user!),
                 });
                 const transport = new StreamableHTTPServerTransport({
                     enableJsonResponse: true,

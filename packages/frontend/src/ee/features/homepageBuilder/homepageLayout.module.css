@@ -1,0 +1,32 @@
+/* Shared homepage layout — used by both the day-0 homepage and the published
+ * homepage so their hero (greeting + Ask AI) sits identically: vertically
+ * centred in the viewport, constrained, with everything else in a secondary
+ * section below. */
+
+.page {
+    display: flex;
+    flex-direction: column;
+    padding: 32px 24px 64px;
+}
+
+.heroSection {
+    min-height: calc(100vh - var(--navbar-height) - 72px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.hero {
+    width: 100%;
+    max-width: 720px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.secondary {
+    width: 100%;
+    max-width: 1160px;
+    margin: 0 auto;
+}

@@ -1448,8 +1448,404 @@
                 "required": ["config", "type", "id"],
                 "type": "object"
             },
+            "HomepageHeroBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "subtitle": {
+                                "type": "string"
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["subtitle", "title"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["hero"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
+            "HomepageAskAiHeroBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "showGreeting": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["showGreeting"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["ask-ai-hero"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
+            "HomepageCollectionItemRef": {
+                "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "contentType": {
+                        "type": "string",
+                        "enum": ["chart", "dashboard"]
+                    }
+                },
+                "required": ["uuid", "contentType"],
+                "type": "object"
+            },
+            "HomepageCollectionBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "items": {
+                                "items": {
+                                    "$ref": "#/components/schemas/HomepageCollectionItemRef"
+                                },
+                                "type": "array"
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["items", "title"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["collection"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
+            "HomepageResourceKind": {
+                "type": "string",
+                "enum": ["video", "doc", "link"]
+            },
+            "HomepageResourceItem": {
+                "properties": {
+                    "kind": {
+                        "$ref": "#/components/schemas/HomepageResourceKind"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "required": ["kind", "url", "title"],
+                "type": "object"
+            },
+            "HomepageResourcesBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "items": {
+                                "items": {
+                                    "$ref": "#/components/schemas/HomepageResourceItem"
+                                },
+                                "type": "array"
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["items", "title"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["resources"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
+            "HomepageAnnouncementItem": {
+                "properties": {
+                    "author": {
+                        "type": "string"
+                    },
+                    "date": {
+                        "type": "string"
+                    },
+                    "text": {
+                        "type": "string",
+                        "description": "Markdown —"
+                    }
+                },
+                "required": ["author", "date", "text"],
+                "type": "object"
+            },
+            "HomepageAnnouncementsBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "items": {
+                                "items": {
+                                    "$ref": "#/components/schemas/HomepageAnnouncementItem"
+                                },
+                                "type": "array"
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["items", "title"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["announcements"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
+            "HomepageMetricRef": {
+                "properties": {
+                    "label": {
+                        "type": "string"
+                    },
+                    "metricName": {
+                        "type": "string"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["label", "metricName", "tableName"],
+                "type": "object"
+            },
+            "HomepageMetricsBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "items": {
+                                "items": {
+                                    "$ref": "#/components/schemas/HomepageMetricRef"
+                                },
+                                "type": "array"
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["items", "title"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["metrics"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
+            "HomepageQuickAction": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["ask-ai"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["run-query"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["browse-dashboards"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["browse-spaces"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "label": {
+                                "type": "string"
+                            },
+                            "dashboardUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["dashboard"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["label", "dashboardUuid", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "HomepageQuickActionsBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "actions": {
+                                "items": {
+                                    "$ref": "#/components/schemas/HomepageQuickAction"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["actions"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["quick-actions"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
+            "HomepageFavoritesBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["title"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["favorites"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
+            "HomepageRecentBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["title"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["recent"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
             "HomepageBlock": {
-                "$ref": "#/components/schemas/HomepageMarkdownBlock"
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/HomepageMarkdownBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageHeroBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageAskAiHeroBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageCollectionBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageResourcesBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageAnnouncementsBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageMetricsBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageQuickActionsBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageFavoritesBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageRecentBlock"
+                    }
+                ]
             },
             "HomepageRow": {
                 "properties": {
@@ -1485,6 +1881,9 @@
             },
             "PublishedProjectHomepage": {
                 "properties": {
+                    "allowPersonal": {
+                        "type": "boolean"
+                    },
                     "config": {
                         "$ref": "#/components/schemas/HomepageConfig"
                     },
@@ -1495,15 +1894,47 @@
                         "type": "string"
                     }
                 },
-                "required": ["config", "name", "homepageUuid"],
+                "required": ["allowPersonal", "config", "name", "homepageUuid"],
                 "type": "object"
             },
-            "ApiSuccess_PublishedProjectHomepage-or-null_": {
+            "ResolvedHomepage": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "homepage": {
+                                "$ref": "#/components/schemas/PublishedProjectHomepage"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["homepage"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["homepage", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "dashboardUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["dashboard"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["dashboardUuid", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_ResolvedHomepage-or-null_": {
                 "properties": {
                     "results": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/PublishedProjectHomepage"
+                                "$ref": "#/components/schemas/ResolvedHomepage"
                             }
                         ],
                         "nullable": true
@@ -1517,8 +1948,139 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ApiPublishedHomepageResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_PublishedProjectHomepage-or-null_"
+            "ApiResolvedHomepageResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_ResolvedHomepage-or-null_"
+            },
+            "ApiSuccess_string-or-null_": {
+                "properties": {
+                    "results": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "SetPersonalHomepageRequest": {
+                "properties": {
+                    "dashboardUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["dashboardUuid"],
+                "type": "object"
+            },
+            "HomepageResolutionSource": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "priority": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "groupUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["group"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["priority", "groupUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "role": {
+                                "$ref": "#/components/schemas/ProjectMemberRole"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["role"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["role", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["default"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "HomepageViewAsReason": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "dashboardUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["personal"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["dashboardUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageResolutionSource"
+                    }
+                ]
+            },
+            "HomepageViewAsResult": {
+                "properties": {
+                    "reason": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/HomepageViewAsReason"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "resolved": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ResolvedHomepage"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": ["reason", "resolved"],
+                "type": "object"
+            },
+            "ApiSuccess_HomepageViewAsResult_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/HomepageViewAsResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiHomepageViewAsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_HomepageViewAsResult_"
             },
             "ProjectHomepage": {
                 "properties": {
@@ -1533,6 +2095,9 @@
                     "createdByUserUuid": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "allowPersonal": {
+                        "type": "boolean"
                     },
                     "isDefault": {
                         "type": "boolean"
@@ -1562,6 +2127,7 @@
                     "updatedAt",
                     "createdAt",
                     "createdByUserUuid",
+                    "allowPersonal",
                     "isDefault",
                     "publishedConfig",
                     "draftConfig",
@@ -1593,6 +2159,144 @@
             "ApiProjectHomepageOrNullResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_ProjectHomepage-or-null_"
             },
+            "HomepageRecentlyViewedItem": {
+                "properties": {
+                    "viewedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "contentType": {
+                        "type": "string",
+                        "enum": ["chart", "dashboard"]
+                    }
+                },
+                "required": ["viewedAt", "uuid", "contentType"],
+                "type": "object"
+            },
+            "ApiSuccess_HomepageRecentlyViewedItem-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/HomepageRecentlyViewedItem"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiRecentlyViewedResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_HomepageRecentlyViewedItem-Array_"
+            },
+            "HomepageAssignment": {
+                "properties": {
+                    "priority": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "role": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ProjectMemberRole"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "groupName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "groupUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "targetType": {
+                        "type": "string",
+                        "enum": ["group", "role"]
+                    },
+                    "homepageName": {
+                        "type": "string"
+                    },
+                    "homepageUuid": {
+                        "type": "string"
+                    },
+                    "assignmentUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "priority",
+                    "role",
+                    "groupName",
+                    "groupUuid",
+                    "targetType",
+                    "homepageName",
+                    "homepageUuid",
+                    "assignmentUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_HomepageAssignment-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/HomepageAssignment"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiHomepageAssignmentsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_HomepageAssignment-Array_"
+            },
+            "UpdateHomepageGroupPrioritiesRequest": {
+                "properties": {
+                    "groupUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Group uuids in priority order — first wins for multi-group users"
+                    }
+                },
+                "required": ["groupUuids"],
+                "type": "object"
+            },
+            "ApiSuccess_ProjectHomepage-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ProjectHomepage"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiProjectHomepagesResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_ProjectHomepage-Array_"
+            },
             "ApiSuccess_ProjectHomepage_": {
                 "properties": {
                     "results": {
@@ -1612,6 +2316,9 @@
             },
             "CreateProjectHomepageRequest": {
                 "properties": {
+                    "duplicateFrom": {
+                        "type": "string"
+                    },
                     "name": {
                         "type": "string"
                     }
@@ -1621,6 +2328,11 @@
             },
             "UpdateProjectHomepageDraftRequest": {
                 "properties": {
+                    "baseUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Compare-and-set token: the updatedAt the client based its edit on"
+                    },
                     "draftConfig": {
                         "$ref": "#/components/schemas/HomepageConfig"
                     },
@@ -1628,7 +2340,68 @@
                         "type": "string"
                     }
                 },
-                "required": ["draftConfig"],
+                "required": ["baseUpdatedAt", "draftConfig"],
+                "type": "object"
+            },
+            "HomepageAudience": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["everyone"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "groupUuids": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["groups"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["groupUuids", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "roles": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ProjectMemberRole"
+                                },
+                                "type": "array"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["roles"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["roles", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "PublishProjectHomepageRequest": {
+                "properties": {
+                    "allowPersonal": {
+                        "type": "boolean"
+                    },
+                    "audience": {
+                        "$ref": "#/components/schemas/HomepageAudience"
+                    }
+                },
+                "required": ["allowPersonal", "audience"],
                 "type": "object"
             },
             "ManagedAgentScheduleOption": {
@@ -11758,10 +12531,15 @@
                 ],
                 "type": "object"
             },
-            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean__": {
+            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null__": {
                 "properties": {
                     "results": {
                         "properties": {
+                            "latestReadyVersion": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
                             "hasMore": {
                                 "type": "boolean"
                             },
@@ -11810,6 +12588,7 @@
                             }
                         },
                         "required": [
+                            "latestReadyVersion",
                             "hasMore",
                             "versions",
                             "pinnedListOrder",
@@ -11834,7 +12613,7 @@
                 "type": "object"
             },
             "ApiGetAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null__"
             },
             "ApiCancelAppVersionResponse": {
                 "$ref": "#/components/schemas/ApiSuccessEmpty"
@@ -17243,10 +18022,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -17255,8 +18034,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
+                                                                        "label",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -17266,6 +18045,11 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "requiredFilters": {
                                                                             "items": {
                                                                                 "properties": {
@@ -17274,37 +18058,32 @@
                                                                                         "items": {},
                                                                                         "type": "array"
                                                                                     },
-                                                                                    "required": {
-                                                                                        "type": "boolean"
-                                                                                    },
-                                                                                    "tableName": {
-                                                                                        "type": "string"
-                                                                                    },
                                                                                     "fieldRef": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "fieldId": {
                                                                                         "type": "string"
                                                                                     },
+                                                                                    "tableName": {
+                                                                                        "type": "string"
+                                                                                    },
                                                                                     "operator": {
                                                                                         "type": "string"
+                                                                                    },
+                                                                                    "required": {
+                                                                                        "type": "boolean"
                                                                                     }
                                                                                 },
                                                                                 "required": [
-                                                                                    "required",
-                                                                                    "tableName",
                                                                                     "fieldRef",
                                                                                     "fieldId",
-                                                                                    "operator"
+                                                                                    "tableName",
+                                                                                    "operator",
+                                                                                    "required"
                                                                                 ],
                                                                                 "type": "object"
                                                                             },
                                                                             "type": "array"
-                                                                        },
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
                                                                         },
                                                                         "joinedTables": {
                                                                             "items": {
@@ -17355,9 +18134,6 @@
                                                             "searchQueries": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "error": {
-                                                                            "type": "string"
-                                                                        },
                                                                         "pagination": {
                                                                             "properties": {
                                                                                 "totalPageCount": {
@@ -17392,6 +18168,9 @@
                                                                                 "success"
                                                                             ]
                                                                         },
+                                                                        "error": {
+                                                                            "type": "string"
+                                                                        },
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
@@ -17413,10 +18192,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -17425,8 +18204,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "label",
                                                                                     "tableName",
+                                                                                    "label",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -17468,19 +18247,19 @@
                                                         "type": "number",
                                                         "format": "double"
                                                     },
-                                                    "name": {
-                                                        "type": "string"
-                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "contentSizeBytes",
-                                                    "name",
-                                                    "status"
+                                                    "status",
+                                                    "name"
                                                 ],
                                                 "type": "object"
                                             },
@@ -17501,8 +18280,8 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "error",
-                                                            "not_found",
-                                                            "success"
+                                                            "success",
+                                                            "not_found"
                                                         ]
                                                     }
                                                 },
@@ -17528,10 +18307,6 @@
                                                         "anyOf": [
                                                             {
                                                                 "properties": {
-                                                                    "rationale": {
-                                                                        "type": "string",
-                                                                        "nullable": true
-                                                                    },
                                                                     "fields": {
                                                                         "items": {
                                                                             "properties": {
@@ -17546,51 +18321,55 @@
                                                                                         "not_applicable"
                                                                                     ]
                                                                                 },
-                                                                                "fieldFilterType": {
-                                                                                    "type": "string"
-                                                                                },
                                                                                 "fieldValueType": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "fieldType": {
-                                                                                    "type": "string",
-                                                                                    "enum": [
-                                                                                        "dimension",
-                                                                                        "metric"
-                                                                                    ]
+                                                                                "fieldFilterType": {
+                                                                                    "type": "string"
                                                                                 },
                                                                                 "description": {
                                                                                     "type": "string",
                                                                                     "nullable": true
                                                                                 },
-                                                                                "label": {
+                                                                                "fieldType": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "metric",
+                                                                                        "dimension"
+                                                                                    ]
+                                                                                },
+                                                                                "table": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "fieldId": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "name": {
+                                                                                "label": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "table": {
+                                                                                "name": {
                                                                                     "type": "string"
                                                                                 }
                                                                             },
                                                                             "required": [
                                                                                 "isFromJoinedTable",
                                                                                 "caseSensitiveFilters",
-                                                                                "fieldFilterType",
                                                                                 "fieldValueType",
-                                                                                "fieldType",
+                                                                                "fieldFilterType",
                                                                                 "description",
-                                                                                "label",
+                                                                                "fieldType",
+                                                                                "table",
                                                                                 "fieldId",
-                                                                                "name",
-                                                                                "table"
+                                                                                "label",
+                                                                                "name"
                                                                             ],
                                                                             "type": "object"
                                                                         },
                                                                         "type": "array"
+                                                                    },
+                                                                    "rationale": {
+                                                                        "type": "string",
+                                                                        "nullable": true
                                                                     },
                                                                     "explore": {
                                                                         "properties": {
@@ -17602,28 +18381,28 @@
                                                                                             "items": {},
                                                                                             "type": "array"
                                                                                         },
-                                                                                        "required": {
-                                                                                            "type": "boolean"
-                                                                                        },
-                                                                                        "tableName": {
-                                                                                            "type": "string"
-                                                                                        },
                                                                                         "fieldRef": {
                                                                                             "type": "string"
                                                                                         },
                                                                                         "fieldId": {
                                                                                             "type": "string"
                                                                                         },
+                                                                                        "tableName": {
+                                                                                            "type": "string"
+                                                                                        },
                                                                                         "operator": {
                                                                                             "type": "string"
+                                                                                        },
+                                                                                        "required": {
+                                                                                            "type": "boolean"
                                                                                         }
                                                                                     },
                                                                                     "required": [
-                                                                                        "required",
-                                                                                        "tableName",
                                                                                         "fieldRef",
                                                                                         "fieldId",
-                                                                                        "operator"
+                                                                                        "tableName",
+                                                                                        "operator",
+                                                                                        "required"
                                                                                     ],
                                                                                     "type": "object"
                                                                                 },
@@ -17662,8 +18441,8 @@
                                                                     }
                                                                 },
                                                                 "required": [
-                                                                    "rationale",
                                                                     "fields",
+                                                                    "rationale",
                                                                     "explore",
                                                                     "status"
                                                                 ],
@@ -17677,10 +18456,10 @@
                                                                     "candidates": {
                                                                         "items": {
                                                                             "properties": {
-                                                                                "reason": {
+                                                                                "exploreLabel": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "exploreLabel": {
+                                                                                "reason": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "exploreName": {
@@ -17688,8 +18467,8 @@
                                                                                 }
                                                                             },
                                                                             "required": [
-                                                                                "reason",
                                                                                 "exploreLabel",
+                                                                                "reason",
                                                                                 "exploreName"
                                                                             ],
                                                                             "type": "object"
@@ -17772,29 +18551,29 @@
                                                     "href": {
                                                         "type": "string"
                                                     },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": ["success"],
+                                                        "nullable": false
+                                                    },
+                                                    "slug": {
+                                                        "type": "string"
+                                                    },
                                                     "uuid": {
                                                         "type": "string"
                                                     },
                                                     "name": {
                                                         "type": "string"
-                                                    },
-                                                    "slug": {
-                                                        "type": "string"
-                                                    },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": ["success"],
-                                                        "nullable": false
                                                     }
                                                 },
                                                 "required": [
                                                     "versionUuids",
                                                     "warnings",
                                                     "href",
-                                                    "uuid",
-                                                    "name",
+                                                    "status",
                                                     "slug",
-                                                    "status"
+                                                    "uuid",
+                                                    "name"
                                                 ],
                                                 "type": "object"
                                             },
@@ -17828,15 +18607,15 @@
                                                                     "type": "string",
                                                                     "nullable": true
                                                                 },
-                                                                "repository": {
-                                                                    "type": "string",
-                                                                    "nullable": true
-                                                                },
                                                                 "isPrimary": {
                                                                     "type": "boolean"
                                                                 },
                                                                 "projectDbtSourceUuid": {
                                                                     "type": "string"
+                                                                },
+                                                                "repository": {
+                                                                    "type": "string",
+                                                                    "nullable": true
                                                                 },
                                                                 "name": {
                                                                     "type": "string"
@@ -17845,9 +18624,9 @@
                                                             "required": [
                                                                 "projectSubPath",
                                                                 "branch",
-                                                                "repository",
                                                                 "isPrimary",
                                                                 "projectDbtSourceUuid",
+                                                                "repository",
                                                                 "name"
                                                             ],
                                                             "type": "object"
@@ -17857,32 +18636,6 @@
                                                     },
                                                     "needsDbtSourceSelection": {
                                                         "type": "boolean",
-                                                        "nullable": true
-                                                    },
-                                                    "steps": {
-                                                        "items": {
-                                                            "properties": {
-                                                                "kind": {
-                                                                    "type": "string",
-                                                                    "enum": [
-                                                                        "read",
-                                                                        "edit",
-                                                                        "search",
-                                                                        "compile",
-                                                                        "stage"
-                                                                    ]
-                                                                },
-                                                                "label": {
-                                                                    "type": "string"
-                                                                }
-                                                            },
-                                                            "required": [
-                                                                "kind",
-                                                                "label"
-                                                            ],
-                                                            "type": "object"
-                                                        },
-                                                        "type": "array",
                                                         "nullable": true
                                                     },
                                                     "previewUrl": {
@@ -17912,6 +18665,32 @@
                                                         ],
                                                         "nullable": true
                                                     },
+                                                    "steps": {
+                                                        "items": {
+                                                            "properties": {
+                                                                "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "search",
+                                                                        "read",
+                                                                        "edit",
+                                                                        "compile",
+                                                                        "stage"
+                                                                    ]
+                                                                },
+                                                                "label": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "kind",
+                                                                "label"
+                                                            ],
+                                                            "type": "object"
+                                                        },
+                                                        "type": "array",
+                                                        "nullable": true
+                                                    },
                                                     "prUrl": {
                                                         "type": "string",
                                                         "nullable": true
@@ -17931,9 +18710,9 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "unknown",
+                                                            "unsupported_source_control",
                                                             "github_not_installed",
                                                             "gitlab_not_installed",
-                                                            "unsupported_source_control",
                                                             "pull_request_not_open",
                                                             "git_write_permission",
                                                             null
@@ -17954,23 +18733,23 @@
                                                     "href": {
                                                         "type": "string"
                                                     },
-                                                    "name": {
-                                                        "type": "string"
-                                                    },
-                                                    "slug": {
-                                                        "type": "string"
-                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
+                                                    },
+                                                    "slug": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "href",
-                                                    "name",
+                                                    "status",
                                                     "slug",
-                                                    "status"
+                                                    "name"
                                                 ],
                                                 "type": "object"
                                             },
@@ -17996,10 +18775,10 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "timeout",
                                                             "error",
                                                             "rejected",
-                                                            "success"
+                                                            "success",
+                                                            "timeout"
                                                         ]
                                                     }
                                                 },
@@ -18010,6 +18789,10 @@
                                                 "properties": {
                                                     "ranking": {
                                                         "properties": {
+                                                            "searchQuery": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
                                                             "fields": {
                                                                 "items": {
                                                                     "properties": {
@@ -18026,10 +18809,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -18038,31 +18821,27 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
+                                                                        "label",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
                                                                 },
                                                                 "type": "array"
                                                             },
-                                                            "searchQuery": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
                                                             "type": {
                                                                 "type": "string",
                                                                 "enum": [
-                                                                    "dimension",
                                                                     "metric",
+                                                                    "dimension",
                                                                     null
                                                                 ],
                                                                 "nullable": true
                                                             }
                                                         },
                                                         "required": [
-                                                            "fields",
                                                             "searchQuery",
+                                                            "fields",
                                                             "type"
                                                         ],
                                                         "type": "object"
@@ -36412,22 +37191,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -39269,6 +40048,10 @@
                                 "type": "string",
                                 "nullable": true
                             },
+                            "tlsRequired": {
+                                "type": "boolean",
+                                "description": "Whether the server requires TLS (clients must use sslmode=require\nor stricter). False only on instances that explicitly opted out.\nOptional for API backwards compatibility — the server always\nreturns it; treat absence as true."
+                            },
                             "enabled": {
                                 "type": "boolean"
                             }
@@ -39391,6 +40174,9 @@
                             "host": {
                                 "type": "string",
                                 "nullable": true
+                            },
+                            "tlsRequired": {
+                                "type": "boolean"
                             },
                             "enabled": {
                                 "type": "boolean"
@@ -47170,7 +47956,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3389.0",
+        "version": "0.3394.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -48669,14 +49455,14 @@
         },
         "/api/v1/projects/{projectUuid}/homepage": {
             "get": {
-                "operationId": "getPublishedProjectHomepage",
+                "operationId": "getResolvedProjectHomepage",
                 "responses": {
                     "200": {
                         "description": "Success",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiPublishedHomepageResponse"
+                                    "$ref": "#/components/schemas/ApiResolvedHomepageResponse"
                                 }
                             }
                         }
@@ -48753,6 +49539,201 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/homepage/personal-override": {
+            "get": {
+                "operationId": "getPersonalHomepage",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_string-or-null_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "setPersonalHomepage",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SetPersonalHomepageRequest"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "clearPersonalHomepage",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/homepage/view-as": {
+            "get": {
+                "operationId": "viewHomepageAs",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiHomepageViewAsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "targetType",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["user", "group", "role"]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "userUuid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "groupUuid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "role",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/ProjectMemberRole"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/homepage/builder": {
             "get": {
                 "operationId": "getProjectHomepageForBuilder",
@@ -48763,6 +49744,180 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiProjectHomepageOrNullResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "homepageUuid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/homepage/recently-viewed": {
+            "get": {
+                "operationId": "getHomepageRecentlyViewed",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRecentlyViewedResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/homepage/assignments": {
+            "get": {
+                "operationId": "getHomepageAssignments",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiHomepageAssignmentsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/homepage/group-priorities": {
+            "patch": {
+                "operationId": "updateHomepageGroupPriorities",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateHomepageGroupPrioritiesRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/homepage/list": {
+            "get": {
+                "operationId": "listProjectHomepages",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiProjectHomepagesResponse"
                                 }
                             }
                         }
@@ -48847,6 +50002,51 @@
                         }
                     }
                 }
+            },
+            "delete": {
+                "operationId": "deleteProjectHomepage",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "homepageUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/homepage/{homepageUuid}/publish": {
@@ -48893,7 +50093,17 @@
                             "$ref": "#/components/schemas/UUID"
                         }
                     }
-                ]
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublishProjectHomepageRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/databricks/sso/is-authenticated": {
@@ -76530,6 +77740,17 @@
                     {
                         "in": "query",
                         "name": "spaceUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "uuids",
                         "required": false,
                         "schema": {
                             "type": "array",

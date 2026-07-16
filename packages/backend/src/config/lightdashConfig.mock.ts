@@ -355,6 +355,11 @@ export const lightdashConfigMock: LightdashConfig = {
     pgWire: {
         port: undefined,
         host: undefined,
+        ssl: {
+            mode: 'require',
+            certPath: undefined,
+            keyPath: undefined,
+        },
     },
     dashboardComments: {
         enabled: true,

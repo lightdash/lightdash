@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import {
-    AlreadyExistsError,
+    assertUnreachable,
     CommercialFeatureFlags,
     defaultHomepageConfig,
     ForbiddenError,
@@ -8,12 +8,20 @@ import {
     NotFoundError,
     ParameterError,
     type CreateProjectHomepageRequest,
+    type HomepageAssignment,
+    type HomepageAudience,
     type HomepageConfig,
+    type HomepageRecentlyViewedItem,
+    type HomepageViewAsResult,
+    type HomepageViewAsTarget,
     type ProjectHomepage,
-    type PublishedProjectHomepage,
+    type ProjectMemberRole,
+    type ResolvedHomepage,
     type SessionUser,
     type UpdateProjectHomepageDraftRequest,
 } from '@lightdash/common';
+import { type GroupsModel } from '../../models/GroupsModel';
+import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type ProjectHomepageModel } from '../models/ProjectHomepageModel';
@@ -22,12 +30,24 @@ export type ProjectHomepageServiceArguments = {
     projectHomepageModel: Pick<
         ProjectHomepageModel,
         | 'getDefault'
+        | 'getByUuid'
         | 'getPublishedDefault'
+        | 'getRecentlyViewed'
+        | 'getAssignments'
+        | 'getPersonalOverride'
+        | 'setPersonalOverride'
+        | 'deletePersonalOverride'
+        | 'updateGroupPriorities'
+        | 'resolvePublished'
+        | 'list'
         | 'create'
         | 'updateDraft'
         | 'publish'
+        | 'delete'
     >;
     featureFlagService: Pick<FeatureFlagService, 'get'>;
+    groupsModel: Pick<GroupsModel, 'findUserGroups'>;
+    projectModel: Pick<ProjectModel, 'getProjectMemberAccess'>;
 };
 
 export class ProjectHomepageService extends BaseService {
@@ -35,10 +55,16 @@ export class ProjectHomepageService extends BaseService {
 
     private readonly featureFlagService: ProjectHomepageServiceArguments['featureFlagService'];
 
+    private readonly groupsModel: ProjectHomepageServiceArguments['groupsModel'];
+
+    private readonly projectModel: ProjectHomepageServiceArguments['projectModel'];
+
     constructor(args: ProjectHomepageServiceArguments) {
         super();
         this.projectHomepageModel = args.projectHomepageModel;
         this.featureFlagService = args.featureFlagService;
+        this.groupsModel = args.groupsModel;
+        this.projectModel = args.projectModel;
     }
 
     private async assertFlagEnabled(user: SessionUser): Promise<void> {
@@ -108,33 +134,225 @@ export class ProjectHomepageService extends BaseService {
         homepageUuid: string,
     ): Promise<ProjectHomepage> {
         const homepage =
-            await this.projectHomepageModel.getDefault(projectUuid);
-        if (!homepage || homepage.homepageUuid !== homepageUuid) {
+            await this.projectHomepageModel.getByUuid(homepageUuid);
+        if (!homepage || homepage.projectUuid !== projectUuid) {
             throw new NotFoundError('Homepage not found');
         }
         return homepage;
     }
 
-    async getPublishedHomepage(
+    // Resolution: personal → group priority → role → project default
+    private async resolveForViewer(
+        projectUuid: string,
+        viewer: {
+            groupUuids: string[];
+            role: ProjectMemberRole | undefined;
+            personalOverride: string | undefined;
+        },
+    ): Promise<HomepageViewAsResult> {
+        const published = await this.projectHomepageModel.resolvePublished(
+            projectUuid,
+            { groupUuids: viewer.groupUuids, role: viewer.role },
+        );
+        // Personal choice wins unless the audience homepage disallows it
+        if (
+            viewer.personalOverride &&
+            (published?.homepage.allowPersonal ?? true)
+        ) {
+            return {
+                resolved: {
+                    type: 'dashboard',
+                    dashboardUuid: viewer.personalOverride,
+                },
+                reason: {
+                    type: 'personal',
+                    dashboardUuid: viewer.personalOverride,
+                },
+            };
+        }
+        if (published) {
+            return {
+                resolved: { type: 'homepage', homepage: published.homepage },
+                reason: published.source,
+            };
+        }
+        return { resolved: null, reason: null };
+    }
+
+    private async getViewerContext(
+        organizationUuid: string | undefined,
+        projectUuid: string,
+        userUuid: string,
+    ): Promise<{
+        groupUuids: string[];
+        role: ProjectMemberRole | undefined;
+        personalOverride: string | undefined;
+    }> {
+        const [override, groups, membership] = await Promise.all([
+            this.projectHomepageModel.getPersonalOverride(
+                userUuid,
+                projectUuid,
+            ),
+            organizationUuid
+                ? this.groupsModel.findUserGroups({
+                      userUuid,
+                      organizationUuid,
+                  })
+                : Promise.resolve([]),
+            this.projectModel.getProjectMemberAccess(projectUuid, userUuid),
+        ]);
+        return {
+            groupUuids: groups.map((group) => group.uuid),
+            role: membership?.role,
+            personalOverride: override,
+        };
+    }
+
+    async getResolvedHomepage(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<PublishedProjectHomepage | null> {
+    ): Promise<ResolvedHomepage | null> {
         await this.assertFlagEnabled(user);
         this.assertCanView(user, projectUuid);
-        const published =
-            await this.projectHomepageModel.getPublishedDefault(projectUuid);
-        return published ?? null;
+        const viewer = await this.getViewerContext(
+            user.organizationUuid,
+            projectUuid,
+            user.userUuid,
+        );
+        const { resolved } = await this.resolveForViewer(projectUuid, viewer);
+        return resolved;
+    }
+
+    async viewAsHomepage(
+        user: SessionUser,
+        projectUuid: string,
+        target: HomepageViewAsTarget,
+    ): Promise<HomepageViewAsResult> {
+        await this.assertFlagEnabled(user);
+        this.assertCanManage(user, projectUuid);
+        switch (target.type) {
+            case 'user': {
+                const viewer = await this.getViewerContext(
+                    user.organizationUuid,
+                    projectUuid,
+                    target.userUuid,
+                );
+                return this.resolveForViewer(projectUuid, viewer);
+            }
+            case 'group':
+                return this.resolveForViewer(projectUuid, {
+                    groupUuids: [target.groupUuid],
+                    role: undefined,
+                    personalOverride: undefined,
+                });
+            case 'role':
+                return this.resolveForViewer(projectUuid, {
+                    groupUuids: [],
+                    role: target.role,
+                    personalOverride: undefined,
+                });
+            default:
+                return assertUnreachable(target, 'Unknown view-as target type');
+        }
+    }
+
+    async setPersonalHomepage(
+        user: SessionUser,
+        projectUuid: string,
+        dashboardUuid: string,
+    ): Promise<void> {
+        await this.assertFlagEnabled(user);
+        this.assertCanView(user, projectUuid);
+        await this.projectHomepageModel.setPersonalOverride(
+            user.userUuid,
+            projectUuid,
+            dashboardUuid,
+        );
+    }
+
+    async clearPersonalHomepage(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        await this.assertFlagEnabled(user);
+        this.assertCanView(user, projectUuid);
+        await this.projectHomepageModel.deletePersonalOverride(
+            user.userUuid,
+            projectUuid,
+        );
+    }
+
+    async getPersonalHomepage(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<string | null> {
+        await this.assertFlagEnabled(user);
+        this.assertCanView(user, projectUuid);
+        const override = await this.projectHomepageModel.getPersonalOverride(
+            user.userUuid,
+            projectUuid,
+        );
+        return override ?? null;
+    }
+
+    async getAssignments(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<HomepageAssignment[]> {
+        await this.assertFlagEnabled(user);
+        this.assertCanManage(user, projectUuid);
+        return this.projectHomepageModel.getAssignments(projectUuid);
+    }
+
+    async updateGroupPriorities(
+        user: SessionUser,
+        projectUuid: string,
+        groupUuids: string[],
+    ): Promise<void> {
+        await this.assertFlagEnabled(user);
+        this.assertCanManage(user, projectUuid);
+        await this.projectHomepageModel.updateGroupPriorities(
+            projectUuid,
+            groupUuids,
+        );
+    }
+
+    async getRecentlyViewed(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<HomepageRecentlyViewedItem[]> {
+        await this.assertFlagEnabled(user);
+        this.assertCanView(user, projectUuid);
+        return this.projectHomepageModel.getRecentlyViewed(
+            projectUuid,
+            user.userUuid,
+        );
     }
 
     async getHomepageForBuilder(
         user: SessionUser,
         projectUuid: string,
+        homepageUuid?: string,
     ): Promise<ProjectHomepage | null> {
         await this.assertFlagEnabled(user);
         this.assertCanManage(user, projectUuid);
+        if (homepageUuid) {
+            return this.getOwnedHomepage(projectUuid, homepageUuid);
+        }
         const homepage =
             await this.projectHomepageModel.getDefault(projectUuid);
-        return homepage ?? null;
+        if (homepage) return homepage;
+        const [first] = await this.projectHomepageModel.list(projectUuid);
+        return first ?? null;
+    }
+
+    async listHomepages(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ProjectHomepage[]> {
+        await this.assertFlagEnabled(user);
+        this.assertCanManage(user, projectUuid);
+        return this.projectHomepageModel.list(projectUuid);
     }
 
     async createHomepage(
@@ -144,17 +362,27 @@ export class ProjectHomepageService extends BaseService {
     ): Promise<ProjectHomepage> {
         await this.assertFlagEnabled(user);
         this.assertCanManage(user, projectUuid);
-        const existing =
-            await this.projectHomepageModel.getDefault(projectUuid);
-        if (existing) {
-            throw new AlreadyExistsError('This project already has a homepage');
-        }
+        const draftConfig = data.duplicateFrom
+            ? (await this.getOwnedHomepage(projectUuid, data.duplicateFrom))
+                  .draftConfig
+            : defaultHomepageConfig();
         return this.projectHomepageModel.create({
             projectUuid,
             name: data.name,
-            draftConfig: defaultHomepageConfig(),
+            draftConfig,
             createdByUserUuid: user.userUuid,
         });
+    }
+
+    async deleteHomepage(
+        user: SessionUser,
+        projectUuid: string,
+        homepageUuid: string,
+    ): Promise<void> {
+        await this.assertFlagEnabled(user);
+        this.assertCanManage(user, projectUuid);
+        await this.getOwnedHomepage(projectUuid, homepageUuid);
+        await this.projectHomepageModel.delete(homepageUuid);
     }
 
     async updateDraft(
@@ -170,6 +398,7 @@ export class ProjectHomepageService extends BaseService {
         return this.projectHomepageModel.updateDraft(homepageUuid, {
             name: data.name,
             draftConfig: data.draftConfig,
+            baseUpdatedAt: data.baseUpdatedAt,
         });
     }
 
@@ -177,10 +406,16 @@ export class ProjectHomepageService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         homepageUuid: string,
+        audience: HomepageAudience,
+        allowPersonal: boolean,
     ): Promise<ProjectHomepage> {
         await this.assertFlagEnabled(user);
         this.assertCanManage(user, projectUuid);
         await this.getOwnedHomepage(projectUuid, homepageUuid);
-        return this.projectHomepageModel.publish(homepageUuid);
+        return this.projectHomepageModel.publish(
+            homepageUuid,
+            audience,
+            allowPersonal,
+        );
     }
 }

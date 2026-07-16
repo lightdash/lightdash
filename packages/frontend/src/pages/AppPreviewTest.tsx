@@ -1,7 +1,7 @@
-import { FeatureFlags } from '@lightdash/common';
+import { FeatureFlags, isAppVersionInProgress } from '@lightdash/common';
 import { Box, Loader, Menu, Stack, Text } from '@mantine-8/core';
 import { IconAppsOff, IconCode } from '@tabler/icons-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import MantineIcon from '../components/common/MantineIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
@@ -11,6 +11,7 @@ import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import AppSpaceChip from '../features/apps/components/AppSpaceChip';
+import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
@@ -40,23 +41,41 @@ export default function AppPreviewTest() {
     // The backend enforces space-aware view permissions and will 403 if the
     // user doesn't have access — we surface that as the error state below.
     const appQuery = useGetApp(projectUuid, appUuid);
+    const firstPage = appQuery.data?.pages[0];
 
-    const latestReadyVersion = appQuery.data?.pages[0]?.versions.find(
-        (v) => v.status === 'ready',
-    )?.version;
+    // Authoritative across ALL versions — the ready version may be older than
+    // the fetched page of versions, so never scan `versions` for it.
+    const latestReadyVersion = firstPage?.latestReadyVersion ?? undefined;
 
-    const appName = appQuery.data?.pages[0]?.name ?? '';
-    const appDescription = appQuery.data?.pages[0]?.description ?? null;
-    const appSpaceUuid = appQuery.data?.pages[0]?.spaceUuid ?? null;
-    const appSpaceName = appQuery.data?.pages[0]?.spaceName ?? null;
-    const appCreatedByUserUuid =
-        appQuery.data?.pages[0]?.createdByUserUuid ?? null;
+    const appName = firstPage?.name ?? '';
+    const appDescription = firstPage?.description ?? null;
+    const appSpaceUuid = firstPage?.spaceUuid ?? null;
+    const appSpaceName = firstPage?.spaceName ?? null;
+    const appCreatedByUserUuid = firstPage?.createdByUserUuid ?? null;
     const canEditApp = useCanEditDataApp(projectUuid, {
         spaceUuid: appSpaceUuid,
         createdByUserUuid: appCreatedByUserUuid,
     });
 
     const version = explicitVersion ?? latestReadyVersion;
+
+    // No successful build yet — distinguish "still building" (poll so the
+    // preview swaps in automatically when the build finishes) from "failed" /
+    // "never built".
+    const latestVersion = firstPage?.versions[0];
+    const hasNoReadyVersion =
+        !!firstPage && firstPage.latestReadyVersion === null;
+    const isBuildInProgress =
+        hasNoReadyVersion &&
+        !!latestVersion &&
+        isAppVersionInProgress(latestVersion.status);
+    const handleBuildDone = useCallback(() => {}, []);
+    useAppBuildPoller(
+        projectUuid,
+        appUuid,
+        !explicitVersion && isBuildInProgress,
+        handleBuildDone,
+    );
 
     const {
         data: token,
@@ -134,8 +153,6 @@ export default function AppPreviewTest() {
         return <div>Missing route params</div>;
     }
 
-    const isLoading =
-        appQuery.isLoading || (version !== undefined && isTokenLoading);
     const error = appQuery.error ?? tokenError;
 
     const isForbidden =
@@ -159,26 +176,7 @@ export default function AppPreviewTest() {
         );
     }
 
-    if (
-        !explicitVersion &&
-        !appQuery.isLoading &&
-        !appQuery.error &&
-        !latestReadyVersion
-    ) {
-        return (
-            <Stack align="center" justify="center" h="calc(100vh - 50px)">
-                <Text c="red" size="sm">
-                    No ready version found for this app
-                </Text>
-            </Stack>
-        );
-    }
-
-    const previewUrl = token
-        ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/t/${token}/?r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
-        : undefined;
-
-    if (isLoading) {
+    if (appQuery.isLoading) {
         return (
             <Stack align="center" justify="center" h="calc(100vh - 50px)">
                 <Loader size="md" />
@@ -200,72 +198,36 @@ export default function AppPreviewTest() {
         );
     }
 
-    if (!previewUrl) return null;
+    const previewUrl = token
+        ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/t/${token}/?r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
+        : undefined;
 
-    return (
-        <Box className={classes.previewContainer}>
-            <AppHeader
-                appUuid={appUuid}
-                name={appName}
-                description={appDescription}
-                spaceChip={
-                    <AppSpaceChip
-                        projectUuid={projectUuid}
-                        spaceName={appSpaceName}
-                        app={{
-                            uuid: appUuid,
-                            name: appName,
-                            description: appDescription ?? undefined,
-                            spaceUuid: appSpaceUuid,
-                            createdByUserUuid: appCreatedByUserUuid,
-                            latestVersionNumber: latestReadyVersion ?? null,
-                            latestVersionStatus: latestReadyVersion
-                                ? 'ready'
-                                : null,
-                        }}
-                    />
-                }
-                rightSection={
-                    <AppHeaderActions
-                        projectUuid={projectUuid}
-                        appUuid={appUuid}
-                        appName={appName}
-                        appDescription={appDescription}
-                        appSpaceUuid={appSpaceUuid}
-                        appCreatedByUserUuid={appCreatedByUserUuid}
-                        latestVersionNumber={latestReadyVersion ?? null}
-                        latestVersionStatus={
-                            latestReadyVersion ? 'ready' : null
-                        }
-                        onRefresh={handleRefresh}
-                        refreshDisabled={false}
-                        onViewNetwork={() => setNetworkPanelHidden(false)}
-                        onDeleted={() => {
-                            void navigate(`/projects/${projectUuid}/home`);
-                        }}
-                        navItem={
-                            canEditApp ? (
-                                <Menu.Item
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={IconCode}
-                                            size={14}
-                                        />
-                                    }
-                                    onClick={() =>
-                                        navigate(
-                                            `/projects/${projectUuid}/apps/${appUuid}`,
-                                        )
-                                    }
-                                >
-                                    Continue building
-                                </Menu.Item>
-                            ) : null
-                        }
-                    />
-                }
+    // App data is loaded — always render the header chrome so users can still
+    // navigate (rename, delete, "Continue building", …) when there's nothing
+    // to preview yet.
+    let body: ReactNode;
+    if (!explicitVersion && hasNoReadyVersion) {
+        // Deliberately neutral: don't surface build failures or their status
+        // messages here — that's builder territory and too technical (and
+        // potentially too revealing) for viewers of the preview.
+        body = isBuildInProgress ? (
+            <SuboptimalState
+                loading
+                title="This app is still building"
+                description="The preview will load automatically once the build is ready."
             />
-            <Box className={classes.previewBody}>
+        ) : (
+            <SuboptimalState
+                icon={IconAppsOff}
+                title="This app hasn't been built yet"
+                description="There's no ready version of this app to preview yet."
+            />
+        );
+    } else if (isTokenLoading || !previewUrl) {
+        body = <SuboptimalState loading title="Loading app..." />;
+    } else {
+        body = (
+            <>
                 <AppIframePreview
                     src={previewUrl}
                     expectedPreviewOrigin={previewOrigin}
@@ -303,7 +265,74 @@ export default function AppPreviewTest() {
                         onToggleLineage={handleToggleLineage}
                     />
                 )}
-            </Box>
+            </>
+        );
+    }
+
+    return (
+        <Box className={classes.previewContainer}>
+            <AppHeader
+                appUuid={appUuid}
+                name={appName}
+                description={appDescription}
+                spaceChip={
+                    <AppSpaceChip
+                        projectUuid={projectUuid}
+                        spaceName={appSpaceName}
+                        app={{
+                            uuid: appUuid,
+                            name: appName,
+                            description: appDescription ?? undefined,
+                            spaceUuid: appSpaceUuid,
+                            createdByUserUuid: appCreatedByUserUuid,
+                            latestVersionNumber: latestReadyVersion ?? null,
+                            latestVersionStatus: latestReadyVersion
+                                ? 'ready'
+                                : null,
+                        }}
+                    />
+                }
+                rightSection={
+                    <AppHeaderActions
+                        projectUuid={projectUuid}
+                        appUuid={appUuid}
+                        appName={appName}
+                        appDescription={appDescription}
+                        appSpaceUuid={appSpaceUuid}
+                        appCreatedByUserUuid={appCreatedByUserUuid}
+                        latestVersionNumber={latestReadyVersion ?? null}
+                        latestVersionStatus={
+                            latestReadyVersion ? 'ready' : null
+                        }
+                        onRefresh={handleRefresh}
+                        refreshDisabled={version === undefined}
+                        onViewNetwork={() => setNetworkPanelHidden(false)}
+                        onDeleted={() => {
+                            void navigate(`/projects/${projectUuid}/home`);
+                        }}
+                        navItem={
+                            canEditApp ? (
+                                <Menu.Item
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconCode}
+                                            size={14}
+                                        />
+                                    }
+                                    onClick={() =>
+                                        navigate(
+                                            `/projects/${projectUuid}/apps/${appUuid}`,
+                                        )
+                                    }
+                                >
+                                    Continue building
+                                </Menu.Item>
+                            ) : null
+                        }
+                    />
+                }
+            />
+            <Box className={classes.previewBody}>{body}</Box>
         </Box>
     );
 }

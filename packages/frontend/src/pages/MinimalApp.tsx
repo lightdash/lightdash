@@ -50,9 +50,10 @@ export default function MinimalApp() {
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
 
     const appQuery = useGetApp(projectUuid, appUuid);
-    const latestReadyVersion = appQuery.data?.pages[0]?.versions.find(
-        (v) => v.status === 'ready',
-    )?.version;
+    // Authoritative across ALL versions — the ready version may be older than
+    // the fetched page of versions, so never scan `versions` for it.
+    const latestReadyVersion =
+        appQuery.data?.pages[0]?.latestReadyVersion ?? undefined;
 
     const {
         data: token,
@@ -147,11 +148,13 @@ export default function MinimalApp() {
 
     if (!appQuery.isLoading && !appQuery.error && !latestReadyVersion) {
         return (
-            <Stack align="center" justify="center" h="100vh">
-                <Text c="red" size="sm">
-                    No ready version found for this app
-                </Text>
-            </Stack>
+            <Box h="100vh">
+                <SuboptimalState
+                    icon={IconAppsOff}
+                    title="No ready version"
+                    description="This data app hasn't finished building yet."
+                />
+            </Box>
         );
     }
 

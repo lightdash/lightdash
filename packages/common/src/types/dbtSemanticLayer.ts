@@ -27,6 +27,19 @@ export type DbtSemanticMeasureAggParams = {
     use_approximate_percentile?: boolean;
 };
 
+/**
+ * Component-level `config.meta` in a MetricFlow manifest. dbt Core and Fusion
+ * both nest arbitrary user metadata under `config.meta` on measures, metrics
+ * and dimensions. Only the keys Lightdash understands are typed; any other
+ * keys (e.g. a third-party `hex:` block) are ignored during translation.
+ */
+export type DbtSemanticConfig = {
+    meta?: {
+        hidden?: boolean | null;
+        group_label?: string | null;
+    } | null;
+};
+
 export type DbtSemanticMeasure = {
     name: string;
     agg: MetricFlowAggregation;
@@ -36,6 +49,7 @@ export type DbtSemanticMeasure = {
     expr?: string | null;
     agg_params?: DbtSemanticMeasureAggParams | null;
     agg_time_dimension?: string | null;
+    config?: DbtSemanticConfig | null;
 };
 
 export type DbtSemanticEntity = {
@@ -48,6 +62,7 @@ export type DbtSemanticDimension = {
     name: string;
     type: 'categorical' | 'time';
     expr?: string | null;
+    config?: DbtSemanticConfig | null;
 };
 
 export type DbtSemanticModel = {
@@ -137,5 +152,6 @@ export type DbtSemanticMetric = {
     label?: string | null;
     description?: string | null;
     filter?: DbtSemanticFilter;
+    config?: DbtSemanticConfig | null;
     depends_on?: { nodes?: string[] };
 };

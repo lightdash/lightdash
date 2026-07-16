@@ -593,6 +593,14 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         },
     },
     {
+        path: 'homepage-builder',
+        lazy: async () => {
+            const { HomepageBuilderPage } =
+                await import('./ee/features/homepageBuilder/HomepageBuilderPage');
+            return { Component: HomepageBuilderPage };
+        },
+    },
+    {
         path: 'improve',
         element: <Navigate to="../autopilot" replace />,
     },

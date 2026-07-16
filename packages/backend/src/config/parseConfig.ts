@@ -1544,6 +1544,18 @@ export type LightdashConfig = {
         /** Hostname clients should use to reach the pgwire server. Display-only
          * override; falls back to the site URL hostname. */
         host: string | undefined;
+        ssl: {
+            /** `require` (default): the server terminates TLS itself and
+             * rejects plaintext connections before ever requesting a password.
+             * `disabled`: explicit opt-out for local dev or behind a pg-aware
+             * TLS-terminating proxy — credentials cross the network in
+             * plaintext. */
+            mode: 'require' | 'disabled';
+            /** Path to the PEM server certificate (leaf first, then chain). */
+            certPath: string | undefined;
+            /** Path to the PEM private key. */
+            keyPath: string | undefined;
+        };
     };
     dashboardComments: {
         enabled: boolean;
@@ -2319,6 +2331,27 @@ export const parseConfig = (): LightdashConfig => {
         );
     }
 
+    const pgWirePort = getIntegerFromEnvironmentVariable('PGWIRE_PORT');
+    const pgWireSslMode = process.env.PGWIRE_SSL_MODE ?? 'require';
+    if (pgWireSslMode !== 'require' && pgWireSslMode !== 'disabled') {
+        throw new ParseError(
+            `PGWIRE_SSL_MODE must be "require" or "disabled", got "${pgWireSslMode}"`,
+            {},
+        );
+    }
+    const pgWireSslCertPath = process.env.PGWIRE_SSL_CERT_PATH;
+    const pgWireSslKeyPath = process.env.PGWIRE_SSL_KEY_PATH;
+    if (
+        pgWirePort !== undefined &&
+        pgWireSslMode === 'require' &&
+        (!pgWireSslCertPath || !pgWireSslKeyPath)
+    ) {
+        throw new ParseError(
+            'PGWIRE_PORT is set but TLS is not configured. Set PGWIRE_SSL_CERT_PATH and PGWIRE_SSL_KEY_PATH (PEM files), or explicitly opt out with PGWIRE_SSL_MODE=disabled (credentials will cross the network in plaintext).',
+            {},
+        );
+    }
+
     const rawCopilotConfig = getAiConfig();
     const copilotConfigParse =
         aiCopilotConfigSchema.safeParse(rawCopilotConfig);
@@ -3004,8 +3037,13 @@ export const parseConfig = (): LightdashConfig => {
                 ) ?? 30,
         },
         pgWire: {
-            port: getIntegerFromEnvironmentVariable('PGWIRE_PORT'),
+            port: pgWirePort,
             host: process.env.PGWIRE_HOST,
+            ssl: {
+                mode: pgWireSslMode,
+                certPath: pgWireSslCertPath,
+                keyPath: pgWireSslKeyPath,
+            },
         },
         preAggregates: {
             enabled: preAggregatesEnabled,

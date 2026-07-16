@@ -31,6 +31,8 @@ import {
     IconFolderPlus,
     IconFolderSymlink,
     IconHistory,
+    IconHome,
+    IconHomeOff,
     IconInfoCircle,
     IconMaximize,
     IconMinimize,
@@ -50,6 +52,13 @@ import { useLocation, useNavigate, useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import AIDashboardSummary from '../../../ee/features/ambientAi/components/aiDashboardSummary';
+import {
+    useClearPersonalHomepage,
+    useHomepageBuilderFlag,
+    usePersonalHomepage,
+    useResolvedHomepage,
+    useSetPersonalHomepage,
+} from '../../../ee/features/homepageBuilder/hooks/useProjectHomepage';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
     usePromoteDashboardDiffMutation,
@@ -255,6 +264,29 @@ const DashboardHeader = memo(
             if (!dashboardUuid) return;
             toggleDashboardPinning({ uuid: dashboardUuid });
         }, [dashboardUuid, toggleDashboardPinning]);
+
+        const { isEnabled: isHomepageBuilderEnabled } =
+            useHomepageBuilderFlag();
+        const { data: resolvedHomepage } = useResolvedHomepage(projectUuid, {
+            enabled: isHomepageBuilderEnabled,
+        });
+        const { data: personalHomepage } = usePersonalHomepage(projectUuid, {
+            enabled: isHomepageBuilderEnabled,
+        });
+        const { mutate: setPersonalHomepage } = useSetPersonalHomepage(
+            projectUuid ?? '',
+        );
+        const { mutate: clearPersonalHomepage } = useClearPersonalHomepage(
+            projectUuid ?? '',
+        );
+        const isPersonalHomepage =
+            !!personalHomepage && personalHomepage === dashboardUuid;
+        const canSetPersonalHomepage =
+            isHomepageBuilderEnabled &&
+            !(
+                resolvedHomepage?.type === 'homepage' &&
+                !resolvedHomepage.homepage.allowPersonal
+            );
 
         const { data: favorites } = useFavorites(projectUuid);
         const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
@@ -832,6 +864,33 @@ const DashboardHeader = memo(
                                             {isPinned
                                                 ? 'Unpin from homepage'
                                                 : 'Pin to homepage'}
+                                        </Menu.Item>
+                                    )}
+
+                                    {canSetPersonalHomepage && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={
+                                                        isPersonalHomepage
+                                                            ? IconHomeOff
+                                                            : IconHome
+                                                    }
+                                                />
+                                            }
+                                            onClick={() => {
+                                                if (isPersonalHomepage) {
+                                                    clearPersonalHomepage();
+                                                } else if (dashboardUuid) {
+                                                    setPersonalHomepage(
+                                                        dashboardUuid,
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            {isPersonalHomepage
+                                                ? 'Remove as my homepage'
+                                                : 'Make this my homepage'}
                                         </Menu.Item>
                                     )}
 

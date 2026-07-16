@@ -134,6 +134,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectHomepageModel:
                         models.getProjectHomepageModel<ProjectHomepageModel>(),
                     featureFlagService: repository.getFeatureFlagService(),
+                    groupsModel: models.getGroupsModel(),
+                    projectModel: models.getProjectModel(),
                 }),
             aiDeepResearchService: ({
                 models,
@@ -1037,9 +1039,19 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     schedulerClient: repository.getSchedulerClient(),
                 }),
         },
-        pgWireServerFactory: (serviceRepository) =>
-            new PostgresWireServer(
+        pgWireServerFactory: (serviceRepository) => {
+            // parseConfig fail-fasts when PGWIRE_PORT is set in `require` mode
+            // without cert/key, so missing paths here can only mean the
+            // explicit `disabled` opt-out (plaintext).
+            const { ssl } = lightdashConfig.pgWire;
+            const tlsOptions =
+                ssl.mode === 'require' && ssl.certPath && ssl.keyPath
+                    ? { certPath: ssl.certPath, keyPath: ssl.keyPath }
+                    : undefined;
+            return new PostgresWireServer(
                 createLightdashPgWireHandlers(serviceRepository),
-            ),
+                { tls: tlsOptions },
+            );
+        },
     };
 }

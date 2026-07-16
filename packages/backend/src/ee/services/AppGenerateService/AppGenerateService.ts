@@ -6033,6 +6033,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             dependencies?: { custom: AppVersionDependencies['custom'] };
         }[];
         hasMore: boolean;
+        latestReadyVersion: number | null;
     }> {
         await this.assertDataAppsEnabled(user);
 
@@ -6056,6 +6057,10 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             organization_uuid: organizationUuid,
             created_by_user_uuid: createdByUserUuid,
         });
+
+        // The latest ready version can be older than the returned page of
+        // versions, so resolve it independently of pagination.
+        const latestReady = await this.appModel.getLatestReadyVersion(appUuid);
 
         return {
             appUuid,
@@ -6111,6 +6116,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                         : null,
             })),
             hasMore,
+            latestReadyVersion: latestReady?.version ?? null,
         };
     }
 

@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/cli",
-  "version": "0.3390.0",
+  "version": "0.3394.0",
   "description": "Lightdash CLI tool",
   "license": "MIT",
   "repository": {
@@ -18,7 +18,7 @@
   "scripts": {
     "test": "vitest run --config vitest.config.ts",
     "test:dev": "vitest watch --config vitest.config.ts --changed",
-    "dev": "ts-node src/index.ts",
+    "dev": "tsx src/index.ts",
     "build": "tsc6 --build tsconfig.json",
     "postbuild": "copyfiles --all -u 5 \"../../sandboxes/data-apps/template/**/*\" dist/vendor/template && copyfiles --all -u 4 \"src/handlers/apps/authoring/**/*\" dist/vendor/authoring",
     "build:fast": "tsc --build tsconfig.fast.json",
@@ -76,7 +76,7 @@
     "@vercel/ncc": "0.38.4",
     "@yao-pkg/pkg": "6.7.0",
     "copyfiles": "2.4.1",
-    "ts-node": "10.9.2",
+    "tsx": "4.19.4",
     "typescript": "npm:@typescript/typescript6@6.0.1",
     "typescript-7": "npm:typescript@7.0.1-rc",
     "vitest": "4.1.6"
