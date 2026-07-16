@@ -1,3 +1,11 @@
+## [0.3401.2](https://github.com/lightdash/lightdash/compare/0.3401.1...0.3401.2) (2026-07-16)
+
+
+### Bug Fixes
+
+* **homepage:** don't fire a spurious autosave on editor mount ([#25683](https://github.com/lightdash/lightdash/issues/25683)) ([67f32c4](https://github.com/lightdash/lightdash/commit/67f32c44ff7919c1b367b8b1471a0ca420f0a4e8))
+* **homepage:** hide the duplicate action on singleton blocks ([#25684](https://github.com/lightdash/lightdash/issues/25684)) ([2941c39](https://github.com/lightdash/lightdash/commit/2941c39168a89d10ae9abd7b150b86e7d4cef09b))
+
 ## [0.3401.1](https://github.com/lightdash/lightdash/compare/0.3401.0...0.3401.1) (2026-07-16)
 
 
