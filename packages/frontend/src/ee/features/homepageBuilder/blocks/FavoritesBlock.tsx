@@ -9,14 +9,17 @@ import {
     IconTerminal2,
     type Icon,
 } from '@tabler/icons-react';
-import { type FC, type MouseEvent } from 'react';
+import { useState, type FC, type MouseEvent } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useFavoriteMutation } from '../../../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../../../hooks/favorites/useFavorites';
+import layout from '../homepageLayout.module.css';
 import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
+
+const FAVORITES_DEFAULT_VISIBLE = 8;
 
 const FAVORITE_ICONS: Partial<Record<ResourceViewItemType, Icon>> = {
     [ResourceViewItemType.CHART]: IconChartBar,
@@ -41,13 +44,26 @@ const favoriteUrl = (projectUuid: string, item: ResourceViewItem): string => {
 const FavoritePills: FC<{
     projectUuid: string;
     isInteractive: boolean;
-    emptyText: string;
-}> = ({ projectUuid, isInteractive, emptyText }) => {
+    /** Text shown when the user has no favorites. Pass `null` to render nothing
+     * (used by the top-bar variant, which hides itself when empty). */
+    emptyText: string | null;
+    maxVisible?: number;
+    wrap?: 'wrap' | 'nowrap';
+}> = ({
+    projectUuid,
+    isInteractive,
+    emptyText,
+    maxVisible = FAVORITES_DEFAULT_VISIBLE,
+    wrap = 'wrap',
+}) => {
     const { data: favorites } = useFavorites(projectUuid);
     const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
+    const [expanded, setExpanded] = useState(false);
 
     if (!favorites || favorites.length === 0) {
-        return <div className={classes.dashedEmpty}>{emptyText}</div>;
+        return emptyText === null ? null : (
+            <div className={classes.dashedEmpty}>{emptyText}</div>
+        );
     }
 
     const handleUnfavorite = (e: MouseEvent, item: ResourceViewItem) => {
@@ -58,9 +74,14 @@ const FavoritePills: FC<{
         });
     };
 
+    const canTruncate = favorites.length > maxVisible;
+    const visible =
+        canTruncate && !expanded ? favorites.slice(0, maxVisible) : favorites;
+    const hiddenCount = favorites.length - maxVisible;
+
     return (
-        <Group gap={8}>
-            {favorites.map((item) => (
+        <Group gap={8} wrap={expanded ? 'wrap' : wrap}>
+            {visible.map((item) => (
                 <Link
                     key={item.data.uuid}
                     to={favoriteUrl(projectUuid, item)}
@@ -71,7 +92,9 @@ const FavoritePills: FC<{
                         size={15}
                         color="ldGray.6"
                     />
-                    {item.data.name}
+                    <span className={classes.favPillName}>
+                        {item.data.name}
+                    </span>
                     {isInteractive ? (
                         <MantineIcon
                             icon={IconStarFilled}
@@ -90,27 +113,45 @@ const FavoritePills: FC<{
                     )}
                 </Link>
             ))}
+            {canTruncate ? (
+                <button
+                    type="button"
+                    className={classes.favPillMore}
+                    onClick={() => setExpanded((prev) => !prev)}
+                >
+                    {expanded ? 'Show less' : `+${hiddenCount} more`}
+                </button>
+            ) : null}
         </Group>
     );
 };
 
-export const PersonalFavoritesStrip: FC<{ projectUuid: string }> = ({
+/** Compact one-line favorites bar pinned above the hero. Hides itself entirely
+ * when the user has no favorites. */
+export const PersonalFavoritesBar: FC<{ projectUuid: string }> = ({
     projectUuid,
-}) => (
-    <Stack gap={0}>
-        <BlockHeader
-            icon={IconStar}
-            title="My favorites"
-            pill="Only you see this"
-            mb={10}
-        />
-        <FavoritePills
-            projectUuid={projectUuid}
-            isInteractive
-            emptyText="Star any dashboard or chart below to keep it here, on every homepage."
-        />
-    </Stack>
-);
+}) => {
+    const { data: favorites } = useFavorites(projectUuid);
+
+    if (!favorites || favorites.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className={layout.favBar}>
+            <div className={layout.favBarLabel}>
+                <MantineIcon icon={IconStar} size={14} color="ldGray.6" />
+                <span className={layout.favBarLabelText}>Favorites</span>
+            </div>
+            <FavoritePills
+                projectUuid={projectUuid}
+                isInteractive
+                emptyText={null}
+                wrap="nowrap"
+            />
+        </div>
+    );
+};
 
 export const FavoritesBlockView: FC<BlockComponentProps> = ({
     block,

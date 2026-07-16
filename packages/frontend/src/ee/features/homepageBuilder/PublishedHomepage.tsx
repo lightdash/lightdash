@@ -77,16 +77,16 @@ type Props = {
     projectUuid: string;
     /** Render personal blocks as placeholders (admin view-as preview) */
     personalPlaceholders?: boolean;
-    /** Content rendered below the centred hero, above the remaining rows
-     * (e.g. the personal favorites strip). */
-    secondaryTop?: ReactNode;
+    /** Content pinned at the very top of the page, above the centred hero
+     * (e.g. the compact personal favorites bar). */
+    topBar?: ReactNode;
 };
 
 export const PublishedHomepage: FC<Props> = ({
     config,
     projectUuid,
     personalPlaceholders = false,
-    secondaryTop = null,
+    topBar = null,
 }) => {
     const [firstRow, ...restRows] = config.rows;
     const leadingHero =
@@ -99,6 +99,7 @@ export const PublishedHomepage: FC<Props> = ({
     if (leadingHero) {
         return (
             <div className={layout.page}>
+                {topBar}
                 <div className={layout.heroSection}>
                     <div className={layout.hero}>
                         <BlockRenderer
@@ -108,16 +109,13 @@ export const PublishedHomepage: FC<Props> = ({
                         />
                     </div>
                 </div>
-                {(secondaryTop || restRows.length > 0) && (
+                {restRows.length > 0 && (
                     <div className={layout.secondary}>
-                        <Stack gap={28}>
-                            {secondaryTop}
-                            <HomepageRows
-                                rows={restRows}
-                                projectUuid={projectUuid}
-                                personalPlaceholders={personalPlaceholders}
-                            />
-                        </Stack>
+                        <HomepageRows
+                            rows={restRows}
+                            projectUuid={projectUuid}
+                            personalPlaceholders={personalPlaceholders}
+                        />
                     </div>
                 )}
             </div>
@@ -126,15 +124,13 @@ export const PublishedHomepage: FC<Props> = ({
 
     return (
         <div className={layout.page}>
+            {topBar}
             <div className={layout.secondary}>
-                <Stack gap={28}>
-                    {secondaryTop}
-                    <HomepageRows
-                        rows={config.rows}
-                        projectUuid={projectUuid}
-                        personalPlaceholders={personalPlaceholders}
-                    />
-                </Stack>
+                <HomepageRows
+                    rows={config.rows}
+                    projectUuid={projectUuid}
+                    personalPlaceholders={personalPlaceholders}
+                />
             </div>
         </div>
     );
