@@ -386,7 +386,7 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
     return (
         <Stack gap="xs">
             <TextInput
-                aria-label="Collection title"
+                label="Title"
                 size="xs"
                 fw={600}
                 value={block.config.title}

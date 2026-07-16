@@ -296,7 +296,7 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
     return (
         <Stack gap="xs">
             <TextInput
-                aria-label="Metrics title"
+                label="Title"
                 size="xs"
                 fw={600}
                 value={block.config.title}

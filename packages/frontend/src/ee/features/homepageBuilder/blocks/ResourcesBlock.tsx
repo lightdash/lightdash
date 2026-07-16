@@ -124,7 +124,7 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
     return (
         <Stack gap="xs">
             <TextInput
-                aria-label="Resources title"
+                label="Title"
                 size="xs"
                 fw={600}
                 value={block.config.title}
