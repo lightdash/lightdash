@@ -1,5 +1,8 @@
 import { type DateZoom } from '../../types/api/paginatedQuery';
-import { type DashboardFilters } from '../../types/filter';
+import {
+    type DashboardFilterRule,
+    type DashboardFilters,
+} from '../../types/filter';
 import { type PullRequestProvider } from '../../types/gitIntegration';
 import { type ParametersValuesMap } from '../../types/parameters';
 import { type ChartKind } from '../../types/savedCharts';
@@ -28,6 +31,21 @@ export type AiChartRuntimeOverrides = {
     dashboardFilters?: DashboardFilters;
     dashboardParameters?: ParametersValuesMap;
     dateZoom?: DateZoom;
+};
+
+export type AiDashboardFilterRule = Omit<
+    DashboardFilterRule,
+    'id' | 'tileTargets' | 'lockedTabUuids' | 'requiredGroupId'
+>;
+
+export type AiDashboardFilters = {
+    dimensions: AiDashboardFilterRule[];
+    metrics: AiDashboardFilterRule[];
+    tableCalculations: AiDashboardFilterRule[];
+};
+
+export type AiDashboardRuntimeOverrides = {
+    dashboardFilters?: AiDashboardFilters;
 };
 
 export type AiThread = {
@@ -154,6 +172,7 @@ export type AiPromptContextItemInput =
           type: 'dashboard';
           dashboardUuid: string;
           dashboardSlug?: string | null;
+          runtimeOverrides?: AiDashboardRuntimeOverrides;
       }
     | {
           type: 'thread';
@@ -219,6 +238,7 @@ export type AiPromptContextItem =
           dashboardSlug: string | null;
           pinnedVersionUuid: string | null;
           displayName: string | null;
+          runtimeOverrides: AiDashboardRuntimeOverrides | null;
       }
     | {
           type: 'thread';

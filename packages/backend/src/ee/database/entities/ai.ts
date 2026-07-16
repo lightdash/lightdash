@@ -1,6 +1,7 @@
 import {
     type AiAgentModelConfig,
     type AiChartRuntimeOverrides,
+    type AiDashboardRuntimeOverrides,
     type AiOrgModelVisibility,
     type AiProviderApiKeyHints,
     type AiThreadCreatedFrom,
@@ -413,7 +414,10 @@ export type DbAiPromptContext = {
     entity_ref: string | null;
     pinned_version_uuid: string | null;
     display_name: string | null;
-    runtime_overrides: AiChartRuntimeOverrides | null;
+    runtime_overrides:
+        | AiChartRuntimeOverrides
+        | AiDashboardRuntimeOverrides
+        | null;
     created_at: Date;
 };
 

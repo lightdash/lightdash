@@ -1,4 +1,8 @@
-import { AiPromptContext } from '@lightdash/common';
+import {
+    AiPromptContext,
+    FilterOperator,
+    type DashboardFilters,
+} from '@lightdash/common';
 import { AiAgentService } from './AiAgentService';
 
 vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
@@ -25,11 +29,57 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
                 dashboardSlug: 'exec-dashboard',
                 displayName: 'Executive dashboard',
                 pinnedVersionUuid: null,
+                runtimeOverrides: null,
             },
         ]);
         expect(content).toContain(
             '- Dashboard "Executive dashboard" (dashboardSlug: exec-dashboard)',
         );
+    });
+
+    it('renders dashboard filter overrides', () => {
+        const dashboardFilters: DashboardFilters = {
+            dimensions: [
+                {
+                    id: 'country-filter-uuid',
+                    label: 'Country',
+                    operator: FilterOperator.EQUALS,
+                    target: {
+                        fieldId: 'orders.country',
+                        tableName: 'orders',
+                    },
+                    values: ['US'],
+                    tileTargets: {
+                        'tile-uuid': {
+                            fieldId: 'orders.country',
+                            tableName: 'orders',
+                        },
+                    },
+                    lockedTabUuids: ['tab-uuid'],
+                    requiredGroupId: 'group-uuid',
+                },
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const content = buildMessage([
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-1',
+                dashboardSlug: 'exec-dashboard',
+                displayName: 'Executive dashboard',
+                pinnedVersionUuid: null,
+                runtimeOverrides: {
+                    dashboardFilters,
+                },
+            },
+        ]);
+        expect(content).toContain('Filters applied:');
+        expect(content).toContain('"values":["US"]');
+        expect(content).not.toContain('country-filter-uuid');
+        expect(content).not.toContain('tileTargets');
+        expect(content).not.toContain('lockedTabUuids');
+        expect(content).not.toContain('requiredGroupId');
     });
 
     it('renders a pull_request line with number, status and title', () => {

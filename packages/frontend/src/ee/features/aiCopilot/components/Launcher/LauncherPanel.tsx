@@ -25,6 +25,7 @@ import { createPath, useLocation, useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import useApp from '../../../../../providers/App/useApp';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
+import { useDashboardPageContextCuration } from '../../hooks/useDashboardPageContextCuration';
 import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';
 import { usePinnedContext } from '../../hooks/usePinnedContext';
 import {
@@ -46,11 +47,7 @@ import { getDashboardNavigationUrlFromContentToolResult } from '../../utils/cont
 import { AiAgentNewThreadMcpConnections } from '../AiAgentNewThreadMcpConnections';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
-import {
-    contextItemsToContentMentionSuggestions,
-    mergeAiPromptContextInput,
-    mergeAiPromptContextItems,
-} from '../ChatElements/contentMentions';
+import { contextItemsToContentMentionSuggestions } from '../ChatElements/contentMentions';
 import { getPromptContextItemKey } from '../ChatElements/contentReferenceUtils';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
 import styles from './AiAgentsLauncher.module.css';
@@ -73,68 +70,6 @@ type Props = {
     activeThreadId: string | null;
     style?: CSSProperties;
 };
-
-const getCurrentDashboardPromptContext = ({
-    currentDashboard,
-    previousDashboardUuid,
-    projectUuid,
-}: {
-    currentDashboard: {
-        projectUuid: string;
-        uuid: string;
-    } | null;
-    previousDashboardUuid?: string | null;
-    projectUuid: string;
-}): AiPromptContextInput =>
-    currentDashboard?.projectUuid === projectUuid &&
-    currentDashboard.uuid !== previousDashboardUuid
-        ? [
-              {
-                  type: 'dashboard',
-                  dashboardUuid: currentDashboard.uuid,
-              },
-          ]
-        : [];
-
-const getCurrentDashboardOptimisticContext = ({
-    currentDashboard,
-    previousDashboardUuid,
-    projectUuid,
-}: {
-    currentDashboard: {
-        projectUuid: string;
-        uuid: string;
-        name: string;
-    } | null;
-    previousDashboardUuid?: string | null;
-    projectUuid: string;
-}): AiPromptContext =>
-    currentDashboard?.projectUuid === projectUuid &&
-    currentDashboard.uuid !== previousDashboardUuid
-        ? [
-              {
-                  type: 'dashboard',
-                  dashboardUuid: currentDashboard.uuid,
-                  dashboardSlug: null,
-                  displayName: currentDashboard.name,
-                  pinnedVersionUuid: null,
-              },
-          ]
-        : [];
-
-const getLastDashboardUuid = (
-    context: Array<AiPromptContextInput[number] | AiPromptContext[number]>,
-) => {
-    for (let index = context.length - 1; index >= 0; index -= 1) {
-        const item = context[index];
-        if (item.type === 'dashboard') return item.dashboardUuid;
-    }
-    return null;
-};
-
-const hasDashboardContext = (
-    context: Array<AiPromptContextInput[number] | AiPromptContext[number]>,
-) => context.some((item) => item.type === 'dashboard');
 
 export const LauncherPanel: FC<Props> = ({
     projectUuid,
@@ -189,9 +124,6 @@ const NewThreadPanel: FC<{
     const pendingContext = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.pendingContext,
     );
-    const currentDashboard = useAiAgentStoreSelector(
-        (state) => state.aiAgentLauncher.currentDashboard,
-    );
 
     const chartUuid = pendingContext?.chartUuid;
     const dashboardUuid = pendingContext?.dashboardUuid;
@@ -210,29 +142,20 @@ const NewThreadPanel: FC<{
         chartUuidOrSlug: chartUuid,
         dashboardUuidOrSlug: dashboardUuid,
     });
-    const contextInputWithPageContext = useMemo(
+    const { curateContext } = useDashboardPageContextCuration({
+        previousContext: contextInput,
+        projectUuid,
+    });
+    const {
+        context: contextInputWithPageContext = [],
+        optimisticContext: previewItemsWithPageContext = [],
+    } = useMemo(
         () =>
-            mergeAiPromptContextInput(
-                getCurrentDashboardPromptContext({
-                    currentDashboard,
-                    previousDashboardUuid: getLastDashboardUuid(contextInput),
-                    projectUuid,
-                }),
-                contextInput,
-            ) ?? [],
-        [contextInput, currentDashboard, projectUuid],
-    );
-    const previewItemsWithPageContext = useMemo(
-        () =>
-            mergeAiPromptContextItems(
-                getCurrentDashboardOptimisticContext({
-                    currentDashboard,
-                    previousDashboardUuid: getLastDashboardUuid(previewItems),
-                    projectUuid,
-                }),
-                previewItems,
-            ) ?? [],
-        [currentDashboard, previewItems, projectUuid],
+            curateContext({
+                context: contextInput,
+                optimisticContext: previewItems,
+            }),
+        [contextInput, curateContext, previewItems],
     );
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
@@ -507,21 +430,25 @@ const ExistingThreadPanel: FC<{
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const sqlMode = useAiAgentStoreSelector(selectThreadSqlMode(threadId));
-    const currentDashboard = useAiAgentStoreSelector(
-        (state) => state.aiAgentLauncher.currentDashboard,
-    );
     const dispatchToStore = useAiAgentStoreDispatch();
+    const threadContext = useMemo(
+        () =>
+            thread?.messages.flatMap((message) =>
+                message.role === 'user' ? message.context : [],
+            ) ?? [],
+        [thread?.messages],
+    );
+    const { curateContext, recordSubmittedContext } =
+        useDashboardPageContextCuration({
+            previousContext: threadContext,
+            projectUuid,
+            threadId,
+        });
 
     const isThreadFromCurrentUser = thread?.user.uuid === user?.data?.userUuid;
     const contentMentionItems = useMemo(
-        () =>
-            contextItemsToContentMentionSuggestions(
-                thread?.messages.flatMap((message) =>
-                    message.role === 'user' ? message.context : [],
-                ) ?? [],
-                'thread',
-            ),
-        [thread?.messages],
+        () => contextItemsToContentMentionSuggestions(threadContext, 'thread'),
+        [threadContext],
     );
 
     const handleSubmit = ({
@@ -541,36 +468,17 @@ const ExistingThreadPanel: FC<{
             (m) => m.role === 'assistant',
         );
         const modelConfig = firstAssistantMessage?.modelConfig ?? undefined;
-        const previousDashboardUuid = getLastDashboardUuid(
-            thread?.messages.flatMap((m) =>
-                m.role === 'user' ? m.context : [],
-            ) ?? [],
-        );
+        const curatedContext = curateContext({ context, optimisticContext });
+
         void createAgentThreadMessage({
             prompt: message,
             modelConfig,
-            context: mergeAiPromptContextInput(
-                hasDashboardContext(context ?? [])
-                    ? []
-                    : getCurrentDashboardPromptContext({
-                          currentDashboard,
-                          previousDashboardUuid,
-                          projectUuid,
-                      }),
-                context,
-            ),
-            optimisticContext: mergeAiPromptContextItems(
-                hasDashboardContext(optimisticContext ?? [])
-                    ? []
-                    : getCurrentDashboardOptimisticContext({
-                          currentDashboard,
-                          previousDashboardUuid,
-                          projectUuid,
-                      }),
-                optimisticContext,
-            ),
+            context: curatedContext.context,
+            optimisticContext: curatedContext.optimisticContext,
             enableSqlMode: sqlModeAvailable && sqlMode,
             toolHints,
+        }).then(() => {
+            recordSubmittedContext(curatedContext.context);
         });
     };
 

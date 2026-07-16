@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useParams } from 'react-router';
 import { scrollToDashboardTile } from '../../components/common/Dashboard/scrollToDashboardTile';
 import { setCurrentDashboard } from '../../ee/features/aiCopilot/store/aiAgentLauncherSlice';
+import { getNonDefaultDashboardRuntimeOverrides } from '../../ee/features/aiCopilot/store/dashboardPageContext';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -54,6 +55,10 @@ const DashboardAiAgentContextBridge = () => {
     );
     const dashboard = useDashboardContext((c) => c.dashboard);
     const activeTab = useDashboardContext((c) => c.activeTab);
+    const allFilters = useDashboardContext((c) => c.allFilters);
+    const originalDashboardFilters = useDashboardContext(
+        (c) => c.originalDashboardFilters,
+    );
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
@@ -76,6 +81,14 @@ const DashboardAiAgentContextBridge = () => {
 
     const currentDashboardSlug = dashboard?.slug;
     const currentDashboardUuid = dashboard?.uuid;
+    const dashboardRuntimeOverrides = useMemo(
+        () =>
+            getNonDefaultDashboardRuntimeOverrides({
+                defaultFilters: originalDashboardFilters,
+                effectiveFilters: allFilters,
+            }),
+        [allFilters, originalDashboardFilters],
+    );
     const dashboardQueryKey = useMemo(
         () => ['saved_dashboard_query', dashboardUuidOrSlug, projectUuid],
         [dashboardUuidOrSlug, projectUuid],
@@ -285,6 +298,7 @@ const DashboardAiAgentContextBridge = () => {
                 uuid: currentDashboardUuid,
                 name: dashboard.name,
                 activeTabUuid: activeTab?.uuid ?? null,
+                runtimeOverrides: dashboardRuntimeOverrides,
             }),
         );
     }, [
@@ -293,6 +307,7 @@ const DashboardAiAgentContextBridge = () => {
         currentDashboardUuid,
         dashboard,
         activeTab?.uuid,
+        dashboardRuntimeOverrides,
         isEditMode,
     ]);
 
