@@ -1795,16 +1795,23 @@ const QuietRunsGroup: FC<{
                                     size={11}
                                     color="dimmed"
                                 />
-                                <Text
-                                    fz={10}
-                                    fw={600}
-                                    tt="uppercase"
-                                    c="dimmed"
-                                    lts={0.4}
-                                >
-                                    Run ·{' '}
-                                    {formatTimestamp(run.startedAt.toString())}
-                                </Text>
+                                <Group gap={4} wrap="nowrap">
+                                    <Text
+                                        fz={10}
+                                        fw={600}
+                                        tt="uppercase"
+                                        c="dimmed"
+                                        lts={0.4}
+                                    >
+                                        Run
+                                    </Text>
+                                    <Text fz={10} c="dimmed">
+                                        ·{' '}
+                                        {formatTimestamp(
+                                            run.startedAt.toString(),
+                                        )}
+                                    </Text>
+                                </Group>
                             </Group>
                             <Text fz={10} c="dimmed">
                                 No actions
