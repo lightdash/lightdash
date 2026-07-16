@@ -185,9 +185,9 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                 <Group className={styles.reportControls} wrap="nowrap">
                     <Text className={styles.visuallyHidden}>Deep research</Text>
                     <Button
-                        variant="filled"
-                        color="indigo"
-                        radius="sm"
+                        variant="light"
+                        color="gray"
+                        radius="xl"
                         size="xs"
                         leftSection={<IconArrowLeft size={14} />}
                         onClick={onClose}
