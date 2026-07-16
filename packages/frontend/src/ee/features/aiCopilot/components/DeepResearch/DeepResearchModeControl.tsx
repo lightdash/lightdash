@@ -59,7 +59,7 @@ export const DeepResearchModeControl = ({
         <>
             <Button
                 size="xs"
-                variant={isDeepResearch ? 'light' : 'subtle'}
+                variant={isDeepResearch ? 'light' : 'default'}
                 color={isDeepResearch ? 'indigo' : 'gray'}
                 leftSection={
                     <MantineIcon
