@@ -20,11 +20,6 @@ import styles from './DeepResearchPreflight.module.css';
 const SOURCES: DeepResearchSource[] = [
     { name: 'Project data', isAvailable: true, warning: null },
     { name: 'Public web', isAvailable: true, warning: null },
-    {
-        name: 'Knowledge and connected integrations',
-        isAvailable: false,
-        warning: null,
-    },
 ];
 
 type Props = {
