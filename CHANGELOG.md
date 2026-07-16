@@ -1,3 +1,10 @@
+## [0.3401.1](https://github.com/lightdash/lightdash/compare/0.3401.0...0.3401.1) (2026-07-16)
+
+
+### Bug Fixes
+
+* **cli:** actionable error when preview creation fails with no source project selected ([#25664](https://github.com/lightdash/lightdash/issues/25664)) ([e84c798](https://github.com/lightdash/lightdash/commit/e84c798e79aab6e9c648a410774f02061e8a8050))
+
 # [0.3401.0](https://github.com/lightdash/lightdash/compare/0.3400.0...0.3401.0) (2026-07-16)
 
 
