@@ -77,6 +77,18 @@ const block = (id: string, type: HomepageBlock['type']): HomepageBlock =>
 const emptyBlock = (id: string, type: HomepageBlock['type']): HomepageBlock =>
     makeBlock(id, type, true);
 
+const collectionWithItems = (id: string, count: number): HomepageBlock => ({
+    id,
+    type: 'collection',
+    config: {
+        title: 't',
+        items: Array.from({ length: count }, (_, i) => ({
+            contentType: 'chart',
+            uuid: `u${i}`,
+        })),
+    },
+});
+
 const makeConfig = (rows: HomepageBlock[][]): HomepageConfig => ({
     version: 1,
     rows: rows.map((blocks, i) => ({ id: `row-${i}`, blocks })),
@@ -182,6 +194,32 @@ describe('resolveHomepageLayout', () => {
             const { rows } = resolveHomepageLayout(config);
             expect(rows[0].columns[0].block.id).toBe('t');
             expect(rows[0].role).toBe('intro');
+        });
+    });
+
+    describe('collection column weight scales with item count', () => {
+        it('a sparse collection (<3 items) matches its sibling 1:1 instead of hogging 2x width', () => {
+            const config = makeConfig([
+                [collectionWithItems('c', 1), block('f', 'favorites')],
+            ]);
+            const { rows } = resolveHomepageLayout(config);
+            expect(rows[0].columns.map((c) => c.weight)).toEqual([1, 1]);
+        });
+
+        it('a collection with 2 items still matches its sibling 1:1', () => {
+            const config = makeConfig([
+                [collectionWithItems('c', 2), block('f', 'favorites')],
+            ]);
+            const { rows } = resolveHomepageLayout(config);
+            expect(rows[0].columns.map((c) => c.weight)).toEqual([1, 1]);
+        });
+
+        it('a collection with 3+ items keeps the wider 2x column', () => {
+            const config = makeConfig([
+                [collectionWithItems('c', 3), block('f', 'favorites')],
+            ]);
+            const { rows } = resolveHomepageLayout(config);
+            expect(rows[0].columns.map((c) => c.weight)).toEqual([2, 1]);
         });
     });
 

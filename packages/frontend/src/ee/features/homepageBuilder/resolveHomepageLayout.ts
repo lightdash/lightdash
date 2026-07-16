@@ -89,13 +89,24 @@ const toVisibleRows = (rows: HomepageConfig['rows']): HomepageConfig['rows'] =>
         }))
         .filter((row) => row.blocks.length > 0);
 
+// A collection's trait weight (2) assumes it has enough cards to fill a wide
+// column with its centred 3-col grid. With only 1-2 items the extra width is
+// just empty margin around a centred card, and it starves whatever it shares
+// the row with — so weight follows actual item count, not just block type.
+const columnWeightFor = (block: HomepageBlock): number => {
+    if (block.type === 'collection') {
+        return block.config.items.length >= 3 ? 2 : 1;
+    }
+    return traitFor(block.type).columnWeight;
+};
+
 const resolveRow = (
     row: HomepageConfig['rows'][number],
     isFirst: boolean,
 ): ResolvedRow => {
     const columns: ResolvedColumn[] = row.blocks.map((block) => ({
         block,
-        weight: traitFor(block.type).columnWeight,
+        weight: columnWeightFor(block),
     }));
     const single = row.blocks.length === 1;
     const widthTier: BlockWidthTier = single
