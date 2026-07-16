@@ -463,3 +463,19 @@
     color: var(--mantine-color-ldGray-5);
     white-space: nowrap;
 }
+
+.viewAsBar {
+    padding: 8px 12px;
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 10px;
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+}
+
+.viewAsLabel {
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.viewAsBadge {
+    flex-shrink: 0;
+}
