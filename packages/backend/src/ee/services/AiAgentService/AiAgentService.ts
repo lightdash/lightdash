@@ -174,6 +174,7 @@ import {
 } from '../../../clients/github/Github';
 import { type SlackClient } from '../../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../../config/parseConfig';
+import { isUniqueConstraintViolation } from '../../../database/errors';
 import Logger from '../../../logging/logger';
 import {
     CatalogModel,
@@ -2813,7 +2814,11 @@ export class AiAgentService extends BaseService {
         });
     }
 
-    public async createAgent(user: SessionUser, body: ApiCreateAiAgent) {
+    public async createAgent(
+        user: SessionUser,
+        body: ApiCreateAiAgent,
+        options?: { autoProvisioned?: boolean },
+    ) {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
@@ -2875,10 +2880,71 @@ export class AiAgentService extends BaseService {
                 agentName: agent.name,
                 tagsCount: agent.tags?.length ?? 0,
                 integrationsCount: agent.integrations?.length ?? 0,
+                ...(options?.autoProvisioned ? { autoProvisioned: true } : {}),
             },
         });
 
         return agent;
+    }
+
+    public async provisionDefaultAgent(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        try {
+            if (!(await this.getIsCopilotEnabled(user))) {
+                return;
+            }
+
+            const { organizationUuid } = user;
+            if (!organizationUuid) {
+                return;
+            }
+
+            const agents = await this.aiAgentModel.findAllAgents({
+                organizationUuid,
+                filter: { projectFilter: { projectUuid } },
+            });
+            if (agents.length > 0) {
+                return;
+            }
+
+            await this.createAgent(
+                user,
+                {
+                    name: 'Aurora',
+                    projectUuid,
+                    description: null,
+                    integrations: [],
+                    tags: null,
+                    instruction:
+                        "You are Aurora, this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.",
+                    imageUrl: null,
+                    groupAccess: [],
+                    userAccess: [],
+                    spaceAccess: [],
+                    enableDataAccess: true,
+                    enableSelfImprovement: false,
+                    version: 2,
+                },
+                { autoProvisioned: true },
+            );
+        } catch (error) {
+            if (
+                error instanceof ForbiddenError ||
+                isUniqueConstraintViolation(error)
+            ) {
+                this.logger.debug(
+                    `Default AI agent provisioning skipped for project ${projectUuid}`,
+                    error,
+                );
+                return;
+            }
+
+            this.logger.warn(
+                `Failed to provision default AI agent for project ${projectUuid}: ${getErrorMessage(error)}`,
+            );
+        }
     }
 
     private async assertCanManageMcpServers(

@@ -689,6 +689,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     // silent no-op in EE builds.
                     getAppGenerateService: () =>
                         repository.getAppGenerateService<AppGenerateService>(),
+                    getAiAgentService: () =>
+                        repository.getAiAgentService<AiAgentService>(),
                 }),
             instanceConfigurationService: ({
                 models,
