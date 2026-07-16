@@ -1,3 +1,10 @@
+## [0.3399.1](https://github.com/lightdash/lightdash/compare/0.3399.0...0.3399.1) (2026-07-16)
+
+
+### Bug Fixes
+
+* allow applying a required filter that has no default value ([#25661](https://github.com/lightdash/lightdash/issues/25661)) ([734aad5](https://github.com/lightdash/lightdash/commit/734aad592cea5f3d3ba3e48eab80591df66d921d))
+
 # [0.3399.0](https://github.com/lightdash/lightdash/compare/0.3398.1...0.3399.0) (2026-07-16)
 
 
