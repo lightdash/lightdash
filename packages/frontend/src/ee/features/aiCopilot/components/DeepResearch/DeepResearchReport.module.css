@@ -1,11 +1,24 @@
-.drawerInner,
-.drawerOverlay {
-    top: var(--drawer-top-offset, 0);
-    height: calc(100% - var(--drawer-top-offset, 0));
+.workspace {
+    display: flex;
+    height: 100%;
+    flex-direction: column;
+    pointer-events: auto;
+    background: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-8)
+    );
+}
+
+.workspaceHeader {
+    display: flex;
+    flex-shrink: 0;
+    justify-content: flex-end;
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
 }
 
 .reportScroll {
-    height: calc(100dvh - var(--navbar-height) - 3.75rem);
+    flex: 1;
+    min-height: 0;
 }
 
 .report {

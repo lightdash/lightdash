@@ -5,17 +5,23 @@ import { renderWithProviders } from '../../../../../testing/testUtils';
 import { deepResearchRunFixture } from '../../deepResearch/fixtures';
 import { DeepResearchReport } from './DeepResearchReport';
 
-describe('DeepResearchReport', () => {
-    it('returns to chat from the report header', async () => {
-        const user = userEvent.setup();
-        const onClose = vi.fn();
-        renderWithProviders(
+const renderReport = (onClose = vi.fn()) =>
+    renderWithProviders(
+        <>
+            <div data-deep-research-report-target />
             <DeepResearchReport
                 run={deepResearchRunFixture}
                 opened
                 onClose={onClose}
-            />,
-        );
+            />
+        </>,
+    );
+
+describe('DeepResearchReport', () => {
+    it('returns to chat from the report header', async () => {
+        const user = userEvent.setup();
+        const onClose = vi.fn();
+        renderReport(onClose);
 
         await user.click(screen.getByRole('button', { name: 'Back to chat' }));
         expect(onClose).toHaveBeenCalledOnce();
@@ -23,13 +29,7 @@ describe('DeepResearchReport', () => {
 
     it('navigates from a claim marker to its supporting query', async () => {
         const user = userEvent.setup();
-        renderWithProviders(
-            <DeepResearchReport
-                run={deepResearchRunFixture}
-                opened
-                onClose={vi.fn()}
-            />,
-        );
+        renderReport();
 
         const marker = screen.getByRole('button', {
             name: /Evidence 1: Enterprise renewal cohort/i,
@@ -56,13 +56,7 @@ describe('DeepResearchReport', () => {
     });
 
     it('supports keyboard navigation between evidence markers', () => {
-        renderWithProviders(
-            <DeepResearchReport
-                run={deepResearchRunFixture}
-                opened
-                onClose={vi.fn()}
-            />,
-        );
+        renderReport();
 
         const firstMarker = screen.getByRole('button', {
             name: /Evidence 1: Enterprise renewal cohort/i,
