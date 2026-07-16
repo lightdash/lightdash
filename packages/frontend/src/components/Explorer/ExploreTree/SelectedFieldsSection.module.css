@@ -106,8 +106,12 @@
     font-size: 14px;
 }
 
+/* Large shrink factor so the table name yields before the field name */
 .tableLabel {
-    flex-shrink: 0;
+    flex-shrink: 1000;
+    min-width: 4ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-size: 12px;
     white-space: nowrap;
 }

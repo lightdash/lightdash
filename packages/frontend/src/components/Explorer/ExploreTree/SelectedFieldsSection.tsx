@@ -153,7 +153,9 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                     {label}
                 </span>
                 {tableLabel && (
-                    <span className={classes.tableLabel}>{tableLabel}</span>
+                    <span className={classes.tableLabel} title={tableLabel}>
+                        {tableLabel}
+                    </span>
                 )}
             </span>
             <span className={classes.actions}>
@@ -175,15 +177,18 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                         </ActionIcon>
                     </Tooltip>
                 )}
-                <TreeSingleNodeActions
-                    item={item}
-                    isHovered={isHover}
-                    isSelected
-                    isOpened={isMenuOpen}
-                    hasDescription={!!description}
-                    onViewDescription={onOpenDescriptionView}
-                    onMenuChange={onToggleMenu}
-                />
+                {/* Mounted on hover only so the labels get the space at rest */}
+                {(isHover || isMenuOpen) && (
+                    <TreeSingleNodeActions
+                        item={item}
+                        isHovered={isHover}
+                        isSelected={false}
+                        isOpened={isMenuOpen}
+                        hasDescription={!!description}
+                        onViewDescription={onOpenDescriptionView}
+                        onMenuChange={onToggleMenu}
+                    />
+                )}
             </span>
         </UnstyledButton>
     );
