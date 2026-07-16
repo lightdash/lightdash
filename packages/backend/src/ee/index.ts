@@ -497,8 +497,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     analytics: context.lightdashAnalytics,
                     aiAgentDocumentModel:
                         models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
-                    commercialFeatureFlagModel:
-                        models.getFeatureFlagModel() as CommercialFeatureFlagModel,
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),
                     lightdashConfig: context.lightdashConfig,

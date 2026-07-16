@@ -11,7 +11,6 @@ import {
     ApiCreateAiAgentDocument,
     ApiUpdateAgentDocument,
     ApiUpdateAgentDocumentContent,
-    CommercialFeatureFlags,
     Explore,
     ForbiddenError,
     NotFoundError,
@@ -29,7 +28,6 @@ import {
 import { LightdashConfig } from '../../config/parseConfig';
 import { BaseService } from '../../services/BaseService';
 import { AiAgentDocumentModel } from '../models/AiAgentDocumentModel';
-import { CommercialFeatureFlagModel } from '../models/CommercialFeatureFlagModel';
 import {
     createFallbackDocumentSummary,
     generateDocumentSummary,
@@ -78,7 +76,6 @@ export type AiAgentDocumentScope = {
 type AiAgentDocumentServiceDependencies = {
     analytics: LightdashAnalytics;
     aiAgentDocumentModel: AiAgentDocumentModel;
-    commercialFeatureFlagModel: CommercialFeatureFlagModel;
     aiAgentService: AiAgentService;
     lightdashConfig: LightdashConfig;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
@@ -88,8 +85,6 @@ export class AiAgentDocumentService extends BaseService {
     private readonly analytics: LightdashAnalytics;
 
     private readonly aiAgentDocumentModel: AiAgentDocumentModel;
-
-    private readonly commercialFeatureFlagModel: CommercialFeatureFlagModel;
 
     private readonly aiAgentService: AiAgentService;
 
@@ -101,8 +96,6 @@ export class AiAgentDocumentService extends BaseService {
         super();
         this.analytics = dependencies.analytics;
         this.aiAgentDocumentModel = dependencies.aiAgentDocumentModel;
-        this.commercialFeatureFlagModel =
-            dependencies.commercialFeatureFlagModel;
         this.aiAgentService = dependencies.aiAgentService;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.orgAiCopilotConfigResolver =
@@ -163,11 +156,9 @@ export class AiAgentDocumentService extends BaseService {
     }
 
     private async assertCopilotEnabled(user: SessionUser): Promise<void> {
-        const flag = await this.commercialFeatureFlagModel.get({
-            user,
-            featureFlagId: CommercialFeatureFlags.AiCopilot,
-        });
-        if (!flag.enabled) {
+        const isCopilotEnabled =
+            await this.aiAgentService.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
             throw new ForbiddenError('Copilot is not enabled');
         }
     }
