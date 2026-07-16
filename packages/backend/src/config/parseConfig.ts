@@ -1235,6 +1235,7 @@ export type LoggingConfig = {
     fileFormat: LoggingFormat | undefined;
     fileLevel: LoggingLevel | undefined;
     filePath: string;
+    auditActorAsString: boolean;
 };
 
 export type MultiProjectSetupEntry = {
@@ -2902,6 +2903,8 @@ export const parseConfig = (): LightdashConfig => {
                     ? undefined
                     : parseLoggingLevel(process.env.LIGHTDASH_LOG_FILE_LEVEL),
             filePath: process.env.LIGHTDASH_LOG_FILE_PATH || './logs/all.log',
+            auditActorAsString:
+                process.env.LIGHTDASH_LOG_AUDIT_ACTOR_AS_STRING === 'true',
         },
         ai: {
             copilot: copilotConfig,

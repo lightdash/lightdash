@@ -271,6 +271,10 @@ export const logAuditEvent = (event: AuditLogEvent): void => {
         level: 'audit',
         message: formatAuditMessage(event),
         ...event,
+        // Opt-in for deployments whose log indexers map `actor` as text
+        ...(lightdashConfig.logging.auditActorAsString
+            ? { actor: JSON.stringify(event.actor) }
+            : {}),
     });
 };
 
