@@ -385,6 +385,54 @@ a .hoverCard:hover,
     color: var(--mantine-color-ldGray-6);
 }
 
+/* App-store style tile: blurred colour backdrop + crisp floating favicon */
+.resThumbTile {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    background: var(--mantine-color-ldGray-1);
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.resThumbBackdrop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: blur(18px) saturate(1.25);
+    transform: scale(1.35);
+    animation: resFadeIn 0.2s ease-out;
+}
+
+.resFaviconFloat,
+.resGlyphFloat {
+    position: relative;
+    z-index: 1;
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    object-fit: contain;
+    background: light-dark(#fff, var(--mantine-color-dark-5));
+    box-shadow:
+        0 3px 14px rgba(0, 0, 0, 0.22),
+        0 0 0 1px rgba(0, 0, 0, 0.04);
+    animation: resFadeIn 0.2s ease-out;
+}
+
+.resFaviconFloat {
+    padding: 8px;
+}
+
+.resGlyphFloat {
+    display: grid;
+    place-items: center;
+    color: var(--mantine-color-ldGray-7);
+}
+
 .resThumbClaude {
     background: light-dark(#f8ede8, #3a2a22);
     color: light-dark(#c15f3c, #e0916f);

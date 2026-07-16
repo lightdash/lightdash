@@ -76,7 +76,11 @@ const CardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
     const meta = kindMeta(item.kind);
     const [imgFailed, setImgFailed] = useState(false);
     const [faviconFailed, setFaviconFailed] = useState(false);
-    if (item.imageUrl && !imgFailed) {
+    const favicon = faviconUrl(item.url);
+
+    // A real per-item photo (e.g. a YouTube still) fills the frame sharply.
+    // Claude's og:image is generic/soft, so it's treated as a backdrop instead.
+    if (item.imageUrl && item.kind !== 'claude' && !imgFailed) {
         return (
             <div className={classes.resThumb}>
                 <img
@@ -88,21 +92,33 @@ const CardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
             </div>
         );
     }
-    const favicon = faviconUrl(item.url);
+
+    // No sharp photo → blurred colour backdrop (claude's card, else the site's
+    // own favicon) with the crisp favicon floating on top.
+    const backdrop = item.kind === 'claude' ? item.imageUrl : favicon;
     return (
-        <div
-            className={`${classes.resThumb} ${classes.resThumbFallback} ${meta.thumbAccent}`}
-        >
+        <div className={`${classes.resThumbTile} ${meta.thumbAccent}`}>
+            {backdrop ? (
+                <img
+                    className={classes.resThumbBackdrop}
+                    src={backdrop}
+                    alt=""
+                    loading="lazy"
+                    aria-hidden
+                />
+            ) : null}
             {favicon && !faviconFailed ? (
                 <img
-                    className={classes.resFavicon}
+                    className={classes.resFaviconFloat}
                     src={favicon}
-                    alt=""
+                    alt={item.title}
                     loading="lazy"
                     onError={() => setFaviconFailed(true)}
                 />
             ) : (
-                <MantineIcon icon={meta.icon} size={22} />
+                <div className={classes.resGlyphFloat}>
+                    <MantineIcon icon={meta.icon} size={26} />
+                </div>
             )}
         </div>
     );
@@ -111,7 +127,7 @@ const CardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
 const RowThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
     const [imgFailed, setImgFailed] = useState(false);
     const [faviconFailed, setFaviconFailed] = useState(false);
-    if (item.imageUrl && !imgFailed) {
+    if (item.imageUrl && item.kind !== 'claude' && !imgFailed) {
         return (
             <div className={classes.rowThumb}>
                 <img
