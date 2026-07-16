@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import { ProjectType, WarehouseTypes } from '@lightdash/common';
 import {
     Box,
-    Button,
     Group,
     Paper,
     SimpleGrid,
@@ -12,7 +11,6 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import {
-    IconChevronLeft,
     IconFileCode,
     IconFileSpreadsheet,
     IconPlugConnected,
@@ -25,7 +23,11 @@ import MantineIcon from '../components/common/MantineIcon';
 import PageSpinner from '../components/PageSpinner';
 import ConnectManuallyStep2 from '../components/ProjectConnection/ProjectConnectFlow/ConnectManually/ConnectManuallyStep2';
 import InviteExpertFooter from '../components/ProjectConnection/ProjectConnectFlow/InviteExpertFooter';
-import { OtherWarehouse } from '../components/ProjectConnection/ProjectConnectFlow/types';
+import {
+    OtherWarehouse,
+    type SelectedWarehouse,
+} from '../components/ProjectConnection/ProjectConnectFlow/types';
+import UnsupportedWarehouse from '../components/ProjectConnection/ProjectConnectFlow/UnsupportedWarehouse';
 import {
     getWarehouseIcon,
     WarehouseTypeLabels,
@@ -51,6 +53,16 @@ const WAREHOUSE_ORDER = [
 const orderedWarehouses = WAREHOUSE_ORDER.map((key) =>
     WarehouseTypeLabels.find((warehouse) => warehouse.key === key),
 ).filter((warehouse) => warehouse !== undefined);
+
+const OTHER_ROUTE_PARAM = 'other';
+
+const isWarehouseType = (value: string): value is WarehouseTypes =>
+    Object.values(WarehouseTypes).includes(value as WarehouseTypes);
+
+const getWarehouseRoute = (key: SelectedWarehouse) =>
+    `/onboarding/data-source/${
+        key === OtherWarehouse.Other ? OTHER_ROUTE_PARAM : key
+    }`;
 
 const OTHER_SOURCES = [
     {
@@ -92,24 +104,6 @@ const SectionHeader: FC<{ title: string; hint?: string }> = ({
     </Group>
 );
 
-const BackToChat: FC = () => {
-    const navigate = useNavigate();
-    return (
-        <Box className={classes.topBar}>
-            <Button
-                variant="subtle"
-                size="sm"
-                color="blue"
-                className={classes.backButton}
-                leftSection={<MantineIcon icon={IconChevronLeft} />}
-                onClick={() => void navigate('/onboarding/agent')}
-            >
-                Back to chat
-            </Button>
-        </Box>
-    );
-};
-
 const DataSourcePicker: FC = () => {
     const navigate = useNavigate();
 
@@ -131,62 +125,22 @@ const DataSourcePicker: FC = () => {
                     hint="Pick yours to connect"
                 />
                 <SimpleGrid cols={{ base: 2, sm: 3, md: 5 }} spacing="md">
-                    {orderedWarehouses.map((warehouse) => {
-                        const isEnabled =
-                            warehouse.key === WarehouseTypes.SNOWFLAKE;
-
-                        const card = (
-                            <Paper
-                                key={warehouse.key}
-                                withBorder
-                                radius="md"
-                                className={`${classes.warehouseCard} ${
-                                    isEnabled
-                                        ? classes.warehouseCardEnabled
-                                        : classes.warehouseCardDisabled
-                                }`}
-                                onClick={
-                                    isEnabled
-                                        ? () =>
-                                              void navigate(
-                                                  '/onboarding/data-source/snowflake',
-                                              )
-                                        : undefined
-                                }
-                            >
-                                <Box
-                                    className={
-                                        isEnabled
-                                            ? undefined
-                                            : classes.disabledContent
-                                    }
-                                >
-                                    {getWarehouseIcon(warehouse.key, 40)}
-                                </Box>
-                                <Text
-                                    className={`${classes.warehouseLabel} ${
-                                        isEnabled ? '' : classes.disabledContent
-                                    }`}
-                                >
-                                    {warehouse.label}
-                                </Text>
-                            </Paper>
-                        );
-
-                        if (isEnabled) {
-                            return card;
-                        }
-
-                        return (
-                            <Tooltip
-                                key={warehouse.key}
-                                label="Coming soon"
-                                position="top"
-                            >
-                                <Box>{card}</Box>
-                            </Tooltip>
-                        );
-                    })}
+                    {orderedWarehouses.map((warehouse) => (
+                        <Paper
+                            key={warehouse.key}
+                            withBorder
+                            radius="md"
+                            className={`${classes.warehouseCard} ${classes.warehouseCardEnabled}`}
+                            onClick={() =>
+                                void navigate(getWarehouseRoute(warehouse.key))
+                            }
+                        >
+                            <Box>{getWarehouseIcon(warehouse.key, 40)}</Box>
+                            <Text className={classes.warehouseLabel}>
+                                {warehouse.label}
+                            </Text>
+                        </Paper>
+                    ))}
                 </SimpleGrid>
             </Stack>
 
@@ -231,7 +185,9 @@ const DataSourcePicker: FC = () => {
     );
 };
 
-const SnowflakeConnect: FC = () => {
+const WarehouseConnect: FC<{ selectedWarehouse: WarehouseTypes }> = ({
+    selectedWarehouse,
+}) => {
     const navigate = useNavigate();
     const {
         isInitialLoading: isLoadingOrganization,
@@ -252,7 +208,7 @@ const SnowflakeConnect: FC = () => {
             <ProjectFormProvider>
                 <ConnectManuallyStep2
                     isCreatingFirstProject={!!organization.needsProject}
-                    selectedWarehouse={WarehouseTypes.SNOWFLAKE}
+                    selectedWarehouse={selectedWarehouse}
                     warehouseOnly
                     onBack={() => void navigate('/onboarding/data-source')}
                     successRedirect={(projectUuid) =>
@@ -264,19 +220,35 @@ const SnowflakeConnect: FC = () => {
     );
 };
 
+const OtherWarehouseConnect: FC = () => {
+    const navigate = useNavigate();
+
+    return (
+        <Box className={classes.connectColumn}>
+            <UnsupportedWarehouse
+                onBack={() => void navigate('/onboarding/data-source')}
+            />
+        </Box>
+    );
+};
+
 const OnboardingDataSourceContent: FC = () => {
     const { warehouse } = useParams<{ warehouse?: string }>();
 
-    if (warehouse && warehouse !== 'snowflake') {
+    const selectedWarehouse =
+        warehouse && isWarehouseType(warehouse) ? warehouse : undefined;
+
+    if (warehouse && !selectedWarehouse && warehouse !== OTHER_ROUTE_PARAM) {
         return <Navigate to="/onboarding/data-source" replace />;
     }
 
     return (
         <Box className={classes.page}>
             <DocumentTitle title="Add a data source" />
-            <BackToChat />
-            {warehouse === 'snowflake' ? (
-                <SnowflakeConnect />
+            {selectedWarehouse ? (
+                <WarehouseConnect selectedWarehouse={selectedWarehouse} />
+            ) : warehouse === OTHER_ROUTE_PARAM ? (
+                <OtherWarehouseConnect />
             ) : (
                 <DataSourcePicker />
             )}
@@ -300,7 +272,7 @@ const OnboardingDataSource: FC = () => {
     );
 
     if (!canCreateProject) {
-        return <Navigate to="/onboarding/agent" replace />;
+        return <Navigate to="/" replace />;
     }
 
     return <OnboardingDataSourceContent key={guard.user.userUuid} />;
