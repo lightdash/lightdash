@@ -23,10 +23,10 @@ const SOURCES: DeepResearchSource[] = [
 ];
 
 const DEPTH_LABELS: Record<DeepResearchDepth, string> = {
-    quick: 'low',
-    standard: 'medium',
-    deep: 'high',
-    exhaustive: 'xhigh',
+    quick: 'Low',
+    standard: 'Medium',
+    deep: 'High',
+    exhaustive: 'Extra High',
 };
 
 type Props = {
@@ -80,7 +80,7 @@ export const DeepResearchPreflight = ({ depth, onDepthChange }: Props) => {
                                             <Text size="12px" fw={600} lh={1.3}>
                                                 {DEPTH_LABELS[option]}
                                             </Text>
-                                            <Group gap="xs" mt={3} wrap="wrap">
+                                            <Stack gap={2} mt={6}>
                                                 <Group gap={3} wrap="nowrap">
                                                     <MantineIcon
                                                         icon={IconClock}
@@ -111,7 +111,7 @@ export const DeepResearchPreflight = ({ depth, onDepthChange }: Props) => {
                                                         queries
                                                     </Text>
                                                 </Group>
-                                            </Group>
+                                            </Stack>
                                         </Stack>
                                     </Group>
                                 </Radio.Card>

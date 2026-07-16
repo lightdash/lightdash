@@ -55,7 +55,7 @@ describe('DeepResearchModeControl', () => {
             screen.queryByRole('button', { name: 'Start research' }),
         ).not.toBeInTheDocument();
 
-        await user.click(screen.getByText('low'));
+        await user.click(screen.getByText('Low'));
         expect(screen.getByText('Up to 15 minutes')).toBeInTheDocument();
         expect(screen.getByText('Up to 10 queries')).toBeInTheDocument();
 
