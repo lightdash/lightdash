@@ -216,7 +216,7 @@ const CollectionPicker: FC<{
 
     return (
         <Stack gap="sm">
-            <Group align="stretch" gap="md" wrap="nowrap" h={440}>
+            <Group align="stretch" gap="md" wrap="nowrap" h="min(64vh, 720px)">
                 <Box w={280} className={classes.pickerScrollList}>
                     <SpaceSelector
                         projectUuid={projectUuid}
