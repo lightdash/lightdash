@@ -270,6 +270,9 @@ export class DatabricksSqlBuilder extends WarehouseBaseSqlBuilder {
 
 const DATABRICKS_SOCKET_TIMEOUT_MS = 60000;
 const DATABRICKS_QUERY_TIMEOUT_SECONDS = 300;
+// @databricks/sql defaults fetchChunk to 100k rows, which materializes entire
+// wide results in one array and can OOM the worker on large queries
+const DATABRICKS_FETCH_CHUNK_MAX_ROWS = 5000;
 
 export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabricksCredentials> {
     schema: string;
@@ -425,8 +428,9 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
 
             do {
                 // eslint-disable-next-line no-await-in-loop
-                const chunk = await query.fetchChunk();
-                console.log(chunk.length, ' - ♻️ rows fetched');
+                const chunk = await query.fetchChunk({
+                    maxRows: DATABRICKS_FETCH_CHUNK_MAX_ROWS,
+                });
                 // eslint-disable-next-line no-await-in-loop
                 await streamCallback({ fields, rows: chunk });
                 // eslint-disable-next-line no-await-in-loop
