@@ -32091,6 +32091,169 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ContentAsCodeType.SPACE": {
+                "enum": ["space"],
+                "type": "string"
+            },
+            "SpaceAsCodeUserAccess": {
+                "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/SpaceMemberRole"
+                    },
+                    "email": {
+                        "type": "string",
+                        "description": "Primary email of a human organization member."
+                    }
+                },
+                "required": ["role", "email"],
+                "type": "object"
+            },
+            "SpaceAsCodeGroupAccess": {
+                "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/SpaceMemberRole"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Exact, case-sensitive organization group name."
+                    }
+                },
+                "required": ["role", "name"],
+                "type": "object"
+            },
+            "SpaceAsCodeAccess": {
+                "properties": {
+                    "groups": {
+                        "items": {
+                            "$ref": "#/components/schemas/SpaceAsCodeGroupAccess"
+                        },
+                        "type": "array"
+                    },
+                    "users": {
+                        "items": {
+                            "$ref": "#/components/schemas/SpaceAsCodeUserAccess"
+                        },
+                        "type": "array"
+                    },
+                    "projectMemberAccessRole": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SpaceMemberRole"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "inheritParentPermissions": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "groups",
+                    "users",
+                    "projectMemberAccessRole",
+                    "inheritParentPermissions"
+                ],
+                "type": "object"
+            },
+            "SpaceAsCode": {
+                "properties": {
+                    "access": {
+                        "$ref": "#/components/schemas/SpaceAsCodeAccess",
+                        "description": "Omission leaves the existing access policy unchanged."
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Full portable hierarchy path used for identity and cross-referencing."
+                    },
+                    "spaceName": {
+                        "type": "string",
+                        "description": "The original human-readable space name (preserves emoji, casing, etc.)"
+                    },
+                    "version": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false,
+                        "description": "Optional only for backwards-compatible metadata-only files."
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentAsCodeType.SPACE"
+                    }
+                },
+                "required": ["slug", "spaceName", "contentType"],
+                "type": "object"
+            },
+            "SpaceAsCodeSkip": {
+                "properties": {
+                    "reason": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    }
+                },
+                "required": ["reason", "slug"],
+                "type": "object"
+            },
+            "ApiSpaceAsCodeListResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "skipped": {
+                                "items": {
+                                    "$ref": "#/components/schemas/SpaceAsCodeSkip"
+                                },
+                                "type": "array"
+                            },
+                            "spaces": {
+                                "items": {
+                                    "$ref": "#/components/schemas/SpaceAsCode"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["skipped", "spaces"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "SpaceAsCodeAction": {
+                "enum": ["CREATE", "UPDATE", "NO_CHANGES"],
+                "type": "string"
+            },
+            "ApiSpaceAsCodeUpsertResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "warnings": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "description": "Destructive effects that could not be represented in the input file."
+                            },
+                            "action": {
+                                "$ref": "#/components/schemas/SpaceAsCodeAction"
+                            }
+                        },
+                        "required": ["action"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName-or-slug_": {
                 "properties": {
                     "description": {
@@ -36746,27 +36909,6 @@
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
                 "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
-            },
-            "ContentAsCodeType.SPACE": {
-                "enum": ["space"],
-                "type": "string"
-            },
-            "SpaceAsCode": {
-                "properties": {
-                    "slug": {
-                        "type": "string",
-                        "description": "The space slug used for file naming and cross-referencing"
-                    },
-                    "spaceName": {
-                        "type": "string",
-                        "description": "The original human-readable space name (preserves emoji, casing, etc.)"
-                    },
-                    "contentType": {
-                        "$ref": "#/components/schemas/ContentAsCodeType.SPACE"
-                    }
-                },
-                "required": ["slug", "spaceName", "contentType"],
-                "type": "object"
             },
             "ApiChartAsCodeListResponse": {
                 "properties": {
@@ -48077,7 +48219,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3399.1",
+        "version": "0.3400.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -60983,6 +61125,114 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/spaces/code": {
+            "get": {
+                "operationId": "getSpacesAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSpaceAsCodeListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get spaces and their direct access policy in code representation",
+                "summary": "List spaces as code",
+                "tags": ["Spaces"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "upsertSpaceAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSpaceAsCodeUpsertResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create or update a space and its direct access policy from code",
+                "summary": "Upsert space as code",
+                "tags": ["Spaces"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "skipSpaceCreate",
+                        "required": false,
+                        "schema": {
+                            "default": false,
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "publicSpaceCreate",
+                        "required": false,
+                        "schema": {
+                            "default": false,
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SpaceAsCode"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}": {

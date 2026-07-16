@@ -1,3 +1,15 @@
+# [0.3400.0](https://github.com/lightdash/lightdash/compare/0.3399.1...0.3400.0) (2026-07-16)
+
+
+### Bug Fixes
+
+* allow AI trial orgs to use knowledge document endpoints ([#25667](https://github.com/lightdash/lightdash/issues/25667)) ([d4c2cfc](https://github.com/lightdash/lightdash/commit/d4c2cfc0f33f0e3c2bd1e24aab65a26e9f97fccb))
+
+
+### Features
+
+* round-trip space access in .space.yml ([#25627](https://github.com/lightdash/lightdash/issues/25627)) ([852791c](https://github.com/lightdash/lightdash/commit/852791c4b8fdf1e5bc6412c1e24ae68f5eb9bd5b))
+
 ## [0.3399.1](https://github.com/lightdash/lightdash/compare/0.3399.0...0.3399.1) (2026-07-16)
 
 
