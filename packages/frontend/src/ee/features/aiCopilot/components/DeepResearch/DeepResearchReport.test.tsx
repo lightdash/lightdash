@@ -7,14 +7,11 @@ import { DeepResearchReport } from './DeepResearchReport';
 
 const renderReport = (onClose = vi.fn()) =>
     renderWithProviders(
-        <>
-            <div data-deep-research-report-target />
-            <DeepResearchReport
-                run={deepResearchRunFixture}
-                opened
-                onClose={onClose}
-            />
-        </>,
+        <DeepResearchReport
+            run={deepResearchRunFixture}
+            opened
+            onClose={onClose}
+        />,
     );
 
 describe('DeepResearchReport', () => {

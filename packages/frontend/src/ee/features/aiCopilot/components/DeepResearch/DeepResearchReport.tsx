@@ -3,6 +3,7 @@ import {
     Badge,
     Box,
     Button,
+    Drawer,
     Group,
     ScrollArea,
     Stack,
@@ -17,7 +18,7 @@ import {
     useState,
     type KeyboardEvent,
 } from 'react';
-import { createPortal } from 'react-dom';
+import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import {
     type DeepResearchEvidence,
     type DeepResearchRunView,
@@ -132,33 +133,14 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
     >(null);
     const markerRefs = useRef(new Map<string, HTMLButtonElement>());
     const evidenceRefs = useRef(new Map<string, HTMLElement>());
-    const [reportTarget, setReportTarget] = useState<Element | null>(null);
 
     useEffect(() => {
         if (!opened) {
             setSelectedEvidenceUuid(null);
-            setReportTarget(null);
-            return;
         }
-
-        setReportTarget(
-            document.querySelector('[data-deep-research-report-target]'),
-        );
     }, [opened]);
 
-    useEffect(() => {
-        if (!opened) return;
-
-        const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                onClose();
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [onClose, opened]);
-
-    if (!artifact || !opened || !reportTarget) {
+    if (!artifact) {
         return null;
     }
 
@@ -195,24 +177,35 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
         nextMarker.focus();
     };
 
-    return createPortal(
-        <Box
-            className={styles.workspace}
-            role="region"
-            aria-label="Deep research"
+    return (
+        <Drawer
+            opened={opened}
+            onClose={onClose}
+            title={
+                <Group justify="space-between" w="100%" wrap="nowrap">
+                    <Text fw={600}>Deep research</Text>
+                    <Button
+                        variant="light"
+                        color="gray"
+                        radius="xl"
+                        size="xs"
+                        leftSection={<IconArrowLeft size={14} />}
+                        onClick={onClose}
+                    >
+                        Back to chat
+                    </Button>
+                </Group>
+            }
+            withCloseButton={false}
+            position="right"
+            size="100%"
+            padding={0}
+            classNames={{
+                inner: styles.drawerInner,
+                overlay: styles.drawerOverlay,
+            }}
+            __vars={{ '--drawer-top-offset': `${NAVBAR_HEIGHT}px` }}
         >
-            <Box className={styles.workspaceHeader}>
-                <Button
-                    variant="light"
-                    color="gray"
-                    radius="xl"
-                    size="xs"
-                    leftSection={<IconArrowLeft size={14} />}
-                    onClick={onClose}
-                >
-                    Back to chat
-                </Button>
-            </Box>
             <ScrollArea className={styles.reportScroll}>
                 <Box component="article" className={styles.report}>
                     <Stack gap="xl">
@@ -495,7 +488,6 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                     </Stack>
                 </Box>
             </ScrollArea>
-        </Box>,
-        reportTarget,
+        </Drawer>
     );
 };

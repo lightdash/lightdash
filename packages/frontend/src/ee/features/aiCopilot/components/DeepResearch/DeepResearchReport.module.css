@@ -1,29 +1,15 @@
-.workspace {
-    display: flex;
-    height: 100%;
-    flex-direction: column;
-    pointer-events: auto;
-    background: light-dark(
-        var(--mantine-color-white),
-        var(--mantine-color-dark-8)
-    );
-}
-
-.workspaceHeader {
-    display: flex;
-    flex-shrink: 0;
-    justify-content: flex-end;
-    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+.drawerInner,
+.drawerOverlay {
+    top: var(--drawer-top-offset, 0);
+    height: calc(100% - var(--drawer-top-offset, 0));
 }
 
 .reportScroll {
-    flex: 1;
-    min-height: 0;
+    height: calc(100dvh - var(--navbar-height) - 3.75rem);
 }
 
 .report {
-    width: min(100%, 46rem);
-    margin-inline: auto;
+    width: 100%;
     padding: clamp(1.5rem, 5vw, 4rem) clamp(1.25rem, 4vw, 3rem) 6rem;
 }
 
