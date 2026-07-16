@@ -1,3 +1,20 @@
+# [0.3395.0](https://github.com/lightdash/lightdash/compare/0.3394.0...0.3395.0) (2026-07-16)
+
+
+### Bug Fixes
+
+* merge duplicate dbt built-in macros and docs silently across dbt sources ([#25632](https://github.com/lightdash/lightdash/issues/25632)) ([5968531](https://github.com/lightdash/lightdash/commit/5968531fa0c76053feb47c645820a032a2c220db))
+
+
+### Features
+
+* streamline AI project-onboarding prompt ([#25633](https://github.com/lightdash/lightdash/issues/25633)) ([d183670](https://github.com/lightdash/lightdash/commit/d183670f3de4053ee15f3b7ab6c826c00aba3c44))
+
+
+### Reverts
+
+* remove warehouse-column validation check ([#25432](https://github.com/lightdash/lightdash/issues/25432)) ([#25635](https://github.com/lightdash/lightdash/issues/25635)) ([82b300e](https://github.com/lightdash/lightdash/commit/82b300e637feff75bb37a535a04ba305daa8b240))
+
 # [0.3394.0](https://github.com/lightdash/lightdash/compare/0.3393.0...0.3394.0) (2026-07-16)
 
 

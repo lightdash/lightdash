@@ -8198,7 +8198,6 @@ const models: TsoaRoute.Models = {
             'SET_VALIDATION_ERROR',
             'INVALID_PARAMETER',
             'DUPLICATE_FIELD_NAME',
-            'MISSING_WAREHOUSE_COLUMN',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
