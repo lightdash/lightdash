@@ -28,7 +28,7 @@ import classes from './DayOneAskInput.module.css';
 
 const AI_ROUTER_QUERY_KEY = 'ai-router';
 
-type Props = { projectUuid: string };
+type Props = { projectUuid: string; preview?: boolean };
 
 // AgentSelector (rendered inside AgentChatInput below) already calls
 // useAiRouterConfig() to build its own dropdown. Calling that same hook a
@@ -93,7 +93,7 @@ const SuggestionPills: FC<{
 // (not via AgentChatInput's own `showSuggestions`) so they keep the design's
 // pill styling, and so a specific reference agent can power them even when
 // the composer itself is in Auto mode.
-const DayOneAskInputInner: FC<Props> = ({ projectUuid }) => {
+const DayOneAskInputInner: FC<Props> = ({ projectUuid, preview = false }) => {
     const navigate = useNavigate();
     const { setPendingPrompt } = usePendingPrompt();
     const { data: agents, isLoading: isLoadingAgents } = useProjectAiAgents({
@@ -198,7 +198,10 @@ const DayOneAskInputInner: FC<Props> = ({ projectUuid }) => {
     }
 
     return (
-        <>
+        // In the builder (preview) the composer stays visually active but the
+        // whole subtree is `inert`: no focus, no typing, no submit — it just
+        // shows what viewers will get.
+        <div className={classes.composer} inert={preview}>
             <AgentChatInput
                 projectUuid={projectUuid}
                 agents={agents}
@@ -223,13 +226,13 @@ const DayOneAskInputInner: FC<Props> = ({ projectUuid }) => {
                         : undefined
                 }
             />
-            {canCreateThread && (
+            {(canCreateThread || preview) && (
                 <SuggestionPills
                     chips={suggestionsQuery.data?.chips ?? []}
                     onPick={handleChipPick}
                 />
             )}
-        </>
+        </div>
     );
 };
 
