@@ -7,9 +7,11 @@ FROM node:20-bookworm-slim AS pnpm-base
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
+# Fixed world-readable path so the pnpm cache resolves under any runtime UID (non-root securityContexts)
+ENV COREPACK_HOME="/usr/local/corepack"
 RUN npm i -g corepack@latest
 RUN corepack enable
-RUN corepack prepare pnpm@10.33.0 --activate
+RUN corepack prepare pnpm@10.33.0 --activate && chmod -R a+rX "$COREPACK_HOME"
 RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app
@@ -361,6 +363,8 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 FROM pnpm-base as prod
 
 ENV NODE_ENV production
+# Boot must work fully offline: pnpm is baked in, never fetch it from npmjs at runtime
+ENV COREPACK_ENABLE_NETWORK=0
 
 WORKDIR /usr/app
 
