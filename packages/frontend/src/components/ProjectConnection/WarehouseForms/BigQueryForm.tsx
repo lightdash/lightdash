@@ -37,37 +37,102 @@ import classes from './BigQueryForm.module.css';
 import DataTimezoneField from './DataTimezoneField';
 import { BigQueryDefaultValues } from './defaultValues';
 
+const bigQuerySchemaDescription = (
+    <p>
+        This is the name of your dbt dataset: the dataset in your warehouse
+        where the output of your dbt models is written to. If you're not sure
+        what this is, check out the
+        <b> dataset </b>
+        value{' '}
+        <Anchor
+            inherit
+            target="_blank"
+            href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#:~:text=This%20connection%20method%20requires%20local%20OAuth%20via%20gcloud."
+            rel="noreferrer"
+        >
+            you've set in your dbt <b>profiles.yml</b> file
+        </Anchor>
+        .
+        <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#data-set" />
+    </p>
+);
+
 export const BigQuerySchemaInput: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
     const form = useFormContext();
+    const { data, error: bigqueryAuthError } = useIsBigQueryAuthenticated();
+    const isAuthenticated = data !== undefined && bigqueryAuthError === null;
+    const isSso =
+        form.values.warehouse?.type === WarehouseTypes.BIGQUERY &&
+        form.values.warehouse?.authenticationType ===
+            BigqueryAuthenticationType.SSO;
+    const projectField = form.getInputProps('warehouse.project');
+    const [debouncedProject] = useDebouncedValue(projectField.value, 300);
+    const {
+        data: datasets,
+        isInitialLoading: isLoadingDatasets,
+        error: datasetsError,
+    } = useBigqueryDatasets(isAuthenticated && isSso, debouncedProject);
+    const datasetField = form.getInputProps('warehouse.dataset');
+    const hasProject =
+        typeof debouncedProject === 'string' && debouncedProject.length > 0;
+
+    if (!isSso || !isAuthenticated) {
+        return (
+            <TextInput
+                name="warehouse.dataset"
+                {...datasetField}
+                label="Data set"
+                description={bigQuerySchemaDescription}
+                required
+                disabled={disabled}
+            />
+        );
+    }
 
     return (
-        <TextInput
+        <Autocomplete
             name="warehouse.dataset"
-            {...form.getInputProps('warehouse.dataset')}
             label="Data set"
-            description={
-                <p>
-                    This is the name of your dbt dataset: the dataset in your
-                    warehouse where the output of your dbt models is written to.
-                    If you're not sure what this is, check out the
-                    <b> dataset </b>
-                    value{' '}
-                    <Anchor
-                        inherit
-                        target="_blank"
-                        href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#:~:text=This%20connection%20method%20requires%20local%20OAuth%20via%20gcloud."
-                        rel="noreferrer"
-                    >
-                        you've set in your dbt <b>profiles.yml</b> file
-                    </Anchor>
-                    .
-                    <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#data-set" />
-                </p>
+            description={bigQuerySchemaDescription}
+            placeholder={
+                !hasProject
+                    ? 'Choose a project first'
+                    : isLoadingDatasets
+                      ? 'Loading data sets...'
+                      : 'Type or select a data set'
             }
             required
-            disabled={disabled}
+            {...datasetField}
+            onChange={(value) => {
+                datasetField.onChange(value);
+                const selectedDataset = datasets?.find(
+                    (dataset) => dataset.datasetId === value,
+                );
+                if (selectedDataset?.location) {
+                    form.setFieldValue(
+                        'warehouse.location',
+                        selectedDataset.location,
+                    );
+                }
+            }}
+            disabled={disabled || !hasProject}
+            data={datasets?.map((dataset) => dataset.datasetId) ?? []}
+            limit={5}
+            rightSectionPointerEvents={datasetsError ? 'all' : 'none'}
+            rightSection={
+                isLoadingDatasets ? (
+                    <Loader size="xs" />
+                ) : datasetsError ? (
+                    <Tooltip label="Failed to load data sets. You can type manually.">
+                        <MantineIcon
+                            icon={IconExclamationCircle}
+                            color="yellow"
+                        />
+                    </Tooltip>
+                ) : undefined
+            }
         />
     );
 };
@@ -370,42 +435,7 @@ const BigQueryForm: FC<{
                 />
 
                 {authenticationType === BigqueryAuthenticationType.SSO ? (
-                    <>
-                        {/*
-                // Autocomplete for datasets
-               <Select  label="Dataset"
-                    name='warehouse.dataset'
-                    required
-                    description={
-                        <p>
-                            This is the name of your dbt dataset: the dataset in your
-                            warehouse where the output of your dbt models is written to.
-                            If you're not sure what this is, check out the
-                            <b> dataset </b>
-                            value{' '}
-                            <Anchor inherit
-                                target="_blank"
-                                href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#:~:text=This%20connection%20method%20requires%20local%20OAuth%20via%20gcloud."
-                                rel="noreferrer"
-                            >
-                                you've set in your dbt <b>profiles.yml</b> file
-                            </Anchor>
-                            .
-                            <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#data-set" />
-                        </p>
-                    }
-                    placeholder={hasDatasets ? 'Choose dataset': 'Type project ID to filter datasets from BigQuery'}
-                    disabled={!hasDatasets}
-                        data={datasets?.map(d => ({
-                            value: d.datasetId,
-                            label: `${d.datasetId}`
-                        })) || []}
-                        onChange={(value) => {
-                            const selectedDataset = datasets?.find(d => d.datasetId === value)
-                            form.setFieldValue('warehouse.location', selectedDataset?.location)
-                        }}
-                />         */}
-                    </>
+                    <></>
                 ) : authenticationType ===
                   BigqueryAuthenticationType.PRIVATE_KEY ? (
                     <>
