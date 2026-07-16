@@ -51,7 +51,6 @@ import {
     IconPencil,
     IconPlus,
     IconTrash,
-    IconUserSearch,
     IconUsers,
 } from '@tabler/icons-react';
 import { useEffect, useRef, useState, type FC } from 'react';
@@ -86,9 +85,8 @@ import {
     usePublishHomepage,
     useUpdateHomepageDraft,
 } from './hooks/useProjectHomepage';
-import { PublishedHomepage } from './PublishedHomepage';
+import { PreviewPane } from './PreviewPane';
 import { PublishModal } from './PublishModal';
-import { ViewAsModal } from './ViewAsModal';
 
 type DragSource =
     | { kind: 'new'; definition: BlockDefinition }
@@ -442,7 +440,6 @@ export const HomepageEditor: FC<Props> = ({
     const deleteMutation = useDeleteHomepage(projectUuid);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
-    const [isViewAsModalOpen, setIsViewAsModalOpen] = useState(false);
 
     const isAiEnabled = useAiAgentButtonVisibility();
 
@@ -809,14 +806,6 @@ export const HomepageEditor: FC<Props> = ({
                 </button>
                 <button
                     type="button"
-                    className={classes.tbBtn}
-                    onClick={() => setIsViewAsModalOpen(true)}
-                >
-                    <MantineIcon icon={IconUserSearch} size={15} />
-                    View as
-                </button>
-                <button
-                    type="button"
                     className={classes.tbBtnPrimary}
                     disabled={publishMutation.isLoading}
                     onClick={handleOpenPublish}
@@ -876,8 +865,8 @@ export const HomepageEditor: FC<Props> = ({
                     <div className={classes.canvas}>
                         <div className={classes.canvasInner}>
                             {isPreviewing ? (
-                                <PublishedHomepage
-                                    config={draft}
+                                <PreviewPane
+                                    draft={draft}
                                     projectUuid={projectUuid}
                                 />
                             ) : (
@@ -1070,11 +1059,6 @@ export const HomepageEditor: FC<Props> = ({
                     ) : null}
                 </DragOverlay>
             </DndContext>
-            <ViewAsModal
-                opened={isViewAsModalOpen}
-                onClose={() => setIsViewAsModalOpen(false)}
-                projectUuid={projectUuid}
-            />
             <PublishModal
                 opened={isPublishModalOpen}
                 onClose={() => setIsPublishModalOpen(false)}
