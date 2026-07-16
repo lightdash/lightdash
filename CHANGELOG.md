@@ -1,3 +1,10 @@
+# [0.3399.0](https://github.com/lightdash/lightdash/compare/0.3398.1...0.3399.0) (2026-07-16)
+
+
+### Features
+
+* **ai:** add Deep Research mode to AI Agent ([#25613](https://github.com/lightdash/lightdash/issues/25613)) ([05da4f0](https://github.com/lightdash/lightdash/commit/05da4f0f1c2b19392243df65ec79c95a7389956b))
+
 ## [0.3398.1](https://github.com/lightdash/lightdash/compare/0.3398.0...0.3398.1) (2026-07-16)
 
 
