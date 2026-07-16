@@ -3,18 +3,21 @@ import { Knex } from 'knex';
 const AiWritebackThreadTableName = 'ai_writeback_thread';
 const ProjectDbtSourcesTableName = 'project_dbt_sources';
 const ColumnName = 'project_dbt_source_uuid';
-// Knex derives this name from table + column when the FK is created below; it is
-// the constraint that actually exists in already-migrated databases.
-const ForeignKeyName = 'ai_writeback_thread_project_dbt_source_uuid_foreign';
 
+// Detect the FK by the column it constrains rather than its derived name, so this
+// never depends on Knex's naming convention. dropForeign()/foreign() below still
+// derive that name, which is fine — they use the exact value Knex created it with.
 async function hasForeignKey(knex: Knex): Promise<boolean> {
     const result = await knex.raw(
         `SELECT 1
-           FROM pg_constraint
-          WHERE conname = ?
-            AND conrelid = to_regclass(?)
-            AND contype = 'f'`,
-        [ForeignKeyName, AiWritebackThreadTableName],
+           FROM information_schema.table_constraints tc
+           JOIN information_schema.key_column_usage kcu
+             ON tc.constraint_name = kcu.constraint_name
+            AND tc.constraint_schema = kcu.constraint_schema
+          WHERE tc.constraint_type = 'FOREIGN KEY'
+            AND tc.table_name = ?
+            AND kcu.column_name = ?`,
+        [AiWritebackThreadTableName, ColumnName],
     );
     return result.rows.length > 0;
 }
