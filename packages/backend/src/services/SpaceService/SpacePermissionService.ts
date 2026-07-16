@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     getHighestSpaceRole,
+    getProjectRoleForSpaceAccess,
     NotFoundError,
     OrganizationMemberRole,
     ProjectMemberRole,
@@ -15,7 +16,10 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { SpaceModel } from '../../models/SpaceModel';
-import { SpacePermissionModel } from '../../models/SpacePermissionModel';
+import {
+    SpacePermissionModel,
+    type ProjectSpaceAccessWithCustomRole,
+} from '../../models/SpacePermissionModel';
 import { BaseService } from '../BaseService';
 
 export type SpaceAdmin = {
@@ -172,6 +176,51 @@ export class SpacePermissionService extends BaseService {
     }
 
     /**
+     * Custom-role project/group assignments persist a placeholder `viewer` in
+     * the legacy `role` column (the real role lives in `role_uuid`). Replace
+     * the placeholder with the role derived from the custom role's scopes so
+     * inherited space access reflects what the role actually grants.
+     */
+    private async resolveCustomRoleProjectAccess(
+        projectAccessMap: Record<string, ProjectSpaceAccessWithCustomRole[]>,
+        { trx }: { trx?: Knex } = {},
+    ): Promise<Record<string, ProjectSpaceAccess[]>> {
+        const customRoleUuids = [
+            ...new Set(
+                Object.values(projectAccessMap)
+                    .flat()
+                    .flatMap((access) =>
+                        access.roleUuid ? [access.roleUuid] : [],
+                    ),
+            ),
+        ];
+        if (customRoleUuids.length === 0) {
+            return projectAccessMap;
+        }
+
+        const scopesByRole = await this.spacePermissionModel.getRoleScopes(
+            customRoleUuids,
+            { trx },
+        );
+
+        return Object.fromEntries(
+            Object.entries(projectAccessMap).map(([spaceUuid, accessList]) => [
+                spaceUuid,
+                accessList.map(({ roleUuid, ...access }) =>
+                    roleUuid
+                        ? {
+                              ...access,
+                              role: getProjectRoleForSpaceAccess(
+                                  scopesByRole[roleUuid] ?? [],
+                              ),
+                          }
+                        : access,
+                ),
+            ]),
+        );
+    }
+
+    /**
      * Gets the access context for a list of space uuids so we can check against CASL.
      *
      * Chain-aware resolution: walks each space's inheritance chain (up to the
@@ -229,11 +278,17 @@ export class SpacePermissionService extends BaseService {
                     { trx },
                 ),
                 allChainsRootSpaceUuids.length > 0
-                    ? this.spacePermissionModel.getProjectSpaceAccess(
-                          allChainsRootSpaceUuids,
-                          filters,
-                          { trx },
-                      )
+                    ? this.spacePermissionModel
+                          .getProjectSpaceAccess(
+                              allChainsRootSpaceUuids,
+                              filters,
+                              { trx },
+                          )
+                          .then((access) =>
+                              this.resolveCustomRoleProjectAccess(access, {
+                                  trx,
+                              }),
+                          )
                     : Promise.resolve(
                           {} as Record<string, ProjectSpaceAccess[]>,
                       ),
