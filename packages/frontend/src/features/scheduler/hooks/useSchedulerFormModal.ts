@@ -7,13 +7,12 @@ import {
     type ApiError,
     type CreateSchedulerAndTargets,
     type CreateSchedulerAndTargetsWithoutIds,
-    type DashboardFilters,
     type ItemsMap,
     type ParametersValuesMap,
     type SchedulerAndTargets,
 } from '@lightdash/common';
 import { type UseMutationResult } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useAiAgentButtonVisibility } from '../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -152,15 +151,6 @@ export const useSchedulerFormModal = ({
     const isFilterRequirementsEnabled =
         filterRequirementsFlag?.enabled === true;
 
-    // The form's validate closure is captured once, so it reads the saved
-    // filters and flag through refs updated on every render.
-    const savedDashboardFiltersRef = useRef<DashboardFilters | undefined>(
-        undefined,
-    );
-    savedDashboardFiltersRef.current = dashboard?.filters;
-    const isFilterRequirementsEnabledRef = useRef(false);
-    isFilterRequirementsEnabledRef.current = isFilterRequirementsEnabled;
-
     // Use the explicitly passed parameter values
     const dashboardParameterValues = currentParameterValues || {};
 
@@ -212,15 +202,19 @@ export const useSchedulerFormModal = ({
                     // Dashboard filters are undefined/null for charts
                     return null;
                 }
-                const { filtersWithUnmetRequirements } =
+                const { unmetRequirements, filtersWithUnmetRequirements } =
                     getSchedulerFilterRequirements(
-                        savedDashboardFiltersRef.current,
+                        dashboard?.filters,
                         value,
-                        isFilterRequirementsEnabledRef.current,
+                        isFilterRequirementsEnabled,
                     );
 
                 if (filtersWithUnmetRequirements.length > 0) {
-                    return `Required filters must have values`;
+                    return unmetRequirements.every(
+                        (requirement) => requirement.type === 'group',
+                    )
+                        ? 'Set a value for at least one filter in each requirement group'
+                        : 'Required filters must have values';
                 }
                 return null;
             },
@@ -256,12 +250,17 @@ export const useSchedulerFormModal = ({
     const isThresholdAlertWithNoFields =
         isThresholdAlert && Object.keys(numericMetrics).length === 0;
 
-    const { filtersWithUnmetRequirements: requiredFiltersWithoutValues } =
-        getSchedulerFilterRequirements(
-            dashboard?.filters,
-            form.values.dashboardFilters,
-            isFilterRequirementsEnabled,
-        );
+    const {
+        unmetRequirements,
+        filtersWithUnmetRequirements: requiredFiltersWithoutValues,
+    } = getSchedulerFilterRequirements(
+        dashboard?.filters,
+        form.values.dashboardFilters,
+        isFilterRequirementsEnabled,
+    );
+    const hasOnlyUnmetGroupRequirements =
+        unmetRequirements.length > 0 &&
+        unmetRequirements.every((requirement) => requirement.type === 'group');
 
     // Sync form values when data is loaded. The AI augmentation is omitted —
     // it loads via a separate query and is synced by the effect below, so a
@@ -466,5 +465,6 @@ export const useSchedulerFormModal = ({
         numericMetrics,
         isDashboardTabsAvailable,
         requiredFiltersWithoutValues,
+        hasOnlyUnmetGroupRequirements,
     };
 };

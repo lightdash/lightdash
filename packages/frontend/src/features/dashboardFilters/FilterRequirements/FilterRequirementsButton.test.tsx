@@ -141,6 +141,18 @@ describe('FilterRequirementsButton explicit save', () => {
         expect(removeButton).not.toBeNull();
         await userEvent.click(removeButton!);
 
+        // Last member of the rule: removal asks for confirmation first
+        await userEvent.click(
+            await screen.findByRole('button', {
+                name: 'Remove rule',
+                hidden: true,
+            }),
+        );
+
+        // Clicks inside the portalled confirm modal must not count as
+        // popover outside clicks
+        expect(closeRulesPopover).not.toHaveBeenCalled();
+
         // Staged: the chip is gone from the draft view, nothing committed yet
         expect(queryRemoveChipButton()).toBeNull();
         expect(updateFilterRule).not.toHaveBeenCalled();
@@ -150,6 +162,22 @@ describe('FilterRequirementsButton explicit save', () => {
             required: false,
             requiredGroupId: undefined,
         });
+    });
+
+    it('keeps the member when last-member removal is cancelled', async () => {
+        renderWithProviders(<FilterRequirementsButton />);
+
+        await userEvent.click(queryRemoveChipButton()!);
+        await userEvent.click(
+            await screen.findByRole('button', {
+                name: 'Cancel',
+                hidden: true,
+            }),
+        );
+
+        expect(closeRulesPopover).not.toHaveBeenCalled();
+        expect(queryRemoveChipButton()).not.toBeNull();
+        expect(updateFilterRule).not.toHaveBeenCalled();
     });
 
     it('saves via keyboard activation of the Save button', async () => {

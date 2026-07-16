@@ -5,9 +5,14 @@ import useDashboardContext from '../../../providers/Dashboard/useDashboardContex
 /**
  * Immediately applies a partial update to a saved dashboard filter
  * (dimension or metric) by id. Used by the filter-rule editors, whose edits
- * take effect without an Apply step.
+ * take effect without an Apply step. `isEditMode` mirrors the dashboard
+ * context updaters: true for author-side editors (default), false for
+ * viewer-side value setting (e.g. the guided setup card).
  */
-export const useUpdateDashboardFilterRule = () => {
+export const useUpdateDashboardFilterRule = (options?: {
+    isEditMode?: boolean;
+}) => {
+    const isEditMode = options?.isEditMode ?? true;
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const updateDimensionDashboardFilter = useDashboardContext(
         (c) => c.updateDimensionDashboardFilter,
@@ -29,7 +34,7 @@ export const useUpdateDashboardFilterRule = () => {
                     },
                     dimensionIndex,
                     false,
-                    true,
+                    isEditMode,
                 );
                 return;
             }
@@ -41,12 +46,13 @@ export const useUpdateDashboardFilterRule = () => {
                     { ...dashboardFilters.metrics[metricIndex], ...updates },
                     metricIndex,
                     false,
-                    true,
+                    isEditMode,
                 );
             }
         },
         [
             dashboardFilters,
+            isEditMode,
             updateDimensionDashboardFilter,
             updateMetricDashboardFilter,
         ],

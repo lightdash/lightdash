@@ -102,6 +102,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         numericMetrics,
         isDashboardTabsAvailable,
         requiredFiltersWithoutValues,
+        hasOnlyUnmetGroupRequirements,
     } = useSchedulerFormModal({
         schedulerUuid: schedulerUuidToEdit,
         resourceUuid,
@@ -158,7 +159,9 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         : isThresholdAlert && !form.values.thresholds?.[0]?.fieldId
           ? 'Pick an alert field'
           : requiredFiltersWithoutValues.length > 0
-            ? 'Some required filters are missing values'
+            ? hasOnlyUnmetGroupRequirements
+                ? 'Set a value for at least one filter in each requirement group'
+                : 'Some required filters are missing values'
             : !form.isValid()
               ? 'Complete the required fields'
               : null;

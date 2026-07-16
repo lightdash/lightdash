@@ -434,9 +434,11 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
         );
     }
 
+    // Same base as the submit gate in useSchedulerFormModal: the saved
+    // dashboard filters, not the live session filters.
     const { unmetRequirements, filtersWithUnmetRequirements } =
         getSchedulerFilterRequirements(
-            currentDashboardFilters,
+            dashboard?.filters,
             draftFilters,
             isFilterRequirementsEnabled,
         );

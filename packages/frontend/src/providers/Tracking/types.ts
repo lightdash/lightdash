@@ -559,6 +559,16 @@ type DashboardFilterLockToggledEvent = {
     };
 };
 
+type DashboardFilterRequirementsSavedEvent = {
+    name: EventName.DASHBOARD_FILTER_REQUIREMENTS_SAVED;
+    properties: {
+        dashboardUuid: string | undefined;
+        ruleCount: number;
+        memberCount: number;
+        hasNote: boolean;
+    };
+};
+
 export type EventData =
     | GenericEvent
     | HomepageQuickActionClickedEvent
@@ -569,6 +579,7 @@ export type EventData =
     | GlobalSearchClosedEvent
     | OnboardingStepClickedEvent
     | CrossFilterDashboardAppliedEvent
+    | DashboardFilterRequirementsSavedEvent
     | ViewUnderlyingDataClickedEvent
     | DrillByClickedEvent
     | DashboardAutoRefreshUpdateEvent
