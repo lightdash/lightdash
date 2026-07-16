@@ -14,6 +14,35 @@ const registration: DeepResearchRunRegistration = {
 };
 
 describe('adaptDeepResearchRun', () => {
+    it('uses the client registration time for an active run', () => {
+        const view = adaptDeepResearchRun({
+            registration,
+            events: [],
+            now: Date.parse('2026-07-15T09:00:08.000Z'),
+            run: {
+                aiDeepResearchRunUuid: 'run-1',
+                projectUuid: 'project-1',
+                status: 'running',
+                result: null,
+                budget: {
+                    maxRuntimeMs: 1_800_000,
+                    maxTokens: 10_000,
+                    maxToolCalls: 25,
+                    maxWarehouseQueries: 25,
+                    maxResultRows: 10_000,
+                },
+                errorMessage: null,
+                cancellationRequestedAt: null,
+                createdAt: '2026-07-15T08:00:00.000Z',
+                updatedAt: '2026-07-15T08:00:08.000Z',
+                startedAt: '2026-07-15T08:00:01.000Z',
+                completedAt: null,
+            },
+        });
+
+        expect(view.elapsedMs).toBe(8_000);
+    });
+
     it('drops unsafe model-produced evidence links', () => {
         const view = adaptDeepResearchRun({
             registration,

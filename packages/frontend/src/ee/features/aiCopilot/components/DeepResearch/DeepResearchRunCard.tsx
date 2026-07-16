@@ -24,7 +24,10 @@ import {
 import { useEffect, useState } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { formatDuration } from '../../../../../utils/formatters';
-import { isDeepResearchRunTerminal } from '../../deepResearch/deepResearchAdapter';
+import {
+    DEEP_RESEARCH_DEPTH_CONFIG,
+    isDeepResearchRunTerminal,
+} from '../../deepResearch/deepResearchAdapter';
 import { type DeepResearchRunView } from '../../deepResearch/types';
 import { useCancelDeepResearchMutation } from '../../hooks/useDeepResearch';
 import { DeepResearchReport } from './DeepResearchReport';
@@ -103,9 +106,27 @@ export const DeepResearchRunCard = ({
                             <MantineIcon icon={IconReportSearch} size={18} />
                         </ThemeIcon>
                         <Stack gap={3}>
-                            <Text size="xs" c="indigo" fw={700} tt="uppercase">
-                                Deep research
-                            </Text>
+                            <Group gap="xs">
+                                <Text
+                                    size="xs"
+                                    c="indigo"
+                                    fw={700}
+                                    tt="uppercase"
+                                >
+                                    Deep research
+                                </Text>
+                                <Badge
+                                    size="xs"
+                                    variant="light"
+                                    color="gray"
+                                    tt="none"
+                                >
+                                    {
+                                        DEEP_RESEARCH_DEPTH_CONFIG[run.depth]
+                                            .label
+                                    }
+                                </Badge>
+                            </Group>
                             <Text fw={600}>{run.question}</Text>
                         </Stack>
                     </Group>
@@ -121,6 +142,8 @@ export const DeepResearchRunCard = ({
                 <Text className={styles.liveRegion} aria-live="polite">
                     Research status changed to {status.label}
                 </Text>
+
+                <Divider />
 
                 {run.phase && !isTerminal && (
                     <Group gap="xs" wrap="nowrap">

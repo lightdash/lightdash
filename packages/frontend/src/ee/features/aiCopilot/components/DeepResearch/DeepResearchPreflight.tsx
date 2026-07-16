@@ -22,13 +22,6 @@ const SOURCES: DeepResearchSource[] = [
     { name: 'Public web', isAvailable: true, warning: null },
 ];
 
-const DEPTH_LABELS: Record<DeepResearchDepth, string> = {
-    quick: 'Low',
-    standard: 'Medium',
-    deep: 'High',
-    exhaustive: 'Extra High',
-};
-
 type Props = {
     depth: DeepResearchDepth;
     onDepthChange: (depth: DeepResearchDepth) => void;
@@ -78,7 +71,7 @@ export const DeepResearchPreflight = ({ depth, onDepthChange }: Props) => {
                                         <Radio.Indicator size="xs" />
                                         <Stack gap={0}>
                                             <Text size="12px" fw={600} lh={1.3}>
-                                                {DEPTH_LABELS[option]}
+                                                {optionConfig.label}
                                             </Text>
                                             <Stack gap={5} mt={6}>
                                                 <Group gap={3} wrap="nowrap">

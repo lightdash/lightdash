@@ -111,10 +111,11 @@ export const useStartDeepResearchMutation = ({
         AiDeepResearchRun,
         ApiError,
         StartDeepResearchArgs,
-        { optimisticRunUuid: string }
+        { optimisticRunUuid: string; createdAt: string }
     >({
         onMutate: (variables) => {
             const optimisticRunUuid = `starting-${crypto.randomUUID()}`;
+            const createdAt = new Date().toISOString();
             registerDeepResearchRun({
                 runUuid: optimisticRunUuid,
                 projectUuid,
@@ -122,10 +123,10 @@ export const useStartDeepResearchMutation = ({
                 userUuid: user.data?.userUuid ?? '',
                 question: variables.question,
                 depth: variables.depth,
-                createdAt: new Date().toISOString(),
+                createdAt,
                 state: 'starting',
             });
-            return { optimisticRunUuid };
+            return { optimisticRunUuid, createdAt };
         },
         mutationFn: ({ question, depth }) =>
             startDeepResearch(projectUuid, {
@@ -140,7 +141,7 @@ export const useStartDeepResearchMutation = ({
                 userUuid: user.data?.userUuid ?? '',
                 question: variables.question,
                 depth: variables.depth,
-                createdAt: run.createdAt,
+                createdAt: context?.createdAt ?? new Date().toISOString(),
                 state: 'started',
             });
         },
@@ -166,10 +167,11 @@ export const useStartDeepResearchForThreadMutation = (projectUuid: string) => {
         AiDeepResearchRun,
         ApiError,
         StartDeepResearchArgs & { threadUuid: string },
-        { optimisticRunUuid: string }
+        { optimisticRunUuid: string; createdAt: string }
     >({
         onMutate: (variables) => {
             const optimisticRunUuid = `starting-${crypto.randomUUID()}`;
+            const createdAt = new Date().toISOString();
             registerDeepResearchRun({
                 runUuid: optimisticRunUuid,
                 projectUuid,
@@ -177,10 +179,10 @@ export const useStartDeepResearchForThreadMutation = (projectUuid: string) => {
                 userUuid: user.data?.userUuid ?? '',
                 question: variables.question,
                 depth: variables.depth,
-                createdAt: new Date().toISOString(),
+                createdAt,
                 state: 'starting',
             });
-            return { optimisticRunUuid };
+            return { optimisticRunUuid, createdAt };
         },
         mutationFn: ({ question, depth }) =>
             startDeepResearch(projectUuid, {
@@ -195,7 +197,7 @@ export const useStartDeepResearchForThreadMutation = (projectUuid: string) => {
                 userUuid: user.data?.userUuid ?? '',
                 question: variables.question,
                 depth: variables.depth,
-                createdAt: run.createdAt,
+                createdAt: context?.createdAt ?? new Date().toISOString(),
                 state: 'started',
             });
         },

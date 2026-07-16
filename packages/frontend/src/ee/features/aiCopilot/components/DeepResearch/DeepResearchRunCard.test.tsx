@@ -39,6 +39,7 @@ describe('DeepResearchRunCard', () => {
             );
 
             expect(screen.getByText(label)).toBeInTheDocument();
+            expect(screen.getByText('Medium')).toBeInTheDocument();
             expect(screen.getByText(/leave this page/i)).toBeInTheDocument();
             expect(screen.queryByText(/%/)).not.toBeInTheDocument();
             expect(

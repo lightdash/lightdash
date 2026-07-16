@@ -1,6 +1,5 @@
 .card {
     border: 1px solid var(--mantine-color-ldGray-3);
-    border-top: 3px solid var(--mantine-color-indigo-outline);
 }
 
 .answer {

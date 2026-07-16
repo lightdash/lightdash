@@ -27,14 +27,14 @@ export const DEEP_RESEARCH_DEPTH_CONFIG: Record<
     }
 > = {
     quick: {
-        label: 'Quick',
+        label: 'Low',
         effort: 'low',
         duration: 'Up to 15 minutes',
         warehouseQueries: 10,
         description: 'A focused check of the strongest available evidence.',
     },
     standard: {
-        label: 'Standard',
+        label: 'Medium',
         effort: 'medium',
         duration: 'Up to 30 minutes',
         warehouseQueries: 25,
@@ -42,14 +42,14 @@ export const DEEP_RESEARCH_DEPTH_CONFIG: Record<
             'A balanced investigation with validation and alternatives.',
     },
     deep: {
-        label: 'Deep',
+        label: 'High',
         effort: 'high',
         duration: 'Up to 45 minutes',
         warehouseQueries: 50,
         description: 'A broad investigation with more competing explanations.',
     },
     exhaustive: {
-        label: 'Exhaustive',
+        label: 'Extra High',
         effort: 'xhigh',
         duration: 'Up to 55 minutes',
         warehouseQueries: 100,
@@ -236,8 +236,10 @@ export const adaptDeepResearchRun = ({
     const queryCount = progressEvents.filter(
         (event) => event.payload.progress.activity === 'warehouse_query',
     ).length;
+    const startTime = run.completedAt
+        ? new Date(run.startedAt ?? run.createdAt).getTime()
+        : new Date(registration.createdAt).getTime();
     const endTime = run.completedAt ? new Date(run.completedAt).getTime() : now;
-    const startTime = new Date(run.startedAt ?? run.createdAt).getTime();
 
     return {
         uuid: run.aiDeepResearchRunUuid,
