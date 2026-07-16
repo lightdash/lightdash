@@ -1,7 +1,13 @@
-import { mcpToolDefinitions } from '@lightdash/common';
+import { Ability } from '@casl/ability';
+import {
+    mcpToolDefinitions,
+    type PossibleAbilities,
+    type SessionUser,
+} from '@lightdash/common';
 import type { ZodRawShape, ZodTypeAny } from 'zod';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import { defaultSessionUser } from '../../../auth/account/account.mock';
 import {
     getMcpAnalystPrompt,
     MCP_ANALYST_PROMPT,
@@ -86,11 +92,15 @@ const schemaToJson = (
     );
 };
 
-const makeMcpService = (): McpService =>
+const makeMcpService = (mcpContentWritesEnabled = true): McpService =>
     new McpService({
         aiAgentService: {},
         aiAgentToolsService: { createRuntime: vi.fn() },
-        aiOrganizationSettingsService: {},
+        aiOrganizationSettingsService: {
+            isMcpContentWritesEnabled: vi
+                .fn()
+                .mockResolvedValue(mcpContentWritesEnabled),
+        },
         aiRouterService: {},
         aiWritebackService: {},
         analytics: {},
@@ -190,4 +200,74 @@ describe('MCP tool contracts', () => {
             McpToolName.RUN_SQL,
         );
     });
+
+    it('registers content and scheduled-delivery tools independently', async () => {
+        const mcpService = makeMcpService();
+
+        mockRegisteredMcpTools.length = 0;
+        await mcpService.createServer({
+            mcpContentWritesEnabled: false,
+            scheduledDeliveryEnabled: true,
+        });
+        expect(mockRegisteredMcpTools.map(({ name }) => name)).not.toContain(
+            McpToolName.CREATE_CONTENT,
+        );
+        expect(mockRegisteredMcpTools.map(({ name }) => name)).not.toContain(
+            McpToolName.EDIT_CONTENT,
+        );
+        expect(mockRegisteredMcpTools.map(({ name }) => name)).toContain(
+            McpToolName.CREATE_SCHEDULED_DELIVERY,
+        );
+
+        mockRegisteredMcpTools.length = 0;
+        await mcpService.createServer({
+            mcpContentWritesEnabled: true,
+            scheduledDeliveryEnabled: false,
+        });
+        expect(mockRegisteredMcpTools.map(({ name }) => name)).toContain(
+            McpToolName.CREATE_CONTENT,
+        );
+        expect(mockRegisteredMcpTools.map(({ name }) => name)).toContain(
+            McpToolName.EDIT_CONTENT,
+        );
+        expect(mockRegisteredMcpTools.map(({ name }) => name)).not.toContain(
+            McpToolName.CREATE_SCHEDULED_DELIVERY,
+        );
+    });
+
+    it.each<{
+        settingEnabled: boolean;
+        rules: ConstructorParameters<typeof Ability<PossibleAbilities>>[0];
+        expected: boolean;
+    }>([
+        {
+            settingEnabled: false,
+            rules: [{ action: 'create', subject: 'ScheduledDeliveries' }],
+            expected: false,
+        },
+        { settingEnabled: true, rules: [], expected: false },
+        {
+            settingEnabled: true,
+            rules: [{ action: 'create', subject: 'ScheduledDeliveries' }],
+            expected: true,
+        },
+        {
+            settingEnabled: true,
+            rules: [{ action: 'manage', subject: 'ScheduledDeliveries' }],
+            expected: true,
+        },
+    ])(
+        'gates scheduled delivery registration by setting and permission',
+        async ({ settingEnabled, rules, expected }) => {
+            const mcpService = makeMcpService(settingEnabled);
+            const user: SessionUser = {
+                ...defaultSessionUser,
+                ability: new Ability<PossibleAbilities>(rules),
+            };
+
+            await expect(
+                mcpService.isCreateScheduledDeliveryEnabled(user),
+            ).resolves.toBe(expected);
+        },
+    );
 });
