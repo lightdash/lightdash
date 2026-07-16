@@ -130,11 +130,12 @@ export const DeepResearchPreflight = ({ depth, onDepthChange }: Props) => {
                             shown below.
                         </Text>
                     </Stack>
-                    <Group gap="xs">
+                    <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="xs">
                         {SOURCES.map((source) => (
                             <Group
                                 key={source.name}
-                                gap={6}
+                                gap="xs"
+                                wrap="nowrap"
                                 className={styles.source}
                                 data-available={source.isAvailable}
                             >
@@ -164,7 +165,7 @@ export const DeepResearchPreflight = ({ depth, onDepthChange }: Props) => {
                                 )}
                             </Group>
                         ))}
-                    </Group>
+                    </SimpleGrid>
                 </Stack>
             </Stack>
         </Box>
