@@ -348,6 +348,74 @@
     vertical-align: -2px;
 }
 
+/* Explicit "add column" gutters. Idle: a slim "+" rail that collapses to zero
+   width so single-column rows stay full-width, expanding on row hover. During
+   a drag: a dashed drop slot that accepts the dragged block as a new column. */
+.columnRail {
+    flex: 0 0 0;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+    transition: flex-basis 0.15s ease;
+}
+
+.rowColumns:hover .columnRail,
+.columnRail[data-menu-open='true'] {
+    flex-basis: 24px;
+}
+
+.columnRailBtn {
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    border: 1px solid var(--mantine-color-ldGray-3);
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    color: var(--mantine-color-ldGray-6);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    opacity: 0;
+    box-shadow: var(--mantine-shadow-subtle);
+    transition:
+        opacity 0.15s ease,
+        color 0.12s ease,
+        border-color 0.12s ease;
+}
+
+.rowColumns:hover .columnRailBtn,
+.columnRail[data-menu-open='true'] .columnRailBtn {
+    opacity: 1;
+}
+
+.columnRailBtn:hover {
+    color: var(--mantine-color-ldGray-9);
+    border-color: var(--mantine-color-ldGray-5);
+}
+
+.columnSlot {
+    flex: 0 0 56px;
+    align-self: stretch;
+    min-height: 72px;
+    border: 2px dashed var(--mantine-color-ldGray-3);
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    color: var(--mantine-color-ldGray-4);
+    transition: all 0.12s ease-in-out;
+}
+
+.columnSlot[data-over='true'] {
+    flex-basis: 120px;
+    border-color: var(--mantine-color-blue-5);
+    color: var(--mantine-color-blue-5);
+    background: light-dark(
+        var(--mantine-color-blue-0),
+        var(--mantine-color-dark-5)
+    );
+}
+
 .endZoneActive {
     border-color: var(--mantine-color-blue-5);
     background: var(--mantine-color-blue-0);

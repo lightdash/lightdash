@@ -205,6 +205,16 @@ export const dropExistingBlock = (
     return withRows(config, insertAt(rows, block, adjusted));
 };
 
+// Whether a row can take another column (used to gate the explicit
+// add-column gutter affordances).
+export const canAddColumn = (
+    config: HomepageConfig,
+    rowIndex: number,
+): boolean => {
+    const row = config.rows[rowIndex];
+    return !!row && row.blocks.length < HOMEPAGE_MAX_BLOCKS_PER_ROW;
+};
+
 export const canDropInRow = (
     config: HomepageConfig,
     rowIndex: number,
