@@ -729,22 +729,29 @@ const createOptimisticMessages = (
     agent: AiAgent,
     context: AiPromptContext = [],
     hidden = false,
+    includeAssistantResponse = true,
 ) => {
-    return [
-        {
-            role: 'user' as const,
-            uuid: promptUuid,
-            threadUuid,
-            message: prompt,
-            createdAt: new Date().toISOString(),
-            user: {
-                name: getOptimisticUserName(user),
-                uuid: user?.userUuid ?? 'unknown',
-            },
-            context,
-            steers: [],
-            hidden,
+    const userMessage = {
+        role: 'user' as const,
+        uuid: promptUuid,
+        threadUuid,
+        message: prompt,
+        createdAt: new Date().toISOString(),
+        user: {
+            name: getOptimisticUserName(user),
+            uuid: user?.userUuid ?? 'unknown',
         },
+        context,
+        steers: [],
+        hidden,
+    };
+
+    if (!includeAssistantResponse) {
+        return [userMessage];
+    }
+
+    return [
+        userMessage,
         {
             role: 'assistant' as const,
             status: 'pending' as const,
@@ -885,6 +892,7 @@ export const useCreateAgentThreadMutation = (
             optimisticContext?: AiPromptContext;
             enableSqlMode?: boolean;
             toolHints?: string[];
+            skipAgentResponse?: boolean;
         }
     >({
         mutationFn: ({
@@ -892,6 +900,7 @@ export const useCreateAgentThreadMutation = (
             optimisticContext: _optimisticContext,
             enableSqlMode: _enableSqlMode,
             toolHints: _toolHints,
+            skipAgentResponse: _skipAgentResponse,
             ...data
         }) => createAgentThread(projectUuid, agentUuid, data),
         onSuccess: async (thread, variables) => {
@@ -944,6 +953,8 @@ export const useCreateAgentThreadMutation = (
                             // post-stream refetch to fill them in.
                             variables.optimisticContext ??
                                 variables.context?.map(toOptimisticContextItem),
+                            false,
+                            !variables.skipAgentResponse,
                         ),
                         createdAt: new Date().toISOString(),
                         user: {
@@ -954,67 +965,69 @@ export const useCreateAgentThreadMutation = (
                 },
             );
 
-            void streamMessage({
-                projectUuid,
-                agentUuid: thread.agentUuid,
-                threadUuid: thread.uuid,
-                messageUuid: thread.firstMessage.uuid,
-                enableSqlMode: variables.enableSqlMode,
-                toolHints: variables.toolHints,
-                onFinish: () =>
-                    queryClient.invalidateQueries({
-                        queryKey: [
-                            AI_AGENTS_KEY,
-                            projectUuid,
-                            agentUuid,
-                            'threads',
-                            thread.uuid,
-                        ],
-                    }),
-                onError: (errorMessage) => {
-                    queryClient.setQueryData(
-                        [
-                            AI_AGENTS_KEY,
-                            projectUuid,
-                            agentUuid,
-                            'threads',
-                            thread.uuid,
-                        ],
-                        (
-                            currentData:
-                                | ApiAiAgentThreadResponse['results']
-                                | undefined,
-                        ) =>
-                            markOptimisticAssistantMessageAsErrored(
-                                currentData,
-                                thread.firstMessage.uuid,
-                                errorMessage,
-                            ),
-                    );
+            if (!variables.skipAgentResponse) {
+                void streamMessage({
+                    projectUuid,
+                    agentUuid: thread.agentUuid,
+                    threadUuid: thread.uuid,
+                    messageUuid: thread.firstMessage.uuid,
+                    enableSqlMode: variables.enableSqlMode,
+                    toolHints: variables.toolHints,
+                    onFinish: () =>
+                        queryClient.invalidateQueries({
+                            queryKey: [
+                                AI_AGENTS_KEY,
+                                projectUuid,
+                                agentUuid,
+                                'threads',
+                                thread.uuid,
+                            ],
+                        }),
+                    onError: (errorMessage) => {
+                        queryClient.setQueryData(
+                            [
+                                AI_AGENTS_KEY,
+                                projectUuid,
+                                agentUuid,
+                                'threads',
+                                thread.uuid,
+                            ],
+                            (
+                                currentData:
+                                    | ApiAiAgentThreadResponse['results']
+                                    | undefined,
+                            ) =>
+                                markOptimisticAssistantMessageAsErrored(
+                                    currentData,
+                                    thread.firstMessage.uuid,
+                                    errorMessage,
+                                ),
+                        );
 
-                    void queryClient.invalidateQueries({
-                        queryKey: [
-                            AI_AGENTS_KEY,
-                            projectUuid,
-                            agentUuid,
-                            'threads',
-                            thread.uuid,
-                        ],
-                    });
-                },
-                refetchThread: () =>
-                    queryClient.invalidateQueries({
-                        queryKey: [
-                            AI_AGENTS_KEY,
-                            projectUuid,
-                            agentUuid,
-                            'threads',
-                            thread.uuid,
-                        ],
-                    }),
-                onToolCall: options?.onToolCall,
-                onToolResult: options?.onToolResult,
-            });
+                        void queryClient.invalidateQueries({
+                            queryKey: [
+                                AI_AGENTS_KEY,
+                                projectUuid,
+                                agentUuid,
+                                'threads',
+                                thread.uuid,
+                            ],
+                        });
+                    },
+                    refetchThread: () =>
+                        queryClient.invalidateQueries({
+                            queryKey: [
+                                AI_AGENTS_KEY,
+                                projectUuid,
+                                agentUuid,
+                                'threads',
+                                thread.uuid,
+                            ],
+                        }),
+                    onToolCall: options?.onToolCall,
+                    onToolResult: options?.onToolResult,
+                });
+            }
 
             options?.onCreated?.(thread);
 
@@ -1080,6 +1093,7 @@ export const useCreateAgentThreadMessageMutation = (
             enableSqlMode?: boolean;
             autoApproveSql?: boolean;
             toolHints?: string[];
+            skipAgentResponse?: boolean;
         },
         { messageUuid: string }
     >({
@@ -1088,6 +1102,7 @@ export const useCreateAgentThreadMessageMutation = (
             enableSqlMode: _enableSqlMode,
             autoApproveSql: _autoApproveSql,
             toolHints: _toolHints,
+            skipAgentResponse: _skipAgentResponse,
             ...data
         }) =>
             agentUuid && threadUuid
@@ -1126,6 +1141,7 @@ export const useCreateAgentThreadMessageMutation = (
                                 data.optimisticContext ??
                                     data.context?.map(toOptimisticContextItem),
                                 data.hidden,
+                                !data.skipAgentResponse,
                             ),
                         ],
                     };
@@ -1159,6 +1175,10 @@ export const useCreateAgentThreadMessageMutation = (
                     };
                 },
             );
+
+            if (vars.skipAgentResponse) {
+                return;
+            }
 
             void streamMessage({
                 projectUuid,

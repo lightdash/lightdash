@@ -70,6 +70,54 @@
     }
 }
 
+.deepResearchInput {
+    @mixin light {
+        border-color: var(--mantine-color-indigo-3);
+        background-color: color-mix(
+            in srgb,
+            var(--mantine-color-indigo-0) 38%,
+            var(--mantine-color-white)
+        );
+        box-shadow:
+            0 8px 24px rgba(76, 110, 245, 0.08),
+            0 0 0 1px rgba(76, 110, 245, 0.06);
+    }
+
+    @mixin dark {
+        border-color: var(--mantine-color-indigo-8);
+        background-color: color-mix(
+            in srgb,
+            var(--mantine-color-indigo-9) 16%,
+            var(--mantine-color-dark-6)
+        );
+    }
+}
+
+.inputCard.deepResearchInput:focus-within {
+    @mixin light {
+        border-color: var(--mantine-color-indigo-4);
+        box-shadow:
+            0 10px 28px rgba(76, 110, 245, 0.1),
+            0 0 0 2px rgba(76, 110, 245, 0.08);
+    }
+
+    @mixin dark {
+        border-color: var(--mantine-color-indigo-7);
+    }
+}
+
+.deepResearchIndicator {
+    position: absolute;
+    top: rem(12px);
+    left: rem(20px);
+    z-index: 2;
+    color: var(--mantine-color-indigo-6);
+}
+
+.deepResearchEditorContent {
+    padding-top: rem(42px);
+}
+
 .textarea {
     border: none;
     background: transparent;
@@ -312,6 +360,47 @@
     }
 }
 
+.minimalResearchIndicator {
+    display: flex;
+    flex: 0 0 rem(26px);
+    align-items: center;
+    justify-content: center;
+    width: rem(26px);
+    height: rem(26px);
+    color: var(--mantine-color-indigo-6);
+    background-color: var(--mantine-color-indigo-light);
+    border-radius: var(--mantine-radius-xl);
+}
+
+.minimalResearchBeta {
+    flex-shrink: 0;
+}
+
+.minimalInputWrapper.deepResearchInput,
+.minimalInputWrapper.deepResearchInput:focus-within {
+    @mixin light {
+        border-color: var(--mantine-color-indigo-3);
+        background-color: color-mix(
+            in srgb,
+            var(--mantine-color-indigo-0) 38%,
+            var(--mantine-color-white)
+        );
+    }
+
+    @mixin dark {
+        border-color: var(--mantine-color-indigo-8);
+        background-color: color-mix(
+            in srgb,
+            var(--mantine-color-indigo-9) 16%,
+            var(--ai-chat-input-bg, var(--mantine-color-dark-8))
+        );
+    }
+}
+
+.minimalInputWrapper.deepResearchInput .minimalPlaceholder {
+    left: rem(88px);
+}
+
 .minimalTextarea {
     border: none;
     background: transparent;
@@ -396,6 +485,15 @@
         @mixin dark {
             background-color: var(--mantine-color-ldDark-7);
         }
+    }
+}
+
+.submitButton.deepResearchSubmitButton,
+.minimalSubmitButton.deepResearchSubmitButton {
+    background-color: var(--mantine-color-indigo-6) !important;
+
+    &:hover:not(:disabled) {
+        background-color: var(--mantine-color-indigo-7) !important;
     }
 }
 

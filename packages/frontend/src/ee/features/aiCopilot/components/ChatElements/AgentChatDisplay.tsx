@@ -19,6 +19,7 @@ import {
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { useAgentAiMcpServers } from '../../hooks/useProjectAiMcpServers';
 import { AddToEvalModal } from '../Admin/AddToEvalModal';
+import { DeepResearchThreadRuns } from '../DeepResearch/DeepResearchThreadRuns';
 import { AssistantBubble } from './AgentChatAssistantBubble';
 import styles from './AgentChatDisplay.module.css';
 import { UserBubble } from './AgentChatUserBubble';
@@ -202,6 +203,13 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                     )}
                                 </Fragment>
                             ))}
+
+                        {projectUuid && (
+                            <DeepResearchThreadRuns
+                                projectUuid={projectUuid}
+                                threadUuid={thread.uuid}
+                            />
+                        )}
                     </Stack>
 
                     {enableAutoScroll && projectUuid && agentUuid ? (
