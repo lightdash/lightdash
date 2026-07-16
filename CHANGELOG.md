@@ -1,3 +1,10 @@
+# [0.3393.0](https://github.com/lightdash/lightdash/compare/0.3392.0...0.3393.0) (2026-07-16)
+
+
+### Features
+
+* require TLS on the pgwire semantic layer endpoint ([#25615](https://github.com/lightdash/lightdash/issues/25615)) ([493f96f](https://github.com/lightdash/lightdash/commit/493f96f06a98469b948f44bdabd9d416047702c1))
+
 # [0.3392.0](https://github.com/lightdash/lightdash/compare/0.3391.0...0.3392.0) (2026-07-15)
 
 
