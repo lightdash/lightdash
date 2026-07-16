@@ -767,7 +767,7 @@ export const AiAgentFormSetup = ({
                                             content
                                         </Text>
                                         <Tooltip
-                                            label="Requires data access to be enabled. Only works for users with content-as-code access (admins and developers)."
+                                            label="Requires data access to be enabled. Only works for users with content-as-code access (admins, developers, and editors)."
                                             withArrow
                                             withinPortal
                                             multiline
