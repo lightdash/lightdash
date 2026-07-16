@@ -1,3 +1,17 @@
+# [0.3394.0](https://github.com/lightdash/lightdash/compare/0.3393.0...0.3394.0) (2026-07-16)
+
+
+### Bug Fixes
+
+* **migrations:** drop dbt-source FK in down() so full rollback succeeds ([#25623](https://github.com/lightdash/lightdash/issues/25623)) ([2f8aac3](https://github.com/lightdash/lightdash/commit/2f8aac3c9d0f4a4ba8ea0c1c35ca3ca5cff0dda3))
+
+
+### Features
+
+* **frontend:** @-mention charts and dashboards in homepage announcements ([#25625](https://github.com/lightdash/lightdash/issues/25625)) ([c47e0a4](https://github.com/lightdash/lightdash/commit/c47e0a477836820e21696046f7525f187c84909e)), closes [#25621](https://github.com/lightdash/lightdash/issues/25621) [#25624](https://github.com/lightdash/lightdash/issues/25624)
+* **frontend:** homepage design polish, hero centering & block limits ([#25626](https://github.com/lightdash/lightdash/issues/25626)) ([d2cda29](https://github.com/lightdash/lightdash/commit/d2cda29c6e137ee1cfb4e414830ae17ae9d592e8)), closes [#25621](https://github.com/lightdash/lightdash/issues/25621) [#25625](https://github.com/lightdash/lightdash/issues/25625)
+* **frontend:** homepage Text block — Tiptap slash-command markdown editor ([#25624](https://github.com/lightdash/lightdash/issues/25624)) ([b4feaf3](https://github.com/lightdash/lightdash/commit/b4feaf304f4123d8c5528da6a6aa41c3edd33dab)), closes [#25621](https://github.com/lightdash/lightdash/issues/25621)
+
 # [0.3393.0](https://github.com/lightdash/lightdash/compare/0.3392.0...0.3393.0) (2026-07-16)
 
 
