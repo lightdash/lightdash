@@ -14,6 +14,8 @@ const runtimeOverrides = {
         metrics: [],
         tableCalculations: [],
     },
+    dashboardParameters: { region: 'EU' },
+    dateZoom: { granularity: 'Week' },
 };
 
 const currentDashboard: LauncherCurrentDashboard = {

@@ -6408,9 +6408,26 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 case 'dashboard': {
                     const name = item.displayName ?? '(name unavailable)';
                     const headline = `- Dashboard "${name}" (dashboardSlug: ${item.dashboardSlug ?? '(slug unavailable)'})`;
-                    const filters = item.runtimeOverrides?.dashboardFilters;
-                    return filters
-                        ? `${headline}\n  Filters applied:\n    ${JSON.stringify(serializeDashboardFiltersForAiContext(filters))}`
+                    const overrides = item.runtimeOverrides;
+                    if (!overrides) return headline;
+                    const overrideLines: string[] = [];
+                    if (overrides.dashboardFilters) {
+                        overrideLines.push(
+                            `  Filters applied:\n    ${JSON.stringify(serializeDashboardFiltersForAiContext(overrides.dashboardFilters))}`,
+                        );
+                    }
+                    if (overrides.dashboardParameters) {
+                        overrideLines.push(
+                            `  Parameter values: ${JSON.stringify(overrides.dashboardParameters)}`,
+                        );
+                    }
+                    if (overrides.dateZoom !== undefined) {
+                        overrideLines.push(
+                            `  Date zoom: ${JSON.stringify(overrides.dateZoom)}`,
+                        );
+                    }
+                    return overrideLines.length > 0
+                        ? `${headline}\n${overrideLines.join('\n')}`
                         : headline;
                 }
                 case 'thread': {

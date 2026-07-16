@@ -2,6 +2,7 @@ import {
     type DashboardChartTile,
     type DashboardFilters,
     type DashboardTile,
+    type DateZoom,
     isDashboardChartTileType,
 } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
@@ -9,7 +10,10 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useParams } from 'react-router';
 import { scrollToDashboardTile } from '../../components/common/Dashboard/scrollToDashboardTile';
 import { setCurrentDashboard } from '../../ee/features/aiCopilot/store/aiAgentLauncherSlice';
-import { getNonDefaultDashboardRuntimeOverrides } from '../../ee/features/aiCopilot/store/dashboardPageContext';
+import {
+    getDashboardParametersValuesMap,
+    getNonDefaultDashboardRuntimeOverrides,
+} from '../../ee/features/aiCopilot/store/dashboardPageContext';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -59,6 +63,14 @@ const DashboardAiAgentContextBridge = () => {
     const originalDashboardFilters = useDashboardContext(
         (c) => c.originalDashboardFilters,
     );
+    const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const dateZoomGranularity = useDashboardContext(
+        (c) => c.dateZoomGranularity,
+    );
+    const defaultDateZoomGranularity = useDashboardContext(
+        (c) => c.defaultDateZoomGranularity,
+    );
+    const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
@@ -81,13 +93,40 @@ const DashboardAiAgentContextBridge = () => {
 
     const currentDashboardSlug = dashboard?.slug;
     const currentDashboardUuid = dashboard?.uuid;
+    const defaultParameterValues = useMemo(
+        () => getDashboardParametersValuesMap(dashboard?.parameters ?? {}),
+        [dashboard?.parameters],
+    );
+    const defaultDateZoom = useMemo<DateZoom | null>(
+        () =>
+            defaultDateZoomGranularity && !isDateZoomDisabled
+                ? { granularity: defaultDateZoomGranularity }
+                : null,
+        [defaultDateZoomGranularity, isDateZoomDisabled],
+    );
+    const effectiveDateZoom = useMemo<DateZoom | null>(
+        () =>
+            dateZoomGranularity ? { granularity: dateZoomGranularity } : null,
+        [dateZoomGranularity],
+    );
     const dashboardRuntimeOverrides = useMemo(
         () =>
             getNonDefaultDashboardRuntimeOverrides({
                 defaultFilters: originalDashboardFilters,
                 effectiveFilters: allFilters,
+                defaultParameters: defaultParameterValues,
+                effectiveParameters: parameterValues,
+                defaultDateZoom,
+                effectiveDateZoom,
             }),
-        [allFilters, originalDashboardFilters],
+        [
+            allFilters,
+            defaultDateZoom,
+            defaultParameterValues,
+            effectiveDateZoom,
+            originalDashboardFilters,
+            parameterValues,
+        ],
     );
     const dashboardQueryKey = useMemo(
         () => ['saved_dashboard_query', dashboardUuidOrSlug, projectUuid],

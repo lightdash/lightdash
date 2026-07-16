@@ -82,6 +82,43 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
         expect(content).not.toContain('requiredGroupId');
     });
 
+    it('renders dashboard parameter and date zoom overrides', () => {
+        const content = buildMessage([
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-1',
+                dashboardSlug: 'exec-dashboard',
+                displayName: 'Executive dashboard',
+                pinnedVersionUuid: null,
+                runtimeOverrides: {
+                    dashboardParameters: {
+                        region: 'EU',
+                        tiers: ['gold'],
+                    },
+                    dateZoom: { granularity: 'Week' },
+                },
+            },
+        ]);
+        expect(content).toContain(
+            'Parameter values: {"region":"EU","tiers":["gold"]}',
+        );
+        expect(content).toContain('Date zoom: {"granularity":"Week"}');
+    });
+
+    it('renders an explicit no-date-zoom override', () => {
+        const content = buildMessage([
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-1',
+                dashboardSlug: 'exec-dashboard',
+                displayName: 'Executive dashboard',
+                pinnedVersionUuid: null,
+                runtimeOverrides: { dateZoom: null },
+            },
+        ]);
+        expect(content).toContain('Date zoom: null');
+    });
+
     it('renders a pull_request line with number, status and title', () => {
         const content = buildMessage([
             {

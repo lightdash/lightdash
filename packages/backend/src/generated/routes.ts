@@ -15467,6 +15467,14 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                dateZoom: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DateZoom' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                dashboardParameters: { ref: 'ParametersValuesMap' },
                 dashboardFilters: { ref: 'AiDashboardFilters' },
             },
             validators: {},
