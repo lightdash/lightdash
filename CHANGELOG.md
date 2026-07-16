@@ -1,3 +1,20 @@
+# [0.3397.0](https://github.com/lightdash/lightdash/compare/0.3396.0...0.3397.0) (2026-07-16)
+
+
+### Bug Fixes
+
+* gate MCP content write tools by permission ([#25648](https://github.com/lightdash/lightdash/issues/25648)) ([0f257c6](https://github.com/lightdash/lightdash/commit/0f257c6d570495fa03ac0740c49961d5c59315aa)), closes [#24734](https://github.com/lightdash/lightdash/issues/24734)
+* gate MCP scheduled deliveries by permission ([#25650](https://github.com/lightdash/lightdash/issues/25650)) ([dc28bbf](https://github.com/lightdash/lightdash/commit/dc28bbf769f295f81f89e40b69da7df49dd7201e)), closes [#24734](https://github.com/lightdash/lightdash/issues/24734)
+* **migrations:** detect dbt-source FK by column, not derived name ([#25636](https://github.com/lightdash/lightdash/issues/25636)) ([08284e5](https://github.com/lightdash/lightdash/commit/08284e5e69c78c3bffd77425330e226bd11bcf6f))
+* rebase naive timestamp columns via the connection data timezone ([#25649](https://github.com/lightdash/lightdash/issues/25649)) ([92b4550](https://github.com/lightdash/lightdash/commit/92b45509c8b5f3b9b56acb9eb7a6645d73974be1))
+
+
+### Features
+
+* add configured database/schema context to agent onboarding prompt ([#25634](https://github.com/lightdash/lightdash/issues/25634)) ([973996a](https://github.com/lightdash/lightdash/commit/973996a15b6ae514c3c38c1e47c8aa5e5b6609e3))
+* agentic onboarding — Aurora agent with live SQL-mode chat, Snowflake golden path, and server-side agent provisioning ([#25603](https://github.com/lightdash/lightdash/issues/25603)) ([aff5d81](https://github.com/lightdash/lightdash/commit/aff5d81064f1274f919be1354b7240cc189f421b))
+* pass dashboard filters to Ask AI ([#25606](https://github.com/lightdash/lightdash/issues/25606)) ([7324a8f](https://github.com/lightdash/lightdash/commit/7324a8f35fbf4c3b35bd74102f72702c6c408a4f)), closes [lightdash/lightdash#23201](https://github.com/lightdash/lightdash/issues/23201) [lightdash/lightdash#23201](https://github.com/lightdash/lightdash/issues/23201)
+
 # [0.3396.0](https://github.com/lightdash/lightdash/compare/0.3395.2...0.3396.0) (2026-07-16)
 
 
