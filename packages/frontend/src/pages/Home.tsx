@@ -16,7 +16,7 @@ import AiSearchBox from '../ee/components/Home/AiSearchBox';
 import { useAiAgentButtonVisibility } from '../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useIsCopilotEnabled } from '../ee/features/aiCopilot/hooks/useIsCopilotEnabled';
 import { AdminHomepageControls } from '../ee/features/homepageBuilder/AdminHomepageControls';
-import { PersonalFavoritesStrip } from '../ee/features/homepageBuilder/blocks/FavoritesBlock';
+import { PersonalFavoritesBar } from '../ee/features/homepageBuilder/blocks/FavoritesBlock';
 import { DayOneHomepage } from '../ee/features/homepageBuilder/DayOneHomepage';
 import {
     useHomepageBuilderFlag,
@@ -127,9 +127,9 @@ const Home: FC = () => {
                 <PublishedHomepage
                     config={homepage.config}
                     projectUuid={project.data.projectUuid}
-                    secondaryTop={
+                    topBar={
                         homepage.allowPersonal && !hasFavoritesBlock ? (
-                            <PersonalFavoritesStrip
+                            <PersonalFavoritesBar
                                 projectUuid={project.data.projectUuid}
                             />
                         ) : null

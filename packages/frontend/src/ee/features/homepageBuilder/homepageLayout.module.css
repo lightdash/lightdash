@@ -4,6 +4,8 @@
  * section below. */
 
 .page {
+    --homepage-favbar-height: 48px;
+
     display: flex;
     flex-direction: column;
     padding: 32px 24px 64px;
@@ -15,6 +17,41 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
+}
+
+/* When the fav-bar is actually rendered above the hero, subtract its footprint
+ * so the hero stays centred in the remaining viewport. The bar hides itself
+ * when empty, so this only kicks in when there's really a bar. */
+.page:has(.favBar) .heroSection {
+    min-height: calc(
+        100vh - var(--navbar-height) - 72px - var(--homepage-favbar-height)
+    );
+}
+
+.favBar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 1160px;
+    min-height: var(--homepage-favbar-height);
+    margin: 0 auto;
+    overflow-x: auto;
+}
+
+.favBarLabel {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.favBarLabelText {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--mantine-color-ldGray-6);
 }
 
 .hero {

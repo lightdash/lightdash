@@ -110,6 +110,7 @@ a .hoverCard:hover,
     display: inline-flex;
     align-items: center;
     gap: 8px;
+    max-width: 240px;
     background: light-dark(#fff, var(--mantine-color-dark-6));
     border: 1px solid var(--mantine-color-ldGray-2);
     border-radius: 8px;
@@ -121,6 +122,7 @@ a .hoverCard:hover,
     box-shadow: var(--mantine-shadow-subtle);
     transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
     cursor: pointer;
+    flex-shrink: 0;
 }
 
 .favPill:hover {
@@ -131,6 +133,36 @@ a .hoverCard:hover,
     box-shadow: var(--mantine-shadow-heavy);
     transform: translateY(-1px);
     text-decoration: none;
+}
+
+.favPillName {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.favPillMore {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px dashed var(--mantine-color-ldGray-3);
+    border-radius: 8px;
+    padding: 7px 11px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--mantine-color-ldGray-6);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+}
+
+.favPillMore:hover {
+    border-color: var(--mantine-color-ldGray-5);
+    color: var(--mantine-color-ldGray-7);
 }
 
 .starAccent {
