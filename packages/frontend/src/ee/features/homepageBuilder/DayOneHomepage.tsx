@@ -37,7 +37,11 @@ export const DayOneHomepage: FC<Props> = ({
             <div className={layout.heroSection}>
                 {isAiEnabled ? (
                     <div className={layout.hero}>
-                        <AskAiHero projectUuid={projectUuid} showGreeting />
+                        <AskAiHero
+                            projectUuid={projectUuid}
+                            showGreeting
+                            showRecommendedActions={false}
+                        />
                     </div>
                 ) : (
                     <div className={classes.welcome}>

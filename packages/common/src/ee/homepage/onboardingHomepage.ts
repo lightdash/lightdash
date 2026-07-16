@@ -9,24 +9,9 @@ export const buildOnboardingHomepageConfig = (): HomepageConfig => ({
                 {
                     id: 'onboarding-block-ask-ai-hero',
                     type: 'ask-ai-hero',
-                    config: { showGreeting: true },
-                },
-            ],
-        },
-        {
-            id: 'onboarding-row-recommended-actions',
-            blocks: [
-                {
-                    id: 'onboarding-block-recommended-actions',
-                    type: 'recommended-actions',
                     config: {
-                        title: 'Finish setting up',
-                        actions: [
-                            'connect-warehouse',
-                            'add-semantic-layer',
-                            'connect-github',
-                            'connect-slack',
-                        ],
+                        showGreeting: true,
+                        showRecommendedActions: true,
                     },
                 },
             ],

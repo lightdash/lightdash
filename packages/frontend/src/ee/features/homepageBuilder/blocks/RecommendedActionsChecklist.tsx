@@ -2,7 +2,7 @@ import {
     DbtProjectType,
     type HomepageRecommendedActionKey,
 } from '@lightdash/common';
-import { Button, Checkbox, Stack, Text, TextInput } from '@mantine-8/core';
+import { Button, Stack, Text } from '@mantine-8/core';
 import {
     IconActivity,
     IconBrandGithub,
@@ -24,8 +24,7 @@ import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
 import classes from './blockStyles.module.css';
 import { RECOMMENDED_ACTION_KEYS } from './recommendedActionDefaults';
-import styles from './RecommendedActionsBlock.module.css';
-import { type BlockComponentProps, type BuildComponentProps } from './types';
+import styles from './RecommendedActionsChecklist.module.css';
 
 type ActionDefinition = {
     icon: Icon;
@@ -178,13 +177,13 @@ const ActionRow: FC<{
     );
 };
 
-const RecommendedActionsList: FC<{
-    title: string;
-    actions: HomepageRecommendedActionKey[];
-    projectUuid: string;
-}> = ({ title, actions, projectUuid }) => {
+export const RecommendedActionsChecklist: FC<{ projectUuid: string }> = ({
+    projectUuid,
+}) => {
     const statuses = useActionStatuses(projectUuid);
-    const visibleActions = actions.filter((key) => statuses[key].isVisible);
+    const visibleActions = RECOMMENDED_ACTION_KEYS.filter(
+        (key) => statuses[key].isVisible,
+    );
     if (visibleActions.length === 0) return null;
 
     const sortedActions = [...visibleActions].sort(
@@ -196,9 +195,9 @@ const RecommendedActionsList: FC<{
     ).length;
 
     return (
-        <Stack gap={8}>
+        <Stack gap={8} w="100%">
             <div className={styles.headerRow}>
-                <span className={classes.sectionTitle}>{title}</span>
+                <span className={classes.sectionTitle}>Finish setting up</span>
                 <Text size="xs" c="dimmed">
                     {doneCount} of {visibleActions.length} done
                 </Text>
@@ -206,74 +205,6 @@ const RecommendedActionsList: FC<{
             {sortedActions.map((key) => (
                 <ActionRow key={key} actionKey={key} status={statuses[key]} />
             ))}
-        </Stack>
-    );
-};
-
-export const RecommendedActionsBlockView: FC<BlockComponentProps> = ({
-    block,
-    projectUuid,
-}) => {
-    if (block.type !== 'recommended-actions') return null;
-    return (
-        <RecommendedActionsList
-            title={block.config.title}
-            actions={block.config.actions}
-            projectUuid={projectUuid}
-        />
-    );
-};
-
-export const RecommendedActionsBlockBuild: FC<BuildComponentProps> = ({
-    block,
-    projectUuid,
-    onChange,
-}) => {
-    if (block.type !== 'recommended-actions') return null;
-
-    const toggleAction = (key: HomepageRecommendedActionKey) => {
-        const actions = block.config.actions.includes(key)
-            ? block.config.actions.filter((action) => action !== key)
-            : RECOMMENDED_ACTION_KEYS.filter(
-                  (action) =>
-                      action === key || block.config.actions.includes(action),
-              );
-        onChange({ ...block, config: { ...block.config, actions } });
-    };
-
-    return (
-        <Stack gap="xs">
-            <TextInput
-                aria-label="Recommended actions title"
-                size="xs"
-                fw={600}
-                value={block.config.title}
-                onChange={(e) =>
-                    onChange({
-                        ...block,
-                        config: {
-                            ...block.config,
-                            title: e.currentTarget.value,
-                        },
-                    })
-                }
-            />
-            <RecommendedActionsList
-                title={block.config.title}
-                actions={block.config.actions}
-                projectUuid={projectUuid}
-            />
-            <Stack gap={6}>
-                {RECOMMENDED_ACTION_KEYS.map((key) => (
-                    <Checkbox
-                        key={key}
-                        size="xs"
-                        label={ACTION_DEFINITIONS[key].title}
-                        checked={block.config.actions.includes(key)}
-                        onChange={() => toggleAction(key)}
-                    />
-                ))}
-            </Stack>
         </Stack>
     );
 };

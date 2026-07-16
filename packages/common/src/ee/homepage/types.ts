@@ -10,7 +10,12 @@ export type HomepageMarkdownBlock = {
 export type HomepageAskAiHeroBlock = {
     id: string;
     type: 'ask-ai-hero';
-    config: { showGreeting: boolean };
+    config: {
+        showGreeting: boolean;
+        /** Replaces the prompt suggestions with the setup checklist.
+         * Optional for configs persisted before this field existed. */
+        showRecommendedActions?: boolean;
+    };
 };
 
 export type HomepageCollectionItemRef = {
@@ -119,12 +124,6 @@ export type HomepageRecommendedActionKey =
     | 'connect-github'
     | 'connect-slack';
 
-export type HomepageRecommendedActionsBlock = {
-    id: string;
-    type: 'recommended-actions';
-    config: { title: string; actions: HomepageRecommendedActionKey[] };
-};
-
 export type HomepageBlock =
     | HomepageMarkdownBlock
     | HomepageAskAiHeroBlock
@@ -134,8 +133,7 @@ export type HomepageBlock =
     | HomepageMetricsBlock
     | HomepageQuickActionsBlock
     | HomepageFavoritesBlock
-    | HomepageRecentBlock
-    | HomepageRecommendedActionsBlock;
+    | HomepageRecentBlock;
 
 export type HomepageAudience =
     | { type: 'everyone' }

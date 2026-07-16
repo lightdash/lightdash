@@ -9426,6 +9426,10 @@
                 "properties": {
                     "config": {
                         "properties": {
+                            "showRecommendedActions": {
+                                "type": "boolean",
+                                "description": "Replaces the prompt suggestions with the setup checklist.\nOptional for configs persisted before this field existed."
+                            },
                             "showGreeting": {
                                 "type": "boolean"
                             }
@@ -9774,44 +9778,6 @@
                 "required": ["config", "type", "id"],
                 "type": "object"
             },
-            "HomepageRecommendedActionKey": {
-                "type": "string",
-                "enum": [
-                    "connect-warehouse",
-                    "add-semantic-layer",
-                    "connect-github",
-                    "connect-slack"
-                ]
-            },
-            "HomepageRecommendedActionsBlock": {
-                "properties": {
-                    "config": {
-                        "properties": {
-                            "actions": {
-                                "items": {
-                                    "$ref": "#/components/schemas/HomepageRecommendedActionKey"
-                                },
-                                "type": "array"
-                            },
-                            "title": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["actions", "title"],
-                        "type": "object"
-                    },
-                    "type": {
-                        "type": "string",
-                        "enum": ["recommended-actions"],
-                        "nullable": false
-                    },
-                    "id": {
-                        "type": "string"
-                    }
-                },
-                "required": ["config", "type", "id"],
-                "type": "object"
-            },
             "HomepageBlock": {
                 "anyOf": [
                     {
@@ -9840,9 +9806,6 @@
                     },
                     {
                         "$ref": "#/components/schemas/HomepageRecentBlock"
-                    },
-                    {
-                        "$ref": "#/components/schemas/HomepageRecommendedActionsBlock"
                     }
                 ]
             },

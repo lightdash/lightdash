@@ -28,7 +28,11 @@ import classes from './DayOneAskInput.module.css';
 
 const AI_ROUTER_QUERY_KEY = 'ai-router';
 
-type Props = { projectUuid: string; preview?: boolean };
+type Props = {
+    projectUuid: string;
+    preview?: boolean;
+    hideSuggestions?: boolean;
+};
 
 // AgentSelector (rendered inside AgentChatInput below) already calls
 // useAiRouterConfig() to build its own dropdown. Calling that same hook a
@@ -100,7 +104,11 @@ const SuggestionPills: FC<{
 // (not via AgentChatInput's own `showSuggestions`) so they keep the design's
 // pill styling, and so a specific reference agent can power them even when
 // the composer itself is in Auto mode.
-const DayOneAskInputInner: FC<Props> = ({ projectUuid, preview = false }) => {
+const DayOneAskInputInner: FC<Props> = ({
+    projectUuid,
+    preview = false,
+    hideSuggestions,
+}) => {
     const navigate = useNavigate();
     const { setPendingPrompt } = usePendingPrompt();
     const { data: agents, isLoading: isLoadingAgents } = useProjectAiAgents({
@@ -129,7 +137,7 @@ const DayOneAskInputInner: FC<Props> = ({ projectUuid, preview = false }) => {
         projectUuid,
         agentUuid: referenceAgent?.uuid,
         enableSqlMode: false,
-        enabled: !!referenceAgent,
+        enabled: !!referenceAgent && !hideSuggestions,
     });
 
     const submitPrompt = (
@@ -233,7 +241,7 @@ const DayOneAskInputInner: FC<Props> = ({ projectUuid, preview = false }) => {
                         : undefined
                 }
             />
-            {(canCreateThread || preview) && (
+            {!hideSuggestions && (canCreateThread || preview) && (
                 <SuggestionPills
                     chips={suggestionsQuery.data?.chips ?? []}
                     loading={suggestionsQuery.isLoading}
