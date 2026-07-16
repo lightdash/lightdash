@@ -6411,6 +6411,11 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     const overrides = item.runtimeOverrides;
                     if (!overrides) return headline;
                     const overrideLines: string[] = [];
+                    if (overrides.activeTab) {
+                        overrideLines.push(
+                            `  Active tab: "${overrides.activeTab.name}"`,
+                        );
+                    }
                     if (overrides.dashboardFilters) {
                         overrideLines.push(
                             `  Filters applied:\n    ${JSON.stringify(serializeDashboardFiltersForAiContext(overrides.dashboardFilters))}`,

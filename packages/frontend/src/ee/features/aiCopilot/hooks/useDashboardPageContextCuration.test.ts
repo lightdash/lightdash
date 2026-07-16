@@ -9,6 +9,7 @@ vi.mock('../store/hooks', () => ({
 }));
 
 const runtimeOverrides = {
+    activeTab: { uuid: 'tab-1', name: 'Overview' },
     dashboardFilters: {
         dimensions: [],
         metrics: [],
@@ -22,7 +23,7 @@ const currentDashboard: LauncherCurrentDashboard = {
     projectUuid: 'project-1',
     uuid: 'dashboard-a',
     name: 'Orders',
-    activeTabUuid: null,
+    activeTabUuid: 'tab-1',
     runtimeOverrides,
 };
 

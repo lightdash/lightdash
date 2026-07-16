@@ -37,6 +37,23 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
         );
     });
 
+    it('renders the active dashboard tab name without its uuid', () => {
+        const content = buildMessage([
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-1',
+                dashboardSlug: 'exec-dashboard',
+                displayName: 'Executive dashboard',
+                pinnedVersionUuid: null,
+                runtimeOverrides: {
+                    activeTab: { uuid: 'tab-uuid', name: 'Customers' },
+                },
+            },
+        ]);
+        expect(content).toContain('Active tab: "Customers"');
+        expect(content).not.toContain('tab-uuid');
+    });
+
     it('renders dashboard filter overrides', () => {
         const dashboardFilters: DashboardFilters = {
             dimensions: [
