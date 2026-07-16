@@ -11,6 +11,7 @@ import { UnstyledButton, ActionIcon } from '@mantine-8/core';
 import { Tooltip } from '@mantine/core';
 import { IconFilter } from '@tabler/icons-react';
 import {
+    Fragment,
     memo,
     useCallback,
     useEffect,
@@ -64,7 +65,7 @@ type RowProps = {
 };
 
 const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
-    const { fieldId, item, tableLabel, isDimension: isDim, isExiting } = row;
+    const { fieldId, item, isDimension: isDim, isExiting } = row;
 
     const dispatch = useExplorerDispatch();
     const addFilter = useAddFilter();
@@ -148,15 +149,8 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
             data-testid={`selected-field-${fieldId}`}
         >
             <FieldIcon item={item} size="md" />
-            <span className={classes.labels}>
-                <span className={classes.label} title={label}>
-                    {label}
-                </span>
-                {tableLabel && (
-                    <span className={classes.tableLabel} title={tableLabel}>
-                        {tableLabel}
-                    </span>
-                )}
+            <span className={classes.label} title={label}>
+                {label}
             </span>
             <span className={classes.actions}>
                 {showFilterAction && (
@@ -294,18 +288,47 @@ const SelectedFieldsSectionComponent: FC<Props> = ({ fields, onDeselect }) => {
         return result;
     }, [fields, exitingFields]);
 
+    // Group rows by table, groups ordered by first appearance
+    const groups = useMemo(() => {
+        const result: { tableLabel: string | null; rows: RenderedRow[] }[] = [];
+        const byLabel = new Map<string | null, RenderedRow[]>();
+        rows.forEach((row) => {
+            const groupRows = byLabel.get(row.tableLabel);
+            if (groupRows) {
+                groupRows.push(row);
+            } else {
+                const newGroupRows = [row];
+                byLabel.set(row.tableLabel, newGroupRows);
+                result.push({
+                    tableLabel: row.tableLabel,
+                    rows: newGroupRows,
+                });
+            }
+        });
+        return result;
+    }, [rows]);
+
     if (rows.length === 0) return null;
 
     return (
         <div className={classes.section}>
             <div className={classes.divider}>Selected</div>
             <div className={classes.list} data-testid="SelectedFieldsSection">
-                {rows.map((row) => (
-                    <SelectedFieldRow
-                        key={row.fieldId}
-                        row={row}
-                        onDeselect={onDeselect}
-                    />
+                {groups.map((group) => (
+                    <Fragment key={group.tableLabel ?? '__no_table__'}>
+                        {group.tableLabel && (
+                            <div className={classes.groupHeader}>
+                                {group.tableLabel}
+                            </div>
+                        )}
+                        {group.rows.map((row) => (
+                            <SelectedFieldRow
+                                key={row.fieldId}
+                                row={row}
+                                onDeselect={onDeselect}
+                            />
+                        ))}
+                    </Fragment>
                 ))}
             </div>
             <div className={classes.divider}>All fields</div>
