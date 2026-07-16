@@ -65,6 +65,12 @@ a .hoverCard:hover,
 .pickerRow {
     cursor: pointer;
     border-radius: 8px;
+    padding: 5px 8px;
+    transition: background-color 0.1s ease;
+}
+
+.pickerRow:hover {
+    background: var(--mantine-color-ldGray-1);
 }
 
 .pickerScrollList {
