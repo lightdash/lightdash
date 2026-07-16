@@ -25,10 +25,11 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine-8/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useClipboard, useDisclosure } from '@mantine/hooks';
 import {
     IconCalendar,
     IconClock,
+    IconCopy,
     IconDots,
     IconFilter,
     IconInfoCircle,
@@ -49,6 +50,7 @@ import {
     type ContentTableColumnDef,
 } from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useCustomRoles } from '../customRoles/useCustomRoles';
 import { ProjectsHoverCard } from './ProjectsHoverCard';
 import { ServiceAccountsDeleteModal } from './ServiceAccountsDeleteModal';
@@ -157,6 +159,8 @@ export const ServiceAccountsTable: FC<Props> = ({
         useDisclosure(false);
     const [editOpened, { open: openEdit, close: closeEdit }] =
         useDisclosure(false);
+    const clipboard = useClipboard({ timeout: 1000 });
+    const { showToastSuccess } = useToaster();
 
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -264,6 +268,16 @@ export const ServiceAccountsTable: FC<Props> = ({
         setServiceAccountToEdit(undefined);
         closeEdit();
     }, [closeEdit]);
+
+    const handleCopyUserUuid = useCallback(
+        (userUuid: string) => {
+            clipboard.copy(userUuid);
+            showToastSuccess({
+                title: 'Service account user UUID copied to clipboard',
+            });
+        },
+        [clipboard, showToastSuccess],
+    );
 
     const columns: ContentTableColumnDef<ServiceAccountWithProjectAccessCount>[] =
         useMemo(
@@ -604,6 +618,16 @@ export const ServiceAccountsTable: FC<Props> = ({
                                     >
                                         Edit
                                     </Menu.Item>
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconCopy} />
+                                        }
+                                        onClick={() =>
+                                            handleCopyUserUuid(sa.userUuid)
+                                        }
+                                    >
+                                        Copy user UUID
+                                    </Menu.Item>
                                     {sa.roleUuid && (
                                         <Menu.Item
                                             component={Link}
@@ -629,9 +653,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                                             Rotate token
                                         </Menu.Item>
                                     )}
-                                    {(sa.roleUuid || sa.expiresAt) && (
-                                        <Menu.Divider />
-                                    )}
+                                    <Menu.Divider />
                                     <Menu.Item
                                         color="red"
                                         leftSection={
@@ -647,7 +669,13 @@ export const ServiceAccountsTable: FC<Props> = ({
                     },
                 },
             ],
-            [rolesByUuid, handleOpenEdit, handleOpenRotate, handleOpenDelete],
+            [
+                rolesByUuid,
+                handleOpenEdit,
+                handleCopyUserUuid,
+                handleOpenRotate,
+                handleOpenDelete,
+            ],
         );
 
     const handleStatusFilterChange = useCallback((value: string) => {
