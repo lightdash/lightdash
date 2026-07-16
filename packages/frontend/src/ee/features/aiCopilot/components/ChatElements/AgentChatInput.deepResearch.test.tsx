@@ -35,7 +35,7 @@ describe('AgentChatInput Deep Research mode', () => {
             screen.queryByRole('button', { name: 'Send message' }),
         ).not.toBeInTheDocument();
 
-        await user.click(screen.getByText('Deep'));
+        await user.click(screen.getByText('high'));
         await user.click(
             screen.getByRole('button', { name: 'Start research' }),
         );

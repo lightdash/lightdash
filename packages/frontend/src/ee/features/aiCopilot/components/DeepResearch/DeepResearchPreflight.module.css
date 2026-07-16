@@ -43,7 +43,7 @@
 }
 
 .source {
-    padding: rem(4px) rem(7px);
+    padding: rem(3px) rem(6px);
     border: 1px solid var(--mantine-color-indigo-2);
     border-radius: var(--mantine-radius-sm);
 
