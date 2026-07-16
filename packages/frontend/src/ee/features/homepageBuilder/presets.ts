@@ -28,10 +28,10 @@ const row = (...blocks: HomepageBlock[]): HomepageRow => ({
     blocks,
 });
 
-const hero = (title: string, subtitle: string): HomepageBlock => ({
+const greeting = (title: string, subtitle: string): HomepageBlock => ({
     id: uuidv4(),
-    type: 'hero',
-    config: { title, subtitle },
+    type: 'markdown',
+    config: { content: `## ${title}\n\n${subtitle}` },
 });
 
 const askAi = (showGreeting: boolean): HomepageBlock => ({
@@ -75,11 +75,11 @@ export const homepagePresets: HomepagePreset[] = [
         name: 'Exec overview',
         description: 'Company KPIs and the board pack, front and center.',
         icon: IconBriefcase,
-        blockChips: ['Greeting', 'Collection', 'Ask AI'],
+        blockChips: ['Text', 'Collection', 'Ask AI'],
         create: () =>
             config(
                 row(
-                    hero(
+                    greeting(
                         'Good morning, {name}',
                         'Company performance at a glance.',
                     ),
@@ -94,7 +94,7 @@ export const homepagePresets: HomepagePreset[] = [
         description: 'A landing page for one team: dashboards, links, news.',
         icon: IconUsersGroup,
         blockChips: [
-            'Greeting',
+            'Text',
             'Ask AI',
             'Collection',
             'Resources',
@@ -103,7 +103,7 @@ export const homepagePresets: HomepagePreset[] = [
         create: () =>
             config(
                 row(
-                    hero(
+                    greeting(
                         'Good morning, {name}',
                         'Your team’s snapshot — ask anything, or jump back in.',
                     ),
@@ -121,11 +121,11 @@ export const homepagePresets: HomepagePreset[] = [
         name: 'Business-user starter',
         description: 'Curated essentials for people who just need answers.',
         icon: IconUserStar,
-        blockChips: ['Greeting', 'Collection', 'Resources'],
+        blockChips: ['Text', 'Collection', 'Resources'],
         create: () =>
             config(
                 row(
-                    hero(
+                    greeting(
                         'Welcome, {name}',
                         'Everything you need, curated by the data team.',
                     ),
@@ -139,11 +139,11 @@ export const homepagePresets: HomepagePreset[] = [
         name: 'Analyst workspace',
         description: 'Power-user shortcuts and a scratchpad.',
         icon: IconChartHistogram,
-        blockChips: ['Greeting', 'Ask AI', 'Text'],
+        blockChips: ['Text', 'Ask AI'],
         create: () =>
             config(
                 row(
-                    hero(
+                    greeting(
                         'Welcome back, {name}',
                         'Here’s what’s been happening.',
                     ),

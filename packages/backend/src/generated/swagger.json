@@ -1448,32 +1448,6 @@
                 "required": ["config", "type", "id"],
                 "type": "object"
             },
-            "HomepageHeroBlock": {
-                "properties": {
-                    "config": {
-                        "properties": {
-                            "subtitle": {
-                                "type": "string"
-                            },
-                            "title": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["subtitle", "title"],
-                        "type": "object"
-                    },
-                    "type": {
-                        "type": "string",
-                        "enum": ["hero"],
-                        "nullable": false
-                    },
-                    "id": {
-                        "type": "string"
-                    }
-                },
-                "required": ["config", "type", "id"],
-                "type": "object"
-            },
             "HomepageAskAiHeroBlock": {
                 "properties": {
                     "config": {
@@ -1817,9 +1791,6 @@
                 "anyOf": [
                     {
                         "$ref": "#/components/schemas/HomepageMarkdownBlock"
-                    },
-                    {
-                        "$ref": "#/components/schemas/HomepageHeroBlock"
                     },
                     {
                         "$ref": "#/components/schemas/HomepageAskAiHeroBlock"
@@ -18365,19 +18336,19 @@
                                                         "type": "number",
                                                         "format": "double"
                                                     },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
-                                                    },
-                                                    "name": {
-                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "contentSizeBytes",
-                                                    "status",
-                                                    "name"
+                                                    "name",
+                                                    "status"
                                                 ],
                                                 "type": "object"
                                             },
@@ -18398,8 +18369,8 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "error",
-                                                            "success",
-                                                            "not_found"
+                                                            "not_found",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -18851,23 +18822,23 @@
                                                     "href": {
                                                         "type": "string"
                                                     },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": ["success"],
-                                                        "nullable": false
+                                                    "name": {
+                                                        "type": "string"
                                                     },
                                                     "slug": {
                                                         "type": "string"
                                                     },
-                                                    "name": {
-                                                        "type": "string"
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": ["success"],
+                                                        "nullable": false
                                                     }
                                                 },
                                                 "required": [
                                                     "href",
-                                                    "status",
+                                                    "name",
                                                     "slug",
-                                                    "name"
+                                                    "status"
                                                 ],
                                                 "type": "object"
                                             },

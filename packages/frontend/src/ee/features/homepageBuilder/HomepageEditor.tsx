@@ -21,6 +21,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
+    migrateHomepageConfig,
     type HomepageBlock,
     type HomepageConfig,
     type ProjectHomepage as ProjectHomepageType,
@@ -443,11 +444,15 @@ export const HomepageEditor: FC<Props> = ({
 
     const isAiEnabled = useAiAgentButtonVisibility();
 
-    const [draft, setDraft] = useState<HomepageConfig>(homepage.draftConfig);
+    const [draft, setDraft] = useState<HomepageConfig>(() =>
+        migrateHomepageConfig(homepage.draftConfig),
+    );
     const [isPreviewing, setIsPreviewing] = useState(false);
     const [debouncedDraft] = useDebouncedValue(draft, 800);
     const [hasConflict, setHasConflict] = useState(false);
-    const lastSavedRef = useRef<HomepageConfig>(homepage.draftConfig);
+    const lastSavedRef = useRef<HomepageConfig>(
+        migrateHomepageConfig(homepage.draftConfig),
+    );
     // Compare-and-set token so a stale editor can never clobber newer state
     const baseUpdatedAtRef = useRef<Date>(homepage.updatedAt);
 

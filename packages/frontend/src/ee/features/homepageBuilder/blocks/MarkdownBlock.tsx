@@ -1,15 +1,22 @@
 import { Text } from '@mantine-8/core';
 import { type FC } from 'react';
 import { AiMarkdown } from '../../../../components/common/AiMarkdown/AiMarkdown';
+import useApp from '../../../../providers/App/useApp';
 import classes from './MarkdownBlock.module.css';
 import { TiptapMarkdownEditor } from './markdownEditor/TiptapMarkdownEditor';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
+const resolveTokens = (text: string, firstName: string | undefined): string =>
+    text.replaceAll('{name}', firstName ?? 'there');
+
 export const MarkdownBlockView: FC<BlockComponentProps> = ({ block }) => {
+    const { user } = useApp();
     if (block.type !== 'markdown') return null;
     return (
         <div className={classes.preview}>
-            <AiMarkdown>{block.config.content}</AiMarkdown>
+            <AiMarkdown>
+                {resolveTokens(block.config.content, user.data?.firstName)}
+            </AiMarkdown>
         </div>
     );
 };

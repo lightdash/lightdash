@@ -57,8 +57,8 @@ describe('resolveHomepageLayout', () => {
 
     it('derives the gap from the incoming block rhythm; first row has none', () => {
         const config = makeConfig([
-            [block('h', 'hero')], // section, but first -> none
-            [block('t', 'markdown')], // grouped -> tucks under hero
+            [block('m', 'metrics')], // section, but first -> none
+            [block('t', 'markdown')], // grouped -> tucks under it
             [block('c', 'collection')], // section -> new section
         ]);
         const { rows } = resolveHomepageLayout(config);

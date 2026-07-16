@@ -7,12 +7,6 @@ export type HomepageMarkdownBlock = {
     config: { content: string };
 };
 
-export type HomepageHeroBlock = {
-    id: string;
-    type: 'hero';
-    config: { title: string; subtitle: string };
-};
-
 export type HomepageAskAiHeroBlock = {
     id: string;
     type: 'ask-ai-hero';
@@ -98,7 +92,6 @@ export type HomepageRecentBlock = {
 
 export type HomepageBlock =
     | HomepageMarkdownBlock
-    | HomepageHeroBlock
     | HomepageAskAiHeroBlock
     | HomepageCollectionBlock
     | HomepageResourcesBlock
@@ -175,6 +168,30 @@ export const defaultHomepageConfig = (): HomepageConfig => ({
             ],
         },
     ],
+});
+
+// `hero` (Greeting) is no longer a block type. Convert any legacy stored hero
+// block into a markdown block so old configs still load, save and render — its
+// {name} token keeps personalizing via the markdown block's own interpolation.
+const migrateBlock = (block: HomepageBlock): HomepageBlock => {
+    if ((block.type as string) !== 'hero') return block;
+    const legacyConfig = (block as { config: Record<string, unknown> }).config;
+    const title =
+        typeof legacyConfig.title === 'string' ? legacyConfig.title : '';
+    const subtitle =
+        typeof legacyConfig.subtitle === 'string' ? legacyConfig.subtitle : '';
+    const content = subtitle ? `## ${title}\n\n${subtitle}` : `## ${title}`;
+    return { id: block.id, type: 'markdown', config: { content } };
+};
+
+export const migrateHomepageConfig = (
+    config: HomepageConfig,
+): HomepageConfig => ({
+    ...config,
+    rows: config.rows.map((row) => ({
+        ...row,
+        blocks: row.blocks.map(migrateBlock),
+    })),
 });
 
 export type ProjectHomepage = {
