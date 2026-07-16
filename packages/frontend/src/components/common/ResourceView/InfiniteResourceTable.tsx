@@ -756,15 +756,15 @@ const InfiniteResourceTable = ({
                 }}
             >
                 {isFetching ? (
-                    <Text>Loading more...</Text>
+                    <Text fz="xs">Loading more...</Text>
                 ) : (
                     <Group gap="two">
-                        <Text>
+                        <Text fz="xs">
                             {hasNextPage
                                 ? 'Scroll for more results'
                                 : 'All results loaded'}
                         </Text>
-                        <Text fw={400} c="ldGray.6">
+                        <Text fz="xs" fw={400} c="ldGray.6">
                             {hasNextPage
                                 ? `(${flatData.length} of ${totalResults} loaded)`
                                 : `(${flatData.length})`}
