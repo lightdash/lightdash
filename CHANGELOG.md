@@ -1,3 +1,11 @@
+## [0.3395.1](https://github.com/lightdash/lightdash/compare/0.3395.0...0.3395.1) (2026-07-16)
+
+
+### Bug Fixes
+
+* align resource table search input ([#25641](https://github.com/lightdash/lightdash/issues/25641)) ([91a4c2b](https://github.com/lightdash/lightdash/commit/91a4c2bc57ac965d1f40a5ab39521dcc4a3c5dff))
+* use extra-small font for resource table footer ([#25644](https://github.com/lightdash/lightdash/issues/25644)) ([26d7cf7](https://github.com/lightdash/lightdash/commit/26d7cf7ffe6865f023482577340d56d33bb63d0c))
+
 # [0.3395.0](https://github.com/lightdash/lightdash/compare/0.3394.0...0.3395.0) (2026-07-16)
 
 
