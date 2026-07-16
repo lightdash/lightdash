@@ -80,7 +80,7 @@ export const DeepResearchPreflight = ({ depth, onDepthChange }: Props) => {
                                             <Text size="12px" fw={600} lh={1.3}>
                                                 {DEPTH_LABELS[option]}
                                             </Text>
-                                            <Stack gap={2} mt={6}>
+                                            <Stack gap={5} mt={6}>
                                                 <Group gap={3} wrap="nowrap">
                                                     <MantineIcon
                                                         icon={IconClock}
