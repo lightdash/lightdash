@@ -1,5 +1,11 @@
+.drawerInner,
+.drawerOverlay {
+    top: var(--drawer-top-offset, 0);
+    height: calc(100% - var(--drawer-top-offset, 0));
+}
+
 .reportScroll {
-    height: calc(100vh - 3.75rem);
+    height: calc(100dvh - var(--navbar-height) - 3.75rem);
 }
 
 .report {

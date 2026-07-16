@@ -10,7 +10,7 @@ import {
     Text,
     Title,
 } from '@mantine-8/core';
-import { IconArrowUpRight, IconX } from '@tabler/icons-react';
+import { IconArrowLeft, IconArrowUpRight } from '@tabler/icons-react';
 import {
     useEffect,
     useMemo,
@@ -18,7 +18,7 @@ import {
     useState,
     type KeyboardEvent,
 } from 'react';
-import LightdashLogo from '../../../../../components/LightdashLogo/LightdashLogo';
+import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import {
     type DeepResearchEvidence,
     type DeepResearchRunView,
@@ -183,18 +183,16 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
             onClose={onClose}
             title={
                 <Group justify="space-between" w="100%" wrap="nowrap">
-                    <Box role="img" aria-label="Lightdash">
-                        <LightdashLogo />
-                    </Box>
+                    <Text fw={600}>Deep research</Text>
                     <Button
                         variant="light"
                         color="gray"
                         radius="xl"
                         size="xs"
-                        leftSection={<IconX size={14} />}
+                        leftSection={<IconArrowLeft size={14} />}
                         onClick={onClose}
                     >
-                        Close
+                        Back to chat
                     </Button>
                 </Group>
             }
@@ -202,6 +200,11 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
             position="right"
             size="100%"
             padding={0}
+            classNames={{
+                inner: styles.drawerInner,
+                overlay: styles.drawerOverlay,
+            }}
+            __vars={{ '--drawer-top-offset': `${NAVBAR_HEIGHT}px` }}
         >
             <ScrollArea className={styles.reportScroll}>
                 <Box component="article" className={styles.report}>

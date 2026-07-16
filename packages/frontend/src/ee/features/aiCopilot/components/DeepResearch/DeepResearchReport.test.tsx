@@ -6,7 +6,7 @@ import { deepResearchRunFixture } from '../../deepResearch/fixtures';
 import { DeepResearchReport } from './DeepResearchReport';
 
 describe('DeepResearchReport', () => {
-    it('shows Lightdash branding and closes from the report header', async () => {
+    it('returns to chat from the report header', async () => {
         const user = userEvent.setup();
         const onClose = vi.fn();
         renderWithProviders(
@@ -17,8 +17,7 @@ describe('DeepResearchReport', () => {
             />,
         );
 
-        expect(screen.getByRole('img', { name: 'Lightdash' })).toBeVisible();
-        await user.click(screen.getByRole('button', { name: 'Close' }));
+        await user.click(screen.getByRole('button', { name: 'Back to chat' }));
         expect(onClose).toHaveBeenCalledOnce();
     });
 
