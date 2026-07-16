@@ -22,12 +22,14 @@ import { useLauncherDock } from './useLauncherDock';
 type Props = {
     projectUuid: string;
     agents: AiAgentSummary[];
+    agentsUpdatedAt: number;
     selectedAgent: LauncherSelectedAgent;
 };
 
 export const LauncherDock: FC<Props> = ({
     projectUuid,
     agents,
+    agentsUpdatedAt,
     selectedAgent,
 }) => {
     const dispatch = useAiAgentStoreDispatch();
@@ -52,13 +54,18 @@ export const LauncherDock: FC<Props> = ({
         [agentsByUuid, dock],
     );
 
+    // The dock is shared across tabs: only prune deleted-agent items when this
+    // tab's agents list is newer than the item, else a stale cache in another
+    // tab would delete a thread created after it was fetched.
     useEffect(() => {
         dock.forEach((item) => {
+            if (item.threadId === activeThreadId) return;
+            if (agentsUpdatedAt <= (item.createdAt ?? 0)) return;
             if (!agentsByUuid.has(item.agentUuid)) {
                 removeItem(item.threadId);
             }
         });
-    }, [agentsByUuid, dock, removeItem]);
+    }, [activeThreadId, agentsByUuid, agentsUpdatedAt, dock, removeItem]);
 
     const handleSelect = (item: LauncherDockItem) => {
         dispatch(
