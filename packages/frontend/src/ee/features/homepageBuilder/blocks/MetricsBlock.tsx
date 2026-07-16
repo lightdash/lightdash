@@ -28,11 +28,18 @@ import { useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
-import { useMetricsCatalog } from '../../../../features/metricsCatalog/hooks/useMetricsCatalog';
-import { useRunMetricTotal } from '../../../../features/metricsCatalog/hooks/useRunMetricExplorerQuery';
+import {
+    useMetric,
+    useMetricsCatalog,
+} from '../../../../features/metricsCatalog/hooks/useMetricsCatalog';
+import {
+    useRunMetricSeries,
+    useRunMetricTotal,
+} from '../../../../features/metricsCatalog/hooks/useRunMetricExplorerQuery';
 import { calculateComparisonValue } from '../../../../hooks/useBigNumberConfig';
 import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
+import MetricSparkline from './MetricSparkline';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 const KPI_TIME_FRAME = TimeFrames.MONTH;
@@ -58,6 +65,29 @@ const MetricKpiCard: FC<{
         options: { retry: false },
     });
 
+    const { data: metric } = useMetric({
+        projectUuid,
+        tableName: metricRef.tableName,
+        metricName: metricRef.metricName,
+    });
+    const timeDimension = metric?.timeDimension ?? null;
+    const granularity = timeDimension?.interval ?? TimeFrames.WEEK;
+    const seriesDateRange = useMemo(
+        () =>
+            timeDimension
+                ? getDefaultDateRangeFromInterval(granularity)
+                : undefined,
+        [timeDimension, granularity],
+    );
+    const seriesQuery = useRunMetricSeries({
+        projectUuid,
+        exploreName: metricRef.tableName,
+        metricName: metricRef.metricName,
+        granularity,
+        dateRange: seriesDateRange,
+        options: { enabled: !!timeDimension, retry: false },
+    });
+
     const change = useMemo(() => {
         const value = totalQuery.data?.value;
         const compareValue = totalQuery.data?.comparisonValue;
@@ -72,7 +102,7 @@ const MetricKpiCard: FC<{
     }, [totalQuery.data]);
 
     if (totalQuery.isInitialLoading) {
-        return <Skeleton h={92} radius="md" />;
+        return <Skeleton h={120} radius="md" />;
     }
 
     return (
@@ -104,6 +134,18 @@ const MetricKpiCard: FC<{
                                   )
                                 : '-'}
                         </div>
+                        {timeDimension &&
+                            (seriesQuery.isInitialLoading ? (
+                                <Skeleton h={40} my={4} radius="sm" />
+                            ) : seriesQuery.data &&
+                              seriesQuery.data.points.length > 0 ? (
+                                <Box my={4}>
+                                    <MetricSparkline
+                                        points={seriesQuery.data.points}
+                                        change={change}
+                                    />
+                                </Box>
+                            ) : null)}
                         <Group gap={6}>
                             {change !== undefined && (
                                 <span

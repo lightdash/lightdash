@@ -3,6 +3,7 @@ import {
     ApiErrorPayload,
     assertRegisteredAccount,
     MetricTotalComparisonType,
+    type ApiMetricsExplorerQueryResults,
     type ApiMetricsExplorerTotalResults,
     type TimeFrames,
 } from '@lightdash/common';
@@ -67,6 +68,44 @@ export class MetricsExplorerController extends BaseController {
                 endDate,
                 body?.comparisonType,
                 body?.rollingDays,
+            );
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Run a metric time series query for a sparkline
+     * @summary Run metric series query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{explore}/{metric}/runMetricSeries')
+    @OperationId('runMetricSeries')
+    async runMetricSeries(
+        @Path() projectUuid: string,
+        @Path() explore: string,
+        @Path() metric: string,
+        @Request() req: express.Request,
+        @Query() granularity: TimeFrames,
+        @Query() startDate: string,
+        @Query() endDate: string,
+    ): Promise<ApiMetricsExplorerQueryResults> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        const results = await this.services
+            .getMetricsExplorerService()
+            .getMetricSeries(
+                toSessionUser(req.account),
+                projectUuid,
+                explore,
+                metric,
+                granularity,
+                startDate,
+                endDate,
             );
 
         return {
