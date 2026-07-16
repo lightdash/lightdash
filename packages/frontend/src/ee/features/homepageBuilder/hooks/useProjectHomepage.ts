@@ -230,6 +230,10 @@ export const useHomepageForBuilder = (
             homepageUuid ?? 'default',
         ],
         queryFn: () => getHomepageForBuilder(projectUuid!, homepageUuid),
+        // The editor snapshots the draft on mount, so always refetch: with the
+        // global 30s staleTime a warm cache would skip the fetch, leaving
+        // isFetchedAfterMount false and the builder stuck on a spinner.
+        refetchOnMount: 'always',
     });
 
 export const useProjectHomepages = (
