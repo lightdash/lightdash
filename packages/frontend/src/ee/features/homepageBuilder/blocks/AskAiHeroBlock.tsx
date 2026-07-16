@@ -17,6 +17,7 @@ export const AskAiHero: FC<{
     preview?: boolean;
 }> = ({ projectUuid, showGreeting, preview = false }) => {
     const { user } = useApp();
+    const firstName = user.data?.firstName?.trim();
     return (
         <Stack gap={16} align="center" w="100%">
             {showGreeting && (
@@ -29,8 +30,9 @@ export const AskAiHero: FC<{
                     ta="center"
                     m={0}
                 >
-                    Good {dayPart(new Date().getHours())},{' '}
-                    {user.data?.firstName}. What do you want to know?
+                    Good {dayPart(new Date().getHours())}
+                    {firstName ? `, ${firstName}` : ''}. What do you want to
+                    know?
                 </Text>
             )}
             <Box w="100%">
