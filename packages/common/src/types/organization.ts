@@ -51,6 +51,11 @@ export type Organization = {
      */
     pgWire?: {
         enabled: boolean;
+        /** Whether the server requires TLS (clients must use sslmode=require
+         * or stricter). False only on instances that explicitly opted out.
+         * Optional for API backwards compatibility — the server always
+         * returns it; treat absence as true. */
+        tlsRequired?: boolean;
         host: string | null;
         port: number | null;
     };

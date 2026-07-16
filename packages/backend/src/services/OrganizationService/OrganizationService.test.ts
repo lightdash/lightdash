@@ -65,6 +65,7 @@ describe('organization service', () => {
             // connection details are withheld — only `enabled` is exposed.
             pgWire: {
                 enabled: false,
+                tlsRequired: true,
                 host: null,
                 port: null,
             },
@@ -80,6 +81,7 @@ describe('organization service', () => {
             needsProject: true,
             pgWire: {
                 enabled: false,
+                tlsRequired: true,
                 host: null,
                 port: null,
             },
@@ -94,6 +96,7 @@ describe('organization service', () => {
         const result = await organizationService.get(account);
         expect(result.pgWire).toEqual({
             enabled: false,
+            tlsRequired: true,
             host: 'test.lightdash.cloud',
             port: null,
         });
@@ -107,6 +110,7 @@ describe('organization service', () => {
         const result = await organizationService.get(account);
         expect(result.pgWire).toEqual({
             enabled: false,
+            tlsRequired: true,
             host: null,
             port: null,
         });

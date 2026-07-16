@@ -167,8 +167,9 @@ export class OrganizationService extends BaseService {
         account: Account,
         organizationUuid: string,
     ): Organization['pgWire'] {
-        const { port, host } = this.lightdashConfig.pgWire;
+        const { port, host, ssl } = this.lightdashConfig.pgWire;
         const enabled = port !== undefined;
+        const tlsRequired = ssl.mode === 'require';
 
         // The connection details (host/port) are infra endpoints, so only
         // expose them to org admins. `enabled` is a capability flag every org
@@ -178,7 +179,7 @@ export class OrganizationService extends BaseService {
             subject('Organization', { organizationUuid }),
         );
         if (!isOrgAdmin) {
-            return { enabled, host: null, port: null };
+            return { enabled, tlsRequired, host: null, port: null };
         }
 
         let resolvedHost = host ?? null;
@@ -191,6 +192,7 @@ export class OrganizationService extends BaseService {
         }
         return {
             enabled,
+            tlsRequired,
             host: resolvedHost,
             port: port ?? null,
         };

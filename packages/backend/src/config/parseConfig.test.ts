@@ -1377,3 +1377,49 @@ describe('persistentDownloadUrls.enabled', () => {
         expect(config.persistentDownloadUrls.enabled).toBe(false);
     });
 });
+
+describe('pgWire TLS configuration', () => {
+    test('defaults to require mode with no cert paths', () => {
+        const config = parseConfig();
+        expect(config.pgWire).toEqual({
+            port: undefined,
+            host: undefined,
+            ssl: { mode: 'require', certPath: undefined, keyPath: undefined },
+        });
+    });
+
+    test('throws when PGWIRE_PORT is set without TLS certs', () => {
+        process.env.PGWIRE_PORT = '5432';
+        expect(() => parseConfig()).toThrowError(ParseError);
+    });
+
+    test('throws when PGWIRE_PORT is set with only a cert (no key)', () => {
+        process.env.PGWIRE_PORT = '5432';
+        process.env.PGWIRE_SSL_CERT_PATH = '/certs/tls.crt';
+        expect(() => parseConfig()).toThrowError(ParseError);
+    });
+
+    test('accepts PGWIRE_PORT with cert and key paths', () => {
+        process.env.PGWIRE_PORT = '5432';
+        process.env.PGWIRE_SSL_CERT_PATH = '/certs/tls.crt';
+        process.env.PGWIRE_SSL_KEY_PATH = '/certs/tls.key';
+        const config = parseConfig();
+        expect(config.pgWire.ssl).toEqual({
+            mode: 'require',
+            certPath: '/certs/tls.crt',
+            keyPath: '/certs/tls.key',
+        });
+    });
+
+    test('accepts PGWIRE_PORT without certs when TLS is explicitly disabled', () => {
+        process.env.PGWIRE_PORT = '5432';
+        process.env.PGWIRE_SSL_MODE = 'disabled';
+        const config = parseConfig();
+        expect(config.pgWire.ssl.mode).toBe('disabled');
+    });
+
+    test('throws on an invalid PGWIRE_SSL_MODE', () => {
+        process.env.PGWIRE_SSL_MODE = 'prefer';
+        expect(() => parseConfig()).toThrowError(ParseError);
+    });
+});

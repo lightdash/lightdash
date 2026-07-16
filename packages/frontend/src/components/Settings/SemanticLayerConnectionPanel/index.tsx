@@ -264,13 +264,17 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
     const host = organization?.pgWire?.host ?? '';
     const port = organization?.pgWire?.port ?? null;
     const portString = port !== null ? String(port) : '';
+    // Default to the secure mode while loading — never advertise plaintext
+    // unless the server has explicitly opted out of TLS.
+    const tlsRequired = organization?.pgWire?.tlsRequired ?? true;
+    const sslMode = tlsRequired ? 'require' : 'disable';
 
     const snippets = useMemo<Record<SnippetKey, string>>(() => {
-        const libpqUrl = `postgresql://${DEFAULT_USER}:${tokenForSnippet}@${host}:${portString}/${projectUuid}?sslmode=disable`;
-        const psql = `PGPASSWORD=${tokenForSnippet} psql -h ${host} -p ${portString} -U ${DEFAULT_USER} -d ${projectUuid} "sslmode=disable"`;
-        const jdbc = `jdbc:postgresql://${host}:${portString}/${projectUuid}?sslmode=disable`;
+        const libpqUrl = `postgresql://${DEFAULT_USER}:${tokenForSnippet}@${host}:${portString}/${projectUuid}?sslmode=${sslMode}`;
+        const psql = `PGPASSWORD=${tokenForSnippet} psql -h ${host} -p ${portString} -U ${DEFAULT_USER} -d ${projectUuid} "sslmode=${sslMode}"`;
+        const jdbc = `jdbc:postgresql://${host}:${portString}/${projectUuid}?sslmode=${sslMode}`;
         return { libpqUrl, psql, jdbc };
-    }, [host, portString, projectUuid, tokenForSnippet]);
+    }, [host, portString, projectUuid, tokenForSnippet, sslMode]);
 
     // The visible snippet blots out the token so it's safe on screen, while the
     // copy button still yields the exact, ready-to-paste string.
@@ -335,8 +339,19 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                         <Callout variant="info" title="Before you connect">
                             Only simple <code>SELECT</code> queries against a
                             single explore are supported (no SQL joins), with a
-                            default limit of 500 rows. TLS is not yet available,
-                            so clients must use <code>sslmode=disable</code>.
+                            default limit of 500 rows.{' '}
+                            {tlsRequired ? (
+                                <>
+                                    Connections are encrypted — TLS is required,
+                                    so use <code>sslmode=require</code> (or{' '}
+                                    <code>verify-full</code>).
+                                </>
+                            ) : (
+                                <>
+                                    TLS is disabled on this server, so clients
+                                    must use <code>sslmode=disable</code>.
+                                </>
+                            )}
                         </Callout>
 
                         <Box>
@@ -413,7 +428,7 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                                     />
                                     <ConnectionChip
                                         label="SSL mode"
-                                        value="disable"
+                                        value={sslMode}
                                     />
                                 </Box>
                             </Step>
