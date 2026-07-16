@@ -1,3 +1,15 @@
+# [0.3402.0](https://github.com/lightdash/lightdash/compare/0.3401.2...0.3402.0) (2026-07-16)
+
+
+### Bug Fixes
+
+* **homepage:** builder stuck on a spinner when the draft is cache-fresh ([#25685](https://github.com/lightdash/lightdash/issues/25685)) ([bbdab15](https://github.com/lightdash/lightdash/commit/bbdab1527e12cd634d5082e37b9a102f80c807cd))
+
+
+### Features
+
+* **homepage:** collection add-content two-pane space tree + lazy content picker ([#25682](https://github.com/lightdash/lightdash/issues/25682)) ([b0e771e](https://github.com/lightdash/lightdash/commit/b0e771e51d4b8976614d1c38de444830713178e0))
+
 ## [0.3401.2](https://github.com/lightdash/lightdash/compare/0.3401.1...0.3401.2) (2026-07-16)
 
 
