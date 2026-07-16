@@ -53,7 +53,7 @@ import {
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react';
-import { useEffect, useRef, useState, type FC } from 'react';
+import { Fragment, useEffect, useRef, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
@@ -148,10 +148,11 @@ const LibraryCard: FC<{ definition: BlockDefinition; onAdd: () => void }> = ({
 const RowGap: FC<{
     rowIndex: number;
     isDragActive: boolean;
+    active: boolean;
     blocks: BlockDefinition[];
     onQuickAdd: (definition: BlockDefinition) => void;
-}> = ({ rowIndex, isDragActive, blocks, onQuickAdd }) => {
-    const { setNodeRef, isOver } = useDroppable({ id: gapZoneId(rowIndex) });
+}> = ({ rowIndex, isDragActive, active, blocks, onQuickAdd }) => {
+    const { setNodeRef } = useDroppable({ id: gapZoneId(rowIndex) });
     const [menuOpened, setMenuOpened] = useState(false);
     return (
         <div
@@ -160,10 +161,7 @@ const RowGap: FC<{
             data-drag-active={isDragActive}
             data-menu-open={menuOpened}
         >
-            <div
-                className={classes.dropLine}
-                data-over={isDragActive && isOver}
-            />
+            <div className={classes.dropLine} data-over={active} />
             {!isDragActive && (
                 <div className={classes.gapAdd}>
                     <div className={classes.gapAddLine} />
@@ -203,13 +201,16 @@ const RowGap: FC<{
     );
 };
 
-const EndDropZone: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
-    const { setNodeRef, isOver } = useDroppable({ id: END_ZONE_ID });
+const EndDropZone: FC<{ isEmpty: boolean; active: boolean }> = ({
+    isEmpty,
+    active,
+}) => {
+    const { setNodeRef } = useDroppable({ id: END_ZONE_ID });
     return (
         <div
             ref={setNodeRef}
             className={
-                isOver
+                active
                     ? `${classes.endZone} ${classes.endZoneActive}`
                     : classes.endZone
             }
@@ -234,10 +235,11 @@ const ColumnGutter: FC<{
     rowIndex: number;
     insertIndex: number;
     isDragActive: boolean;
+    active: boolean;
     blocks: BlockDefinition[];
     onAdd: (definition: BlockDefinition) => void;
-}> = ({ rowIndex, insertIndex, isDragActive, blocks, onAdd }) => {
-    const { setNodeRef, isOver } = useDroppable({
+}> = ({ rowIndex, insertIndex, isDragActive, active, blocks, onAdd }) => {
+    const { setNodeRef } = useDroppable({
         id: `slot:${rowIndex}:${insertIndex}`,
         disabled: !isDragActive,
     });
@@ -248,7 +250,7 @@ const ColumnGutter: FC<{
             <div
                 ref={setNodeRef}
                 className={classes.columnSlot}
-                data-over={isOver}
+                data-over={active}
             >
                 <MantineIcon icon={IconPlus} size={14} />
             </div>
@@ -292,6 +294,20 @@ const ColumnGutter: FC<{
     );
 };
 
+// Thin vertical insertion marker shown between columns while dragging.
+const ColIndicator: FC<{ active: boolean }> = ({ active }) => (
+    <div className={classes.colIndicator} data-over={active} />
+);
+
+// A translucent preview of the block, shown in the layout exactly where the
+// drop will land — held until release.
+const GhostBlock: FC<{ definition: BlockDefinition }> = ({ definition }) => (
+    <div className={classes.ghostBlock}>
+        <IconSquare icon={definition.icon} />
+        <span className={classes.ghostBlockLabel}>{definition.label}</span>
+    </div>
+);
+
 type BlockCardProps = {
     block: HomepageBlock;
     definition: BlockDefinition;
@@ -303,6 +319,7 @@ type BlockCardProps = {
     onDuplicate: () => void;
     onRemove: () => void;
     onChange: (updated: HomepageBlock) => void;
+    justPlaced: boolean;
 };
 
 const BlockCard: FC<BlockCardProps> = ({
@@ -316,6 +333,7 @@ const BlockCard: FC<BlockCardProps> = ({
     onDuplicate,
     onRemove,
     onChange,
+    justPlaced,
 }) => {
     const {
         attributes,
@@ -338,6 +356,7 @@ const BlockCard: FC<BlockCardProps> = ({
             ref={setNodeRef}
             className={classes.blockChrome}
             data-dragging={isDragging}
+            data-just-placed={justPlaced}
             style={{
                 transform: CSS.Translate.toString(transform),
                 transition,
@@ -456,10 +475,11 @@ export const HomepageEditor: FC<Props> = ({
     const baseUpdatedAtRef = useRef<Date>(homepage.updatedAt);
 
     const [activeDrag, setActiveDrag] = useState<DragSource | null>(null);
-    // Layout as it was when the drag started, for cancel/no-target reverts
-    const preDragDraftRef = useRef<HomepageConfig | null>(null);
-    // Instance created for a library drag, once it first enters the canvas
-    const pendingNewBlockRef = useRef<HomepageBlock | null>(null);
+    // Where the drop will land, shown as an insertion indicator. The real
+    // layout stays frozen during the drag; nothing moves until the drop.
+    const [dropIndicator, setDropIndicator] = useState<DropTarget | null>(null);
+    // Block just placed by a drop, for its entrance animation.
+    const [justPlacedId, setJustPlacedId] = useState<string | null>(null);
 
     // Singleton blocks (e.g. metrics) drop out of the library once placed.
     const usedSingletonTypes = new Set(
@@ -589,119 +609,64 @@ export const HomepageEditor: FC<Props> = ({
         };
     };
 
-    // Live-preview move: relocate the block in the draft as the drag hovers,
-    // so the layout itself shows where the drop will land (Kanban-style).
-    const applyPreviewMove = (
-        config: HomepageConfig,
-        blockId: string,
-        target: DropTarget,
-    ): HomepageConfig => {
-        const location = locateBlock(config, blockId);
-        if (!location) return config;
-        const row = config.rows[location.rowIndex];
-        const isAlone = row.blocks.length === 1;
-        // Moving a lone-row block beside its own row is a no-op; skipping it
-        // avoids re-creating the row (new id) and remounting block editors.
-        if (
-            target.kind === 'row' &&
-            isAlone &&
-            (target.rowIndex === location.rowIndex ||
-                target.rowIndex === location.rowIndex + 1)
-        ) {
-            return config;
-        }
-        if (
-            target.kind === 'end' &&
-            isAlone &&
-            location.rowIndex === config.rows.length - 1
-        ) {
-            return config;
-        }
-        if (
-            target.kind === 'cell' &&
-            target.rowIndex !== location.rowIndex &&
-            !canDropInRow(config, target.rowIndex, blockId)
-        ) {
-            return config;
-        }
-        return dropExistingBlock(config, blockId, target);
-    };
-
     const handleDragStart = (event: DragStartEvent) => {
         const source = event.active.data.current as DragSource | undefined;
         setActiveDrag(source ?? null);
-        preDragDraftRef.current = draft;
-        pendingNewBlockRef.current = null;
+        setDropIndicator(null);
+        setJustPlacedId(null);
     };
 
+    // Only track where the drop will land — never mutate the layout mid-drag.
     const handleDragOver = (event: DragOverEvent) => {
         const source = event.active.data.current as DragSource | undefined;
         if (!source) return;
-        setDraft((prev) => {
-            const draggedId =
-                source.kind === 'new'
-                    ? (pendingNewBlockRef.current?.id ?? null)
-                    : source.blockId;
-            const target = computeTarget(prev, event, draggedId);
-            if (!target) return prev;
-            if (source.kind === 'new') {
-                if (!pendingNewBlockRef.current) {
-                    const block = source.definition.create();
-                    const inserted = dropNewBlock(prev, block, target);
-                    if (inserted === prev) return prev;
-                    pendingNewBlockRef.current = block;
-                    return inserted;
-                }
-                return applyPreviewMove(
-                    prev,
-                    pendingNewBlockRef.current.id,
-                    target,
-                );
-            }
-            return applyPreviewMove(prev, source.blockId, target);
-        });
+        const draggedId = source.kind === 'existing' ? source.blockId : null;
+        setDropIndicator(computeTarget(draft, event, draggedId));
     };
 
+    // Commit the drop once. New blocks get an entrance animation; existing
+    // blocks relocate in place.
     const handleDragEnd = (event: DragEndEvent) => {
         const source = event.active.data.current as DragSource | undefined;
-        const snapshot = preDragDraftRef.current;
         setActiveDrag(null);
-        preDragDraftRef.current = null;
-        const pendingBlock = pendingNewBlockRef.current;
-        pendingNewBlockRef.current = null;
-        if (!source) return;
-        if (!event.over) {
-            // dropped outside any zone: revert the preview
-            if (snapshot) setDraft(snapshot);
+        setDropIndicator(null);
+        if (!source || !event.over) return;
+        const draggedId = source.kind === 'existing' ? source.blockId : null;
+        const target = computeTarget(draft, event, draggedId);
+        if (!target) return;
+        if (source.kind === 'new') {
+            const block = source.definition.create();
+            setDraft((prev) => dropNewBlock(prev, block, target));
+            setJustPlacedId(block.id);
             return;
         }
-        setDraft((prev) => {
-            const blockId =
-                source.kind === 'new' ? pendingBlock?.id : source.blockId;
-            const target = computeTarget(prev, event, blockId ?? null);
-            if (!blockId) {
-                // library drag released before any preview insert happened
-                if (source.kind === 'new' && target) {
-                    return dropNewBlock(
-                        prev,
-                        source.definition.create(),
-                        target,
-                    );
-                }
-                return prev;
-            }
-            if (!target) return prev;
-            return applyPreviewMove(prev, blockId, target);
-        });
+        const location = locateBlock(draft, source.blockId);
+        if (
+            target.kind === 'cell' &&
+            location &&
+            target.rowIndex !== location.rowIndex &&
+            !canDropInRow(draft, target.rowIndex, source.blockId)
+        ) {
+            return;
+        }
+        setDraft((prev) => dropExistingBlock(prev, source.blockId, target));
     };
 
     const handleDragCancel = () => {
-        const snapshot = preDragDraftRef.current;
         setActiveDrag(null);
-        preDragDraftRef.current = null;
-        pendingNewBlockRef.current = null;
-        if (snapshot) setDraft(snapshot);
+        setDropIndicator(null);
     };
+
+    const rowIndicatorActive = (boundary: number) =>
+        dropIndicator?.kind === 'row' && dropIndicator.rowIndex === boundary;
+    const endIndicatorActive =
+        dropIndicator?.kind === 'end' ||
+        (dropIndicator?.kind === 'row' &&
+            dropIndicator.rowIndex === draft.rows.length);
+    const cellIndicatorActive = (rowIndex: number, blockIndex: number) =>
+        dropIndicator?.kind === 'cell' &&
+        dropIndicator.rowIndex === rowIndex &&
+        dropIndicator.blockIndex === blockIndex;
 
     return (
         <div className={classes.builderRoot}>
@@ -830,7 +795,7 @@ export const HomepageEditor: FC<Props> = ({
                 sensors={sensors}
                 collisionDetection={collisionDetectionStrategy}
                 measuring={{
-                    droppable: { strategy: MeasuringStrategy.Always },
+                    droppable: { strategy: MeasuringStrategy.WhileDragging },
                 }}
                 onDragStart={handleDragStart}
                 onDragOver={handleDragOver}
@@ -878,6 +843,9 @@ export const HomepageEditor: FC<Props> = ({
                                                 isDragActive={
                                                     activeDrag !== null
                                                 }
+                                                active={rowIndicatorActive(
+                                                    rowIndex,
+                                                )}
                                                 blocks={availableBlocks}
                                                 onQuickAdd={(definition) =>
                                                     setDraft((prev) =>
@@ -892,6 +860,16 @@ export const HomepageEditor: FC<Props> = ({
                                                     )
                                                 }
                                             />
+                                            {activeDrag &&
+                                                rowIndicatorActive(
+                                                    rowIndex,
+                                                ) && (
+                                                    <GhostBlock
+                                                        definition={
+                                                            activeDrag.definition
+                                                        }
+                                                    />
+                                                )}
                                             <SortableContext
                                                 items={row.blocks.map(
                                                     (block) => block.id,
@@ -908,95 +886,116 @@ export const HomepageEditor: FC<Props> = ({
                                                         classes.rowColumns
                                                     }
                                                 >
-                                                    {row.blocks.map((block) => {
-                                                        const definition =
-                                                            getBlockDefinition(
-                                                                block.type,
+                                                    {row.blocks.map(
+                                                        (block, blockIndex) => {
+                                                            const definition =
+                                                                getBlockDefinition(
+                                                                    block.type,
+                                                                );
+                                                            if (!definition)
+                                                                return null;
+                                                            return (
+                                                                <Fragment
+                                                                    key={
+                                                                        block.id
+                                                                    }
+                                                                >
+                                                                    {activeDrag && (
+                                                                        <ColIndicator
+                                                                            active={cellIndicatorActive(
+                                                                                rowIndex,
+                                                                                blockIndex,
+                                                                            )}
+                                                                        />
+                                                                    )}
+                                                                    <BlockCard
+                                                                        block={
+                                                                            block
+                                                                        }
+                                                                        definition={
+                                                                            definition
+                                                                        }
+                                                                        justPlaced={
+                                                                            block.id ===
+                                                                            justPlacedId
+                                                                        }
+                                                                        projectUuid={
+                                                                            projectUuid
+                                                                        }
+                                                                        canUp={canMoveUp(
+                                                                            draft,
+                                                                            block.id,
+                                                                        )}
+                                                                        canDown={canMoveDown(
+                                                                            draft,
+                                                                            block.id,
+                                                                        )}
+                                                                        onUp={() =>
+                                                                            setDraft(
+                                                                                (
+                                                                                    prev,
+                                                                                ) =>
+                                                                                    moveBlockUp(
+                                                                                        prev,
+                                                                                        block.id,
+                                                                                    ),
+                                                                            )
+                                                                        }
+                                                                        onDown={() =>
+                                                                            setDraft(
+                                                                                (
+                                                                                    prev,
+                                                                                ) =>
+                                                                                    moveBlockDown(
+                                                                                        prev,
+                                                                                        block.id,
+                                                                                    ),
+                                                                            )
+                                                                        }
+                                                                        onDuplicate={() =>
+                                                                            setDraft(
+                                                                                (
+                                                                                    prev,
+                                                                                ) =>
+                                                                                    duplicateBlock(
+                                                                                        prev,
+                                                                                        block.id,
+                                                                                    ),
+                                                                            )
+                                                                        }
+                                                                        onRemove={() =>
+                                                                            setDraft(
+                                                                                (
+                                                                                    prev,
+                                                                                ) =>
+                                                                                    removeBlock(
+                                                                                        prev,
+                                                                                        block.id,
+                                                                                    ),
+                                                                            )
+                                                                        }
+                                                                        onChange={(
+                                                                            updated,
+                                                                        ) =>
+                                                                            setDraft(
+                                                                                (
+                                                                                    prev,
+                                                                                ) =>
+                                                                                    replaceBlock(
+                                                                                        prev,
+                                                                                        updated,
+                                                                                    ),
+                                                                            )
+                                                                        }
+                                                                    />
+                                                                </Fragment>
                                                             );
-                                                        if (!definition)
-                                                            return null;
-                                                        return (
-                                                            <BlockCard
-                                                                key={block.id}
-                                                                block={block}
-                                                                definition={
-                                                                    definition
-                                                                }
-                                                                projectUuid={
-                                                                    projectUuid
-                                                                }
-                                                                canUp={canMoveUp(
-                                                                    draft,
-                                                                    block.id,
-                                                                )}
-                                                                canDown={canMoveDown(
-                                                                    draft,
-                                                                    block.id,
-                                                                )}
-                                                                onUp={() =>
-                                                                    setDraft(
-                                                                        (
-                                                                            prev,
-                                                                        ) =>
-                                                                            moveBlockUp(
-                                                                                prev,
-                                                                                block.id,
-                                                                            ),
-                                                                    )
-                                                                }
-                                                                onDown={() =>
-                                                                    setDraft(
-                                                                        (
-                                                                            prev,
-                                                                        ) =>
-                                                                            moveBlockDown(
-                                                                                prev,
-                                                                                block.id,
-                                                                            ),
-                                                                    )
-                                                                }
-                                                                onDuplicate={() =>
-                                                                    setDraft(
-                                                                        (
-                                                                            prev,
-                                                                        ) =>
-                                                                            duplicateBlock(
-                                                                                prev,
-                                                                                block.id,
-                                                                            ),
-                                                                    )
-                                                                }
-                                                                onRemove={() =>
-                                                                    setDraft(
-                                                                        (
-                                                                            prev,
-                                                                        ) =>
-                                                                            removeBlock(
-                                                                                prev,
-                                                                                block.id,
-                                                                            ),
-                                                                    )
-                                                                }
-                                                                onChange={(
-                                                                    updated,
-                                                                ) =>
-                                                                    setDraft(
-                                                                        (
-                                                                            prev,
-                                                                        ) =>
-                                                                            replaceBlock(
-                                                                                prev,
-                                                                                updated,
-                                                                            ),
-                                                                    )
-                                                                }
-                                                            />
-                                                        );
-                                                    })}
+                                                        },
+                                                    )}
                                                     {canAddColumn(
                                                         draft,
                                                         rowIndex,
-                                                    ) && (
+                                                    ) ? (
                                                         <ColumnGutter
                                                             rowIndex={rowIndex}
                                                             insertIndex={
@@ -1007,6 +1006,11 @@ export const HomepageEditor: FC<Props> = ({
                                                                 activeDrag !==
                                                                 null
                                                             }
+                                                            active={cellIndicatorActive(
+                                                                rowIndex,
+                                                                row.blocks
+                                                                    .length,
+                                                            )}
                                                             blocks={
                                                                 availableBlocks
                                                             }
@@ -1028,32 +1032,46 @@ export const HomepageEditor: FC<Props> = ({
                                                                 )
                                                             }
                                                         />
+                                                    ) : (
+                                                        activeDrag && (
+                                                            <ColIndicator
+                                                                active={cellIndicatorActive(
+                                                                    rowIndex,
+                                                                    row.blocks
+                                                                        .length,
+                                                                )}
+                                                            />
+                                                        )
                                                     )}
                                                 </Group>
                                             </SortableContext>
                                         </Box>
                                     ))}
+                                    {activeDrag && endIndicatorActive && (
+                                        <GhostBlock
+                                            definition={activeDrag.definition}
+                                        />
+                                    )}
                                     <EndDropZone
                                         isEmpty={draft.rows.length === 0}
+                                        active={false}
                                     />
                                 </Stack>
                             )}
                         </div>
                     </div>
                 </div>
-                <DragOverlay>
+                <DragOverlay dropAnimation={null}>
                     {activeDrag ? (
-                        <div className={classes.dragOverlayCard}>
-                            <div className={classes.railCard}>
+                        <div className={classes.dragOverlayBlock}>
+                            <div className={classes.dragOverlayHeader}>
                                 <IconSquare icon={activeDrag.definition.icon} />
-                                <Box miw={0}>
-                                    <div className={classes.railCardLabel}>
-                                        {activeDrag.definition.label}
-                                    </div>
-                                    <div className={classes.railCardDesc}>
-                                        {activeDrag.definition.description}
-                                    </div>
-                                </Box>
+                                <span className={classes.dragOverlayLabel}>
+                                    {activeDrag.definition.label}
+                                </span>
+                            </div>
+                            <div className={classes.dragOverlayDesc}>
+                                {activeDrag.definition.description}
                             </div>
                         </div>
                     ) : null}
