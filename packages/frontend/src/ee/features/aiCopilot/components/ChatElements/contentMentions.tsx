@@ -641,22 +641,27 @@ const generateContentMentionSuggestion = ({
     getProjectUuid,
     getPriorityItems,
     onPopupOpenChange,
+    includeFilesAndRepositories,
 }: {
     getProjectUuid: () => string | undefined;
     getPriorityItems: () => ContentMentionSuggestionItem[];
     onPopupOpenChange?: (open: boolean) => void;
+    includeFilesAndRepositories: boolean;
 }): MentionOptions['suggestion'] => ({
     char: '@',
     allowSpaces: true,
     pluginKey: contentMentionPluginKey,
     items: async ({ query }) => {
         const projectUuid = getProjectUuid();
-        const [contentItems, fileItems, repositoryItems] = await Promise.all([
-            buildContentMentionSuggestionItems({
-                projectUuid,
-                query,
-                priorityItems: getPriorityItems(),
-            }),
+        const contentItems = await buildContentMentionSuggestionItems({
+            projectUuid,
+            query,
+            priorityItems: getPriorityItems(),
+        });
+        // Files / repositories are only mentionable in the AI-agent composer;
+        // other surfaces (e.g. homepage announcements) mention content only.
+        if (!includeFilesAndRepositories) return contentItems;
+        const [fileItems, repositoryItems] = await Promise.all([
             getProjectFileSuggestions(projectUuid, query),
             getRepositorySuggestions(projectUuid, query),
         ]);
@@ -786,10 +791,12 @@ export const createContentMentionExtension = ({
     getProjectUuid,
     getPriorityItems,
     onPopupOpenChange,
+    includeFilesAndRepositories = true,
 }: {
     getProjectUuid: () => string | undefined;
     getPriorityItems: () => ContentMentionSuggestionItem[];
     onPopupOpenChange?: (open: boolean) => void;
+    includeFilesAndRepositories?: boolean;
 }) =>
     Mention.extend({
         name: CONTENT_MENTION_NAME,
@@ -837,6 +844,7 @@ export const createContentMentionExtension = ({
             getProjectUuid,
             getPriorityItems,
             onPopupOpenChange,
+            includeFilesAndRepositories,
         }),
         renderText: ({ node }) =>
             typeof node.attrs.label === 'string' ? node.attrs.label : '',
