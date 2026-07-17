@@ -1,3 +1,10 @@
+## [0.3408.1](https://github.com/lightdash/lightdash/compare/0.3408.0...0.3408.1) (2026-07-17)
+
+
+### Bug Fixes
+
+* **homepage:** only show "Revert to published" when the draft diverges ([#25735](https://github.com/lightdash/lightdash/issues/25735)) ([69f7b9f](https://github.com/lightdash/lightdash/commit/69f7b9f79031a6380eb9aa840eca56dd083ae67e))
+
 # [0.3408.0](https://github.com/lightdash/lightdash/compare/0.3407.0...0.3408.0) (2026-07-17)
 
 
