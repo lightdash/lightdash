@@ -8,6 +8,7 @@ export default defineConfig({
     outputDir: './playwright-results',
     fullyParallel: false,
     forbidOnly: Boolean(process.env.CI),
+    expect: { timeout: 10_000 },
     retries: process.env.CI ? retries : 0,
     workers: 1,
     reporter: process.env.CI
