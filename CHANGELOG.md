@@ -1,3 +1,10 @@
+# [0.3408.0](https://github.com/lightdash/lightdash/compare/0.3407.0...0.3408.0) (2026-07-17)
+
+
+### Features
+
+* **homepage:** add "Revert to published" to discard draft edits ([#25718](https://github.com/lightdash/lightdash/issues/25718)) ([6d92046](https://github.com/lightdash/lightdash/commit/6d92046f493c79526cbcc0f052a2af8daa1fb5fe))
+
 # [0.3407.0](https://github.com/lightdash/lightdash/compare/0.3406.2...0.3407.0) (2026-07-17)
 
 
