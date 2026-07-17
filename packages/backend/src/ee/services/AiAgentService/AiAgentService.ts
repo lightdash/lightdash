@@ -3777,16 +3777,26 @@ export class AiAgentService extends BaseService {
             await this.assertCanUsePersonalMcpCredentials(user, projectUuid);
         }
 
-        return this.aiAgentMcpRuntimeClient.startOAuthConnection({
-            projectUuid,
-            mcpServerUuid,
-            credentialScope,
-            userUuid: credentialScope === 'user' ? user.userUuid : undefined,
-            actorUserUuid: user.userUuid,
-            serverUrl: server.url,
-            connectionStatusOnAuthorization:
-                options?.connectionStatusOnAuthorization,
-        });
+        try {
+            return await this.aiAgentMcpRuntimeClient.startOAuthConnection({
+                projectUuid,
+                mcpServerUuid,
+                credentialScope,
+                userUuid:
+                    credentialScope === 'user' ? user.userUuid : undefined,
+                actorUserUuid: user.userUuid,
+                serverUrl: server.url,
+                connectionStatusOnAuthorization:
+                    options?.connectionStatusOnAuthorization,
+            });
+        } catch (error) {
+            const message = getErrorMessage(error);
+            Logger.error(
+                `[AiAgent][MCP][${mcpServerUuid}] Failed to start OAuth authorization: ${message}`,
+                error,
+            );
+            throw new ParameterError(message);
+        }
     }
 
     public async completeMcpOAuthConnection(args: {

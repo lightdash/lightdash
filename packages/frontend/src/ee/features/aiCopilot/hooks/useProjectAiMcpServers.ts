@@ -1,3 +1,4 @@
+import { isApiError } from '@lightdash/common';
 import type {
     ApiAiMcpGithubAvailabilityResponse,
     ApiAiMcpOAuthCredentialRequest,
@@ -524,11 +525,12 @@ export const useRefreshAiMcpServerToolsMutation = (projectUuid: string) => {
 
 export const useStartMcpOAuthConnectionMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastError, showToastSuccess } = useToaster();
+    const { showToastApiError, showToastError, showToastSuccess } =
+        useToaster();
 
     return useMutation<
         void,
-        Error,
+        unknown,
         {
             mcpServerUuid: string;
             credentialScope?: ApiAiMcpOAuthCredentialRequest['credentialScope'];
@@ -561,9 +563,18 @@ export const useStartMcpOAuthConnectionMutation = (projectUuid: string) => {
             });
         },
         onError: (error) => {
+            if (isApiError(error)) {
+                showToastApiError({
+                    title: 'Authentication failed',
+                    apiError: error.error,
+                });
+                return;
+            }
+
             showToastError({
                 title: 'Authentication failed',
-                subtitle: error.message || 'Please try again',
+                subtitle:
+                    error instanceof Error ? error.message : 'Please try again',
             });
         },
     });
