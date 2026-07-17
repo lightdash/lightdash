@@ -10,5 +10,16 @@ module.exports = {
         'airbnb-typescript/base',
         'prettier',
     ],
+    overrides: [
+        {
+            files: ['playwright/**/*.ts', 'playwright.config.ts'],
+            rules: {
+                'import/no-extraneous-dependencies': [
+                    'error',
+                    { devDependencies: true },
+                ],
+            },
+        },
+    ],
     rules: {},
 };

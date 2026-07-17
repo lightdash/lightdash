@@ -488,6 +488,49 @@ jobs:
           TRINO_PASSWORD: ${{ secrets.TRINO_PASSWORD }}
           TZ: "UTC"
 
+  playwright-smoke:
+    if: needs.files-changed.outputs.frontend == 'true'
+    continue-on-error: true
+    timeout-minutes: 15
+    runs-on: depot-ubuntu-24.04-4
+    needs: [preview, files-changed]
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+    name: "E2E: Playwright smoke"
+    env:
+      NODE_OPTIONS: "--max-old-space-size=8192"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+          cache-dependency-path: "pnpm-lock.yaml"
+      - name: Install packages
+        run: sfw pnpm install --frozen-lockfile --prefer-offline
+      - name: Build packages/common module
+        run: pnpm common-build:fast
+      - name: Typecheck Playwright tests
+        run: pnpm -F e2e typecheck:playwright
+      - name: Run Playwright smoke test
+        run: pnpm -F e2e exec playwright test --project=firefox
+        env:
+          PLAYWRIGHT_BASE_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            packages/e2e/playwright-report
+            packages/e2e/playwright-results
+          if-no-files-found: ignore
+
   app-tests:
     if: needs.files-changed.outputs.frontend == 'true'
     timeout-minutes: 30

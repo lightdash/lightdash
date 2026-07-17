@@ -8,12 +8,16 @@
         "cypress:open": "cypress open --e2e",
         "cypress:open:native": "RUNTIME=native cypress open --e2e",
         "cypress:run": "cypress run",
+        "playwright:open": "playwright test --ui",
+        "playwright:run": "playwright test",
+        "playwright:report": "playwright show-report",
+        "typecheck:playwright": "tsc --project tsconfig.playwright.json --noEmit",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
-        "formatter": "oxfmt",
-        "lint": "pnpm run linter ./cypress",
-        "fix-lint": "pnpm run linter ./cypress --fix",
-        "format": "oxfmt ./cypress --check",
-        "fix-format": "oxfmt ./cypress"
+        "formatter": "oxfmt --ignore-path ./../../.gitignore",
+        "lint": "pnpm run linter ./cypress ./playwright ./playwright.config.ts",
+        "fix-lint": "pnpm run linter ./cypress ./playwright ./playwright.config.ts --fix",
+        "format": "pnpm run formatter ./cypress ./playwright ./playwright.config.ts --check",
+        "fix-format": "pnpm run formatter ./cypress ./playwright ./playwright.config.ts"
     },
     "dependencies": {
         "@lightdash/common": "workspace:*",
@@ -24,6 +28,7 @@
         "js-yaml": "4.3.0"
     },
     "devDependencies": {
+        "@playwright/test": "1.56.1",
         "typescript": "npm:@typescript/typescript6@6.0.1",
         "typescript-7": "npm:typescript@7.0.1-rc"
     }

@@ -127,6 +127,8 @@
         "e2e-open": "pnpm -F e2e cypress:open",
         "e2e-open-native": "pnpm -F e2e cypress:open:native",
         "e2e-run": "pnpm -F e2e cypress:run",
+        "e2e-playwright-open": "pnpm -F e2e playwright:open",
+        "e2e-playwright-run": "pnpm -F e2e playwright:run",
         "e2e-lint": "pnpm -F e2e lint",
         "e2e-format": "pnpm -F e2e format",
         "e2e-fix-lint": "pnpm -F e2e fix-lint",
@@ -221,6 +223,17 @@
         ],
         "packages/e2e/cypress/**/*.(ts|json)": [
             "pnpm -F e2e run linter --fix",
+            "pnpm -F e2e run formatter"
+        ],
+        "packages/e2e/playwright/**/*.(ts|json)": [
+            "pnpm -F e2e run linter --fix",
+            "pnpm -F e2e run formatter"
+        ],
+        "packages/e2e/playwright.config.ts": [
+            "pnpm -F e2e run linter --fix",
+            "pnpm -F e2e run formatter"
+        ],
+        "packages/e2e/tsconfig.playwright.json": [
             "pnpm -F e2e run formatter"
         ],
         "packages/cli/src/**/*.(ts|tsx|json)": [
