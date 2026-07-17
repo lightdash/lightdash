@@ -18,7 +18,7 @@ import {
     TextInput,
 } from '@mantine-8/core';
 import { IconLayoutGrid, IconPin, IconPlus } from '@tabler/icons-react';
-import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { ResourceIcon } from '../../../../components/common/ResourceIcon';
@@ -193,9 +193,9 @@ const CollectionPicker: FC<{
         Map<string, HomepageCollectionItemRef>
     >(() => new Map(initialSelected.map((ref) => [ref.uuid, ref])));
 
-    useEffect(() => {
-        registerApply(() => onApply([...selected.values()]));
-    }, [selected, onApply, registerApply]);
+    // Re-point the parent's apply ref every render so it always commits the
+    // latest selection (idempotent, so safe during render — no effect needed).
+    registerApply(() => onApply([...selected.values()]));
 
     const { data: spaces } = useSpaceSummaries(projectUuid, true);
 
