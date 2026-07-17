@@ -298,14 +298,6 @@ export enum FeatureFlags {
     NewOnboarding = 'new-onboarding',
 
     /**
-     * @deprecated Temporary shims kept only so this stacked slice compiles
-     * before the warehouse slice converts its consumers; removed there.
-     */
-    WarehouseConnectOnboarding = 'warehouse-connect-onboarding',
-    OrganizationSetupPage = 'organization-setup-page',
-    EmailOnlySignup = 'email-only-signup',
-
-    /**
      * Cloud-only: let an organization send report/notification emails from
      * their own verified domain (email whitelabelling) instead of the
      * Lightdash address. Gates both the setup UI and the admin API. Requires a

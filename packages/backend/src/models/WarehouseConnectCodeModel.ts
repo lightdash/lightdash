@@ -46,6 +46,7 @@ export class WarehouseConnectCodeModel {
         await this.database.transaction(async (trx) => {
             await trx(WarehouseConnectCodeTableName)
                 .where('created_by_user_uuid', data.createdByUserUuid)
+                .orWhere('expires_at', '<=', this.database.fn.now())
                 .delete();
             await trx(WarehouseConnectCodeTableName).insert({
                 code_hash: data.codeHash,
@@ -79,21 +80,6 @@ export class WarehouseConnectCodeModel {
             .where('code_hash', codeHash)
             .where('expires_at', '>', this.database.fn.now())
             .first();
-        return row ? WarehouseConnectCodeModel.convertRow(row) : null;
-    }
-
-    async deleteDepositedForClaim(
-        codeHash: string,
-        createdByUserUuid: string,
-    ): Promise<WarehouseConnectCodeRecord | null> {
-        const [row] = await this.database(WarehouseConnectCodeTableName)
-            .where('code_hash', codeHash)
-            .where('created_by_user_uuid', createdByUserUuid)
-            .whereNotNull('used_at')
-            .whereNotNull('encrypted_credentials')
-            .where('expires_at', '>', this.database.fn.now())
-            .delete()
-            .returning('*');
         return row ? WarehouseConnectCodeModel.convertRow(row) : null;
     }
 }

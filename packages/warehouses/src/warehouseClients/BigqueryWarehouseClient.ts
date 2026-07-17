@@ -5,6 +5,8 @@ import {
     BigQueryTime,
     BigQueryTimestamp,
     Dataset,
+    DatasetsResponse,
+    GetDatasetsOptions,
     Job,
     QueryResultsOptions,
     QueryRowsResponse,
@@ -15,6 +17,7 @@ import {
     BigqueryAuthenticationType,
     BigqueryDataset,
     BigqueryProject,
+    BigqueryProjectRecommendation,
     CreateBigqueryCredentials,
     DimensionType,
     getErrorMessage,
@@ -46,6 +49,9 @@ import {
 import { normalizeUnicode } from '../utils/sql';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
+
+const MAX_RECOMMENDATION_PROJECTS = 8;
+const MAX_RECOMMENDATION_REGIONS_PER_PROJECT = 3;
 
 export enum BigqueryFieldType {
     STRING = 'STRING',
@@ -775,8 +781,10 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     static async getDatabases(
         projectId: string,
         refresh_token: string,
-    ): Promise<BigqueryDataset[]> {
-        const bigqueryClient = new BigQuery({
+        bigqueryClient: {
+            getDatasets: () => Promise<DatasetsResponse>;
+            query: (query: string) => Promise<QueryRowsResponse>;
+        } = new BigQuery({
             projectId,
             credentials: {
                 type: 'authorized_user',
@@ -784,15 +792,149 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 client_secret: process.env.AUTH_GOOGLE_OAUTH2_CLIENT_SECRET,
                 refresh_token,
             },
-        });
-
+        }),
+    ): Promise<BigqueryDataset[]> {
         const datasets = await bigqueryClient.getDatasets();
-        const databases = datasets[0].map((d) => ({
-            projectId: d.projectId,
-            location: d.location,
-            datasetId: d.id!,
-        }));
+        const databases = await Promise.all(
+            datasets[0].map(async (dataset, index) => {
+                let sizeBytes: number | null = null;
+                if (index < 25) {
+                    try {
+                        const [rows] = await bigqueryClient.query(
+                            `SELECT SUM(size_bytes) AS sizeBytes FROM \`${dataset.projectId}.${dataset.id}.__TABLES__\``,
+                        );
+                        const size = Number(rows[0]?.sizeBytes);
+                        sizeBytes = Number.isFinite(size) ? size : null;
+                    } catch {
+                        sizeBytes = null;
+                    }
+                }
+
+                return {
+                    projectId: dataset.projectId,
+                    location: dataset.location,
+                    datasetId: dataset.id!,
+                    sizeBytes,
+                };
+            }),
+        );
         return databases;
+    }
+
+    static async getProjectRecommendation(
+        projects: BigqueryProject[],
+        refreshToken: string,
+        bigqueryClientFactory: (projectId: string) => {
+            getDatasets: (
+                options: GetDatasetsOptions,
+            ) => Promise<DatasetsResponse>;
+            query: (options: {
+                query: string;
+                location: string;
+            }) => Promise<QueryRowsResponse>;
+        } = (projectId) => {
+            const client = new BigQuery({
+                projectId,
+                credentials: {
+                    type: 'authorized_user',
+                    client_id: process.env.AUTH_GOOGLE_OAUTH2_CLIENT_ID,
+                    client_secret: process.env.AUTH_GOOGLE_OAUTH2_CLIENT_SECRET,
+                    refresh_token: refreshToken,
+                },
+            });
+            return {
+                getDatasets: (options) => client.getDatasets(options),
+                query: (options) =>
+                    client.query(options.query, { location: options.location }),
+            };
+        },
+    ): Promise<BigqueryProjectRecommendation> {
+        const projectScores = await Promise.all(
+            projects
+                .slice(0, MAX_RECOMMENDATION_PROJECTS)
+                .map(async ({ projectId }) => {
+                    try {
+                        const client = bigqueryClientFactory(projectId);
+                        const [datasets] = await client.getDatasets({
+                            autoPaginate: false,
+                            maxResults: 1000,
+                        });
+                        const locationsByQualifier = new Map<string, string>();
+                        datasets.forEach((dataset) => {
+                            if (dataset.location) {
+                                locationsByQualifier.set(
+                                    dataset.location.toLowerCase(),
+                                    dataset.location,
+                                );
+                            }
+                        });
+                        const locations = Array.from(
+                            locationsByQualifier.entries(),
+                        ).slice(0, MAX_RECOMMENDATION_REGIONS_PER_PROJECT);
+
+                        const regionScores = await Promise.all(
+                            locations.map(async ([qualifier, location]) => {
+                                try {
+                                    const [rows] = await client.query({
+                                        query: `SELECT table_schema, SUM(total_logical_bytes) AS total_bytes FROM \`${projectId}\`.\`region-${qualifier}\`.INFORMATION_SCHEMA.TABLE_STORAGE GROUP BY table_schema`,
+                                        location,
+                                    });
+                                    let largestDatasetSize: number | null =
+                                        null;
+                                    rows.forEach((row) => {
+                                        const size = Number(row.total_bytes);
+                                        if (
+                                            Number.isFinite(size) &&
+                                            (largestDatasetSize === null ||
+                                                size > largestDatasetSize)
+                                        ) {
+                                            largestDatasetSize = size;
+                                        }
+                                    });
+                                    return {
+                                        error: false,
+                                        sizeBytes: largestDatasetSize,
+                                    };
+                                } catch {
+                                    return { error: true, sizeBytes: null };
+                                }
+                            }),
+                        );
+
+                        if (regionScores.some(({ error }) => error)) {
+                            return { projectId, sizeBytes: null };
+                        }
+
+                        const sizeBytes = regionScores.reduce<number | null>(
+                            (largestSize, regionScore) =>
+                                regionScore.sizeBytes !== null &&
+                                (largestSize === null ||
+                                    regionScore.sizeBytes > largestSize)
+                                    ? regionScore.sizeBytes
+                                    : largestSize,
+                            null,
+                        );
+                        return { projectId, sizeBytes };
+                    } catch {
+                        return { projectId, sizeBytes: null };
+                    }
+                }),
+        );
+
+        const recommendation = projectScores.reduce<{
+            projectId: string | null;
+            sizeBytes: number | null;
+        }>(
+            (largestProject, projectScore) =>
+                projectScore.sizeBytes !== null &&
+                (largestProject.sizeBytes === null ||
+                    projectScore.sizeBytes > largestProject.sizeBytes)
+                    ? projectScore
+                    : largestProject,
+            { projectId: null, sizeBytes: null },
+        );
+
+        return { projectId: recommendation.projectId };
     }
 
     static async getProjects(accessToken: string): Promise<BigqueryProject[]> {

@@ -1,8 +1,13 @@
-import { BigqueryAuthenticationType, WarehouseTypes } from '@lightdash/common';
+import {
+    BigqueryAuthenticationType,
+    FeatureFlags,
+    WarehouseTypes,
+} from '@lightdash/common';
 import {
     TextInput,
     Anchor,
     Autocomplete,
+    Badge,
     Button,
     FileInput,
     Group,
@@ -17,15 +22,24 @@ import {
 import { NumberInput, Tooltip } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconCheck, IconExclamationCircle } from '@tabler/icons-react';
-import { useState, type ChangeEvent, type FC, type ReactNode } from 'react';
+import {
+    useEffect,
+    useRef,
+    useState,
+    type ChangeEvent,
+    type FC,
+    type ReactNode,
+} from 'react';
 import { useToggle } from 'react-use';
 import { useGoogleLoginPopup } from '../../../hooks/gdrive/useGdrive';
 import useHealth from '../../../hooks/health/useHealth';
 import {
     useBigqueryDatasets,
+    useBigqueryProjectRecommendation,
     useBigqueryProjects,
     useIsBigQueryAuthenticated,
 } from '../../../hooks/useBigquerySSO';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import FormCollapseButton from '../FormCollapseButton';
@@ -34,6 +48,7 @@ import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useProjectFormContext } from '../useProjectFormContext';
 import classes from './BigQueryForm.module.css';
+import { largestDatasetName } from './bigQuerySso';
 import DataTimezoneField from './DataTimezoneField';
 import { BigQueryDefaultValues } from './defaultValues';
 
@@ -78,6 +93,39 @@ export const BigQuerySchemaInput: FC<{
     const datasetField = form.getInputProps('warehouse.dataset');
     const hasProject =
         typeof debouncedProject === 'string' && debouncedProject.length > 0;
+    const recommendedDataset = largestDatasetName(datasets ?? []);
+    const hasAppliedRecommendation = useRef(false);
+
+    useEffect(() => {
+        hasAppliedRecommendation.current = false;
+    }, [debouncedProject]);
+
+    useEffect(() => {
+        if (
+            hasAppliedRecommendation.current ||
+            !isSso ||
+            !isAuthenticated ||
+            datasetField.value ||
+            !recommendedDataset
+        ) {
+            return;
+        }
+        hasAppliedRecommendation.current = true;
+        const selectedDataset = datasets?.find(
+            (dataset) => dataset.datasetId === recommendedDataset,
+        );
+        form.setFieldValue('warehouse.dataset', recommendedDataset);
+        if (selectedDataset?.location) {
+            form.setFieldValue('warehouse.location', selectedDataset.location);
+        }
+    }, [
+        datasetField.value,
+        datasets,
+        form,
+        isAuthenticated,
+        isSso,
+        recommendedDataset,
+    ]);
 
     if (!isSso || !isAuthenticated) {
         return (
@@ -120,6 +168,23 @@ export const BigQuerySchemaInput: FC<{
             }}
             disabled={disabled || !hasProject}
             data={datasets?.map((dataset) => dataset.datasetId) ?? []}
+            renderOption={({ option }) => (
+                <Group justify="space-between" wrap="nowrap" gap="xs" w="100%">
+                    <Text size="sm" truncate="end">
+                        {option.value}
+                    </Text>
+                    {option.value === recommendedDataset ? (
+                        <Badge
+                            size="xs"
+                            color="green"
+                            variant="light"
+                            radius="sm"
+                        >
+                            Recommended · largest
+                        </Badge>
+                    ) : null}
+                </Group>
+            )}
             maxDropdownHeight={220}
             rightSectionPointerEvents={datasetsError ? 'all' : 'none'}
             rightSection={
@@ -183,7 +248,9 @@ const BigQueryForm: FC<{
     const isAuthenticated = data !== undefined && bigqueryAuthError === null;
     const form = useFormContext();
     const project = form.getInputProps('warehouse.project');
+    const hasAppliedProjectRecommendation = useRef(false);
     const [debouncedProject] = useDebouncedValue(project.value, 300);
+    const { savedProject } = useProjectFormContext();
     const health = useHealth();
     const isAdcEnabled = health.data?.auth.google?.enableGCloudADC;
     // Fetching databases can only happen if user is authenticated
@@ -203,9 +270,17 @@ const BigQueryForm: FC<{
         isLoading: isLoadingProjects,
         error: projectsError,
     } = useBigqueryProjects(isAuthenticated && isSso);
+    const shouldFetchProjectRecommendation =
+        isAuthenticated &&
+        isSso &&
+        !savedProject &&
+        !project.value &&
+        !hasAppliedProjectRecommendation.current;
+    const { data: projectRecommendation } = useBigqueryProjectRecommendation(
+        shouldFetchProjectRecommendation,
+    );
     const [isOpen, toggleOpen] = useToggle(false);
     const [temporaryFile, setTemporaryFile] = useState<File | null>(null);
-    const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean = !(
         savedProject?.warehouseConnection?.type === WarehouseTypes.BIGQUERY &&
         savedProject?.warehouseConnection?.authenticationType ===
@@ -222,6 +297,46 @@ const BigQueryForm: FC<{
 
     // savedProject might not be loaded when the form is rendered, so we need to set the defaultValue also on a hook
     const defaultAuthenticationType = BigqueryAuthenticationType.SSO;
+
+    const warehouseConnectFlag = useServerFeatureFlag(
+        FeatureFlags.NewOnboarding,
+    );
+    const shouldDefaultToSso =
+        !savedProject && (warehouseConnectFlag.data?.enabled ?? false);
+    useEffect(() => {
+        if (shouldDefaultToSso && !form.isTouched()) {
+            form.setFieldValue(
+                'warehouse.authenticationType',
+                BigqueryAuthenticationType.SSO,
+            );
+        }
+    }, [shouldDefaultToSso, form]);
+
+    useEffect(() => {
+        if (
+            hasAppliedProjectRecommendation.current ||
+            !isAuthenticated ||
+            !isSso ||
+            savedProject ||
+            projectRecommendation === undefined
+        ) {
+            return;
+        }
+        hasAppliedProjectRecommendation.current = true;
+        if (!project.value && projectRecommendation.projectId) {
+            form.setFieldValue(
+                'warehouse.project',
+                projectRecommendation.projectId,
+            );
+        }
+    }, [
+        form,
+        isAuthenticated,
+        isSso,
+        project.value,
+        projectRecommendation,
+        savedProject,
+    ]);
 
     const { mutate: openLoginPopup } = useGoogleLoginPopup(
         'bigquery',
@@ -333,7 +448,11 @@ const BigQueryForm: FC<{
                                     : 'Type or select a project'
                             }
                             required
-                            {...form.getInputProps('warehouse.project')}
+                            {...project}
+                            onChange={(value) => {
+                                hasAppliedProjectRecommendation.current = true;
+                                project.onChange(value);
+                            }}
                             disabled={disabled}
                             labelProps={{ style: { marginTop: '8px' } }}
                             w={hasDatasets ? '90%' : '100%'}
@@ -345,9 +464,31 @@ const BigQueryForm: FC<{
                                         projectItem.projectId === option.value,
                                 );
 
-                                return projectOption?.friendlyName
-                                    ? `${projectOption.friendlyName} (${projectOption.projectId})`
-                                    : option.value;
+                                return (
+                                    <Group
+                                        justify="space-between"
+                                        wrap="nowrap"
+                                        gap="xs"
+                                        w="100%"
+                                    >
+                                        <Text size="sm" truncate="end">
+                                            {projectOption?.friendlyName
+                                                ? `${projectOption.friendlyName} (${projectOption.projectId})`
+                                                : option.value}
+                                        </Text>
+                                        {option.value ===
+                                        projectRecommendation?.projectId ? (
+                                            <Badge
+                                                size="xs"
+                                                color="green"
+                                                variant="light"
+                                                radius="sm"
+                                            >
+                                                Recommended · largest
+                                            </Badge>
+                                        ) : null}
+                                    </Group>
+                                );
                             }}
                             rightSectionPointerEvents={
                                 projectsError ? 'all' : 'none'

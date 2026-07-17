@@ -101,6 +101,7 @@ import {
 import { type ApiGetSpotlightTableConfig } from './api/spotlight';
 import { type ApiSuccessEmpty } from './api/success';
 import { type Account } from './auth';
+import { type BigqueryProjectRecommendation } from './bigQuerySSO';
 import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
@@ -1025,6 +1026,7 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | BigqueryProjectRecommendation
     | ApiWarehouseConnectCodeResponse['results']
     | ApiWarehouseConnectCodeClaimResponse['results']
     | ApiQueryResults

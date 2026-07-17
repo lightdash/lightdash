@@ -2,6 +2,7 @@ export type BigqueryDataset = {
     projectId: string;
     location: string | undefined;
     datasetId: string;
+    sizeBytes?: number | null;
 };
 
 export type ApiBigqueryDatasets = {
@@ -17,4 +18,13 @@ export type BigqueryProject = {
 export type ApiBigqueryProjects = {
     status: 'ok';
     results: BigqueryProject[];
+};
+
+export type BigqueryProjectRecommendation = {
+    projectId: string | null;
+};
+
+export type ApiBigqueryProjectRecommendation = {
+    status: 'ok';
+    results: BigqueryProjectRecommendation;
 };

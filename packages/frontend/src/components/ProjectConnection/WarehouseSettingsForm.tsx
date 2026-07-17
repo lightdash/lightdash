@@ -1,5 +1,5 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { Select } from '@mantine-8/core';
+import { Select, Stack } from '@mantine-8/core';
 import { type FC, type ReactNode } from 'react';
 import { useFormContext } from './formContext';
 import AthenaForm from './WarehouseForms/AthenaForm';
@@ -10,6 +10,7 @@ import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
 import DuckdbForm from './WarehouseForms/DuckdbForm';
 import PostgresForm from './WarehouseForms/PostgresForm';
 import RedshiftForm from './WarehouseForms/RedshiftForm';
+import { SnowflakeCliSsoModeProvider } from './WarehouseForms/SnowflakeCliSsoModeProvider';
 import SnowflakeForm from './WarehouseForms/SnowflakeForm';
 import TrinoForm from './WarehouseForms/TrinoForm';
 
@@ -56,37 +57,38 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
     const WarehouseForm = WarehouseTypeForms[warehouseType];
 
     return (
-        <div
-            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-        >
-            {isProjectUpdate && (
-                <Select
-                    allowDeselect={false}
-                    defaultValue={WarehouseTypes.BIGQUERY}
-                    label="Type"
-                    data={Object.entries(WarehouseTypeLabels).map(
-                        ([value, label]) => ({
-                            value,
-                            label,
-                        }),
-                    )}
-                    required
-                    {...form.getInputProps('warehouse.type')}
-                    onChange={(value) => {
-                        if (!value) return;
-                        const warehouseType = value as WarehouseTypes;
+        <SnowflakeCliSsoModeProvider>
+            <Stack h="100%" gap={0}>
+                {isProjectUpdate && (
+                    <Select
+                        allowDeselect={false}
+                        defaultValue={WarehouseTypes.BIGQUERY}
+                        label="Type"
+                        data={Object.entries(WarehouseTypeLabels).map(
+                            ([value, label]) => ({
+                                value,
+                                label,
+                            }),
+                        )}
+                        required
+                        {...form.getInputProps('warehouse.type')}
+                        onChange={(value) => {
+                            if (!value) return;
+                            const warehouseType = value as WarehouseTypes;
 
-                        form.setValues({
-                            warehouse: warehouseDefaultValues[warehouseType],
-                        });
-                    }}
-                    disabled={disabled}
-                />
-            )}
+                            form.setValues({
+                                warehouse:
+                                    warehouseDefaultValues[warehouseType],
+                            });
+                        }}
+                        disabled={disabled}
+                    />
+                )}
 
-            <WarehouseForm disabled={disabled} />
-            {children}
-        </div>
+                <WarehouseForm disabled={disabled} />
+                {children}
+            </Stack>
+        </SnowflakeCliSsoModeProvider>
     );
 };
 

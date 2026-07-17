@@ -1,5 +1,6 @@
 import {
     ApiBigqueryDatasets,
+    ApiBigqueryProjectRecommendation,
     ApiBigqueryProjects,
     ApiErrorPayload,
     ApiSuccessEmpty,
@@ -69,6 +70,29 @@ export class BigquerySSOController extends BaseController {
         return {
             status: 'ok',
             results: projects,
+        };
+    }
+
+    /**
+     * Get the recommended BigQuery project based on dataset size
+     * @summary Get BigQuery project recommendation
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/projects/recommendation')
+    @OperationId('GetBigQueryProjectRecommendation')
+    async getBigQueryProjectRecommendation(
+        @Request() req: express.Request,
+    ): Promise<ApiBigqueryProjectRecommendation> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const recommendation = await this.services
+            .getProjectService()
+            .getBigqueryProjectRecommendation(toSessionUser(req.account));
+
+        return {
+            status: 'ok',
+            results: recommendation,
         };
     }
 

@@ -123,8 +123,8 @@ export const useUpdateMutation = (uuid: string) => {
     );
 };
 
-export const useCreateMutation = () => {
-    const { setActiveJobId } = useActiveJob();
+export const useCreateMutation = (options?: { quietJobToast?: boolean }) => {
+    const { setActiveJobId, setQuietActiveJobId } = useActiveJob();
     const { showToastApiError } = useToaster();
     return useMutation<ApiJobStartedResults, ApiError, CreateProject>(
         (data) => createProject(data),
@@ -132,7 +132,11 @@ export const useCreateMutation = () => {
             mutationKey: ['project_create'],
             retry: 3,
             onSuccess: (data) => {
-                setActiveJobId(data.jobUuid);
+                if (options?.quietJobToast) {
+                    setQuietActiveJobId(data.jobUuid);
+                } else {
+                    setActiveJobId(data.jobUuid);
+                }
             },
             onError: ({ error }) => {
                 showToastApiError({
