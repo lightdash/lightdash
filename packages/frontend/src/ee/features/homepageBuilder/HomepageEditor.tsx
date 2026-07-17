@@ -487,9 +487,7 @@ export const HomepageEditor: FC<Props> = ({
         null,
     );
     const canvasMode = resolveCanvasMode(isPreviewing, viewTarget);
-    // While a specific audience is selected, the toggle button's job is to
-    // drop the audience and return to editing (not just flip isPreviewing —
-    // that alone wouldn't clear a selected audience).
+    // A selected audience must be cleared, not just have isPreviewing flipped.
     const handleToggleMode = () => {
         if (viewTarget !== null) {
             setViewType('everyone');
