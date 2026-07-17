@@ -9,8 +9,9 @@ import {
     UnstyledButton,
     Button,
     ActionIcon,
+    SimpleGrid,
 } from '@mantine-8/core';
-import { Popover, SimpleGrid, Tooltip } from '@mantine/core';
+import { Popover, Tooltip } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconCode, IconDots, IconTrash } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
