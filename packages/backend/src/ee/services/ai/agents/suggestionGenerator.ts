@@ -37,6 +37,7 @@ How to use the context (PROMPT chips):
 - verifiedContent: TOPIC SIGNAL. If there's a "Revenue Summary" verified chart, propose a fresh angle on revenue ("Break down revenue by month").
 - verifiedQuestions: these ARE complete prompts. Use them verbatim as prompt chips when they fit — they're the highest-quality chip you can produce.
 - explores: catalog-driven question chips when no curated signal applies.
+- warehouseTables: RAW SCHEMA SIGNAL for projects with no semantic layer yet. Each entry is a fully-qualified \`database.schema.table\` name. When <explores> is empty but <warehouseTables> is present, write prompt chips grounded in these real table names using the \`runSql\` tool (e.g. "Count orders per month in analytics.public.orders"). Only reference table names that appear verbatim in <warehouseTables>; never invent columns — keep chips about whole tables, row counts, recency, and simple groupings the agent can express in SQL.
 
 Tool guide (PROMPT chips):
 - \`generateVisualization\`: factual data questions answerable from the semantic layer.
@@ -44,7 +45,7 @@ Tool guide (PROMPT chips):
 - \`generateDashboard\`: multi-chart overview ("Build me an executive summary").
 - \`findContent\`: "Is there already a chart for monthly revenue?" — locates existing saved content.
 
-If the project has zero explores AND no verified questions AND no recent conversations, return three generic prompt chips that nudge the user to set up data.`;
+If the project has zero explores, no warehouseTables, no verified questions AND no recent conversations, return three generic prompt chips that nudge the user to set up data.`;
 
 const POST_RESPONSE_PROMPT = `You write 2-5 chips that appear above the chat input AFTER the agent has just replied. Each chip is what the user is most likely to click NEXT in this conversation.
 
@@ -171,6 +172,9 @@ export type SuggestionPromptContext = {
     verifiedQuestions: string[];
     verifiedContentTags: string[];
     verifiedContent: VerifiedContentItem[];
+    // Fully-qualified `database.schema.table` names — only set for
+    // semantic-layer-less projects with no explores, to ground chips via runSql.
+    warehouseTables?: string[];
     // Only set when generating empty-state chips. Lets the LLM pick up where
     // the user left off.
     recentUserConversations?: RecentUserConversation[];
@@ -217,6 +221,7 @@ export async function generateAgentSuggestions(
             },
             enabledTools: context.enabledTools,
             explores: context.explores,
+            warehouseTables: context.warehouseTables ?? null,
             verifiedQuestions: context.verifiedQuestions,
             verifiedContentTags: context.verifiedContentTags,
             verifiedContent: context.verifiedContent,

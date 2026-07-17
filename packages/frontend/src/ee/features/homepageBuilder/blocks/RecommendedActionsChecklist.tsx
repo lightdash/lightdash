@@ -13,7 +13,7 @@ import {
     IconX,
     type Icon,
 } from '@tabler/icons-react';
-import { useCallback, useState, type FC } from 'react';
+import { useCallback, useEffect, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useTracking from '../../../../providers/Tracking/useTracking';
@@ -61,6 +61,8 @@ const ACTION_DEFINITIONS: Record<
         subtitle: 'Ask Aurora from your channels',
     },
 };
+
+const AUTO_ROTATE_INTERVAL_MS = 10_000;
 
 const POSITION_CLASSES = [styles.pos0, styles.pos1, styles.pos2, styles.pos3];
 const STACK_HEIGHT_CLASSES = [
@@ -205,6 +207,7 @@ export const RecommendedActionsChecklist: FC<{
     const { statuses, skippedActions, setSkippedActions, visibleActions } =
         actions;
     const [carouselIndex, setCarouselIndex] = useState(0);
+    const [isStackHovered, setIsStackHovered] = useState(false);
 
     const handleSkip = useCallback(
         (actionKey: HomepageRecommendedActionKey) => {
@@ -263,8 +266,6 @@ export const RecommendedActionsChecklist: FC<{
         [projectUuid, statuses, setSkippedActions],
     );
 
-    if (visibleActions.length === 0) return null;
-
     const isSkipped = (key: HomepageRecommendedActionKey) =>
         skippedActions.includes(key) && !statuses[key].isComplete;
     const doneActions = visibleActions.filter(
@@ -290,6 +291,18 @@ export const RecommendedActionsChecklist: FC<{
         ...orderedAll.slice(activeIndex),
         ...orderedAll.slice(0, activeIndex),
     ];
+
+    const rotatableCount = incompleteActions.length;
+
+    useEffect(() => {
+        if (isStackHovered || rotatableCount <= 1) return;
+        const timeout = setTimeout(() => {
+            setCarouselIndex((activeIndex + 1) % rotatableCount);
+        }, AUTO_ROTATE_INTERVAL_MS);
+        return () => clearTimeout(timeout);
+    }, [activeIndex, isStackHovered, rotatableCount]);
+
+    if (visibleActions.length === 0) return null;
 
     return (
         <Stack gap={8} className={styles.checklistRoot}>
@@ -333,6 +346,8 @@ export const RecommendedActionsChecklist: FC<{
                 className={`${styles.cardStack} ${stackHeightClass(
                     orderedAll.length,
                 )}`}
+                onMouseEnter={() => setIsStackHovered(true)}
+                onMouseLeave={() => setIsStackHovered(false)}
             >
                 {/* Fixed render order keeps DOM nodes put; depth classes do the shuffling */}
                 {visibleActions.map((key) => {
