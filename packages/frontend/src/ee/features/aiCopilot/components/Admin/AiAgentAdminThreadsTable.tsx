@@ -95,6 +95,7 @@ const AiAgentAdminThreadsTable = ({
         search,
         selectedProjectUuids,
         selectedAgentUuids,
+        selectedUserUuids,
         selectedSource,
         selectedFeedback,
         sortField,
@@ -103,6 +104,7 @@ const AiAgentAdminThreadsTable = ({
         setSearch,
         setSelectedProjectUuids,
         setSelectedAgentUuids,
+        setSelectedUserUuids,
         setSelectedSource,
         setSelectedFeedback,
         setSorting,
@@ -747,6 +749,8 @@ const AiAgentAdminThreadsTable = ({
                 setSelectedProjectUuids={setSelectedProjectUuids}
                 selectedAgentUuids={selectedAgentUuids}
                 setSelectedAgentUuids={setSelectedAgentUuids}
+                selectedUserUuids={selectedUserUuids}
+                setSelectedUserUuids={setSelectedUserUuids}
                 selectedSource={selectedSource}
                 setSelectedSource={setSelectedSource}
                 selectedFeedback={selectedFeedback}

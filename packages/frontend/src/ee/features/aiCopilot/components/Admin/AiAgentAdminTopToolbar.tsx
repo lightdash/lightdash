@@ -16,6 +16,7 @@ import { FeedbackFilter } from './FeedbackFilter';
 import ProjectsFilter from './ProjectsFilter';
 import { SearchFilter } from './SearchFilter';
 import { SourceFilter } from './SourceFilter';
+import UsersFilter from './UsersFilter';
 
 type AiAgentAdminTopToolbarProps = GroupProps &
     Pick<
@@ -23,11 +24,13 @@ type AiAgentAdminTopToolbarProps = GroupProps &
         | 'search'
         | 'selectedProjectUuids'
         | 'selectedAgentUuids'
+        | 'selectedUserUuids'
         | 'selectedSource'
         | 'selectedFeedback'
         | 'setSearch'
         | 'setSelectedProjectUuids'
         | 'setSelectedAgentUuids'
+        | 'setSelectedUserUuids'
         | 'setSelectedSource'
         | 'setSelectedFeedback'
     > & {
@@ -47,6 +50,8 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
         setSelectedProjectUuids,
         selectedAgentUuids,
         setSelectedAgentUuids,
+        selectedUserUuids,
+        setSelectedUserUuids,
         selectedSource,
         setSelectedSource,
         selectedFeedback,
@@ -100,6 +105,18 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                             selectedAgentUuids={selectedAgentUuids}
                             setSelectedAgentUuids={setSelectedAgentUuids}
                             selectedProjectUuids={selectedProjectUuids}
+                        />
+                        <Divider
+                            orientation="vertical"
+                            w={1}
+                            h={20}
+                            style={{
+                                alignSelf: 'center',
+                            }}
+                        />
+                        <UsersFilter
+                            selectedUserUuids={selectedUserUuids}
+                            setSelectedUserUuids={setSelectedUserUuids}
                         />
                         <Divider
                             orientation="vertical"
