@@ -26,6 +26,7 @@ export const lightdashConfigMock: LightdashConfig = {
             enableGCloudADC: false,
             enabled: false,
             includeBigqueryScope: false,
+            enableBigqueryDriveScope: false,
         },
         okta: {
             loginPath: '',
