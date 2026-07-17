@@ -41,6 +41,7 @@ import {
     hostnameOf,
     looksLikeUrl,
     resolveResourceUrl,
+    safeImageUrl,
 } from './resourceUrls';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
@@ -77,14 +78,15 @@ const CardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
     const [imgFailed, setImgFailed] = useState(false);
     const [faviconFailed, setFaviconFailed] = useState(false);
     const favicon = faviconUrl(item.url);
+    const imageUrl = safeImageUrl(item.imageUrl);
 
     // A real per-item photo (e.g. a YouTube still) fills the frame sharply.
     // Claude's og:image is generic/soft, so it's treated as a backdrop instead.
-    if (item.imageUrl && item.kind !== 'claude' && !imgFailed) {
+    if (imageUrl && item.kind !== 'claude' && !imgFailed) {
         return (
             <div className={classes.resThumb}>
                 <img
-                    src={item.imageUrl}
+                    src={imageUrl}
                     alt={item.title}
                     loading="lazy"
                     onError={() => setImgFailed(true)}
@@ -95,7 +97,7 @@ const CardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
 
     // No sharp photo → blurred colour backdrop (claude's card, else the site's
     // own favicon) with the crisp favicon floating on top.
-    const backdrop = item.kind === 'claude' ? item.imageUrl : favicon;
+    const backdrop = item.kind === 'claude' ? imageUrl : favicon;
     return (
         <div className={`${classes.resThumbTile} ${meta.thumbAccent}`}>
             {backdrop ? (
@@ -127,11 +129,12 @@ const CardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
 const RowThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
     const [imgFailed, setImgFailed] = useState(false);
     const [faviconFailed, setFaviconFailed] = useState(false);
-    if (item.imageUrl && item.kind !== 'claude' && !imgFailed) {
+    const imageUrl = safeImageUrl(item.imageUrl);
+    if (imageUrl && item.kind !== 'claude' && !imgFailed) {
         return (
             <div className={classes.rowThumb}>
                 <img
-                    src={item.imageUrl}
+                    src={imageUrl}
                     alt=""
                     loading="lazy"
                     onError={() => setImgFailed(true)}

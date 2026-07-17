@@ -18,7 +18,12 @@ const isHostOrSubdomain = (hostname: string, domain: string): boolean =>
  * other host is rejected so this endpoint can never be pointed at internal
  * infrastructure. Returns what to fetch and how to parse it.
  */
+const MAX_URL_LENGTH = 2048;
+
 export const classifyResourceUrl = (rawUrl: string): ResourceProvider => {
+    if (rawUrl.length > MAX_URL_LENGTH) {
+        throw new ParameterError('URL is too long');
+    }
     let parsed: URL;
     try {
         parsed = new URL(rawUrl);

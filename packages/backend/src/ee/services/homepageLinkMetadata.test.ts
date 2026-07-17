@@ -65,6 +65,11 @@ describe('classifyResourceUrl', () => {
             ParameterError,
         );
     });
+
+    it('rejects URLs longer than 2048 chars before parsing', () => {
+        const longUrl = `https://claude.ai/${'a'.repeat(2048)}`;
+        expect(() => classifyResourceUrl(longUrl)).toThrow(ParameterError);
+    });
 });
 
 describe('parseOpenGraph', () => {

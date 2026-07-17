@@ -9,15 +9,26 @@ export const hostnameOf = (url: string): string => {
     }
 };
 
+// Don't leak non-public hostnames (intranet links, IP literals) to Google.
+const isPublicHostname = (hostname: string): boolean =>
+    hostname.includes('.') &&
+    !hostname.includes(':') &&
+    !/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname) &&
+    !/\.(local|internal|localhost)$/i.test(hostname);
+
 export const faviconUrl = (url: string): string | null => {
     try {
-        return `https://www.google.com/s2/favicons?domain=${
-            new URL(url).hostname
-        }&sz=128`;
+        const { hostname } = new URL(url);
+        if (!isPublicHostname(hostname)) return null;
+        return `https://www.google.com/s2/favicons?domain=${hostname}&sz=128`;
     } catch {
         return null;
     }
 };
+
+// Config is API-writable, so only https images are ever used as <img> sources.
+export const safeImageUrl = (url: string | undefined): string | null =>
+    url?.startsWith('https://') ? url : null;
 
 const normalizeUrl = (raw: string): string =>
     /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
