@@ -27,8 +27,6 @@ export const AskAiHero: FC<{
 }) => {
     const { user } = useApp();
     const actions = useRecommendedActions(projectUuid);
-    // Once everything is done or skipped the checklist retires and the
-    // prompt suggestions take its place
     const showChecklist = showRecommendedActions && actions.hasPendingActions;
     return (
         <Stack gap={16} align="center" w="100%">
@@ -47,11 +45,7 @@ export const AskAiHero: FC<{
                 </Text>
             )}
             <Box w="100%">
-                <DayOneAskInput
-                    projectUuid={projectUuid}
-                    preview={preview}
-                    hideSuggestions={showChecklist}
-                />
+                <DayOneAskInput projectUuid={projectUuid} preview={preview} />
             </Box>
             {showChecklist && (
                 <RecommendedActionsChecklist
