@@ -443,8 +443,12 @@ export const CustomMetricModal = memo(() => {
 
     const defaultFilterRuleFieldId = useMemo(() => {
         if (item) {
-            // A metric is not a valid filter target; let the form fall back
-            if (isMetric(item)) return undefined;
+            // For metric-derived customs, default new filters to the metric's
+            // underlying dimension (joined explores can have same-named fields)
+            if (isMetric(item)) return item.dimensionReference;
+            if (isMetricDerived && sourceMetric) {
+                return sourceMetric.dimensionReference;
+            }
             if (!isEditing) return getItemId(item);
 
             if (
@@ -455,7 +459,7 @@ export const CustomMetricModal = memo(() => {
                 return `${item.table}_${item.baseDimensionName}`;
             }
         }
-    }, [isEditing, item]);
+    }, [isEditing, item, isMetricDerived, sourceMetric]);
 
     const getFormatInputProps = (path: keyof CustomFormat) =>
         form.getInputProps(`format.${path}`);
