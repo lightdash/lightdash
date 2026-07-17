@@ -131,6 +131,7 @@ export type DashboardContextType = {
     hasTileComments: (tileUuid: string) => boolean;
     unmetFilterRequirements: UnmetFilterRequirement[];
     isFilterRequirementsEnabled: boolean;
+    isFilterRequirementsFlagResolved: boolean;
     isDateZoomDisabled: boolean;
     setIsDateZoomDisabled: Dispatch<SetStateAction<boolean>>;
     isAddFilterDisabled: boolean;

@@ -47,6 +47,7 @@ import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
 import { doesFilterApplyToTile } from '../dashboardFilters/FilterConfiguration/utils';
 import GuidedFilterSetupOverlay from '../dashboardFilters/FilterRequirements/GuidedFilterSetupOverlay';
+import { shouldShowLegacyLockedState } from '../dashboardFilters/FilterRequirements/utils';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
 import { AddTabModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
@@ -269,6 +270,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
 
     const isFilterRequirementsEnabled = useDashboardContext(
         (c) => c.isFilterRequirementsEnabled,
+    );
+    const isFilterRequirementsFlagResolved = useDashboardContext(
+        (c) => c.isFilterRequirementsFlagResolved,
     );
 
     const gridWrapperRef = useRef<HTMLDivElement>(null);
@@ -576,8 +580,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     ]);
 
     // Legacy locked UX (feature flag off): blur the grid behind the modal
+    const showLegacyLockedState = shouldShowLegacyLockedState({
+        isFlagResolved: isFilterRequirementsFlagResolved,
+        isFilterRequirementsEnabled,
+    });
     const legacyLockedBlur =
-        !isFilterRequirementsEnabled && hasUnmetFilterRequirementsForCurrentTab;
+        showLegacyLockedState && hasUnmetFilterRequirementsForCurrentTab;
 
     // Guided setup card over the locked grid; dismissal lasts until reload
     const [isGuidedSetupDismissed, setIsGuidedSetupDismissed] = useState(false);
@@ -1354,7 +1362,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                               )}
                                     </div>
                                 </Group>
-                                {!isFilterRequirementsEnabled && (
+                                {showLegacyLockedState && (
                                     <LockedDashboardModal
                                         opened={
                                             hasUnmetFilterRequirementsForCurrentTab &&

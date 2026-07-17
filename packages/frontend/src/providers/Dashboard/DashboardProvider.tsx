@@ -1653,10 +1653,16 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
 
     // Unmet filter requirements. Flag off = main parity: `requiredGroupId`
     // is ignored and the legacy disabled-only test applies.
-    const { data: filterRequirementsFlag, isSuccess: isFilterFlagResolved } =
-        useServerFeatureFlag(FeatureFlags.DashboardFilterRequirements);
+    const {
+        data: filterRequirementsFlag,
+        isSuccess: isFilterFlagResolved,
+        isError: isFilterFlagErrored,
+    } = useServerFeatureFlag(FeatureFlags.DashboardFilterRequirements);
     const isFilterRequirementsEnabled =
         filterRequirementsFlag?.enabled === true;
+    // Settled either way; consumers hold locked-state UI back until then
+    const isFilterRequirementsFlagResolved =
+        isFilterFlagResolved || isFilterFlagErrored;
     const unmetFilterRequirements = useMemo(() => {
         const allFilterRules = [
             ...dashboardFilters.dimensions,
@@ -1741,6 +1747,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         hasTileComments,
         unmetFilterRequirements,
         isFilterRequirementsEnabled,
+        isFilterRequirementsFlagResolved,
         isDateZoomDisabled,
         setIsDateZoomDisabled,
         isAddFilterDisabled,
