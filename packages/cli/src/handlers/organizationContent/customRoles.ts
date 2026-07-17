@@ -76,7 +76,7 @@ export const uploadCustomRoles = async (
                 ApiCustomRoleAsCodeUpsertResponse['results']
             >({
                 method: 'POST',
-                url: `/api/v2/orgs/${organizationUuid}/roles/code`,
+                url: `/api/v2/orgs/${organizationUuid}/code/roles`,
                 body: JSON.stringify(role),
             });
             return result.action;
@@ -95,7 +95,7 @@ export const downloadCustomRoles = async (
                 ApiCustomRoleAsCodeListResponse['results']
             >({
                 method: 'GET',
-                url: `/api/v2/orgs/${organizationUuid}/roles/code`,
+                url: `/api/v2/orgs/${organizationUuid}/code/roles`,
                 body: undefined,
             });
             return customRoles;

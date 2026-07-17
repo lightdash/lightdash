@@ -676,19 +676,19 @@ const getContentTypeConfig = (
     switch (type) {
         case 'charts':
             return {
-                endpoint: `/api/v1/projects/${projectId}/charts/code`,
+                endpoint: `/api/v1/projects/${projectId}/code/charts`,
                 displayName: 'charts',
                 supportsLanguageMap: true,
             };
         case 'dashboards':
             return {
-                endpoint: `/api/v1/projects/${projectId}/dashboards/code`,
+                endpoint: `/api/v1/projects/${projectId}/code/dashboards`,
                 displayName: 'dashboards',
                 supportsLanguageMap: true,
             };
         case 'sqlCharts':
             return {
-                endpoint: `/api/v1/projects/${projectId}/sqlCharts/code`,
+                endpoint: `/api/v1/projects/${projectId}/code/sqlCharts`,
                 displayName: 'SQL charts',
                 supportsLanguageMap: false,
             };
@@ -886,7 +886,7 @@ const downloadVirtualViews = async (
         ApiVirtualViewAsCodeListResponse['results']
     >({
         method: 'GET',
-        url: `/api/v1/projects/${projectId}/virtualViews/code${
+        url: `/api/v1/projects/${projectId}/code/virtualViews${
             query ? `?${query}` : ''
         }`,
         body: undefined,
@@ -968,9 +968,9 @@ const upsertVirtualViews = async (
                 ApiVirtualViewAsCodeUpsertResponse['results']
             >({
                 method: 'POST',
-                url: `/api/v1/projects/${projectId}/virtualViews/${encodeURIComponent(
+                url: `/api/v1/projects/${projectId}/code/virtualViews/${encodeURIComponent(
                     virtualView.slug,
-                )}/code?force=${force}`,
+                )}?force=${force}`,
                 body: JSON.stringify(virtualView),
             });
             const action = `virtual views ${getPromoteAction(result.action)}`;
@@ -1054,7 +1054,7 @@ const downloadAiAgents = async (
             ApiAgentAsCodeListResponse['results']
         >({
             method: 'GET',
-            url: `/api/v1/projects/${projectId}/aiAgents/code?${query}`,
+            url: `/api/v1/projects/${projectId}/code/aiAgents?${query}`,
             body: undefined,
         });
 
@@ -1125,7 +1125,7 @@ const upsertAiAgents = async (
     const results = await lightdashApi<ApiAgentAsCodeUpsertResponse['results']>(
         {
             method: 'POST',
-            url: `/api/v1/projects/${projectId}/aiAgents/code?force=${force}`,
+            url: `/api/v1/projects/${projectId}/code/aiAgents?force=${force}`,
             body: JSON.stringify({ agents: filteredAgents }),
         },
     );
@@ -1159,7 +1159,7 @@ const downloadScheduledContent = async (
         | ApiScheduledDeliveryAsCodeListResponse['results']
     >({
         method: 'GET',
-        url: `/api/v1/projects/${projectId}/${config.route}/code${
+        url: `/api/v1/projects/${projectId}/code/${config.route}${
             query ? `?${query}` : ''
         }`,
         body: undefined,
@@ -1267,7 +1267,7 @@ const upsertScheduledContent = async (
                 | ApiScheduledDeliveryAsCodeUpsertResponse['results']
             >({
                 method: 'POST',
-                url: `/api/v1/projects/${projectId}/${config.route}/${item.slug}/code?force=${force}`,
+                url: `/api/v1/projects/${projectId}/code/${config.route}/${item.slug}?force=${force}`,
                 body: JSON.stringify(item),
             });
             const action = getPromoteAction(result.action);
@@ -1976,8 +1976,8 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
         // SQL charts use a different endpoint
         const isSqlChartItem = type === 'charts' && isSqlChart(item);
         const endpoint = isSqlChartItem
-            ? `/api/v1/projects/${projectId}/sqlCharts/${item.slug}/code`
-            : `/api/v1/projects/${projectId}/${type}/${item.slug}/code`;
+            ? `/api/v1/projects/${projectId}/code/sqlCharts/${item.slug}`
+            : `/api/v1/projects/${projectId}/code/${type}/${item.slug}`;
 
         const upsertData = await lightdashApi<
             ApiChartAsCodeUpsertResponse['results']

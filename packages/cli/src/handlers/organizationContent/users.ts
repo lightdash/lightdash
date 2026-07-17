@@ -153,7 +153,7 @@ export const uploadUsers = async (
         ApiUserAsCodeListResponse['results']
     >({
         method: 'GET',
-        url: `/api/v2/orgs/${organizationUuid}/users/code`,
+        url: `/api/v2/orgs/${organizationUuid}/code/users`,
         body: undefined,
     });
 
@@ -163,7 +163,7 @@ export const uploadUsers = async (
                 ApiUserAsCodeUpsertResponse['results']
             >({
                 method: 'POST',
-                url: `/api/v2/orgs/${organizationUuid}/users/code${sendInvites ? '?sendInvite=true' : ''}`,
+                url: `/api/v2/orgs/${organizationUuid}/code/users${sendInvites ? '?sendInvite=true' : ''}`,
                 body: JSON.stringify(document),
             });
             switch (result.action) {
@@ -237,7 +237,7 @@ export const downloadUsers = async (
                 ApiUserAsCodeListResponse['results']
             >({
                 method: 'GET',
-                url: `/api/v2/orgs/${organizationUuid}/users/code`,
+                url: `/api/v2/orgs/${organizationUuid}/code/users`,
                 body: undefined,
             });
             return users;

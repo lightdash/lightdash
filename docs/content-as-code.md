@@ -39,8 +39,9 @@ handlers:
   remain as a compatibility facade.
 - `ProjectCoderController` owns project routes and
   `OrganizationCoderController` owns organization routes. The two controllers
-  are separate because TSOA controllers have one route prefix, but existing
-  paths, operation IDs, middleware, and response shapes remain unchanged.
+  are separate because TSOA controllers have one route prefix. Canonical routes
+  use `/code/{resource}`; the previous resource-first routes remain deprecated
+  compatibility aliases until after 17 August 2026.
 - Backend resource handlers own externalization, reference conversion,
   comparison, and persistence. `CoderService` remains as a compatibility facade
   while callers migrate to those handlers.
@@ -58,7 +59,7 @@ standalone download/upload implementation.
 ## Download flow
 
 1. The CLI resolves the project or organization and the local content root.
-2. The CLI calls the resource's backend `GET .../code` endpoint.
+2. The CLI calls the resource's backend `GET .../code/{resource}` endpoint.
 3. The backend checks access and loads the database resources.
 4. The backend converts each database resource into its portable as-code type.
 5. The CLI serializes the returned resources into deterministic YAML files.
@@ -83,7 +84,7 @@ the resource returned by the backend.
 
 1. The CLI discovers and parses the relevant YAML files.
 2. The CLI sends each portable document to the resource's backend `POST
-.../code` endpoint.
+   .../code/{resource}` endpoint.
 3. The backend authenticates and authorizes the request.
 4. The backend validates the portable document and its domain invariants.
 5. The backend resolves the existing resource using the documented portable
@@ -186,6 +187,13 @@ Data apps are deliberately outside the YAML resource registry because they are
 multi-file source bundles. They may reuse shared path-safety and reporting
 utilities without pretending to be single-document resources.
 
+Project APIs use `/api/v1/projects/{projectUuid}/code/{resource}`. Organization
+APIs use `/api/v2/orgs/{orgUuid}/code/{resource}`. The resource segments are
+`charts`, `sqlCharts`, `dashboards`, `spaces`, `virtualViews`, `aiAgents`,
+`scheduledDeliveries`, `alerts`, `googleSheets`, `roles`, `users`, and `groups`.
+The legacy resource-first routes are deprecated in OpenAPI and should not be
+used by new clients.
+
 ## Optional project resources
 
 Virtual views, AI agents, alerts, scheduled deliveries, and Google Sheets syncs
@@ -242,9 +250,8 @@ The endpoints are:
 - `GET /api/v1/projects/{projectUuid}/code/spaces`
 - `POST /api/v1/projects/{projectUuid}/code/spaces`
 
-The previous `GET` and `POST /api/v1/projects/{projectUuid}/spaces/code`
-routes are deprecated compatibility aliases. New clients should use
-`/code/spaces`; the aliases are scheduled for removal after 17 August 2026.
+The previous `GET` and `POST /api/v1/projects/{projectUuid}/spaces/code` routes
+are deprecated compatibility aliases shared with the other migrated resources.
 
 The full hierarchy path in `slug` is the portable identity. Uploads process
 parents before descendants and create missing spaces unless
@@ -314,8 +321,8 @@ scopes:
 
 The endpoints are:
 
-- `GET /api/v2/orgs/{orgUuid}/roles/code`
-- `POST /api/v2/orgs/{orgUuid}/roles/code`
+- `GET /api/v2/orgs/{orgUuid}/code/roles`
+- `POST /api/v2/orgs/{orgUuid}/code/roles`
 
 The backend implementation lives in
 `packages/backend/src/services/RolesService/RolesService.ts`. It:
@@ -343,7 +350,7 @@ The CLI implementation lives under
 - treats a missing or empty custom-roles directory as a no-op;
 - creates safe filenames and disambiguates normalized filename collisions;
 - rejects duplicate role names within the local bundle;
-- calls the two `/roles/code` endpoints;
+- calls the two `/code/roles` endpoints;
 - continues after a backend rejection and prints the filepath with the error;
 - aggregates backend actions into created, updated, unchanged, and failed
   counts.
@@ -367,8 +374,8 @@ role:
 
 The endpoints are:
 
-- `GET /api/v2/orgs/{orgUuid}/users/code`
-- `POST /api/v2/orgs/{orgUuid}/users/code`
+- `GET /api/v2/orgs/{orgUuid}/code/users`
+- `POST /api/v2/orgs/{orgUuid}/code/users`
 
 Email is the portable identity and is normalized to lowercase. An upload
 creates a missing organization member or reconciles the existing member's
@@ -406,8 +413,8 @@ members:
 
 The endpoints are:
 
-- `GET /api/v2/orgs/{orgUuid}/groups/code`
-- `POST /api/v2/orgs/{orgUuid}/groups/code`
+- `GET /api/v2/orgs/{orgUuid}/code/groups`
+- `POST /api/v2/orgs/{orgUuid}/code/groups`
 
 The exact, case-sensitive group name is the portable identity. Upload creates a
 missing group or replaces the complete membership of an existing group. Every

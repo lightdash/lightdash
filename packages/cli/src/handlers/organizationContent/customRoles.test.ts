@@ -84,7 +84,7 @@ describe('custom roles as code', () => {
         expect(total).toBe(1);
         expect(lightdashApi).toHaveBeenCalledWith({
             method: 'GET',
-            url: '/api/v2/orgs/organization-uuid/roles/code',
+            url: '/api/v2/orgs/organization-uuid/code/roles',
             body: undefined,
         });
         expect(
@@ -163,7 +163,7 @@ describe('custom roles as code', () => {
         });
         expect(lightdashApi).toHaveBeenNthCalledWith(1, {
             method: 'POST',
-            url: '/api/v2/orgs/organization-uuid/roles/code',
+            url: '/api/v2/orgs/organization-uuid/code/roles',
             body: expect.any(String),
         });
         expect(

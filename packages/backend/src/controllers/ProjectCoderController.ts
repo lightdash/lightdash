@@ -79,8 +79,8 @@ export class ProjectCoderController extends BaseController {
     @Tags('Projects')
     @Middlewares(CODE_READ_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Get('/charts/code')
-    @OperationId('getChartsAsCode')
+    @Get('/code/charts')
+    @OperationId('getCodeCharts')
     async getChartsAsCode(
         @Path() projectUuid: string,
         @Request() req: express.Request,
@@ -110,8 +110,8 @@ export class ProjectCoderController extends BaseController {
     @Tags('Projects')
     @Middlewares(CODE_READ_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Get('/dashboards/code')
-    @OperationId('getDashboardsAsCode')
+    @Get('/code/dashboards')
+    @OperationId('getCodeDashboards')
     async getDashboardsAsCode(
         @Path() projectUuid: string,
         @Request() req: express.Request,
@@ -141,8 +141,8 @@ export class ProjectCoderController extends BaseController {
     @Tags('Projects')
     @Middlewares(CODE_READ_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Get('/sqlCharts/code')
-    @OperationId('getSqlChartsAsCode')
+    @Get('/code/sqlCharts')
+    @OperationId('getCodeSqlCharts')
     async getSqlChartsAsCode(
         @Path() projectUuid: string,
         @Request() req: express.Request,
@@ -170,8 +170,8 @@ export class ProjectCoderController extends BaseController {
     @Tags('Projects')
     @Middlewares(CODE_READ_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Get('/virtualViews/code')
-    @OperationId('getVirtualViewsAsCode')
+    @Get('/code/virtualViews')
+    @OperationId('getCodeVirtualViews')
     async getVirtualViewsAsCode(
         @Path() projectUuid: string,
         @Request() req: express.Request,
@@ -197,8 +197,8 @@ export class ProjectCoderController extends BaseController {
     @Tags('Projects')
     @Middlewares(CODE_READ_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Get('/scheduledDeliveries/code')
-    @OperationId('getScheduledDeliveriesAsCode')
+    @Get('/code/scheduledDeliveries')
+    @OperationId('getCodeScheduledDeliveries')
     async getScheduledDeliveriesAsCode(
         @Path() projectUuid: string,
         @Request() req: express.Request,
@@ -224,8 +224,8 @@ export class ProjectCoderController extends BaseController {
     @Tags('Projects')
     @Middlewares(CODE_READ_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Get('/alerts/code')
-    @OperationId('getAlertsAsCode')
+    @Get('/code/alerts')
+    @OperationId('getCodeAlerts')
     async getAlertsAsCode(
         @Path() projectUuid: string,
         @Request() req: express.Request,
@@ -252,8 +252,8 @@ export class ProjectCoderController extends BaseController {
     @Tags('Projects')
     @Middlewares(CODE_READ_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Get('/googleSheets/code')
-    @OperationId('getGoogleSheetsSyncsAsCode')
+    @Get('/code/googleSheets')
+    @OperationId('getCodeGoogleSheetsSyncs')
     async getGoogleSheetsSyncsAsCode(
         @Path() projectUuid: string,
         @Request() req: express.Request,
@@ -313,8 +313,8 @@ export class ProjectCoderController extends BaseController {
 
     @Middlewares(CODE_READ_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Get('/aiAgents/code')
-    @OperationId('getAiAgentsAsCode')
+    @Get('/code/aiAgents')
+    @OperationId('getCodeAiAgents')
     async getAiAgentsAsCode(
         @Request() req: express.Request,
         @Path() projectUuid: string,
@@ -342,8 +342,8 @@ export class ProjectCoderController extends BaseController {
     @Tags('Projects')
     @Middlewares(CODE_READ_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Post('/virtualViews/{slug}/code')
-    @OperationId('upsertVirtualViewAsCode')
+    @Post('/code/virtualViews/{slug}')
+    @OperationId('upsertCodeVirtualView')
     async upsertVirtualViewAsCode(
         @Path() projectUuid: string,
         @Path() slug: string,
@@ -373,8 +373,8 @@ export class ProjectCoderController extends BaseController {
     @Tags('Projects')
     @Middlewares(CODE_READ_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Post('/scheduledDeliveries/{slug}/code')
-    @OperationId('upsertScheduledDeliveryAsCode')
+    @Post('/code/scheduledDeliveries/{slug}')
+    @OperationId('upsertCodeScheduledDelivery')
     async upsertScheduledDeliveryAsCode(
         @Path() projectUuid: string,
         @Path() slug: string,
@@ -404,8 +404,8 @@ export class ProjectCoderController extends BaseController {
     @Tags('Projects')
     @Middlewares(CODE_READ_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Post('/alerts/{slug}/code')
-    @OperationId('upsertAlertAsCode')
+    @Post('/code/alerts/{slug}')
+    @OperationId('upsertCodeAlert')
     async upsertAlertAsCode(
         @Path() projectUuid: string,
         @Path() slug: string,
@@ -435,8 +435,8 @@ export class ProjectCoderController extends BaseController {
     @Tags('Projects')
     @Middlewares(CODE_READ_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Post('/googleSheets/{slug}/code')
-    @OperationId('upsertGoogleSheetsSyncAsCode')
+    @Post('/code/googleSheets/{slug}')
+    @OperationId('upsertCodeGoogleSheetsSync')
     async upsertGoogleSheetsSyncAsCode(
         @Path() projectUuid: string,
         @Path() slug: string,
@@ -466,8 +466,8 @@ export class ProjectCoderController extends BaseController {
     @Tags('Projects')
     @Middlewares(CODE_READ_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Post('/charts/{slug}/code')
-    @OperationId('upsertChartAsCode')
+    @Post('/code/charts/{slug}')
+    @OperationId('upsertCodeChart')
     async upsertChartAsCode(
         @Path() projectUuid: string,
         @Path() slug: string,
@@ -507,8 +507,8 @@ export class ProjectCoderController extends BaseController {
     @Tags('Projects')
     @Middlewares(CODE_READ_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Post('/sqlCharts/{slug}/code')
-    @OperationId('upsertSqlChartAsCode')
+    @Post('/code/sqlCharts/{slug}')
+    @OperationId('upsertCodeSqlChart')
     async upsertSqlChartAsCode(
         @Path() projectUuid: string,
         @Path() slug: string,
@@ -548,8 +548,8 @@ export class ProjectCoderController extends BaseController {
     @Tags('Projects')
     @Middlewares(CODE_READ_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Post('/dashboards/{slug}/code')
-    @OperationId('upsertDashboardAsCode')
+    @Post('/code/dashboards/{slug}')
+    @OperationId('upsertCodeDashboard')
     async upsertDashboardAsCode(
         @Path() projectUuid: string,
         @Path() slug: string,
@@ -640,8 +640,8 @@ export class ProjectCoderController extends BaseController {
 
     @Middlewares(CODE_WRITE_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Post('/aiAgents/code')
-    @OperationId('upsertAiAgentsAsCode')
+    @Post('/code/aiAgents')
+    @OperationId('upsertCodeAiAgents')
     async upsertAiAgentsAsCode(
         @Request() req: express.Request,
         @Path() projectUuid: string,
@@ -660,5 +660,341 @@ export class ProjectCoderController extends BaseController {
                     force,
                 ),
         );
+    }
+
+    /**
+     * @summary List charts as code (deprecated)
+     * @deprecated Use GET /code/charts. Remove after 2026-08-17.
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/charts/code')
+    @OperationId('getChartsAsCode')
+    async legacyGetChartsAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() ids?: string[],
+        @Query() offset?: number,
+        @Query() languageMap?: boolean,
+    ): Promise<ApiChartAsCodeListResponse> {
+        return this.getChartsAsCode(projectUuid, req, ids, offset, languageMap);
+    }
+
+    /**
+     * @summary List dashboards as code (deprecated)
+     * @deprecated Use GET /code/dashboards. Remove after 2026-08-17.
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/dashboards/code')
+    @OperationId('getDashboardsAsCode')
+    async legacyGetDashboardsAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() ids?: string[],
+        @Query() offset?: number,
+        @Query() languageMap?: boolean,
+    ): Promise<ApiDashboardAsCodeListResponse> {
+        return this.getDashboardsAsCode(
+            projectUuid,
+            req,
+            ids,
+            offset,
+            languageMap,
+        );
+    }
+
+    /**
+     * @summary List SQL charts as code (deprecated)
+     * @deprecated Use GET /code/sqlCharts. Remove after 2026-08-17.
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/sqlCharts/code')
+    @OperationId('getSqlChartsAsCode')
+    async legacyGetSqlChartsAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() ids?: string[],
+        @Query() offset?: number,
+    ): Promise<ApiSqlChartAsCodeListResponse> {
+        return this.getSqlChartsAsCode(projectUuid, req, ids, offset);
+    }
+
+    /**
+     * @summary List virtual views as code (deprecated)
+     * @deprecated Use GET /code/virtualViews. Remove after 2026-08-17.
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/virtualViews/code')
+    @OperationId('getVirtualViewsAsCode')
+    async legacyGetVirtualViewsAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() slugs?: string[],
+    ): Promise<ApiVirtualViewAsCodeListResponse> {
+        return this.getVirtualViewsAsCode(projectUuid, req, slugs);
+    }
+
+    /**
+     * @summary List scheduled deliveries as code (deprecated)
+     * @deprecated Use GET /code/scheduledDeliveries. Remove after 2026-08-17.
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/scheduledDeliveries/code')
+    @OperationId('getScheduledDeliveriesAsCode')
+    async legacyGetScheduledDeliveriesAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() slugs?: string[],
+    ): Promise<ApiScheduledDeliveryAsCodeListResponse> {
+        return this.getScheduledDeliveriesAsCode(projectUuid, req, slugs);
+    }
+
+    /**
+     * @summary List alerts as code (deprecated)
+     * @deprecated Use GET /code/alerts. Remove after 2026-08-17.
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/alerts/code')
+    @OperationId('getAlertsAsCode')
+    async legacyGetAlertsAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() slugs?: string[],
+    ): Promise<ApiAlertAsCodeListResponse> {
+        return this.getAlertsAsCode(projectUuid, req, slugs);
+    }
+
+    /**
+     * @summary List Google Sheets syncs as code (deprecated)
+     * @deprecated Use GET /code/googleSheets. Remove after 2026-08-17.
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/googleSheets/code')
+    @OperationId('getGoogleSheetsSyncsAsCode')
+    async legacyGetGoogleSheetsSyncsAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() slugs?: string[],
+    ): Promise<ApiGoogleSheetsSyncAsCodeListResponse> {
+        return this.getGoogleSheetsSyncsAsCode(projectUuid, req, slugs);
+    }
+
+    /**
+     * @summary List AI agents as code (deprecated)
+     * @deprecated Use GET /code/aiAgents. Remove after 2026-08-17.
+     */
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/aiAgents/code')
+    @OperationId('getAiAgentsAsCode')
+    async legacyGetAiAgentsAsCode(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() ids?: string[],
+        @Query() offset?: number,
+    ): Promise<ApiAgentAsCodeListResponse> {
+        return this.getAiAgentsAsCode(req, projectUuid, ids, offset);
+    }
+
+    /**
+     * @summary Upsert virtual view as code (deprecated)
+     * @deprecated Use POST /code/virtualViews/{slug}. Remove after 2026-08-17.
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/virtualViews/{slug}/code')
+    @OperationId('upsertVirtualViewAsCode')
+    async legacyUpsertVirtualViewAsCode(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Body() virtualView: VirtualViewAsCode,
+        @Request() req: express.Request,
+        @Query() force: boolean = false,
+    ): Promise<ApiVirtualViewAsCodeUpsertResponse> {
+        return this.upsertVirtualViewAsCode(
+            projectUuid,
+            slug,
+            virtualView,
+            req,
+            force,
+        );
+    }
+
+    /**
+     * @summary Upsert scheduled delivery as code (deprecated)
+     * @deprecated Use POST /code/scheduledDeliveries/{slug}. Remove after 2026-08-17.
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/scheduledDeliveries/{slug}/code')
+    @OperationId('upsertScheduledDeliveryAsCode')
+    async legacyUpsertScheduledDeliveryAsCode(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Body() delivery: ScheduledDeliveryAsCode,
+        @Request() req: express.Request,
+        @Query() force: boolean = false,
+    ): Promise<ApiScheduledDeliveryAsCodeUpsertResponse> {
+        return this.upsertScheduledDeliveryAsCode(
+            projectUuid,
+            slug,
+            delivery,
+            req,
+            force,
+        );
+    }
+
+    /**
+     * @summary Upsert alert as code (deprecated)
+     * @deprecated Use POST /code/alerts/{slug}. Remove after 2026-08-17.
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/alerts/{slug}/code')
+    @OperationId('upsertAlertAsCode')
+    async legacyUpsertAlertAsCode(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Body() alert: AlertAsCode,
+        @Request() req: express.Request,
+        @Query() force: boolean = false,
+    ): Promise<ApiAlertAsCodeUpsertResponse> {
+        return this.upsertAlertAsCode(projectUuid, slug, alert, req, force);
+    }
+
+    /**
+     * @summary Upsert Google Sheets sync as code (deprecated)
+     * @deprecated Use POST /code/googleSheets/{slug}. Remove after 2026-08-17.
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/googleSheets/{slug}/code')
+    @OperationId('upsertGoogleSheetsSyncAsCode')
+    async legacyUpsertGoogleSheetsSyncAsCode(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Body() googleSheetsSync: GoogleSheetsSyncAsCode,
+        @Request() req: express.Request,
+        @Query() force: boolean = false,
+    ): Promise<ApiGoogleSheetsSyncAsCodeUpsertResponse> {
+        return this.upsertGoogleSheetsSyncAsCode(
+            projectUuid,
+            slug,
+            googleSheetsSync,
+            req,
+            force,
+        );
+    }
+
+    /**
+     * @summary Upsert chart as code (deprecated)
+     * @deprecated Use POST /code/charts/{slug}. Remove after 2026-08-17.
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/charts/{slug}/code')
+    @OperationId('upsertChartAsCode')
+    async legacyUpsertChartAsCode(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Body()
+        chart: Omit<ChartAsCode, 'chartConfig' | 'description'> & {
+            skipSpaceCreate?: boolean;
+            publicSpaceCreate?: boolean;
+            force?: boolean;
+            spaceNames?: Record<string, string>;
+            chartConfig: AnyType;
+            description?: string | null;
+        },
+        @Request() req: express.Request,
+    ): Promise<ApiChartAsCodeUpsertResponse> {
+        return this.upsertChartAsCode(projectUuid, slug, chart, req);
+    }
+
+    /**
+     * @summary Upsert SQL chart as code (deprecated)
+     * @deprecated Use POST /code/sqlCharts/{slug}. Remove after 2026-08-17.
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/sqlCharts/{slug}/code')
+    @OperationId('upsertSqlChartAsCode')
+    async legacyUpsertSqlChartAsCode(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Body()
+        sqlChart: Omit<SqlChartAsCode, 'config' | 'description'> & {
+            skipSpaceCreate?: boolean;
+            publicSpaceCreate?: boolean;
+            force?: boolean;
+            spaceNames?: Record<string, string>;
+            config: AnyType;
+            description?: string | null;
+        },
+        @Request() req: express.Request,
+    ): Promise<ApiSqlChartAsCodeUpsertResponse> {
+        return this.upsertSqlChartAsCode(projectUuid, slug, sqlChart, req);
+    }
+
+    /**
+     * @summary Upsert dashboard as code (deprecated)
+     * @deprecated Use POST /code/dashboards/{slug}. Remove after 2026-08-17.
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/dashboards/{slug}/code')
+    @OperationId('upsertDashboardAsCode')
+    async legacyUpsertDashboardAsCode(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Body()
+        dashboard: Omit<DashboardAsCode, 'tiles' | 'description'> & {
+            skipSpaceCreate?: boolean;
+            publicSpaceCreate?: boolean;
+            force?: boolean;
+            spaceNames?: Record<string, string>;
+            tiles: AnyType;
+            description?: string | null;
+        },
+        @Request() req: express.Request,
+    ): Promise<ApiDashboardAsCodeUpsertResponse> {
+        return this.upsertDashboardAsCode(projectUuid, slug, dashboard, req);
+    }
+
+    /**
+     * @summary Upsert AI agents as code (deprecated)
+     * @deprecated Use POST /code/aiAgents. Remove after 2026-08-17.
+     */
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/aiAgents/code')
+    @OperationId('upsertAiAgentsAsCode')
+    async legacyUpsertAiAgentsAsCode(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: { agents: AgentAsCode[] },
+        @Query() force?: boolean,
+    ): Promise<ApiAgentAsCodeUpsertResponse> {
+        return this.upsertAiAgentsAsCode(req, projectUuid, body, force);
     }
 }

@@ -45,8 +45,8 @@ export class OrganizationCoderController extends BaseController {
     @Tags('v2', 'Custom Roles')
     @Middlewares(CODE_READ_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Get('/roles/code')
-    @OperationId('GetCustomRolesAsCode')
+    @Get('/code/roles')
+    @OperationId('GetCodeCustomRoles')
     async getCustomRolesAsCode(
         @Request() req: express.Request,
         @Path() orgUuid: string,
@@ -65,8 +65,8 @@ export class OrganizationCoderController extends BaseController {
     @Tags('v2', 'Custom Roles')
     @Middlewares(CODE_WRITE_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Post('/roles/code')
-    @OperationId('UpsertCustomRoleAsCode')
+    @Post('/code/roles')
+    @OperationId('UpsertCodeCustomRole')
     async upsertCustomRoleAsCode(
         @Request() req: express.Request,
         @Path() orgUuid: string,
@@ -86,8 +86,8 @@ export class OrganizationCoderController extends BaseController {
     @Tags('v2', 'Organizations')
     @Middlewares(CODE_READ_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Get('/users/code')
-    @OperationId('GetOrganizationUsersAsCode')
+    @Get('/code/users')
+    @OperationId('GetCodeOrganizationUsers')
     async getUsersAsCode(
         @Request() req: express.Request,
         @Path() orgUuid: string,
@@ -102,8 +102,8 @@ export class OrganizationCoderController extends BaseController {
     @Tags('v2', 'Organizations')
     @Middlewares(CODE_WRITE_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Post('/users/code')
-    @OperationId('UpsertOrganizationUserAsCode')
+    @Post('/code/users')
+    @OperationId('UpsertCodeOrganizationUser')
     async upsertUserAsCode(
         @Request() req: express.Request,
         @Path() orgUuid: string,
@@ -125,8 +125,8 @@ export class OrganizationCoderController extends BaseController {
     @Tags('v2', 'Organizations')
     @Middlewares(CODE_READ_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Get('/groups/code')
-    @OperationId('GetOrganizationGroupsAsCode')
+    @Get('/code/groups')
+    @OperationId('GetCodeOrganizationGroups')
     async getGroupsAsCode(
         @Request() req: express.Request,
         @Path() orgUuid: string,
@@ -141,8 +141,8 @@ export class OrganizationCoderController extends BaseController {
     @Tags('v2', 'Organizations')
     @Middlewares(CODE_WRITE_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Post('/groups/code')
-    @OperationId('UpsertOrganizationGroupAsCode')
+    @Post('/code/groups')
+    @OperationId('UpsertCodeOrganizationGroup')
     async upsertGroupAsCode(
         @Request() req: express.Request,
         @Path() orgUuid: string,
@@ -157,5 +157,105 @@ export class OrganizationCoderController extends BaseController {
             );
         this.setStatus(200);
         return codeSuccess(results);
+    }
+
+    /**
+     * @summary List custom roles as code (deprecated)
+     * @deprecated Use GET /code/roles. Remove after 2026-08-17.
+     */
+    @Tags('v2', 'Custom Roles')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/roles/code')
+    @OperationId('GetCustomRolesAsCode')
+    async legacyGetCustomRolesAsCode(
+        @Request() req: express.Request,
+        @Path() orgUuid: string,
+    ): Promise<ApiCustomRoleAsCodeListResponse> {
+        return this.getCustomRolesAsCode(req, orgUuid);
+    }
+
+    /**
+     * @summary Upsert custom role as code (deprecated)
+     * @deprecated Use POST /code/roles. Remove after 2026-08-17.
+     */
+    @Tags('v2', 'Custom Roles')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/roles/code')
+    @OperationId('UpsertCustomRoleAsCode')
+    async legacyUpsertCustomRoleAsCode(
+        @Request() req: express.Request,
+        @Path() orgUuid: string,
+        @Body() body: CustomRoleAsCode,
+    ): Promise<ApiCustomRoleAsCodeUpsertResponse> {
+        return this.upsertCustomRoleAsCode(req, orgUuid, body);
+    }
+
+    /**
+     * @summary List organization users as code (deprecated)
+     * @deprecated Use GET /code/users. Remove after 2026-08-17.
+     */
+    @Tags('v2', 'Organizations')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/users/code')
+    @OperationId('GetOrganizationUsersAsCode')
+    async legacyGetUsersAsCode(
+        @Request() req: express.Request,
+        @Path() orgUuid: string,
+    ): Promise<ApiUserAsCodeListResponse> {
+        return this.getUsersAsCode(req, orgUuid);
+    }
+
+    /**
+     * @summary Upsert organization user as code (deprecated)
+     * @deprecated Use POST /code/users. Remove after 2026-08-17.
+     */
+    @Tags('v2', 'Organizations')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/users/code')
+    @OperationId('UpsertOrganizationUserAsCode')
+    async legacyUpsertUserAsCode(
+        @Request() req: express.Request,
+        @Path() orgUuid: string,
+        @Body() body: UserAsCode,
+        @Query() sendInvite: boolean = false,
+    ): Promise<ApiUserAsCodeUpsertResponse> {
+        return this.upsertUserAsCode(req, orgUuid, body, sendInvite);
+    }
+
+    /**
+     * @summary List organization groups as code (deprecated)
+     * @deprecated Use GET /code/groups. Remove after 2026-08-17.
+     */
+    @Tags('v2', 'Organizations')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/groups/code')
+    @OperationId('GetOrganizationGroupsAsCode')
+    async legacyGetGroupsAsCode(
+        @Request() req: express.Request,
+        @Path() orgUuid: string,
+    ): Promise<ApiGroupAsCodeListResponse> {
+        return this.getGroupsAsCode(req, orgUuid);
+    }
+
+    /**
+     * @summary Upsert organization group as code (deprecated)
+     * @deprecated Use POST /code/groups. Remove after 2026-08-17.
+     */
+    @Tags('v2', 'Organizations')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/groups/code')
+    @OperationId('UpsertOrganizationGroupAsCode')
+    async legacyUpsertGroupAsCode(
+        @Request() req: express.Request,
+        @Path() orgUuid: string,
+        @Body() body: GroupAsCode,
+    ): Promise<ApiGroupAsCodeUpsertResponse> {
+        return this.upsertGroupAsCode(req, orgUuid, body);
     }
 }

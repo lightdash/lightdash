@@ -136,7 +136,7 @@ describe('users as code', () => {
         });
         expect(lightdashApi).toHaveBeenNthCalledWith(2, {
             method: 'POST',
-            url: '/api/v2/orgs/organization-uuid/users/code',
+            url: '/api/v2/orgs/organization-uuid/code/users',
             body: expect.any(String),
         });
     });
@@ -156,7 +156,7 @@ describe('users as code', () => {
         expect(summary.invited).toBe(1);
         expect(lightdashApi).toHaveBeenNthCalledWith(2, {
             method: 'POST',
-            url: '/api/v2/orgs/organization-uuid/users/code?sendInvite=true',
+            url: '/api/v2/orgs/organization-uuid/code/users?sendInvite=true',
             body: expect.any(String),
         });
     });

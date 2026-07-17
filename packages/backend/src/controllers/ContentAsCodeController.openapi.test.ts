@@ -3,7 +3,7 @@ import nodePath from 'path';
 import { describe, expect, it } from 'vitest';
 import swagger from '../generated/swagger.json';
 
-const CONTENT_AS_CODE_ENDPOINTS = [
+const LEGACY_CONTENT_AS_CODE_ENDPOINTS = [
     ['get', '/api/v1/projects/{projectUuid}/charts/code', 'getChartsAsCode'],
     [
         'post',
@@ -32,8 +32,6 @@ const CONTENT_AS_CODE_ENDPOINTS = [
     ],
     ['get', '/api/v1/projects/{projectUuid}/spaces/code', 'getSpacesAsCode'],
     ['post', '/api/v1/projects/{projectUuid}/spaces/code', 'upsertSpaceAsCode'],
-    ['get', '/api/v1/projects/{projectUuid}/code/spaces', 'getCodeSpaces'],
-    ['post', '/api/v1/projects/{projectUuid}/code/spaces', 'upsertCodeSpace'],
     [
         'get',
         '/api/v1/projects/{projectUuid}/virtualViews/code',
@@ -100,8 +98,91 @@ const CONTENT_AS_CODE_ENDPOINTS = [
     ],
 ] as const;
 
+const CANONICAL_CONTENT_AS_CODE_ENDPOINTS = [
+    ['get', '/api/v1/projects/{projectUuid}/code/charts', 'getCodeCharts'],
+    [
+        'post',
+        '/api/v1/projects/{projectUuid}/code/charts/{slug}',
+        'upsertCodeChart',
+    ],
+    [
+        'get',
+        '/api/v1/projects/{projectUuid}/code/dashboards',
+        'getCodeDashboards',
+    ],
+    [
+        'post',
+        '/api/v1/projects/{projectUuid}/code/dashboards/{slug}',
+        'upsertCodeDashboard',
+    ],
+    [
+        'get',
+        '/api/v1/projects/{projectUuid}/code/sqlCharts',
+        'getCodeSqlCharts',
+    ],
+    [
+        'post',
+        '/api/v1/projects/{projectUuid}/code/sqlCharts/{slug}',
+        'upsertCodeSqlChart',
+    ],
+    ['get', '/api/v1/projects/{projectUuid}/code/spaces', 'getCodeSpaces'],
+    ['post', '/api/v1/projects/{projectUuid}/code/spaces', 'upsertCodeSpace'],
+    [
+        'get',
+        '/api/v1/projects/{projectUuid}/code/virtualViews',
+        'getCodeVirtualViews',
+    ],
+    [
+        'post',
+        '/api/v1/projects/{projectUuid}/code/virtualViews/{slug}',
+        'upsertCodeVirtualView',
+    ],
+    [
+        'get',
+        '/api/v1/projects/{projectUuid}/code/scheduledDeliveries',
+        'getCodeScheduledDeliveries',
+    ],
+    [
+        'post',
+        '/api/v1/projects/{projectUuid}/code/scheduledDeliveries/{slug}',
+        'upsertCodeScheduledDelivery',
+    ],
+    ['get', '/api/v1/projects/{projectUuid}/code/alerts', 'getCodeAlerts'],
+    [
+        'post',
+        '/api/v1/projects/{projectUuid}/code/alerts/{slug}',
+        'upsertCodeAlert',
+    ],
+    [
+        'get',
+        '/api/v1/projects/{projectUuid}/code/googleSheets',
+        'getCodeGoogleSheetsSyncs',
+    ],
+    [
+        'post',
+        '/api/v1/projects/{projectUuid}/code/googleSheets/{slug}',
+        'upsertCodeGoogleSheetsSync',
+    ],
+    ['get', '/api/v1/projects/{projectUuid}/code/aiAgents', 'getCodeAiAgents'],
+    [
+        'post',
+        '/api/v1/projects/{projectUuid}/code/aiAgents',
+        'upsertCodeAiAgents',
+    ],
+    ['get', '/api/v2/orgs/{orgUuid}/code/roles', 'GetCodeCustomRoles'],
+    ['post', '/api/v2/orgs/{orgUuid}/code/roles', 'UpsertCodeCustomRole'],
+    ['get', '/api/v2/orgs/{orgUuid}/code/users', 'GetCodeOrganizationUsers'],
+    ['post', '/api/v2/orgs/{orgUuid}/code/users', 'UpsertCodeOrganizationUser'],
+    ['get', '/api/v2/orgs/{orgUuid}/code/groups', 'GetCodeOrganizationGroups'],
+    [
+        'post',
+        '/api/v2/orgs/{orgUuid}/code/groups',
+        'UpsertCodeOrganizationGroup',
+    ],
+] as const;
+
 describe('content-as-code OpenAPI compatibility', () => {
-    it.each(CONTENT_AS_CODE_ENDPOINTS)(
+    it.each(LEGACY_CONTENT_AS_CODE_ENDPOINTS)(
         'keeps %s %s with operation ID %s',
         (method, path, operationId) => {
             const pathDefinition = swagger.paths[
@@ -112,14 +193,25 @@ describe('content-as-code OpenAPI compatibility', () => {
         },
     );
 
-    it.each(['get', 'post'] as const)(
-        'marks the legacy %s spaces route as deprecated',
-        (method) => {
-            expect(
-                swagger.paths['/api/v1/projects/{projectUuid}/spaces/code'][
-                    method
-                ].deprecated,
-            ).toBe(true);
+    it.each(CANONICAL_CONTENT_AS_CODE_ENDPOINTS)(
+        'registers canonical %s %s with operation ID %s',
+        (method, path, operationId) => {
+            const pathDefinition = swagger.paths[
+                path as keyof typeof swagger.paths
+            ] as Record<string, { operationId?: string }> | undefined;
+
+            expect(pathDefinition?.[method]?.operationId).toBe(operationId);
+        },
+    );
+
+    it.each(LEGACY_CONTENT_AS_CODE_ENDPOINTS)(
+        'marks legacy %s %s as deprecated',
+        (method, path) => {
+            const pathDefinition = swagger.paths[
+                path as keyof typeof swagger.paths
+            ] as Record<string, { deprecated?: boolean }> | undefined;
+
+            expect(pathDefinition?.[method]?.deprecated).toBe(true);
         },
     );
 

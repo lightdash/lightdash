@@ -94,7 +94,7 @@ export const uploadGroups = async (
                 ApiGroupAsCodeUpsertResponse['results']
             >({
                 method: 'POST',
-                url: `/api/v2/orgs/${organizationUuid}/groups/code`,
+                url: `/api/v2/orgs/${organizationUuid}/code/groups`,
                 body: JSON.stringify(group),
             });
             return result.action;
@@ -115,7 +115,7 @@ export const downloadGroups = async (
                 ApiGroupAsCodeListResponse['results']
             >({
                 method: 'GET',
-                url: `/api/v2/orgs/${organizationUuid}/groups/code`,
+                url: `/api/v2/orgs/${organizationUuid}/code/groups`,
                 body: undefined,
             });
             return groups.map((group) => ({
