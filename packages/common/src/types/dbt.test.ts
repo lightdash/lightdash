@@ -1,12 +1,43 @@
 import {
     convertColumnMetric,
     convertModelMetric,
+    getEffectiveFieldAiHints,
     getModelsFromManifest,
     patchPathParts,
     type DbtManifest,
 } from './dbt';
 import { DimensionType, MetricType } from './field';
 import { TimeFrames } from './timeFrames';
+
+describe('getEffectiveFieldAiHints', () => {
+    it('combines field and group hints without changing their source metadata', () => {
+        const field = {
+            aiHint: ['Use as the canonical value.', 'Shared guidance.'],
+            groups: ['settlements', 'missing'],
+        };
+        const table = {
+            groupDetails: {
+                settlements: {
+                    label: 'Settlements',
+                    aiHint: [
+                        'Shared guidance.',
+                        'Use for settlement questions.',
+                    ],
+                },
+            },
+        };
+
+        expect(getEffectiveFieldAiHints(field, table)).toEqual([
+            'Use as the canonical value.',
+            'Shared guidance.',
+            'Use for settlement questions.',
+        ]);
+        expect(field.aiHint).toEqual([
+            'Use as the canonical value.',
+            'Shared guidance.',
+        ]);
+    });
+});
 
 const makeManifest = (nodes: Record<string, object>): DbtManifest =>
     ({

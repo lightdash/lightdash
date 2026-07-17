@@ -350,6 +350,10 @@ export const MODEL_WITH_GROUPS_BLOCK: DbtModelNode & { relation_name: string } =
                 revenue: {
                     label: 'Revenue',
                     description: 'Revenue description',
+                    ai_hint: [
+                        'Use revenue fields for billing questions.',
+                        'Prefer revenue metrics over raw dimensions.',
+                    ],
                 },
             },
         },
@@ -437,6 +441,10 @@ export const LIGHTDASH_TABLE_WITH_GROUP_BLOCK: Omit<Table, 'lineageGraph'> = {
         revenue: {
             label: 'Revenue',
             description: 'Revenue description',
+            aiHint: [
+                'Use revenue fields for billing questions.',
+                'Prefer revenue metrics over raw dimensions.',
+            ],
         },
     },
 };

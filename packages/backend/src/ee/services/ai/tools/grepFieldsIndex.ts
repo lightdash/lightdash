@@ -1,6 +1,7 @@
 import {
     convertFieldRefToFieldId,
     getDefaultTimeDimension,
+    getEffectiveFieldAiHints,
     getFieldIdForDateDimension,
     getItemId,
     isJoinModelRequiredFilter,
@@ -136,7 +137,9 @@ export const buildFieldIndex = (
                 if (!field.hidden) {
                     const fieldId = `${field.table}_${field.name}`;
                     const description = field.description ?? '';
-                    const aiHint = flatHint(field.aiHint);
+                    const aiHint = flatHint(
+                        getEffectiveFieldAiHints(field, table),
+                    );
                     const nameHaystack = [fieldId, field.label]
                         .filter(Boolean)
                         .join('\n')

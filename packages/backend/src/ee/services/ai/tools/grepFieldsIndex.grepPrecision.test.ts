@@ -37,6 +37,7 @@ type FieldSpec = {
     label?: string;
     description?: string;
     aiHint?: string;
+    groups?: string[];
 };
 
 const makeExplore = (over: {
@@ -45,6 +46,7 @@ const makeExplore = (over: {
     aiHint?: string | string[];
     fields: FieldSpec[];
     requiredFilters?: ModelRequiredFilterRule[];
+    groupDetails?: Explore['tables'][string]['groupDetails'];
 }): Explore => ({
     targetDatabase: SupportedDbtAdapter.POSTGRES,
     name: over.name,
@@ -65,6 +67,7 @@ const makeExplore = (over: {
             uncompiledSqlWhere: undefined,
             description: undefined,
             requiredFilters: over.requiredFilters,
+            groupDetails: over.groupDetails,
             dimensions: Object.fromEntries(
                 over.fields.map((f) => [
                     f.name,
@@ -82,6 +85,7 @@ const makeExplore = (over: {
                         tablesReferences: [over.name],
                         description: f.description,
                         aiHint: f.aiHint,
+                        groups: f.groups,
                     },
                 ]),
             ),
@@ -287,6 +291,31 @@ describe('buildFieldIndex haystack scope', () => {
         expect(compileMatcher('placed')(entry.nameHaystack)).toBe(false);
         expect(compileMatcher('placed')(entry.descHaystack)).toBe(true);
         expect(compileMatcher('self.serve')(entry.hintHaystack)).toBe(true);
+    });
+
+    it('makes group hints greppable without storing them on the field', () => {
+        const groupedExplore = makeExplore({
+            name: 'payments',
+            groupDetails: {
+                settlements: {
+                    label: 'Settlements',
+                    aiHint: 'Use for zephyr settlement questions.',
+                },
+            },
+            fields: [
+                {
+                    name: 'total_revenue',
+                    aiHint: 'Canonical revenue metric.',
+                    groups: ['settlements'],
+                },
+            ],
+        });
+
+        const [entry] = buildFieldIndex([groupedExplore]);
+        expect(entry.aiHint).toBe(
+            'Canonical revenue metric. Use for zephyr settlement questions.',
+        );
+        expect(compileMatcher('zephyr')(entry.hintHaystack)).toBe(true);
     });
 });
 
