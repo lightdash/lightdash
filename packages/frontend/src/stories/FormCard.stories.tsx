@@ -18,7 +18,7 @@ export function FormCard({ hasError = false }: FormCardProps) {
     const errorMessage = hasError ? 'This field is required' : undefined;
 
     return (
-        <Card shadow="subtle" radius="md" p="lg">
+        <Card shadow="subtle" radius="md" p="lg" withBorder={false}>
             <Stack>
                 <Title order={4}>This is a form card</Title>
                 <Stack>

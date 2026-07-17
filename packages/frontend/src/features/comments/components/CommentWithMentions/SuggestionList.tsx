@@ -63,7 +63,7 @@ export const SuggestionList = forwardRef<
     }));
 
     return props.items.length > 0 ? (
-        <Card shadow="xs" p={0}>
+        <Card shadow="xs" p={0} withBorder={false} radius="sm">
             <List
                 withPadding={false}
                 listStyleType="none"

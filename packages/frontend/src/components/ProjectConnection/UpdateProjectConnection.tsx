@@ -170,6 +170,7 @@ const UpdateProjectConnection: FC<{
                         className={classes.stickyFooter}
                         withBorder
                         shadow="sm"
+                        radius="sm"
                     >
                         <Box>
                             {latestCompilationLog && (
