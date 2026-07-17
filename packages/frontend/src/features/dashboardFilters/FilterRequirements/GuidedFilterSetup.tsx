@@ -86,7 +86,7 @@ const MemberInput: FC<MemberInputProps> = ({
 }) => (
     <Group gap="xs" wrap="nowrap">
         {showLabel && (
-            <TruncatedText maxWidth={90} w={90} fz="xs" c="ldGray.6">
+            <TruncatedText maxWidth={160} fz="xs" c="ldGray.6">
                 {label}
             </TruncatedText>
         )}
