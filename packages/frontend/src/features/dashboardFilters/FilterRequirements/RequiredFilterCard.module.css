@@ -27,3 +27,8 @@
         background-color: alpha(var(--mantine-color-white), 0.04);
     }
 }
+
+/* Anchors rendered as <button> don't inherit the body font */
+.buttonAnchor {
+    font-family: inherit;
+}

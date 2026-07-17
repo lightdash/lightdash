@@ -2,6 +2,11 @@
     min-height: 30px;
 }
 
+/* Anchors rendered as <button> don't inherit the body font */
+.buttonAnchor {
+    font-family: inherit;
+}
+
 @keyframes fade-in {
     from {
         opacity: 0;

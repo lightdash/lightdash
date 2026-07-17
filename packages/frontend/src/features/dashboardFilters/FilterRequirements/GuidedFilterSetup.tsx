@@ -159,6 +159,7 @@ const RuleSummary: FC<RuleSummaryProps> = ({ rule, fieldsMap, onChange }) => {
                 component="button"
                 type="button"
                 size="xs"
+                className={classes.buttonAnchor}
                 onClick={onChange}
             >
                 Change
@@ -421,6 +422,7 @@ export const GuidedFilterSetupProgress: FC<GuidedFilterSetupProgressProps> = ({
                 c="ldGray.6"
                 ta="center"
                 mt={4}
+                className={classes.buttonAnchor}
                 onClick={onDismiss}
             >
                 Set filters in the toolbar instead

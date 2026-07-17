@@ -178,6 +178,7 @@ const RequiredFilterCard: FC<Props> = ({
                                 component="button"
                                 type="button"
                                 size="xs"
+                                className={classes.buttonAnchor}
                                 onClick={onEditRules}
                             >
                                 Edit rule →
