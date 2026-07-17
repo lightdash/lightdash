@@ -499,6 +499,7 @@ jobs:
     name: "E2E: Playwright smoke"
     env:
       NODE_OPTIONS: "--max-old-space-size=8192"
+      TZ: "UTC"
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
