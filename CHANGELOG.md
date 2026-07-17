@@ -1,3 +1,10 @@
+# [0.3413.0](https://github.com/lightdash/lightdash/compare/0.3412.0...0.3413.0) (2026-07-17)
+
+
+### Features
+
+* create custom metrics from existing explore metrics ([#25751](https://github.com/lightdash/lightdash/issues/25751)) ([db0dff6](https://github.com/lightdash/lightdash/commit/db0dff64137f45071c1d257ddd9e4ea20b1ea5d8))
+
 # [0.3412.0](https://github.com/lightdash/lightdash/compare/0.3411.0...0.3412.0) (2026-07-17)
 
 

@@ -2524,6 +2524,7 @@ const models: TsoaRoute.Models = {
                 array: { dataType: 'refObject', ref: 'MetricFilterRule' },
             },
             baseDimensionName: { dataType: 'string' },
+            baseMetricName: { dataType: 'string' },
             uuid: {
                 dataType: 'union',
                 subSchemas: [
