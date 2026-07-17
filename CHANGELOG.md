@@ -1,3 +1,16 @@
+# [0.3406.0](https://github.com/lightdash/lightdash/compare/0.3405.1...0.3406.0) (2026-07-17)
+
+
+### Bug Fixes
+
+* **e2e:** deflake create-project tests by polling backend job status ([#25704](https://github.com/lightdash/lightdash/issues/25704)) ([9276afa](https://github.com/lightdash/lightdash/commit/9276afaea1675fa1016180c217f0f5a0ae8ff2c8))
+* surface MCP OAuth start errors ([#25701](https://github.com/lightdash/lightdash/issues/25701)) ([e5f2221](https://github.com/lightdash/lightdash/commit/e5f2221a28a320f08eaf76416d40390415cf8be8)), closes [#25700](https://github.com/lightdash/lightdash/issues/25700)
+
+
+### Features
+
+* **agents:** filter admin threads by user ([#25702](https://github.com/lightdash/lightdash/issues/25702)) ([9861392](https://github.com/lightdash/lightdash/commit/9861392947056b2ce6027cf653af9bc0fb97ddb0))
+
 ## [0.3405.1](https://github.com/lightdash/lightdash/compare/0.3405.0...0.3405.1) (2026-07-17)
 
 
