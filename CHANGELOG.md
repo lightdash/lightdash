@@ -1,3 +1,20 @@
+# [0.3412.0](https://github.com/lightdash/lightdash/compare/0.3411.0...0.3412.0) (2026-07-17)
+
+
+### Bug Fixes
+
+* **frontend:** mantine 8 migration follow-ups from migration guide audit ([#25744](https://github.com/lightdash/lightdash/issues/25744)) ([6936d40](https://github.com/lightdash/lightdash/commit/6936d40700c29e3be53c7e281cf4000e90b1a644))
+
+
+### Features
+
+* **ai:** additive viz renderer and query-results plumbing for deep research ([#25730](https://github.com/lightdash/lightdash/issues/25730)) ([ce17a86](https://github.com/lightdash/lightdash/commit/ce17a8639d1361706236cf26d04189c4a6c3d67d)), closes [#25732](https://github.com/lightdash/lightdash/issues/25732) [#25733](https://github.com/lightdash/lightdash/issues/25733)
+* **ai:** deep research markdown report model and lint ([#25731](https://github.com/lightdash/lightdash/issues/25731)) ([b8d5075](https://github.com/lightdash/lightdash/commit/b8d5075bd7a79cab5b1066c33ed2a38d507829f3)), closes [#25732](https://github.com/lightdash/lightdash/issues/25732) [#25733](https://github.com/lightdash/lightdash/issues/25733) [#25730](https://github.com/lightdash/lightdash/issues/25730)
+* **ai:** link deep research runs to agent threads ([#25734](https://github.com/lightdash/lightdash/issues/25734)) ([0fc0495](https://github.com/lightdash/lightdash/commit/0fc0495ac0eaab6d7c6034265a75aad1888d915d)), closes [#25733](https://github.com/lightdash/lightdash/issues/25733)
+* **ai:** produce deep research reports as markdown ([#25732](https://github.com/lightdash/lightdash/issues/25732)) ([cfc236d](https://github.com/lightdash/lightdash/commit/cfc236df3d3f279e4cb846e689a08b8f0b9e492e)), closes [#25731](https://github.com/lightdash/lightdash/issues/25731)
+* **ai:** render deep research reports as one markdown flow ([#25733](https://github.com/lightdash/lightdash/issues/25733)) ([becf6f9](https://github.com/lightdash/lightdash/commit/becf6f98028d44506241bba00d8dc1ed4ef24d53)), closes [#25732](https://github.com/lightdash/lightdash/issues/25732)
+* **ai:** snapshot deep research charts with on-demand live refresh ([#25754](https://github.com/lightdash/lightdash/issues/25754)) ([085cd8c](https://github.com/lightdash/lightdash/commit/085cd8cc6a64c26017b19e01a370694503e661e4)), closes [#25734](https://github.com/lightdash/lightdash/issues/25734)
+
 # [0.3411.0](https://github.com/lightdash/lightdash/compare/0.3410.0...0.3411.0) (2026-07-17)
 
 
