@@ -1,6 +1,6 @@
 ---
 name: developing-in-lightdash
-description: Use when working with Lightdash YAML files, dbt models with Lightdash metadata, the lightdash CLI (deploy, upload, download, preview, lint, warehouse-catalog, sql, set-warehouse), or creating/editing charts, dashboards, metrics, and dimensions as code
+description: Use when working with Lightdash YAML files, dbt models with Lightdash metadata, the lightdash CLI (deploy, upload, download, preview, lint, warehouse-catalog, sql, set-warehouse), or managing charts, dashboards, spaces and access, AI agents, scheduled content, users, groups, custom roles, metrics, and dimensions as code
 ---
 
 # Developing in Lightdash
@@ -27,6 +27,7 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 | Create charts | `lightdash download`, edit YAML, `lightdash upload` | [Chart Types](#chart-types) |
 | Add period comparisons | Add PoP additional metrics to chart YAML | [Period over Period](./resources/period-over-period-reference.md) |
 | Build dashboards | `lightdash download`, edit YAML, `lightdash upload` | [Dashboard Reference](./resources/dashboard-reference.md) |
+| Manage content as code across project and organization resources | `lightdash download`, `lightdash upload` | [Content as Code](./resources/content-as-code-reference.md) |
 | Lint yaml files | `lightdash lint` | [CLI Reference](./resources/cli-reference.md) |
 | Set warehouse connection | `lightdash set-warehouse` from profiles.yml | [CLI Reference](./resources/cli-reference.md) |
 | Deploy changes | `lightdash deploy` (semantic layer), `lightdash upload` (content) | [CLI Reference](./resources/cli-reference.md) |
@@ -44,6 +45,8 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 | **Missing `contentType` field** | Content type can't be determined without relying on directory structure | Always include `contentType: chart`, `contentType: dashboard`, or `contentType: sql_chart` at the top level |
 
 ## Before You Start
+
+When a task uses `lightdash download` or `lightdash upload`, especially for bulk edits, spaces and access, scheduled content, AI agents, users, groups, or custom roles, **read and follow [Content as Code](./resources/content-as-code-reference.md) first**. Project and organization content require separate commands, and a default download is not a complete snapshot.
 
 ### Check Your Target Project
 
@@ -365,6 +368,7 @@ See [Workflows Reference](./resources/workflows-reference.md) for detailed examp
 ### Dashboards & Workflows
 - [Dashboard Reference](./resources/dashboard-reference.md)
 - [Dashboard Best Practices](./resources/dashboard-best-practices.md)
+- [Content as Code Reference](./resources/content-as-code-reference.md)
 - [CLI Reference](./resources/cli-reference.md)
 - [Workflows Reference](./resources/workflows-reference.md)
 

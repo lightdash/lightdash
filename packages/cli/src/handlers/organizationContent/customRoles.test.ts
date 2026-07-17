@@ -84,7 +84,7 @@ describe('custom roles as code', () => {
         expect(total).toBe(1);
         expect(lightdashApi).toHaveBeenCalledWith({
             method: 'GET',
-            url: '/api/v2/orgs/organization-uuid/roles/code',
+            url: '/api/v2/orgs/organization-uuid/code/roles',
             body: undefined,
         });
         expect(
@@ -103,6 +103,7 @@ describe('custom roles as code', () => {
         });
         expect((await fs.readdir(folder)).sort()).toStrictEqual([
             'custom-role-name.yml',
+            'stale.yml',
         ]);
     });
 
@@ -122,6 +123,22 @@ describe('custom roles as code', () => {
                 /^data-admin-[a-f0-9]{8}\.yml$/.test(filename),
             ),
         ).toBe(true);
+    });
+
+    it('reuses an existing filename owned by the same identity', async () => {
+        await writeCustomRole(
+            'hand-authored-name.yml',
+            customRole('Data Admin'),
+        );
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            customRoles: [customRole('Data Admin')],
+        } as never);
+
+        await downloadCustomRoles('organization-uuid', tmpDir);
+
+        expect(await fs.readdir(getCustomRolesFolder(tmpDir))).toStrictEqual([
+            'hand-authored-name.yml',
+        ]);
     });
 
     it('counts backend create, update, and no-op actions', async () => {
@@ -146,7 +163,7 @@ describe('custom roles as code', () => {
         });
         expect(lightdashApi).toHaveBeenNthCalledWith(1, {
             method: 'POST',
-            url: '/api/v2/orgs/organization-uuid/roles/code',
+            url: '/api/v2/orgs/organization-uuid/code/roles',
             body: expect.any(String),
         });
         expect(

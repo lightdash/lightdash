@@ -29,10 +29,37 @@ resources with database resources, or coordinate lower-level create and update
 endpoints. For example, it should not know which scopes are valid for a custom
 role or calculate which scopes need to be added and removed.
 
+## Implementation structure
+
+Content as code is a first-class subsystem rather than a set of unrelated CLI
+handlers:
+
+- Portable contracts are split by resource under
+  `packages/common/src/types/contentAsCode/`. The existing `coder.ts` exports
+  remain as a compatibility facade.
+- `ProjectCoderController` owns project routes and
+  `OrganizationCoderController` owns organization routes. The two controllers
+  are separate because TSOA controllers have one route prefix. Canonical routes
+  use `/code/{resource}`; the previous resource-first routes remain deprecated
+  compatibility aliases until after 17 August 2026.
+- Backend resource handlers own externalization, reference conversion,
+  comparison, and persistence. `CoderService` remains as a compatibility facade
+  while callers migrate to those handlers.
+- CLI resources use `CodeResourceDefinition` adapters for scope, discovery,
+  parsing, identity, filenames, dependencies, and ordering. Charts, dashboards,
+  nested spaces, scheduled content, AI-agent bulk operations, and data-app
+  bundles retain specialized orchestration where their layouts require it.
+- Filename allocation is centralized and handles Unicode normalization,
+  bounded names, stable collision suffixes, case-insensitive collisions, safe
+  paths, and reuse of an existing file owned by the same portable identity.
+
+New resources should use these extension points instead of adding another
+standalone download/upload implementation.
+
 ## Download flow
 
 1. The CLI resolves the project or organization and the local content root.
-2. The CLI calls the resource's backend `GET .../code` endpoint.
+2. The CLI calls the resource's backend `GET .../code/{resource}` endpoint.
 3. The backend checks access and loads the database resources.
 4. The backend converts each database resource into its portable as-code type.
 5. The CLI serializes the returned resources into deterministic YAML files.
@@ -57,7 +84,7 @@ the resource returned by the backend.
 
 1. The CLI discovers and parses the relevant YAML files.
 2. The CLI sends each portable document to the resource's backend `POST
-   .../code` endpoint.
+   .../code/{resource}` endpoint.
 3. The backend authenticates and authorizes the request.
 4. The backend validates the portable document and its domain invariants.
 5. The backend resolves the existing resource using the documented portable
@@ -88,9 +115,15 @@ The CLI validates only local file and bundle concerns:
   bundle conflict;
 - processing continues after an independent file fails.
 
-Parsed YAML should be treated as unknown input and sent to the backend. The CLI
-must not ship a snapshot of server domain rules such as supported permission
-scopes, allowed transitions, or mutable fields.
+Parsed YAML is treated as unknown input. Shared parsers may validate structural
+contract concerns needed for safe local processing, including the document
+shape, version, content type, and portable identity. The backend repeats the
+required contract checks and remains responsible for domain rules.
+
+The CLI must not ship a snapshot of server domain rules such as supported
+permission scopes, allowed transitions, or mutable fields. Structural parsing
+must preserve documented legacy behavior, including resources where
+`contentType` was historically optional and unknown keys were accepted.
 
 ### Backend validation
 
@@ -133,6 +166,49 @@ lightdash/
 The CLI success message refers to the shared `lightdash/` parent because future
 organization resources will use the same root.
 
+## Resource catalog
+
+| Resource             | Scope        | Portable identity                | Primary location                         |
+| -------------------- | ------------ | -------------------------------- | ---------------------------------------- |
+| Charts               | Project      | Slug                             | `lightdash/charts/` or nested spaces     |
+| SQL charts           | Project      | Slug                             | Chart layouts using `.sql.yml`           |
+| Dashboards           | Project      | Slug                             | `lightdash/dashboards/` or nested spaces |
+| Spaces               | Project      | Full hierarchy path              | `.space.yml` files                       |
+| Virtual views        | Project      | Slug                             | `lightdash/virtual-views/`               |
+| AI agents            | Project      | Slug                             | `lightdash/ai-agents/`                   |
+| Scheduled deliveries | Project      | Project-scoped slug              | `lightdash/scheduled-deliveries/`        |
+| Alerts               | Project      | Project-scoped slug              | `lightdash/alerts/`                      |
+| Google Sheets syncs  | Project      | Project-scoped slug              | `lightdash/google-sheets/`               |
+| Custom roles         | Organization | Exact role name                  | `lightdash/custom-roles/`                |
+| Users                | Organization | Lowercase primary email          | `lightdash/users/`                       |
+| Groups               | Organization | Exact, case-sensitive group name | `lightdash/groups/`                      |
+
+Data apps are deliberately outside the YAML resource registry because they are
+multi-file source bundles. They may reuse shared path-safety and reporting
+utilities without pretending to be single-document resources.
+
+Project APIs use `/api/v1/projects/{projectUuid}/code/{resource}`. Organization
+APIs use `/api/v2/orgs/{orgUuid}/code/{resource}`. The resource segments are
+`charts`, `sqlCharts`, `dashboards`, `spaces`, `virtualViews`, `aiAgents`,
+`scheduledDeliveries`, `alerts`, `googleSheets`, `roles`, `users`, and `groups`.
+The legacy resource-first routes are deprecated in OpenAPI and should not be
+used by new clients.
+
+## Optional project resources
+
+Virtual views, AI agents, alerts, scheduled deliveries, and Google Sheets syncs
+are opt-in for download through their resource selectors, `--include-*` flags,
+or `--include-all`. Upload processes matching files already present on disk
+unless the corresponding `--skip-*` option is supplied. This distinction is
+intentional: a normal download must not delete or rewrite optional local
+resources that were not fetched.
+
+Google Sheets documents contain portable destination metadata. Content-as-code
+uploads validate the payload and permissions but do not call Google Drive to
+validate the spreadsheet URL. This allows CI and service-account deployments
+without the uploader's personal Google OAuth token. Executing an enabled sync
+still requires usable Google credentials for the scheduler owner.
+
 ## Spaces and access
 
 Project space definitions use `.space.yml` files. New flat downloads place them
@@ -171,8 +247,11 @@ access:
 
 The endpoints are:
 
-- `GET /api/v1/projects/{projectUuid}/spaces/code`
-- `POST /api/v1/projects/{projectUuid}/spaces/code`
+- `GET /api/v1/projects/{projectUuid}/code/spaces`
+- `POST /api/v1/projects/{projectUuid}/code/spaces`
+
+The previous `GET` and `POST /api/v1/projects/{projectUuid}/spaces/code` routes
+are deprecated compatibility aliases shared with the other migrated resources.
 
 The full hierarchy path in `slug` is the portable identity. Uploads process
 parents before descendants and create missing spaces unless
@@ -242,8 +321,8 @@ scopes:
 
 The endpoints are:
 
-- `GET /api/v2/orgs/{orgUuid}/roles/code`
-- `POST /api/v2/orgs/{orgUuid}/roles/code`
+- `GET /api/v2/orgs/{orgUuid}/code/roles`
+- `POST /api/v2/orgs/{orgUuid}/code/roles`
 
 The backend implementation lives in
 `packages/backend/src/services/RolesService/RolesService.ts`. It:
@@ -271,7 +350,7 @@ The CLI implementation lives under
 - treats a missing or empty custom-roles directory as a no-op;
 - creates safe filenames and disambiguates normalized filename collisions;
 - rejects duplicate role names within the local bundle;
-- calls the two `/roles/code` endpoints;
+- calls the two `/code/roles` endpoints;
 - continues after a backend rejection and prints the filepath with the error;
 - aggregates backend actions into created, updated, unchanged, and failed
   counts.
@@ -295,8 +374,8 @@ role:
 
 The endpoints are:
 
-- `GET /api/v2/orgs/{orgUuid}/users/code`
-- `POST /api/v2/orgs/{orgUuid}/users/code`
+- `GET /api/v2/orgs/{orgUuid}/code/users`
+- `POST /api/v2/orgs/{orgUuid}/code/users`
 
 Email is the portable identity and is normalized to lowercase. An upload
 creates a missing organization member or reconciles the existing member's
@@ -334,8 +413,8 @@ members:
 
 The endpoints are:
 
-- `GET /api/v2/orgs/{orgUuid}/groups/code`
-- `POST /api/v2/orgs/{orgUuid}/groups/code`
+- `GET /api/v2/orgs/{orgUuid}/code/groups`
+- `POST /api/v2/orgs/{orgUuid}/code/groups`
 
 The exact, case-sensitive group name is the portable identity. Upload creates a
 missing group or replaces the complete membership of an existing group. Every
@@ -361,18 +440,44 @@ first version.
 
 Use this sequence when adding a new resource:
 
-1. Define a versioned portable type and typed API responses in
-   `packages/common`.
-2. Add authenticated TSOA `GET .../code` and `POST .../code` endpoints.
-3. Implement externalization, runtime validation, identity resolution, diffing,
-   and persistence in the backend service layer.
+1. Define a versioned portable type, parser, resource identity, and typed API
+   responses in the appropriate `packages/common/src/types/contentAsCode/`
+   module.
+2. Add methods to the appropriate scope controller without changing an existing
+   route family or operation ID.
+3. Implement a backend resource handler for externalization, runtime validation,
+   reference conversion, identity resolution, comparison, and persistence.
 4. Return explicit create, update, and no-change outcomes from the backend.
-5. Add a small CLI file adapter for directory discovery, YAML serialization,
-   API calls, and reporting.
+5. Register a `CodeResourceDefinition` with its folder, accepted extensions,
+   identity, parser, filename profile, and dependency metadata. Connect the
+   definition to the project or organization orchestration for its API calls and
+   permission checks. Use a specialized hook only when the resource is not a
+   normal YAML document.
 6. Keep organization resources under `lightdash/<resource>/` and project
    resources within the existing project content layout.
-7. Test domain rules in backend service tests, file behavior in focused CLI
-   tests, and the complete download/create/update/no-op/failure flow end to end.
+7. Add parser, filename, adapter, backend-domain, and round-trip tests, including
+   partial failures and dependency skipping where applicable.
+
+## Evolving an existing resource
+
+Portable contracts are intentionally curated and do not automatically mirror
+database models. Adding a field to a chart, dashboard, or another domain model
+does not automatically expose it in YAML. Each new field must be classified as
+portable, read-only metadata, or internal state.
+
+For a portable field, update the document type, externalization, create/update
+mapping, comparison logic, generated schema, and round-trip tests together. If
+the new meaning is incompatible with existing files, increment the resource
+version and add an explicit normalizer or migration path. Never spread an
+entire persistence model into a portable document: UUIDs, ownership, secrets,
+and instance-specific state must remain excluded.
+
+Charts, dashboards, and spaces do not yet have universal database-enforced
+project-scoped slug uniqueness. Application-level locking protects current
+content-as-code and promotion creation paths, but callers must not assume a slug
+is a globally reliable unique identifier. Resolution should detect ambiguity,
+and new relationships must use UUIDs until database constraints or a dedicated
+portable identity are introduced.
 
 If implementing the CLI requires importing backend domain maps, reproducing
 validation rules, fetching current resources to calculate a diff, or calling

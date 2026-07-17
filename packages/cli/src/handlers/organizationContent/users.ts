@@ -1,26 +1,27 @@
 /* eslint-disable no-await-in-loop */
 import {
-    ApiUserAsCodeListResponse,
-    ApiUserAsCodeUpsertResponse,
     assertUnreachable,
     getErrorMessage,
     OrganizationMemberRole,
-    ParameterError,
+    parseUserAsCode,
     PromotionAction,
-    UserAsCode,
     UserAsCodeInvitationStatus,
     UserAsCodeLifecycleStatus,
+    type ApiUserAsCodeListResponse,
+    type ApiUserAsCodeUpsertResponse,
+    type UserAsCode,
 } from '@lightdash/common';
-import { Dirent, promises as fs } from 'fs';
-import * as yaml from 'js-yaml';
-import groupBy from 'lodash/groupBy';
 import * as path from 'path';
+import {
+    assertCodeResourceFilesValid,
+    downloadCodeResource,
+    readCodeResourceFiles,
+    type CodeFileFailure,
+    type CodeResourceDefinition,
+} from '../contentAsCode/resource';
 import { lightdashApi } from '../dbt/apiClient';
-import { getOrganizationContentFileNames } from './fileNames';
 
-export type UserUploadFailure = {
-    message: string;
-};
+export type UserUploadFailure = CodeFileFailure;
 
 export type UserUploadSummary = {
     created: number;
@@ -35,22 +36,30 @@ export type UserUploadSummary = {
     failures: UserUploadFailure[];
 };
 
-type UserFile = {
-    filePath: string;
-    user: unknown;
+export const USER_CODE_RESOURCE: CodeResourceDefinition<UserAsCode> = {
+    kind: 'user',
+    displayLabel: 'user',
+    identityLabel: 'email',
+    scope: 'organization',
+    folderName: 'users',
+    acceptedExtensions: ['.yml'],
+    fileName: {
+        strategy: 'normalizedDisplayName',
+        fallbackPrefix: 'user',
+        extension: '.yml',
+    },
+    dependencies: ['custom_role'],
+    identity: ({ email }) => email,
+    normalizeIdentity: (email) => email.toLowerCase(),
+    displayName: ({ email }) => email.toLowerCase(),
+    parse: parseUserAsCode,
+    sort: (left, right) => left.email.localeCompare(right.email),
 };
 
-type UserFileReadResult = {
-    userFiles: UserFile[];
-    failures: UserUploadFailure[];
-};
-
-type UserFileReadItem =
-    | { kind: 'user'; userFile: UserFile }
-    | { kind: 'failure'; failure: UserUploadFailure };
+type UserFile = { filePath: string; document: UserAsCode };
 
 export const getUsersFolder = (organizationContentPath: string): string =>
-    path.join(organizationContentPath, 'users');
+    path.join(organizationContentPath, USER_CODE_RESOURCE.folderName);
 
 export const formatUserUploadSummary = (summary: UserUploadSummary): string => {
     const invitationSummary = [
@@ -61,124 +70,25 @@ export const formatUserUploadSummary = (summary: UserUploadSummary): string => {
             summary.skippedValidInvite
         } invitation-skipped`,
     ];
-    return `${summary.created} created, ${summary.updated} updated, ${summary.unchanged} unchanged, ${summary.awaitingAuthentication} awaiting authentication, ${invitationSummary.join(', ')}, ${summary.failed} failed`;
-};
-
-const getUserEmail = (user: unknown): string | undefined => {
-    if (typeof user !== 'object' || user === null || Array.isArray(user)) {
-        return undefined;
-    }
-    const { email } = user as Record<string, unknown>;
-    return typeof email === 'string' ? email.toLowerCase() : undefined;
-};
-
-const asUserAsCode = (user: unknown): UserAsCode | undefined => {
-    if (typeof user !== 'object' || user === null || Array.isArray(user)) {
-        return undefined;
-    }
-    const record = user as Record<string, unknown>;
-    if (
-        typeof record.email !== 'string' ||
-        typeof record.disabled !== 'boolean' ||
-        typeof record.role !== 'object' ||
-        record.role === null ||
-        Array.isArray(record.role)
-    ) {
-        return undefined;
-    }
-    const role = record.role as Record<string, unknown>;
-    if (
-        (role.type !== 'system' && role.type !== 'custom') ||
-        typeof role.name !== 'string'
-    ) {
-        return undefined;
-    }
-    return user as UserAsCode;
-};
-
-const readUserFileResults = async (
-    organizationContentPath: string,
-): Promise<UserFileReadResult> => {
-    const folder = getUsersFolder(organizationContentPath);
-    let entries: Dirent[];
-    try {
-        entries = await fs.readdir(folder, { withFileTypes: true });
-    } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-            return { userFiles: [], failures: [] };
-        }
-        throw error;
-    }
-
-    const files = entries
-        .filter((entry) => entry.isFile() && entry.name.endsWith('.yml'))
-        .sort((left, right) => left.name.localeCompare(right.name));
-    const results = await Promise.all(
-        files.map(async (file): Promise<UserFileReadItem> => {
-            const filePath = path.join(folder, file.name);
-            try {
-                return {
-                    kind: 'user',
-                    userFile: {
-                        filePath,
-                        user: yaml.load(await fs.readFile(filePath, 'utf8')),
-                    },
-                };
-            } catch (error) {
-                return {
-                    kind: 'failure',
-                    failure: {
-                        message: `Unable to parse user file "${filePath}": ${getErrorMessage(error)}`,
-                    },
-                };
-            }
-        }),
-    );
-
-    const parsedUserFiles = results.flatMap((result) =>
-        result.kind === 'user' ? [result.userFile] : [],
-    );
-    const failures = results.flatMap((result) =>
-        result.kind === 'failure' ? [result.failure] : [],
-    );
-    const emailFiles = parsedUserFiles.flatMap((userFile) => {
-        const email = getUserEmail(userFile.user);
-        return email === undefined ? [] : [{ email, userFile }];
-    });
-    const filesByEmail = groupBy(emailFiles, ({ email }) => email);
-    const duplicateEmails = new Set(
-        Object.entries(filesByEmail)
-            .filter(([, matchingFiles]) => matchingFiles.length > 1)
-            .map(([email]) => email),
-    );
-    for (const duplicateEmail of [...duplicateEmails].sort()) {
-        for (const { userFile } of filesByEmail[duplicateEmail]) {
-            failures.push({
-                message: `Duplicate user email "${duplicateEmail}" in "${userFile.filePath}"`,
-            });
-        }
-    }
-
-    return {
-        userFiles: parsedUserFiles.filter(
-            ({ user }) => !duplicateEmails.has(getUserEmail(user) ?? ''),
-        ),
-        failures,
-    };
+    return [
+        `${summary.created} created`,
+        `${summary.updated} updated`,
+        `${summary.unchanged} unchanged`,
+        `${summary.awaitingAuthentication} awaiting authentication`,
+        invitationSummary.join(', '),
+        `${summary.failed} failed`,
+    ].join(', ');
 };
 
 export const readUserFiles = async (
     organizationContentPath: string,
 ): Promise<unknown[]> => {
-    const { userFiles, failures } = await readUserFileResults(
-        organizationContentPath,
-    );
-    if (failures.length > 0) {
-        throw new ParameterError(
-            failures.map(({ message }) => message).join('\n'),
-        );
-    }
-    return userFiles.map(({ user }) => user);
+    const result = await readCodeResourceFiles({
+        definition: USER_CODE_RESOURCE,
+        basePath: organizationContentPath,
+    });
+    assertCodeResourceFilesValid(result);
+    return result.files.map(({ document }) => document);
 };
 
 const isSystemAdmin = (user: UserAsCode): boolean =>
@@ -192,29 +102,25 @@ const orderUserFiles = (
     const currentByEmail = new Map(
         currentUsers.map((user) => [user.email.toLowerCase(), user]),
     );
+    const getPriority = ({ document: desired }: UserFile): number => {
+        const current = currentByEmail.get(desired.email.toLowerCase());
+        if (isSystemAdmin(desired) && !desired.disabled) return 0;
+        if (
+            current &&
+            isSystemAdmin(current) &&
+            !current.disabled &&
+            (!isSystemAdmin(desired) || desired.disabled)
+        ) {
+            return 2;
+        }
+        return 1;
+    };
 
-    return [...userFiles].sort((left, right) => {
-        const getPriority = (userFile: UserFile): number => {
-            const desired = asUserAsCode(userFile.user);
-            if (!desired) return 1;
-            const current = currentByEmail.get(desired.email.toLowerCase());
-            if (isSystemAdmin(desired) && !desired.disabled) return 0;
-            if (
-                current &&
-                isSystemAdmin(current) &&
-                !current.disabled &&
-                (!isSystemAdmin(desired) || desired.disabled)
-            ) {
-                return 2;
-            }
-            return 1;
-        };
-
-        return (
+    return [...userFiles].sort(
+        (left, right) =>
             getPriority(left) - getPriority(right) ||
-            left.filePath.localeCompare(right.filePath)
-        );
-    });
+            left.filePath.localeCompare(right.filePath),
+    );
 };
 
 export const uploadUsers = async (
@@ -222,9 +128,10 @@ export const uploadUsers = async (
     organizationContentPath: string,
     sendInvites: boolean = false,
 ): Promise<UserUploadSummary> => {
-    const { userFiles, failures } = await readUserFileResults(
-        organizationContentPath,
-    );
+    const { files, failures } = await readCodeResourceFiles({
+        definition: USER_CODE_RESOURCE,
+        basePath: organizationContentPath,
+    });
     const summary: UserUploadSummary = {
         created: 0,
         updated: 0,
@@ -237,9 +144,8 @@ export const uploadUsers = async (
         failed: 0,
         failures,
     };
-
-    if (userFiles.length === 0) {
-        summary.failed = summary.failures.length;
+    if (files.length === 0) {
+        summary.failed = failures.length;
         return summary;
     }
 
@@ -247,20 +153,18 @@ export const uploadUsers = async (
         ApiUserAsCodeListResponse['results']
     >({
         method: 'GET',
-        url: `/api/v2/orgs/${organizationUuid}/users/code`,
+        url: `/api/v2/orgs/${organizationUuid}/code/users`,
         body: undefined,
     });
 
-    for (const { filePath, user } of orderUserFiles(userFiles, currentUsers)) {
+    for (const { filePath, document } of orderUserFiles(files, currentUsers)) {
         try {
             const result = await lightdashApi<
                 ApiUserAsCodeUpsertResponse['results']
             >({
                 method: 'POST',
-                url: `/api/v2/orgs/${organizationUuid}/users/code${
-                    sendInvites ? '?sendInvite=true' : ''
-                }`,
-                body: JSON.stringify(user),
+                url: `/api/v2/orgs/${organizationUuid}/code/users${sendInvites ? '?sendInvite=true' : ''}`,
+                body: JSON.stringify(document),
             });
             switch (result.action) {
                 case PromotionAction.CREATE:
@@ -273,8 +177,9 @@ export const uploadUsers = async (
                     summary.unchanged += 1;
                     break;
                 default:
-                    throw new ParameterError(
-                        `Unsupported user promotion action: ${result.action}`,
+                    assertUnreachable(
+                        result.action,
+                        'Unsupported user promotion action',
                     );
             }
             switch (result.lifecycle) {
@@ -284,7 +189,7 @@ export const uploadUsers = async (
                     summary.awaitingAuthentication += 1;
                     break;
                 default:
-                    return assertUnreachable(
+                    assertUnreachable(
                         result.lifecycle,
                         'Unsupported user lifecycle status',
                     );
@@ -305,7 +210,7 @@ export const uploadUsers = async (
                     summary.skippedValidInvite += 1;
                     break;
                 default:
-                    return assertUnreachable(
+                    assertUnreachable(
                         result.invitation,
                         'Unsupported user invitation status',
                     );
@@ -316,7 +221,6 @@ export const uploadUsers = async (
             });
         }
     }
-
     summary.failed = summary.failures.length;
     return summary;
 };
@@ -324,38 +228,18 @@ export const uploadUsers = async (
 export const downloadUsers = async (
     organizationUuid: string,
     organizationContentPath: string,
-): Promise<number> => {
-    const { users } = await lightdashApi<ApiUserAsCodeListResponse['results']>({
-        method: 'GET',
-        url: `/api/v2/orgs/${organizationUuid}/users/code`,
-        body: undefined,
+): Promise<number> =>
+    downloadCodeResource({
+        definition: USER_CODE_RESOURCE,
+        basePath: organizationContentPath,
+        list: async () => {
+            const { users } = await lightdashApi<
+                ApiUserAsCodeListResponse['results']
+            >({
+                method: 'GET',
+                url: `/api/v2/orgs/${organizationUuid}/code/users`,
+                body: undefined,
+            });
+            return users;
+        },
     });
-    const folder = getUsersFolder(organizationContentPath);
-    await fs.mkdir(folder, { recursive: true });
-
-    const existingFiles = await fs.readdir(folder, { withFileTypes: true });
-    await Promise.all(
-        existingFiles
-            .filter((entry) => entry.isFile() && entry.name.endsWith('.yml'))
-            .map((entry) => fs.unlink(path.join(folder, entry.name))),
-    );
-
-    const sortedUsers = [...users].sort((left, right) =>
-        left.email.localeCompare(right.email),
-    );
-    const filenames = getOrganizationContentFileNames({
-        values: sortedUsers.map(({ email }) => email.toLowerCase()),
-        fallbackPrefix: 'user',
-    });
-
-    await Promise.all(
-        sortedUsers.map(async (user, index) => {
-            await fs.writeFile(
-                path.join(folder, filenames[index]),
-                yaml.dump(user, { quotingType: '"', sortKeys: true }),
-            );
-        }),
-    );
-
-    return sortedUsers.length;
-};

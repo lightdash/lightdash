@@ -2,12 +2,19 @@ import {
     AuthorizationError,
     getErrorMessage,
     LightdashError,
-    ParameterError,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/analytics';
 import { type Config } from '../../config';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
+import {
+    assertCodeResourceDependencyOrder,
+    ORGANIZATION_CODE_RESOURCES,
+} from '../contentAsCode/registry';
+import {
+    CodeResourcePhaseError,
+    isCodeResourcePhaseError,
+} from '../contentAsCode/resource';
 import { getDownloadFolder } from '../contentAsCodePaths';
 import {
     downloadCustomRoles,
@@ -28,33 +35,16 @@ type OrganizationContentOptions = {
     sendInvites?: boolean;
 };
 
-const customRolePartialUploadErrors = new WeakSet<Error>();
-const groupPartialUploadErrors = new WeakSet<Error>();
-const userPartialUploadErrors = new WeakSet<Error>();
+const createCustomRolePartialUploadError = (message: string): Error =>
+    new CodeResourcePhaseError('custom_role', message);
 
-const createCustomRolePartialUploadError = (message: string): Error => {
-    const error = new ParameterError(message);
-    customRolePartialUploadErrors.add(error);
-    return error;
-};
+const createUserPartialUploadError = (message: string): Error =>
+    new CodeResourcePhaseError('user', message);
 
-const createUserPartialUploadError = (message: string): Error => {
-    const error = new ParameterError(message);
-    userPartialUploadErrors.add(error);
-    return error;
-};
+const createGroupPartialUploadError = (message: string): Error =>
+    new CodeResourcePhaseError('group', message);
 
-const createGroupPartialUploadError = (message: string): Error => {
-    const error = new ParameterError(message);
-    groupPartialUploadErrors.add(error);
-    return error;
-};
-
-const isPartialUploadError = (error: unknown): boolean =>
-    error instanceof Error &&
-    (customRolePartialUploadErrors.has(error) ||
-        groupPartialUploadErrors.has(error) ||
-        userPartialUploadErrors.has(error));
+const isPartialUploadError = isCodeResourcePhaseError;
 
 const isGroupServiceDisabledError = (error: unknown): boolean =>
     error instanceof LightdashError &&
@@ -159,6 +149,7 @@ export const uploadOrganizationContent = async ({
     config,
     sendInvites = false,
 }: OrganizationContentOptions): Promise<void> => {
+    assertCodeResourceDependencyOrder(ORGANIZATION_CODE_RESOURCES);
     const organizationUuid = config.user?.organizationUuid;
     if (!organizationUuid) {
         throw new AuthorizationError(

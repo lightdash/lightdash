@@ -81,6 +81,7 @@ describe('groups as code', () => {
                 'empty.yml',
                 `finance-${financeBangHash}.yml`,
                 `finance-${financeQuestionHash}.yml`,
+                'stale.yml',
             ].sort(),
         );
         expect(
@@ -169,7 +170,7 @@ describe('groups as code', () => {
         });
         expect(lightdashApi).toHaveBeenNthCalledWith(3, {
             method: 'POST',
-            url: '/api/v2/orgs/organization-uuid/groups/code',
+            url: '/api/v2/orgs/organization-uuid/code/groups',
             body: expect.any(String),
         });
         expect(

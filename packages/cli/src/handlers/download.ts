@@ -85,6 +85,19 @@ import {
     buildStaticAuthoringFiles,
     loadTemplateDependencies,
 } from './apps/scaffolding';
+import {
+    AI_AGENT_CODE_RESOURCE,
+    ALERT_CODE_RESOURCE,
+    GOOGLE_SHEETS_CODE_RESOURCE,
+    SCHEDULED_DELIVERY_CODE_RESOURCE,
+    VIRTUAL_VIEW_CODE_RESOURCE,
+} from './contentAsCode/projectResources';
+import {
+    assertCodeResourceFilesValid,
+    readCodeResourceFiles,
+    writeCodeResourceDocuments,
+    type CodeResourceDefinition,
+} from './contentAsCode/resource';
 import { getDownloadFolder } from './contentAsCodePaths';
 import {
     checkLightdashVersion,
@@ -663,19 +676,19 @@ const getContentTypeConfig = (
     switch (type) {
         case 'charts':
             return {
-                endpoint: `/api/v1/projects/${projectId}/charts/code`,
+                endpoint: `/api/v1/projects/${projectId}/code/charts`,
                 displayName: 'charts',
                 supportsLanguageMap: true,
             };
         case 'dashboards':
             return {
-                endpoint: `/api/v1/projects/${projectId}/dashboards/code`,
+                endpoint: `/api/v1/projects/${projectId}/code/dashboards`,
                 displayName: 'dashboards',
                 supportsLanguageMap: true,
             };
         case 'sqlCharts':
             return {
-                endpoint: `/api/v1/projects/${projectId}/sqlCharts/code`,
+                endpoint: `/api/v1/projects/${projectId}/code/sqlCharts`,
                 displayName: 'SQL charts',
                 supportsLanguageMap: false,
             };
@@ -847,27 +860,25 @@ export const downloadContent = async (
 };
 
 const getScheduledDeliveriesFolder = (customPath?: string): string =>
-    path.join(getDownloadFolder(customPath), 'scheduled-deliveries');
-
-const getAiAgentsFolder = (customPath?: string): string =>
-    path.join(getDownloadFolder(customPath), 'ai-agents');
+    path.join(
+        getDownloadFolder(customPath),
+        SCHEDULED_DELIVERY_CODE_RESOURCE.folderName,
+    );
 
 const getAlertsFolder = (customPath?: string): string =>
-    path.join(getDownloadFolder(customPath), 'alerts');
+    path.join(getDownloadFolder(customPath), ALERT_CODE_RESOURCE.folderName);
 
 const getGoogleSheetsFolder = (customPath?: string): string =>
-    path.join(getDownloadFolder(customPath), 'google-sheets');
-
-const getVirtualViewsFolder = (customPath?: string): string =>
-    path.join(getDownloadFolder(customPath), 'virtual-views');
+    path.join(
+        getDownloadFolder(customPath),
+        GOOGLE_SHEETS_CODE_RESOURCE.folderName,
+    );
 
 const downloadVirtualViews = async (
     projectId: string,
     slugs: string[],
     customPath?: string,
 ): Promise<number> => {
-    const folder = getVirtualViewsFolder(customPath);
-    await fs.mkdir(folder, { recursive: true });
     const query = new URLSearchParams(
         slugs.map((slug) => ['slugs', slug] as [string, string]),
     ).toString();
@@ -875,17 +886,16 @@ const downloadVirtualViews = async (
         ApiVirtualViewAsCodeListResponse['results']
     >({
         method: 'GET',
-        url: `/api/v1/projects/${projectId}/virtualViews/code${
+        url: `/api/v1/projects/${projectId}/code/virtualViews${
             query ? `?${query}` : ''
         }`,
         body: undefined,
     });
-    for (const virtualView of results.virtualViews) {
-        await fs.writeFile(
-            path.join(folder, `${encodeURIComponent(virtualView.slug)}.yml`),
-            yaml.dump(virtualView, { quotingType: '"', sortKeys: true }),
-        );
-    }
+    await writeCodeResourceDocuments({
+        definition: VIRTUAL_VIEW_CODE_RESOURCE,
+        basePath: getDownloadFolder(customPath),
+        documents: results.virtualViews,
+    });
     results.skipped.forEach(({ slug, reason }) =>
         GlobalState.log(
             styles.warning(`Skipped virtual view "${slug}": ${reason}`),
@@ -900,39 +910,12 @@ const downloadVirtualViews = async (
 const readVirtualViewFiles = async (
     customPath?: string,
 ): Promise<VirtualViewAsCode[]> => {
-    const folder = getVirtualViewsFolder(customPath);
-    try {
-        const entries = await fs.readdir(folder, { withFileTypes: true });
-        const virtualViews: VirtualViewAsCode[] = [];
-        for (const entry of entries) {
-            if (
-                entry.isFile() &&
-                (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))
-            ) {
-                const parsed = yaml.load(
-                    await fs.readFile(path.join(folder, entry.name), 'utf-8'),
-                ) as VirtualViewAsCode;
-                if (parsed.contentType !== ContentAsCodeTypeEnum.VIRTUAL_VIEW) {
-                    throw new ParameterError(
-                        `Invalid virtual view contentType in ${entry.name}`,
-                    );
-                }
-                virtualViews.push(parsed);
-            }
-        }
-        const duplicates = Object.entries(groupBy(virtualViews, 'slug'))
-            .filter(([, items]) => items.length > 1)
-            .map(([slug]) => slug);
-        if (duplicates.length > 0) {
-            throw new ParameterError(
-                `Duplicate virtual view slugs: ${duplicates.join(', ')}`,
-            );
-        }
-        return virtualViews;
-    } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
-        throw error;
-    }
+    const result = await readCodeResourceFiles({
+        definition: VIRTUAL_VIEW_CODE_RESOURCE,
+        basePath: getDownloadFolder(customPath),
+    });
+    assertCodeResourceFilesValid(result);
+    return result.files.map(({ document }) => document);
 };
 
 const upsertVirtualViews = async (
@@ -985,9 +968,9 @@ const upsertVirtualViews = async (
                 ApiVirtualViewAsCodeUpsertResponse['results']
             >({
                 method: 'POST',
-                url: `/api/v1/projects/${projectId}/virtualViews/${encodeURIComponent(
+                url: `/api/v1/projects/${projectId}/code/virtualViews/${encodeURIComponent(
                     virtualView.slug,
-                )}/code?force=${force}`,
+                )}?force=${force}`,
                 body: JSON.stringify(virtualView),
             });
             const action = `virtual views ${getPromoteAction(result.action)}`;
@@ -1022,6 +1005,7 @@ const getScheduledContentConfig = (
         case ContentAsCodeTypeEnum.ALERT:
             return {
                 folder: getAlertsFolder(customPath),
+                definition: ALERT_CODE_RESOURCE,
                 route: 'alerts',
                 singular: 'alert',
                 plural: 'alerts',
@@ -1029,6 +1013,7 @@ const getScheduledContentConfig = (
         case ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC:
             return {
                 folder: getGoogleSheetsFolder(customPath),
+                definition: GOOGLE_SHEETS_CODE_RESOURCE,
                 route: 'googleSheets',
                 singular: 'Google Sheets sync',
                 plural: 'Google Sheets syncs',
@@ -1036,6 +1021,7 @@ const getScheduledContentConfig = (
         case ContentAsCodeTypeEnum.SCHEDULED_DELIVERY:
             return {
                 folder: getScheduledDeliveriesFolder(customPath),
+                definition: SCHEDULED_DELIVERY_CODE_RESOURCE,
                 route: 'scheduledDeliveries',
                 singular: 'scheduled delivery',
                 plural: 'scheduled deliveries',
@@ -1053,12 +1039,11 @@ const downloadAiAgents = async (
     ids: string[],
     customPath?: string,
 ): Promise<number> => {
-    const outputDir = getAiAgentsFolder(customPath);
-    await fs.mkdir(outputDir, { recursive: true });
     const idQuery = ids.map((id) => ['ids', id] as [string, string]);
     let offset = 0;
     let total = 0;
     let downloaded = 0;
+    const agents: AgentAsCode[] = [];
 
     do {
         const query = new URLSearchParams([
@@ -1069,18 +1054,11 @@ const downloadAiAgents = async (
             ApiAgentAsCodeListResponse['results']
         >({
             method: 'GET',
-            url: `/api/v1/projects/${projectId}/aiAgents/code?${query}`,
+            url: `/api/v1/projects/${projectId}/code/aiAgents?${query}`,
             body: undefined,
         });
 
-        for (const agent of results.agents) {
-            const { updatedAt, downloadedAt, ...agentConfig } = agent;
-            // eslint-disable-next-line no-await-in-loop
-            await fs.writeFile(
-                path.join(outputDir, `${agent.slug}.yml`),
-                yaml.dump(agentConfig, { quotingType: '"', sortKeys: true }),
-            );
-        }
+        agents.push(...results.agents);
 
         results.missingIds.forEach((id) =>
             GlobalState.debug(`No AI agent with id "${id}"`),
@@ -1090,54 +1068,24 @@ const downloadAiAgents = async (
         total = results.total;
     } while (offset < total);
 
+    await writeCodeResourceDocuments({
+        definition: AI_AGENT_CODE_RESOURCE,
+        basePath: getDownloadFolder(customPath),
+        documents: agents,
+    });
+
     return downloaded;
 };
 
 const readAiAgentFiles = async (
     customPath?: string,
 ): Promise<AgentAsCode[]> => {
-    const folder = getAiAgentsFolder(customPath);
-    try {
-        const entries = await fs.readdir(folder, {
-            recursive: true,
-            withFileTypes: true,
-        });
-        const agents: AgentAsCode[] = [];
-
-        for (const entry of entries) {
-            if (
-                entry.isFile() &&
-                (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))
-            ) {
-                const filePath = path.join(entry.parentPath, entry.name);
-                // eslint-disable-next-line no-await-in-loop
-                const parsed = yaml.load(await fs.readFile(filePath, 'utf-8'));
-                if (
-                    typeof parsed !== 'object' ||
-                    parsed === null ||
-                    Array.isArray(parsed)
-                ) {
-                    throw new ParameterError(
-                        `Invalid AI agent file "${filePath}": expected a YAML object`,
-                    );
-                }
-                if (
-                    !('contentType' in parsed) ||
-                    parsed.contentType !== ContentAsCodeTypeEnum.AI_AGENT
-                ) {
-                    throw new ParameterError(
-                        `Invalid contentType in AI agent file "${filePath}": expected "${ContentAsCodeTypeEnum.AI_AGENT}"`,
-                    );
-                }
-                agents.push(parsed as AgentAsCode);
-            }
-        }
-
-        return agents;
-    } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
-        throw error;
-    }
+    const result = await readCodeResourceFiles({
+        definition: AI_AGENT_CODE_RESOURCE,
+        basePath: getDownloadFolder(customPath),
+    });
+    assertCodeResourceFilesValid(result);
+    return result.files.map(({ document }) => document);
 };
 
 class AiAgentAsCodeUploadError extends Error {
@@ -1177,7 +1125,7 @@ const upsertAiAgents = async (
     const results = await lightdashApi<ApiAgentAsCodeUpsertResponse['results']>(
         {
             method: 'POST',
-            url: `/api/v1/projects/${projectId}/aiAgents/code?force=${force}`,
+            url: `/api/v1/projects/${projectId}/code/aiAgents?force=${force}`,
             body: JSON.stringify({ agents: filteredAgents }),
         },
     );
@@ -1211,7 +1159,7 @@ const downloadScheduledContent = async (
         | ApiScheduledDeliveryAsCodeListResponse['results']
     >({
         method: 'GET',
-        url: `/api/v1/projects/${projectId}/${config.route}/code${
+        url: `/api/v1/projects/${projectId}/code/${config.route}${
             query ? `?${query}` : ''
         }`,
         body: undefined,
@@ -1251,31 +1199,29 @@ const readScheduledContentFiles = async (
     contentType: ScheduledContentType,
     customPath?: string,
 ): Promise<ScheduledContentAsCode[]> => {
-    const config = getScheduledContentConfig(contentType, customPath);
-    try {
-        const entries = await fs.readdir(config.folder, {
-            recursive: true,
-            withFileTypes: true,
+    const read = async <Document extends ScheduledContentAsCode>(
+        definition: CodeResourceDefinition<Document>,
+    ): Promise<Document[]> => {
+        const result = await readCodeResourceFiles({
+            definition,
+            basePath: getDownloadFolder(customPath),
         });
-        const scheduledContent: ScheduledContentAsCode[] = [];
-        for (const entry of entries) {
-            if (
-                entry.isFile() &&
-                (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))
-            ) {
-                const filePath = path.join(entry.parentPath, entry.name);
-                const parsed = yaml.load(
-                    await fs.readFile(filePath, 'utf-8'),
-                ) as Record<string, unknown>;
-                if (parsed.contentType === contentType) {
-                    scheduledContent.push(parsed as ScheduledContentAsCode);
-                }
-            }
-        }
-        return scheduledContent;
-    } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
-        throw error;
+        assertCodeResourceFilesValid(result);
+        return result.files.map(({ document }) => document);
+    };
+
+    switch (contentType) {
+        case ContentAsCodeTypeEnum.ALERT:
+            return read(ALERT_CODE_RESOURCE);
+        case ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC:
+            return read(GOOGLE_SHEETS_CODE_RESOURCE);
+        case ContentAsCodeTypeEnum.SCHEDULED_DELIVERY:
+            return read(SCHEDULED_DELIVERY_CODE_RESOURCE);
+        default:
+            return assertUnreachable(
+                contentType,
+                'Unknown scheduled content type',
+            );
     }
 };
 
@@ -1321,7 +1267,7 @@ const upsertScheduledContent = async (
                 | ApiScheduledDeliveryAsCodeUpsertResponse['results']
             >({
                 method: 'POST',
-                url: `/api/v1/projects/${projectId}/${config.route}/${item.slug}/code?force=${force}`,
+                url: `/api/v1/projects/${projectId}/code/${config.route}/${item.slug}?force=${force}`,
                 body: JSON.stringify(item),
             });
             const action = getPromoteAction(result.action);
@@ -2030,8 +1976,8 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
         // SQL charts use a different endpoint
         const isSqlChartItem = type === 'charts' && isSqlChart(item);
         const endpoint = isSqlChartItem
-            ? `/api/v1/projects/${projectId}/sqlCharts/${item.slug}/code`
-            : `/api/v1/projects/${projectId}/${type}/${item.slug}/code`;
+            ? `/api/v1/projects/${projectId}/code/sqlCharts/${item.slug}`
+            : `/api/v1/projects/${projectId}/code/${type}/${item.slug}`;
 
         const upsertData = await lightdashApi<
             ApiChartAsCodeUpsertResponse['results']

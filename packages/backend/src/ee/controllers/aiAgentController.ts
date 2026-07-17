@@ -135,58 +135,6 @@ export class AiAgentController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/code')
-    @OperationId('getAiAgentsAsCode')
-    async getAiAgentsAsCode(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Query() ids?: string[],
-        @Query() offset?: number,
-    ): Promise<ApiAgentAsCodeListResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-
-        return {
-            status: 'ok',
-            results: await this.getAiAgentCoderService().downloadAgents(
-                toSessionUser(req.account),
-                projectUuid,
-                ids,
-                offset,
-            ),
-        };
-    }
-
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Post('/code')
-    @OperationId('upsertAiAgentsAsCode')
-    async upsertAiAgentsAsCode(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Body() body: { agents: AgentAsCode[] },
-        @Query() force?: boolean,
-    ): Promise<ApiAgentAsCodeUpsertResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-
-        return {
-            status: 'ok',
-            results: await this.getAiAgentCoderService().upsertAgents(
-                toSessionUser(req.account),
-                projectUuid,
-                body.agents,
-                force,
-            ),
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
     @Get('/preferences')
     @OperationId('getUserAgentPreferences')
     async getUserAgentPreferences(

@@ -5,7 +5,6 @@ import {
     ApiSpaceAsCodeUpsertResponse,
     assertUnreachable,
     ContentAsCodeType as ContentAsCodeTypeEnum,
-    generateSlug,
     getContentAsCodePathFromLtreePath,
     getErrorMessage,
     getLtreePathFromContentAsCodePath,
@@ -16,13 +15,18 @@ import {
     validateEmail,
     type SpaceAsCode,
 } from '@lightdash/common';
-import { createHash } from 'crypto';
 import { promises as fs, type Dirent } from 'fs';
 import * as yaml from 'js-yaml';
 import * as path from 'path';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { shouldWarnAllSkipped } from './apps/appsDownload';
+import {
+    allocateContentFileNames,
+    CODE_FILENAME_MAX_STEM_LENGTH,
+    getContentFileNameStem,
+    getStableCodeHash,
+} from './contentAsCode/fileNames';
 import { getDownloadFolder } from './contentAsCodePaths';
 import { lightdashApi } from './dbt/apiClient';
 
@@ -39,7 +43,7 @@ type SpaceIdentity = {
     slug: string;
 };
 
-const SPACE_FILENAME_MAX_LENGTH = 200;
+const SPACE_FILENAME_MAX_LENGTH = CODE_FILENAME_MAX_STEM_LENGTH;
 const SPACE_FILENAME_HASH_LENGTH = 8;
 
 const isSpaceIdentity = (value: unknown): value is SpaceIdentity =>
@@ -76,37 +80,26 @@ const hasRootSpaceFile = async (baseDir: string): Promise<boolean> => {
 const getStableSpaceHash = (
     value: string,
     length: number = SPACE_FILENAME_HASH_LENGTH,
-): string => createHash('sha256').update(value).digest('hex').slice(0, length);
+): string => getStableCodeHash(value, length);
 
-const getSpaceFilenameBase = (space: SpaceAsCode): string => {
-    const normalizedName = space.spaceName
-        .normalize('NFKD')
-        .replace(/[\u0300-\u036f]/g, '');
-    const base = /[a-z0-9]/i.test(normalizedName)
-        ? generateSlug(normalizedName)
-        : `space-${getStableSpaceHash(space.slug)}`;
-
-    return base.slice(0, SPACE_FILENAME_MAX_LENGTH);
-};
-
-export const getFlatSpaceFileNames = (spaces: SpaceAsCode[]): string[] => {
-    const bases = spaces.map(getSpaceFilenameBase);
-    const counts = bases.reduce<Map<string, number>>(
-        (result, base) => result.set(base, (result.get(base) ?? 0) + 1),
-        new Map(),
-    );
-
-    return spaces.map((space, index) => {
-        const base = bases[index];
-        if ((counts.get(base) ?? 0) === 1) return `${base}.space.yml`;
-
-        const suffix = `-${getStableSpaceHash(space.slug)}`;
-        return `${base.slice(
-            0,
-            SPACE_FILENAME_MAX_LENGTH - suffix.length,
-        )}${suffix}.space.yml`;
+const getSpaceFilenameBase = (space: SpaceAsCode): string =>
+    getContentFileNameStem({
+        value: space.spaceName,
+        fallbackPrefix: 'space',
+        fallbackHashValue: space.slug,
+        maxLength: SPACE_FILENAME_MAX_LENGTH,
     });
-};
+
+export const getFlatSpaceFileNames = (spaces: SpaceAsCode[]): string[] =>
+    allocateContentFileNames({
+        items: spaces.map((space) => ({
+            identity: space.slug,
+            displayName: space.spaceName,
+        })),
+        fallbackPrefix: 'space',
+        extension: '.space.yml',
+        maxStemLength: SPACE_FILENAME_MAX_LENGTH,
+    });
 
 const assertKnownKeys = (
     value: Record<string, unknown>,
@@ -510,7 +503,7 @@ const allocateSpaceFileNames = async (
     });
 };
 
-/** Writes first-class space YAML files returned by GET /spaces/code. */
+/** Writes first-class space YAML files returned by GET /code/spaces. */
 export const writeSpaceFiles = async (
     spaces: SpaceAsCode[],
     projectName: string,
@@ -766,7 +759,7 @@ export const downloadSpaces = async (
             results = await lightdashApi<ApiSpaceAsCodeListResponse['results']>(
                 {
                     method: 'GET',
-                    url: `/api/v1/projects/${projectId}/spaces/code`,
+                    url: `/api/v1/projects/${projectId}/code/spaces`,
                     body: undefined,
                 },
             );
@@ -884,7 +877,7 @@ export const upsertSpaces = async (
                     ApiSpaceAsCodeUpsertResponse['results']
                 >({
                     method: 'POST',
-                    url: `/api/v1/projects/${projectId}/spaces/code?${params.toString()}`,
+                    url: `/api/v1/projects/${projectId}/code/spaces?${params.toString()}`,
                     body: JSON.stringify(space),
                 });
                 const action = getSpacePromoteAction(result.action);
