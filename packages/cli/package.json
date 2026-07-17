@@ -18,6 +18,7 @@
   "scripts": {
     "test": "vitest run --config vitest.config.ts",
     "test:dev": "vitest watch --config vitest.config.ts --changed",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "dev": "tsx src/index.ts",
     "build": "tsc6 --build tsconfig.json",
     "postbuild": "copyfiles --all -u 5 \"../../sandboxes/data-apps/template/**/*\" dist/vendor/template && copyfiles --all -u 4 \"src/handlers/apps/authoring/**/*\" dist/vendor/authoring",

@@ -712,6 +712,13 @@ jobs:
           lightdash_version=$(lightdash --version)
           package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
+      - name: Run CLI Node integration tests
+        run: |
+          if [ -d packages/cli/integration/no-dbt ]; then
+            pnpm -F @lightdash/cli test:integration -- integration/no-dbt
+          fi
+        env:
+          SITE_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
       - name: Run Cypress
         uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
@@ -774,6 +781,19 @@ jobs:
           lightdash_version=$(lightdash --version)
           package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
+      - name: Run CLI Node integration tests
+        run: |
+          if [ -d packages/cli/integration/backend-dbt ]; then
+            pnpm -F @lightdash/cli test:integration -- integration/backend-dbt
+          fi
+        env:
+          SITE_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
+          PGHOST: ${{ secrets.PGHOST }}
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          PGDATABASE: postgres
+          SEED_SCHEMA: jaffle_cli_node_${{ github.run_id }}_${{ github.run_attempt }}
       - name: Run Cypress
         uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
@@ -849,6 +869,19 @@ jobs:
           lightdash_version=$(lightdash --version)
           package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
+      - name: Run CLI Node integration tests
+        run: |
+          if [ -d packages/cli/integration/dbt-version ]; then
+            pnpm -F @lightdash/cli test:integration -- integration/dbt-version
+          fi
+        env:
+          SITE_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
+          PGHOST: ${{ secrets.PGHOST }}
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          PGDATABASE: postgres
+          SEED_SCHEMA: jaffle_dbt_node_${{ github.run_id }}_${{ strategy.job-index }}_${{ github.run_attempt }}
       - name: Run Cypress
         uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
@@ -873,7 +906,7 @@ jobs:
           egress-policy: audit
       - name: Drop test schemas
         run: |
-          PATTERN="^(jaffle_cli_tests_${{ github.run_id }}|jaffle_dbt_tests_${{ github.run_id }}_[0-9]+)$"
+          PATTERN="^(jaffle_cli_tests_${{ github.run_id }}|jaffle_dbt_tests_${{ github.run_id }}_[0-9]+|jaffle_cli_node_${{ github.run_id }}_[0-9]+|jaffle_dbt_node_${{ github.run_id }}_[0-9]+_[0-9]+)$"
           SCHEMAS=$(psql -t -c "SELECT schema_name FROM information_schema.schemata WHERE schema_name ~ '$PATTERN';")
           for schema in $SCHEMAS; do
               if [ -n "$schema" ]; then
