@@ -12052,11 +12052,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    GroupType: {
+    FieldGroupType: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                aiHint: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'array', array: { dataType: 'string' } },
+                    ],
+                },
                 description: { dataType: 'string' },
                 label: { dataType: 'string', required: true },
             },
@@ -12064,12 +12071,12 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.GroupType_': {
+    'Record_string.FieldGroupType_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {},
-            additionalProperties: { ref: 'GroupType' },
+            additionalProperties: { ref: 'FieldGroupType' },
             validators: {},
         },
     },
@@ -12124,7 +12131,7 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'string' },
                 },
                 defaultTimeDimension: { ref: 'DefaultTimeDimension' },
-                groupDetails: { ref: 'Record_string.GroupType_' },
+                groupDetails: { ref: 'Record_string.FieldGroupType_' },
                 anyAttributes: { ref: 'Record_string.string-or-string-Array_' },
                 requiredAttributes: {
                     ref: 'Record_string.string-or-string-Array_',
@@ -37883,6 +37890,28 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 hasDefaultUserSpaces: { dataType: 'boolean', required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GroupType: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                description: { dataType: 'string' },
+                label: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.GroupType_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'GroupType' },
             validators: {},
         },
     },

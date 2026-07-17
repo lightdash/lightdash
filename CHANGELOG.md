@@ -1,3 +1,16 @@
+# [0.3410.0](https://github.com/lightdash/lightdash/compare/0.3409.1...0.3410.0) (2026-07-17)
+
+
+### Bug Fixes
+
+* date equals filter with multiple values only matched first value ([#25719](https://github.com/lightdash/lightdash/issues/25719)) ([b3438fa](https://github.com/lightdash/lightdash/commit/b3438fa16f10ddaece68ef22e272e9a1a0a61b75)), closes [#25714](https://github.com/lightdash/lightdash/issues/25714)
+* prevent old homepage flashing before homepage-builder flag resolves ([#25742](https://github.com/lightdash/lightdash/issues/25742)) ([1f577d5](https://github.com/lightdash/lightdash/commit/1f577d5b8d820522e440fd411a08074dbe5a919c)), closes [/linear.app/lightdash/issue/ZAP-641/old-homepage-flashes-before-new-homepage-loads#agent-session-6a248678](https://github.com//linear.app/lightdash/issue/ZAP-641/old-homepage-flashes-before-new-homepage-loads/issues/agent-session-6a248678)
+
+
+### Features
+
+* support AI hints on field groups ([#25738](https://github.com/lightdash/lightdash/issues/25738)) ([ce26eb8](https://github.com/lightdash/lightdash/commit/ce26eb83181d6f00e8268a5c66c049dee818bcee))
+
 ## [0.3409.1](https://github.com/lightdash/lightdash/compare/0.3409.0...0.3409.1) (2026-07-17)
 
 
