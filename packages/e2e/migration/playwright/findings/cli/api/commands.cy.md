@@ -122,4 +122,25 @@ After the legacy file is removed, verify the without-dbt Cypress lane still runs
 
 ## Port history
 
-Not started.
+### 2026-07-17 — CLI Node port implemented
+
+- Target: `packages/cli/integration/no-dbt/commands.integration.test.ts`.
+- Ported the active help assertion and token-login/config-persistence behavior through the absolute built CLI entry point and `process.execPath`.
+- Did not port the weak `0.` version assertion; exact package/executable version coverage remains in the existing CI lane per `cli-node-runner` coordination.
+- Each test uses a fresh temporary root with isolated `HOME` and cwd. Login creates one uniquely described PAT, deletes it by UUID in `finally`, and removes the temporary root on every path. The test asserts a zero exit, the login success marker, and the normalized persisted server URL. First-project persistence is intentionally not asserted because the legacy command reports success before best-effort project selection.
+- Verification passed:
+  - `pnpm common-build:fast`
+  - `pnpm warehouses-build:fast`
+  - `pnpm -F @lightdash/cli build:fast`
+  - focused local execution against `http://127.0.0.1:3000`: 1 file, 2 tests passed
+  - three additional focused runs with fresh roots: all 3 runs passed, 2 tests each
+  - normalized-input focused run with a trailing slash: 1 file, 2 tests passed
+  - full `integration/no-dbt` lane: 1 file, 2 tests passed
+  - `pnpm -F @lightdash/cli typecheck:fast`
+  - CLI ESLint and oxfmt checks for the target
+  - `git diff --check`
+  - fixture diff checks for `examples/full-jaffle-shop-demo` and `examples/snowflake-template`
+  - post-run API inspection found 0 PATs with the run-owned `cli-commands-` description prefix; filesystem inspection found 0 `lightdash-cli-commands-*` temporary roots
+- An additional direct `tsc --project tsconfig.eslint.json --noEmit` probe is not a supported gate and failed on the prerequisite's inherited removed `moduleResolution=node10`; the coordinated type-aware ESLint gate and package `typecheck:fast` both pass without changing shared configuration.
+- CI-equivalent preview execution was not run locally because no `PR_NUMBER` or preview URL was provided. Remaining product-level risk is the existing awaited external analytics request; subprocesses retain the coordinated 300-second bound.
+- Commit: pending serialized signing lease (`COMMIT_HASH_PLACEHOLDER`).
