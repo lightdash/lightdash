@@ -126,3 +126,19 @@ The focused command follows the package's Vitest script (`packages/api-tests/pac
 ## Port history
 
 Not started.
+
+### 2026-07-17 — API-test port implemented
+
+- Target: `packages/api-tests/tests/sumDistinctWithFanout.test.ts`.
+- Behavior ported: all 3 active Cypress cases, with unchanged explores, fields, sorts, limits, sequential baseline/comparison queries, numeric assertions, and two-decimal grouped-sum normalization. Added local typed async-query polling at 200 ms with a 60-second deadline and exhaustive ready/pending/queued/executing/error/expired/cancelled handling.
+- Skipped decisions: none; the source has 0 skipped tests. Cypress source remains unchanged.
+- Verification:
+  - `pnpm -F common build:fast` — passed; required because the frozen install did not create the ignored `packages/common/dist` build output.
+  - `SITE_URL=http://localhost:3000 pnpm -F api-tests test:api tests/sumDistinctWithFanout.test.ts` — passed: 1 file, 3 tests.
+  - `pnpm -F api-tests typecheck` — passed.
+  - `pnpm -F api-tests lint` — passed with 5 pre-existing disabled-test warnings in `embedChart.test.ts` and `savedChartGet.test.ts`; no target warnings/errors.
+  - `pnpm -F api-tests format` — passed.
+  - `git diff --check` — passed before this append.
+  - The findings command `SITE_URL=http://localhost:3000 pnpm -F api-tests test:api -- sumDistinctWithFanout` does not focus Vitest in this package: after building common it ran all 46 destination files. Result: 30 files passed, 16 failed; 462 tests passed, 113 failed, 78 skipped. The target did not fail. Unrelated failures reflect the shared development environment/state, including missing `jaffle.timezone_test`, unresolved `db-dev`, missing seeded role users, and existing permission/state mismatches. An initial attempt before the common build failed imports because `@lightdash/common` had no dist output.
+- Remaining risks: the focused coverage is green and confirms the required `customer_order_payments` seed model. The full destination suite remains non-green for unrelated shared-environment prerequisites listed above.
+- Commit: pending (not committed; awaiting serialized signing lease).
