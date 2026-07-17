@@ -11,27 +11,18 @@ import {
 import {
     Anchor,
     Box,
-    CloseButton,
     Collapse,
-    Divider,
     Group,
-    Paper,
     Progress,
-    ScrollArea,
     Stack,
     Text,
     ThemeIcon,
 } from '@mantine-8/core';
-import {
-    IconCheck,
-    IconCircleDashed,
-    IconFilterExclamation,
-} from '@tabler/icons-react';
+import { IconCheck, IconCircleDashed } from '@tabler/icons-react';
 import {
     Fragment,
     useCallback,
     useEffect,
-    useMemo,
     useRef,
     useState,
     type FC,
@@ -50,7 +41,6 @@ import { useFilterableItemsMap } from './useFilterableItemsMap';
 import { useUpdateDashboardFilterRule } from './useUpdateDashboardFilterRule';
 import {
     getDashboardFilterRuleLabel,
-    getFilterRequirementRules,
     isRequirementRuleSatisfied,
     type FilterRequirementRule,
 } from './utils';
@@ -169,6 +159,7 @@ const RuleSummary: FC<RuleSummaryProps> = ({ rule, fieldsMap, onChange }) => {
                 component="button"
                 type="button"
                 size="xs"
+                className={classes.buttonAnchor}
                 onClick={onChange}
             >
                 Change
@@ -178,7 +169,7 @@ const RuleSummary: FC<RuleSummaryProps> = ({ rule, fieldsMap, onChange }) => {
 };
 
 type Props = {
-    onDismiss: () => void;
+    rules: FilterRequirementRule[];
     startOfWeek?: WeekDay;
     /** Report nested filter dropdown state, like the chip popovers do */
     onSubPopoverOpen?: () => void;
@@ -186,20 +177,19 @@ type Props = {
 };
 
 /**
- * Viewer-facing setup card shown over the locked grid while filter
+ * Viewer-facing rule list shown over the locked grid while filter
  * requirements are unmet: every rule gets a real value picker (same state as
  * the filter bar chips), satisfied rules collapse to a summary line, and the
- * dashboard unlocks live once the last rule is met.
+ * dashboard unlocks live once the last rule is met. Rendered as the body of
+ * the guided setup modal (see GuidedFilterSetupOverlay).
  */
 const GuidedFilterSetup: FC<Props> = ({
-    onDismiss,
+    rules,
     startOfWeek,
     onSubPopoverOpen,
     onSubPopoverClose,
 }) => {
     const projectUuid = useDashboardContext((c) => c.projectUuid);
-    const dashboard = useDashboardContext((c) => c.dashboard);
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const allFilters = useDashboardContext((c) => c.allFilters);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const filterableFieldsByTileUuid = useDashboardContext(
@@ -207,9 +197,6 @@ const GuidedFilterSetup: FC<Props> = ({
     );
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
-    );
-    const requiredFiltersNote = useDashboardContext(
-        (c) => c.requiredFiltersNote,
     );
     const activeTab = useDashboardContext((c) => c.activeTab);
     const updateFilterRule = useUpdateDashboardFilterRule({
@@ -222,22 +209,16 @@ const GuidedFilterSetup: FC<Props> = ({
 
     const fieldsMap = useFilterableItemsMap();
 
-    const rules = useMemo(
-        () => getFilterRequirementRules(dashboardFilters),
-        [dashboardFilters],
-    );
-
-    const satisfiedCount = rules.filter(isRequirementRuleSatisfied).length;
-
-    // Keep the first unmet rule in view as the viewer works down the list
-    const viewportRef = useRef<HTMLDivElement>(null);
+    // Keep the first unmet rule in view as the viewer works down the list;
+    // scrollIntoView targets the modal body's scroll area
+    const rootRef = useRef<HTMLDivElement>(null);
     const firstUnmetRule = rules.find(
         (rule) => !isRequirementRuleSatisfied(rule),
     );
     const firstUnmetRuleId = firstUnmetRule?.id;
     useEffect(() => {
-        if (!firstUnmetRuleId || !viewportRef.current) return;
-        const target = viewportRef.current.querySelector(
+        if (!firstUnmetRuleId || !rootRef.current) return;
+        const target = rootRef.current.querySelector(
             `[data-rule-id="${CSS.escape(firstUnmetRuleId)}"]`,
         );
         target?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -267,231 +248,186 @@ const GuidedFilterSetup: FC<Props> = ({
             filterableFieldsByTileUuid={filterableFieldsByTileUuid}
             activeTabUuid={activeTab?.uuid}
         >
-            <Box data-testid="guided-filter-setup">
-                <Stack gap="xs" px="xl" py="md">
-                    <Group
-                        justify="space-between"
-                        align="flex-start"
-                        wrap="nowrap"
-                    >
-                        <Group gap="sm" wrap="nowrap" miw={0}>
-                            <Paper p="6px" withBorder radius="md">
-                                <MantineIcon
-                                    icon={IconFilterExclamation}
-                                    size="md"
-                                    color="yellow.7"
-                                />
-                            </Paper>
-                            <Text
-                                c="ldDark.9"
-                                fw={700}
-                                fz="md"
-                                lh="28px"
-                                miw={0}
-                                lineClamp={2}
-                            >
-                                Set filters to load{' '}
-                                {dashboard?.name ?? 'this dashboard'}
-                            </Text>
-                        </Group>
-                        <CloseButton
-                            aria-label="Close setup"
-                            onClick={onDismiss}
-                        />
-                    </Group>
-                    <Text size="xs" c="ldGray.6">
-                        {requiredFiltersNote ||
-                            'Data loads automatically once the filters below are set.'}
-                    </Text>
-                </Stack>
-                <Divider />
-                <ScrollArea.Autosize
-                    mah="min(400px, 45vh)"
-                    viewportRef={viewportRef}
-                >
-                    <Stack gap="sm" px="xl" py="md">
-                        {rules.map((rule, ruleIndex) => {
-                            const isSatisfied =
-                                isRequirementRuleSatisfied(rule);
-                            const isCollapsed =
-                                isSatisfied &&
-                                !expandedRuleIds.includes(rule.id);
-                            const isMultiMember = rule.members.length > 1;
-                            const firstMember = rule.members[0];
-                            const firstMemberField =
-                                fieldsMap[firstMember.target.fieldId];
+            <Box data-testid="guided-filter-setup" ref={rootRef}>
+                <Stack gap="sm">
+                    {rules.map((rule, ruleIndex) => {
+                        const isSatisfied = isRequirementRuleSatisfied(rule);
+                        const isCollapsed =
+                            isSatisfied && !expandedRuleIds.includes(rule.id);
+                        const isMultiMember = rule.members.length > 1;
+                        const firstMember = rule.members[0];
+                        const firstMemberField =
+                            fieldsMap[firstMember.target.fieldId];
 
-                            return (
-                                <Fragment key={rule.id}>
-                                    {ruleIndex > 0 && <AndSeparator />}
-                                    <Box data-rule-id={rule.id}>
-                                        <Collapse in={isCollapsed}>
-                                            <RuleSummary
-                                                rule={rule}
-                                                fieldsMap={fieldsMap}
-                                                onChange={() =>
-                                                    setExpandedRuleIds(
-                                                        (previous) => [
-                                                            ...previous,
-                                                            rule.id,
-                                                        ],
-                                                    )
-                                                }
-                                            />
-                                        </Collapse>
-                                        <Collapse in={!isCollapsed}>
-                                            <Stack gap={6}>
-                                                <Group gap={6} wrap="nowrap">
-                                                    <RuleStatusIcon
-                                                        satisfied={isSatisfied}
-                                                    />
-                                                    <Group
-                                                        gap={6}
-                                                        wrap="nowrap"
-                                                        align="baseline"
-                                                        miw={0}
+                        return (
+                            <Fragment key={rule.id}>
+                                {ruleIndex > 0 && <AndSeparator />}
+                                <Box data-rule-id={rule.id}>
+                                    <Collapse in={isCollapsed}>
+                                        <RuleSummary
+                                            rule={rule}
+                                            fieldsMap={fieldsMap}
+                                            onChange={() =>
+                                                setExpandedRuleIds(
+                                                    (previous) => [
+                                                        ...previous,
+                                                        rule.id,
+                                                    ],
+                                                )
+                                            }
+                                        />
+                                    </Collapse>
+                                    <Collapse in={!isCollapsed}>
+                                        <Stack gap={6}>
+                                            <Group gap={6} wrap="nowrap">
+                                                <RuleStatusIcon
+                                                    satisfied={isSatisfied}
+                                                />
+                                                <Group
+                                                    gap={6}
+                                                    wrap="nowrap"
+                                                    align="baseline"
+                                                    miw={0}
+                                                >
+                                                    <Text
+                                                        size="xs"
+                                                        fw={500}
+                                                        truncate
                                                     >
-                                                        <Text
-                                                            size="xs"
-                                                            fw={500}
-                                                            truncate
+                                                        {isMultiMember
+                                                            ? 'At least one of'
+                                                            : getDashboardFilterRuleLabel(
+                                                                  firstMember,
+                                                                  fieldsMap,
+                                                              )}
+                                                    </Text>
+                                                    {!isMultiMember && (
+                                                        <OperatorPicker
+                                                            filterType={getMemberFilterType(
+                                                                firstMember,
+                                                                firstMemberField,
+                                                            )}
+                                                            field={
+                                                                firstMemberField
+                                                            }
+                                                            member={firstMember}
+                                                            label={getDashboardFilterRuleLabel(
+                                                                firstMember,
+                                                                fieldsMap,
+                                                            )}
+                                                            onChange={
+                                                                handleChangeFilterRule
+                                                            }
+                                                            onOpen={
+                                                                onSubPopoverOpen
+                                                            }
+                                                            onClose={
+                                                                onSubPopoverClose
+                                                            }
+                                                        />
+                                                    )}
+                                                </Group>
+                                            </Group>
+                                            <Stack
+                                                gap={6}
+                                                pl={isMultiMember ? 22 : 0}
+                                            >
+                                                {rule.members.map(
+                                                    (member, memberIndex) => (
+                                                        <Fragment
+                                                            key={member.id}
                                                         >
-                                                            {isMultiMember
-                                                                ? 'At least one of'
-                                                                : getDashboardFilterRuleLabel(
-                                                                      firstMember,
-                                                                      fieldsMap,
-                                                                  )}
-                                                        </Text>
-                                                        {!isMultiMember && (
-                                                            <OperatorPicker
-                                                                filterType={getMemberFilterType(
-                                                                    firstMember,
-                                                                    firstMemberField,
-                                                                )}
+                                                            {memberIndex >
+                                                                0 && (
+                                                                <OrSeparator />
+                                                            )}
+                                                            <MemberInput
+                                                                member={member}
                                                                 field={
-                                                                    firstMemberField
-                                                                }
-                                                                member={
-                                                                    firstMember
+                                                                    fieldsMap[
+                                                                        member
+                                                                            .target
+                                                                            .fieldId
+                                                                    ]
                                                                 }
                                                                 label={getDashboardFilterRuleLabel(
-                                                                    firstMember,
+                                                                    member,
                                                                     fieldsMap,
                                                                 )}
+                                                                showLabel={
+                                                                    isMultiMember
+                                                                }
+                                                                popoverProps={{
+                                                                    withinPortal: true,
+                                                                    onOpen: onSubPopoverOpen,
+                                                                    onClose:
+                                                                        onSubPopoverClose,
+                                                                }}
                                                                 onChange={
                                                                     handleChangeFilterRule
                                                                 }
-                                                                onOpen={
-                                                                    onSubPopoverOpen
-                                                                }
-                                                                onClose={
-                                                                    onSubPopoverClose
-                                                                }
                                                             />
-                                                        )}
-                                                    </Group>
-                                                </Group>
-                                                <Stack
-                                                    gap={6}
-                                                    pl={isMultiMember ? 22 : 0}
-                                                >
-                                                    {rule.members.map(
-                                                        (
-                                                            member,
-                                                            memberIndex,
-                                                        ) => (
-                                                            <Fragment
-                                                                key={member.id}
-                                                            >
-                                                                {memberIndex >
-                                                                    0 && (
-                                                                    <OrSeparator />
-                                                                )}
-                                                                <MemberInput
-                                                                    member={
-                                                                        member
-                                                                    }
-                                                                    field={
-                                                                        fieldsMap[
-                                                                            member
-                                                                                .target
-                                                                                .fieldId
-                                                                        ]
-                                                                    }
-                                                                    label={getDashboardFilterRuleLabel(
-                                                                        member,
-                                                                        fieldsMap,
-                                                                    )}
-                                                                    showLabel={
-                                                                        isMultiMember
-                                                                    }
-                                                                    popoverProps={{
-                                                                        withinPortal: true,
-                                                                        onOpen: onSubPopoverOpen,
-                                                                        onClose:
-                                                                            onSubPopoverClose,
-                                                                    }}
-                                                                    onChange={
-                                                                        handleChangeFilterRule
-                                                                    }
-                                                                />
-                                                            </Fragment>
-                                                        ),
-                                                    )}
-                                                </Stack>
+                                                        </Fragment>
+                                                    ),
+                                                )}
                                             </Stack>
-                                        </Collapse>
-                                    </Box>
-                                </Fragment>
-                            );
-                        })}
-                    </Stack>
-                </ScrollArea.Autosize>
-                <Divider />
-                <Stack gap={6} px="xl" py="md">
-                    <Group justify="space-between">
-                        <Text size="xs" c="ldGray.6">
-                            {satisfiedCount} of {rules.length} set
-                        </Text>
-                        <Text
-                            size="xs"
-                            c={
-                                rules.length - satisfiedCount === 0
-                                    ? 'green'
-                                    : 'ldGray.5'
-                            }
-                        >
-                            {rules.length - satisfiedCount === 0
-                                ? 'Loading your dashboard'
-                                : `${rules.length - satisfiedCount} more to go`}
-                        </Text>
-                    </Group>
-                    <Progress
-                        size="xs"
-                        color={
-                            satisfiedCount === rules.length ? 'green' : 'yellow'
-                        }
-                        value={
-                            rules.length > 0
-                                ? (satisfiedCount / rules.length) * 100
-                                : 0
-                        }
-                    />
-                    <Anchor
-                        component="button"
-                        type="button"
-                        size="xs"
-                        c="ldGray.6"
-                        ta="center"
-                        mt={4}
-                        onClick={onDismiss}
-                    >
-                        Set filters in the toolbar instead
-                    </Anchor>
+                                        </Stack>
+                                    </Collapse>
+                                </Box>
+                            </Fragment>
+                        );
+                    })}
                 </Stack>
             </Box>
         </FiltersProvider>
+    );
+};
+
+type GuidedFilterSetupProgressProps = {
+    rules: FilterRequirementRule[];
+    onDismiss: () => void;
+};
+
+/** Progress readout rendered as the guided setup modal's footer */
+export const GuidedFilterSetupProgress: FC<GuidedFilterSetupProgressProps> = ({
+    rules,
+    onDismiss,
+}) => {
+    const satisfiedCount = rules.filter(isRequirementRuleSatisfied).length;
+    const remainingCount = rules.length - satisfiedCount;
+
+    return (
+        <Stack gap={6}>
+            <Group justify="space-between">
+                <Text size="xs" c="ldGray.6">
+                    {satisfiedCount} of {rules.length} set
+                </Text>
+                <Text size="xs" c={remainingCount === 0 ? 'green' : 'ldGray.5'}>
+                    {remainingCount === 0
+                        ? 'Loading your dashboard'
+                        : `${remainingCount} more to go`}
+                </Text>
+            </Group>
+            <Progress
+                size="xs"
+                color={remainingCount === 0 ? 'green' : 'yellow'}
+                value={
+                    rules.length > 0 ? (satisfiedCount / rules.length) * 100 : 0
+                }
+            />
+            <Anchor
+                component="button"
+                type="button"
+                size="xs"
+                c="ldGray.6"
+                ta="center"
+                mt={4}
+                className={classes.buttonAnchor}
+                onClick={onDismiss}
+            >
+                Set filters in the toolbar instead
+            </Anchor>
+        </Stack>
     );
 };
 

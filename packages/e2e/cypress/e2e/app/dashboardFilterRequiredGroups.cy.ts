@@ -190,12 +190,13 @@ describe('Dashboard filter required groups', () => {
             );
         });
 
-        // Two rules qualify for the card; the editor note is its subtitle
+        // Two rules qualify for the card; the editor note renders as the
+        // modal description and the progress as its footer, both outside the
+        // rules list testid
         cy.wait('@paymentValuesSearch');
+        cy.findByText(GUIDED_SETUP_NOTE).should('be.visible');
+        cy.findByText('0 of 2 set').should('be.visible');
         cy.findByTestId('guided-filter-setup').within(() => {
-            cy.findByText(GUIDED_SETUP_NOTE).should('be.visible');
-            cy.findByText('0 of 2 set').should('be.visible');
-
             // Set the first rule (Payment method) from the card
             cy.findAllByPlaceholderText('any value')
                 .first()
@@ -206,8 +207,8 @@ describe('Dashboard filter required groups', () => {
         cy.findByRole('option', { name: 'credit_card' }).click();
 
         // The satisfied rule collapses to a summary line with a Change link
+        cy.findByText('1 of 2 set').should('be.visible');
         cy.findByTestId('guided-filter-setup').within(() => {
-            cy.findByText('1 of 2 set').should('be.visible');
             cy.findByText('Change').should('be.visible');
             // The collapsed summary shows the operator and the value
             cy.findByText('is credit_card').should('be.visible');

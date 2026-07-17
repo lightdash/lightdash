@@ -96,7 +96,7 @@ describe('GuidedFilterSetupOverlay', () => {
 
         expect(screen.getByTestId('guided-filter-setup')).not.toBeNull();
         expect(
-            screen.getByText('Set filters to load Sales dashboard'),
+            screen.getByText('Set filters to load this dashboard'),
         ).not.toBeNull();
         expect(
             screen.getByText('Pick a customer to get started'),
@@ -113,9 +113,9 @@ describe('GuidedFilterSetupOverlay', () => {
         await userEvent.click(screen.getByTestId('guided-filter-setup'));
         expect(onDismiss).not.toHaveBeenCalled();
 
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Close setup' }),
-        );
+        const closeButton = document.querySelector('.mantine-8-Modal-close');
+        expect(closeButton).not.toBeNull();
+        await userEvent.click(closeButton as HTMLElement);
         expect(onDismiss).toHaveBeenCalledTimes(1);
     });
 
