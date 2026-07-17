@@ -687,6 +687,43 @@ describe('ScimService', () => {
                 }),
             );
         });
+
+        test.each([
+            'roles[primary eq true].value',
+            'roles[primary eq "True"].value',
+        ])(
+            'should replace the primary organization role using Entra path %s',
+            async (path) => {
+                const { rolesModel } = ScimServiceArgumentsMock;
+                const patchOp: ScimPatch = {
+                    schemas: [ScimSchemaType.PATCH],
+                    Operations: [
+                        {
+                            op: 'Add',
+                            path,
+                            value: OrganizationMemberRole.INTERACTIVE_VIEWER,
+                        },
+                    ],
+                };
+
+                await service.patchUser({
+                    account: mockScimAccount,
+                    userUuid: mockUser.userUuid,
+                    organizationUuid: mockUser.organizationUuid,
+                    patchOp,
+                });
+
+                expect(
+                    rolesModel.setUserOrgAndProjectRoles,
+                ).toHaveBeenCalledWith(
+                    mockUser.organizationUuid,
+                    mockUser.userUuid,
+                    OrganizationMemberRole.INTERACTIVE_VIEWER,
+                    [],
+                    true,
+                );
+            },
+        );
     });
 
     describe('updateGroup', () => {
