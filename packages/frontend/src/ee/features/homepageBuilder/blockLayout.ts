@@ -1,4 +1,5 @@
 import { type HomepageBlock } from '@lightdash/common';
+import layout from './homepageLayout.module.css';
 
 // How wide a single-block row of this type should render. Formalises the
 // magic widths that used to live as ad-hoc maps in PublishedHomepage.
@@ -79,3 +80,11 @@ const blockLayoutTraits: Record<HomepageBlock['type'], BlockLayoutTrait> = {
 
 export const traitFor = (type: HomepageBlock['type']): BlockLayoutTrait =>
     blockLayoutTraits[type];
+
+// Width tier → shared layout class, used by both render surfaces.
+export const TIER_CLASS: Record<BlockWidthTier, string> = {
+    reading: layout.tierReading,
+    composer: layout.tierComposer,
+    content: layout.tierContent,
+    full: layout.tierFull,
+};
