@@ -9,13 +9,15 @@ import {
     type OrganizationSpaceAccess,
     type PossibleAbilities,
     type ProjectMemberRole,
-    type ProjectSpaceAccess,
     type SessionUser,
     type SpaceInheritanceChain,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { SpaceModel } from '../../models/SpaceModel';
-import { SpacePermissionModel } from '../../models/SpacePermissionModel';
+import {
+    SpacePermissionModel,
+    type ProjectSpaceAccessWithCustomRole,
+} from '../../models/SpacePermissionModel';
 import { SpacePermissionService } from './SpacePermissionService';
 
 const createMockSpacePermissionModel = () => ({
@@ -40,7 +42,14 @@ const createMockSpacePermissionModel = () => ({
                 spaceUuids: string[],
                 filters?: { userUuid?: string },
                 options?: { trx?: Knex },
-            ) => Promise<Record<string, ProjectSpaceAccess[]>>
+            ) => Promise<Record<string, ProjectSpaceAccessWithCustomRole[]>>
+        >(),
+    getRoleScopes:
+        vi.fn<
+            (
+                roleUuids: string[],
+                options?: { trx?: Knex },
+            ) => Promise<Record<string, string[]>>
         >(),
     getOrganizationSpaceAccess:
         vi.fn<
@@ -185,6 +194,7 @@ describe('SpacePermissionService', () => {
                         userUuid,
                         spaceUuid: 'root-space',
                         role: 'editor' as ProjectMemberRole,
+                        roleUuid: null,
                         from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
                     },
                 ],
@@ -220,6 +230,74 @@ describe('SpacePermissionService', () => {
             ).toHaveBeenCalledWith(['root-space'], undefined, {
                 trx: undefined,
             });
+            // System-role access needs no scope lookup
+            expect(mockPermissionModel.getRoleScopes).not.toHaveBeenCalled();
+        });
+
+        test('custom-role holders get the space role derived from their scopes, not the placeholder role column', async () => {
+            const spaceUuid = 'root-space';
+            const customRoleUuid = 'custom-role-uuid';
+
+            mockPermissionModel.getInheritanceChains.mockResolvedValue({
+                'root-space': {
+                    chain: [
+                        {
+                            spaceUuid: 'root-space',
+                            spaceName: 'Root',
+                            inheritParentPermissions: true,
+                        },
+                    ],
+                    inheritsFromOrgOrProject: true,
+                },
+            });
+            mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({});
+            // Custom-role assignments persist `role: viewer` as a placeholder
+            mockPermissionModel.getProjectSpaceAccess.mockResolvedValue({
+                'root-space': [
+                    {
+                        userUuid,
+                        spaceUuid: 'root-space',
+                        role: 'viewer' as ProjectMemberRole,
+                        roleUuid: customRoleUuid,
+                        from: ProjectSpaceAccessOrigin.GROUP_MEMBERSHIP,
+                    },
+                ],
+            });
+            mockPermissionModel.getOrganizationSpaceAccess.mockResolvedValue({
+                'root-space': [
+                    {
+                        userUuid,
+                        spaceUuid: 'root-space',
+                        role: 'member' as OrganizationMemberRole,
+                    },
+                ],
+            });
+            mockPermissionModel.getSpaceInfo.mockResolvedValue({
+                [spaceUuid]: {
+                    projectUuid,
+                    organizationUuid,
+                },
+            });
+            mockPermissionModel.getRoleScopes.mockResolvedValue({
+                [customRoleUuid]: [
+                    'manage:Space@public',
+                    'manage:Dashboard@space',
+                    'manage:SavedChart@space',
+                ],
+            });
+
+            const result = await service.getAllSpaceAccessContext(spaceUuid);
+
+            expect(mockPermissionModel.getRoleScopes).toHaveBeenCalledWith(
+                [customRoleUuid],
+                { trx: undefined },
+            );
+            expect(result.access).toEqual([
+                expect.objectContaining({
+                    userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                }),
+            ]);
         });
 
         test('space with inherit=false is treated as private, direct access user gets role', async () => {
@@ -262,6 +340,7 @@ describe('SpacePermissionService', () => {
                         userUuid,
                         spaceUuid: 'private-space',
                         role: 'viewer' as ProjectMemberRole,
+                        roleUuid: null,
                         from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
                     },
                 ],
@@ -315,6 +394,7 @@ describe('SpacePermissionService', () => {
                         userUuid: adminUuid,
                         spaceUuid: 'private-space',
                         role: 'admin' as ProjectMemberRole,
+                        roleUuid: null,
                         from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
                     },
                 ],
@@ -466,6 +546,7 @@ describe('SpacePermissionService', () => {
                         userUuid,
                         spaceUuid: 'root-space',
                         role: 'editor' as ProjectMemberRole,
+                        roleUuid: null,
                         from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
                     },
                 ],
@@ -668,18 +749,21 @@ describe('SpacePermissionService', () => {
                         userUuid: 'project-admin',
                         spaceUuid,
                         role: 'admin' as ProjectMemberRole,
+                        roleUuid: null,
                         from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
                     },
                     {
                         userUuid: 'dual-admin',
                         spaceUuid,
                         role: 'admin' as ProjectMemberRole,
+                        roleUuid: null,
                         from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
                     },
                     {
                         userUuid: 'editor-user',
                         spaceUuid,
                         role: 'editor' as ProjectMemberRole,
+                        roleUuid: null,
                         from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
                     },
                 ],

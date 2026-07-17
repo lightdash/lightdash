@@ -57,6 +57,7 @@ export * from './authorization/roleToScopeMapping';
 export * from './authorization/scopeAbilityBuilder';
 export * from './authorization/scopes';
 export * from './authorization/serviceAccountAbility';
+export * from './authorization/space/customRoleProjectRole';
 export * from './authorization/space/spaceAccessResolver';
 export * from './authorization/types';
 export * from './compiler/compilationReport';

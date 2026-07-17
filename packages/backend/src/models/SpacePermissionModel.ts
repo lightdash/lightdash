@@ -22,6 +22,7 @@ import { OrganizationTableName } from '../database/entities/organizations';
 import { ProjectGroupAccessTableName } from '../database/entities/projectGroupAccess';
 import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
 import { ProjectTableName } from '../database/entities/projects';
+import { ScopedRolesTableName } from '../database/entities/roles';
 import {
     SpaceGroupAccessTableName,
     SpaceTableName,
@@ -47,6 +48,15 @@ export type RawSpaceGroupAccess = {
 export type RawSpaceDirectAccess = {
     users: RawSpaceUserAccess[];
     groups: RawSpaceGroupAccess[];
+};
+
+/**
+ * Custom-role assignments persist a placeholder `viewer` in `role` and the
+ * real role in `role_uuid`, so callers need the uuid to derive the
+ * effective role from the custom role's scopes.
+ */
+export type ProjectSpaceAccessWithCustomRole = ProjectSpaceAccess & {
+    roleUuid: string | null;
 };
 
 export class SpacePermissionModel {
@@ -355,89 +365,93 @@ export class SpacePermissionModel {
         spaceUuids: string[],
         filters?: { userUuid?: string },
         { trx = this.database }: { trx?: Knex } = {},
-    ): Promise<Record<string, ProjectSpaceAccess[]>> {
+    ): Promise<Record<string, ProjectSpaceAccessWithCustomRole[]>> {
         return wrapSentryTransaction(
             'SpaceModel.getProjectSpaceAccess',
             { spaceUuidsCount: spaceUuids.length },
             async () => {
-                const projectSpacesAccess: ProjectSpaceAccess[] = await trx(
-                    SpaceTableName,
-                )
-                    .select({
-                        userUuid: `${UserTableName}.user_uuid`,
-                        spaceUuid: `${SpaceTableName}.space_uuid`,
-                        role: `${ProjectMembershipsTableName}.role`,
-                        from: trx.raw(
-                            `'${ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP}'`,
-                        ),
-                    })
-                    .innerJoin(
-                        ProjectTableName,
-                        `${ProjectTableName}.project_id`,
-                        `${SpaceTableName}.project_id`,
-                    )
-                    .innerJoin(
-                        ProjectMembershipsTableName,
-                        `${ProjectMembershipsTableName}.project_id`,
-                        `${ProjectTableName}.project_id`,
-                    )
-                    .innerJoin(
-                        UserTableName,
-                        `${UserTableName}.user_id`,
-                        `${ProjectMembershipsTableName}.user_id`,
-                    )
-                    .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
-                    .modify((qb) => {
-                        if (filters?.userUuid) {
-                            void qb.where(
-                                `${UserTableName}.user_uuid`,
-                                filters.userUuid,
-                            );
-                        }
-                    })
-                    .union(
-                        trx(SpaceTableName)
-                            .select({
-                                userUuid: `${UserTableName}.user_uuid`,
-                                spaceUuid: `${SpaceTableName}.space_uuid`,
-                                role: `${ProjectGroupAccessTableName}.role`,
-                                from: trx.raw(
-                                    `'${ProjectSpaceAccessOrigin.GROUP_MEMBERSHIP}'`,
-                                ),
-                            })
-                            .innerJoin(
-                                ProjectTableName,
-                                `${ProjectTableName}.project_id`,
-                                `${SpaceTableName}.project_id`,
-                            )
-                            .innerJoin(
-                                ProjectGroupAccessTableName,
-                                `${ProjectGroupAccessTableName}.project_uuid`,
-                                `${ProjectTableName}.project_uuid`,
-                            )
-                            .innerJoin(
-                                GroupMembershipTableName,
-                                `${GroupMembershipTableName}.group_uuid`,
-                                `${ProjectGroupAccessTableName}.group_uuid`,
-                            )
-                            .innerJoin(
-                                UserTableName,
-                                `${UserTableName}.user_id`,
-                                `${GroupMembershipTableName}.user_id`,
-                            )
-                            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
-                            .modify((qb) => {
-                                if (filters?.userUuid) {
-                                    void qb.where(
-                                        `${UserTableName}.user_uuid`,
-                                        filters.userUuid,
-                                    );
-                                }
-                            }),
-                    );
+                const projectSpacesAccess: ProjectSpaceAccessWithCustomRole[] =
+                    await trx(SpaceTableName)
+                        .select({
+                            userUuid: `${UserTableName}.user_uuid`,
+                            spaceUuid: `${SpaceTableName}.space_uuid`,
+                            role: `${ProjectMembershipsTableName}.role`,
+                            roleUuid: `${ProjectMembershipsTableName}.role_uuid`,
+                            from: trx.raw(
+                                `'${ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP}'`,
+                            ),
+                        })
+                        .innerJoin(
+                            ProjectTableName,
+                            `${ProjectTableName}.project_id`,
+                            `${SpaceTableName}.project_id`,
+                        )
+                        .innerJoin(
+                            ProjectMembershipsTableName,
+                            `${ProjectMembershipsTableName}.project_id`,
+                            `${ProjectTableName}.project_id`,
+                        )
+                        .innerJoin(
+                            UserTableName,
+                            `${UserTableName}.user_id`,
+                            `${ProjectMembershipsTableName}.user_id`,
+                        )
+                        .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+                        .modify((qb) => {
+                            if (filters?.userUuid) {
+                                void qb.where(
+                                    `${UserTableName}.user_uuid`,
+                                    filters.userUuid,
+                                );
+                            }
+                        })
+                        .union(
+                            trx(SpaceTableName)
+                                .select({
+                                    userUuid: `${UserTableName}.user_uuid`,
+                                    spaceUuid: `${SpaceTableName}.space_uuid`,
+                                    role: `${ProjectGroupAccessTableName}.role`,
+                                    roleUuid: `${ProjectGroupAccessTableName}.role_uuid`,
+                                    from: trx.raw(
+                                        `'${ProjectSpaceAccessOrigin.GROUP_MEMBERSHIP}'`,
+                                    ),
+                                })
+                                .innerJoin(
+                                    ProjectTableName,
+                                    `${ProjectTableName}.project_id`,
+                                    `${SpaceTableName}.project_id`,
+                                )
+                                .innerJoin(
+                                    ProjectGroupAccessTableName,
+                                    `${ProjectGroupAccessTableName}.project_uuid`,
+                                    `${ProjectTableName}.project_uuid`,
+                                )
+                                .innerJoin(
+                                    GroupMembershipTableName,
+                                    `${GroupMembershipTableName}.group_uuid`,
+                                    `${ProjectGroupAccessTableName}.group_uuid`,
+                                )
+                                .innerJoin(
+                                    UserTableName,
+                                    `${UserTableName}.user_id`,
+                                    `${GroupMembershipTableName}.user_id`,
+                                )
+                                .whereIn(
+                                    `${SpaceTableName}.space_uuid`,
+                                    spaceUuids,
+                                )
+                                .modify((qb) => {
+                                    if (filters?.userUuid) {
+                                        void qb.where(
+                                            `${UserTableName}.user_uuid`,
+                                            filters.userUuid,
+                                        );
+                                    }
+                                }),
+                        );
 
                 return projectSpacesAccess.reduce<
-                    Record<string, ProjectSpaceAccess[]>
+                    Record<string, ProjectSpaceAccessWithCustomRole[]>
                 >((acc, projectSpaceAccess) => {
                     if (!acc[projectSpaceAccess.spaceUuid]) {
                         acc[projectSpaceAccess.spaceUuid] = [];
@@ -447,6 +461,36 @@ export class SpacePermissionModel {
                     return acc;
                 }, {});
             },
+        );
+    }
+
+    /**
+     * Gets the scope names for a list of custom roles
+     * @param roleUuids - the uuids of the roles to get scopes for
+     * @returns a record of role uuids to scope names
+     */
+    async getRoleScopes(
+        roleUuids: string[],
+        { trx = this.database }: { trx?: Knex } = {},
+    ): Promise<Record<string, string[]>> {
+        if (roleUuids.length === 0) return {};
+
+        const rows = await trx(ScopedRolesTableName)
+            .whereIn('role_uuid', roleUuids)
+            .select<{ roleUuid: string; scopeName: string }[]>({
+                roleUuid: 'role_uuid',
+                scopeName: 'scope_name',
+            });
+
+        return rows.reduce<Record<string, string[]>>(
+            (acc, { roleUuid, scopeName }) => {
+                if (!acc[roleUuid]) {
+                    acc[roleUuid] = [];
+                }
+                acc[roleUuid].push(scopeName);
+                return acc;
+            },
+            {},
         );
     }
 
