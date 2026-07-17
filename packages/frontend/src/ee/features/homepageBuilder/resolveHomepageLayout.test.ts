@@ -309,6 +309,30 @@ describe('resolveHomepageLayout', () => {
         });
     });
 
+    describe('hug fit', () => {
+        it('multi-column rows hug', () => {
+            const config = makeConfig([
+                [block('m', 'metrics'), block('f', 'favorites')],
+            ]);
+            const { rows } = resolveHomepageLayout(config);
+            expect(rows[0].fit).toBe('hug');
+        });
+
+        it('single-block rows fill their tier', () => {
+            const config = makeConfig([[block('m', 'metrics')]]);
+            const { rows } = resolveHomepageLayout(config);
+            expect(rows[0].fit).toBe('fill');
+        });
+
+        it('a multi-column row reduced to one visible block fills', () => {
+            const config = makeConfig([
+                [emptyBlock('r', 'resources'), block('f', 'favorites')],
+            ]);
+            const { rows } = resolveHomepageLayout(config);
+            expect(rows[0].fit).toBe('fill');
+        });
+    });
+
     describe('width smoothing (two axes)', () => {
         it('promotes content rows to full when any full row exists', () => {
             const config = makeConfig([

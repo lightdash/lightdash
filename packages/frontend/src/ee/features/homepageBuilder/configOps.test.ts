@@ -5,7 +5,9 @@ import {
 } from '@lightdash/common';
 import {
     addBlock,
+    canAddColumn,
     canDropInRow,
+    canPlaceBlockInRow,
     canMoveDown,
     canMoveUp,
     dropExistingBlock,
@@ -188,6 +190,100 @@ describe('configOps', () => {
             const config = makeConfig([[block('a'), block('b')]]);
             expect(canDropInRow(config, 0)).toBe(false);
             expect(canDropInRow(config, 0, 'a')).toBe(true);
+        });
+    });
+
+    describe('fullRowOnly (ask-ai-hero)', () => {
+        const askAi = (id = 'ask'): HomepageBlock => ({
+            id,
+            type: 'ask-ai-hero',
+            config: { showGreeting: true },
+        });
+
+        it('dropNewBlock into a cell of a row containing ask-ai is a no-op', () => {
+            const config = makeConfig([[askAi()]]);
+            const result = dropNewBlock(config, block('x'), {
+                kind: 'cell',
+                rowIndex: 0,
+                blockIndex: 1,
+            });
+            expect(result).toEqual(config);
+        });
+
+        it('dropNewBlock of ask-ai into an occupied row is a no-op', () => {
+            const config = makeConfig([[block('a')]]);
+            const result = dropNewBlock(config, askAi(), {
+                kind: 'cell',
+                rowIndex: 0,
+                blockIndex: 1,
+            });
+            expect(result).toEqual(config);
+        });
+
+        it('dropExistingBlock cannot move a block beside ask-ai', () => {
+            const config = makeConfig([[askAi()], [block('b')]]);
+            const result = dropExistingBlock(config, 'b', {
+                kind: 'cell',
+                rowIndex: 0,
+                blockIndex: 1,
+            });
+            expect(result).toEqual(config);
+        });
+
+        it('dropExistingBlock cannot move ask-ai beside another block', () => {
+            const config = makeConfig([[askAi()], [block('b')]]);
+            const result = dropExistingBlock(config, 'ask', {
+                kind: 'cell',
+                rowIndex: 1,
+                blockIndex: 0,
+            });
+            expect(result).toEqual(config);
+        });
+
+        it('dropExistingBlock can still move ask-ai to its own new row', () => {
+            const config = makeConfig([[askAi()], [block('b')]]);
+            const result = dropExistingBlock(config, 'ask', {
+                kind: 'row',
+                rowIndex: 2,
+            });
+            expect(result.rows).toHaveLength(2);
+            expect(result.rows.map((r) => r.blocks[0].id)).toEqual([
+                'b',
+                'ask',
+            ]);
+        });
+
+        it('duplicateBlock of ask-ai lands in its own new row', () => {
+            const config = makeConfig([[askAi()]]);
+            const result = duplicateBlock(config, 'ask');
+            expect(result.rows).toHaveLength(2);
+            expect(result.rows.every((r) => r.blocks.length === 1)).toBe(true);
+        });
+
+        it('canPlaceBlockInRow is false for a row containing ask-ai', () => {
+            const config = makeConfig([[askAi()]]);
+            expect(canPlaceBlockInRow(config, 0, 'markdown')).toBe(false);
+        });
+
+        it('canPlaceBlockInRow is false for ask-ai into an occupied row', () => {
+            const config = makeConfig([[block('a')]]);
+            expect(canPlaceBlockInRow(config, 0, 'ask-ai-hero')).toBe(false);
+        });
+
+        it('canPlaceBlockInRow allows normal side-by-side placement', () => {
+            const config = makeConfig([[block('a')]]);
+            expect(canPlaceBlockInRow(config, 0, 'markdown')).toBe(true);
+        });
+
+        it('canDropInRow is false when the target row holds ask-ai', () => {
+            const config = makeConfig([[askAi()], [block('b')]]);
+            expect(canDropInRow(config, 0, 'b')).toBe(false);
+        });
+
+        it('canAddColumn is false on an ask-ai row', () => {
+            const config = makeConfig([[askAi()], [block('b')]]);
+            expect(canAddColumn(config, 0)).toBe(false);
+            expect(canAddColumn(config, 1)).toBe(true);
         });
     });
 

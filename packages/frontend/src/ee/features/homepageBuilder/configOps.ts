@@ -6,8 +6,27 @@ import {
     type HomepageRow,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
+import { traitFor } from './blockLayout';
 
 type BlockLocation = { rowIndex: number; blockIndex: number };
+
+// A cell placement is valid when the row has capacity and neither the row's
+// residents nor the incoming block demand a whole row.
+export const canPlaceBlockInRow = (
+    config: HomepageConfig,
+    rowIndex: number,
+    blockType: HomepageBlock['type'],
+    draggedBlockId?: string,
+): boolean => {
+    const row = config.rows[rowIndex];
+    if (!row) return false;
+    const residents = row.blocks.filter((b) => b.id !== draggedBlockId);
+    if (residents.length === 0) return true;
+    if (traitFor(blockType).fullRowOnly) return false;
+    if (residents.some((b) => traitFor(b.type).fullRowOnly)) return false;
+    const isSameRowMove = row.blocks.some((b) => b.id === draggedBlockId);
+    return isSameRowMove || row.blocks.length < HOMEPAGE_MAX_BLOCKS_PER_ROW;
+};
 
 const findBlock = (
     config: HomepageConfig,
@@ -64,7 +83,7 @@ export const duplicateBlock = (
     const original = rows[location.rowIndex].blocks[location.blockIndex];
     const copy: HomepageBlock = structuredClone(original);
     copy.id = uuidv4();
-    if (rows[location.rowIndex].blocks.length < HOMEPAGE_MAX_BLOCKS_PER_ROW) {
+    if (canPlaceBlockInRow(config, location.rowIndex, original.type)) {
         rows[location.rowIndex].blocks.splice(location.blockIndex + 1, 0, copy);
     } else {
         rows.splice(location.rowIndex + 1, 0, newRowOf([copy]));
@@ -163,8 +182,15 @@ export const dropNewBlock = (
     config: HomepageConfig,
     block: HomepageBlock,
     target: DropTarget,
-): HomepageConfig =>
-    withRows(config, insertAt(cloneRows(config), block, target));
+): HomepageConfig => {
+    if (
+        target.kind === 'cell' &&
+        !canPlaceBlockInRow(config, target.rowIndex, block.type)
+    ) {
+        return config;
+    }
+    return withRows(config, insertAt(cloneRows(config), block, target));
+};
 
 export const dropExistingBlock = (
     config: HomepageConfig,
@@ -180,6 +206,15 @@ export const dropExistingBlock = (
             target.blockIndex === location.blockIndex + 1)
     ) {
         return config; // dropping beside itself is a no-op
+    }
+    // Validate BEFORE splicing the block out so a refused drop can't lose it.
+    const movedType =
+        config.rows[location.rowIndex].blocks[location.blockIndex].type;
+    if (
+        target.kind === 'cell' &&
+        !canPlaceBlockInRow(config, target.rowIndex, movedType, blockId)
+    ) {
+        return config;
     }
     const rows = cloneRows(config);
     const sourceRow = rows[location.rowIndex];
@@ -213,7 +248,11 @@ export const canAddColumn = (
     rowIndex: number,
 ): boolean => {
     const row = config.rows[rowIndex];
-    return !!row && row.blocks.length < HOMEPAGE_MAX_BLOCKS_PER_ROW;
+    return (
+        !!row &&
+        row.blocks.length < HOMEPAGE_MAX_BLOCKS_PER_ROW &&
+        !row.blocks.some((block) => traitFor(block.type).fullRowOnly)
+    );
 };
 
 export const canDropInRow = (
@@ -223,10 +262,23 @@ export const canDropInRow = (
 ): boolean => {
     const row = config.rows[rowIndex];
     if (!row) return false;
-    const isSameRow =
-        draggedBlockId !== undefined &&
-        row.blocks.some((block) => block.id === draggedBlockId);
-    return isSameRow || row.blocks.length < HOMEPAGE_MAX_BLOCKS_PER_ROW;
+    const dragged = draggedBlockId
+        ? findBlock(config, draggedBlockId)
+        : undefined;
+    if (dragged) {
+        const draggedType =
+            config.rows[dragged.rowIndex].blocks[dragged.blockIndex].type;
+        return canPlaceBlockInRow(
+            config,
+            rowIndex,
+            draggedType,
+            draggedBlockId,
+        );
+    }
+    return (
+        row.blocks.length < HOMEPAGE_MAX_BLOCKS_PER_ROW &&
+        !row.blocks.some((block) => traitFor(block.type).fullRowOnly)
+    );
 };
 
 export const replaceBlock = (

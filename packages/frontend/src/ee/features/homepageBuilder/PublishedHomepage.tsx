@@ -66,12 +66,14 @@ const RowRenderer: FC<{
         className={`${layout.row} ${TIER_CLASS[row.widthTier]}`}
         data-gap={row.gap}
         data-role={row.role}
+        data-fit={row.fit}
     >
         {row.columns.map((column) => (
             <Box
                 key={column.block.id}
                 className={layout.col}
                 data-weight={column.weight}
+                data-hug-units={column.hugUnits ?? undefined}
             >
                 <BlockRenderer
                     block={column.block}

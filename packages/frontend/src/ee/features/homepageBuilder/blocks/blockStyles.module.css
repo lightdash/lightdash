@@ -366,6 +366,16 @@ a .hoverCard:hover,
     display: grid;
 }
 
+/* Sparse collections split the width across the cards they actually have
+ * instead of reserving three phantom tracks. */
+.hugGrid[data-per-row='1'] > .hugGridItem {
+    flex-basis: 100%;
+}
+
+.hugGrid[data-per-row='2'] > .hugGridItem {
+    flex-basis: calc((100% - 12px) / 2);
+}
+
 /* The blockifying grid gives its single child (the card) a fresh min-width:
  * auto default of its own, sized to the untruncated title's natural width —
  * so a long title (e.g. via Text truncate's white-space: nowrap) overflows

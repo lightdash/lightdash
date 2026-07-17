@@ -61,6 +61,7 @@ import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { useAiAgentButtonVisibility } from '../aiCopilot/hooks/useAiAgentsButtonVisibility';
+import { traitFor } from './blockLayout';
 import { IconSquare } from './blocks/BlockShell';
 import {
     blockLibrary,
@@ -71,6 +72,7 @@ import {
     addBlock,
     canAddColumn,
     canDropInRow,
+    canPlaceBlockInRow,
     canMoveDown,
     canMoveUp,
     dropExistingBlock,
@@ -512,6 +514,10 @@ export const HomepageEditor: FC<Props> = ({
             (!definition.requiresAi || isAiEnabled) &&
             !(definition.singleton && usedSingletonTypes.has(definition.type)),
     );
+    // Full-row blocks never appear in into-row (column) menus.
+    const columnBlocks = availableBlocks.filter(
+        (definition) => !traitFor(definition.type).fullRowOnly,
+    );
 
     const { mutate: saveDraft } = updateMutation;
     useEffect(() => {
@@ -603,8 +609,21 @@ export const HomepageEditor: FC<Props> = ({
     const computeTarget = (
         config: HomepageConfig,
         event: DragOverEvent | DragEndEvent,
-        draggedBlockId: string | null,
+        source: DragSource,
     ): DropTarget | null => {
+        const draggedBlockId =
+            source.kind === 'existing' ? source.blockId : null;
+        // Cell targets the guards would refuse are not advertised at all.
+        const legalise = (target: DropTarget): DropTarget | null =>
+            target.kind === 'cell' &&
+            !canPlaceBlockInRow(
+                config,
+                target.rowIndex,
+                source.definition.type,
+                draggedBlockId ?? undefined,
+            )
+                ? null
+                : target;
         const over = event.over;
         if (!over) return null;
         const overId = String(over.id);
@@ -614,11 +633,11 @@ export const HomepageEditor: FC<Props> = ({
         }
         if (overId.startsWith('slot:')) {
             const [, rowIdx, blockIdx] = overId.split(':');
-            return {
+            return legalise({
                 kind: 'cell',
                 rowIndex: Number(rowIdx),
                 blockIndex: Number(blockIdx),
-            };
+            });
         }
         const location = locateBlock(config, overId);
         if (!location) return null;
@@ -665,8 +684,7 @@ export const HomepageEditor: FC<Props> = ({
     const handleDragOver = (event: DragOverEvent) => {
         const source = event.active.data.current as DragSource | undefined;
         if (!source) return;
-        const draggedId = source.kind === 'existing' ? source.blockId : null;
-        setDropIndicator(computeTarget(draft, event, draggedId));
+        setDropIndicator(computeTarget(draft, event, source));
     };
 
     // Commit the drop once. New blocks get an entrance animation; existing
@@ -676,8 +694,7 @@ export const HomepageEditor: FC<Props> = ({
         setActiveDrag(null);
         setDropIndicator(null);
         if (!source || !event.over) return;
-        const draggedId = source.kind === 'existing' ? source.blockId : null;
-        const target = computeTarget(draft, event, draggedId);
+        const target = computeTarget(draft, event, source);
         if (!target) return;
         if (source.kind === 'new') {
             const block = source.definition.create();
@@ -1079,7 +1096,7 @@ export const HomepageEditor: FC<Props> = ({
                                                                     .length,
                                                             )}
                                                             blocks={
-                                                                availableBlocks
+                                                                columnBlocks
                                                             }
                                                             onAdd={(def) =>
                                                                 setDraft(
