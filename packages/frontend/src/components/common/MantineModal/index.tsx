@@ -101,11 +101,6 @@ export type MantineModalProps = {
     resourceLabel?: string;
     icon?: IconType;
     /**
-     * aria-label for the header close button.
-     * @default Mantine's default close button label
-     */
-    closeButtonLabel?: string;
-    /**
      * Modal size. Accepts Mantine's built-in sizes ('xs', 'sm', 'md', 'lg', 'xl') or a custom number/string.
      * @default 'lg'
      */
@@ -219,7 +214,6 @@ const MantineModal: React.FC<MantineModalProps> = ({
     resourceType,
     resourceLabel,
     icon,
-    closeButtonLabel,
     size = 'lg',
     fullScreen = false,
     withCloseButton = true,
@@ -350,7 +344,6 @@ const MantineModal: React.FC<MantineModalProps> = ({
                         <Group
                             gap="sm"
                             flex={1}
-                            miw={0}
                             wrap="nowrap"
                             align="flex-start"
                         >
@@ -362,14 +355,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
                                     />
                                 </Paper>
                             ) : null}
-                            <Text
-                                c="ldDark.9"
-                                fw={700}
-                                fz="md"
-                                lh="28px"
-                                miw={0}
-                                lineClamp={2}
-                            >
+                            <Text c="ldDark.9" fw={700} fz="md" lh="28px">
                                 {title}
                             </Text>
                         </Group>
@@ -378,9 +364,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
                                 {headerActions}
                             </Group>
                         ) : null}
-                        {withCloseButton && (
-                            <Modal.CloseButton aria-label={closeButtonLabel} />
-                        )}
+                        {withCloseButton && <Modal.CloseButton />}
                     </Modal.Header>
 
                     {renderBody()}

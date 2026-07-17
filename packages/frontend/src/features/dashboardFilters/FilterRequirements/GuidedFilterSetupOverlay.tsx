@@ -2,6 +2,7 @@ import { type WeekDay } from '@lightdash/common';
 import { useDisclosure } from '@mantine-8/hooks';
 import { IconFilterExclamation } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import Callout from '../../../components/common/Callout';
 import MantineModal from '../../../components/common/MantineModal';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import GuidedFilterSetup, {
@@ -51,12 +52,7 @@ const GuidedFilterSetupOverlay: FC<Props> = ({
             opened
             onClose={onDismiss}
             title={`Set filters to load ${dashboard?.name ?? 'this dashboard'}`}
-            description={
-                requiredFiltersNote ||
-                'Data loads automatically once the filters below are set.'
-            }
             icon={IconFilterExclamation}
-            closeButtonLabel="Close setup"
             size={420}
             bodyScrollAreaMaxHeight="min(400px, 45vh)"
             footer={
@@ -76,6 +72,10 @@ const GuidedFilterSetupOverlay: FC<Props> = ({
                 'aria-label': 'Set filters to load this dashboard',
             }}
         >
+            <Callout variant="info">
+                {requiredFiltersNote ||
+                    'Data loads automatically once the filters below are set.'}
+            </Callout>
             <GuidedFilterSetup
                 rules={rules}
                 startOfWeek={startOfWeek}
