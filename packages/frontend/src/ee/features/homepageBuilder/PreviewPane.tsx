@@ -16,7 +16,12 @@ import {
     Stack,
     Text,
 } from '@mantine-8/core';
-import { IconExternalLink } from '@tabler/icons-react';
+import {
+    IconExternalLink,
+    IconShieldLock,
+    IconUser,
+    IconUsers,
+} from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -99,7 +104,14 @@ export const ViewAsControl: FC<{
                     size="xs"
                     placeholder="Pick a user"
                     searchable
-                    w={220}
+                    w={240}
+                    leftSection={
+                        <MantineIcon icon={IconUser} color="ldGray.6" />
+                    }
+                    classNames={{ input: classes.viewAsSelect }}
+                    comboboxProps={{
+                        classNames: { dropdown: classes.viewAsDropdown },
+                    }}
                     data={(users ?? []).map((user) => ({
                         value: user.userUuid,
                         label: `${user.firstName} ${user.lastName} (${user.email})`,
@@ -117,7 +129,14 @@ export const ViewAsControl: FC<{
                     size="xs"
                     placeholder="Pick a group"
                     searchable
-                    w={200}
+                    w={220}
+                    leftSection={
+                        <MantineIcon icon={IconUsers} color="ldGray.6" />
+                    }
+                    classNames={{ input: classes.viewAsSelect }}
+                    comboboxProps={{
+                        classNames: { dropdown: classes.viewAsDropdown },
+                    }}
                     data={(groups ?? []).map((group) => ({
                         value: group.uuid,
                         label: group.name,
@@ -134,7 +153,14 @@ export const ViewAsControl: FC<{
                 <Select
                     size="xs"
                     placeholder="Pick a role"
-                    w={160}
+                    w={180}
+                    leftSection={
+                        <MantineIcon icon={IconShieldLock} color="ldGray.6" />
+                    }
+                    classNames={{ input: classes.viewAsSelect }}
+                    comboboxProps={{
+                        classNames: { dropdown: classes.viewAsDropdown },
+                    }}
                     data={Object.values(ProjectMemberRole).map((role) => ({
                         value: role,
                         label: ProjectMemberRoleLabels[role],
