@@ -2,6 +2,7 @@ import { type WeekDay } from '@lightdash/common';
 import { Modal } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import { type FC } from 'react';
+import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import GuidedFilterSetup from './GuidedFilterSetup';
 
 type Props = {
@@ -26,6 +27,15 @@ const GuidedFilterSetupOverlay: FC<Props> = ({
     // the dropdown (the v6 date inputs don't set data-mantine-stop-propagation)
     const [isSubPopoverOpen, { open: openSubPopover, close: closeSubPopover }] =
         useDisclosure();
+
+    const isLoadingDashboardFilters = useDashboardContext(
+        (c) => c.isLoadingDashboardFilters,
+    );
+
+    // Until the filterable fields arrive every member resolves an undefined
+    // field, so inputs would render as the fallback type with validation
+    // errors and then swap; hold the whole card back instead
+    if (isLoadingDashboardFilters) return null;
 
     return (
         <Modal.Root

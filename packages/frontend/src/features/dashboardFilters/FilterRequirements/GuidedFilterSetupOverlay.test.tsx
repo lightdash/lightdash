@@ -82,6 +82,15 @@ describe('GuidedFilterSetupOverlay', () => {
         delete (Element.prototype as Partial<Element>).scrollIntoView;
     });
 
+    it('renders nothing while the filterable fields are still loading', () => {
+        mockDashboardContext.current.isLoadingDashboardFilters = true;
+
+        renderWithProviders(<GuidedFilterSetupOverlay onDismiss={vi.fn()} />);
+
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(screen.queryByTestId('guided-filter-setup')).toBeNull();
+    });
+
     it('renders the guided setup with the unmet rule and requirement progress', () => {
         renderWithProviders(<GuidedFilterSetupOverlay onDismiss={vi.fn()} />);
 

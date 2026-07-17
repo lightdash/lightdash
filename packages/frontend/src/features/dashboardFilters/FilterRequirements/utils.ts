@@ -30,6 +30,19 @@ export const getRequirementIneligibilityReason = (
     return null;
 };
 
+/**
+ * The legacy locked modal + blur only apply once the requirements feature
+ * flag has settled as disabled; while the flag query is unresolved no
+ * locked-state UI should render (tiles stay fail-closed regardless)
+ */
+export const shouldShowLegacyLockedState = ({
+    isFlagResolved,
+    isFilterRequirementsEnabled,
+}: {
+    isFlagResolved: boolean;
+    isFilterRequirementsEnabled: boolean;
+}): boolean => isFlagResolved && !isFilterRequirementsEnabled;
+
 export const getDashboardFilterRuleLabel = (
     filterRule: DashboardFilterRule,
     fieldsMap: Record<string, FilterableItem>,
