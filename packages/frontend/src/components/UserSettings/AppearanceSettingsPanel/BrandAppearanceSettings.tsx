@@ -302,7 +302,6 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                         Preview
                     </Text>
                     <BrandPreview
-                        domain={form.values.domain}
                         name={form.values.name}
                         logos={form.values.logos}
                         colors={form.values.colors}

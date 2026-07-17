@@ -182,6 +182,12 @@ if test -f .env.development.local; then
     reconcile_env EMAIL_SMTP_PORT 1025
     reconcile_env LDPAT ldpat_deadbeefdeadbeefdeadbeefdeadbeef
     reconcile_env DBT_DEMO_DIR "$(pwd)/examples/full-jaffle-shop-demo"
+    # Default-on (append only, never overwrite): fresh-user signup testing needs
+    # multi-org registration, else POST /api/v1/user 403s once the seed org exists.
+    if ! grep -q "^ALLOW_MULTIPLE_ORGS=" .env.development.local; then
+        echo "ALLOW_MULTIPLE_ORGS=true" >> .env.development.local
+        ENV_PORTS_CHANGED=1
+    fi
     if [ "$ENV_PORTS_CHANGED" = 1 ]; then
         echo "OK: env file reconciled to slot ports (PGPORT=${LD_PG_PORT} PORT=${PORT} FE_PORT=${FE_PORT})"
     else
@@ -218,6 +224,9 @@ EMAIL_SMTP_SENDER_EMAIL=noreply@lightdash.local
 # Dev API access (auto-provisioned PAT from seed data)
 LIGHTDASH_API_URL=http://localhost:${PORT}
 LDPAT=ldpat_deadbeefdeadbeefdeadbeefdeadbeef
+
+# Allow registering fresh users/orgs (signup flow testing)
+ALLOW_MULTIPLE_ORGS=true
 EOF
     echo "DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo" >> .env.development.local
     echo "OK: env file created"

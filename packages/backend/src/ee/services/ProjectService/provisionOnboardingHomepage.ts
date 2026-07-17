@@ -36,7 +36,7 @@ export const provisionOnboardingHomepage = async ({
     const [orgSetupPageFlag, homepageBuilderFlag] = await Promise.all([
         featureFlagService.get({
             user,
-            featureFlagId: FeatureFlags.OrganizationSetupPage,
+            featureFlagId: FeatureFlags.NewOnboarding,
         }),
         featureFlagService.get({
             user,

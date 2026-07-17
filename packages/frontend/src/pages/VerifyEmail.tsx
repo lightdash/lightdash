@@ -71,7 +71,7 @@ const VerifyEmailPage: FC = () => {
     const { show: showIntercom } = useIntercom();
     const navigate = useNavigate();
     const emailOnlySignupFlag = useServerFeatureFlag(
-        FeatureFlags.EmailOnlySignup,
+        FeatureFlags.NewOnboarding,
     );
 
     if (

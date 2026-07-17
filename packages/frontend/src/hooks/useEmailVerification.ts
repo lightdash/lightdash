@@ -68,7 +68,7 @@ export const useVerifyEmail = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess } = useToaster();
     const emailOnlySignupFlag = useServerFeatureFlag(
-        FeatureFlags.EmailOnlySignup,
+        FeatureFlags.NewOnboarding,
     );
     return useMutation<EmailStatusExpiring, ApiError, string>(
         (code) => verifyOTPQuery(code),

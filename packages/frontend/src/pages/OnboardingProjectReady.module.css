@@ -1,9 +1,12 @@
 .page {
-    min-height: 100vh;
+    min-height: calc(100vh - var(--navbar-height));
     background-color: var(--mantine-color-white);
+    display: flex;
+    flex-direction: column;
 }
 
 .column {
+    flex: 1;
     width: 100%;
     max-width: 580px;
     margin: 0 auto;

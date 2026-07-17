@@ -55,7 +55,7 @@ const Register: FC = () => {
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
     const emailOnlySignupFlag = useServerFeatureFlag(
-        FeatureFlags.EmailOnlySignup,
+        FeatureFlags.NewOnboarding,
         { retry: 3 },
     );
     const { identify } = useTracking();

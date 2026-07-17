@@ -9,7 +9,6 @@ import { BrandPreview } from '../components/UserSettings/AppearanceSettingsPanel
 import classes from './OrganizationSetup.module.css';
 
 type OrganizationSetupPreviewProps = {
-    domain: string;
     name: string | null;
     logos: OrganizationBrandLogo[];
     colors: OrganizationBrandColor[];
@@ -20,7 +19,6 @@ type OrganizationSetupPreviewProps = {
 };
 
 const OrganizationSetupPreview: FC<OrganizationSetupPreviewProps> = ({
-    domain,
     name,
     logos,
     colors,
@@ -50,7 +48,6 @@ const OrganizationSetupPreview: FC<OrganizationSetupPreviewProps> = ({
         )}
 
         <BrandPreview
-            domain={domain}
             name={name}
             logos={logos}
             colors={colors}
