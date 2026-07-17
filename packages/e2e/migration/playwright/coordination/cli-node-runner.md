@@ -202,4 +202,30 @@ None blocks the runner prerequisite. Port owners must record, but not silently r
 - whether validation accepts any completed business findings or must validate cleanly;
 - whether a supported CLI telemetry opt-out should be added. Until product code exposes one, tests use bounded process timeouts and do not add a test-only bypass.
 
+## Correction — 2026-07-18
+
+The prerequisite's TypeScript Vitest config cannot be linted through the current `packages/cli/.eslintrc.js` project because `packages/cli/tsconfig.json` includes only `src`, sets `rootDir` to `src`, and intentionally excludes root config and integration files.
+
+Approve the smallest dedicated lint-only wiring:
+
+- add `packages/cli/tsconfig.eslint.json`, extending `./tsconfig.json`, overriding `rootDir` to `.`, setting `noEmit: true`, and including only `vitest.integration.config.ts` and `integration/**/*.ts`;
+- update `packages/cli/.eslintrc.js` with a TypeScript parser-project override for exactly `vitest.integration.config.ts` and `integration/**/*.ts`, pointing to `./tsconfig.eslint.json`;
+- retain all existing ESLint extensions and rules. Do not add ignores, disable type-aware linting, or weaken any rule;
+- do not modify or reference the lint-only config from `packages/cli/tsconfig.json`, `packages/cli/tsconfig.fast.json`, or any root build config. Build `rootDir`, includes, references, composite output, and build semantics remain unchanged.
+
+The exact additional files allowed in the future prerequisite are:
+
+- `packages/cli/tsconfig.eslint.json` (new);
+- `packages/cli/.eslintrc.js` (targeted parser-project override only).
+
+These are additional to the previously approved `packages/cli/vitest.integration.config.ts`, `packages/cli/package.json`, and `.github/workflows/pr.yml`.
+
+For pnpm 10, the corrected empty-runner verification command is:
+
+```bash
+pnpm -F @lightdash/cli test:integration --passWithNoTests
+```
+
+This supersedes the earlier command containing a literal argument separator (`--`).
+
 COORDINATION_COMPLETE
