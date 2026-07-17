@@ -14,6 +14,8 @@ const FEATURE_METADATA = {
 };
 const CONFIG_HASH_METADATA_KEY = 'lightdash_config_hash';
 const MAX_STREAM_RECONNECTS = 3;
+const QUERY_UUID_PATTERN =
+    /queryUuid["']?\s*[:=]\s*["']?([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})/gi;
 
 export type AiDeepResearchProgressEvent =
     | { type: 'session_running' }
@@ -22,6 +24,12 @@ export type AiDeepResearchProgressEvent =
     | { type: 'thinking' }
     | { type: 'context_compacted' }
     | { type: 'tool_use'; source: 'built_in' | 'mcp' | 'custom'; name: string }
+    | {
+          type: 'mcp_tool_result';
+          name: string;
+          queryUuids: string[];
+          isError: boolean;
+      }
     | {
           type: 'model_usage';
           inputTokens: number;
@@ -100,6 +108,7 @@ type CustomToolState = {
     outcomes: Map<string, CustomToolOutcome>;
     deliveredIds: Set<string>;
     progressEventIds: Set<string>;
+    mcpToolNames: Map<string, string>;
 };
 
 const canonicalize = (value: unknown): unknown => {
@@ -366,6 +375,23 @@ export class AiDeepResearchClient {
         if (state.progressEventIds.has(event.id)) {
             return;
         }
+        if (event.type === 'agent.mcp_tool_use') {
+            state.mcpToolNames.set(event.id, event.name);
+        }
+        if (event.type === 'agent.mcp_tool_result' && callback) {
+            const text = (event.content ?? [])
+                .filter((block) => block.type === 'text')
+                .map((block) => block.text)
+                .join('\n');
+            await callback({
+                type: 'mcp_tool_result',
+                name: state.mcpToolNames.get(event.mcp_tool_use_id) ?? '',
+                queryUuids: [...text.matchAll(QUERY_UUID_PATTERN)].map(
+                    (match) => match[1],
+                ),
+                isError: event.is_error === true,
+            });
+        }
         const progress = AiDeepResearchClient.getProgressEvent(event);
         if (progress && callback) {
             await callback(progress);
@@ -549,6 +575,7 @@ export class AiDeepResearchClient {
             outcomes: new Map(),
             deliveredIds: new Set(),
             progressEventIds: new Set(),
+            mcpToolNames: new Map(),
         };
         let lastTransportError: unknown = null;
         for (let attempt = 0; attempt <= MAX_STREAM_RECONNECTS; attempt += 1) {

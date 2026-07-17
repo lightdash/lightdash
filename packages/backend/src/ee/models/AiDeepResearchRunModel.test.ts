@@ -1,4 +1,3 @@
-import { type AiDeepResearchReport } from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import {
@@ -10,14 +9,8 @@ import { AiDeepResearchRunModel } from './AiDeepResearchRunModel';
 const RUN_UUID = '00000000-0000-0000-0000-000000000001';
 const EVENT_UUID = '00000000-0000-0000-0000-000000000002';
 
-const report: AiDeepResearchReport = {
-    summary: 'Summary',
-    findings: [],
-    caveats: [],
-    scope: 'Last month',
-    unresolvedQuestions: [],
-    nextSteps: [],
-};
+const reportMarkdown =
+    'Intro.\n\n## Finding\n\n<confidence level="high">ok</confidence>\n\n## Conclusion\n\n- done';
 
 const runRow = (overrides: Record<string, unknown> = {}) => ({
     ai_deep_research_run_uuid: RUN_UUID,
@@ -82,7 +75,7 @@ describe('AiDeepResearchRunModel', () => {
     it('does not overwrite a cancellation request with completion', async () => {
         tracker.on.update(AiDeepResearchRunsTableName).responseOnce([]);
 
-        const updated = await model.markCompleted(RUN_UUID, report);
+        const updated = await model.markCompleted(RUN_UUID, reportMarkdown);
 
         expect(updated).toBe(false);
         const [update] = tracker.history.update;

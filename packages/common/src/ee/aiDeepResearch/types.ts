@@ -83,30 +83,6 @@ export type AiDeepResearchChartConfig = {
     secondaryYAxisLabel: string | null;
 };
 
-export type AiDeepResearchEvidence = {
-    title: string;
-    description: string;
-    sourceType: 'lightdash' | 'warehouse' | 'web';
-    sourceLabel: string;
-    sourceUrl: string | null;
-};
-
-export type AiDeepResearchFinding = {
-    title: string;
-    summary: string;
-    confidence: AiDeepResearchConfidence;
-    evidence: AiDeepResearchEvidence[];
-};
-
-export type AiDeepResearchReport = {
-    summary: string;
-    findings: AiDeepResearchFinding[];
-    caveats: string[];
-    scope: string;
-    unresolvedQuestions: string[];
-    nextSteps: string[];
-};
-
 export const AI_DEEP_RESEARCH_EVENT_TYPES = [
     'status_changed',
     'cancellation_requested',
@@ -182,7 +158,8 @@ export type AiDeepResearchRun = {
     aiDeepResearchRunUuid: string;
     projectUuid: string;
     status: AiDeepResearchRunStatus;
-    result: AiDeepResearchReport | null;
+    /** The report as a single markdown document with embedded chart blocks. */
+    resultMarkdown: string | null;
     budget: AiDeepResearchBudget;
     errorMessage: string | null;
     cancellationRequestedAt: string | null;

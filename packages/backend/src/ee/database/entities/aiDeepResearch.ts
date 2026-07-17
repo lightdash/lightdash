@@ -2,7 +2,6 @@ import {
     type AiDeepResearchBudget,
     type AiDeepResearchEventPayload,
     type AiDeepResearchEventType,
-    type AiDeepResearchReport,
     type AiDeepResearchRunStatus,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -20,7 +19,7 @@ export type DbAiDeepResearchRun = {
     prompt: string;
     status: AiDeepResearchRunStatus;
     claude_session_id: string | null;
-    result: AiDeepResearchReport | null;
+    result_markdown: string | null;
     budget_snapshot: AiDeepResearchBudget;
     error_message: string | null;
     cancellation_requested_at: Date | null;
@@ -48,7 +47,7 @@ export type AiDeepResearchRunsTable = Knex.CompositeTableType<
             DbAiDeepResearchRun,
             | 'status'
             | 'claude_session_id'
-            | 'result'
+            | 'result_markdown'
             | 'error_message'
             | 'cancellation_requested_at'
             | 'started_at'

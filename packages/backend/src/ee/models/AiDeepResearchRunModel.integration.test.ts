@@ -3,7 +3,6 @@ import {
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
     type AiDeepResearchBudget,
-    type AiDeepResearchReport,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { getTestContext } from '../../vitest.setup.integration';
@@ -22,14 +21,8 @@ const budget: AiDeepResearchBudget = {
     maxResultRows: 1_000,
 };
 
-const report: AiDeepResearchReport = {
-    summary: 'Summary',
-    findings: [],
-    caveats: [],
-    scope: 'Last month',
-    unresolvedQuestions: [],
-    nextSteps: [],
-};
+const report =
+    'Intro.\n\n## Finding\n\n<confidence level="high">ok</confidence>\n\n## Conclusion\n\n- done';
 
 describe('AiDeepResearchRunModel integration', () => {
     let database: Knex;

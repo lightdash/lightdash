@@ -428,6 +428,47 @@ describe('AiDeepResearchClient', () => {
         expect(JSON.stringify(progress.mock.calls)).not.toContain('sensitive');
     });
 
+    it('reports only query UUID provenance from MCP query results', async () => {
+        const progress = vi.fn().mockResolvedValue(undefined);
+        const toolUse = event({
+            type: 'agent.mcp_tool_use',
+            mcp_server_name: 'lightdash',
+            name: 'run_metric_query',
+            input: { metrics: ['sensitive_metric'] },
+        });
+        const anthropic = createAnthropicMock([
+            [
+                toolUse,
+                event({
+                    type: 'agent.mcp_tool_result',
+                    mcp_tool_use_id: toolUse.id,
+                    content: [
+                        {
+                            type: 'text',
+                            text: 'sensitive rows\nqueryUuid: 7c4b40ba-79f8-4fd2-9c43-223eca8fa76f',
+                        },
+                    ],
+                    is_error: false,
+                }),
+                endTurn,
+            ],
+        ]);
+
+        await createClient(anthropic.client).runSession(
+            createConfig({ onProgress: progress }),
+        );
+
+        expect(progress).toHaveBeenNthCalledWith(2, {
+            type: 'mcp_tool_result',
+            name: 'run_metric_query',
+            queryUuids: ['7c4b40ba-79f8-4fd2-9c43-223eca8fa76f'],
+            isError: false,
+        });
+        expect(JSON.stringify(progress.mock.calls)).not.toContain(
+            'sensitive rows',
+        );
+    });
+
     it('does not double-count progress recovered from persisted history', async () => {
         const progress = vi.fn().mockResolvedValue(undefined);
         const usage = event({

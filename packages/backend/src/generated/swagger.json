@@ -28389,103 +28389,6 @@
                     "cancelled"
                 ]
             },
-            "AiDeepResearchConfidence": {
-                "type": "string",
-                "enum": ["low", "medium", "high"]
-            },
-            "AiDeepResearchEvidence": {
-                "properties": {
-                    "sourceUrl": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "sourceLabel": {
-                        "type": "string"
-                    },
-                    "sourceType": {
-                        "type": "string",
-                        "enum": ["lightdash", "warehouse", "web"]
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "title": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "sourceUrl",
-                    "sourceLabel",
-                    "sourceType",
-                    "description",
-                    "title"
-                ],
-                "type": "object"
-            },
-            "AiDeepResearchFinding": {
-                "properties": {
-                    "evidence": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiDeepResearchEvidence"
-                        },
-                        "type": "array"
-                    },
-                    "confidence": {
-                        "$ref": "#/components/schemas/AiDeepResearchConfidence"
-                    },
-                    "summary": {
-                        "type": "string"
-                    },
-                    "title": {
-                        "type": "string"
-                    }
-                },
-                "required": ["evidence", "confidence", "summary", "title"],
-                "type": "object"
-            },
-            "AiDeepResearchReport": {
-                "properties": {
-                    "nextSteps": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "unresolvedQuestions": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "scope": {
-                        "type": "string"
-                    },
-                    "caveats": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "findings": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiDeepResearchFinding"
-                        },
-                        "type": "array"
-                    },
-                    "summary": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "nextSteps",
-                    "unresolvedQuestions",
-                    "scope",
-                    "caveats",
-                    "findings",
-                    "summary"
-                ],
-                "type": "object"
-            },
             "AiDeepResearchBudget": {
                 "properties": {
                     "maxResultRows": {
@@ -28545,13 +28448,10 @@
                     "budget": {
                         "$ref": "#/components/schemas/AiDeepResearchBudget"
                     },
-                    "result": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/AiDeepResearchReport"
-                            }
-                        ],
-                        "nullable": true
+                    "resultMarkdown": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The report as a single markdown document with embedded chart blocks."
                     },
                     "status": {
                         "$ref": "#/components/schemas/AiDeepResearchRunStatus"
@@ -28571,7 +28471,7 @@
                     "cancellationRequestedAt",
                     "errorMessage",
                     "budget",
-                    "result",
+                    "resultMarkdown",
                     "status",
                     "projectUuid",
                     "aiDeepResearchRunUuid"
@@ -59388,6 +59288,62 @@
                     {
                         "in": "path",
                         "name": "aiDeepResearchRunUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/charts/{chartQueryUuid}/viz-query": {
+            "get": {
+                "operationId": "getAiDeepResearchChartVizQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentThreadMessageVizQueryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Load the exact completed metric query behind a report chart.",
+                "summary": "Get Deep Research chart query",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "aiDeepResearchRunUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "chartQueryUuid",
                         "required": true,
                         "schema": {
                             "$ref": "#/components/schemas/UUID"

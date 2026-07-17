@@ -4,7 +4,6 @@ import {
     type AiDeepResearchEventPayloadMap,
     type AiDeepResearchEventType,
     type AiDeepResearchProgress,
-    type AiDeepResearchReport,
     type AiDeepResearchRunStatus,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -179,7 +178,7 @@ export class AiDeepResearchRunModel {
     private async markWithReport(
         aiDeepResearchRunUuid: string,
         status: 'completed' | 'partially_completed',
-        report: AiDeepResearchReport,
+        resultMarkdown: string,
     ): Promise<boolean> {
         return this.database.transaction(async (transaction) => {
             const [run] = await transaction<AiDeepResearchRunsTable>(
@@ -190,7 +189,7 @@ export class AiDeepResearchRunModel {
                 .whereNull('cancellation_requested_at')
                 .update({
                     status,
-                    result: report,
+                    result_markdown: resultMarkdown,
                     error_message: null,
                     completed_at: transaction.fn.now() as unknown as Date,
                     updated_at: transaction.fn.now() as unknown as Date,
@@ -213,19 +212,23 @@ export class AiDeepResearchRunModel {
 
     async markCompleted(
         aiDeepResearchRunUuid: string,
-        report: AiDeepResearchReport,
+        resultMarkdown: string,
     ): Promise<boolean> {
-        return this.markWithReport(aiDeepResearchRunUuid, 'completed', report);
+        return this.markWithReport(
+            aiDeepResearchRunUuid,
+            'completed',
+            resultMarkdown,
+        );
     }
 
     async markPartiallyCompleted(
         aiDeepResearchRunUuid: string,
-        report: AiDeepResearchReport,
+        resultMarkdown: string,
     ): Promise<boolean> {
         return this.markWithReport(
             aiDeepResearchRunUuid,
             'partially_completed',
-            report,
+            resultMarkdown,
         );
     }
 
