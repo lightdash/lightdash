@@ -162,3 +162,26 @@ After either run, verify the seeded profile is restored through the authenticate
 ## Port history
 
 Not started.
+
+### 2026-07-17 — Playwright port implemented
+
+- Target: `packages/e2e/playwright/app/settings/profile.spec.ts`
+- Behavior ported: the one active profile test now runs under the file-level `@mutating` tag, resets the singleton seeded-admin profile before and after each test through the authenticated API, navigates through the avatar menu, verifies the seeded form, updates both names, checks the method/path-specific PATCH response and success toast, reloads the app, and verifies refreshed initials.
+- Skipped decisions: none; the Cypress source has no skipped tests and remains unchanged.
+- Locator evidence: Firefox exposed the required-field labels to `getByLabel` with the rendered required marker, so the initial exact label locator did not resolve. Exact accessible `textbox` role/name locators resolved the same labeled controls without weakening strictness.
+- Verification:
+  - `pnpm common-build:fast` — passed; required because the isolated worktree initially lacked built `@lightdash/common` output.
+  - `pnpm -F e2e typecheck:playwright` — passed.
+  - `pnpm -F e2e linter ./playwright/app/settings/profile.spec.ts` — passed.
+  - `pnpm -F e2e formatter ./playwright/app/settings/profile.spec.ts --check` — passed.
+  - `pnpm -F e2e exec playwright test playwright/app/settings/profile.spec.ts --project=firefox --list` — passed; discovered admin setup plus the profile test.
+  - `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 pnpm -F e2e exec playwright test playwright/app/settings/profile.spec.ts --project=firefox --workers=1` — passed after the locator correction; final run: 2 passed.
+  - Same focused command with `--repeat-each=2` — 3 passed.
+  - Sequential parity: `pnpm -F e2e exec cypress run --spec cypress/e2e/app/settings/profile.cy.ts` — 1 passed; then the focused Playwright command — 2 passed.
+  - `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 pnpm -F e2e exec playwright test --project=firefox --grep @mutating --workers=1` — 2 passed.
+  - Induced post-mutation avatar assertion failure — failed as intended; `afterEach` ran and an authenticated `/api/v1/user` check returned canonical `David Attenborough / demo@lightdash.com`, proving failure-path cleanup.
+  - Full Firefox suite before the shared-backend repair exposed the unrelated Global Search failure and, in one run, a transient backend `502`; the profile cleanup failure was reported rather than hidden. The profile was immediately restored through the authenticated API.
+  - After the shared backend was rebuilt/restarted, `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 pnpm -F e2e exec playwright test --project=firefox --workers=1` — 7 passed.
+  - Final authenticated `/api/v1/user` assertion confirmed canonical first name, last name, and email — passed.
+- Remaining risks: this spec mutates the singleton seeded admin and must remain in the serialized exclusive mutating lane, never concurrent with Cypress or another mutating test. Process termination can still interrupt cleanup; the next run's idempotent `beforeEach` repairs canonical state. The update route remains intentionally unavailable in demo mode.
+- Commit: pending signed commit (`chore(e2e): port profile settings to Playwright`).
