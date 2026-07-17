@@ -57,8 +57,6 @@ const createModelMock = () => ({
     consumeForDeposit: vi.fn<WarehouseConnectCodeModel['consumeForDeposit']>(),
     findDepositedForClaim:
         vi.fn<WarehouseConnectCodeModel['findDepositedForClaim']>(),
-    deleteDepositedForClaim:
-        vi.fn<WarehouseConnectCodeModel['deleteDepositedForClaim']>(),
 });
 
 const testInventory = {
@@ -262,7 +260,6 @@ describe('WarehouseConnectService', () => {
         await expect(service.claim(otherUser, code)).rejects.toThrow(
             NotFoundError,
         );
-        expect(model.deleteDepositedForClaim).not.toHaveBeenCalled();
     });
 
     it('returns pending before credentials are deposited', async () => {
@@ -277,15 +274,11 @@ describe('WarehouseConnectService', () => {
         await expect(service.claim(createUser(), code)).resolves.toEqual({
             status: 'pending',
         });
-        expect(model.deleteDepositedForClaim).not.toHaveBeenCalled();
     });
 
-    it('returns deposited credentials once and then returns NotFound', async () => {
+    it('returns deposited credentials repeatedly until the code expires', async () => {
         const model = createModelMock();
-        model.findDepositedForClaim
-            .mockResolvedValueOnce(depositedRecord)
-            .mockResolvedValueOnce(null);
-        model.deleteDepositedForClaim.mockResolvedValue(depositedRecord);
+        model.findDepositedForClaim.mockResolvedValue(depositedRecord);
         const encryptionUtil = createEncryptionUtilMock();
         const analytics = createAnalyticsMock();
         const service = new WarehouseConnectService({
@@ -295,15 +288,19 @@ describe('WarehouseConnectService', () => {
         });
         const user = createUser();
 
-        await expect(service.claim(user, code)).resolves.toEqual({
+        const expectedResult = {
             status: 'deposited',
             credentials,
             inventory: testInventory,
-        });
-        await expect(service.claim(user, code)).rejects.toThrow(NotFoundError);
-        expect(model.deleteDepositedForClaim).toHaveBeenCalledWith(
+        };
+        await expect(service.claim(user, code)).resolves.toEqual(
+            expectedResult,
+        );
+        await expect(service.claim(user, code)).resolves.toEqual(
+            expectedResult,
+        );
+        expect(model.findDepositedForClaim).toHaveBeenCalledWith(
             hashWarehouseConnectCode(code),
-            user.userUuid,
         );
         expect(encryptionUtil.decrypt).toHaveBeenCalledWith(
             encryptedCredentials,
