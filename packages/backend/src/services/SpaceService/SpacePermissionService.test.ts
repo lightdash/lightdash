@@ -6,7 +6,6 @@ import {
     SpaceMemberRole,
     type DirectSpaceAccess,
     type OrganizationMemberRole,
-    type OrganizationSpaceAccess,
     type PossibleAbilities,
     type ProjectMemberRole,
     type SessionUser,
@@ -16,6 +15,7 @@ import { type Knex } from 'knex';
 import { SpaceModel } from '../../models/SpaceModel';
 import {
     SpacePermissionModel,
+    type OrganizationSpaceAccessWithCustomRole,
     type ProjectSpaceAccessWithCustomRole,
 } from '../../models/SpacePermissionModel';
 import { SpacePermissionService } from './SpacePermissionService';
@@ -57,7 +57,9 @@ const createMockSpacePermissionModel = () => ({
                 spaceUuids: string[],
                 filters?: { userUuid?: string },
                 options?: { trx?: Knex },
-            ) => Promise<Record<string, OrganizationSpaceAccess[]>>
+            ) => Promise<
+                Record<string, OrganizationSpaceAccessWithCustomRole[]>
+            >
         >(),
     getSpaceInfo:
         vi.fn<
@@ -205,6 +207,7 @@ describe('SpacePermissionService', () => {
                         userUuid,
                         spaceUuid: 'root-space',
                         role: 'member' as OrganizationMemberRole,
+                        roleUuid: null,
                     },
                 ],
             });
@@ -269,6 +272,7 @@ describe('SpacePermissionService', () => {
                         userUuid,
                         spaceUuid: 'root-space',
                         role: 'member' as OrganizationMemberRole,
+                        roleUuid: null,
                     },
                 ],
             });
@@ -290,6 +294,64 @@ describe('SpacePermissionService', () => {
 
             expect(mockPermissionModel.getRoleScopes).toHaveBeenCalledWith(
                 [customRoleUuid],
+                { trx: undefined },
+            );
+            expect(result.access).toEqual([
+                expect.objectContaining({
+                    userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                }),
+            ]);
+        });
+
+        test('org-level custom-role holders get the space role derived from their scopes, not the member placeholder', async () => {
+            const spaceUuid = 'root-space';
+            const orgCustomRoleUuid = 'org-custom-role-uuid';
+
+            mockPermissionModel.getInheritanceChains.mockResolvedValue({
+                'root-space': {
+                    chain: [
+                        {
+                            spaceUuid: 'root-space',
+                            spaceName: 'Root',
+                            inheritParentPermissions: true,
+                        },
+                    ],
+                    inheritsFromOrgOrProject: true,
+                },
+            });
+            mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({});
+            // No project membership — access comes from the org layer only
+            mockPermissionModel.getProjectSpaceAccess.mockResolvedValue({});
+            // Org custom-role assignments persist `role: member` as a placeholder
+            mockPermissionModel.getOrganizationSpaceAccess.mockResolvedValue({
+                'root-space': [
+                    {
+                        userUuid,
+                        spaceUuid: 'root-space',
+                        role: 'member' as OrganizationMemberRole,
+                        roleUuid: orgCustomRoleUuid,
+                    },
+                ],
+            });
+            mockPermissionModel.getSpaceInfo.mockResolvedValue({
+                [spaceUuid]: {
+                    projectUuid,
+                    organizationUuid,
+                },
+            });
+            mockPermissionModel.getRoleScopes.mockResolvedValue({
+                [orgCustomRoleUuid]: [
+                    'manage:Space@public',
+                    'manage:Dashboard@space',
+                    'manage:SavedChart@space',
+                ],
+            });
+
+            const result = await service.getAllSpaceAccessContext(spaceUuid);
+
+            expect(mockPermissionModel.getRoleScopes).toHaveBeenCalledWith(
+                [orgCustomRoleUuid],
                 { trx: undefined },
             );
             expect(result.access).toEqual([
@@ -351,6 +413,7 @@ describe('SpacePermissionService', () => {
                         userUuid,
                         spaceUuid: 'private-space',
                         role: 'member' as OrganizationMemberRole,
+                        roleUuid: null,
                     },
                 ],
             });
@@ -405,6 +468,7 @@ describe('SpacePermissionService', () => {
                         userUuid: adminUuid,
                         spaceUuid: 'private-space',
                         role: 'admin' as OrganizationMemberRole,
+                        roleUuid: null,
                     },
                 ],
             });
@@ -774,16 +838,19 @@ describe('SpacePermissionService', () => {
                         userUuid: 'org-admin',
                         spaceUuid,
                         role: 'admin' as OrganizationMemberRole,
+                        roleUuid: null,
                     },
                     {
                         userUuid: 'dual-admin',
                         spaceUuid,
                         role: 'admin' as OrganizationMemberRole,
+                        roleUuid: null,
                     },
                     {
                         userUuid: 'org-member',
                         spaceUuid,
                         role: 'member' as OrganizationMemberRole,
+                        roleUuid: null,
                     },
                 ],
             });
@@ -1211,6 +1278,7 @@ describe('SpacePermissionService', () => {
                         userUuid,
                         spaceUuid,
                         role: 'viewer' as OrganizationMemberRole,
+                        roleUuid: null,
                     },
                 ],
             });
@@ -1255,6 +1323,7 @@ describe('SpacePermissionService', () => {
                         userUuid,
                         spaceUuid,
                         role: 'viewer' as OrganizationMemberRole,
+                        roleUuid: null,
                     },
                 ],
             });

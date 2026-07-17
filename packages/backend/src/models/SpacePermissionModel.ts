@@ -59,6 +59,14 @@ export type ProjectSpaceAccessWithCustomRole = ProjectSpaceAccess & {
     roleUuid: string | null;
 };
 
+/**
+ * Org-level custom-role assignments persist a placeholder `member` in
+ * `organization_memberships.role`; the real role lives in `role_uuid`.
+ */
+export type OrganizationSpaceAccessWithCustomRole = OrganizationSpaceAccess & {
+    roleUuid: string | null;
+};
+
 export class SpacePermissionModel {
     constructor(private readonly database: Knex) {}
 
@@ -504,17 +512,18 @@ export class SpacePermissionModel {
         spaceUuids: string[],
         filters?: { userUuid?: string },
         { trx = this.database }: { trx?: Knex } = {},
-    ): Promise<Record<string, OrganizationSpaceAccess[]>> {
+    ): Promise<Record<string, OrganizationSpaceAccessWithCustomRole[]>> {
         return wrapSentryTransaction(
             'SpaceModel.getOrganizationSpaceAccess',
             { spaceUuidsCount: spaceUuids.length },
             async () => {
-                const organizationSpacesAccess: OrganizationSpaceAccess[] =
+                const organizationSpacesAccess: OrganizationSpaceAccessWithCustomRole[] =
                     await trx(SpaceTableName)
                         .select({
                             userUuid: `${UserTableName}.user_uuid`,
                             spaceUuid: `${SpaceTableName}.space_uuid`,
                             role: `${OrganizationMembershipsTableName}.role`,
+                            roleUuid: `${OrganizationMembershipsTableName}.role_uuid`,
                         })
                         .innerJoin(
                             ProjectTableName,
@@ -547,7 +556,7 @@ export class SpacePermissionModel {
                         });
 
                 return organizationSpacesAccess.reduce<
-                    Record<string, OrganizationSpaceAccess[]>
+                    Record<string, OrganizationSpaceAccessWithCustomRole[]>
                 >((acc, organizationSpaceAccess) => {
                     if (!acc[organizationSpaceAccess.spaceUuid]) {
                         acc[organizationSpaceAccess.spaceUuid] = [];

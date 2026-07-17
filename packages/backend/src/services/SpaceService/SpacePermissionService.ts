@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     getHighestSpaceRole,
+    getOrganizationRoleForSpaceAccess,
     getProjectRoleForSpaceAccess,
     NotFoundError,
     OrganizationMemberRole,
@@ -18,6 +19,7 @@ import { Knex } from 'knex';
 import { SpaceModel } from '../../models/SpaceModel';
 import {
     SpacePermissionModel,
+    type OrganizationSpaceAccessWithCustomRole,
     type ProjectSpaceAccessWithCustomRole,
 } from '../../models/SpacePermissionModel';
 import { BaseService } from '../BaseService';
@@ -176,26 +178,35 @@ export class SpacePermissionService extends BaseService {
     }
 
     /**
-     * Custom-role project/group assignments persist a placeholder `viewer` in
-     * the legacy `role` column (the real role lives in `role_uuid`). Replace
-     * the placeholder with the role derived from the custom role's scopes so
-     * inherited space access reflects what the role actually grants.
+     * Custom-role assignments persist a placeholder in the legacy `role`
+     * column (`viewer` on project/group access, `member` on org memberships)
+     * with the real role in `role_uuid`. Replace the placeholder with the
+     * role derived from the custom role's scopes so inherited space access
+     * reflects what the role actually grants.
      */
-    private async resolveCustomRoleProjectAccess(
+    private async resolveCustomRoleAccess(
         projectAccessMap: Record<string, ProjectSpaceAccessWithCustomRole[]>,
+        organizationAccessMap: Record<
+            string,
+            OrganizationSpaceAccessWithCustomRole[]
+        >,
         { trx }: { trx?: Knex } = {},
-    ): Promise<Record<string, ProjectSpaceAccess[]>> {
+    ): Promise<{
+        projectAccessMap: Record<string, ProjectSpaceAccess[]>;
+        organizationAccessMap: Record<string, OrganizationSpaceAccess[]>;
+    }> {
         const customRoleUuids = [
             ...new Set(
-                Object.values(projectAccessMap)
-                    .flat()
-                    .flatMap((access) =>
-                        access.roleUuid ? [access.roleUuid] : [],
-                    ),
+                [
+                    ...Object.values(projectAccessMap).flat(),
+                    ...Object.values(organizationAccessMap).flat(),
+                ].flatMap((access) =>
+                    access.roleUuid ? [access.roleUuid] : [],
+                ),
             ),
         ];
         if (customRoleUuids.length === 0) {
-            return projectAccessMap;
+            return { projectAccessMap, organizationAccessMap };
         }
 
         const scopesByRole = await this.spacePermissionModel.getRoleScopes(
@@ -203,21 +214,42 @@ export class SpacePermissionService extends BaseService {
             { trx },
         );
 
-        return Object.fromEntries(
-            Object.entries(projectAccessMap).map(([spaceUuid, accessList]) => [
-                spaceUuid,
-                accessList.map(({ roleUuid, ...access }) =>
-                    roleUuid
-                        ? {
-                              ...access,
-                              role: getProjectRoleForSpaceAccess(
-                                  scopesByRole[roleUuid] ?? [],
-                              ),
-                          }
-                        : access,
+        return {
+            projectAccessMap: Object.fromEntries(
+                Object.entries(projectAccessMap).map(
+                    ([spaceUuid, accessList]) => [
+                        spaceUuid,
+                        accessList.map(({ roleUuid, ...access }) =>
+                            roleUuid
+                                ? {
+                                      ...access,
+                                      role: getProjectRoleForSpaceAccess(
+                                          scopesByRole[roleUuid] ?? [],
+                                      ),
+                                  }
+                                : access,
+                        ),
+                    ],
                 ),
-            ]),
-        );
+            ),
+            organizationAccessMap: Object.fromEntries(
+                Object.entries(organizationAccessMap).map(
+                    ([spaceUuid, accessList]) => [
+                        spaceUuid,
+                        accessList.map(({ roleUuid, ...access }) =>
+                            roleUuid
+                                ? {
+                                      ...access,
+                                      role: getOrganizationRoleForSpaceAccess(
+                                          scopesByRole[roleUuid] ?? [],
+                                      ),
+                                  }
+                                : access,
+                        ),
+                    ],
+                ),
+            ),
+        };
     }
 
     /**
@@ -270,41 +302,50 @@ export class SpacePermissionService extends BaseService {
         ];
 
         // Batch-fetch access data
-        const [directAccessMap, projectAccessMap, orgAccessMap, spaceInfo] =
-            await Promise.all([
-                this.spacePermissionModel.getDirectSpaceAccess(
-                    allChainSpaceUuids,
-                    filters,
-                    { trx },
-                ),
-                allChainsRootSpaceUuids.length > 0
-                    ? this.spacePermissionModel
-                          .getProjectSpaceAccess(
-                              allChainsRootSpaceUuids,
-                              filters,
-                              { trx },
-                          )
-                          .then((access) =>
-                              this.resolveCustomRoleProjectAccess(access, {
-                                  trx,
-                              }),
-                          )
-                    : Promise.resolve(
-                          {} as Record<string, ProjectSpaceAccess[]>,
-                      ),
-                allChainsRootSpaceUuids.length > 0
-                    ? this.spacePermissionModel.getOrganizationSpaceAccess(
-                          allChainsRootSpaceUuids,
-                          filters,
-                          { trx },
-                      )
-                    : Promise.resolve(
-                          {} as Record<string, OrganizationSpaceAccess[]>,
-                      ),
-                this.spacePermissionModel.getSpaceInfo(uniqueSpaceUuids, {
-                    trx,
-                }),
-            ]);
+        const [
+            directAccessMap,
+            rawProjectAccessMap,
+            rawOrgAccessMap,
+            spaceInfo,
+        ] = await Promise.all([
+            this.spacePermissionModel.getDirectSpaceAccess(
+                allChainSpaceUuids,
+                filters,
+                { trx },
+            ),
+            allChainsRootSpaceUuids.length > 0
+                ? this.spacePermissionModel.getProjectSpaceAccess(
+                      allChainsRootSpaceUuids,
+                      filters,
+                      { trx },
+                  )
+                : Promise.resolve(
+                      {} as Record<string, ProjectSpaceAccessWithCustomRole[]>,
+                  ),
+            allChainsRootSpaceUuids.length > 0
+                ? this.spacePermissionModel.getOrganizationSpaceAccess(
+                      allChainsRootSpaceUuids,
+                      filters,
+                      { trx },
+                  )
+                : Promise.resolve(
+                      {} as Record<
+                          string,
+                          OrganizationSpaceAccessWithCustomRole[]
+                      >,
+                  ),
+            this.spacePermissionModel.getSpaceInfo(uniqueSpaceUuids, {
+                trx,
+            }),
+        ]);
+
+        // Substitute scope-derived roles for custom-role placeholder rows
+        const { projectAccessMap, organizationAccessMap: orgAccessMap } =
+            await this.resolveCustomRoleAccess(
+                rawProjectAccessMap,
+                rawOrgAccessMap,
+                { trx },
+            );
 
         // For each requested space, aggregate access from its chain
         const result: Record<string, SpaceAccessContextForCasl> = {};
