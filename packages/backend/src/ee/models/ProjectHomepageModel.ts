@@ -1,6 +1,7 @@
 import {
     ConflictError,
     NotFoundError,
+    ParameterError,
     type HomepageAssignment,
     type HomepageAudience,
     type HomepageConfig,
@@ -111,6 +112,28 @@ export class ProjectHomepageModel {
                 .returning('*');
             return ProjectHomepageModel.mapDbHomepage(row);
         });
+    }
+
+    async discardDraft(homepageUuid: string): Promise<ProjectHomepage> {
+        const existing = await this.database(HomepagesTableName)
+            .where({ homepage_uuid: homepageUuid })
+            .first();
+        if (!existing) {
+            throw new NotFoundError('Homepage not found');
+        }
+        if (existing.published_config === null) {
+            throw new ParameterError(
+                'This homepage has never been published, so there is no version to revert to',
+            );
+        }
+        const [row] = await this.database(HomepagesTableName)
+            .where({ homepage_uuid: homepageUuid })
+            .update({
+                draft_config: existing.published_config,
+                updated_at: new Date(),
+            })
+            .returning('*');
+        return ProjectHomepageModel.mapDbHomepage(row);
     }
 
     async updateDraft(

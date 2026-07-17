@@ -57,6 +57,7 @@ export type ProjectHomepageServiceArguments = {
         | 'list'
         | 'create'
         | 'updateDraft'
+        | 'discardDraft'
         | 'publish'
         | 'delete'
     >;
@@ -415,6 +416,17 @@ export class ProjectHomepageService extends BaseService {
             draftConfig: data.draftConfig,
             baseUpdatedAt: data.baseUpdatedAt,
         });
+    }
+
+    async discardDraft(
+        user: SessionUser,
+        projectUuid: string,
+        homepageUuid: string,
+    ): Promise<ProjectHomepage> {
+        await this.assertFlagEnabled(user);
+        this.assertCanManage(user, projectUuid);
+        await this.getOwnedHomepage(projectUuid, homepageUuid);
+        return this.projectHomepageModel.discardDraft(homepageUuid);
     }
 
     async publishHomepage(

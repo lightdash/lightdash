@@ -383,6 +383,31 @@ export class ProjectHomepageController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')
+    @Post('/{homepageUuid}/discard-draft')
+    @OperationId('discardProjectHomepageDraft')
+    async discardDraft(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() homepageUuid: UUID,
+    ): Promise<ApiProjectHomepageResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getHomepageService().discardDraft(
+                toSessionUser(req.account),
+                projectUuid,
+                homepageUuid,
+            ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
     @Post('/{homepageUuid}/publish')
     @OperationId('publishProjectHomepage')
     async publish(

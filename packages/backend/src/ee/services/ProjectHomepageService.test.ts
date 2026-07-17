@@ -133,6 +133,7 @@ const makeService = ({
             list: vi.fn().mockResolvedValue([]),
             create: vi.fn().mockResolvedValue(makeHomepage()),
             updateDraft: vi.fn().mockResolvedValue(makeHomepage()),
+            discardDraft: vi.fn().mockResolvedValue(makeHomepage()),
             publish: vi.fn().mockResolvedValue(makeHomepage()),
             delete: vi.fn().mockResolvedValue(undefined),
             ...projectHomepageModel,
@@ -292,6 +293,43 @@ describe('ProjectHomepageService', () => {
             true,
         );
         expect(result.publishedConfig).toEqual(validConfig);
+    });
+
+    it('discardDraft reverts the draft to the published config for an admin when the flag is on', async () => {
+        const discardDraft = vi.fn().mockResolvedValue(
+            makeHomepage({
+                draftConfig: validConfig,
+                publishedConfig: validConfig,
+            }),
+        );
+        const service = makeService({
+            projectHomepageModel: { discardDraft },
+        });
+
+        const result = await service.discardDraft(
+            makeAdminUser(),
+            PROJECT_UUID,
+            HOMEPAGE_UUID,
+        );
+
+        expect(discardDraft).toHaveBeenCalledWith(HOMEPAGE_UUID);
+        expect(result.draftConfig).toEqual(validConfig);
+    });
+
+    it('discardDraft throws NotFoundError for a homepage in another project', async () => {
+        const service = makeService({
+            projectHomepageModel: {
+                getByUuid: vi
+                    .fn()
+                    .mockResolvedValue(
+                        makeHomepage({ projectUuid: 'other-project-uuid' }),
+                    ),
+            },
+        });
+
+        await expect(
+            service.discardDraft(makeAdminUser(), PROJECT_UUID, HOMEPAGE_UUID),
+        ).rejects.toThrow(NotFoundError);
     });
 
     it('getPublishedHomepage resolves with the viewer’s groups and role', async () => {

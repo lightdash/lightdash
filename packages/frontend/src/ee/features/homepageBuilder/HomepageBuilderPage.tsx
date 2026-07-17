@@ -171,7 +171,7 @@ export const HomepageBuilderPage: FC = () => {
                         void navigate(`/projects/${projectUuid}/home`);
                     }
                 }}
-                onConflictReload={async () => {
+                onReload={async () => {
                     await queryClient.refetchQueries([
                         'project_homepage',
                         projectUuid,
