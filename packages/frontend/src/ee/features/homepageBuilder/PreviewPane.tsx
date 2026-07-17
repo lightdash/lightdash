@@ -46,8 +46,8 @@ const reasonLabel = (
     }
 };
 
-// The "Viewing as" switcher — lives in the builder toolbar during preview so
-// the canvas below stays the real rendered homepage.
+// The "Viewing as" switcher — always visible in the builder toolbar; picking
+// an audience forces the canvas below into the real rendered homepage.
 export const ViewAsControl: FC<{
     projectUuid: string;
     viewType: HomepageViewType;
