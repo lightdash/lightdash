@@ -72,7 +72,7 @@ const GuidedFilterSetupOverlay: FC<Props> = ({
                 'aria-label': 'Set filters to load this dashboard',
             }}
         >
-            <Callout variant="info">
+            <Callout variant="warning">
                 {requiredFiltersNote ||
                     'Data loads automatically once the filters below are set.'}
             </Callout>
