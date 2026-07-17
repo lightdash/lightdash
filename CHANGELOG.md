@@ -1,3 +1,10 @@
+# [0.3414.0](https://github.com/lightdash/lightdash/compare/0.3413.1...0.3414.0) (2026-07-17)
+
+
+### Features
+
+* single new-onboarding flag, passwordless signup and full-page org setup ([#25759](https://github.com/lightdash/lightdash/issues/25759)) ([e8a8ce0](https://github.com/lightdash/lightdash/commit/e8a8ce0c3de04b8f32c8031d042c5f4e76cacb86))
+
 ## [0.3413.1](https://github.com/lightdash/lightdash/compare/0.3413.0...0.3413.1) (2026-07-17)
 
 
