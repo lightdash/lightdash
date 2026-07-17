@@ -1,3 +1,16 @@
+# [0.3411.0](https://github.com/lightdash/lightdash/compare/0.3410.0...0.3411.0) (2026-07-17)
+
+
+### Bug Fixes
+
+* support EKS Pod Identity when S3_USE_CREDENTIALS_FROM includes ecs ([#25743](https://github.com/lightdash/lightdash/issues/25743)) ([80955dc](https://github.com/lightdash/lightdash/commit/80955dc4b351ce3faa6990d02c61d94b66772837))
+
+
+### Features
+
+* **homepage:** ask-ai hero is full-row-only — configOps guards ([#25736](https://github.com/lightdash/lightdash/issues/25736)) ([3218377](https://github.com/lightdash/lightdash/commit/32183770f65d4148be8f8b0496c9d4a3ad46e787))
+* **navbar:** add Autopilot cell next to Ask AI ([#25747](https://github.com/lightdash/lightdash/issues/25747)) ([0ebcdb7](https://github.com/lightdash/lightdash/commit/0ebcdb74b3e2da240e647b72d675364f2b671246))
+
 # [0.3410.0](https://github.com/lightdash/lightdash/compare/0.3409.1...0.3410.0) (2026-07-17)
 
 
