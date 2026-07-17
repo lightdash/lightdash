@@ -6,8 +6,9 @@ import {
     Stack,
     Text,
     UnstyledButton,
+    Popover,
 } from '@mantine-8/core';
-import { Popover, useMantineTheme } from '@mantine/core';
+import { useMantineTheme } from '@mantine/core';
 import differenceBy from 'lodash/differenceBy';
 import filter from 'lodash/filter';
 import includes from 'lodash/includes';

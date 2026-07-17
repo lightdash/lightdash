@@ -5,8 +5,9 @@ import {
     Text,
     UnstyledButton,
     HoverCard,
+    Popover,
 } from '@mantine-8/core';
-import { Popover, Tooltip, useMantineTheme } from '@mantine/core';
+import { Tooltip, useMantineTheme } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { Editor } from '@monaco-editor/react';
 import {
