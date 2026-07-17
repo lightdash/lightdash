@@ -311,6 +311,7 @@ export type InfiniteQueryResults = Partial<
     isFetchingRows: boolean;
     isFetchingAllPages: boolean;
     fetchMoreRows: () => void;
+    refetchRows: () => Promise<unknown>;
     setFetchAll: (value: boolean) => void;
     fetchAll: boolean;
     hasFetchedAllRows: boolean;
@@ -569,6 +570,7 @@ export const useInfiniteQueryResults = (
             rows: fetchedRows,
             isFetchingRows,
             fetchMoreRows,
+            refetchRows: nextPage.refetch,
             setFetchAll,
             totalClientFetchTimeMs,
             isInitialLoading: isInitialLoading || dependenciesChanged,
@@ -590,6 +592,7 @@ export const useInfiniteQueryResults = (
             fetchedRows,
             isFetchingRows,
             fetchMoreRows,
+            nextPage.refetch,
             totalClientFetchTimeMs,
             isInitialLoading,
             nextPage.error,
