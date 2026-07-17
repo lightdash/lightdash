@@ -89,6 +89,14 @@ Generate OpenAPI specs from TSOA controllers. Always run this when:
 pnpm generate-api
 ```
 
+The generated files (`packages/backend/src/generated/*`) are regenerated on main per build, so the committed `routes.ts` may be stale after you pull or rebase main — it can still import controllers that main has already deleted. If the backend crash-loops with `MODULE_NOT_FOUND` pointing at `generated/routes.ts`, regenerate and restart:
+
+```bash
+pnpm generate-api
+# processes are named <LD_INSTANCE_ID>-api / -scheduler (LD_INSTANCE_ID defaults to "lightdash")
+pm2 restart "${LD_INSTANCE_ID:-lightdash}-api" "${LD_INSTANCE_ID:-lightdash}-scheduler"
+```
+
 Chart-as-code JSON schema is generated from backend OpenAPI:
 
 ```bash
