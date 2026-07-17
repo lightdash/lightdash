@@ -96,7 +96,7 @@ describe('GuidedFilterSetupOverlay', () => {
 
         expect(screen.getByTestId('guided-filter-setup')).not.toBeNull();
         expect(
-            screen.getByText('Set filters to load Sales dashboard'),
+            screen.getByText('Set filters to load this dashboard'),
         ).not.toBeNull();
         expect(
             screen.getByText('Pick a customer to get started'),

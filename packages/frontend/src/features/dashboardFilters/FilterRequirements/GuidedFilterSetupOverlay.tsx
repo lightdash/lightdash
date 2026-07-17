@@ -30,7 +30,6 @@ const GuidedFilterSetupOverlay: FC<Props> = ({
     const isLoadingDashboardFilters = useDashboardContext(
         (c) => c.isLoadingDashboardFilters,
     );
-    const dashboard = useDashboardContext((c) => c.dashboard);
     const requiredFiltersNote = useDashboardContext(
         (c) => c.requiredFiltersNote,
     );
@@ -50,7 +49,7 @@ const GuidedFilterSetupOverlay: FC<Props> = ({
         <MantineModal
             opened
             onClose={onDismiss}
-            title={`Set filters to load ${dashboard?.name ?? 'this dashboard'}`}
+            title="Set filters to load this dashboard"
             description={
                 requiredFiltersNote ||
                 'Data loads automatically once the filters below are set.'
