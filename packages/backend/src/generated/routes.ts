@@ -8784,6 +8784,7 @@ const models: TsoaRoute.Models = {
                 config: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        showRecommendedActions: { dataType: 'boolean' },
                         showGreeting: { dataType: 'boolean', required: true },
                     },
                     required: true,

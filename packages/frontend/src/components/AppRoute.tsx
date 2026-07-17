@@ -1,6 +1,9 @@
+import { FeatureFlags } from '@lightdash/common';
 import { type FC } from 'react';
 import { Navigate, useLocation } from 'react-router';
+import { useHomepageBuilderFlag } from '../ee/features/homepageBuilder/hooks/useProjectHomepage';
 import { useOrganization } from '../hooks/organization/useOrganization';
+import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import ErrorState from './common/ErrorState';
 import PageSpinner from './PageSpinner';
@@ -9,6 +12,10 @@ const AppRoute: FC<React.PropsWithChildren> = ({ children }) => {
     const { health } = useApp();
     const location = useLocation();
     const orgRequest = useOrganization();
+    const homepageBuilderFlag = useHomepageBuilderFlag();
+    const orgSetupPageFlag = useServerFeatureFlag(
+        FeatureFlags.OrganizationSetupPage,
+    );
 
     if (health.isInitialLoading || orgRequest.isInitialLoading) {
         return <PageSpinner />;
@@ -23,10 +30,18 @@ const AppRoute: FC<React.PropsWithChildren> = ({ children }) => {
     }
 
     if (orgRequest?.data?.needsProject) {
+        if (homepageBuilderFlag.isLoading || orgSetupPageFlag.isLoading) {
+            return <PageSpinner />;
+        }
+        const showGetStarted =
+            homepageBuilderFlag.isEnabled &&
+            (orgSetupPageFlag.data?.enabled ?? false);
         return (
             <Navigate
                 to={{
-                    pathname: '/createProject',
+                    pathname: showGetStarted
+                        ? '/get-started'
+                        : '/createProject',
                 }}
                 state={{ from: location }}
             />

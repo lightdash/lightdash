@@ -55,7 +55,7 @@ export const blockLibrary: BlockDefinition[] = [
         create: () => ({
             id: uuidv4(),
             type: 'ask-ai-hero',
-            config: { showGreeting: true },
+            config: { showGreeting: true, showRecommendedActions: false },
         }),
         View: AskAiHeroBlockView,
         Build: AskAiHeroBlockBuild,

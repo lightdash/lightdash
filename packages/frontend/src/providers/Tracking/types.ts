@@ -1,5 +1,6 @@
 import {
     type CustomFormatType,
+    type HomepageRecommendedActionKey,
     type SearchItemType,
     type TableCalculationType,
     type TimeFrames,
@@ -114,6 +115,20 @@ export type HomepageQuickActionClickedEvent = {
     name: EventName.HOMEPAGE_QUICK_ACTION_CLICKED;
     properties: {
         actionType: string;
+    };
+};
+
+export type HomepageRecommendedActionClickedEvent = {
+    name: EventName.HOMEPAGE_RECOMMENDED_ACTION_CLICKED;
+    properties: {
+        actionKey: HomepageRecommendedActionKey;
+    };
+};
+
+export type HomepageRecommendedActionSkippedEvent = {
+    name: EventName.HOMEPAGE_RECOMMENDED_ACTION_SKIPPED;
+    properties: {
+        actionKey: HomepageRecommendedActionKey;
     };
 };
 
@@ -569,18 +584,11 @@ type DashboardFilterRequirementsSavedEvent = {
     };
 };
 
-export type OnboardingAgentMessageSubmittedEvent = {
-    name: EventName.ONBOARDING_AGENT_MESSAGE_SUBMITTED;
-    properties: {
-        projectUuid: string;
-        isNewAgent: boolean;
-    };
-};
-
 export type EventData =
     | GenericEvent
     | HomepageQuickActionClickedEvent
-    | OnboardingAgentMessageSubmittedEvent
+    | HomepageRecommendedActionClickedEvent
+    | HomepageRecommendedActionSkippedEvent
     | SetupStepClickedEvent
     | DocumentationClickedEvent
     | SearchResultClickedEvent

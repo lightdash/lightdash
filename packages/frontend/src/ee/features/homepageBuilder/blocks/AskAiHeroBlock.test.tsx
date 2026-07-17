@@ -12,6 +12,9 @@ vi.mock('../../aiCopilot/hooks/useAiAgentsButtonVisibility', () => ({
 vi.mock('../../../../providers/App/useApp', () => ({
     default: () => ({ user: { data: { firstName: 'Test' } } }),
 }));
+vi.mock('./useRecommendedActions', () => ({
+    useRecommendedActions: () => ({ hasPendingActions: false }),
+}));
 
 const block: HomepageAskAiHeroBlock = {
     id: 'b1',

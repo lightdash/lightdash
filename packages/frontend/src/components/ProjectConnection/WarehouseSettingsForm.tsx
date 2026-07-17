@@ -1,6 +1,6 @@
 import { WarehouseTypes } from '@lightdash/common';
 import { Select } from '@mantine-8/core';
-import { type FC } from 'react';
+import { type FC, type ReactNode } from 'react';
 import { useFormContext } from './formContext';
 import AthenaForm from './WarehouseForms/AthenaForm';
 import BigQueryForm from './WarehouseForms/BigQueryForm';
@@ -40,11 +40,13 @@ const WarehouseTypeForms = {
 interface WarehouseSettingsFormProps {
     disabled: boolean;
     isProjectUpdate?: boolean | undefined;
+    children?: ReactNode;
 }
 
 const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
     disabled,
     isProjectUpdate,
+    children,
 }) => {
     const form = useFormContext();
 
@@ -83,6 +85,7 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
             )}
 
             <WarehouseForm disabled={disabled} />
+            {children}
         </div>
     );
 };

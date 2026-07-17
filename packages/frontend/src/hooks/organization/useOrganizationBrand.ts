@@ -74,8 +74,12 @@ const saveOrganizationBrand = async (data: SaveOrganizationBrandRequest) =>
 
 /**
  * Persists the edited brand appearance and updates the cached brand.
+ * Pass showSuccessToast: false where the flow itself confirms the save
+ * (e.g. onboarding advances to the next step).
  */
-export const useSaveOrganizationBrand = () => {
+export const useSaveOrganizationBrand = (
+    options: { showSuccessToast: boolean } = { showSuccessToast: true },
+) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
@@ -86,7 +90,9 @@ export const useSaveOrganizationBrand = () => {
         mutationKey: ['organization_brand_save'],
         onSuccess: (brand) => {
             queryClient.setQueryData(['organization_brand'], brand);
-            showToastSuccess({ title: 'Brand appearance saved' });
+            if (options.showSuccessToast) {
+                showToastSuccess({ title: 'Brand appearance saved' });
+            }
         },
         onError: ({ error }) => {
             showToastApiError({

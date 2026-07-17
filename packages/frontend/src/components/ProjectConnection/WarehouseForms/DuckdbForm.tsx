@@ -13,7 +13,7 @@ import {
     PasswordInput,
 } from '@mantine-8/core';
 import { NumberInput } from '@mantine/core';
-import { type FC } from 'react';
+import { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
@@ -45,14 +45,17 @@ const DATA_PATH_TYPE_OPTIONS = [
 
 export const DuckdbSchemaInput: FC<{
     disabled: boolean;
-}> = ({ disabled }) => {
+    description?: ReactNode;
+}> = ({ disabled, description }) => {
     const form = useFormContext();
 
     return (
         <TextInput
             name="warehouse.schema"
             label="Schema"
-            description="The default schema for your DuckDB connection."
+            description={
+                description ?? 'The default schema for your DuckDB connection.'
+            }
             required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}

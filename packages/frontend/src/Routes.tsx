@@ -764,20 +764,15 @@ const PRIVATE_ROUTES: RouteObject[] = [
                 element: <Navigate to="/projects" replace />,
             },
             {
-                path: '/onboarding/agent',
-                handle: { hideAILauncher: true },
+                path: '/get-started',
                 lazy: async () => {
-                    const OnboardingAgent = await loadLazyRouteDefault(
-                        './pages/OnboardingAgent',
-                        () => import('./pages/OnboardingAgent'),
-                    );
+                    const { default: NoProjectHomepage } =
+                        await import('./ee/features/homepageBuilder/NoProjectHomepage');
                     return {
                         Component: () => (
                             <>
                                 <NavBar />
-                                <TrackPage name={PageName.ONBOARDING_AGENT}>
-                                    <OnboardingAgent />
-                                </TrackPage>
+                                <NoProjectHomepage />
                             </>
                         ),
                     };

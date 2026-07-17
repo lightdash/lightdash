@@ -10,7 +10,12 @@ export type HomepageMarkdownBlock = {
 export type HomepageAskAiHeroBlock = {
     id: string;
     type: 'ask-ai-hero';
-    config: { showGreeting: boolean };
+    config: {
+        showGreeting: boolean;
+        /** Replaces the prompt suggestions with the setup checklist.
+         * Optional for configs persisted before this field existed. */
+        showRecommendedActions?: boolean;
+    };
 };
 
 export type HomepageCollectionItemRef = {
@@ -112,6 +117,12 @@ export type HomepageRecentBlock = {
     type: 'recent';
     config: { title: string };
 };
+
+export type HomepageRecommendedActionKey =
+    | 'connect-warehouse'
+    | 'add-semantic-layer'
+    | 'connect-source-control'
+    | 'connect-slack';
 
 export type HomepageBlock =
     | HomepageMarkdownBlock

@@ -1057,6 +1057,17 @@ docker exec "${LD_CONTAINER_PREFIX}-db-dev-1" pg_isready -U postgres
 
 ## Troubleshooting
 
+### Backend Crash-Loops with MODULE_NOT_FOUND on `generated/routes.ts`
+
+`Cannot find module './../ee/controllers/...'` — the generated files are regenerated on main per build, so the committed `routes.ts` can be stale after pulling or rebasing main and still import controllers main has deleted. `dev-fast-start.sh` checks this before starting PM2, but if you pull after the stack is already up:
+
+```bash
+pnpm generate-api
+pm2 restart "${LD_INSTANCE_ID}-api" "${LD_INSTANCE_ID}-scheduler"
+```
+
+The backend does not hot-reload, so the restart is required — regenerating alone won't clear the crash-loop.
+
 ### PostgreSQL Connection Refused
 
 ```bash

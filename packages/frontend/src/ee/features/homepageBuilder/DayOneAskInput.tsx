@@ -1,15 +1,17 @@
 import {
+    DbtProjectType,
     type AgentSuggestion,
     type AiPromptContextInput,
     type AiPromptContextItem,
     type AiRouter,
 } from '@lightdash/common';
-import { Anchor, Skeleton } from '@mantine-8/core';
+import { Anchor, Skeleton, Text } from '@mantine-8/core';
 import { IconArrowUpRight } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useProject } from '../../../hooks/useProject';
 import {
     AI_ROUTING_AUTO_VALUE,
     AI_ROUTING_SEARCH_PARAM,
@@ -18,6 +20,7 @@ import { AgentChatInput } from '../aiCopilot/components/ChatElements/AgentChatIn
 import { usePendingPrompt } from '../aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { useAgentSuggestions } from '../aiCopilot/hooks/useAgentSuggestions';
 import { useCanCreateAiAgentThread } from '../aiCopilot/hooks/useAiAgentPermission';
+import { useAiAgentSqlModeAvailable } from '../aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import {
     useCreateAgentThreadMutation,
     useProjectAiAgents,
@@ -28,7 +31,11 @@ import classes from './DayOneAskInput.module.css';
 
 const AI_ROUTER_QUERY_KEY = 'ai-router';
 
-type Props = { projectUuid: string; preview?: boolean };
+type Props = {
+    projectUuid: string | null;
+    preview?: boolean;
+    hideSuggestions?: boolean;
+};
 
 // AgentSelector (rendered inside AgentChatInput below) already calls
 // useAiRouterConfig() to build its own dropdown. Calling that same hook a
@@ -100,19 +107,27 @@ const SuggestionPills: FC<{
 // (not via AgentChatInput's own `showSuggestions`) so they keep the design's
 // pill styling, and so a specific reference agent can power them even when
 // the composer itself is in Auto mode.
-const DayOneAskInputInner: FC<Props> = ({ projectUuid, preview = false }) => {
+const DayOneAskInputInner: FC<Props> = ({
+    projectUuid,
+    preview = false,
+    hideSuggestions,
+}) => {
     const navigate = useNavigate();
     const { setPendingPrompt } = usePendingPrompt();
-    const { data: agents, isLoading: isLoadingAgents } = useProjectAiAgents({
-        projectUuid,
-        redirectOnUnauthorized: false,
-    });
-    const { data: userAgentPreferences, isLoading: isLoadingPreferences } =
-        useGetUserAgentPreferences(projectUuid);
-    const canCreateThread = useCanCreateAiAgentThread(projectUuid);
+    const { data: agents, isInitialLoading: isLoadingAgents } =
+        useProjectAiAgents({
+            projectUuid,
+            redirectOnUnauthorized: false,
+            options: { enabled: !!projectUuid },
+        });
+    const {
+        data: userAgentPreferences,
+        isInitialLoading: isLoadingPreferences,
+    } = useGetUserAgentPreferences(projectUuid);
+    const canCreateThread = useCanCreateAiAgentThread(projectUuid ?? undefined);
     const routerEnabled = useAiRouterEnabledFromCache();
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
-        useCreateAgentThreadMutation(projectUuid);
+        useCreateAgentThreadMutation(projectUuid ?? '');
 
     const showAutoOption = (agents?.length ?? 0) > 1 && routerEnabled === true;
     const validDefaultAgent = agents?.find(
@@ -125,11 +140,21 @@ const DayOneAskInputInner: FC<Props> = ({ projectUuid, preview = false }) => {
         validDefaultAgent ?? (showAutoOption ? 'auto' : agents?.[0]);
     const referenceAgent = validDefaultAgent ?? agents?.[0];
 
+    const { data: project } = useProject(projectUuid ?? undefined);
+    const sqlModeAvailable = useAiAgentSqlModeAvailable(
+        projectUuid ?? undefined,
+    );
+    // Dbt-less projects have no explores yet — the agent queries the
+    // warehouse catalog directly via SQL mode until a semantic layer exists.
+    const enableSqlMode =
+        sqlModeAvailable &&
+        project?.dbtConnection?.type === DbtProjectType.NONE;
+
     const suggestionsQuery = useAgentSuggestions({
-        projectUuid,
+        projectUuid: projectUuid ?? '',
         agentUuid: referenceAgent?.uuid,
-        enableSqlMode: false,
-        enabled: !!referenceAgent,
+        enableSqlMode,
+        enabled: !!projectUuid && !!referenceAgent && !hideSuggestions,
     });
 
     const submitPrompt = (
@@ -138,6 +163,7 @@ const DayOneAskInputInner: FC<Props> = ({ projectUuid, preview = false }) => {
         context?: AiPromptContextInput,
         optimisticContext?: AiPromptContextItem[],
     ) => {
+        if (!projectUuid) return;
         if (activeSelection === 'auto') {
             setPendingPrompt(prompt);
             void navigate(
@@ -161,6 +187,7 @@ const DayOneAskInputInner: FC<Props> = ({ projectUuid, preview = false }) => {
             toolHints,
             context,
             optimisticContext,
+            enableSqlMode,
         });
     };
 
@@ -192,7 +219,7 @@ const DayOneAskInputInner: FC<Props> = ({ projectUuid, preview = false }) => {
         return <Skeleton h={64} radius="lg" />;
     }
 
-    if (!agents || agents.length === 0) {
+    if (projectUuid && (!agents || agents.length === 0)) {
         return (
             <div className={blockClasses.dashedEmpty}>
                 Set up an AI agent to enable Ask AI here —{' '}
@@ -210,9 +237,9 @@ const DayOneAskInputInner: FC<Props> = ({ projectUuid, preview = false }) => {
         // shows what viewers will get.
         <div className={classes.composer} inert={preview}>
             <AgentChatInput
-                projectUuid={projectUuid}
+                projectUuid={projectUuid ?? undefined}
                 agents={agents}
-                selectedAgent={activeSelection ?? agents[0]}
+                selectedAgent={activeSelection ?? agents?.[0]}
                 placeholder={
                     activeSelection === 'auto'
                         ? 'Ask anything about your data…'
@@ -226,14 +253,19 @@ const DayOneAskInputInner: FC<Props> = ({ projectUuid, preview = false }) => {
                 fullWidth
                 revealAgentSelectorOnFocus
                 dense
-                disabled={!canCreateThread}
+                disabled={!projectUuid || !canCreateThread}
                 disabledReason={
-                    !canCreateThread
+                    projectUuid && !canCreateThread
                         ? "Your role can view AI agents but can't start conversations. Ask a workspace admin for access."
                         : undefined
                 }
             />
-            {(canCreateThread || preview) && (
+            {!projectUuid && (
+                <Text size="xs" c="dimmed" ta="center" mt={10}>
+                    Connect your data to start asking questions
+                </Text>
+            )}
+            {!hideSuggestions && (canCreateThread || preview) && (
                 <SuggestionPills
                     chips={suggestionsQuery.data?.chips ?? []}
                     loading={suggestionsQuery.isLoading}

@@ -94,9 +94,17 @@ d['githubAccount'] = os.environ['ACCT']
 json.dump(d, open(p, 'w'), indent=2)
 print(f\"OK: saved githubAccount={os.environ['ACCT']} in {p}\")
 " ;;
+    google-oauth)
+        REDIRECT_URI="http://localhost:${FE_PORT}/api/v1/oauth/redirect/google"
+        HTTP_CODE="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:${PORT}/api/v1/login/bigquery")"
+        case "$HTTP_CODE" in
+            302) echo "OK: google strategy registered (login/bigquery -> 302). If Google shows redirect_uri_mismatch, register: $REDIRECT_URI" ;;
+            500) echo "NEED: google strategy NOT registered — pull AUTH_GOOGLE_OAUTH2_CLIENT_ID/SECRET (./scripts/dev-op-pull.sh pull AUTH_GOOGLE_OAUTH2_CLIENT_ID AUTH_GOOGLE_OAUTH2_CLIENT_SECRET), recycle pm2, and ensure the client registers: $REDIRECT_URI" ; exit 1 ;;
+            *)   echo "NEED: login/bigquery returned HTTP $HTTP_CODE (api down?)" ; exit 1 ;;
+        esac ;;
     all)
         run_cjs installation && run_cjs dbt-repo-check && run_cjs verify-token ;;
     "")
-        echo "Usage: dev-reconcile.sh {github-app-installation|github-dbt-repo|org-settings k=v|verify-token|all}" >&2; exit 2 ;;
+        echo "Usage: dev-reconcile.sh {github-app-installation|github-dbt-repo|org-settings k=v|verify-token|google-oauth|all}" >&2; exit 2 ;;
     *)                       run_cjs "$STEP" "$@" ;;
 esac

@@ -437,6 +437,32 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# main regenerates the TSOA artifacts per build, so a pulled/rebased
+# routes.ts can still import controllers that main has already deleted —
+# the backend then crash-loops on MODULE_NOT_FOUND before serving anything.
+step "Check generated API routes resolve"
+GENERATED_DIR="packages/backend/src/generated"
+if [ ! -f "$GENERATED_DIR/routes.ts" ]; then
+    echo "SKIP: $GENERATED_DIR/routes.ts not present"
+else
+    STALE_IMPORTS=""
+    for import_path in $(grep -oE "from '\./\.\./[^']*'" "$GENERATED_DIR/routes.ts" | sed -E "s/^from '//; s/'$//" | sort -u); do
+        if [ ! -f "$GENERATED_DIR/$import_path.ts" ]; then
+            STALE_IMPORTS="$STALE_IMPORTS $import_path"
+        fi
+    done
+    if [ -n "$STALE_IMPORTS" ]; then
+        echo "Stale imports in routes.ts:$STALE_IMPORTS"
+        echo "Regenerating API artifacts..."
+        pnpm generate-api:fast >/dev/null 2>&1 \
+            || fail "generate-api" "pnpm generate-api:fast failed while regenerating stale routes.ts"
+        echo "OK: regenerated API artifacts"
+    else
+        echo "OK: generated routes resolve"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 step "Start PM2"
 RUNNING_CWD="$(pm2 jlist 2>/dev/null | INSTANCE="$LD_INSTANCE_ID" python3 -c "
 import sys, json, os

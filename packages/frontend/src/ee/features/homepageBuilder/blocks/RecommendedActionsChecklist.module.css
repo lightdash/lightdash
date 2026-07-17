@@ -1,0 +1,194 @@
+/* Narrower than the ask input above it */
+.checklistRoot {
+    width: 90%;
+    margin-inline: auto;
+}
+
+.headerRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.actionRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 10px;
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+.actionRowDone {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+}
+
+/* Stacked cards must stay opaque or the cards behind bleed through */
+.stackCard.actionRowDone {
+    border-color: var(--mantine-color-ldGray-2);
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+/* Dim contents, not the element — the card surface must stay opaque in stacks */
+.actionRowSkipped .rowBody,
+.actionRowSkipped .iconTile,
+.actionRowSkipped .emptyCircle {
+    opacity: 0.6;
+}
+
+.headerControls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Shared stacked-card language: top card legible, the rest peek out beneath it */
+.cardStack {
+    position: relative;
+}
+
+.stackHeight1 {
+    height: 68px;
+}
+
+.stackHeight2 {
+    height: 78px;
+}
+
+.stackHeight3 {
+    height: 86px;
+}
+
+.stackHeight4 {
+    height: 96px;
+}
+
+.stackCard {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    box-sizing: border-box;
+    height: 68px;
+    overflow: hidden;
+}
+
+.animatedCard {
+    transition:
+        transform 240ms ease,
+        opacity 240ms ease;
+}
+
+/* Cards behind the top one read as edges, so they keep a card surface even when done */
+.cardBehind {
+    pointer-events: none;
+    border-color: var(--mantine-color-ldGray-2);
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+.pos0 {
+    z-index: 4;
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.pos1 {
+    z-index: 3;
+    opacity: 0.55;
+    transform: translateY(9px) scale(0.97);
+}
+
+.pos2 {
+    z-index: 2;
+    opacity: 0.3;
+    transform: translateY(18px) scale(0.94);
+}
+
+.pos3 {
+    z-index: 1;
+    opacity: 0.15;
+    transform: translateY(27px) scale(0.91);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .animatedCard {
+        transition: none;
+    }
+}
+
+.emptyCircle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1.5px dashed var(--mantine-color-ldGray-4);
+    flex-shrink: 0;
+}
+
+.doneCircle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--mantine-color-green-6);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+}
+
+.iconTile {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: var(--mantine-color-ldGray-1);
+    color: var(--mantine-color-ldGray-7);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+}
+
+.iconTileDone {
+    opacity: 0.45;
+}
+
+.rowBody {
+    flex: 1;
+    min-width: 0;
+}
+
+.rowTitle {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.rowTitleDone {
+    font-weight: 500;
+    text-decoration: line-through;
+    color: var(--mantine-color-ldGray-5);
+}
+
+.skipButton {
+    opacity: 0;
+    transition: opacity 100ms ease;
+    flex-shrink: 0;
+}
+
+.actionRow:hover .skipButton,
+.skipButton:focus-visible {
+    opacity: 1;
+}
+
+.rowSubtitle {
+    font-size: 13px;
+    color: var(--mantine-color-ldGray-6);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

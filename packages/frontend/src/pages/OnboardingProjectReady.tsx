@@ -19,7 +19,7 @@ import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';
 import { useProject } from '../hooks/useProject';
 import classes from './OnboardingProjectReady.module.css';
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 3;
 const STEP_CADENCE_MS = 600;
 
 const OnboardingProjectReadyContent: FC<{ projectUuid: string }> = ({
@@ -83,10 +83,6 @@ const OnboardingProjectReadyContent: FC<{ projectUuid: string }> = ({
             label: 'Indexing tables & columns',
             annotation: tablesSuccess ? `${tableCount} tables` : null,
         },
-        {
-            label: 'Building semantic catalog',
-            annotation: null,
-        },
     ];
 
     const progress = (completedSteps / TOTAL_STEPS) * 100;
@@ -122,7 +118,7 @@ const OnboardingProjectReadyContent: FC<{ projectUuid: string }> = ({
 
     return (
         <Box className={classes.page}>
-            <DocumentTitle title="Your project is ready" />
+            <DocumentTitle title="We're getting your project ready" />
 
             <Box className={classes.column}>
                 <Box className={classes.checkCircle} ref={checkCircleRef}>
@@ -136,7 +132,7 @@ const OnboardingProjectReadyContent: FC<{ projectUuid: string }> = ({
 
                 <Stack gap={6} className={classes.heading}>
                     <Title order={2} ta="center" fw={700}>
-                        Your project is ready
+                        We're getting your project ready
                     </Title>
                     <Text c="dimmed" size="lg" ta="center">
                         Aurora now understands your data.
@@ -197,9 +193,11 @@ const OnboardingProjectReadyContent: FC<{ projectUuid: string }> = ({
                         size="lg"
                         radius="md"
                         className={classes.startButton}
-                        onClick={() => void navigate('/onboarding/agent')}
+                        onClick={() =>
+                            void navigate(`/projects/${projectUuid}/home`)
+                        }
                     >
-                        Start chatting with Aurora
+                        Go to your homepage
                     </Button>
                 )}
             </Box>
@@ -216,7 +214,7 @@ const OnboardingProjectReady: FC = () => {
     }
 
     if (!projectUuid) {
-        return <Navigate to="/onboarding/agent" replace />;
+        return <Navigate to="/" replace />;
     }
 
     return (

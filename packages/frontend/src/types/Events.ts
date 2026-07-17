@@ -50,7 +50,6 @@ export enum PageName {
     VERIFY_EMAIL = 'verify_email',
     JOIN_ORGANIZATION = 'join_organization',
     ORGANIZATION_SETUP = 'organization_setup',
-    ONBOARDING_AGENT = 'onboarding_agent',
     ONBOARDING_DATA_SOURCE = 'onboarding_data_source',
     ONBOARDING_PROJECT_READY = 'onboarding_project_ready',
     EMBED_DASHBOARD = 'embed_dashboard',
@@ -78,6 +77,8 @@ export enum SectionName {
 
 export enum EventName {
     HOMEPAGE_QUICK_ACTION_CLICKED = 'homepage_quick_action.clicked',
+    HOMEPAGE_RECOMMENDED_ACTION_CLICKED = 'homepage_recommended_action.clicked',
+    HOMEPAGE_RECOMMENDED_ACTION_SKIPPED = 'homepage_recommended_action.skipped',
     REVOKE_INVITES_BUTTON_CLICKED = 'revoke_invites_button.clicked',
     INVITE_BUTTON_CLICKED = 'invite_users_to_organisation_button.clicked',
     RUN_QUERY_BUTTON_CLICKED = 'run_query_button.clicked',
@@ -104,7 +105,6 @@ export enum EventName {
     CREATE_PROJECT_CLI_SSO_OPTION_CLICKED = 'create_project_cli_sso_option.click',
     COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED = 'copy_create_project_code_click.click',
     ONBOARDING_STEP_CLICKED = 'onboarding_step.click',
-    ONBOARDING_AGENT_MESSAGE_SUBMITTED = 'onboarding_agent_message.submit',
     LANDING_RUN_QUERY_CLICKED = 'landing_run_query.click',
     SETUP_STEP_CLICKED = 'setup_step.click',
     ADD_FILTER_CLICKED = 'add_filter.click',

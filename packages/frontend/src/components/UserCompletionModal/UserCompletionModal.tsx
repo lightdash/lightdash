@@ -11,7 +11,7 @@ import { useForm } from '@mantine/form';
 import { IconConfetti } from '@tabler/icons-react';
 import { zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useMemo, type FC } from 'react';
-import { Navigate } from 'react-router';
+import { Navigate, useLocation } from 'react-router';
 import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
@@ -178,6 +178,7 @@ const UserCompletionModal: FC = () => {
 
 const UserCompletionModalWithUser = () => {
     const { user, health } = useApp();
+    const location = useLocation();
     const orgSetupPageFlag = useServerFeatureFlag(
         FeatureFlags.OrganizationSetupPage,
     );
@@ -191,7 +192,12 @@ const UserCompletionModalWithUser = () => {
             user.data &&
             !user.data.isSetupComplete &&
             health.data?.rudder.writeKey !== undefined;
-        return shouldSetup ? <Navigate to="/organization-setup" /> : null;
+        // Keyed by pathname so the redirect re-fires if a competing route
+        // redirect (e.g. AppRoute's needsProject -> /createProject) wins the
+        // same render commit.
+        return shouldSetup ? (
+            <Navigate key={location.pathname} to="/organization-setup" />
+        ) : null;
     }
 
     if (!user.isSuccess) {

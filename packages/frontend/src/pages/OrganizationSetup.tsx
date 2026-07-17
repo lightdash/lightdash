@@ -150,7 +150,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         emailDomain,
         health.hasBrandfetch && canEnterOrganizationName && isCompanyDomain,
     );
-    const saveBrand = useSaveOrganizationBrand();
+    const saveBrand = useSaveOrganizationBrand({ showSuccessToast: false });
 
     const { setValues, isDirty } = form;
     const hasAppliedDetectedBrand = useRef(false);
@@ -468,7 +468,7 @@ const OrganizationSetup: FC = () => {
         FeatureFlags.OrganizationSetupPage,
     );
     const completeMutation = useUserCompleteMutation({
-        onSuccess: () => void navigate('/onboarding/agent'),
+        onSuccess: () => void navigate('/'),
     });
     const isCompletingSetup =
         completeMutation.isLoading || completeMutation.isSuccess;

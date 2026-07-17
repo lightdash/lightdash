@@ -9426,6 +9426,10 @@
                 "properties": {
                     "config": {
                         "properties": {
+                            "showRecommendedActions": {
+                                "type": "boolean",
+                                "description": "Replaces the prompt suggestions with the setup checklist.\nOptional for configs persisted before this field existed."
+                            },
                             "showGreeting": {
                                 "type": "boolean"
                             }

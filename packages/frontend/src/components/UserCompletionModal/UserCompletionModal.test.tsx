@@ -20,13 +20,21 @@ const mockFeatureFlag = (enabled: boolean) => {
     } as ReturnType<typeof useServerFeatureFlag>);
 };
 
+const renderModal = (mocks?: Parameters<typeof renderWithProviders>[1]) =>
+    renderWithProviders(
+        <MemoryRouter initialEntries={['/']}>
+            <UserCompletionModal />
+        </MemoryRouter>,
+        mocks,
+    );
+
 describe('UserCompletionModal', () => {
     beforeEach(() => {
         mockFeatureFlag(false);
     });
 
     it("should not render anything if user's setup is complete", async () => {
-        renderWithProviders(<UserCompletionModal />);
+        renderModal();
         // Wait a bit to ensure component has rendered, then verify no dialog appears
         await waitFor(() => {
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -34,7 +42,7 @@ describe('UserCompletionModal', () => {
     });
 
     it("should render user completion modal if user's setup is not complete", async () => {
-        renderWithProviders(<UserCompletionModal />, {
+        renderModal({
             user: {
                 isSetupComplete: false,
             },
@@ -48,7 +56,7 @@ describe('UserCompletionModal', () => {
     });
 
     it('should not show organization name input if organization already has organization name', async () => {
-        renderWithProviders(<UserCompletionModal />, {
+        renderModal({
             user: {
                 isSetupComplete: false,
                 organizationName: 'test organization',
@@ -66,7 +74,7 @@ describe('UserCompletionModal', () => {
     });
 
     it('should show organization name input if organization does not have organization name', async () => {
-        renderWithProviders(<UserCompletionModal />, {
+        renderModal({
             user: {
                 isSetupComplete: false,
                 organizationName: '',
@@ -85,7 +93,7 @@ describe('UserCompletionModal', () => {
     });
 
     it("should not show email domain checkbox if user's email provider is from common email providers", async () => {
-        renderWithProviders(<UserCompletionModal />, {
+        renderModal({
             user: {
                 isSetupComplete: false,
                 organizationName: '',
@@ -106,7 +114,7 @@ describe('UserCompletionModal', () => {
     });
 
     it('should show email domain checkbox if user is using custom email provider', async () => {
-        renderWithProviders(<UserCompletionModal />, {
+        renderModal({
             user: {
                 isSetupComplete: false,
                 organizationName: '',
@@ -127,7 +135,7 @@ describe('UserCompletionModal', () => {
     });
 
     it("should not show anonymize tracking checkbox if organization's mode is cloud beta", async () => {
-        renderWithProviders(<UserCompletionModal />, {
+        renderModal({
             user: {
                 isSetupComplete: false,
                 organizationName: '',
@@ -150,7 +158,7 @@ describe('UserCompletionModal', () => {
     });
 
     it('should show anonymize tracking checkbox if organization is not cloud beta', async () => {
-        renderWithProviders(<UserCompletionModal />, {
+        renderModal({
             user: {
                 isSetupComplete: false,
                 organizationName: '',
@@ -175,7 +183,7 @@ describe('UserCompletionModal', () => {
     it("should submit user's completion with correct data", async () => {
         const user = userEvent.setup();
 
-        renderWithProviders(<UserCompletionModal />, {
+        renderModal({
             user: {
                 isSetupComplete: false,
                 organizationName: '',
@@ -255,7 +263,7 @@ describe('UserCompletionModal', () => {
     it("should not submit organization name and email domain if user's organization already has organization name", async () => {
         const user = userEvent.setup();
 
-        renderWithProviders(<UserCompletionModal />, {
+        renderModal({
             user: {
                 isSetupComplete: false,
                 organizationName: 'test organization',

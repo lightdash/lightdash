@@ -87,6 +87,7 @@ import { OrganizationWarehouseCredentialsService } from './services/Organization
 import { PreviewDeploySetupService } from './services/PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
 import { ProjectHomepageService } from './services/ProjectHomepageService';
+import { provisionOnboardingHomepage } from './services/ProjectService/provisionOnboardingHomepage';
 import { SchedulerAiAugmentationService } from './services/SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 import { ScimService } from './services/ScimService/ScimService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
@@ -689,6 +690,17 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAppGenerateService<AppGenerateService>(),
                     getAiAgentService: () =>
                         repository.getAiAgentService<AiAgentService>(),
+                    onProjectCreated: ({ user, projectUuid, projectType }) =>
+                        provisionOnboardingHomepage({
+                            user,
+                            projectUuid,
+                            projectType,
+                            featureFlagService:
+                                repository.getFeatureFlagService(),
+                            projectModel: models.getProjectModel(),
+                            projectHomepageModel:
+                                models.getProjectHomepageModel<ProjectHomepageModel>(),
+                        }),
                 }),
             instanceConfigurationService: ({
                 models,

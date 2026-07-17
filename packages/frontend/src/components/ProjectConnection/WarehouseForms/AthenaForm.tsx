@@ -7,7 +7,7 @@ import {
     PasswordInput,
 } from '@mantine-8/core';
 import { NumberInput } from '@mantine/core';
-import { useEffect, type FC } from 'react';
+import { useEffect, type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import useHealth from '../../../hooks/health/useHealth';
 import FormCollapseButton from '../FormCollapseButton';
@@ -19,14 +19,17 @@ import { AthenaDefaultValues } from './defaultValues';
 
 export const AthenaSchemaInput: FC<{
     disabled: boolean;
-}> = ({ disabled }) => {
+    description?: ReactNode;
+}> = ({ disabled, description }) => {
     const form = useFormContext();
 
     return (
         <TextInput
             name="warehouse.schema"
             label="Schema"
-            description="This is the schema name (database in Athena)."
+            description={
+                description ?? 'This is the schema name (database in Athena).'
+            }
             required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
