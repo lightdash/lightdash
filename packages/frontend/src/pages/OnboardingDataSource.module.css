@@ -1,11 +1,12 @@
 .page {
-    min-height: 100vh;
+    min-height: calc(100vh - var(--navbar-height));
     background-color: var(--mantine-color-white);
     display: flex;
     flex-direction: column;
 }
 
 .column {
+    flex: 1;
     width: 100%;
     max-width: 1140px;
     margin: 0 auto;
@@ -75,6 +76,7 @@
 }
 
 .connectColumn {
+    flex: 1;
     width: 100%;
     max-width: 62rem;
     margin: 0 auto;

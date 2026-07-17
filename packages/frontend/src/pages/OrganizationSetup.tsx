@@ -24,8 +24,8 @@ import { useForm } from '@mantine/form';
 import { zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useRef, useState, type FC } from 'react';
 import { Navigate, useNavigate } from 'react-router';
+import AboutFooter from '../components/AboutFooter';
 import { DocumentTitle } from '../components/common/DocumentTitle';
-import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 import PageSpinner from '../components/PageSpinner';
 import { jobTitles } from '../components/UserCompletionModal/jobTitles';
 import {
@@ -184,8 +184,6 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         selectedColor,
         detectedBrand?.colors ?? [],
     );
-    const previewDomain =
-        detectedBrand?.domain ?? (isCompanyDomain ? emailDomain : '');
     const titleFont =
         detectedBrand?.fonts.find((font) => font.type === 'title') ?? null;
     const bodyFont =
@@ -224,14 +222,22 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
             });
         }
 
-        if (detectedBrand) {
+        const brandDomain =
+            detectedBrand?.domain ?? (isCompanyDomain ? emailDomain : null);
+        if (brandDomain) {
             saveBrand.mutate({
-                domain: detectedBrand.domain,
-                name: detectedBrand.name,
-                description: detectedBrand.description,
-                logos: detectedBrand.logos,
-                colors: buildBrandColors(selectedColor, detectedBrand.colors),
-                fonts: detectedBrand.fonts,
+                domain: brandDomain,
+                name:
+                    values.organizationName.trim() ||
+                    detectedBrand?.name ||
+                    null,
+                description: detectedBrand?.description ?? null,
+                logos: detectedBrand?.logos ?? [],
+                colors: buildBrandColors(
+                    selectedColor,
+                    detectedBrand?.colors ?? [],
+                ),
+                fonts: detectedBrand?.fonts ?? [],
             });
         }
     });
@@ -243,12 +249,6 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
     return (
         <Box className={classes.page}>
             <DocumentTitle title="Set up your organization" />
-            <Box className={classes.topBar}>
-                <LightdashLogo />
-                <Text size="sm" c="dimmed">
-                    Step {displayStep} of {totalSteps} · {stepLabel}
-                </Text>
-            </Box>
 
             <Box className={classes.body}>
                 <Box className={classes.leftPane}>
@@ -256,6 +256,10 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                         {isWorkspaceStep ? (
                             <Stack gap="lg">
                                 <Stack gap="xs">
+                                    <Text size="sm" c="dimmed">
+                                        Step {displayStep} of {totalSteps} ·{' '}
+                                        {stepLabel}
+                                    </Text>
                                     <Title
                                         order={1}
                                         fz={44}
@@ -291,38 +295,38 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                         </Text>
                                     </Group>
 
-                                    <Group gap="lg" align="flex-start">
-                                        <Box
-                                            className={classes.logoTile}
-                                            bg={
-                                                detectedLogoUrl
-                                                    ? 'var(--mantine-color-ldGray-0)'
-                                                    : selectedColor
-                                            }
-                                        >
-                                            {detectedLogoUrl ? (
-                                                <img
-                                                    src={detectedLogoUrl}
-                                                    alt=""
-                                                    className={
-                                                        classes.logoTileImage
-                                                    }
-                                                />
-                                            ) : (
-                                                <Text
-                                                    fw={700}
-                                                    fz={20}
-                                                    c="white"
-                                                >
-                                                    {logoTileInitial}
-                                                </Text>
-                                            )}
-                                        </Box>
+                                    <Stack gap="xs">
+                                        <Text size="sm" fw={500}>
+                                            Theme color
+                                        </Text>
+                                        <Group gap="lg" align="center">
+                                            <Box
+                                                className={classes.logoTile}
+                                                bg={
+                                                    detectedLogoUrl
+                                                        ? 'var(--mantine-color-ldGray-0)'
+                                                        : selectedColor
+                                                }
+                                            >
+                                                {detectedLogoUrl ? (
+                                                    <img
+                                                        src={detectedLogoUrl}
+                                                        alt=""
+                                                        className={
+                                                            classes.logoTileImage
+                                                        }
+                                                    />
+                                                ) : (
+                                                    <Text
+                                                        fw={700}
+                                                        fz={20}
+                                                        c="white"
+                                                    >
+                                                        {logoTileInitial}
+                                                    </Text>
+                                                )}
+                                            </Box>
 
-                                        <Stack gap="xs">
-                                            <Text size="sm" fw={500}>
-                                                Theme color
-                                            </Text>
                                             <Box className={classes.swatchRow}>
                                                 {swatches.map((color) => (
                                                     <Box
@@ -346,8 +350,8 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                                     />
                                                 ))}
                                             </Box>
-                                        </Stack>
-                                    </Group>
+                                        </Group>
+                                    </Stack>
                                 </Stack>
 
                                 <Group>
@@ -366,6 +370,10 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                         ) : (
                             <Stack gap="lg">
                                 <Stack gap="xs">
+                                    <Text size="sm" c="dimmed">
+                                        Step {displayStep} of {totalSteps} ·{' '}
+                                        {stepLabel}
+                                    </Text>
                                     <Title
                                         order={1}
                                         fz={44}
@@ -446,7 +454,6 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
 
                 <Box className={classes.rightPane}>
                     <OrganizationSetupPreview
-                        domain={previewDomain}
                         name={form.values.organizationName || null}
                         logos={detectedBrand?.logos ?? []}
                         colors={previewColors}
@@ -457,6 +464,8 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                     />
                 </Box>
             </Box>
+
+            <AboutFooter />
         </Box>
     );
 };
