@@ -39,6 +39,7 @@ const discovery: SnowflakeSessionDiscovery = {
                 name: 'analytics',
                 comment: 'Analytics data',
                 kind: 'STANDARD',
+                sizeBytes: 1234,
             },
         ],
         warehouses: [
@@ -112,7 +113,9 @@ const getDependencies = () => ({
 });
 
 const depositInventory = {
-    databases: [{ name: 'analytics', comment: 'Analytics data' }],
+    databases: [
+        { name: 'analytics', comment: 'Analytics data', sizeBytes: 1234 },
+    ],
     warehouses: [{ name: 'lightdash_wh', size: 'X-Small', state: 'STARTED' }],
     roles: [
         { name: 'lightdash_role', isDefault: true },
@@ -264,6 +267,7 @@ describe('connectSnowflakeHandler', () => {
                     name,
                     comment: null,
                     kind: null,
+                    sizeBytes: null,
                 })),
                 warehouses: inventoryNames.map((name) => ({
                     name,
@@ -294,7 +298,7 @@ describe('connectSnowflakeHandler', () => {
         expect(request.inventory).toEqual({
             databases: inventoryNames
                 .slice(0, 100)
-                .map((name) => ({ name, comment: null })),
+                .map((name) => ({ name, comment: null, sizeBytes: null })),
             warehouses: inventoryNames
                 .slice(0, 100)
                 .map((name) => ({ name, size: null, state: null })),

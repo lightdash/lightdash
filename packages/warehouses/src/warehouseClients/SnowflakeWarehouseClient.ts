@@ -98,6 +98,7 @@ const EXTERNAL_BROWSER_AUTHENTICATOR = 'EXTERNALBROWSER';
 const OAUTH_AUTHORIZATION_CODE_AUTHENTICATOR = 'OAUTH_AUTHORIZATION_CODE';
 const SESSION_DISCOVERY_LIMIT = 100;
 const SESSION_SCHEMA_DISCOVERY_LIMIT = 1000;
+const SESSION_DATABASE_SIZE_LIMIT = 25;
 // Minimum allowed by Snowflake (range 16-160, default 160)
 const SNOWFLAKE_RESULT_CHUNK_SIZE_MB = 16;
 
@@ -202,6 +203,7 @@ export type SnowflakeSessionInventory = {
         name: string;
         comment: string | null;
         kind: string | null;
+        sizeBytes: number | null;
     }[];
     warehouses: {
         name: string;
@@ -290,6 +292,7 @@ const listSnowflakeSchemas = (
 
 const listSnowflakeDatabases = (
     rows: AnyType[],
+    databaseSizes: Map<string, number>,
 ): SnowflakeSessionInventory['databases'] =>
     rows
         .flatMap((rawRow) => {
@@ -306,6 +309,7 @@ const listSnowflakeDatabases = (
                             ? null
                             : getSnowflakeRowValue(row, 'comment'),
                     kind: getSnowflakeRowValue(row, 'kind'),
+                    sizeBytes: databaseSizes.get(name) ?? null,
                 },
             ];
         })
@@ -334,6 +338,56 @@ const listSnowflakeWarehouses = (
             ];
         })
         .slice(0, SESSION_DISCOVERY_LIMIT);
+
+const WAREHOUSE_SIZE_ORDER = [
+    'X-Small',
+    'Small',
+    'Medium',
+    'Large',
+    'X-Large',
+    '2X-Large',
+    '3X-Large',
+    '4X-Large',
+    '5X-Large',
+    '6X-Large',
+];
+
+const warehouseSizeRank = (size: string | null): number => {
+    const index = WAREHOUSE_SIZE_ORDER.findIndex(
+        (candidate) =>
+            candidate.toLowerCase() === (size ?? '').trim().toLowerCase(),
+    );
+    return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+};
+
+const pickSizeDiscoveryWarehouse = (rows: AnyType[]): string | null => {
+    const warehouses = rows
+        .map((rawRow) => {
+            const row = rawRow as Record<string, AnyType>;
+            return {
+                name: getSnowflakeRowValue(row, 'name'),
+                size: getSnowflakeRowValue(row, 'size'),
+                state: (getSnowflakeRowValue(row, 'state') ?? '')
+                    .trim()
+                    .toUpperCase(),
+            };
+        })
+        .filter((warehouse) => Boolean(warehouse.name));
+    const started = warehouses.filter(
+        (warehouse) => warehouse.state === 'STARTED',
+    );
+    const pool = started.length > 0 ? started : warehouses;
+    const best = pool.reduce<(typeof pool)[number] | null>(
+        (currentBest, candidate) =>
+            currentBest === null ||
+            warehouseSizeRank(candidate.size) <
+                warehouseSizeRank(currentBest.size)
+                ? candidate
+                : currentBest,
+        null,
+    );
+    return best?.name ?? null;
+};
 
 export const snowflakeIdentifier = (value: string): string =>
     /^[A-Za-z_][A-Za-z0-9_$]*$/.test(value)
@@ -868,6 +922,62 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         } catch {
             schemaRows = [];
         }
+        const databaseSizes = new Map<string, number>();
+        const sizeCandidates = databasesResult.rows
+            .map((rawRow) =>
+                getSnowflakeRowValue(rawRow as Record<string, AnyType>, 'name'),
+            )
+            .filter((name): name is string => Boolean(name))
+            .slice(0, SESSION_DATABASE_SIZE_LIMIT);
+        // INFORMATION_SCHEMA aggregation needs an active warehouse; without a
+        // session default, activate one (prefer already-running, then smallest)
+        if (sizeCandidates.length > 0) {
+            const sessionWarehouseName = getSnowflakeRowValue(
+                defaultsRow,
+                'warehouse',
+            );
+            const sizeWarehouseName =
+                sessionWarehouseName ??
+                pickSizeDiscoveryWarehouse(warehousesResult.rows);
+            if (!sessionWarehouseName && sizeWarehouseName) {
+                try {
+                    await this.executeStatements(
+                        connection,
+                        `USE WAREHOUSE ${snowflakeIdentifier(
+                            sizeWarehouseName,
+                        )}`,
+                    );
+                } catch {
+                    /* size queries will fail and sizes stay null */
+                }
+            }
+        }
+        await sizeCandidates.reduce(
+            (previous, databaseName) =>
+                previous.then(async () => {
+                    try {
+                        const sizeResult = await this.executeStatements(
+                            connection,
+                            `SELECT SUM(bytes) AS "total_bytes" FROM ${snowflakeIdentifier(
+                                databaseName,
+                            )}.INFORMATION_SCHEMA.TABLES WHERE table_type = 'BASE TABLE'`,
+                        );
+                        const totalBytes = getSnowflakeRowNumber(
+                            (sizeResult.rows[0] ?? {}) as Record<
+                                string,
+                                AnyType
+                            >,
+                            'total_bytes',
+                        );
+                        if (totalBytes !== null && totalBytes > 0) {
+                            databaseSizes.set(databaseName, totalBytes);
+                        }
+                    } catch {
+                        /* size stays null for this database */
+                    }
+                }),
+            Promise.resolve(),
+        );
         const defaultRole = getSnowflakeRowValue(defaultsRow, 'role');
         const grantedRoles = [
             ...new Set([
@@ -897,7 +1007,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 schema: getSnowflakeRowValue(defaultsRow, 'schema'),
             },
             inventory: {
-                databases: listSnowflakeDatabases(databasesResult.rows),
+                databases: listSnowflakeDatabases(
+                    databasesResult.rows,
+                    databaseSizes,
+                ),
                 warehouses: listSnowflakeWarehouses(warehousesResult.rows),
                 roles,
                 schemas: listSnowflakeSchemas(schemaRows),

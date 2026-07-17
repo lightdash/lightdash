@@ -184,7 +184,11 @@ const buildInventory = (
     }
     return {
         databases: discovery.inventory.databases
-            .map(({ name, comment }) => ({ name, comment }))
+            .map(({ name, comment, sizeBytes }) => ({
+                name,
+                comment,
+                sizeBytes,
+            }))
             .slice(0, 100),
         warehouses: discovery.inventory.warehouses
             .map(({ name, size, state }) => ({ name, size, state }))
