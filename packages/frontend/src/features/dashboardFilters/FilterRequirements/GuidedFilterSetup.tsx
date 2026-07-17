@@ -84,29 +84,28 @@ const MemberInput: FC<MemberInputProps> = ({
     popoverProps,
     onChange,
 }) => (
-    <Group gap="xs" wrap="nowrap">
+    // Label sits on its own line above a full-width input so long field
+    // names aren't squeezed by the input column
+    <Stack gap={4}>
         {showLabel && (
-            <TruncatedText maxWidth={160} fz="xs" c="ldGray.6">
+            <TruncatedText maxWidth="100%" fz="xs" c="ldGray.6">
                 {label}
             </TruncatedText>
         )}
-        <Box flex={1} miw={0}>
-            <FilterInputComponent
-                filterType={
-                    field
-                        ? getFilterTypeFromItem(field)
-                        : getFilterTypeFromItemType(
-                              member.target.fallbackType ??
-                                  DimensionType.STRING,
-                          )
-                }
-                field={field}
-                rule={member}
-                popoverProps={popoverProps}
-                onChange={(newRule) => onChange(newRule as DashboardFilterRule)}
-            />
-        </Box>
-    </Group>
+        <FilterInputComponent
+            filterType={
+                field
+                    ? getFilterTypeFromItem(field)
+                    : getFilterTypeFromItemType(
+                          member.target.fallbackType ?? DimensionType.STRING,
+                      )
+            }
+            field={field}
+            rule={member}
+            popoverProps={popoverProps}
+            onChange={(newRule) => onChange(newRule as DashboardFilterRule)}
+        />
+    </Stack>
 );
 
 type RuleSummaryProps = {
