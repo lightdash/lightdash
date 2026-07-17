@@ -7,7 +7,13 @@ import {
 import { notifications } from '@mantine/notifications';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useState,
+    type FC,
+    type SetStateAction,
+} from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
     jobStatusLabel,
@@ -19,9 +25,20 @@ import Context from './context';
 
 const ActiveJobProvider: FC<React.PropsWithChildren<{}>> = ({ children }) => {
     const [isJobsDrawerOpen, setIsJobsDrawerOpen] = useState(false);
-    const [activeJobId, setActiveJobId] = useState();
+    const [activeJobId, setActiveJobIdState] = useState();
+    const [isQuietJob, setIsQuietJob] = useState(false);
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError, showToastInfo } = useToaster();
+
+    const setActiveJobId = useCallback((jobId: SetStateAction<any>) => {
+        setIsQuietJob(false);
+        setActiveJobIdState(jobId);
+    }, []);
+
+    const setQuietActiveJobId = useCallback((jobId: string) => {
+        setIsQuietJob(true);
+        setActiveJobIdState(jobId as any);
+    }, []);
 
     const toastJobStatus = useCallback(
         async (job: Job | undefined) => {
@@ -40,12 +57,14 @@ const ActiveJobProvider: FC<React.PropsWithChildren<{}>> = ({ children }) => {
                         await queryClient.invalidateQueries(['organization']);
                     }
                     await queryClient.invalidateQueries(['parameters']);
+                    if (isQuietJob) break;
                     showToastSuccess({
                         key: TOAST_KEY_FOR_REFRESH_JOB,
                         title: toastTitle,
                     });
                     break;
                 case 'RUNNING':
+                    if (isQuietJob) break;
                     showToastInfo({
                         key: TOAST_KEY_FOR_REFRESH_JOB,
                         title: toastTitle,
@@ -68,7 +87,13 @@ const ActiveJobProvider: FC<React.PropsWithChildren<{}>> = ({ children }) => {
                     setIsJobsDrawerOpen(true);
             }
         },
-        [showToastInfo, showToastSuccess, queryClient, isJobsDrawerOpen],
+        [
+            showToastInfo,
+            showToastSuccess,
+            queryClient,
+            isJobsDrawerOpen,
+            isQuietJob,
+        ],
     );
 
     const toastJobError = ({ error }: ApiError) => {
@@ -111,6 +136,7 @@ const ActiveJobProvider: FC<React.PropsWithChildren<{}>> = ({ children }) => {
                 setIsJobsDrawerOpen,
                 activeJobId,
                 setActiveJobId,
+                setQuietActiveJobId,
                 activeJob,
                 activeJobIsRunning,
             }}

@@ -40,7 +40,9 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     const { user, health } = useApp();
     const [createProjectJobId, setCreateProjectJobId] = useState<string>();
     const { activeJobIsRunning, activeJobId, activeJob } = useActiveJob();
-    const { isLoading: isSaving, mutateAsync } = useCreateMutation();
+    const { isLoading: isSaving, mutateAsync } = useCreateMutation({
+        quietJobToast: warehouseOnly,
+    });
     const onProjectError = useOnProjectError();
 
     const warehouseType = selectedWarehouse ?? WarehouseTypes.BIGQUERY;
