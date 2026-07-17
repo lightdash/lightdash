@@ -209,8 +209,8 @@ describe('Dashboard filter required groups', () => {
         cy.findByTestId('guided-filter-setup').within(() => {
             cy.findByText('1 of 2 set').should('be.visible');
             cy.findByText('Change').should('be.visible');
-            // Both the summary line and the tag input render the value
-            cy.findAllByText('credit_card').first().should('be.visible');
+            // The collapsed summary shows the operator and the value
+            cy.findByText('is credit_card').should('be.visible');
 
             // Open the second rule's input (Order status); its field values
             // load on focus, so pick from the option list instead of typing

@@ -1,0 +1,16 @@
+/* Muted inline text next to the strong field label, mirroring how the
+   toolbar chips render "field ... operator" */
+.operatorButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-ldGray-6);
+    white-space: nowrap;
+}
+
+.dropdown {
+    max-height: 280px;
+    overflow-y: auto;
+}
