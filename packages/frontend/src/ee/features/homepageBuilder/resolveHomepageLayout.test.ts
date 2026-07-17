@@ -309,6 +309,61 @@ describe('resolveHomepageLayout', () => {
         });
     });
 
+    describe('build surface', () => {
+        it('keeps config-empty blocks and rows 1:1 with the config', () => {
+            const config = makeConfig([
+                [emptyBlock('ann', 'announcements')],
+                [emptyBlock('r', 'resources'), block('f', 'favorites')],
+                [block('c', 'collection')],
+            ]);
+            const { rows } = resolveHomepageLayout(config, {
+                surface: 'build',
+            });
+            expect(rows.map((r) => r.id)).toEqual([
+                'row-0',
+                'row-1',
+                'row-2',
+            ]);
+            expect(rows[1].columns.map((c) => c.block.id)).toEqual([
+                'r',
+                'f',
+            ]);
+        });
+
+        it('never hoists a hero — the ask-ai row stays in flow at composer width', () => {
+            const config = makeConfig([
+                [block('a', 'ask-ai-hero')],
+                [block('c', 'collection')],
+            ]);
+            const { hero, rows } = resolveHomepageLayout(config, {
+                surface: 'build',
+            });
+            expect(hero).toBeNull();
+            expect(rows.map((r) => r.id)).toEqual(['row-0', 'row-1']);
+            expect(rows[0].widthTier).toBe('composer');
+        });
+
+        it('applies the same fit and width math as view for visible content', () => {
+            const config = makeConfig([
+                [block('m', 'metrics'), block('f', 'favorites')],
+                [block('c', 'collection')],
+            ]);
+            const view = resolveHomepageLayout(config);
+            const build = resolveHomepageLayout(config, {
+                surface: 'build',
+            });
+            expect(build.rows.map((r) => r.fit)).toEqual(
+                view.rows.map((r) => r.fit),
+            );
+            expect(build.rows.map((r) => r.widthTier)).toEqual(
+                view.rows.map((r) => r.widthTier),
+            );
+            expect(
+                build.rows[0].columns.map((c) => c.hugUnits),
+            ).toEqual(view.rows[0].columns.map((c) => c.hugUnits));
+        });
+    });
+
     describe('hug fit', () => {
         it('multi-column rows hug', () => {
             const config = makeConfig([

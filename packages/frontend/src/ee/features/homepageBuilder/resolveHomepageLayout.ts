@@ -195,10 +195,18 @@ const applyIntroRole = (rows: ResolvedRow[]): ResolvedRow[] => {
     ];
 };
 
+// 'view' hides config-empty blocks and hoists the leading hero; 'build' keeps
+// every config row/block 1:1 (empty blocks stay editable) and leaves the hero
+// in flow, while sharing all width/fit/hug math — so the edit canvas and the
+// published page cannot drift.
+export type LayoutSurface = 'view' | 'build';
+
 export const resolveHomepageLayout = (
     config: HomepageConfig,
+    opts: { surface: LayoutSurface } = { surface: 'view' },
 ): ResolvedLayout => {
-    const visibleRows = toVisibleRows(config.rows);
+    const isBuild = opts.surface === 'build';
+    const visibleRows = isBuild ? config.rows : toVisibleRows(config.rows);
     // Leading chrome rows join the hero rather than demoting it: the composer
     // is still "leading" with a quick-actions strip above it.
     const composerIdx = visibleRows.findIndex(
@@ -206,7 +214,8 @@ export const resolveHomepageLayout = (
             !row.blocks.every((b) => HERO_COMPANION_TYPES.includes(b.type)),
     );
     const composerRow = composerIdx >= 0 ? visibleRows[composerIdx] : undefined;
-    const hasLeadingHero = !!composerRow && isLeadingHero(composerRow.blocks);
+    const hasLeadingHero =
+        !isBuild && !!composerRow && isLeadingHero(composerRow.blocks);
     const bodyRows = hasLeadingHero
         ? visibleRows.slice(composerIdx + 1)
         : visibleRows;
