@@ -1,3 +1,4 @@
+import { ProjectMemberRole } from '@lightdash/common';
 import { resolveCanvasMode } from './previewMode';
 
 describe('resolveCanvasMode', () => {
@@ -17,7 +18,10 @@ describe('resolveCanvasMode', () => {
 
     it('is preview when both previewing and an audience is selected', () => {
         expect(
-            resolveCanvasMode(true, { type: 'role', role: 'editor' as any }),
+            resolveCanvasMode(true, {
+                type: 'role',
+                role: ProjectMemberRole.EDITOR,
+            }),
         ).toBe('preview');
     });
 });
