@@ -4,8 +4,9 @@ import {
     Stack,
     Text,
     UnstyledButton,
+    HoverCard,
 } from '@mantine-8/core';
-import { HoverCard, Popover, Tooltip, useMantineTheme } from '@mantine/core';
+import { Popover, Tooltip, useMantineTheme } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { Editor } from '@monaco-editor/react';
 import {
@@ -72,7 +73,10 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                         </Group>
                     </UnstyledButton>
                 </HoverCard.Target>
-                <HoverCard.Dropdown maw={600} sx={{ overflow: 'scroll' }}>
+                <HoverCard.Dropdown
+                    maw={600}
+                    className={styles.historyDropdown}
+                >
                     <Group justify="space-between">
                         <Text
                             fz="xs"

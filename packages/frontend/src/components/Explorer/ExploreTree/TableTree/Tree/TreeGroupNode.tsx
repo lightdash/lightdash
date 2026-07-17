@@ -1,6 +1,12 @@
 import { hasIntersection } from '@lightdash/common';
-import { Badge, Group, Highlight, NavLink, Text } from '@mantine-8/core';
-import { HoverCard } from '@mantine/core';
+import {
+    Badge,
+    Group,
+    Highlight,
+    NavLink,
+    Text,
+    HoverCard,
+} from '@mantine-8/core';
 import { IconChevronRight } from '@tabler/icons-react';
 import intersectionBy from 'lodash/intersectionBy';
 import { memo, useCallback, useMemo, type FC } from 'react';

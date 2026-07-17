@@ -17,8 +17,15 @@ import {
     type FilterableField,
     type Item,
 } from '@lightdash/common';
-import { ActionIcon, Group, Highlight, NavLink, Text } from '@mantine-8/core';
-import { HoverCard, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Group,
+    Highlight,
+    NavLink,
+    Text,
+    HoverCard,
+} from '@mantine-8/core';
+import { Tooltip } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconCalendarPin,
@@ -465,7 +472,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                              * of readability.
                              */
                             maw={500}
-                            sx={{ overflow: 'auto' }}
+                            className={styles.detailPreviewDropdown}
                             onClick={handleDropdownClick}
                         >
                             {isMissing ? (
