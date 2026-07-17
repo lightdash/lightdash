@@ -366,6 +366,34 @@ export type AiAgentToolCallTable = Knex.CompositeTableType<
     never
 >;
 
+export const AiAgentToolCallErrorTableName = 'ai_agent_tool_call_error';
+
+// Debugging aid: schema-invalid tool-call attempts dropped by the AI SDK before
+// execution. Kept separate from ai_agent_tool_call, whose rows are replayed
+// into UI/history reconstruction.
+export type DbAiAgentToolCallError = {
+    ai_agent_tool_call_error_uuid: string;
+    ai_prompt_uuid: string;
+    tool_call_id: string;
+    tool_name: string;
+    error_message: string;
+    raw_args: string | null;
+    created_at: Date;
+};
+
+export type AiAgentToolCallErrorTable = Knex.CompositeTableType<
+    DbAiAgentToolCallError,
+    Pick<
+        DbAiAgentToolCallError,
+        | 'ai_prompt_uuid'
+        | 'tool_call_id'
+        | 'tool_name'
+        | 'error_message'
+        | 'raw_args'
+    >,
+    never
+>;
+
 export const AiAgentToolResultTableName = 'ai_agent_tool_result';
 
 export type DbAiAgentToolResult = {

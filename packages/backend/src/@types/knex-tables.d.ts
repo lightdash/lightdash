@@ -340,6 +340,8 @@ import {
     WarehouseCredentialTableName,
 } from '../database/entities/warehouseCredentials';
 import {
+    AiAgentToolCallErrorTable,
+    AiAgentToolCallErrorTableName,
     AiAgentToolCallTable,
     AiAgentToolCallTableName,
     AiAgentToolResultTable,
@@ -632,6 +634,7 @@ declare module 'knex/types/tables' {
         [HomepagePersonalOverridesTableName]: HomepagePersonalOverridesTable;
         [AiAgentReasoningTableName]: AiAgentReasoningTable;
         [AiAgentToolCallTableName]: AiAgentToolCallTable;
+        [AiAgentToolCallErrorTableName]: AiAgentToolCallErrorTable;
         [AiAgentToolResultTableName]: AiAgentToolResultTable;
         [McpToolCallTableName]: McpToolCallTable;
         [McpClientInfoTableName]: McpClientInfoTable;
