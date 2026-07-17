@@ -1,3 +1,11 @@
+# [0.3409.0](https://github.com/lightdash/lightdash/compare/0.3408.1...0.3409.0) (2026-07-17)
+
+
+### Features
+
+* add tree content as code CLI output ([#25722](https://github.com/lightdash/lightdash/issues/25722)) ([8b3b9b9](https://github.com/lightdash/lightdash/commit/8b3b9b94abb132dc425d798d826df39422c36923))
+* change filter operators inline in the guided filter setup ([#25725](https://github.com/lightdash/lightdash/issues/25725)) ([a3b4738](https://github.com/lightdash/lightdash/commit/a3b4738ae427cadccb850a14a9b50ee71050ee49))
+
 ## [0.3408.1](https://github.com/lightdash/lightdash/compare/0.3408.0...0.3408.1) (2026-07-17)
 
 
