@@ -35,7 +35,6 @@ import {
 import {
     IconAlertTriangle,
     IconArrowBackUp,
-    IconBolt,
     IconBrandSlack,
     IconChartBar,
     IconChevronRight,
@@ -51,6 +50,7 @@ import {
     IconPlayerPlay,
     IconSelector,
     IconSettings,
+    IconTarget,
     IconTool,
     IconTrash,
     IconX,
@@ -183,7 +183,7 @@ const SetupSection: FC<{
                 <Stack gap={0}>
                     <Group gap="sm" align="center">
                         <Box className={classes.setupOrb}>
-                            <IconBolt size={16} />
+                            <IconTarget size={16} />
                         </Box>
                         <Title order={4} fw={700}>
                             Autopilot
@@ -520,7 +520,7 @@ const FixedBrokenDiff: FC<{
             <Stack gap="sm">
                 <MetadataLabel label="Changes applied" />
                 <Text fz="xs" c="dimmed" lh={1.6}>
-                    Diff unavailable for this fix — see chart history for
+                    Diff unavailable for this fix, see chart history for
                     details.
                 </Text>
                 {historyLink}
@@ -597,8 +597,8 @@ const FixedBrokenDiff: FC<{
                 </Stack>
             ) : (
                 <Text fz="xs" c="dimmed" lh={1.6}>
-                    This fix touched fields not surfaced in this view — see
-                    chart history for details.
+                    This fix touched fields not surfaced in this view, see chart
+                    history for details.
                 </Text>
             )}
             {historyLink}
@@ -775,7 +775,7 @@ const DetailSidebar: FC<{
                 showRestoreBanner && error?.statusCode === 404;
             showToastApiError({
                 title: isHardDeleted
-                    ? 'Could not restore — the original was permanently deleted'
+                    ? 'Could not restore. The original was permanently deleted'
                     : category === 'undo'
                       ? 'Could not undo action'
                       : 'Could not dismiss action',
@@ -1066,7 +1066,7 @@ const DetailSidebar: FC<{
                         </Button>
                     ) : (
                         <Tooltip
-                            label="This fix was recorded before revert support — restore manually via chart history."
+                            label="This fix was recorded before revert support. Restore manually via chart history."
                             withinPortal
                             multiline
                             w={240}
@@ -1341,8 +1341,8 @@ const SettingsSidebar: FC<{
                                         />
                                         <Text fz="xs" c="dimmed">
                                             Please invite Lightdash to this
-                                            channel — we can&apos;t post
-                                            messages until you do. (
+                                            channel, we can&apos;t post messages
+                                            until you do. (
                                             <Text
                                                 component="span"
                                                 inherit
@@ -1509,9 +1509,9 @@ const ActionRow: FC<{
 
 // --- Run row ---
 
-const BoltPulseLoader: FC<{ size?: number }> = ({ size = 12 }) => (
+const TargetPulseLoader: FC<{ size?: number }> = ({ size = 12 }) => (
     <Box className={classes.boltPulseLoader} aria-label="Running">
-        <IconBolt size={size} fill="currentColor" stroke={0} />
+        <IconTarget size={size} stroke={2.5} />
     </Box>
 );
 
@@ -1563,7 +1563,7 @@ const RunHeaderRow: FC<{
                         <Box w={12} />
                     )}
                     {variant === 'live' ? (
-                        <BoltPulseLoader size={12} />
+                        <TargetPulseLoader size={12} />
                     ) : variant === 'errored' ? (
                         <IconAlertTriangle
                             size={12}
@@ -2067,8 +2067,8 @@ export const ManagedAgentActivityPage: FC = () => {
                                         No activity yet
                                     </Text>
                                     <Text fz="xs" c="dimmed">
-                                        The agent runs on a schedule — check
-                                        back soon.
+                                        The agent runs on a schedule, check back
+                                        soon.
                                     </Text>
                                 </Box>
                             ) : (

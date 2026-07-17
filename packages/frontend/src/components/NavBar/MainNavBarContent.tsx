@@ -5,6 +5,7 @@ import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useM
 import Omnibar from '../../features/omnibar';
 import useApp from '../../providers/App/useApp';
 import Logo from '../../svgs/logo-icon.svg?react';
+import { AutopilotNavButton } from './AutopilotNavButton';
 import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
 import HeadwayMenuItem from './HeadwayMenuItem';
@@ -66,6 +67,9 @@ export const MainNavBarContent: FC<Props> = ({
                                     projectUuid={activeProjectUuid}
                                 />
                             </Suspense>
+                            <AutopilotNavButton
+                                projectUuid={activeProjectUuid}
+                            />
                         </Button.Group>
                         <Omnibar projectUuid={activeProjectUuid} />
                     </>

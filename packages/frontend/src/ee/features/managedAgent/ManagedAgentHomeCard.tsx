@@ -14,9 +14,9 @@ import {
 } from '@mantine-8/core';
 import {
     IconArrowRight,
-    IconBolt,
     IconChartBar,
     IconShieldCheck,
+    IconTarget,
     IconTrendingUp,
 } from '@tabler/icons-react';
 import {
@@ -189,7 +189,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                 <Stack gap="md">
                     <Group gap="md" align="center">
                         <Box className={classes.orbActive}>
-                            <IconBolt size={18} />
+                            <IconTarget size={18} />
                         </Box>
                         <Stack gap={4}>
                             <Group gap={8} align="center">
@@ -241,7 +241,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                 <Stack gap="md">
                     <Group gap="md" align="center">
                         <Box className={classes.orb}>
-                            <IconBolt size={18} />
+                            <IconTarget size={18} />
                         </Box>
                         <Stack gap={4}>
                             <Group gap={8} align="center">
