@@ -3,6 +3,7 @@ import {
     createCredentialChain,
     fromContainerMetadata,
     fromEnv,
+    fromHttp,
     fromIni,
     fromInstanceMetadata,
     fromTokenFile,
@@ -69,6 +70,17 @@ export function resolveS3Credentials(config: {
                     break;
                 case 'container_metadata':
                 case 'ecs':
+                    // Mirror the SDK's default remoteProvider: fromHttp supports the
+                    // EKS Pod Identity endpoint, which fromContainerMetadata rejects.
+                    // Gated on the env vars because fromHttp throws at construction
+                    // when neither is set.
+                    if (
+                        process.env.AWS_CONTAINER_CREDENTIALS_RELATIVE_URI ||
+                        process.env.AWS_CONTAINER_CREDENTIALS_FULL_URI
+                    ) {
+                        providers.push(fromHttp({}));
+                        providerLabels.push('container_http');
+                    }
                     providers.push(fromContainerMetadata());
                     providerLabels.push('container_metadata');
                     break;

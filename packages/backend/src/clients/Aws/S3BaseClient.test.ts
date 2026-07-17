@@ -35,6 +35,7 @@ const s3Mocks = vi.hoisted(() => {
         mockFromContainerMetadata: vi.fn(() => ({
             __type: 'container_metadata',
         })),
+        mockFromHttp: vi.fn(() => ({ __type: 'container_http' })),
         mockFromInstanceMetadata: vi.fn(() => ({
             __type: 'instance_metadata',
         })),
@@ -53,6 +54,7 @@ vi.mock('@aws-sdk/credential-providers', () => ({
     fromIni: () => s3Mocks.mockFromIni(),
     fromContainerMetadata: () => s3Mocks.mockFromContainerMetadata(),
     fromInstanceMetadata: () => s3Mocks.mockFromInstanceMetadata(),
+    fromHttp: () => s3Mocks.mockFromHttp(),
 }));
 
 vi.mock('@aws-sdk/client-s3', () => ({
@@ -78,6 +80,8 @@ describe('S3BaseClient', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         s3Mocks.state.capturedProviders = undefined;
+        delete process.env.AWS_CONTAINER_CREDENTIALS_RELATIVE_URI;
+        delete process.env.AWS_CONTAINER_CREDENTIALS_FULL_URI;
     });
 
     const baseConfig: S3BaseConfiguration = {
@@ -161,6 +165,34 @@ describe('S3BaseClient', () => {
         expect(Logger.debug).toHaveBeenCalledWith(
             expect.stringContaining('credential chain'),
         );
+    });
+
+    it('chains fromHttp before fromContainerMetadata for ecs when container credentials env vars are set', () => {
+        process.env.AWS_CONTAINER_CREDENTIALS_FULL_URI =
+            'http://169.254.170.23/v1/credentials';
+        const client = new TestableS3Client({
+            ...baseConfig,
+            useCredentialsFrom: ['ecs'],
+        });
+        expect(client.getS3()).toBeInstanceOf(s3Mocks.FakeS3);
+        expect(s3Mocks.state.capturedProviders?.map((p) => p.__type)).toEqual([
+            'container_http',
+            'container_metadata',
+        ]);
+    });
+
+    it('omits fromHttp for ecs when container credentials env vars are not set', () => {
+        // fromHttp throws at construction without these env vars, so including it
+        // unconditionally would crash client creation
+        const client = new TestableS3Client({
+            ...baseConfig,
+            useCredentialsFrom: ['ecs'],
+        });
+        expect(client.getS3()).toBeInstanceOf(s3Mocks.FakeS3);
+        expect(s3Mocks.mockFromHttp).not.toHaveBeenCalled();
+        expect(s3Mocks.state.capturedProviders?.map((p) => p.__type)).toEqual([
+            'container_metadata',
+        ]);
     });
 
     it('ignores unknown providers and falls back to default credential resolution when none are valid', () => {
