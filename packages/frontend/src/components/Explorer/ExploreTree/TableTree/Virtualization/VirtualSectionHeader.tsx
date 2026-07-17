@@ -38,8 +38,14 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
     const dispatch = useExplorerDispatch();
 
     // Get all custom metrics and dimensions for write-back
-    const allAdditionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const allCustomDimensions = useExplorerSelector(selectCustomDimensions);
+
+    // Write-back requires a base dimension column to attach the metric to in YAML
+    const allAdditionalMetrics = useMemo(
+        () => additionalMetrics?.filter((metric) => metric.baseDimensionName),
+        [additionalMetrics],
+    );
 
     // Feature flag for bin dimensions write-back
     const { data: writeBackCustomBinDimensionsFlag } = useServerFeatureFlag(

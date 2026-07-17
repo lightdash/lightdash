@@ -2,10 +2,12 @@ import {
     CustomFormatType,
     DimensionType,
     friendlyName,
+    getCustomFormatFromLegacy,
     isAdditionalMetric,
     isCustomBinDimension,
     isCustomDimension,
     isDimension,
+    isMetric,
     MetricType,
     snakeCaseName,
     type AdditionalMetric,
@@ -15,8 +17,10 @@ import {
     type Explore,
     type FilterRule,
     type getFilterableDimensionsFromItemsMap,
+    type Metric,
     type MetricFilterRule,
 } from '@lightdash/common';
+import { v4 as uuidv4 } from 'uuid';
 import { type MetricFilterRuleWithFieldId } from '../FilterForm';
 
 export const addFieldRefToFilterRule = (
@@ -44,6 +48,50 @@ export const addFieldIdToMetricFilterRule = (
         }`,
     },
 });
+
+// YAML metric filters may use bare fieldRefs (relative to the metric's table);
+// the filter form requires fully qualified `table.field` refs.
+export const getFilterRulesFromMetricBaseFilters = (
+    metric: Metric,
+): MetricFilterRuleWithFieldId[] =>
+    (metric.filters ?? []).map((filterRule) => {
+        const fieldRef = filterRule.target.fieldRef.includes('.')
+            ? filterRule.target.fieldRef
+            : `${metric.table}.${filterRule.target.fieldRef}`;
+        return addFieldIdToMetricFilterRule({
+            ...filterRule,
+            id: uuidv4(),
+            target: { ...filterRule.target, fieldRef },
+        });
+    });
+
+// Formatting the clone should inherit: structured formatOptions when present,
+// otherwise any combination of legacy format/round/compact. The field-level
+// separator composes with both shapes, so it carries over in either case.
+export const getFormatFromBaseMetric = (
+    metric: Metric,
+): CustomFormat | undefined => {
+    const hasLegacyFormat =
+        metric.format !== undefined ||
+        metric.round !== undefined ||
+        metric.compact !== undefined;
+
+    const base = metric.formatOptions
+        ? { ...metric.formatOptions }
+        : hasLegacyFormat || metric.separator !== undefined
+          ? getCustomFormatFromLegacy({
+                format: metric.format,
+                round: metric.round,
+                compact: metric.compact,
+            })
+          : undefined;
+
+    if (!base) return undefined;
+    if (metric.separator && !base.separator) {
+        return { ...base, separator: metric.separator };
+    }
+    return base;
+};
 
 export const getCustomMetricName = (
     table: string,
@@ -78,32 +126,50 @@ const getCustomMetricDescription = (
     }`;
 
 const getTypeOverridesForAdditionalMetric = (
-    item: Dimension | AdditionalMetric | CustomDimension,
+    item: Dimension | AdditionalMetric | CustomDimension | Metric,
     type: MetricType,
 ): Partial<AdditionalMetric> | undefined => {
+    if (type !== MetricType.MIN && type !== MetricType.MAX) return;
+
+    // Clones of MIN/MAX-of-date metrics keep the base metric's date formatting
+    if (isMetric(item)) {
+        switch (item.baseDimensionType) {
+            case DimensionType.DATE:
+                return {
+                    formatOptions: {
+                        type: CustomFormatType.DATE,
+                        timeInterval: item.baseDimensionTimeInterval,
+                    },
+                };
+            case DimensionType.TIMESTAMP:
+                return {
+                    formatOptions: {
+                        type: CustomFormatType.TIMESTAMP,
+                        timeInterval: item.baseDimensionTimeInterval,
+                    },
+                };
+            default:
+                return;
+        }
+    }
+
     if (!isDimension(item)) return;
 
-    switch (type) {
-        case MetricType.MIN:
-        case MetricType.MAX:
-            switch (item.type) {
-                case DimensionType.DATE:
-                    return {
-                        formatOptions: {
-                            type: CustomFormatType.DATE,
-                            timeInterval: item.timeInterval,
-                        },
-                    };
-                case DimensionType.TIMESTAMP:
-                    return {
-                        formatOptions: {
-                            type: CustomFormatType.TIMESTAMP,
-                            timeInterval: item.timeInterval,
-                        },
-                    };
-                default:
-                    return;
-            }
+    switch (item.type) {
+        case DimensionType.DATE:
+            return {
+                formatOptions: {
+                    type: CustomFormatType.DATE,
+                    timeInterval: item.timeInterval,
+                },
+            };
+        case DimensionType.TIMESTAMP:
+            return {
+                formatOptions: {
+                    type: CustomFormatType.TIMESTAMP,
+                    timeInterval: item.timeInterval,
+                },
+            };
         default:
             return;
     }
@@ -119,7 +185,7 @@ export const prepareCustomMetricData = ({
     percentile: metricPercentile,
     formatOptions,
 }: {
-    item: Dimension | AdditionalMetric | CustomDimension;
+    item: Dimension | AdditionalMetric | CustomDimension | Metric;
     type: MetricType;
     customMetricLabel: string;
     customMetricFiltersWithIds: MetricFilterRuleWithFieldId[];
@@ -184,11 +250,8 @@ export const prepareCustomMetricData = ({
         name: getCustomMetricName(
             item.table,
             customMetricLabel,
-            isEditingCustomMetric &&
-                isAdditionalMetric(item) &&
-                'baseDimensionName' in item &&
-                item.baseDimensionName
-                ? item.baseDimensionName
+            isEditingCustomMetric && isAdditionalMetric(item)
+                ? (item.baseDimensionName ?? item.baseMetricName ?? item.name)
                 : isCustomDimension(item)
                   ? item.id // Custom dimensions have ids instead of names
                   : item.name,
@@ -204,7 +267,7 @@ export const prepareCustomMetricData = ({
                 ),
             }),
         ...(!isEditingCustomMetric &&
-            isDimension(item) && {
+            (isDimension(item) || isMetric(item)) && {
                 description: getCustomMetricDescription(
                     type,
                     item.label,
