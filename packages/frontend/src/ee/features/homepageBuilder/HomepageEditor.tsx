@@ -55,7 +55,8 @@ import {
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react';
-import { Fragment, useEffect, useRef, useState, type FC } from 'react';
+import isEqual from 'lodash/isEqual';
+import { Fragment, useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
@@ -578,6 +579,18 @@ export const HomepageEditor: FC<Props> = ({
 
     const isDirty = draft !== lastSavedRef.current || updateMutation.isLoading;
 
+    // Only offer a revert when the draft actually diverges from what's live —
+    // reverting to an identical published version is a no-op.
+    const publishedConfig = useMemo(
+        () =>
+            homepage.publishedConfig
+                ? migrateHomepageConfig(homepage.publishedConfig)
+                : null,
+        [homepage.publishedConfig],
+    );
+    const canRevertToPublished =
+        publishedConfig !== null && !isEqual(draft, publishedConfig);
+
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     );
@@ -790,7 +803,7 @@ export const HomepageEditor: FC<Props> = ({
                         Draft saved
                     </span>
                 )}
-                {homepage.publishedConfig !== null && (
+                {canRevertToPublished && (
                     <button
                         type="button"
                         className={classes.tbBtn}
