@@ -11,8 +11,9 @@ import {
     Title,
     Button,
     Anchor,
+    Card,
 } from '@mantine-8/core';
-import { Card, Table, Tooltip } from '@mantine/core';
+import { Table, Tooltip } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link, useParams } from 'react-router';
@@ -29,6 +30,7 @@ import {
 import useHealth from '../hooks/health/useHealth';
 import { useProject } from '../hooks/useProject';
 import useApp from '../providers/App/useApp';
+import classes from './UserActivity.module.css';
 
 const VisualizationCard = ({
     grid,
@@ -41,12 +43,8 @@ const VisualizationCard = ({
 }) => {
     return (
         <Card
-            sx={{
-                verticalAlign: 'middle',
-                textAlign: 'center',
-                gridArea: grid,
-                overflow: 'auto',
-            }}
+            className={classes.visualizationCard}
+            style={{ gridArea: grid }}
             withBorder
         >
             <Text style={{ float: 'left' }} fw={600} mb={10}>

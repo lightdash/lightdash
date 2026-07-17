@@ -1,0 +1,6 @@
+.visualizationCard {
+    /* Card defaults to flex column, which ignores the floated description */
+    display: block;
+    text-align: center;
+    overflow: auto;
+}
