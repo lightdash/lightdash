@@ -1,3 +1,10 @@
+## [0.3405.1](https://github.com/lightdash/lightdash/compare/0.3405.0...0.3405.1) (2026-07-17)
+
+
+### Bug Fixes
+
+* bound warehouse result chunk sizes to stop worker OOMs on large queries ([#25681](https://github.com/lightdash/lightdash/issues/25681)) ([4b0641a](https://github.com/lightdash/lightdash/commit/4b0641aeb6679ad9878d27591fe3d9d69a0211bc))
+
 # [0.3405.0](https://github.com/lightdash/lightdash/compare/0.3404.0...0.3405.0) (2026-07-17)
 
 
