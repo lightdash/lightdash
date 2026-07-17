@@ -124,9 +124,7 @@ const DayOneAskInputInner: FC<Props> = ({
         data: userAgentPreferences,
         isInitialLoading: isLoadingPreferences,
     } = useGetUserAgentPreferences(projectUuid);
-    const canCreateThread = useCanCreateAiAgentThread(
-        projectUuid ?? undefined,
-    );
+    const canCreateThread = useCanCreateAiAgentThread(projectUuid ?? undefined);
     const routerEnabled = useAiRouterEnabledFromCache();
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
         useCreateAgentThreadMutation(projectUuid ?? '');
