@@ -4,6 +4,10 @@
     gap: 7px;
 }
 
+.sectionHeaderCentered {
+    justify-content: center;
+}
+
 .sectionTitle {
     font-size: 11px;
     font-weight: 600;
@@ -75,6 +79,8 @@ a .hoverCard:hover,
 
 .pickerScrollList {
     overflow-y: auto;
+    /* override flex min-height:auto so the list shrinks and scrolls internally */
+    min-height: 0;
 }
 
 .actionRow {
@@ -341,6 +347,37 @@ a .hoverCard:hover,
     color: inherit;
     background: var(--mantine-color-ldGray-0);
     border-color: var(--mantine-color-ldGray-3);
+}
+
+/* Collection card grid: three-up like SimpleGrid, but a partial row centres
+ * instead of leaving dead columns on the right. */
+.hugGrid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+}
+
+/* Single-cell grid so the child (an inline <a> card) is blockified and
+ * stretched exactly like a SimpleGrid cell would. */
+.hugGridItem {
+    flex: 0 1 calc((100% - 24px) / 3);
+    min-width: 0;
+    display: grid;
+}
+
+/* The blockifying grid gives its single child (the card) a fresh min-width:
+ * auto default of its own, sized to the untruncated title's natural width —
+ * so a long title (e.g. via Text truncate's white-space: nowrap) overflows
+ * the narrow cell instead of shrinking into it. */
+.hugGridItem > * {
+    min-width: 0;
+}
+
+@media (max-width: 47.99em) {
+    .hugGridItem {
+        flex-basis: 100%;
+    }
 }
 
 /* --- Resource cards ---------------------------------------------------- */

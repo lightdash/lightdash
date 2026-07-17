@@ -26,14 +26,13 @@ import {
     Checkbox,
     Divider,
     Group,
-    SimpleGrid,
     Skeleton,
     Stack,
     Text,
     TextInput,
 } from '@mantine-8/core';
 import { IconLayoutGrid, IconPin, IconPlus } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { ResourceIcon } from '../../../../components/common/ResourceIcon';
@@ -198,14 +197,20 @@ const CollectionPicker: FC<{
     projectUuid: string;
     initialSelected: HomepageCollectionItemRef[];
     onApply: (refs: HomepageCollectionItemRef[]) => void;
-    onClose: () => void;
-}> = ({ projectUuid, initialSelected, onApply, onClose }) => {
+    /** Hands the modal's Apply button a callback that commits the current
+     * selection — the footer lives in MantineModal, outside this component. */
+    registerApply: (commit: () => void) => void;
+}> = ({ projectUuid, initialSelected, onApply, registerApply }) => {
     const [selectedSpaceUuid, setSelectedSpaceUuid] = useState<string | null>(
         null,
     );
     const [selected, setSelected] = useState<
         Map<string, HomepageCollectionItemRef>
     >(() => new Map(initialSelected.map((ref) => [ref.uuid, ref])));
+
+    // Re-point the parent's apply ref every render so it always commits the
+    // latest selection (idempotent, so safe during render — no effect needed).
+    registerApply(() => onApply([...selected.values()]));
 
     const { data: spaces } = useSpaceSummaries(projectUuid, true);
 
@@ -232,8 +237,8 @@ const CollectionPicker: FC<{
 
     return (
         <Stack gap="sm">
-            <Group align="stretch" gap="md" wrap="nowrap" h={440}>
-                <Box w={280} className={classes.pickerScrollList}>
+            <Group align="stretch" gap="md" wrap="nowrap" h="min(64vh, 720px)">
+                <Box w={340} className={classes.pickerScrollList}>
                     <SpaceSelector
                         projectUuid={projectUuid}
                         spaces={spaces}
@@ -267,21 +272,6 @@ const CollectionPicker: FC<{
                     </Box>
                 </Stack>
             </Group>
-
-            <Group justify="flex-end" gap="xs">
-                <Button variant="default" size="xs" onClick={onClose}>
-                    Cancel
-                </Button>
-                <Button
-                    size="xs"
-                    onClick={() => {
-                        onApply([...selected.values()]);
-                        onClose();
-                    }}
-                >
-                    Apply
-                </Button>
-            </Group>
         </Stack>
     );
 };
@@ -292,24 +282,37 @@ const CollectionPickerModal: FC<{
     projectUuid: string;
     initialSelected: HomepageCollectionItemRef[];
     onApply: (refs: HomepageCollectionItemRef[]) => void;
-}> = ({ opened, onClose, projectUuid, initialSelected, onApply }) => (
-    <MantineModal
-        opened={opened}
-        onClose={onClose}
-        title="Add content"
-        icon={IconPlus}
-        size="1000px"
-    >
-        {opened && (
-            <CollectionPicker
-                projectUuid={projectUuid}
-                initialSelected={initialSelected}
-                onApply={onApply}
-                onClose={onClose}
-            />
-        )}
-    </MantineModal>
-);
+}> = ({ opened, onClose, projectUuid, initialSelected, onApply }) => {
+    // The Apply/Cancel footer is MantineModal's own — it lives outside the
+    // remountable picker body, so the picker hands its commit fn up via ref
+    // rather than rendering a duplicate footer inline.
+    const applyRef = useRef<() => void>(() => {});
+    return (
+        <MantineModal
+            opened={opened}
+            onClose={onClose}
+            title="Add content"
+            icon={IconPlus}
+            size="min(92vw, 1280px)"
+            confirmLabel="Apply"
+            onConfirm={() => {
+                applyRef.current();
+                onClose();
+            }}
+        >
+            {opened && (
+                <CollectionPicker
+                    projectUuid={projectUuid}
+                    initialSelected={initialSelected}
+                    onApply={onApply}
+                    registerApply={(fn) => {
+                        applyRef.current = fn;
+                    }}
+                />
+            )}
+        </MantineModal>
+    );
+};
 
 export const CollectionBlockView: FC<BlockComponentProps> = ({
     block,
@@ -331,34 +334,45 @@ export const CollectionBlockView: FC<BlockComponentProps> = ({
     const favoriteUuids = new Set(
         (favorites ?? []).map((item) => item.data.uuid),
     );
+    // A partial row centres its cards, so centre the header with them — the
+    // whole block reads as one unit instead of a left-anchored orphan title.
+    const cardCount = (contents ?? uuids).length;
     return (
         <Stack gap={0}>
-            <BlockHeader icon={IconLayoutGrid} title={block.config.title} />
+            <BlockHeader
+                icon={IconLayoutGrid}
+                title={block.config.title}
+                centered={cardCount > 0 && cardCount < 3}
+            />
             {isInitialLoading ? (
-                <SimpleGrid cols={{ base: 1, sm: 3 }} spacing={12}>
+                <div className={classes.hugGrid}>
                     {uuids.slice(0, 3).map((uuid) => (
-                        <Skeleton key={uuid} h={108} radius="md" />
+                        <div key={uuid} className={classes.hugGridItem}>
+                            <Skeleton h={108} radius="md" />
+                        </div>
                     ))}
-                </SimpleGrid>
+                </div>
             ) : (
-                <SimpleGrid cols={{ base: 1, sm: 3 }} spacing={12}>
+                <div className={classes.hugGrid}>
                     {(contents ?? []).map((content) => (
-                        <ContentCard
-                            key={content.uuid}
-                            content={content}
-                            projectUuid={projectUuid}
-                            variant="tile"
-                            star={{
-                                isFavorite: favoriteUuids.has(content.uuid),
-                                onToggle: () =>
-                                    toggleFavorite({
-                                        contentType: toFavoriteType(content),
-                                        contentUuid: content.uuid,
-                                    }),
-                            }}
-                        />
+                        <div key={content.uuid} className={classes.hugGridItem}>
+                            <ContentCard
+                                content={content}
+                                projectUuid={projectUuid}
+                                variant="tile"
+                                star={{
+                                    isFavorite: favoriteUuids.has(content.uuid),
+                                    onToggle: () =>
+                                        toggleFavorite({
+                                            contentType:
+                                                toFavoriteType(content),
+                                            contentUuid: content.uuid,
+                                        }),
+                                }}
+                            />
+                        </div>
                     ))}
-                </SimpleGrid>
+                </div>
             )}
         </Stack>
     );
@@ -382,7 +396,7 @@ const SortableTile: FC<{
     return (
         <div
             ref={setNodeRef}
-            className={classes.sortableTile}
+            className={`${classes.sortableTile} ${classes.hugGridItem}`}
             data-dragging={isDragging}
             style={{
                 transform: CSS.Translate.toString(transform),
@@ -478,7 +492,7 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
                     items={(contents ?? []).map((content) => content.uuid)}
                     strategy={rectSortingStrategy}
                 >
-                    <SimpleGrid cols={{ base: 1, sm: 3 }} spacing={12}>
+                    <div className={classes.hugGrid}>
                         {(contents ?? []).map((content) => (
                             <SortableTile
                                 key={content.uuid}
@@ -498,15 +512,17 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
                                 }
                             />
                         ))}
-                        <button
-                            type="button"
-                            className={classes.addContentTile}
-                            onClick={() => setIsPickerOpen(true)}
-                        >
-                            <MantineIcon icon={IconPlus} size={14} />
-                            Add content
-                        </button>
-                    </SimpleGrid>
+                        <div className={classes.hugGridItem}>
+                            <button
+                                type="button"
+                                className={classes.addContentTile}
+                                onClick={() => setIsPickerOpen(true)}
+                            >
+                                <MantineIcon icon={IconPlus} size={14} />
+                                Add content
+                            </button>
+                        </div>
+                    </div>
                 </SortableContext>
             </DndContext>
             {block.config.items.length === 0 && importablePins.length > 0 && (

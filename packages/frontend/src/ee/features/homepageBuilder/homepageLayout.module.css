@@ -28,6 +28,15 @@
     );
 }
 
+/* Fold-aware hero: when body rows follow, the hero yields most of the viewport
+ * so the first row peeks above the fold. Solo heroes — and day-0, which never
+ * stamps the attribute — keep the full-viewport treatment above. The favBar
+ * variant is repeated so it can't win the specificity contest. */
+.heroSection[data-presentation='shared'],
+.page:has(.favBar) .heroSection[data-presentation='shared'] {
+    min-height: 50vh;
+}
+
 .favBar {
     display: flex;
     align-items: center;
@@ -62,6 +71,17 @@
     align-items: center;
 }
 
+/* Chrome rows (quick-actions) riding above the composer inside the hero.
+ * They share the composer's axis so the opening reads as one composition. */
+.heroCompanions {
+    width: 100%;
+    margin-bottom: 26px;
+}
+
+.heroCompanions .row {
+    max-width: 720px;
+}
+
 .secondary {
     width: 100%;
     max-width: 1160px;
@@ -87,6 +107,12 @@
     margin-top: 40px;
 }
 
+/* A lone leading text block opens the page: give it breathing room on top of
+ * the page padding so it reads as an intro, not just the first list item. */
+.row[data-role='intro'] {
+    padding-top: 24px;
+}
+
 .tierReading {
     max-width: 680px;
 }
@@ -106,6 +132,16 @@
 .col {
     flex: 1 1 0;
     min-width: 0;
+    /* In multi-column rows the shorter column centres vertically instead of
+     * hugging the top edge next to a taller neighbour. Single-block rows are
+     * unaffected (column height equals content height). */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.col > * {
+    width: 100%;
 }
 
 .col[data-weight='2'] {

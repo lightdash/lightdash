@@ -98,7 +98,7 @@ export const QuickActionCards: FC<{
     );
     if (visibleActions.length === 0) return null;
     return (
-        <Group gap={8}>
+        <Group gap={8} justify="center">
             {visibleActions.map((action, index) => {
                 const presentation = actionPresentation(action, projectUuid);
                 return (

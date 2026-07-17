@@ -7,6 +7,7 @@ import { Box, Paper, Text } from '@mantine-8/core';
 import { type FC, type ReactNode } from 'react';
 import { type BlockWidthTier } from './blockLayout';
 import { getBlockDefinition } from './blocks/registry';
+import { type BlockPresentation } from './blocks/types';
 import layout from './homepageLayout.module.css';
 import {
     resolveHomepageLayout,
@@ -27,7 +28,8 @@ const BlockRenderer: FC<{
     block: HomepageBlock;
     projectUuid: string;
     personalPlaceholders: boolean;
-}> = ({ block, projectUuid, personalPlaceholders }) => {
+    presentation?: BlockPresentation;
+}> = ({ block, projectUuid, personalPlaceholders, presentation }) => {
     const definition = getBlockDefinition(block.type);
     if (!definition) return null;
     if (personalPlaceholders && PERSONAL_BLOCK_TYPES.includes(block.type)) {
@@ -46,7 +48,13 @@ const BlockRenderer: FC<{
         );
     }
     const { View } = definition;
-    return <View block={block} projectUuid={projectUuid} />;
+    return (
+        <View
+            block={block}
+            projectUuid={projectUuid}
+            presentation={presentation}
+        />
+    );
 };
 
 const RowRenderer: FC<{
@@ -57,6 +65,7 @@ const RowRenderer: FC<{
     <Box
         className={`${layout.row} ${TIER_CLASS[row.widthTier]}`}
         data-gap={row.gap}
+        data-role={row.role}
     >
         {row.columns.map((column) => (
             <Box
@@ -90,20 +99,34 @@ export const PublishedHomepage: FC<Props> = ({
     personalPlaceholders = false,
     topBar = null,
 }) => {
-    const { heroRow, rows } = resolveHomepageLayout(
-        migrateHomepageConfig(config),
-    );
+    const { hero, rows } = resolveHomepageLayout(migrateHomepageConfig(config));
 
     return (
         <div className={layout.page}>
             {topBar}
-            {heroRow && (
-                <div className={layout.heroSection}>
+            {hero && (
+                <div
+                    className={layout.heroSection}
+                    data-presentation={hero.presentation}
+                >
+                    {hero.companions.length > 0 && (
+                        <div className={layout.heroCompanions}>
+                            {hero.companions.map((row) => (
+                                <RowRenderer
+                                    key={row.id}
+                                    row={row}
+                                    projectUuid={projectUuid}
+                                    personalPlaceholders={personalPlaceholders}
+                                />
+                            ))}
+                        </div>
+                    )}
                     <div className={layout.hero}>
                         <BlockRenderer
-                            block={heroRow.columns[0].block}
+                            block={hero.row.columns[0].block}
                             projectUuid={projectUuid}
                             personalPlaceholders={personalPlaceholders}
+                            presentation="hero"
                         />
                     </div>
                 </div>
