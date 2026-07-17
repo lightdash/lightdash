@@ -56,6 +56,22 @@ const readStoredCode = (): { code: string; expiresAt: string } | null => {
     }
 };
 
+const readValidStoredCode = (): {
+    code: string;
+    secondsRemaining: number;
+} | null => {
+    const stored = readStoredCode();
+    if (!stored) return null;
+    const secondsRemaining = Math.round(
+        (new Date(stored.expiresAt).getTime() - Date.now()) / 1000,
+    );
+    if (secondsRemaining <= 0) {
+        sessionStorage.removeItem(STORED_CODE_KEY);
+        return null;
+    }
+    return { code: stored.code, secondsRemaining };
+};
+
 const CopyableCommand: FC<{ command: string }> = ({ command }) => (
     <Group gap="xs" align="flex-start" wrap="nowrap">
         <Code block flex={1} miw={0}>
@@ -124,9 +140,12 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
     const form = useFormContext();
     const siteUrl = health.data?.siteUrl ?? '';
     const mint = useMintWarehouseConnectCode();
-    const [code, setCode] = useState<string | null>(null);
+    const [storedCode] = useState(() =>
+        connectedCredentials === null ? readValidStoredCode() : null,
+    );
+    const [code, setCode] = useState<string | null>(storedCode?.code ?? null);
     const [secondsRemaining, setSecondsRemaining] = useState<number | null>(
-        null,
+        storedCode?.secondsRemaining ?? null,
     );
     const [claimed, setClaimed] = useState(false);
     const [inventory, setInventory] =
@@ -137,22 +156,6 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
     const isPolling = !!code && !claimed && !isConnected && !isExpired;
 
     const claim = useWarehouseConnectCodeClaim(code, isPolling);
-
-    useEffect(() => {
-        if (isConnected || code) return;
-        const stored = readStoredCode();
-        if (!stored) return;
-        const remaining = Math.round(
-            (new Date(stored.expiresAt).getTime() - Date.now()) / 1000,
-        );
-        if (remaining <= 0) {
-            sessionStorage.removeItem(STORED_CODE_KEY);
-            return;
-        }
-        setCode(stored.code);
-        setSecondsRemaining(remaining);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
 
     useEffect(() => {
         if (!claimed && claim.data?.status === 'deposited') {

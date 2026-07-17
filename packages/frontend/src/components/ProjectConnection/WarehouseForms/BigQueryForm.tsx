@@ -310,8 +310,7 @@ const BigQueryForm: FC<{
                 BigqueryAuthenticationType.SSO,
             );
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [shouldDefaultToSso]);
+    }, [shouldDefaultToSso, form]);
 
     useEffect(() => {
         if (

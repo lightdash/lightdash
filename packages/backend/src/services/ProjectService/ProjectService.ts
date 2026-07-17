@@ -9831,6 +9831,9 @@ export class ProjectService extends BaseService {
     }
 
     async getBigqueryProjectRecommendation(user: SessionUser) {
+        // At this point, there might not be any projects
+        // so we can't check any permissions here.
+        // Bigquery will handle the permissions
         const refreshToken = await this.userModel.getRefreshToken(
             user.userUuid,
             OpenIdIdentityIssuerType.GOOGLE,
