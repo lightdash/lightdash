@@ -1,5 +1,4 @@
-import { Box, Stack } from '@mantine-8/core';
-import { Card } from '@mantine/core';
+import { Box, Stack, Card } from '@mantine-8/core';
 import { type FC } from 'react';
 import { Navigate } from 'react-router';
 import Page from '../components/common/Page/Page';

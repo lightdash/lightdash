@@ -6,8 +6,8 @@ import {
     SegmentedControl,
     Select,
     Switch,
+    Card,
 } from '@mantine-8/core';
-import { Card } from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 interface FormCardProps {
