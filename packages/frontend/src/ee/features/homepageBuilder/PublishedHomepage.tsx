@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { Box, Paper, Text } from '@mantine-8/core';
 import { type FC, type ReactNode } from 'react';
-import { type BlockWidthTier } from './blockLayout';
+import { TIER_CLASS } from './blockLayout';
 import { getBlockDefinition } from './blocks/registry';
 import { type BlockPresentation } from './blocks/types';
 import layout from './homepageLayout.module.css';
@@ -15,13 +15,6 @@ import {
 } from './resolveHomepageLayout';
 
 const PERSONAL_BLOCK_TYPES: HomepageBlock['type'][] = ['favorites', 'recent'];
-
-const TIER_CLASS: Record<BlockWidthTier, string> = {
-    reading: layout.tierReading,
-    composer: layout.tierComposer,
-    content: layout.tierContent,
-    full: layout.tierFull,
-};
 
 // Unknown block types render nothing so newer configs degrade gracefully
 const BlockRenderer: FC<{
