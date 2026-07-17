@@ -101,6 +101,11 @@ export type MantineModalProps = {
     resourceLabel?: string;
     icon?: IconType;
     /**
+     * aria-label for the header close button.
+     * @default Mantine's default close button label
+     */
+    closeButtonLabel?: string;
+    /**
      * Modal size. Accepts Mantine's built-in sizes ('xs', 'sm', 'md', 'lg', 'xl') or a custom number/string.
      * @default 'lg'
      */
@@ -164,6 +169,12 @@ export type MantineModalProps = {
      */
     headerActions?: React.ReactNode;
     /**
+     * Custom footer content, rendered full-width in place of the default
+     * cancel/confirm button bar. `onConfirm`, `actions`, `leftActions` and
+     * `cancelLabel` are ignored when set.
+     */
+    footer?: React.ReactNode;
+    /**
      * Label for the cancel button. Set to `false` to hide the cancel button.
      * @default "Cancel"
      */
@@ -208,6 +219,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
     resourceType,
     resourceLabel,
     icon,
+    closeButtonLabel,
     size = 'lg',
     fullScreen = false,
     withCloseButton = true,
@@ -220,6 +232,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
     actions,
     leftActions,
     headerActions,
+    footer,
     cancelLabel = 'Cancel',
     cancelDisabled = false,
     onCancel,
@@ -337,6 +350,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
                         <Group
                             gap="sm"
                             flex={1}
+                            miw={0}
                             wrap="nowrap"
                             align="flex-start"
                         >
@@ -348,7 +362,14 @@ const MantineModal: React.FC<MantineModalProps> = ({
                                     />
                                 </Paper>
                             ) : null}
-                            <Text c="ldDark.9" fw={700} fz="md" lh="28px">
+                            <Text
+                                c="ldDark.9"
+                                fw={700}
+                                fz="md"
+                                lh="28px"
+                                miw={0}
+                                lineClamp={2}
+                            >
                                 {title}
                             </Text>
                         </Group>
@@ -357,12 +378,18 @@ const MantineModal: React.FC<MantineModalProps> = ({
                                 {headerActions}
                             </Group>
                         ) : null}
-                        {withCloseButton && <Modal.CloseButton />}
+                        {withCloseButton && (
+                            <Modal.CloseButton aria-label={closeButtonLabel} />
+                        )}
                     </Modal.Header>
 
                     {renderBody()}
 
-                    {(onConfirm || actions || leftActions) && !fullScreen ? (
+                    {footer && !fullScreen ? (
+                        <Box className={classes.actions} px="xl" py="md">
+                            {footer}
+                        </Box>
+                    ) : (onConfirm || actions || leftActions) && !fullScreen ? (
                         <Flex
                             className={classes.actions}
                             px="xl"
