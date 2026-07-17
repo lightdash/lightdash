@@ -192,7 +192,7 @@ const createUserService = (
                 get: vi.fn<FeatureFlagModel['get']>(
                     async ({ featureFlagId }) => ({
                         id: featureFlagId,
-                        enabled: featureFlagId !== FeatureFlags.EmailOnlySignup,
+                        enabled: featureFlagId !== FeatureFlags.NewOnboarding,
                     }),
                 ),
             } as unknown as FeatureFlagModel),
@@ -299,7 +299,7 @@ describe('UserService', () => {
 
             expect(featureFlagModel.get).toHaveBeenCalledWith({
                 user: undefined,
-                featureFlagId: FeatureFlags.EmailOnlySignup,
+                featureFlagId: FeatureFlags.NewOnboarding,
             });
             expect(userModel.createUser).toHaveBeenCalledWith({
                 firstName: '',
@@ -384,17 +384,18 @@ describe('UserService', () => {
         };
 
         describe('requestEmailOtpLogin', () => {
-            test('rejects when the feature flag is disabled', async () => {
+            test('sends an OTP for a passwordless account even when the feature flag is disabled', async () => {
                 const service = createUserService(lightdashConfigMock, {
                     featureFlagModel: createFeatureFlagModel(false),
                 });
+                userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
+                userModel.hasPassword.mockResolvedValueOnce(false);
+                userModel.hasOpenIdIdentity.mockResolvedValueOnce(false);
 
-                await expect(
-                    service.requestEmailOtpLogin('email'),
-                ).rejects.toThrow(
-                    new ForbiddenError('Email OTP login is not enabled'),
-                );
-                expect(userModel.findUserByEmail).not.toHaveBeenCalled();
+                await service.requestEmailOtpLogin('email');
+
+                expect(emailModel.createPrimaryEmailOtp).toHaveBeenCalled();
+                expect(emailClient.sendOneTimePasscodeEmail).toHaveBeenCalled();
             });
 
             test('does not create or send an OTP for a passworded account', async () => {
@@ -583,16 +584,27 @@ describe('UserService', () => {
                 );
             });
 
-            test('rejects before account lookup when the feature is disabled', async () => {
+            test('signs in a passwordless account even when the feature is disabled', async () => {
                 const service = createUserService(lightdashConfigMock, {
                     featureFlagModel: createFeatureFlagModel(false),
                 });
+                const emailStatus = activeOtp();
+                userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
+                userModel.hasPassword.mockResolvedValueOnce(false);
+                userModel.hasOpenIdIdentity.mockResolvedValueOnce(false);
+                emailModel.getPrimaryEmailStatus.mockResolvedValueOnce(
+                    emailStatus,
+                );
+                emailModel.getPrimaryEmailStatusByUserAndOtp.mockResolvedValueOnce(
+                    emailStatus,
+                );
+                emailModel.verifyUserEmailIfExists.mockResolvedValueOnce([
+                    { email: emailStatus.email },
+                ]);
 
                 await expect(
-                    service.loginWithEmailOtp('email', '123456'),
-                ).rejects.toThrow(
-                    new ForbiddenError('Email OTP login is not enabled'),
-                );
+                    service.loginWithEmailOtp('EMAIL', '123456'),
+                ).resolves.toBe(sessionUser);
             });
         });
     });
@@ -656,13 +668,9 @@ describe('UserService', () => {
                 redirectUri: undefined,
                 showOptions: ['emailOtp'],
             });
-            expect(featureFlagModel.get).toHaveBeenCalledWith({
-                user: undefined,
-                featureFlagId: FeatureFlags.EmailOnlySignup,
-            });
         });
 
-        test('keeps email unchanged when the feature is disabled', async () => {
+        test('still shows email OTP for a passwordless user when the feature is disabled', async () => {
             const service = createUserService(lightdashConfigMock, {
                 featureFlagModel: createFeatureFlagModel(false),
             });
@@ -673,7 +681,7 @@ describe('UserService', () => {
             await expect(service.getLoginOptions('email')).resolves.toEqual({
                 forceRedirect: false,
                 redirectUri: undefined,
-                showOptions: ['email'],
+                showOptions: ['emailOtp'],
             });
         });
 

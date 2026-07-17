@@ -34,6 +34,7 @@ import {
     ParameterError,
     SaveOrganizationBrandRequest,
     SessionUser,
+    TooManyRequestsError,
     UnexpectedServerError,
     UpdateAllowedEmailDomains,
     UpdateColorPalette,
@@ -374,6 +375,15 @@ export class OrganizationService extends BaseService {
         if (response.status === 404) {
             throw new NotFoundError(
                 `No brand found for domain "${normalizedDomain}"`,
+            );
+        }
+        if (response.status === 429) {
+            this.logger.warn('Brandfetch rate limit reached', {
+                organizationUuid,
+                domain: normalizedDomain,
+            });
+            throw new TooManyRequestsError(
+                'Brand lookup is rate limited right now — try again shortly',
             );
         }
         if (!response.ok) {

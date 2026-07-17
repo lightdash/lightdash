@@ -150,7 +150,7 @@ describe('provisionOnboardingHomepage', () => {
         const mocks = buildArguments();
         mocks.getFeatureFlag.mockImplementation(async ({ featureFlagId }) => ({
             id: featureFlagId,
-            enabled: featureFlagId !== FeatureFlags.OrganizationSetupPage,
+            enabled: featureFlagId !== FeatureFlags.NewOnboarding,
         }));
 
         await provisionOnboardingHomepage(mocks.args);
@@ -192,7 +192,7 @@ describe('provisionOnboardingHomepage', () => {
 
         expect(mocks.getFeatureFlag).toHaveBeenCalledWith({
             user,
-            featureFlagId: FeatureFlags.OrganizationSetupPage,
+            featureFlagId: FeatureFlags.NewOnboarding,
         });
         expect(mocks.getFeatureFlag).toHaveBeenCalledWith({
             user,

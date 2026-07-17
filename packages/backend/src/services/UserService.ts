@@ -1579,7 +1579,7 @@ export class UserService extends BaseService {
         } else {
             const emailOnlySignupFlag = await this.featureFlagModel.get({
                 user: undefined,
-                featureFlagId: FeatureFlags.EmailOnlySignup,
+                featureFlagId: FeatureFlags.NewOnboarding,
             });
             if (!emailOnlySignupFlag.enabled) {
                 throw new ForbiddenError('Email-only signup is not enabled');
@@ -1877,16 +1877,6 @@ export class UserService extends BaseService {
         };
     }
 
-    private async assertEmailOtpLoginEnabled(): Promise<void> {
-        const featureFlag = await this.featureFlagModel.get({
-            user: undefined,
-            featureFlagId: FeatureFlags.EmailOnlySignup,
-        });
-        if (!featureFlag.enabled) {
-            throw new ForbiddenError('Email OTP login is not enabled');
-        }
-    }
-
     private async isStrictlyPasswordlessUser(
         user: LightdashUser,
         email: string,
@@ -1900,8 +1890,10 @@ export class UserService extends BaseService {
         return !hasPassword && !hasOpenIdIdentity && isEmailLoginAllowed;
     }
 
+    // OTP login is deliberately NOT gated on the NewOnboarding flag: accounts
+    // enrolled as strictly passwordless have no other way to sign in, so a
+    // flag rollback must not strand them. The flag gates enrollment only.
     async requestEmailOtpLogin(email: string): Promise<void> {
-        await this.assertEmailOtpLoginEnabled();
         const normalizedEmail = email.toLowerCase();
         const user = await this.userModel.findUserByEmail(normalizedEmail);
         if (
@@ -1919,7 +1911,6 @@ export class UserService extends BaseService {
         passcode: string,
         context?: AuthAuditContext,
     ): Promise<SessionUser> {
-        await this.assertEmailOtpLoginEnabled();
         const normalizedEmail = email.toLowerCase();
         const invalidCode = () => {
             emitAuthAuditEvent({
@@ -3255,27 +3246,21 @@ export class UserService extends BaseService {
 
         const openIdIssuers = await this.userModel.getOpenIdIssuers(email);
         const hasPassword = await this.userModel.hasPasswordByEmail(email);
+        // Not gated on the NewOnboarding flag: an enrolled passwordless
+        // account must keep its only sign-in path across a flag rollback.
         let shouldShowEmailOtp = false;
         if (existingUser && !hasPassword) {
-            const [
-                featureFlag,
-                hasPasswordLogin,
-                hasOpenIdIdentity,
-                isEmailLoginAllowed,
-            ] = await Promise.all([
-                this.featureFlagModel.get({
-                    user: undefined,
-                    featureFlagId: FeatureFlags.EmailOnlySignup,
-                }),
-                this.userModel.hasPassword(existingUser.userUuid),
-                this.userModel.hasOpenIdIdentity(existingUser.userUuid),
-                this.isLoginMethodAllowed(email, LocalIssuerTypes.EMAIL_OTP),
-            ]);
+            const [hasPasswordLogin, hasOpenIdIdentity, isEmailLoginAllowed] =
+                await Promise.all([
+                    this.userModel.hasPassword(existingUser.userUuid),
+                    this.userModel.hasOpenIdIdentity(existingUser.userUuid),
+                    this.isLoginMethodAllowed(
+                        email,
+                        LocalIssuerTypes.EMAIL_OTP,
+                    ),
+                ]);
             shouldShowEmailOtp =
-                featureFlag.enabled &&
-                !hasPasswordLogin &&
-                !hasOpenIdIdentity &&
-                isEmailLoginAllowed;
+                !hasPasswordLogin && !hasOpenIdIdentity && isEmailLoginAllowed;
         }
         const applyEmailOtpOption = (options: LoginOptionTypes[]) =>
             shouldShowEmailOtp && options.includes(LocalIssuerTypes.EMAIL)
