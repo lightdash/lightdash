@@ -36,6 +36,9 @@ const GridTileInner: FC<GridTileProps> = memo((props) => {
     const isFilterRequirementsEnabled = useDashboardContext(
         (c) => c.isFilterRequirementsEnabled,
     );
+    const isFilterRequirementsFlagResolved = useDashboardContext(
+        (c) => c.isFilterRequirementsFlagResolved,
+    );
 
     if (props.locked) {
         // Allow non-filterable tiles to show even when locked.
@@ -52,9 +55,16 @@ const GridTileInner: FC<GridTileProps> = memo((props) => {
             return <DataAppTile {...props} tile={tile} />;
         }
 
+        // While the flag query is unresolved neither locked experience has
+        // been chosen yet, so show the tile loading skeleton instead of an
+        // empty tile base
         return (
             <Box h="100%">
-                <TileBase isLoading={false} title={''} {...props}>
+                <TileBase
+                    isLoading={!isFilterRequirementsFlagResolved}
+                    title={''}
+                    {...props}
+                >
                     {isFilterRequirementsEnabled ? (
                         <UnmetRequirementsPlaceholder />
                     ) : undefined}

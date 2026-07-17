@@ -580,11 +580,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     ]);
 
     // Legacy locked UX (feature flag off): blur the grid behind the modal
+    const showLegacyLockedState = shouldShowLegacyLockedState({
+        isFlagResolved: isFilterRequirementsFlagResolved,
+        isFilterRequirementsEnabled,
+    });
     const legacyLockedBlur =
-        shouldShowLegacyLockedState({
-            isFlagResolved: isFilterRequirementsFlagResolved,
-            isFilterRequirementsEnabled,
-        }) && hasUnmetFilterRequirementsForCurrentTab;
+        showLegacyLockedState && hasUnmetFilterRequirementsForCurrentTab;
 
     // Guided setup card over the locked grid; dismissal lasts until reload
     const [isGuidedSetupDismissed, setIsGuidedSetupDismissed] = useState(false);
@@ -1361,11 +1362,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                               )}
                                     </div>
                                 </Group>
-                                {shouldShowLegacyLockedState({
-                                    isFlagResolved:
-                                        isFilterRequirementsFlagResolved,
-                                    isFilterRequirementsEnabled,
-                                }) && (
+                                {showLegacyLockedState && (
                                     <LockedDashboardModal
                                         opened={
                                             hasUnmetFilterRequirementsForCurrentTab &&
