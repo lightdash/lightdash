@@ -10,14 +10,35 @@ import { useParams } from 'react-router';
 import { useOrganization } from './organization/useOrganization';
 import { useProject } from './useProject';
 import { useProjects } from './useProjects';
+import { useAccount } from './user/useAccount';
 
-const LAST_PROJECT_KEY = 'lastProject';
+export const LAST_PROJECT_KEY = 'lastProject';
+export const LAST_USER_KEY = 'lastAuthenticatedUserUuid';
 
 export const useActiveProject = () => {
+    const { data: account } = useAccount();
+    const userUuid =
+        account && 'userUuid' in account.user ? account.user.userUuid : null;
+
     return useQuery<string | null>(
-        ['activeProject'],
-        () => Promise.resolve(localStorage.getItem(LAST_PROJECT_KEY) || null),
+        ['activeProject', userUuid],
+        () => {
+            // lastProject persists across full-page reloads, so it may belong
+            // to a previously signed-in user. Only hand it out once it
+            // provably belongs to the current user (a missing marker means a
+            // browser from before the marker existed and is trusted).
+            if (userUuid) {
+                const storedIdentity = localStorage.getItem(LAST_USER_KEY);
+                if (storedIdentity !== null && storedIdentity !== userUuid) {
+                    return Promise.resolve(null);
+                }
+            }
+            return Promise.resolve(
+                localStorage.getItem(LAST_PROJECT_KEY) || null,
+            );
+        },
         {
+            enabled: account !== undefined,
             cacheTime: 0,
             refetchOnWindowFocus: false,
             refetchOnMount: false,
