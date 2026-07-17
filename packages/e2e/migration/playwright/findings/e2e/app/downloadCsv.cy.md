@@ -112,3 +112,23 @@ Expected results are one active passing test in each runner, two Cypress skips, 
 ## Port history
 
 Not started.
+
+### 2026-07-17 — Playwright port implemented
+
+- Target: `packages/e2e/playwright/app/downloadCsv.spec.ts`.
+- Ported the one active Explore Results flow: select `Order Customer` / `First name` / `Unique order count` through a file-local virtualized-tree routine, run the query, scope export to the Results card, assert the 200 schedule response and non-empty `jobId`, then assert and save a non-empty `.csv` browser download. The local app exposes the configured Google Drive export selector, so the test also selects `Download data` when that stable configuration branch is present before using `Download`.
+- Removal disposition retained for both skipped Cypress cases (`Download CSV on Dashboards` and the Explore Table-chart export); neither was copied as a Playwright skip. Cypress source and shared Playwright infrastructure remain unchanged.
+- Verification:
+  - `pnpm -F common build:fast` — passed (required to make the frozen install's workspace package import runnable).
+  - `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 pnpm -F e2e exec playwright test playwright/app/downloadCsv.spec.ts --project=firefox` — passed; setup plus the active Firefox test, including schedule and non-empty download assertions.
+  - Same focused Firefox command with `--repeat-each=3` — passed 3/3 active repetitions (4/4 including setup).
+  - `pnpm -F e2e typecheck:playwright` — passed.
+  - Target ESLint and oxfmt checks from the verification plan — passed.
+  - `pnpm -F e2e lint` and `pnpm -F e2e format` — passed for the package.
+  - Focused Playwright discovery with `--list` — found setup and the one active Firefox test.
+  - Findings command `pnpm -F e2e cypress:run -- --spec cypress/e2e/app/downloadCsv.cy.ts` — the literal `--` was interpreted incorrectly and launched all 29 Cypress specs; stopped at the 300-second command limit after unrelated CLI failures (`lightdash` unavailable).
+  - Corrected focused invocation `pnpm -F e2e exec cypress run --spec cypress/e2e/app/downloadCsv.cy.ts` — two expected skips and the active legacy case failed because the configured Google Drive selector now requires the intermediate `Download data` action before `chart-export-results-button`; Cypress was intentionally left unchanged. The required focused Playwright rerun immediately afterward passed.
+  - Full destination suite `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 pnpm -F e2e exec playwright test --project=firefox` — target passed; suite finished 6 passed / 1 unrelated failure in `globalSearch.spec.ts` waiting for `Spaces` after navigation.
+  - `git diff --check` — passed.
+- Remaining risks: scheduler, warehouse, and exports storage availability still determine export latency. Legacy Cypress dual-run confidence is blocked by its stale single-step export selector, and the destination suite retains the unrelated global-search failure noted above.
+- Commit: pending serialized signing lease (`COMMIT_HASH_PLACEHOLDER`).
