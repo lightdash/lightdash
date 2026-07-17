@@ -1,3 +1,10 @@
+## [0.3413.1](https://github.com/lightdash/lightdash/compare/0.3413.0...0.3413.1) (2026-07-17)
+
+
+### Bug Fixes
+
+* **frontend:** reset client state when the authenticated user changes ([#25755](https://github.com/lightdash/lightdash/issues/25755)) ([304eb64](https://github.com/lightdash/lightdash/commit/304eb646d496d14dad741e5d217db646c66b4410))
+
 # [0.3413.0](https://github.com/lightdash/lightdash/compare/0.3412.0...0.3413.0) (2026-07-17)
 
 
