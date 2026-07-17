@@ -1,3 +1,10 @@
+## [0.3406.2](https://github.com/lightdash/lightdash/compare/0.3406.1...0.3406.2) (2026-07-17)
+
+
+### Bug Fixes
+
+* guided setup label sizing and locked-state flashes on reload ([#25713](https://github.com/lightdash/lightdash/issues/25713)) ([23e105a](https://github.com/lightdash/lightdash/commit/23e105af3d4835fa6d407cc33c5350514692761a))
+
 ## [0.3406.1](https://github.com/lightdash/lightdash/compare/0.3406.0...0.3406.1) (2026-07-17)
 
 
