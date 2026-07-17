@@ -4,7 +4,7 @@ import {
     type AiPromptContextItem,
     type AiRouter,
 } from '@lightdash/common';
-import { Anchor, Group, Skeleton } from '@mantine-8/core';
+import { Anchor, Skeleton } from '@mantine-8/core';
 import { IconArrowUpRight } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type FC } from 'react';
@@ -58,13 +58,20 @@ const useAiRouterEnabledFromCache = (): boolean | undefined => {
     return enabled;
 };
 
+// The chips come from an LLM generation, so on a cold view they land a second
+// or two after the composer. The row reserves one chip-line of height while
+// loading so their arrival never shoves the greeting/composer up; the chips
+// then fade + rise in, staggered, so it reads as intentional rather than a
+// pop. Once the query settles with no chips (e.g. generation failed past its
+// retry) the row collapses so there's no permanent empty gap.
 const SuggestionPills: FC<{
     chips: AgentSuggestion[];
+    loading: boolean;
     onPick: (chip: AgentSuggestion) => void;
-}> = ({ chips, onPick }) => {
-    if (chips.length === 0) return null;
+}> = ({ chips, loading, onPick }) => {
+    if (!loading && chips.length === 0) return null;
     return (
-        <Group gap={6} justify="center" mt={12}>
+        <div className={classes.pillRow}>
             {chips.map((chip) => (
                 <button
                     key={chip.label}
@@ -80,7 +87,7 @@ const SuggestionPills: FC<{
                     {chip.label}
                 </button>
             ))}
-        </Group>
+        </div>
     );
 };
 
@@ -229,6 +236,7 @@ const DayOneAskInputInner: FC<Props> = ({ projectUuid, preview = false }) => {
             {(canCreateThread || preview) && (
                 <SuggestionPills
                     chips={suggestionsQuery.data?.chips ?? []}
+                    loading={suggestionsQuery.isLoading}
                     onPick={handleChipPick}
                 />
             )}
