@@ -1,4 +1,18 @@
 import {
+    closestCenter,
+    DndContext,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    rectSortingStrategy,
+    SortableContext,
+    useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
     assertUnreachable,
     ContentType,
     contentToResourceViewItem,
@@ -30,6 +44,7 @@ import { usePinnedItems } from '../../../../hooks/pinning/usePinnedItems';
 import { useInfiniteContent } from '../../../../hooks/useContent';
 import { useProject } from '../../../../hooks/useProject';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
+import { reorderCollectionItems } from '../configOps';
 import { useCollectionContent } from '../hooks/useCollectionContent';
 import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
@@ -349,12 +364,52 @@ export const CollectionBlockView: FC<BlockComponentProps> = ({
     );
 };
 
+// Whole tile is the drag surface: build-mode tiles aren't links, and the 5px
+// activation distance keeps the remove button clickable.
+const SortableTile: FC<{
+    content: SummaryContent;
+    projectUuid: string;
+    onRemove: () => void;
+}> = ({ content, projectUuid, onRemove }) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: content.uuid });
+    return (
+        <div
+            ref={setNodeRef}
+            className={classes.sortableTile}
+            data-dragging={isDragging}
+            style={{
+                transform: CSS.Translate.toString(transform),
+                transition,
+            }}
+            {...attributes}
+            {...listeners}
+        >
+            <ContentCard
+                content={content}
+                projectUuid={projectUuid}
+                variant="tile"
+                onRemove={onRemove}
+            />
+        </div>
+    );
+};
+
 export const CollectionBlockBuild: FC<BuildComponentProps> = ({
     block,
     projectUuid,
     onChange,
 }) => {
     const [isPickerOpen, setIsPickerOpen] = useState(false);
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    );
     const uuids =
         block.type === 'collection'
             ? block.config.items.map((item) => item.uuid)
@@ -400,35 +455,60 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
                     })
                 }
             />
-            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing={12}>
-                {(contents ?? []).map((content) => (
-                    <ContentCard
-                        key={content.uuid}
-                        content={content}
-                        projectUuid={projectUuid}
-                        variant="tile"
-                        onRemove={() =>
-                            onChange({
-                                ...block,
-                                config: {
-                                    ...block.config,
-                                    items: block.config.items.filter(
-                                        (item) => item.uuid !== content.uuid,
-                                    ),
-                                },
-                            })
-                        }
-                    />
-                ))}
-                <button
-                    type="button"
-                    className={classes.addContentTile}
-                    onClick={() => setIsPickerOpen(true)}
+            <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={(event: DragEndEvent) => {
+                    const { active, over } = event;
+                    if (!over || active.id === over.id) return;
+                    onChange({
+                        ...block,
+                        config: {
+                            ...block.config,
+                            items: reorderCollectionItems(
+                                block.config.items,
+                                String(active.id),
+                                String(over.id),
+                            ),
+                        },
+                    });
+                }}
+            >
+                <SortableContext
+                    items={(contents ?? []).map((content) => content.uuid)}
+                    strategy={rectSortingStrategy}
                 >
-                    <MantineIcon icon={IconPlus} size={14} />
-                    Add content
-                </button>
-            </SimpleGrid>
+                    <SimpleGrid cols={{ base: 1, sm: 3 }} spacing={12}>
+                        {(contents ?? []).map((content) => (
+                            <SortableTile
+                                key={content.uuid}
+                                content={content}
+                                projectUuid={projectUuid}
+                                onRemove={() =>
+                                    onChange({
+                                        ...block,
+                                        config: {
+                                            ...block.config,
+                                            items: block.config.items.filter(
+                                                (item) =>
+                                                    item.uuid !== content.uuid,
+                                            ),
+                                        },
+                                    })
+                                }
+                            />
+                        ))}
+                        <button
+                            type="button"
+                            className={classes.addContentTile}
+                            onClick={() => setIsPickerOpen(true)}
+                        >
+                            <MantineIcon icon={IconPlus} size={14} />
+                            Add content
+                        </button>
+                    </SimpleGrid>
+                </SortableContext>
+            </DndContext>
             {block.config.items.length === 0 && importablePins.length > 0 && (
                 <Button
                     variant="subtle"

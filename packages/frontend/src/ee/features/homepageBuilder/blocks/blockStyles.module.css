@@ -259,6 +259,20 @@ a .hoverCard:hover,
     margin-top: 8px;
 }
 
+/* Single-cell grid so the wrapped card keeps its block box inside SimpleGrid */
+.sortableTile {
+    display: grid;
+    cursor: grab;
+    transition: opacity 0.12s ease-in-out;
+}
+
+.sortableTile[data-dragging='true'] {
+    opacity: 0.4;
+    cursor: grabbing;
+    position: relative;
+    z-index: 1;
+}
+
 .addContentTile {
     border: 1px dashed var(--mantine-color-ldGray-3);
     border-radius: 10px;

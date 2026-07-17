@@ -1,6 +1,7 @@
 import {
     HOMEPAGE_MAX_BLOCKS_PER_ROW,
     type HomepageBlock,
+    type HomepageCollectionItemRef,
     type HomepageConfig,
     type HomepageRow,
 } from '@lightdash/common';
@@ -237,4 +238,19 @@ export const replaceBlock = (
     const rows = cloneRows(config);
     rows[location.rowIndex].blocks[location.blockIndex] = updated;
     return withRows(config, rows);
+};
+
+// Keyed by uuid, not visible index: refs hidden by access filtering keep their slot.
+export const reorderCollectionItems = (
+    items: HomepageCollectionItemRef[],
+    activeUuid: string,
+    overUuid: string,
+): HomepageCollectionItemRef[] => {
+    const from = items.findIndex((item) => item.uuid === activeUuid);
+    const to = items.findIndex((item) => item.uuid === overUuid);
+    if (from === -1 || to === -1 || from === to) return items;
+    const next = [...items];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    return next;
 };

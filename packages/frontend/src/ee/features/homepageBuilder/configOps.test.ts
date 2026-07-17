@@ -1,4 +1,8 @@
-import { type HomepageBlock, type HomepageConfig } from '@lightdash/common';
+import {
+    type HomepageBlock,
+    type HomepageCollectionItemRef,
+    type HomepageConfig,
+} from '@lightdash/common';
 import {
     addBlock,
     canDropInRow,
@@ -10,6 +14,7 @@ import {
     moveBlockDown,
     moveBlockUp,
     removeBlock,
+    reorderCollectionItems,
     replaceBlock,
 } from './configOps';
 
@@ -195,5 +200,37 @@ describe('configOps', () => {
         moveBlockDown(config, 'a');
         replaceBlock(config, block('a', 'x'));
         expect(config).toEqual(snapshot);
+    });
+});
+
+describe('reorderCollectionItems', () => {
+    const ref = (uuid: string): HomepageCollectionItemRef => ({
+        contentType: 'chart',
+        uuid,
+    });
+    const items = [ref('a'), ref('b'), ref('c'), ref('d')];
+
+    it('moves an item forward past the drop target', () => {
+        expect(
+            reorderCollectionItems(items, 'a', 'c').map((i) => i.uuid),
+        ).toEqual(['b', 'c', 'a', 'd']);
+    });
+
+    it('moves an item backward to the drop target position', () => {
+        expect(
+            reorderCollectionItems(items, 'd', 'b').map((i) => i.uuid),
+        ).toEqual(['a', 'd', 'b', 'c']);
+    });
+
+    it('is a no-op for unknown uuids or same position', () => {
+        expect(reorderCollectionItems(items, 'x', 'b')).toBe(items);
+        expect(reorderCollectionItems(items, 'b', 'x')).toBe(items);
+        expect(reorderCollectionItems(items, 'b', 'b')).toBe(items);
+    });
+
+    it('does not mutate the input array', () => {
+        const input = [ref('a'), ref('b')];
+        reorderCollectionItems(input, 'b', 'a');
+        expect(input.map((i) => i.uuid)).toEqual(['a', 'b']);
     });
 });
