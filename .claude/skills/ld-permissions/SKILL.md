@@ -32,12 +32,13 @@ This skill helps you work with Lightdash's CASL-based permissions system, includ
 
 ### Common Patterns
 
-**Backend permission check:**
+**Backend permission check** (services take `account: RegisteredAccount` and build the ability via `this.createAuditedAbility(account)` — raw `user.ability` is legacy, see `docs/account-patterns.md`):
 ```typescript
 import { subject } from '@casl/ability';
 import { ForbiddenError } from '@lightdash/common';
 
-if (user.ability.cannot('manage', subject('Dashboard', { projectUuid }))) {
+const ability = this.createAuditedAbility(account);
+if (ability.cannot('manage', subject('Dashboard', { organizationUuid, projectUuid }))) {
     throw new ForbiddenError('You do not have permission');
 }
 ```
@@ -72,9 +73,9 @@ Never fill `subject(...)` from actor fields like `user.organizationUuid`. Org-le
 
 **Frontend permission check:**
 ```typescript
-const { user } = useUser();
+const { user } = useApp();
 
-if (user?.ability.can('manage', 'Dashboard')) {
+if (user.data?.ability.can('manage', 'Dashboard')) {
     return <EditButton />;
 }
 ```
@@ -125,9 +126,9 @@ You must update ALL the relevant ability layers:
 
 6. **Update service accounts** in `packages/common/src/authorization/serviceAccountAbility.ts` — add to `ORG_ADMIN` (or other service account scopes) if service accounts need this permission. **Forgetting this breaks CI/CD pipelines.**
 
-7. **Enforce in service** with `user.ability.cannot()` check
+7. **Enforce in service** via `this.createAuditedAbility(account)` + `ability.cannot()` — never raw `user.ability` (legacy pattern, see `docs/account-patterns.md`)
 
-8. **Add frontend check** with `user?.ability.can()`
+8. **Add frontend check** with `useApp()` → `user.data?.ability.can()`
 
 ## Changing the Scope Vocabulary (Migrating Custom Roles)
 
@@ -140,7 +141,7 @@ Custom roles persist scope names as strings in the `scoped_roles` table (`role_u
 | **Rename a scope** (e.g. `manage:Foo` → `manage:Bar`) | Old rows reference a name that no longer exists in `scopes.ts`. `parseScopes` drops them as invalid, silently revoking access. | `UPDATE scoped_roles SET scope_name = 'new' WHERE scope_name = 'old'` |
 | **Split one scope into two** (e.g. `manage:CustomSql` → `manage:CustomSql` + `manage:CustomFields`) | Roles with the original scope lose access to whichever capability moved to the new scope. | Backfill the new scope for every role that has the original (`INSERT ... SELECT ... ON CONFLICT DO NOTHING`). See `20260417111420_grant_custom_fields_to_custom_sql_roles.ts`. |
 | **Merge two scopes into one** | Roles with only one of the merged scopes may gain or lose capability. | Insert the merged scope where either source exists; then delete the old rows. |
-| **Remove a scope** | Rows reference a non-existent scope name, spamming `Invalid scope: ...` warnings from `parseScopes` on every request. | Delete the orphaned rows. See `20260519142606_remove_legacy_dashboard_export_scopes.ts`. |
+| **Remove a scope** | Rows reference a non-existent scope name. `parseScopes` silently drops them; `UserModel` logs "Custom role(s) for user ... reference scopes not in the runtime vocabulary" warnings on every ability build. | Delete the orphaned rows. See `20260519142606_remove_legacy_dashboard_export_scopes.ts`. |
 | **Tighten conditions on an existing scope** | No row change needed, but the behavioral change is invisible to operators. | None on the table; note in PR description. |
 | **Add a brand-new scope** | No existing rows are affected. Only system roles in `roleToScopeMapping.ts` need updating. | None for custom roles. |
 
