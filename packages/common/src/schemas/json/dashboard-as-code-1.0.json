@@ -586,17 +586,6 @@
             "required": ["w", "h", "y", "x", "type"],
             "type": "object"
         },
-        "DashboardTileTarget": {
-            "anyOf": [
-                {
-                    "$ref": "#/$defs/DashboardFieldTarget"
-                },
-                {
-                    "enum": [false],
-                    "type": "boolean"
-                }
-            ]
-        },
         "DashboardTileTypes": {
             "enum": [
                 "saved_chart",
@@ -902,9 +891,6 @@
             "type": "object"
         },
         "Record_string.DashboardTileTarget_": {
-            "additionalProperties": {
-                "$ref": "#/$defs/DashboardTileTarget"
-            },
             "description": "Construct a type with a set of properties K of type T",
             "properties": {},
             "type": "object"

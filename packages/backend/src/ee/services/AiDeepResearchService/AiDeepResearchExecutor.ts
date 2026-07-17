@@ -2,7 +2,6 @@ import {
     RequestMethod,
     type AiDeepResearchActivity,
     type AiDeepResearchProgress,
-    type AiDeepResearchReport,
 } from '@lightdash/common';
 import { fromSession } from '../../../auth/account';
 import type { LightdashConfig } from '../../../config/parseConfig';
@@ -65,17 +64,20 @@ const getMcpServerUrl = (siteUrl: string): string => {
     return url.toString();
 };
 
-const getPartialReport = (
+const getPartialReportMarkdown = (
     run: DbAiDeepResearchRun,
     reason: string,
-): AiDeepResearchReport => ({
-    summary: 'The investigation stopped before it could produce a full report.',
-    findings: [],
-    caveats: [reason],
-    scope: run.prompt,
-    unresolvedQuestions: [run.prompt],
-    nextSteps: ['Run Deep Research again with a larger budget.'],
-});
+): string => `The investigation stopped before it could produce a full report.
+
+<warning title="Incomplete investigation">
+
+${reason}
+
+</warning>
+
+## Conclusion
+
+- Run Deep Research again with a larger budget to complete the investigation of: ${run.prompt}`;
 
 const truncate = (value: string): string =>
     value.length > MAX_CHAT_MESSAGE_CHARS
@@ -102,6 +104,9 @@ const getProgress = (
     maxToolCalls: number,
 ): AiDeepResearchProgress | null => {
     if (event.type === 'model_usage') {
+        return null;
+    }
+    if (event.type === 'mcp_tool_result') {
         return null;
     }
     if (event.type === 'tool_use') {
@@ -249,7 +254,8 @@ export class AiDeepResearchExecutor {
             tokens: 0,
             exceeded: null,
         };
-        let latestReport: AiDeepResearchReport | null = null;
+        let latestReport: string | null = null;
+        const completedWarehouseQueryUuids = new Set<string>();
 
         const exceedBudget = (
             budget: keyof DbAiDeepResearchRun['budget_snapshot'],
@@ -319,6 +325,15 @@ export class AiDeepResearchExecutor {
                         return JSON.stringify({ saved: true });
                     },
                     onProgress: async (event) => {
+                        if (
+                            event.type === 'mcp_tool_result' &&
+                            event.name === 'run_metric_query' &&
+                            !event.isError
+                        ) {
+                            for (const queryUuid of event.queryUuids) {
+                                completedWarehouseQueryUuids.add(queryUuid);
+                            }
+                        }
                         if (event.type === 'model_usage') {
                             budgetState.tokens +=
                                 event.inputTokens +
@@ -378,14 +393,15 @@ export class AiDeepResearchExecutor {
             ) {
                 return {
                     status: 'partially_completed',
-                    report:
+                    reportMarkdown:
                         latestReport ??
-                        getPartialReport(
+                        getPartialReportMarkdown(
                             run,
                             budgetState.exceeded
                                 ? `The ${budgetState.exceeded} budget was exhausted.`
                                 : 'The runtime budget was exhausted.',
                         ),
+                    warehouseQueryUuids: [...completedWarehouseQueryUuids],
                 };
             }
             if (result.status === 'cancelled') {
@@ -404,7 +420,11 @@ export class AiDeepResearchExecutor {
                         'Deep Research finished without submitting a report',
                 };
             }
-            return { status: 'completed', report: latestReport };
+            return {
+                status: 'completed',
+                reportMarkdown: latestReport,
+                warehouseQueryUuids: [...completedWarehouseQueryUuids],
+            };
         } finally {
             await stopCancellationPoll();
             await this.dependencies.personalAccessTokenService.deletePersonalAccessToken(

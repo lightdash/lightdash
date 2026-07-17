@@ -164,6 +164,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     featureFlagModel: models.getFeatureFlagModel(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
+                    asyncQueryService: repository.getAsyncQueryService(),
+                    queryHistoryModel: models.getQueryHistoryModel(),
                     executor: executor.execute,
                 });
             },

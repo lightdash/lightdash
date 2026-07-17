@@ -1,26 +1,37 @@
 import { subject } from '@casl/ability';
 import {
+    AiResultType,
+    extractDeepResearchCharts,
     FeatureFlags,
+    findDeepResearchChartBlocks,
     ForbiddenError,
     getErrorMessage,
     isAiDeepResearchRunTerminal,
     isUserWithOrg,
     NotFoundError,
     ParameterError,
+    QueryExecutionContext,
+    QueryHistoryStatus,
+    spliceDeepResearchChartBlocks,
+    UnexpectedServerError,
+    type Account,
     type AiDeepResearchBudget,
+    type AiDeepResearchChartBlock,
     type AiDeepResearchEffort,
     type AiDeepResearchEvent,
     type AiDeepResearchEventPayloadMap,
     type AiDeepResearchEventsPage,
     type AiDeepResearchJobPayload,
     type AiDeepResearchProgress,
-    type AiDeepResearchReport,
     type AiDeepResearchRun,
+    type ApiAiAgentThreadMessageVizQuery,
     type SessionUser,
 } from '@lightdash/common';
 import { validate as isValidUuid } from 'uuid';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { type QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
+import { type AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import {
     type DbAiDeepResearchEvent,
@@ -41,10 +52,58 @@ const FAILED_RUN_ERROR_MESSAGE =
     'Deep Research could not finish. Please try again.';
 const TIMED_OUT_RUN_ERROR_MESSAGE =
     'Deep Research took too long to finish. Please try again.';
+const OMITTED_CHARTS_CAVEAT =
+    'Some proposed charts were omitted because their query evidence could not be verified.';
+const OMITTED_CHART_REPLACEMENT = `<warning title="Chart omitted">
+
+A proposed chart was omitted because its query evidence could not be verified.
+
+</warning>`;
+
+const isChartConfigCompatible = (
+    chart: AiDeepResearchChartBlock,
+    metricQuery: {
+        dimensions: string[];
+        metrics: string[];
+    },
+): boolean => {
+    const dimensions = new Set(metricQuery.dimensions);
+    const metrics = new Set(metricQuery.metrics);
+    const { chartConfig } = chart;
+    const referencedDimensions = [
+        chartConfig.xAxisDimension,
+        ...(chartConfig.groupBy ?? []),
+    ].filter((field): field is string => field !== null);
+    const referencedMetrics = [
+        ...(chartConfig.yAxisMetrics ?? []),
+        chartConfig.secondaryYAxisMetric,
+    ].filter((field): field is string => field !== null);
+
+    if (
+        referencedDimensions.some((field) => !dimensions.has(field)) ||
+        referencedMetrics.some((field) => !metrics.has(field))
+    ) {
+        return false;
+    }
+
+    return (
+        chartConfig.defaultVizType === 'table' ||
+        (chartConfig.xAxisDimension !== null &&
+            (chartConfig.yAxisMetrics?.length ?? 0) > 0)
+    );
+};
 
 export type AiDeepResearchExecutorResult =
-    | { status: 'completed'; report: AiDeepResearchReport }
-    | { status: 'partially_completed'; report: AiDeepResearchReport }
+    | {
+          status: 'completed';
+          reportMarkdown: string;
+          warehouseQueryUuids: string[];
+      }
+    | {
+          status: 'partially_completed';
+          reportMarkdown: string;
+          warehouseQueryUuids: string[];
+      }
     | { status: 'failed'; errorMessage: string }
     | { status: 'cancelled' };
 
@@ -58,6 +117,11 @@ type Dependencies = {
     projectModel: ProjectModel;
     featureFlagModel: FeatureFlagModel;
     schedulerClient: CommercialSchedulerClient;
+    asyncQueryService: AsyncQueryService;
+    queryHistoryModel: Pick<
+        QueryHistoryModel,
+        'getByQueryUuid' | 'preserveResults'
+    >;
     executor?: AiDeepResearchExecutor;
 };
 
@@ -70,7 +134,7 @@ const toRun = (row: DbAiDeepResearchRun): AiDeepResearchRun => ({
     aiDeepResearchRunUuid: row.ai_deep_research_run_uuid,
     projectUuid: row.project_uuid,
     status: row.status,
-    result: row.result,
+    resultMarkdown: row.result_markdown,
     budget: row.budget_snapshot,
     errorMessage: row.error_message,
     cancellationRequestedAt:
@@ -234,6 +298,13 @@ export class AiDeepResearchService extends BaseService {
 
     private readonly schedulerClient: CommercialSchedulerClient;
 
+    private readonly asyncQueryService: AsyncQueryService;
+
+    private readonly queryHistoryModel: Pick<
+        QueryHistoryModel,
+        'getByQueryUuid' | 'preserveResults'
+    >;
+
     private readonly executor: AiDeepResearchExecutor | undefined;
 
     constructor({
@@ -241,6 +312,8 @@ export class AiDeepResearchService extends BaseService {
         projectModel,
         featureFlagModel,
         schedulerClient,
+        asyncQueryService,
+        queryHistoryModel,
         executor,
     }: Dependencies) {
         super();
@@ -248,6 +321,8 @@ export class AiDeepResearchService extends BaseService {
         this.projectModel = projectModel;
         this.featureFlagModel = featureFlagModel;
         this.schedulerClient = schedulerClient;
+        this.asyncQueryService = asyncQueryService;
+        this.queryHistoryModel = queryHistoryModel;
         this.executor = executor;
     }
 
@@ -405,6 +480,71 @@ export class AiDeepResearchService extends BaseService {
         );
     }
 
+    async getChartVizQuery(args: {
+        account: Account;
+        user: SessionUser;
+        projectUuid: string;
+        aiDeepResearchRunUuid: string;
+        chartQueryUuid: string;
+    }): Promise<ApiAiAgentThreadMessageVizQuery> {
+        const run = await this.findCreatorOwnedRun(
+            args.user,
+            args.projectUuid,
+            args.aiDeepResearchRunUuid,
+        );
+        // Membership in the persisted report markdown is the authorization gate.
+        const chart = run.result_markdown
+            ? extractDeepResearchCharts(run.result_markdown).find(
+                  (block) => block.queryUuid === args.chartQueryUuid,
+              )
+            : undefined;
+        if (!chart) {
+            throw new NotFoundError(
+                `Deep Research chart ${args.chartQueryUuid} not found`,
+            );
+        }
+
+        const queryHistory = await this.asyncQueryService.getAsyncQueryHistory({
+            account: args.account,
+            projectUuid: args.projectUuid,
+            queryUuid: chart.queryUuid,
+        });
+        if (
+            queryHistory.context !==
+                QueryExecutionContext.MCP_RUN_METRIC_QUERY ||
+            queryHistory.createdByUserUuid !== run.created_by_user_uuid
+        ) {
+            throw new NotFoundError(
+                `Deep Research chart query ${chart.queryUuid} not found`,
+            );
+        }
+        if (queryHistory.status !== QueryHistoryStatus.READY) {
+            throw new UnexpectedServerError(
+                `Deep Research chart query ${chart.queryUuid} is not ready`,
+            );
+        }
+
+        const usedParametersValues =
+            queryHistory.requestParameters.parameters ?? {};
+        return {
+            type: AiResultType.QUERY_RESULT,
+            query: {
+                queryUuid: queryHistory.queryUuid,
+                cacheMetadata: { cacheHit: false },
+                metricQuery: queryHistory.metricQuery,
+                fields: queryHistory.fields,
+                warnings: [],
+                parameterReferences: Object.keys(usedParametersValues),
+                usedParametersValues,
+                resolvedTimezone: queryHistory.metricQuery.timezone ?? null,
+            },
+            metadata: {
+                title: chart.title,
+                description: null,
+            },
+        };
+    }
+
     async listEvents(args: {
         user: SessionUser;
         projectUuid: string;
@@ -491,10 +631,15 @@ export class AiDeepResearchService extends BaseService {
         try {
             const result = await this.executor(run, { signal });
             if (result.status === 'completed') {
+                const report = await this.prepareEvidenceReport(
+                    run,
+                    result.reportMarkdown,
+                    new Set(result.warehouseQueryUuids),
+                );
                 const completed =
                     await this.aiDeepResearchRunModel.markCompleted(
                         payload.aiDeepResearchRunUuid,
-                        result.report,
+                        report,
                     );
                 if (!completed) {
                     await this.markCancelledAfterCompletedExecution(
@@ -504,10 +649,15 @@ export class AiDeepResearchService extends BaseService {
                 return;
             }
             if (result.status === 'partially_completed') {
+                const report = await this.prepareEvidenceReport(
+                    run,
+                    result.reportMarkdown,
+                    new Set(result.warehouseQueryUuids),
+                );
                 const completed =
                     await this.aiDeepResearchRunModel.markPartiallyCompleted(
                         payload.aiDeepResearchRunUuid,
-                        result.report,
+                        report,
                     );
                 if (!completed) {
                     await this.markCancelledAfterCompletedExecution(
@@ -546,6 +696,71 @@ export class AiDeepResearchService extends BaseService {
             );
             throw error;
         }
+    }
+
+    private async prepareEvidenceReport(
+        run: DbAiDeepResearchRun,
+        reportMarkdown: string,
+        runQueryUuids: Set<string>,
+    ): Promise<string> {
+        const matches = findDeepResearchChartBlocks(reportMarkdown);
+        if (matches.length === 0) {
+            return reportMarkdown;
+        }
+
+        const verifications = await Promise.all(
+            matches.map(async (match) => {
+                const chart = match.block;
+                // The UUID set is built from this run's actual MCP tool results.
+                if (!chart || !runQueryUuids.has(chart.queryUuid)) {
+                    return { match, verified: false };
+                }
+
+                const queryHistory =
+                    await this.queryHistoryModel.getByQueryUuid(
+                        chart.queryUuid,
+                    );
+                const isVerified =
+                    queryHistory?.context ===
+                        QueryExecutionContext.MCP_RUN_METRIC_QUERY &&
+                    queryHistory.projectUuid === run.project_uuid &&
+                    queryHistory.organizationUuid === run.organization_uuid &&
+                    queryHistory.createdByUserUuid ===
+                        run.created_by_user_uuid &&
+                    queryHistory.createdByActorType === 'pat' &&
+                    queryHistory.status === QueryHistoryStatus.READY &&
+                    queryHistory.resultsFileName !== null &&
+                    (!queryHistory.resultsExpiresAt ||
+                        queryHistory.resultsExpiresAt > new Date()) &&
+                    isChartConfigCompatible(chart, queryHistory.metricQuery);
+                if (!isVerified) {
+                    return { match, verified: false };
+                }
+
+                // Evidence charts are part of the persisted report, so their
+                // exact result files must outlive the normal query-cache TTL.
+                const preserved = await this.queryHistoryModel.preserveResults({
+                    queryUuid: chart.queryUuid,
+                    projectUuid: run.project_uuid,
+                    createdByUserUuid: run.created_by_user_uuid,
+                });
+                return { match, verified: preserved };
+            }),
+        );
+
+        const failed = verifications.filter(({ verified }) => !verified);
+        if (failed.length === 0) {
+            return reportMarkdown;
+        }
+
+        const spliced = spliceDeepResearchChartBlocks(
+            reportMarkdown,
+            failed.map(({ match }) => ({
+                match,
+                replacement: OMITTED_CHART_REPLACEMENT,
+            })),
+        );
+        return `${spliced}\n\n<warning title="Caveat">\n\n${OMITTED_CHARTS_CAVEAT}\n\n</warning>\n`;
     }
 
     private async markCancelledAfterCompletedExecution(

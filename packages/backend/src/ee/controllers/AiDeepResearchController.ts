@@ -1,6 +1,7 @@
 import {
     assertRegisteredAccount,
     type AiDeepResearchRequestBody,
+    type ApiAiAgentThreadMessageVizQueryResponse,
     type ApiAiDeepResearchEventsResponse,
     type ApiAiDeepResearchRunResponse,
     type ApiErrorPayload,
@@ -84,6 +85,34 @@ export class AiDeepResearchController extends BaseController {
                 projectUuid,
                 aiDeepResearchRunUuid,
             ),
+        };
+    }
+
+    /**
+     * Load the exact completed metric query behind a report chart.
+     * @summary Get Deep Research chart query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{aiDeepResearchRunUuid}/charts/{chartQueryUuid}/viz-query')
+    @OperationId('getAiDeepResearchChartVizQuery')
+    async getChartVizQuery(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() aiDeepResearchRunUuid: UUID,
+        @Path() chartQueryUuid: UUID,
+    ): Promise<ApiAiAgentThreadMessageVizQueryResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiDeepResearchService().getChartVizQuery({
+                account: req.account,
+                user: toSessionUser(req.account),
+                projectUuid,
+                aiDeepResearchRunUuid,
+                chartQueryUuid,
+            }),
         };
     }
 
