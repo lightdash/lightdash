@@ -612,7 +612,9 @@ export class ProjectService extends BaseService {
         try {
             await this.onProjectCreated?.({ user, projectUuid, projectType });
         } catch (error) {
-            this.logger.warn(
+            // Provisioning failures must not fail project creation
+            Sentry.captureException(error);
+            this.logger.error(
                 `Failed to run post-creation provisioning for project ${projectUuid}: ${error instanceof Error ? error.message : String(error)}`,
             );
         }

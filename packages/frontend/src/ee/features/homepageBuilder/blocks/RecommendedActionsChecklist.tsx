@@ -1,5 +1,5 @@
 import { type HomepageRecommendedActionKey } from '@lightdash/common';
-import { ActionIcon, Button, Stack, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Box, Button, Stack, Tooltip } from '@mantine-8/core';
 import {
     IconActivity,
     IconArrowBackUp,
@@ -105,15 +105,15 @@ const ActionRow: FC<{
         .filter(Boolean)
         .join(' ');
     return (
-        <div className={rowClassName} aria-hidden={isBehind}>
+        <Box className={rowClassName} aria-hidden={isBehind}>
             {status.isComplete ? (
-                <div className={styles.doneCircle}>
+                <Box className={styles.doneCircle}>
                     <MantineIcon icon={IconCheck} size={16} />
-                </div>
+                </Box>
             ) : (
-                <div className={styles.emptyCircle} />
+                <Box className={styles.emptyCircle} />
             )}
-            <div
+            <Box
                 className={
                     status.isComplete
                         ? `${styles.iconTile} ${styles.iconTileDone}`
@@ -125,9 +125,9 @@ const ActionRow: FC<{
                 ) : (
                     <MantineIcon icon={definition.icon} size={22} />
                 )}
-            </div>
-            <div className={styles.rowBody}>
-                <div
+            </Box>
+            <Box className={styles.rowBody}>
+                <Box
                     className={
                         status.isComplete
                             ? `${styles.rowTitle} ${styles.rowTitleDone}`
@@ -135,15 +135,15 @@ const ActionRow: FC<{
                     }
                 >
                     {definition.title}
-                </div>
-                <div className={styles.rowSubtitle}>
+                </Box>
+                <Box className={styles.rowSubtitle}>
                     {status.isComplete
                         ? status.annotation
                         : isSkipped
                           ? 'Skipped'
                           : definition.subtitle}
-                </div>
-            </div>
+                </Box>
+            </Box>
             {!status.isComplete && isSkipped && (
                 <Tooltip label="Restore this step" withinPortal>
                     <ActionIcon
@@ -193,7 +193,7 @@ const ActionRow: FC<{
                     )}
                 </>
             )}
-        </div>
+        </Box>
     );
 };
 
@@ -293,9 +293,9 @@ export const RecommendedActionsChecklist: FC<{
 
     return (
         <Stack gap={8} className={styles.checklistRoot}>
-            <div className={styles.headerRow}>
+            <Box className={styles.headerRow}>
                 <span className={classes.sectionTitle}>Finish setting up</span>
-                <div className={styles.headerControls}>
+                <Box className={styles.headerControls}>
                     {showArrows && (
                         <>
                             <ActionIcon
@@ -327,9 +327,9 @@ export const RecommendedActionsChecklist: FC<{
                             </ActionIcon>
                         </>
                     )}
-                </div>
-            </div>
-            <div
+                </Box>
+            </Box>
+            <Box
                 className={`${styles.cardStack} ${stackHeightClass(
                     orderedAll.length,
                 )}`}
@@ -352,7 +352,7 @@ export const RecommendedActionsChecklist: FC<{
                         />
                     );
                 })}
-            </div>
+            </Box>
         </Stack>
     );
 };
