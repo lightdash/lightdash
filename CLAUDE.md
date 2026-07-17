@@ -2,10 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
-
-Lightdash is an open-source business intelligence tool (Looker alternative) that connects to dbt projects to enable self-service analytics. It's a TypeScript monorepo built with modern web technologies.
-
 ## Formula Package Development
 
 The `packages/formula/` package contains a Peggy-based parser that compiles Google Sheets-like formulas to SQL for each warehouse dialect (Postgres, BigQuery, Snowflake, DuckDB).
@@ -28,21 +24,6 @@ The development loop is:
 Unit tests in `packages/formula/tests/` CAN be read and edited (grammar and AST tests).
 
 ## Architecture
-
-### Monorepo Structure (pnpm workspaces)
-
--   `packages/common/` - Shared utilities, types, and business logic
--   `packages/backend/` - Node.js/Express API server, scheduler worker, and all backend services
--   `packages/frontend/` - React web application with Vite build system
--   `packages/warehouses/` - Data warehouse client adapters (BigQuery, Snowflake, Postgres, etc.)
--   `packages/cli/` - Command-line interface for dbt project management
--   `packages/e2e/` - Cypress end-to-end tests
-
-### Key Technologies
-
--   Backend: Express.js, Knex.js ORM, PostgreSQL, TSOA (OpenAPI generation)
--   Frontend: React 19, Mantine v8 UI, Emotion styling, TanStack Query
--   Build: pnpm workspaces, TypeScript project references, Vite
 
 ### Runtime Services
 
@@ -131,12 +112,9 @@ pnpm -F backend rollback-last
 ## Development Workflow
 
 1. **Package Management**: Use `pnpm` (v9.15.5+) - never use npm or yarn
-2. **TypeScript**: All packages use TypeScript with project references for type checking
-3. **Linting**: ESLint with Airbnb config, enforces `no-floating-promises`
-4. **Pre-commit**: Husky + lint-staged runs linting/formatting on staged files
-5. **Database**: Uses Knex.js for migrations and query building
-6. **API**: TSOA generates OpenAPI specs from TypeScript controllers
-7. **Authentication**: CASL-based authorization with multiple auth providers
+2. **Database**: Uses Knex.js for migrations and query building
+3. **API**: TSOA generates OpenAPI specs from TypeScript controllers
+4. **Authentication**: CASL-based authorization with multiple auth providers
 
 ## Package-Specific Notes
 
@@ -164,29 +142,12 @@ pnpm -F backend rollback-last
 
 ## Authorization & Custom Roles
 
-**When adding a new permission scope**, you must update all the relevant ability layers:
-
-1. **`packages/common/src/authorization/types.ts`** - Add the new CASL subject name to `CaslSubjectNames`
-2. **`packages/common/src/authorization/scopes.ts`** - Define the scope (name, description, group, conditions)
-3. **`packages/common/src/authorization/projectMemberAbility.ts`** - Add to the appropriate system role function (e.g., `developer`, `admin`)
-4. **`packages/common/src/authorization/organizationMemberAbility.ts`** - Add to org-level roles if needed (note: org-level abilities are additive and **cannot** be restricted by project-level custom roles)
-5. **`packages/common/src/authorization/roleToScopeMapping.ts`** - Add to the appropriate system role in `BASE_ROLE_SCOPES` (must stay in sync with `projectMemberAbility.ts`)
-6. **`packages/common/src/authorization/serviceAccountAbility.ts`** - Add to `ORG_ADMIN` (or other service account scopes) if service accounts need this permission. **Forgetting this breaks CI/CD pipelines.**
-
-**Key files:**
-
--   `projectMemberAbility.ts` - System role abilities at project level
--   `organizationMemberAbility.ts` - System role abilities at org level
--   `serviceAccountAbility.ts` - Service account abilities (enterprise, used for CI/CD)
--   `roleToScopeMapping.ts` - Maps system roles to scopes (used by custom roles system and parity tests)
--   `scopeAbilityBuilder.ts` - Builds CASL abilities from scope lists (custom roles path)
--   `index.ts` - Main ability builder that chooses between system role vs custom role path
+**When adding or changing a permission scope, use the `ld-permissions` skill** — it has the full checklist of ability layers to update (forgetting `serviceAccountAbility.ts` breaks CI/CD pipelines).
 
 **Important behavior:**
 
 -   CASL abilities are **additive** - org-level permissions cannot be revoked by project-level custom roles
 -   If a permission should be restrictable via custom roles, do NOT add it to org-level developer/editor abilities
--   The parity test (`roleToScopeParity.test.ts`) ensures `projectMemberAbility.ts` and `roleToScopeMapping.ts` stay in sync
 -   **Changing the scope vocabulary (rename / split / merge / remove) requires a Knex migration against `scoped_roles`** — custom roles persist scope names as strings and do not auto-update. See the `ld-permissions` skill for the migration checklist and patterns.
 
 ## TypeScript Project References
@@ -197,14 +158,6 @@ pnpm -F backend rollback-last
 -   Frontend and backend reference common package via `"references"` in tsconfig.json
 -   Common package builds to multiple targets: ESM (`dist/esm`), CJS (`dist/cjs`), Types (`dist/types`)
 -   Web workers importing from common should use built ESM paths: `@lightdash/common/dist/esm/[module]`
-
-## Key Configuration Files
-
--   `/tsconfig.json` - TypeScript project references
--   `/pnpm-workspace.yaml` - Workspace configuration
--   `/.eslintrc.js` - Global linting rules
--   `/package.json` - Root scripts and dependency management
--   `.env.development.local` - Local development environment variables
 
 ## dbt YAML Validation Schemas
 

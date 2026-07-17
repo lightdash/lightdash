@@ -23,8 +23,10 @@ This skill helps you work with Lightdash's CASL-based permissions system, includ
 |---------|----------|
 | Scope definitions | `packages/common/src/authorization/scopes.ts` |
 | CASL types | `packages/common/src/authorization/types.ts` |
-| Ability builder | `packages/common/src/authorization/index.ts` |
-| System role abilities | `packages/common/src/authorization/projectMemberAbility.ts` |
+| Ability builder (system role vs custom role path) | `packages/common/src/authorization/index.ts` |
+| System role abilities (project level) | `packages/common/src/authorization/projectMemberAbility.ts` |
+| System role abilities (org level) | `packages/common/src/authorization/organizationMemberAbility.ts` |
+| Service account abilities (enterprise, CI/CD) | `packages/common/src/authorization/serviceAccountAbility.ts` |
 | Role-to-scope mapping | `packages/common/src/authorization/roleToScopeMapping.ts` |
 | Scope-to-CASL conversion | `packages/common/src/authorization/scopeAbilityBuilder.ts` |
 
@@ -100,7 +102,11 @@ This includes:
 
 ## Adding a New Scope (Quick Guide)
 
-1. **Define scope** in `packages/common/src/authorization/scopes.ts`:
+You must update ALL the relevant ability layers:
+
+1. **Add subject** (if new) to `CaslSubjectNames` in `packages/common/src/authorization/types.ts`
+
+2. **Define scope** in `packages/common/src/authorization/scopes.ts`:
 ```typescript
 {
     name: 'manage:NewFeature',
@@ -111,15 +117,17 @@ This includes:
 }
 ```
 
-2. **Add subject** (if new) in `packages/common/src/authorization/types.ts`
+3. **Update project-level abilities** in `packages/common/src/authorization/projectMemberAbility.ts` — add to the appropriate system role function (e.g., `developer`, `admin`)
 
-3. **Add to system role** in `packages/common/src/authorization/roleToScopeMapping.ts`
+4. **Update org-level abilities** in `packages/common/src/authorization/organizationMemberAbility.ts` if needed — note: org-level abilities are additive and **cannot** be restricted by project-level custom roles
 
-4. **Update ability builder** in `packages/common/src/authorization/projectMemberAbility.ts`
+5. **Add to system role** in `BASE_ROLE_SCOPES` in `packages/common/src/authorization/roleToScopeMapping.ts` (must stay in sync with `projectMemberAbility.ts` — the parity test `roleToScopeParity.test.ts` enforces this)
 
-5. **Enforce in service** with `user.ability.cannot()` check
+6. **Update service accounts** in `packages/common/src/authorization/serviceAccountAbility.ts` — add to `ORG_ADMIN` (or other service account scopes) if service accounts need this permission. **Forgetting this breaks CI/CD pipelines.**
 
-6. **Add frontend check** with `user?.ability.can()`
+7. **Enforce in service** with `user.ability.cannot()` check
+
+8. **Add frontend check** with `user?.ability.can()`
 
 ## Changing the Scope Vocabulary (Migrating Custom Roles)
 
