@@ -597,8 +597,8 @@ const FixedBrokenDiff: FC<{
                 </Stack>
             ) : (
                 <Text fz="xs" c="dimmed" lh={1.6}>
-                    This fix touched fields not surfaced in this view, see
-                    chart history for details.
+                    This fix touched fields not surfaced in this view, see chart
+                    history for details.
                 </Text>
             )}
             {historyLink}
@@ -1341,8 +1341,8 @@ const SettingsSidebar: FC<{
                                         />
                                         <Text fz="xs" c="dimmed">
                                             Please invite Lightdash to this
-                                            channel, we can&apos;t post
-                                            messages until you do. (
+                                            channel, we can&apos;t post messages
+                                            until you do. (
                                             <Text
                                                 component="span"
                                                 inherit
@@ -2067,8 +2067,8 @@ export const ManagedAgentActivityPage: FC = () => {
                                         No activity yet
                                     </Text>
                                     <Text fz="xs" c="dimmed">
-                                        The agent runs on a schedule, check
-                                        back soon.
+                                        The agent runs on a schedule, check back
+                                        soon.
                                     </Text>
                                 </Box>
                             ) : (
