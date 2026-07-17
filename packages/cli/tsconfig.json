@@ -14,11 +14,12 @@
         "noUncheckedIndexedAccess": false,
         "ignoreDeprecations": "6.0",
         "moduleResolution": "node10",
+        "jsx": "react-jsx",
         "resolveJsonModule": true,
         "skipLibCheck": true,
         "types": ["node", "vitest/globals"]
     },
-    "include": ["src/**/*.ts", "src/**/*.json"],
+    "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.json"],
     "references": [
         {
             "path": "../common"

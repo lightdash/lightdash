@@ -10,6 +10,13 @@ module.exports = {
         'prettier',
         'plugin:json/recommended',
     ],
+    settings: {
+        'import/resolver': {
+            node: {
+                extensions: ['.js', '.jsx', '.ts', '.tsx'],
+            },
+        },
+    },
     rules: {
         'no-console': 'off',
         'import/prefer-default-export': 'off',

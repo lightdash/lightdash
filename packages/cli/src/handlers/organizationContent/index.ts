@@ -7,6 +7,7 @@ import { LightdashAnalytics } from '../../analytics/analytics';
 import { type Config } from '../../config';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
+import { renderContentAsCodeSummary } from '../../terminal/contentAsCodeSummary';
 import {
     assertCodeResourceDependencyOrder,
     ORGANIZATION_CODE_RESOURCES,
@@ -93,6 +94,7 @@ export const downloadOrganizationContent = async ({
 
         spinner.start(`Downloading groups`);
         let groupsTotal = 0;
+        let groupsAvailable = true;
         try {
             groupsTotal = await downloadGroups(
                 organizationUuid,
@@ -104,16 +106,39 @@ export const downloadOrganizationContent = async ({
                 throw error;
             }
             spinner.stop();
+            groupsAvailable = false;
             GlobalState.debug(
                 '> Warning: groups were not downloaded because the group service is not enabled',
             );
         }
 
-        GlobalState.log(
-            styles.success(
-                `Downloaded organization content saved to ${organizationContentPath}`,
-            ),
-        );
+        const renderedSummary = await renderContentAsCodeSummary({
+            operation: 'download',
+            scope: 'organization',
+            path: organizationContentPath,
+            elapsedSeconds: (Date.now() - start) / 1000,
+            items: [
+                {
+                    label: 'Custom roles',
+                    detail: `${customRolesTotal} downloaded`,
+                },
+                { label: 'Users', detail: `${usersTotal} downloaded` },
+                {
+                    label: 'Groups',
+                    detail: groupsAvailable
+                        ? `${groupsTotal} downloaded`
+                        : 'service unavailable',
+                    variant: groupsAvailable ? 'success' : 'warning',
+                },
+            ],
+        });
+        if (!renderedSummary) {
+            GlobalState.log(
+                styles.success(
+                    `Downloaded organization content saved to ${organizationContentPath}`,
+                ),
+            );
+        }
 
         await LightdashAnalytics.track({
             event: 'download.completed',
@@ -236,11 +261,24 @@ export const uploadOrganizationContent = async ({
             );
         }
         spinner.succeed(`Uploaded groups: ${groupSummaryMessage}`);
-        GlobalState.log(
-            styles.success(
-                `Uploaded organization content from ${organizationContentPath}`,
-            ),
-        );
+        const renderedSummary = await renderContentAsCodeSummary({
+            operation: 'upload',
+            scope: 'organization',
+            path: organizationContentPath,
+            elapsedSeconds: (Date.now() - start) / 1000,
+            items: [
+                { label: 'Custom roles', detail: summaryMessage },
+                { label: 'Users', detail: userSummaryMessage },
+                { label: 'Groups', detail: groupSummaryMessage },
+            ],
+        });
+        if (!renderedSummary) {
+            GlobalState.log(
+                styles.success(
+                    `Uploaded organization content from ${organizationContentPath}`,
+                ),
+            );
+        }
         await LightdashAnalytics.track({
             event: 'upload.completed',
             properties: {
