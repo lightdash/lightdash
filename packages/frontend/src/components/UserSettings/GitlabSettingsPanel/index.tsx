@@ -8,8 +8,8 @@ import {
     Text,
     Title,
     Button,
+    Avatar,
 } from '@mantine-8/core';
-import { Avatar } from '@mantine/core';
 import { IconAlertCircle, IconRefresh, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import gitlabIcon from '../../../svgs/gitlab-icon.svg';
