@@ -6,6 +6,7 @@ import {
     isCustomBinDimension,
     isCustomDimension,
     isDimension,
+    isMetric,
     MetricType,
     snakeCaseName,
     type AdditionalMetric,
@@ -15,8 +16,10 @@ import {
     type Explore,
     type FilterRule,
     type getFilterableDimensionsFromItemsMap,
+    type Metric,
     type MetricFilterRule,
 } from '@lightdash/common';
+import { v4 as uuidv4 } from 'uuid';
 import { type MetricFilterRuleWithFieldId } from '../FilterForm';
 
 export const addFieldRefToFilterRule = (
@@ -44,6 +47,22 @@ export const addFieldIdToMetricFilterRule = (
         }`,
     },
 });
+
+// YAML metric filters may use bare fieldRefs (relative to the metric's table);
+// the filter form requires fully qualified `table.field` refs.
+export const getFilterRulesFromMetricBaseFilters = (
+    metric: Metric,
+): MetricFilterRuleWithFieldId[] =>
+    (metric.filters ?? []).map((filterRule) => {
+        const fieldRef = filterRule.target.fieldRef.includes('.')
+            ? filterRule.target.fieldRef
+            : `${metric.table}.${filterRule.target.fieldRef}`;
+        return addFieldIdToMetricFilterRule({
+            ...filterRule,
+            id: uuidv4(),
+            target: { ...filterRule.target, fieldRef },
+        });
+    });
 
 export const getCustomMetricName = (
     table: string,
@@ -78,7 +97,7 @@ const getCustomMetricDescription = (
     }`;
 
 const getTypeOverridesForAdditionalMetric = (
-    item: Dimension | AdditionalMetric | CustomDimension,
+    item: Dimension | AdditionalMetric | CustomDimension | Metric,
     type: MetricType,
 ): Partial<AdditionalMetric> | undefined => {
     if (!isDimension(item)) return;
@@ -119,7 +138,7 @@ export const prepareCustomMetricData = ({
     percentile: metricPercentile,
     formatOptions,
 }: {
-    item: Dimension | AdditionalMetric | CustomDimension;
+    item: Dimension | AdditionalMetric | CustomDimension | Metric;
     type: MetricType;
     customMetricLabel: string;
     customMetricFiltersWithIds: MetricFilterRuleWithFieldId[];
@@ -184,11 +203,8 @@ export const prepareCustomMetricData = ({
         name: getCustomMetricName(
             item.table,
             customMetricLabel,
-            isEditingCustomMetric &&
-                isAdditionalMetric(item) &&
-                'baseDimensionName' in item &&
-                item.baseDimensionName
-                ? item.baseDimensionName
+            isEditingCustomMetric && isAdditionalMetric(item)
+                ? (item.baseDimensionName ?? item.baseMetricName ?? item.name)
                 : isCustomDimension(item)
                   ? item.id // Custom dimensions have ids instead of names
                   : item.name,
@@ -204,7 +220,7 @@ export const prepareCustomMetricData = ({
                 ),
             }),
         ...(!isEditingCustomMetric &&
-            isDimension(item) && {
+            (isDimension(item) || isMetric(item)) && {
                 description: getCustomMetricDescription(
                     type,
                     item.label,

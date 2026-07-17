@@ -5,10 +5,12 @@ import {
     getCustomMetricType,
     getItemId,
     isAdditionalMetric,
+    isAggregateMetricType,
     isCustomDimension,
     isCustomSqlDimension,
     isDimension,
     isFilterableField,
+    isMetric,
     type AdditionalMetric,
     type CustomDimension,
     type Dimension,
@@ -154,6 +156,28 @@ const TreeSingleNodeActions: FC<Props> = ({
                     </Menu.Item>
                 ) : null}
 
+                {isMetric(item) && isAggregateMetricType(item.type) ? (
+                    <Menu.Item
+                        component="button"
+                        leftSection={<MantineIcon icon={IconCopy} />}
+                        onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                            e.stopPropagation();
+                            track({
+                                name: EventName.ADD_CUSTOM_METRIC_CLICKED,
+                            });
+                            dispatch(
+                                explorerActions.toggleAdditionalMetricModal({
+                                    type: item.type,
+                                    item,
+                                    isEditing: false,
+                                }),
+                            );
+                        }}
+                    >
+                        Create custom metric
+                    </Menu.Item>
+                ) : null}
+
                 {isAdditionalMetric(item) ? (
                     <>
                         <Menu.Item
@@ -195,37 +219,40 @@ const TreeSingleNodeActions: FC<Props> = ({
                             Duplicate custom metric
                         </Menu.Item>
 
-                        <Menu.Item
-                            component="button"
-                            leftSection={<MantineIcon icon={IconCode} />}
-                            onClick={(
-                                e: React.MouseEvent<HTMLButtonElement>,
-                            ) => {
-                                e.stopPropagation();
-                                if (
-                                    projectUuid &&
-                                    user.data?.organizationUuid
-                                ) {
-                                    track({
-                                        name: EventName.WRITE_BACK_FROM_CUSTOM_METRIC_CLICKED,
-                                        properties: {
-                                            userId: user.data.userUuid,
-                                            projectId: projectUuid,
-                                            organizationId:
-                                                user.data.organizationUuid,
-                                            customMetricsCount: 1,
-                                        },
-                                    });
-                                }
-                                dispatch(
-                                    explorerActions.toggleWriteBackModal({
-                                        items: [item],
-                                    }),
-                                );
-                            }}
-                        >
-                            Write back to dbt
-                        </Menu.Item>
+                        {/* Write-back requires a base dimension column to attach the metric to in YAML */}
+                        {item.baseDimensionName ? (
+                            <Menu.Item
+                                component="button"
+                                leftSection={<MantineIcon icon={IconCode} />}
+                                onClick={(
+                                    e: React.MouseEvent<HTMLButtonElement>,
+                                ) => {
+                                    e.stopPropagation();
+                                    if (
+                                        projectUuid &&
+                                        user.data?.organizationUuid
+                                    ) {
+                                        track({
+                                            name: EventName.WRITE_BACK_FROM_CUSTOM_METRIC_CLICKED,
+                                            properties: {
+                                                userId: user.data.userUuid,
+                                                projectId: projectUuid,
+                                                organizationId:
+                                                    user.data.organizationUuid,
+                                                customMetricsCount: 1,
+                                            },
+                                        });
+                                    }
+                                    dispatch(
+                                        explorerActions.toggleWriteBackModal({
+                                            items: [item],
+                                        }),
+                                    );
+                                }}
+                            >
+                                Write back to dbt
+                            </Menu.Item>
+                        ) : null}
 
                         <Menu.Item
                             color="red"

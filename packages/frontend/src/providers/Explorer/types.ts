@@ -283,7 +283,7 @@ export interface ExplorerReduceState {
         additionalMetric: {
             isOpen: boolean;
             isEditing?: boolean;
-            item?: Dimension | AdditionalMetric | CustomDimension;
+            item?: Dimension | AdditionalMetric | CustomDimension | Metric;
             type?: MetricType;
         };
         customDimension: {

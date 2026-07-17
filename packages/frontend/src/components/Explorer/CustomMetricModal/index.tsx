@@ -2,6 +2,7 @@ import {
     canApplyFormattingToCustomMetric,
     CustomFormatType,
     friendlyName,
+    getCustomFormatFromLegacy,
     getCustomMetricType,
     getFilterableDimensionsFromItemsMap,
     getItemId,
@@ -9,7 +10,9 @@ import {
     isAdditionalMetric,
     isCustomDimension,
     isDimension,
+    isMetric,
     isNonAggregateMetricType,
+    isNumericItem,
     MetricType,
     NumberSeparator,
     type AdditionalMetric,
@@ -51,6 +54,7 @@ import { useDataForFiltersProvider } from './hooks/useDataForFiltersProvider';
 import {
     addFieldIdToMetricFilterRule,
     getCustomMetricName,
+    getFilterRulesFromMetricBaseFilters,
     prepareCustomMetricData,
 } from './utils';
 
@@ -86,6 +90,25 @@ export const CustomMetricModal = memo(() => {
         dimensionToCheck =
             exploreData?.tables[item.table]?.dimensions[item.baseDimensionName];
     }
+
+    // Creating a clone of an explore metric, or editing such a clone
+    const isMetricDerived =
+        (!isEditing && isMetric(item)) ||
+        (isEditing && isAdditionalMetric(item) && !!item.baseMetricName);
+
+    const sourceMetric = useMemo(() => {
+        if (!isEditing && isMetric(item)) return item;
+        if (isEditing && isAdditionalMetric(item) && item.baseMetricName) {
+            return exploreData?.tables[item.table]?.metrics[
+                item.baseMetricName
+            ];
+        }
+        return undefined;
+    }, [isEditing, item, exploreData]);
+
+    const sourceMetricLabel =
+        sourceMetric?.label ??
+        (isAdditionalMetric(item) ? item.baseMetricName : undefined);
 
     const originalBaseDimensionName = useMemo(() => {
         if (isEditing && isAdditionalMetric(item) && item.baseDimensionName) {
@@ -156,16 +179,22 @@ export const CustomMetricModal = memo(() => {
         );
     };
 
-    const canApplyFormatting = useMemo(
-        () =>
-            dimensionToCheck &&
-            customMetricType &&
-            canApplyFormattingToCustomMetric(
-                dimensionToCheck,
-                customMetricType,
-            ),
-        [dimensionToCheck, customMetricType],
-    );
+    const canApplyFormatting = useMemo(() => {
+        if (!customMetricType) return false;
+        // Metric-derived custom metrics have no base dimension to check
+        if (isMetricDerived) {
+            return (
+                isNumericItem(item) ||
+                [MetricType.COUNT, MetricType.COUNT_DISTINCT].includes(
+                    customMetricType,
+                )
+            );
+        }
+        return (
+            !!dimensionToCheck &&
+            canApplyFormattingToCustomMetric(dimensionToCheck, customMetricType)
+        );
+    }, [dimensionToCheck, customMetricType, isMetricDerived, item]);
 
     const form = useForm<
         Pick<AdditionalMetric, 'percentile'> & {
@@ -197,11 +226,10 @@ export const CustomMetricModal = memo(() => {
                 const metricName = getCustomMetricName(
                     item.table,
                     label,
-                    isEditing &&
-                        isAdditionalMetric(item) &&
-                        'baseDimensionName' in item &&
-                        item.baseDimensionName
-                        ? item.baseDimensionName
+                    isEditing && isAdditionalMetric(item)
+                        ? (item.baseDimensionName ??
+                              item.baseMetricName ??
+                              item.name)
                         : item.name,
                 );
 
@@ -245,15 +273,23 @@ export const CustomMetricModal = memo(() => {
                 'customMetricLabel',
                 isEditing
                     ? label
-                    : customMetricType
-                      ? `${friendlyName(customMetricType)} of ${label}`
-                      : '',
+                    : isMetric(item)
+                      ? `Copy of ${label}`
+                      : customMetricType
+                        ? `${friendlyName(customMetricType)} of ${label}`
+                        : '',
             );
         }
     }, [setFieldValue, item, customMetricType, isEditing]);
 
     const initialCustomMetricFiltersWithIds = useMemo(() => {
-        if (!isEditing) return [];
+        if (!isEditing) {
+            // Cloning an explore metric starts from its own filters so the
+            // numbers match the base metric until the user tweaks them
+            return isMetric(item)
+                ? getFilterRulesFromMetricBaseFilters(item)
+                : [];
+        }
 
         return isAdditionalMetric(item)
             ? item.filters?.map((filterRule) =>
@@ -282,6 +318,24 @@ export const CustomMetricModal = memo(() => {
                         // This spread is intentional to avoid @mantine/form mutating the enum object `item.formatOptions.type`
                         ...item.formatOptions,
                     });
+                }
+            }
+            if (!isEditing && isMetric(item)) {
+                if (item.percentile)
+                    setFieldValue('percentile', item.percentile);
+
+                // Carry the base metric's formatting into the clone
+                if (item.formatOptions) {
+                    setFieldValue('format', { ...item.formatOptions });
+                } else if (item.format || item.round !== undefined) {
+                    setFieldValue(
+                        'format',
+                        getCustomFormatFromLegacy({
+                            format: item.format,
+                            round: item.round,
+                            compact: item.compact,
+                        }),
+                    );
                 }
             }
         },
@@ -349,6 +403,17 @@ export const CustomMetricModal = memo(() => {
                               }`
                             : 'Custom metric edited successfully',
                 });
+            } else if (isMetric(item)) {
+                dispatch(
+                    explorerActions.addAdditionalMetric({
+                        uuid: uuidv4(),
+                        baseMetricName: item.name,
+                        ...data,
+                    }),
+                );
+                showToastSuccess({
+                    title: 'Custom metric added successfully',
+                });
             } else if (isDimension(item) && form.values.customMetricLabel) {
                 dispatch(
                     explorerActions.addAdditionalMetric({
@@ -378,6 +443,8 @@ export const CustomMetricModal = memo(() => {
 
     const defaultFilterRuleFieldId = useMemo(() => {
         if (item) {
+            // A metric is not a valid filter target; let the form fall back
+            if (isMetric(item)) return undefined;
             if (!isEditing) return getItemId(item);
 
             if (
@@ -479,6 +546,19 @@ export const CustomMetricModal = memo(() => {
                             ) : null}
                         </Stack>
                     )}
+                    {isMetricDerived && sourceMetricLabel && (
+                        <TextInput
+                            label="Source metric"
+                            value={sourceMetricLabel}
+                            readOnly
+                            description="The metric this custom metric is based on."
+                            leftSection={
+                                sourceMetric ? (
+                                    <FieldIcon item={sourceMetric} size="sm" />
+                                ) : null
+                            }
+                        />
+                    )}
                     {customMetricType && (
                         <TextInput
                             label="Type"
@@ -487,6 +567,16 @@ export const CustomMetricModal = memo(() => {
                             description="Metric type"
                         />
                     )}
+                    {isMetricDerived &&
+                        (isMetric(item) || isAdditionalMetric(item)) &&
+                        item.sql && (
+                            <TextInput
+                                label="SQL"
+                                value={item.sql}
+                                readOnly
+                                description="SQL this metric aggregates"
+                            />
+                        )}
                     {isEditing &&
                         isAdditionalMetric(item) &&
                         item.sql &&

@@ -339,7 +339,11 @@ const explorerSlice = createSlice({
             action: PayloadAction<
                 | {
                       type?: MetricType;
-                      item?: Dimension | AdditionalMetric | CustomDimension;
+                      item?:
+                          | Dimension
+                          | AdditionalMetric
+                          | CustomDimension
+                          | Metric;
                       isEditing: boolean;
                   }
                 | undefined

@@ -11,6 +11,10 @@
                     "$ref": "#/$defs/FieldId",
                     "description": "For PoP-generated metrics, the base metric id that this metric is derived from."
                 },
+                "baseMetricName": {
+                    "description": "Name of the explore metric this metric was cloned from",
+                    "type": "string"
+                },
                 "compact": {
                     "$ref": "#/$defs/CompactOrAlias",
                     "description": "Compact format for large numbers"
@@ -2402,11 +2406,11 @@
                 }
             },
             "required": [
-                "limit",
                 "exploreName",
                 "dimensions",
                 "metrics",
                 "sorts",
+                "limit",
                 "tableCalculations"
             ],
             "type": "object"
@@ -2611,9 +2615,6 @@
             "type": "object"
         },
         "Record_string.string_": {
-            "additionalProperties": {
-                "type": "string"
-            },
             "description": "Construct a type with a set of properties K of type T",
             "properties": {},
             "type": "object"
@@ -3643,9 +3644,9 @@
     },
     "required": [
         "name",
-        "slug",
-        "chartConfig",
         "tableName",
+        "chartConfig",
+        "slug",
         "spaceSlug",
         "version",
         "metricQuery"

@@ -55,6 +55,8 @@ export interface AdditionalMetric {
     filters?: MetricFilterRule[];
     /** Name of the base dimension/column this metric aggregates */
     baseDimensionName?: string;
+    /** Name of the explore metric this metric was cloned from */
+    baseMetricName?: string;
     /** Unique identifier for the metric */
     uuid?: string | null;
     /** Percentile value for percentile metrics */

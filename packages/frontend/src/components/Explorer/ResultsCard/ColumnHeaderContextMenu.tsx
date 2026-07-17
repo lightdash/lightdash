@@ -3,6 +3,7 @@ import {
     getItemId,
     getItemLabelWithoutTableName,
     getItemMap,
+    isAggregateMetricType,
     isCustomDimension,
     isCustomSqlDimension,
     isDimension,
@@ -19,6 +20,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Menu, Text } from '@mantine-8/core';
 import {
+    IconCopy,
     IconDots,
     IconFilter,
     IconPencil,
@@ -150,6 +152,29 @@ const ContextMenu: FC<ContextMenuProps> = ({
                         >
                             Add period comparison
                         </Menu.Item>
+
+                        {!isItemAdditionalMetric &&
+                        isAggregateMetricType(item.type) ? (
+                            <Menu.Item
+                                leftSection={<MantineIcon icon={IconCopy} />}
+                                onClick={() => {
+                                    track({
+                                        name: EventName.ADD_CUSTOM_METRIC_CLICKED,
+                                    });
+                                    dispatch(
+                                        explorerActions.toggleAdditionalMetricModal(
+                                            {
+                                                type: item.type,
+                                                item,
+                                                isEditing: false,
+                                            },
+                                        ),
+                                    );
+                                }}
+                            >
+                                Create custom metric
+                            </Menu.Item>
+                        ) : null}
 
                         <Menu.Divider />
                     </>
