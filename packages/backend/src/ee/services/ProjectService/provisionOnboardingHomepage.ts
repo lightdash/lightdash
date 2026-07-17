@@ -1,6 +1,7 @@
 import {
     buildOnboardingHomepageConfig,
     CommercialFeatureFlags,
+    FeatureFlags,
     ProjectType,
     type SessionUser,
 } from '@lightdash/common';
@@ -32,11 +33,17 @@ export const provisionOnboardingHomepage = async ({
         return;
     }
 
-    const featureFlag = await featureFlagService.get({
-        user,
-        featureFlagId: CommercialFeatureFlags.HomepageBuilder,
-    });
-    if (!featureFlag.enabled) {
+    const [orgSetupPageFlag, homepageBuilderFlag] = await Promise.all([
+        featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.OrganizationSetupPage,
+        }),
+        featureFlagService.get({
+            user,
+            featureFlagId: CommercialFeatureFlags.HomepageBuilder,
+        }),
+    ]);
+    if (!orgSetupPageFlag.enabled || !homepageBuilderFlag.enabled) {
         return;
     }
 

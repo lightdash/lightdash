@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     buildOnboardingHomepageConfig,
     CommercialFeatureFlags,
+    FeatureFlags,
     OrganizationMemberRole,
     ProjectType,
     type HomepageConfig,
@@ -101,10 +102,10 @@ const buildArguments = () => {
         publish: publishHomepage,
     };
 
-    vi.mocked(getFeatureFlag).mockResolvedValue({
-        id: CommercialFeatureFlags.HomepageBuilder,
+    vi.mocked(getFeatureFlag).mockImplementation(async ({ featureFlagId }) => ({
+        id: featureFlagId,
         enabled: true,
-    });
+    }));
     vi.mocked(getAllByOrganizationUuid).mockResolvedValue([
         makeProject(PROJECT_UUID),
     ]);
@@ -132,10 +133,25 @@ const buildArguments = () => {
 describe('provisionOnboardingHomepage', () => {
     it('skips provisioning when the homepage builder flag is disabled', async () => {
         const mocks = buildArguments();
-        mocks.getFeatureFlag.mockResolvedValue({
-            id: CommercialFeatureFlags.HomepageBuilder,
-            enabled: false,
-        });
+        mocks.getFeatureFlag.mockImplementation(async ({ featureFlagId }) => ({
+            id: featureFlagId,
+            enabled: featureFlagId !== CommercialFeatureFlags.HomepageBuilder,
+        }));
+
+        await provisionOnboardingHomepage(mocks.args);
+
+        expect(mocks.getAllByOrganizationUuid).not.toHaveBeenCalled();
+        expect(mocks.listHomepages).not.toHaveBeenCalled();
+        expect(mocks.createHomepage).not.toHaveBeenCalled();
+        expect(mocks.publishHomepage).not.toHaveBeenCalled();
+    });
+
+    it('skips provisioning when the organization setup page flag is disabled', async () => {
+        const mocks = buildArguments();
+        mocks.getFeatureFlag.mockImplementation(async ({ featureFlagId }) => ({
+            id: featureFlagId,
+            enabled: featureFlagId !== FeatureFlags.OrganizationSetupPage,
+        }));
 
         await provisionOnboardingHomepage(mocks.args);
 
@@ -174,6 +190,10 @@ describe('provisionOnboardingHomepage', () => {
 
         await provisionOnboardingHomepage(mocks.args);
 
+        expect(mocks.getFeatureFlag).toHaveBeenCalledWith({
+            user,
+            featureFlagId: FeatureFlags.OrganizationSetupPage,
+        });
         expect(mocks.getFeatureFlag).toHaveBeenCalledWith({
             user,
             featureFlagId: CommercialFeatureFlags.HomepageBuilder,
