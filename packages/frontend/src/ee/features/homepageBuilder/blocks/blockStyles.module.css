@@ -79,6 +79,8 @@ a .hoverCard:hover,
 
 .pickerScrollList {
     overflow-y: auto;
+    /* override flex min-height:auto so the list shrinks and scrolls internally */
+    min-height: 0;
 }
 
 .actionRow {

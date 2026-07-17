@@ -32,7 +32,7 @@ import {
     TextInput,
 } from '@mantine-8/core';
 import { IconLayoutGrid, IconPin, IconPlus } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { ResourceIcon } from '../../../../components/common/ResourceIcon';
@@ -197,14 +197,20 @@ const CollectionPicker: FC<{
     projectUuid: string;
     initialSelected: HomepageCollectionItemRef[];
     onApply: (refs: HomepageCollectionItemRef[]) => void;
-    onClose: () => void;
-}> = ({ projectUuid, initialSelected, onApply, onClose }) => {
+    /** Hands the modal's Apply button a callback that commits the current
+     * selection — the footer lives in MantineModal, outside this component. */
+    registerApply: (commit: () => void) => void;
+}> = ({ projectUuid, initialSelected, onApply, registerApply }) => {
     const [selectedSpaceUuid, setSelectedSpaceUuid] = useState<string | null>(
         null,
     );
     const [selected, setSelected] = useState<
         Map<string, HomepageCollectionItemRef>
     >(() => new Map(initialSelected.map((ref) => [ref.uuid, ref])));
+
+    // Re-point the parent's apply ref every render so it always commits the
+    // latest selection (idempotent, so safe during render — no effect needed).
+    registerApply(() => onApply([...selected.values()]));
 
     const { data: spaces } = useSpaceSummaries(projectUuid, true);
 
@@ -232,7 +238,7 @@ const CollectionPicker: FC<{
     return (
         <Stack gap="sm">
             <Group align="stretch" gap="md" wrap="nowrap" h="min(64vh, 720px)">
-                <Box w={280} className={classes.pickerScrollList}>
+                <Box w={340} className={classes.pickerScrollList}>
                     <SpaceSelector
                         projectUuid={projectUuid}
                         spaces={spaces}
@@ -266,21 +272,6 @@ const CollectionPicker: FC<{
                     </Box>
                 </Stack>
             </Group>
-
-            <Group justify="flex-end" gap="xs">
-                <Button variant="default" size="xs" onClick={onClose}>
-                    Cancel
-                </Button>
-                <Button
-                    size="xs"
-                    onClick={() => {
-                        onApply([...selected.values()]);
-                        onClose();
-                    }}
-                >
-                    Apply
-                </Button>
-            </Group>
         </Stack>
     );
 };
@@ -291,24 +282,37 @@ const CollectionPickerModal: FC<{
     projectUuid: string;
     initialSelected: HomepageCollectionItemRef[];
     onApply: (refs: HomepageCollectionItemRef[]) => void;
-}> = ({ opened, onClose, projectUuid, initialSelected, onApply }) => (
-    <MantineModal
-        opened={opened}
-        onClose={onClose}
-        title="Add content"
-        icon={IconPlus}
-        size="1000px"
-    >
-        {opened && (
-            <CollectionPicker
-                projectUuid={projectUuid}
-                initialSelected={initialSelected}
-                onApply={onApply}
-                onClose={onClose}
-            />
-        )}
-    </MantineModal>
-);
+}> = ({ opened, onClose, projectUuid, initialSelected, onApply }) => {
+    // The Apply/Cancel footer is MantineModal's own — it lives outside the
+    // remountable picker body, so the picker hands its commit fn up via ref
+    // rather than rendering a duplicate footer inline.
+    const applyRef = useRef<() => void>(() => {});
+    return (
+        <MantineModal
+            opened={opened}
+            onClose={onClose}
+            title="Add content"
+            icon={IconPlus}
+            size="min(92vw, 1280px)"
+            confirmLabel="Apply"
+            onConfirm={() => {
+                applyRef.current();
+                onClose();
+            }}
+        >
+            {opened && (
+                <CollectionPicker
+                    projectUuid={projectUuid}
+                    initialSelected={initialSelected}
+                    onApply={onApply}
+                    registerApply={(fn) => {
+                        applyRef.current = fn;
+                    }}
+                />
+            )}
+        </MantineModal>
+    );
+};
 
 export const CollectionBlockView: FC<BlockComponentProps> = ({
     block,
