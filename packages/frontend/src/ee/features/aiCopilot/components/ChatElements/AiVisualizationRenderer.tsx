@@ -74,6 +74,8 @@ type Props = {
     // dashboard path to sync the change back into the query cache.
     onExpandedChartConfigChange?: (config: ChartConfig) => void;
     headerContent?: ReactNode;
+    displayFields?: boolean;
+    displayFilters?: boolean;
 };
 
 export const AiVisualizationRenderer: FC<Props> = ({
@@ -85,6 +87,8 @@ export const AiVisualizationRenderer: FC<Props> = ({
     switcherVariant = 'default',
     onExpandedChartConfigChange,
     headerContent,
+    displayFields = true,
+    displayFilters: displayFiltersProp = true,
 }) => {
     const { data: health } = useHealth();
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -166,16 +170,17 @@ export const AiVisualizationRenderer: FC<Props> = ({
         [webAiChartConfig],
     );
 
-    const displayMetricsAndDimensions = shouldDisplayMetricsAndDimensions(
-        vizQueryData.type,
-    );
-    const displayFilters = shouldDisplayVisualizationFilters(
-        metricQuery.filters,
-    );
+    const displayMetricsAndDimensions =
+        displayFields && shouldDisplayMetricsAndDimensions(vizQueryData.type);
+    const displayFilters =
+        displayFiltersProp &&
+        shouldDisplayVisualizationFilters(metricQuery.filters);
     const fieldsCount = displayMetricsAndDimensions
         ? getVisualizationFieldsCount(metricQuery)
         : 0;
-    const filtersCount = getVisualizationFiltersCount(metricQuery.filters);
+    const filtersCount = displayFilters
+        ? getVisualizationFiltersCount(metricQuery.filters)
+        : 0;
     const displayDetails = fieldsCount > 0 || filtersCount > 0;
 
     const defaultChartType: AiAgentChartTypeOption =
@@ -241,7 +246,17 @@ export const AiVisualizationRenderer: FC<Props> = ({
                 onChartConfigChange={handleChartConfigChange}
                 unsavedMetricQuery={metricQuery}
             >
-                <Stack gap="md" h="100%" style={{ minHeight: 0 }}>
+                <Stack
+                    gap="md"
+                    h="100%"
+                    w="100%"
+                    maw="100%"
+                    style={{
+                        minHeight: 0,
+                        minWidth: 0,
+                        overflow: 'hidden',
+                    }}
+                >
                     {headerContent}
                     {webAiChartConfig.type === AiResultType.QUERY_RESULT &&
                         onChartTypeChange && (
@@ -262,6 +277,9 @@ export const AiVisualizationRenderer: FC<Props> = ({
                     <Box
                         flex="1"
                         mih={0}
+                        miw={0}
+                        w="100%"
+                        maw="100%"
                         style={{
                             // Scrolling for tables
                             overflow: 'auto',

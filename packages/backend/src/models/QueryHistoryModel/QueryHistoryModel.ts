@@ -364,6 +364,21 @@ export class QueryHistoryModel {
         return result ? convertDbQueryHistoryToQueryHistory(result) : undefined;
     }
 
+    async preserveResults(args: {
+        queryUuid: string;
+        projectUuid: string;
+        createdByUserUuid: string;
+    }): Promise<boolean> {
+        const updated = await this.database(QueryHistoryTableName)
+            .where('query_uuid', args.queryUuid)
+            .where('project_uuid', args.projectUuid)
+            .where('created_by_user_uuid', args.createdByUserUuid)
+            .where('status', QueryHistoryStatus.READY)
+            .update({ results_expires_at: null });
+
+        return updated > 0;
+    }
+
     async pollForQueryCompletion({
         queryUuid,
         account,
