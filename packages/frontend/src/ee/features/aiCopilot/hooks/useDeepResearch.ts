@@ -4,6 +4,7 @@ import {
     type AiDeepResearchRequestBody,
     type AiDeepResearchRun,
     type ApiAiDeepResearchEventsResponse,
+    type ApiAiDeepResearchRunListResponse,
     type ApiAiDeepResearchRunResponse,
     type ApiAiAgentThreadMessageVizQuery,
     type ApiAiAgentThreadMessageVizQueryResponse,
@@ -53,6 +54,14 @@ const getDeepResearchRun = (projectUuid: string, runUuid: string) =>
         method: 'GET',
         body: undefined,
     }) as Promise<ApiAiDeepResearchRunResponse['results']>;
+
+const listDeepResearchRuns = (projectUuid: string, threadUuid: string) =>
+    lightdashApi<AnyType>({
+        version: 'v1',
+        url: `${getBaseUrl(projectUuid)}?threadUuid=${threadUuid}`,
+        method: 'GET',
+        body: undefined,
+    }) as Promise<ApiAiDeepResearchRunListResponse['results']>;
 
 const getDeepResearchEventsPage = (
     projectUuid: string,
@@ -124,7 +133,7 @@ export const useStartDeepResearchMutation = ({
     return useMutation<
         AiDeepResearchRun,
         ApiError,
-        StartDeepResearchArgs,
+        StartDeepResearchArgs & { promptUuid?: string },
         { optimisticRunUuid: string; createdAt: string }
     >({
         onMutate: (variables) => {
@@ -142,10 +151,12 @@ export const useStartDeepResearchMutation = ({
             });
             return { optimisticRunUuid, createdAt };
         },
-        mutationFn: ({ question, depth }) =>
+        mutationFn: ({ question, depth, promptUuid }) =>
             startDeepResearch(projectUuid, {
                 prompt: question,
                 effort: DEEP_RESEARCH_DEPTH_CONFIG[depth].effort,
+                threadUuid,
+                promptUuid,
             }),
         onSuccess: (run, variables, context) => {
             replaceDeepResearchRun(context?.optimisticRunUuid ?? '', {
@@ -180,7 +191,7 @@ export const useStartDeepResearchForThreadMutation = (projectUuid: string) => {
     return useMutation<
         AiDeepResearchRun,
         ApiError,
-        StartDeepResearchArgs & { threadUuid: string },
+        StartDeepResearchArgs & { threadUuid: string; promptUuid?: string },
         { optimisticRunUuid: string; createdAt: string }
     >({
         onMutate: (variables) => {
@@ -198,10 +209,12 @@ export const useStartDeepResearchForThreadMutation = (projectUuid: string) => {
             });
             return { optimisticRunUuid, createdAt };
         },
-        mutationFn: ({ question, depth }) =>
+        mutationFn: ({ question, depth, threadUuid, promptUuid }) =>
             startDeepResearch(projectUuid, {
                 prompt: question,
                 effort: DEEP_RESEARCH_DEPTH_CONFIG[depth].effort,
+                threadUuid,
+                promptUuid,
             }),
         onSuccess: (run, variables, context) => {
             replaceDeepResearchRun(context?.optimisticRunUuid ?? '', {
@@ -229,6 +242,16 @@ export const useStartDeepResearchForThreadMutation = (projectUuid: string) => {
         },
     });
 };
+
+export const useDeepResearchThreadRuns = (
+    projectUuid: string | undefined,
+    threadUuid: string,
+) =>
+    useQuery<AiDeepResearchRun[], ApiError>({
+        queryKey: [DEEP_RESEARCH_QUERY_KEY, projectUuid, 'thread', threadUuid],
+        queryFn: () => listDeepResearchRuns(projectUuid ?? '', threadUuid),
+        enabled: !!projectUuid,
+    });
 
 export const useDeepResearchRun = (
     registration: DeepResearchRunRegistration,

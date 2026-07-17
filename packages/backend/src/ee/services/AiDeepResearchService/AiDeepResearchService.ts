@@ -37,6 +37,7 @@ import {
     type DbAiDeepResearchEvent,
     type DbAiDeepResearchRun,
 } from '../../database/entities/aiDeepResearch';
+import { type AiAgentModel } from '../../models/AiAgentModel';
 import {
     type AiDeepResearchRunModel,
     type DbAiDeepResearchEventWithCursor,
@@ -114,6 +115,7 @@ export type AiDeepResearchExecutor = (
 
 type Dependencies = {
     aiDeepResearchRunModel: AiDeepResearchRunModel;
+    aiAgentModel: Pick<AiAgentModel, 'findThreadOwnership'>;
     projectModel: ProjectModel;
     featureFlagModel: FeatureFlagModel;
     schedulerClient: CommercialSchedulerClient;
@@ -133,6 +135,9 @@ type EventCursorPayload = {
 const toRun = (row: DbAiDeepResearchRun): AiDeepResearchRun => ({
     aiDeepResearchRunUuid: row.ai_deep_research_run_uuid,
     projectUuid: row.project_uuid,
+    aiThreadUuid: row.ai_thread_uuid,
+    promptUuid: row.prompt_uuid,
+    prompt: row.prompt,
     status: row.status,
     resultMarkdown: row.result_markdown,
     budget: row.budget_snapshot,
@@ -292,6 +297,8 @@ const assertValidBudget = (budget: AiDeepResearchBudget): void => {
 export class AiDeepResearchService extends BaseService {
     private readonly aiDeepResearchRunModel: AiDeepResearchRunModel;
 
+    private readonly aiAgentModel: Pick<AiAgentModel, 'findThreadOwnership'>;
+
     private readonly projectModel: ProjectModel;
 
     private readonly featureFlagModel: FeatureFlagModel;
@@ -309,6 +316,7 @@ export class AiDeepResearchService extends BaseService {
 
     constructor({
         aiDeepResearchRunModel,
+        aiAgentModel,
         projectModel,
         featureFlagModel,
         schedulerClient,
@@ -318,6 +326,7 @@ export class AiDeepResearchService extends BaseService {
     }: Dependencies) {
         super();
         this.aiDeepResearchRunModel = aiDeepResearchRunModel;
+        this.aiAgentModel = aiAgentModel;
         this.projectModel = projectModel;
         this.featureFlagModel = featureFlagModel;
         this.schedulerClient = schedulerClient;
@@ -434,6 +443,27 @@ export class AiDeepResearchService extends BaseService {
             throw new ForbiddenError('Deep Research is not enabled');
         }
 
+        if (args.promptUuid && !args.aiThreadUuid) {
+            throw new ParameterError(
+                'A Deep Research prompt link requires its thread',
+            );
+        }
+        if (args.aiThreadUuid) {
+            const ownership = await this.aiAgentModel.findThreadOwnership({
+                organizationUuid: args.user.organizationUuid,
+                threadUuid: args.aiThreadUuid,
+            });
+            if (
+                !ownership ||
+                ownership.projectUuid !== args.projectUuid ||
+                ownership.ownerUserUuid !== args.user.userUuid
+            ) {
+                throw new NotFoundError(
+                    `AI thread ${args.aiThreadUuid} not found`,
+                );
+            }
+        }
+
         const run = await this.aiDeepResearchRunModel.create({
             organizationUuid: args.user.organizationUuid,
             projectUuid: args.projectUuid,
@@ -478,6 +508,25 @@ export class AiDeepResearchService extends BaseService {
                 aiDeepResearchRunUuid,
             ),
         );
+    }
+
+    async listRunsForThread(
+        user: SessionUser,
+        projectUuid: string,
+        aiThreadUuid: string,
+    ): Promise<AiDeepResearchRun[]> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        await this.assertCanViewProject(user, projectUuid);
+
+        const runs = await this.aiDeepResearchRunModel.findByThreadScoped({
+            aiThreadUuid,
+            organizationUuid: user.organizationUuid,
+            projectUuid,
+            createdByUserUuid: user.userUuid,
+        });
+        return runs.map(toRun);
     }
 
     async getChartVizQuery(args: {

@@ -2,12 +2,14 @@ import {
     assertUnreachable,
     countDeepResearchFindings,
     type AiDeepResearchActivity,
+    type AiDeepResearchBudget,
     type AiDeepResearchEffort,
     type AiDeepResearchEvent,
     type AiDeepResearchPhase,
     type AiDeepResearchRun,
 } from '@lightdash/common';
 import {
+    DEEP_RESEARCH_DEPTHS,
     type DeepResearchDepth,
     type DeepResearchRunRegistration,
     type DeepResearchRunStatus,
@@ -122,6 +124,29 @@ export const isDeepResearchRunTerminal = (
         'waiting_for_permission',
         'waiting_for_reconnection',
     ].includes(status);
+
+/** The budget is a pure function of depth, so it round-trips a run's depth. */
+const getDepthFromBudget = (budget: AiDeepResearchBudget): DeepResearchDepth =>
+    DEEP_RESEARCH_DEPTHS.find(
+        (depth) =>
+            DEEP_RESEARCH_DEPTH_CONFIG[depth].warehouseQueries ===
+            budget.maxWarehouseQueries,
+    ) ?? 'standard';
+
+/** A registration equivalent for a run loaded from the server. */
+export const toDeepResearchRegistration = (
+    run: AiDeepResearchRun,
+    args: { threadUuid: string; userUuid: string },
+): DeepResearchRunRegistration => ({
+    runUuid: run.aiDeepResearchRunUuid,
+    projectUuid: run.projectUuid,
+    threadUuid: args.threadUuid,
+    userUuid: args.userUuid,
+    question: run.prompt,
+    depth: getDepthFromBudget(run.budget),
+    createdAt: run.createdAt,
+    state: 'started',
+});
 
 /** Plain-text intro of the report markdown, for compact previews. */
 export const getDeepResearchReportPreview = (markdown: string): string =>

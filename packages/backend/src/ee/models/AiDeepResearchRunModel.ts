@@ -116,6 +116,22 @@ export class AiDeepResearchRunModel {
             .first();
     }
 
+    async findByThreadScoped(args: {
+        aiThreadUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+        createdByUserUuid: string;
+    }): Promise<DbAiDeepResearchRun[]> {
+        return this.database<AiDeepResearchRunsTable>(
+            AiDeepResearchRunsTableName,
+        )
+            .where('ai_thread_uuid', args.aiThreadUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .where('project_uuid', args.projectUuid)
+            .where('created_by_user_uuid', args.createdByUserUuid)
+            .orderBy('created_at', 'asc');
+    }
+
     async claimQueuedRun(
         aiDeepResearchRunUuid: string,
     ): Promise<DbAiDeepResearchRun | undefined> {

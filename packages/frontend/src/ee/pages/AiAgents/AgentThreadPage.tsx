@@ -291,14 +291,18 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         question,
         depth,
     }: Parameters<typeof startDeepResearch.mutateAsync>[0]) => {
-        await createAgentThreadMessage({
+        const message = await createAgentThreadMessage({
             prompt: question,
             modelConfig: threadModelConfig ?? undefined,
             context: pageContextInput,
             optimisticContext: pagePreviewItems,
             skipAgentResponse: true,
         });
-        await startDeepResearch.mutateAsync({ question, depth });
+        await startDeepResearch.mutateAsync({
+            question,
+            depth,
+            promptUuid: message.uuid,
+        });
     };
     const isBusy = Boolean(isCreatingMessage || isStreaming || isPending);
     const retryPrompt = reviewItem?.remediation?.retryPrompt ?? null;

@@ -3,6 +3,7 @@ import {
     type AiDeepResearchRequestBody,
     type ApiAiAgentThreadMessageVizQueryResponse,
     type ApiAiDeepResearchEventsResponse,
+    type ApiAiDeepResearchRunListResponse,
     type ApiAiDeepResearchRunResponse,
     type ApiErrorPayload,
     type UUID,
@@ -59,7 +60,34 @@ export class AiDeepResearchController extends BaseController {
                 projectUuid,
                 prompt: body.prompt,
                 effort: body.effort,
+                aiThreadUuid: body.threadUuid,
+                promptUuid: body.promptUuid,
             }),
+        };
+    }
+
+    /**
+     * List the caller's Deep Research runs attached to an agent thread.
+     * @summary List Deep Research runs
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/')
+    @OperationId('listAiDeepResearchRuns')
+    async listRuns(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Query() threadUuid: UUID,
+    ): Promise<ApiAiDeepResearchRunListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiDeepResearchService().listRunsForThread(
+                toSessionUser(req.account),
+                projectUuid,
+                threadUuid,
+            ),
         };
     }
 

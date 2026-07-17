@@ -160,6 +160,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
 
                 return new AiDeepResearchService({
                     aiDeepResearchRunModel,
+                    aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
                     projectModel: models.getProjectModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     schedulerClient:
