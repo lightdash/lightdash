@@ -84,6 +84,8 @@ lightdash lint --format json
 
 ## Download & Upload Content
 
+For resource coverage, project versus organization scope, complete snapshots, and safe agent workflows, read [Content as Code](./content-as-code-reference.md) before using these commands.
+
 ```bash
 # Download all charts and dashboards
 lightdash download
