@@ -91,6 +91,7 @@ import {
     usePublishHomepage,
     useUpdateHomepageDraft,
 } from './hooks/useProjectHomepage';
+import { resolveCanvasMode } from './previewMode';
 import {
     PreviewPane,
     ViewAsControl,
@@ -485,10 +486,18 @@ export const HomepageEditor: FC<Props> = ({
     const [viewTarget, setViewTarget] = useState<HomepageViewAsTarget | null>(
         null,
     );
-    const togglePreview = () => {
+    const canvasMode = resolveCanvasMode(isPreviewing, viewTarget);
+    // While a specific audience is selected, the toggle button's job is to
+    // drop the audience and return to editing (not just flip isPreviewing —
+    // that alone wouldn't clear a selected audience).
+    const handleToggleMode = () => {
+        if (viewTarget !== null) {
+            setViewType('everyone');
+            setViewTarget(null);
+            setIsPreviewing(false);
+            return;
+        }
         setIsPreviewing((prev) => !prev);
-        setViewType('everyone');
-        setViewTarget(null);
     };
     const [debouncedDraft] = useDebouncedValue(draft, 800);
     const [hasConflict, setHasConflict] = useState(false);
@@ -833,13 +842,13 @@ export const HomepageEditor: FC<Props> = ({
                 <button
                     type="button"
                     className={classes.tbBtn}
-                    onClick={togglePreview}
+                    onClick={handleToggleMode}
                 >
                     <MantineIcon
-                        icon={isPreviewing ? IconPencil : IconEye}
+                        icon={canvasMode === 'preview' ? IconPencil : IconEye}
                         size={15}
                     />
-                    {isPreviewing ? 'Back to editing' : 'Preview'}
+                    {canvasMode === 'preview' ? 'Back to editing' : 'Preview'}
                 </button>
                 <button
                     type="button"
@@ -862,17 +871,15 @@ export const HomepageEditor: FC<Props> = ({
                     </Button>
                 </div>
             )}
-            {isPreviewing && (
-                <div className={classes.previewBar}>
-                    <ViewAsControl
-                        projectUuid={projectUuid}
-                        viewType={viewType}
-                        target={viewTarget}
-                        onViewTypeChange={setViewType}
-                        onTargetChange={setViewTarget}
-                    />
-                </div>
-            )}
+            <div className={classes.previewBar}>
+                <ViewAsControl
+                    projectUuid={projectUuid}
+                    viewType={viewType}
+                    target={viewTarget}
+                    onViewTypeChange={setViewType}
+                    onTargetChange={setViewTarget}
+                />
+            </div>
 
             <DndContext
                 sensors={sensors}
@@ -886,7 +893,7 @@ export const HomepageEditor: FC<Props> = ({
                 onDragCancel={handleDragCancel}
             >
                 <div className={classes.body}>
-                    {!isPreviewing && (
+                    {canvasMode === 'edit' && (
                         <aside className={classes.rail}>
                             <div className={classes.railTitle}>Blocks</div>
                             <Stack gap={6}>
@@ -912,7 +919,7 @@ export const HomepageEditor: FC<Props> = ({
                     )}
                     <div className={classes.canvas}>
                         <div className={classes.canvasInner}>
-                            {isPreviewing ? (
+                            {canvasMode === 'preview' ? (
                                 <PreviewPane
                                     draft={draft}
                                     projectUuid={projectUuid}
