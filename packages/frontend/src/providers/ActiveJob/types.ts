@@ -5,7 +5,7 @@ export interface ContextType {
     isJobsDrawerOpen: boolean;
     setIsJobsDrawerOpen: Dispatch<SetStateAction<boolean>>;
     activeJobId: string | undefined;
-    setActiveJobId: Dispatch<SetStateAction<any>>;
+    setActiveJobId: Dispatch<SetStateAction<string | undefined>>;
     setQuietActiveJobId: (jobId: string) => void;
     activeJob: Job | undefined;
     activeJobIsRunning: boolean | undefined;

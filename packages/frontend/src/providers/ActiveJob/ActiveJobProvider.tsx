@@ -25,19 +25,22 @@ import Context from './context';
 
 const ActiveJobProvider: FC<React.PropsWithChildren<{}>> = ({ children }) => {
     const [isJobsDrawerOpen, setIsJobsDrawerOpen] = useState(false);
-    const [activeJobId, setActiveJobIdState] = useState();
+    const [activeJobId, setActiveJobIdState] = useState<string | undefined>();
     const [isQuietJob, setIsQuietJob] = useState(false);
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError, showToastInfo } = useToaster();
 
-    const setActiveJobId = useCallback((jobId: SetStateAction<any>) => {
-        setIsQuietJob(false);
-        setActiveJobIdState(jobId);
-    }, []);
+    const setActiveJobId = useCallback(
+        (jobId: SetStateAction<string | undefined>) => {
+            setIsQuietJob(false);
+            setActiveJobIdState(jobId);
+        },
+        [],
+    );
 
     const setQuietActiveJobId = useCallback((jobId: string) => {
         setIsQuietJob(true);
-        setActiveJobIdState(jobId as any);
+        setActiveJobIdState(jobId);
     }, []);
 
     const toastJobStatus = useCallback(
