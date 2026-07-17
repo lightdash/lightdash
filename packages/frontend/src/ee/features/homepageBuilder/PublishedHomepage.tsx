@@ -73,6 +73,7 @@ const RowRenderer: FC<{
                 key={column.block.id}
                 className={layout.col}
                 data-weight={column.weight}
+                data-hug-units={column.hugUnits ?? undefined}
             >
                 <BlockRenderer
                     block={column.block}

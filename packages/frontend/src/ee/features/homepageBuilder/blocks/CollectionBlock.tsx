@@ -353,7 +353,10 @@ export const CollectionBlockView: FC<BlockComponentProps> = ({
                     ))}
                 </div>
             ) : (
-                <div className={classes.hugGrid}>
+                <div
+                    className={classes.hugGrid}
+                    data-per-row={Math.min(cardCount, 3)}
+                >
                     {(contents ?? []).map((content) => (
                         <div key={content.uuid} className={classes.hugGridItem}>
                             <ContentCard

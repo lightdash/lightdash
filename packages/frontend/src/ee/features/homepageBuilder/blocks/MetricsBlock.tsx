@@ -267,10 +267,19 @@ export const MetricsBlockView: FC<BlockComponentProps> = ({
     if (block.type !== 'metrics' || block.config.items.length === 0) {
         return null;
     }
+    const itemCount = block.config.items.length;
     return (
         <Stack gap={0}>
             <BlockHeader icon={IconChartDots} title={block.config.title} />
-            <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing={12}>
+            {/* Tracks match the item count so sparse rows leave no phantom columns */}
+            <SimpleGrid
+                cols={{
+                    base: 1,
+                    sm: Math.min(itemCount, 2),
+                    md: Math.min(itemCount, 4),
+                }}
+                spacing={12}
+            >
                 {block.config.items.map((metricRef) => (
                     <MetricKpiCard
                         key={`${metricRef.tableName}-${metricRef.metricName}`}

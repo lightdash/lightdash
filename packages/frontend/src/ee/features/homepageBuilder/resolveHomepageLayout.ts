@@ -29,6 +29,11 @@ export type RowRole = 'intro' | 'body';
 export type ResolvedColumn = {
     block: HomepageBlock;
     weight: number;
+    // Intrinsic width in card units for hug rows. Card-grid blocks are
+    // container-relative (SimpleGrid / percentage tracks), so they have no
+    // natural width — this assigns one from their item count. null = the
+    // block's own content width (lists, pills, text).
+    hugUnits: 1 | 2 | 3 | 4 | null;
 };
 
 // 'hug' = the row's cluster sizes to its content and centres as one unit
@@ -105,6 +110,31 @@ const columnWeightFor = (block: HomepageBlock): number => {
     return traitFor(block.type).columnWeight;
 };
 
+const clampUnits = (count: number, max: 1 | 2 | 3 | 4): 1 | 2 | 3 | 4 => {
+    const clamped = Math.min(Math.max(count, 1), max);
+    return clamped as 1 | 2 | 3 | 4;
+};
+
+const hugUnitsFor = (block: HomepageBlock): ResolvedColumn['hugUnits'] => {
+    switch (block.type) {
+        case 'metrics':
+            return clampUnits(block.config.items.length, 4);
+        case 'collection':
+            return clampUnits(block.config.items.length, 3);
+        // Resources render as a self-sizing list/media grid — natural width.
+        case 'resources':
+        case 'announcements':
+        case 'favorites':
+        case 'recent':
+        case 'markdown':
+        case 'quick-actions':
+        case 'ask-ai-hero':
+            return null;
+        default:
+            return assertUnreachable(block, 'Unknown homepage block type');
+    }
+};
+
 const resolveRow = (
     row: HomepageConfig['rows'][number],
     isFirst: boolean,
@@ -112,6 +142,7 @@ const resolveRow = (
     const columns: ResolvedColumn[] = row.blocks.map((block) => ({
         block,
         weight: columnWeightFor(block),
+        hugUnits: hugUnitsFor(block),
     }));
     const single = row.blocks.length === 1;
     const widthTier: BlockWidthTier = single

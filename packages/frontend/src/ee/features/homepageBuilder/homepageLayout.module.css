@@ -148,19 +148,40 @@
     flex: 2 1 0;
 }
 
-/* Hug rows: the cluster sizes to its content and centres as one unit. Columns
- * grow only to their natural width, so sparse combos stop smearing full-bleed;
- * dense content still reaches the tier width and behaves like a full row. */
+/* Hug rows: the cluster sizes to its content and centres as one unit — no
+ * grow, so sparse combos stop smearing full-bleed. Card-grid blocks carry a
+ * resolver-assigned intrinsic basis in card units (their internals are
+ * container-relative and have no natural width); list/text blocks hug their
+ * own content. Dense clusters exceed the row and shrink back to fill it. */
 .row[data-fit='hug'] {
+    --hug-unit: 236px;
+    --hug-gap: 12px;
+
     justify-content: center;
 }
 
 .row[data-fit='hug'] .col {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     max-width: max-content;
     min-width: 0;
 }
 
-.row[data-fit='hug'] .col[data-weight='2'] {
-    flex: 2 1 auto;
+.row[data-fit='hug'] .col[data-hug-units] {
+    max-width: none;
+}
+
+.row[data-fit='hug'] .col[data-hug-units='1'] {
+    flex-basis: var(--hug-unit);
+}
+
+.row[data-fit='hug'] .col[data-hug-units='2'] {
+    flex-basis: calc(var(--hug-unit) * 2 + var(--hug-gap));
+}
+
+.row[data-fit='hug'] .col[data-hug-units='3'] {
+    flex-basis: calc(var(--hug-unit) * 3 + var(--hug-gap) * 2);
+}
+
+.row[data-fit='hug'] .col[data-hug-units='4'] {
+    flex-basis: calc(var(--hug-unit) * 4 + var(--hug-gap) * 3);
 }
