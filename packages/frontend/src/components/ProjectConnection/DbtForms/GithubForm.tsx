@@ -9,8 +9,9 @@ import {
     Anchor,
     Select,
     PasswordInput,
+    Avatar,
 } from '@mantine-8/core';
-import { Avatar, Tooltip } from '@mantine/core';
+import { Tooltip } from '@mantine/core';
 import { IconCheck, IconRefresh } from '@tabler/icons-react';
 import React, { useEffect, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -146,7 +147,7 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     <Avatar
                         src={githubIcon}
                         size="sm"
-                        styles={{ image: { filter: 'invert(1)' } }}
+                        classNames={{ image: styles.githubButtonLogo }}
                     />
                 }
                 className={styles.githubButton}

@@ -15,3 +15,7 @@
 .githubButton:hover {
     background-color: var(--mantine-color-ldGray-8);
 }
+
+.githubButtonLogo {
+    filter: invert(1);
+}
