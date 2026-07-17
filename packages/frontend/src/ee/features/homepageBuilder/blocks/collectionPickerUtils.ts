@@ -18,6 +18,7 @@ export const groupContentBySpace = (
 ): ComboboxItemGroup[] => {
     const bySpace = new Map<string, ComboboxItem[]>();
     for (const content of contentMap.values()) {
+        if (!content.space) continue;
         const items = bySpace.get(content.space.name) ?? [];
         items.push({ value: content.uuid, label: content.name });
         bySpace.set(content.space.name, items);
