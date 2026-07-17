@@ -109,16 +109,16 @@ const cancelDeepResearch = (projectUuid: string, runUuid: string) =>
         body: JSON.stringify({}),
     }) as Promise<ApiAiDeepResearchRunResponse['results']>;
 
-const getDeepResearchChartVizQuery = (
+const refreshDeepResearchChart = (
     projectUuid: string,
     runUuid: string,
-    queryUuid: string,
+    chartKey: string,
 ) =>
     lightdashApi<AnyType>({
         version: 'v1',
-        url: `${getBaseUrl(projectUuid)}/${runUuid}/charts/${queryUuid}/viz-query`,
-        method: 'GET',
-        body: undefined,
+        url: `${getBaseUrl(projectUuid)}/${runUuid}/charts/${encodeURIComponent(chartKey)}/refresh`,
+        method: 'POST',
+        body: JSON.stringify({}),
     }) as Promise<ApiAiAgentThreadMessageVizQueryResponse['results']>;
 
 export const useStartDeepResearchMutation = ({
@@ -128,6 +128,7 @@ export const useStartDeepResearchMutation = ({
     projectUuid: string;
     threadUuid: string;
 }) => {
+    const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     const user = useUser(true);
     return useMutation<
@@ -169,6 +170,14 @@ export const useStartDeepResearchMutation = ({
                 createdAt: context?.createdAt ?? new Date().toISOString(),
                 state: 'started',
             });
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    DEEP_RESEARCH_QUERY_KEY,
+                    projectUuid,
+                    'thread',
+                    threadUuid,
+                ],
+            });
         },
         onError: ({ error }, _variables, context) => {
             if (context) {
@@ -186,6 +195,7 @@ export const useStartDeepResearchMutation = ({
 };
 
 export const useStartDeepResearchForThreadMutation = (projectUuid: string) => {
+    const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     const user = useUser(true);
     return useMutation<
@@ -226,6 +236,14 @@ export const useStartDeepResearchForThreadMutation = (projectUuid: string) => {
                 depth: variables.depth,
                 createdAt: context?.createdAt ?? new Date().toISOString(),
                 state: 'started',
+            });
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    DEEP_RESEARCH_QUERY_KEY,
+                    projectUuid,
+                    'thread',
+                    variables.threadUuid,
+                ],
             });
         },
         onError: ({ error }, _variables, context) => {
@@ -325,14 +343,20 @@ export const useCancelDeepResearchMutation = (
     });
 };
 
-export const useDeepResearchChartVizQuery = ({
+/**
+ * Re-executes the stored metric query behind a warehouse-backed report
+ * chart. Only runs when the user asks for live data (`enabled`).
+ */
+export const useDeepResearchChartLiveQuery = ({
     projectUuid,
     runUuid,
-    queryUuid,
+    chartKey,
+    enabled,
 }: {
     projectUuid: string;
     runUuid: string;
-    queryUuid: string;
+    chartKey: string;
+    enabled: boolean;
 }) =>
     useQuery<ApiAiAgentThreadMessageVizQuery, ApiError>({
         queryKey: [
@@ -340,10 +364,11 @@ export const useDeepResearchChartVizQuery = ({
             projectUuid,
             runUuid,
             'charts',
-            queryUuid,
+            chartKey,
+            'live',
         ],
-        queryFn: () =>
-            getDeepResearchChartVizQuery(projectUuid, runUuid, queryUuid),
+        queryFn: () => refreshDeepResearchChart(projectUuid, runUuid, chartKey),
+        enabled,
         staleTime: Infinity,
         refetchOnWindowFocus: false,
     });

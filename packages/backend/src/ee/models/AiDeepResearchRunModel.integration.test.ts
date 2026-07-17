@@ -149,7 +149,7 @@ describe('AiDeepResearchRunModel integration', () => {
         await model.claimQueuedRun(run.ai_deep_research_run_uuid);
 
         await Promise.all([
-            model.markCompleted(run.ai_deep_research_run_uuid, report),
+            model.markCompleted(run.ai_deep_research_run_uuid, report, {}),
             model.requestCancellation(run.ai_deep_research_run_uuid),
         ]);
 

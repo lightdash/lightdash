@@ -137,6 +137,7 @@
 
 .chartTile {
     display: flex;
+    flex-direction: column;
     width: 100%;
     max-width: 100%;
     height: 28rem;
@@ -144,7 +145,6 @@
     min-width: 0;
     margin: var(--mantine-spacing-lg) 0;
     overflow: hidden;
-    flex-direction: column;
 
     > * {
         width: 100%;
@@ -152,6 +152,11 @@
         min-height: 0;
         min-width: 0;
         flex: 1;
+    }
+
+    /* The snapshot/live header keeps its intrinsic height. */
+    > :first-child {
+        flex: 0 0 auto;
     }
 }
 

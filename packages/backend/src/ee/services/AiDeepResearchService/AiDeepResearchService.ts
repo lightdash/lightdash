@@ -1,10 +1,12 @@
 import { subject } from '@casl/ability';
 import {
     AiResultType,
-    extractDeepResearchCharts,
+    buildInlineChartFields,
+    buildInlineChartMetricQuery,
     FeatureFlags,
-    findDeepResearchChartBlocks,
+    findDeepResearchChartRefs,
     ForbiddenError,
+    getDeepResearchChartKey,
     getErrorMessage,
     isAiDeepResearchRunTerminal,
     isUserWithOrg,
@@ -12,22 +14,30 @@ import {
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
-    spliceDeepResearchChartBlocks,
+    spliceDeepResearchRanges,
     UnexpectedServerError,
     type Account,
     type AiDeepResearchBudget,
-    type AiDeepResearchChartBlock,
+    type AiDeepResearchChartData,
+    type AiDeepResearchChartDataMap,
+    type AiDeepResearchChartDefinition,
+    type AiDeepResearchChartSnapshot,
+    type AiDeepResearchChartSnapshotValue,
     type AiDeepResearchEffort,
     type AiDeepResearchEvent,
     type AiDeepResearchEventPayloadMap,
     type AiDeepResearchEventsPage,
+    type AiDeepResearchInlineChart,
     type AiDeepResearchJobPayload,
     type AiDeepResearchProgress,
     type AiDeepResearchRun,
+    type AiDeepResearchWarehouseChart,
     type ApiAiAgentThreadMessageVizQuery,
     type SessionUser,
 } from '@lightdash/common';
+import { createInterface } from 'readline';
 import { validate as isValidUuid } from 'uuid';
+import { type S3ResultsFileStorageClient } from '../../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
@@ -55,14 +65,11 @@ const TIMED_OUT_RUN_ERROR_MESSAGE =
     'Deep Research took too long to finish. Please try again.';
 const OMITTED_CHARTS_CAVEAT =
     'Some proposed charts were omitted because their query evidence could not be verified.';
-const OMITTED_CHART_REPLACEMENT = `<warning title="Chart omitted">
-
-A proposed chart was omitted because its query evidence could not be verified.
-
-</warning>`;
+const OMITTED_CHART_REF_REPLACEMENT =
+    '*(chart omitted: its query evidence could not be verified)*';
 
 const isChartConfigCompatible = (
-    chart: AiDeepResearchChartBlock,
+    chart: AiDeepResearchWarehouseChart,
     metricQuery: {
         dimensions: string[];
         metrics: string[];
@@ -94,15 +101,62 @@ const isChartConfigCompatible = (
     );
 };
 
+export type AiDeepResearchSubmittedReport = {
+    markdown: string;
+    charts: AiDeepResearchChartDefinition[];
+};
+
+const MAX_SNAPSHOT_ROWS = 500;
+
+const toSnapshotValue = (value: unknown): AiDeepResearchChartSnapshotValue => {
+    if (value === null || value === undefined) {
+        return null;
+    }
+    if (
+        typeof value === 'string' ||
+        typeof value === 'number' ||
+        typeof value === 'boolean'
+    ) {
+        return value;
+    }
+    return JSON.stringify(value);
+};
+
+const buildInlineChartData = (
+    chart: AiDeepResearchInlineChart,
+    runQueryUuids: Set<string>,
+): AiDeepResearchChartData => {
+    // Only provenance the agent can actually claim: queries run this session.
+    const derivedFrom = (chart.derivedFrom ?? []).filter((queryUuid) =>
+        runQueryUuids.has(queryUuid),
+    );
+    return {
+        source: 'inline',
+        title: chart.title,
+        chartConfig: chart.chartConfig,
+        queryUuid: null,
+        derivedFrom: derivedFrom.length > 0 ? derivedFrom : null,
+        metricQuery: buildInlineChartMetricQuery(chart),
+        fields: buildInlineChartFields(chart.columns),
+        snapshot: {
+            takenAt: new Date().toISOString(),
+            rowCount: chart.rows.length,
+            truncated: false,
+            columnOrder: chart.columns.map((column) => column.id),
+            rows: chart.rows,
+        },
+    };
+};
+
 export type AiDeepResearchExecutorResult =
     | {
           status: 'completed';
-          reportMarkdown: string;
+          report: AiDeepResearchSubmittedReport;
           warehouseQueryUuids: string[];
       }
     | {
           status: 'partially_completed';
-          reportMarkdown: string;
+          report: AiDeepResearchSubmittedReport;
           warehouseQueryUuids: string[];
       }
     | { status: 'failed'; errorMessage: string }
@@ -120,9 +174,10 @@ type Dependencies = {
     featureFlagModel: FeatureFlagModel;
     schedulerClient: CommercialSchedulerClient;
     asyncQueryService: AsyncQueryService;
-    queryHistoryModel: Pick<
-        QueryHistoryModel,
-        'getByQueryUuid' | 'preserveResults'
+    queryHistoryModel: Pick<QueryHistoryModel, 'getByQueryUuid'>;
+    resultsFileStorageClient: Pick<
+        S3ResultsFileStorageClient,
+        'getDownloadStream'
     >;
     executor?: AiDeepResearchExecutor;
 };
@@ -140,6 +195,7 @@ const toRun = (row: DbAiDeepResearchRun): AiDeepResearchRun => ({
     prompt: row.prompt,
     status: row.status,
     resultMarkdown: row.result_markdown,
+    resultChartData: row.result_chart_data,
     budget: row.budget_snapshot,
     errorMessage: row.error_message,
     cancellationRequestedAt:
@@ -309,7 +365,12 @@ export class AiDeepResearchService extends BaseService {
 
     private readonly queryHistoryModel: Pick<
         QueryHistoryModel,
-        'getByQueryUuid' | 'preserveResults'
+        'getByQueryUuid'
+    >;
+
+    private readonly resultsFileStorageClient: Pick<
+        S3ResultsFileStorageClient,
+        'getDownloadStream'
     >;
 
     private readonly executor: AiDeepResearchExecutor | undefined;
@@ -322,6 +383,7 @@ export class AiDeepResearchService extends BaseService {
         schedulerClient,
         asyncQueryService,
         queryHistoryModel,
+        resultsFileStorageClient,
         executor,
     }: Dependencies) {
         super();
@@ -332,6 +394,7 @@ export class AiDeepResearchService extends BaseService {
         this.schedulerClient = schedulerClient;
         this.asyncQueryService = asyncQueryService;
         this.queryHistoryModel = queryHistoryModel;
+        this.resultsFileStorageClient = resultsFileStorageClient;
         this.executor = executor;
     }
 
@@ -529,63 +592,49 @@ export class AiDeepResearchService extends BaseService {
         return runs.map(toRun);
     }
 
-    async getChartVizQuery(args: {
+    async refreshChart(args: {
         account: Account;
         user: SessionUser;
         projectUuid: string;
         aiDeepResearchRunUuid: string;
-        chartQueryUuid: string;
+        chartKey: string;
     }): Promise<ApiAiAgentThreadMessageVizQuery> {
         const run = await this.findCreatorOwnedRun(
             args.user,
             args.projectUuid,
             args.aiDeepResearchRunUuid,
         );
-        // Membership in the persisted report markdown is the authorization gate.
-        const chart = run.result_markdown
-            ? extractDeepResearchCharts(run.result_markdown).find(
-                  (block) => block.queryUuid === args.chartQueryUuid,
-              )
-            : undefined;
+        // Membership in the persisted chart data is the authorization gate.
+        const chart = run.result_chart_data?.[args.chartKey];
         if (!chart) {
             throw new NotFoundError(
-                `Deep Research chart ${args.chartQueryUuid} not found`,
+                `Deep Research chart ${args.chartKey} not found`,
+            );
+        }
+        if (chart.source !== 'warehouse') {
+            throw new ParameterError(
+                'Only warehouse-backed Deep Research charts can be refreshed',
             );
         }
 
-        const queryHistory = await this.asyncQueryService.getAsyncQueryHistory({
+        const query = await this.asyncQueryService.executeAsyncMetricQuery({
             account: args.account,
             projectUuid: args.projectUuid,
-            queryUuid: chart.queryUuid,
+            metricQuery: chart.metricQuery,
+            context: QueryExecutionContext.AI,
         });
-        if (
-            queryHistory.context !==
-                QueryExecutionContext.MCP_RUN_METRIC_QUERY ||
-            queryHistory.createdByUserUuid !== run.created_by_user_uuid
-        ) {
-            throw new NotFoundError(
-                `Deep Research chart query ${chart.queryUuid} not found`,
-            );
-        }
-        if (queryHistory.status !== QueryHistoryStatus.READY) {
-            throw new UnexpectedServerError(
-                `Deep Research chart query ${chart.queryUuid} is not ready`,
-            );
-        }
 
-        const usedParametersValues =
-            queryHistory.requestParameters.parameters ?? {};
         return {
             type: AiResultType.QUERY_RESULT,
             query: {
-                queryUuid: queryHistory.queryUuid,
-                cacheMetadata: { cacheHit: false },
-                metricQuery: queryHistory.metricQuery,
-                fields: queryHistory.fields,
-                warnings: [],
-                parameterReferences: Object.keys(usedParametersValues),
-                usedParametersValues,
-                resolvedTimezone: queryHistory.metricQuery.timezone ?? null,
+                queryUuid: query.queryUuid,
+                cacheMetadata: query.cacheMetadata,
+                metricQuery: query.metricQuery,
+                fields: query.fields,
+                warnings: query.warnings,
+                parameterReferences: [],
+                usedParametersValues: {},
+                resolvedTimezone: query.metricQuery.timezone ?? null,
             },
             metadata: {
                 title: chart.title,
@@ -682,13 +731,14 @@ export class AiDeepResearchService extends BaseService {
             if (result.status === 'completed') {
                 const report = await this.prepareEvidenceReport(
                     run,
-                    result.reportMarkdown,
+                    result.report,
                     new Set(result.warehouseQueryUuids),
                 );
                 const completed =
                     await this.aiDeepResearchRunModel.markCompleted(
                         payload.aiDeepResearchRunUuid,
-                        report,
+                        report.markdown,
+                        report.chartData,
                     );
                 if (!completed) {
                     await this.markCancelledAfterCompletedExecution(
@@ -700,13 +750,14 @@ export class AiDeepResearchService extends BaseService {
             if (result.status === 'partially_completed') {
                 const report = await this.prepareEvidenceReport(
                     run,
-                    result.reportMarkdown,
+                    result.report,
                     new Set(result.warehouseQueryUuids),
                 );
                 const completed =
                     await this.aiDeepResearchRunModel.markPartiallyCompleted(
                         payload.aiDeepResearchRunUuid,
-                        report,
+                        report.markdown,
+                        report.chartData,
                     );
                 if (!completed) {
                     await this.markCancelledAfterCompletedExecution(
@@ -747,69 +798,164 @@ export class AiDeepResearchService extends BaseService {
         }
     }
 
+    /**
+     * Turns the submitted report into the two persisted artifacts: the
+     * markdown narrative and the render data for every verified chart,
+     * including a snapshot of each warehouse chart's results. Charts that
+     * cannot be verified or snapshotted lose their reference in the markdown.
+     */
     private async prepareEvidenceReport(
         run: DbAiDeepResearchRun,
-        reportMarkdown: string,
+        report: AiDeepResearchSubmittedReport,
         runQueryUuids: Set<string>,
-    ): Promise<string> {
-        const matches = findDeepResearchChartBlocks(reportMarkdown);
-        if (matches.length === 0) {
-            return reportMarkdown;
-        }
+    ): Promise<{ markdown: string; chartData: AiDeepResearchChartDataMap }> {
+        const chartData: AiDeepResearchChartDataMap = {};
+        const omittedKeys = new Set<string>();
 
-        const verifications = await Promise.all(
-            matches.map(async (match) => {
-                const chart = match.block;
-                // The UUID set is built from this run's actual MCP tool results.
-                if (!chart || !runQueryUuids.has(chart.queryUuid)) {
-                    return { match, verified: false };
-                }
-
-                const queryHistory =
-                    await this.queryHistoryModel.getByQueryUuid(
-                        chart.queryUuid,
+        await Promise.all(
+            report.charts.map(async (chart) => {
+                const key = getDeepResearchChartKey(chart);
+                try {
+                    const entry =
+                        chart.source === 'warehouse'
+                            ? await this.buildWarehouseChartData(
+                                  run,
+                                  chart,
+                                  runQueryUuids,
+                              )
+                            : buildInlineChartData(chart, runQueryUuids);
+                    if (entry) {
+                        chartData[key] = entry;
+                    } else {
+                        omittedKeys.add(key);
+                    }
+                } catch (error) {
+                    this.logger.error(
+                        `Deep Research run ${run.ai_deep_research_run_uuid} could not prepare chart ${key}: ${getErrorMessage(error)}`,
                     );
-                const isVerified =
-                    queryHistory?.context ===
-                        QueryExecutionContext.MCP_RUN_METRIC_QUERY &&
-                    queryHistory.projectUuid === run.project_uuid &&
-                    queryHistory.organizationUuid === run.organization_uuid &&
-                    queryHistory.createdByUserUuid ===
-                        run.created_by_user_uuid &&
-                    queryHistory.createdByActorType === 'pat' &&
-                    queryHistory.status === QueryHistoryStatus.READY &&
-                    queryHistory.resultsFileName !== null &&
-                    (!queryHistory.resultsExpiresAt ||
-                        queryHistory.resultsExpiresAt > new Date()) &&
-                    isChartConfigCompatible(chart, queryHistory.metricQuery);
-                if (!isVerified) {
-                    return { match, verified: false };
+                    omittedKeys.add(key);
                 }
-
-                // Evidence charts are part of the persisted report, so their
-                // exact result files must outlive the normal query-cache TTL.
-                const preserved = await this.queryHistoryModel.preserveResults({
-                    queryUuid: chart.queryUuid,
-                    projectUuid: run.project_uuid,
-                    createdByUserUuid: run.created_by_user_uuid,
-                });
-                return { match, verified: preserved };
             }),
         );
 
-        const failed = verifications.filter(({ verified }) => !verified);
-        if (failed.length === 0) {
-            return reportMarkdown;
+        if (omittedKeys.size === 0) {
+            return { markdown: report.markdown, chartData };
         }
 
-        const spliced = spliceDeepResearchChartBlocks(
-            reportMarkdown,
-            failed.map(({ match }) => ({
-                match,
-                replacement: OMITTED_CHART_REPLACEMENT,
+        const failedRefs = findDeepResearchChartRefs(report.markdown).filter(
+            (ref) => omittedKeys.has(ref.key),
+        );
+        const spliced = spliceDeepResearchRanges(
+            report.markdown,
+            failedRefs.map((ref) => ({
+                match: ref,
+                replacement: OMITTED_CHART_REF_REPLACEMENT,
             })),
         );
-        return `${spliced}\n\n<warning title="Caveat">\n\n${OMITTED_CHARTS_CAVEAT}\n\n</warning>\n`;
+        return {
+            markdown: `${spliced}\n\n<warning title="Caveat">\n\n${OMITTED_CHARTS_CAVEAT}\n\n</warning>\n`,
+            chartData,
+        };
+    }
+
+    private async buildWarehouseChartData(
+        run: DbAiDeepResearchRun,
+        chart: AiDeepResearchWarehouseChart,
+        runQueryUuids: Set<string>,
+    ): Promise<AiDeepResearchChartData | null> {
+        // The UUID set is built from this run's actual MCP tool results.
+        if (!runQueryUuids.has(chart.queryUuid)) {
+            return null;
+        }
+
+        const queryHistory = await this.queryHistoryModel.getByQueryUuid(
+            chart.queryUuid,
+        );
+        const isVerified =
+            queryHistory?.context ===
+                QueryExecutionContext.MCP_RUN_METRIC_QUERY &&
+            queryHistory.projectUuid === run.project_uuid &&
+            queryHistory.organizationUuid === run.organization_uuid &&
+            queryHistory.createdByUserUuid === run.created_by_user_uuid &&
+            queryHistory.createdByActorType === 'pat' &&
+            queryHistory.status === QueryHistoryStatus.READY &&
+            queryHistory.resultsFileName !== null &&
+            (!queryHistory.resultsExpiresAt ||
+                queryHistory.resultsExpiresAt > new Date()) &&
+            isChartConfigCompatible(chart, queryHistory.metricQuery);
+        if (!isVerified || queryHistory.resultsFileName === null) {
+            return null;
+        }
+
+        return {
+            source: 'warehouse',
+            title: chart.title,
+            chartConfig: chart.chartConfig,
+            queryUuid: chart.queryUuid,
+            derivedFrom: null,
+            metricQuery: queryHistory.metricQuery,
+            fields: queryHistory.fields,
+            snapshot: await this.takeChartSnapshot(
+                queryHistory.resultsFileName,
+                queryHistory.metricQuery,
+                queryHistory.totalRowCount,
+            ),
+        };
+    }
+
+    /** Reads the query's JSONL results file into a bounded snapshot. */
+    private async takeChartSnapshot(
+        resultsFileName: string,
+        metricQuery: { dimensions: string[]; metrics: string[] },
+        totalRowCount: number | null,
+    ): Promise<AiDeepResearchChartSnapshot> {
+        const columnOrder = [...metricQuery.dimensions, ...metricQuery.metrics];
+        const stream =
+            await this.resultsFileStorageClient.getDownloadStream(
+                resultsFileName,
+            );
+        const lineReader = createInterface({
+            input: stream,
+            crlfDelay: Infinity,
+        });
+
+        const rows: AiDeepResearchChartSnapshotValue[][] = [];
+        try {
+            for await (const line of lineReader) {
+                if (line.trim().length === 0) {
+                    // eslint-disable-next-line no-continue
+                    continue;
+                }
+                if (rows.length >= MAX_SNAPSHOT_ROWS) {
+                    break;
+                }
+                const row: unknown = JSON.parse(line);
+                if (typeof row !== 'object' || row === null) {
+                    throw new UnexpectedServerError(
+                        `Deep Research results file ${resultsFileName} has a malformed row`,
+                    );
+                }
+                rows.push(
+                    columnOrder.map((fieldId) =>
+                        toSnapshotValue(
+                            (row as Record<string, unknown>)[fieldId],
+                        ),
+                    ),
+                );
+            }
+        } finally {
+            lineReader.close();
+            stream.destroy();
+        }
+
+        const rowCount = totalRowCount ?? rows.length;
+        return {
+            takenAt: new Date().toISOString(),
+            rowCount,
+            truncated: rowCount > rows.length,
+            columnOrder,
+            rows,
+        };
     }
 
     private async markCancelledAfterCompletedExecution(

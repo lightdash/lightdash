@@ -1,3 +1,5 @@
+import { type AiDeepResearchChartDataMap } from '@lightdash/common';
+
 export const DEEP_RESEARCH_DEPTHS = [
     'quick',
     'standard',
@@ -48,8 +50,10 @@ export type DeepResearchRunView = {
         label: string;
         createdAt: string;
     }>;
-    /** The report as a markdown document with embedded chart blocks. */
+    /** The report narrative with [title](#chart-<key>) chart references. */
     resultMarkdown: string | null;
+    /** Render data for each referenced chart, keyed by chart key. */
+    resultChartData: AiDeepResearchChartDataMap | null;
     errorMessage: string | null;
 };
 

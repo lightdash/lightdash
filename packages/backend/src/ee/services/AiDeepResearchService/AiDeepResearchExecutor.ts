@@ -19,6 +19,7 @@ import {
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     getAiDeepResearchAgent,
     parseAiDeepResearchReport,
+    type AiDeepResearchSubmittedReport,
 } from './AiDeepResearchAgent';
 import type {
     AiDeepResearchExecutor as AiDeepResearchExecutorFn,
@@ -254,7 +255,7 @@ export class AiDeepResearchExecutor {
             tokens: 0,
             exceeded: null,
         };
-        let latestReport: string | null = null;
+        let latestReport: AiDeepResearchSubmittedReport | null = null;
         const completedWarehouseQueryUuids = new Set<string>();
 
         const exceedBudget = (
@@ -393,14 +394,15 @@ export class AiDeepResearchExecutor {
             ) {
                 return {
                     status: 'partially_completed',
-                    reportMarkdown:
-                        latestReport ??
-                        getPartialReportMarkdown(
+                    report: latestReport ?? {
+                        markdown: getPartialReportMarkdown(
                             run,
                             budgetState.exceeded
                                 ? `The ${budgetState.exceeded} budget was exhausted.`
                                 : 'The runtime budget was exhausted.',
                         ),
+                        charts: [],
+                    },
                     warehouseQueryUuids: [...completedWarehouseQueryUuids],
                 };
             }
@@ -422,7 +424,7 @@ export class AiDeepResearchExecutor {
             }
             return {
                 status: 'completed',
-                reportMarkdown: latestReport,
+                report: latestReport,
                 warehouseQueryUuids: [...completedWarehouseQueryUuids],
             };
         } finally {
