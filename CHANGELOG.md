@@ -1,3 +1,10 @@
+## [0.3409.1](https://github.com/lightdash/lightdash/compare/0.3409.0...0.3409.1) (2026-07-17)
+
+
+### Bug Fixes
+
+* derive inherited space role from org-level custom role scopes ([#25728](https://github.com/lightdash/lightdash/issues/25728)) ([b1f0474](https://github.com/lightdash/lightdash/commit/b1f0474914fdb31a08b4d4a98d3768de5b55cf2e)), closes [#25680](https://github.com/lightdash/lightdash/issues/25680)
+
 # [0.3409.0](https://github.com/lightdash/lightdash/compare/0.3408.1...0.3409.0) (2026-07-17)
 
 
