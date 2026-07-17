@@ -3049,7 +3049,7 @@ const AppGenerate: FC = () => {
                                                 previewApp ? (
                                                     <Menu.Item
                                                         component={Link}
-                                                        to={`/projects/${projectUuid}/apps/${previewApp.appUuid}/preview`}
+                                                        to={`/projects/${projectUuid}/apps/${previewApp.appUuid}/view`}
                                                         target="_blank"
                                                         leftSection={
                                                             <MantineIcon

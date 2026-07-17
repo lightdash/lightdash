@@ -5335,7 +5335,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         // ChatMessageContent) back to the preview version it came from, for
         // provenance.
         const sourceDisplayName = sourceApp.name || 'untitled app';
-        const sourcePreviewPath = `/projects/${projectUuid}/apps/${sourceApp.app_id}/versions/${sourceVersion.version}/preview`;
+        const sourcePreviewPath = `/projects/${projectUuid}/apps/${sourceApp.app_id}/versions/${sourceVersion.version}/view`;
         const prompt = `Promote [${sourceDisplayName}](${sourcePreviewPath})`;
         const { client: s3Client, bucket } = this.getS3Client();
 
@@ -5627,7 +5627,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         // app" with a markdown link to the source's preview at the version
         // we forked from, and a static assistant reply confirming success.
         const sourceDisplayName = sourceApp.name || 'untitled app';
-        const sourcePreviewPath = `/projects/${projectUuid}/apps/${sourceApp.app_id}/versions/${sourceVersion.version}/preview`;
+        const sourcePreviewPath = `/projects/${projectUuid}/apps/${sourceApp.app_id}/versions/${sourceVersion.version}/view`;
         const duplicatePrompt = `Duplicate [${sourceDisplayName}](${sourcePreviewPath})`;
 
         try {
@@ -5860,7 +5860,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         const newVersion = 1;
 
         const sourceDisplayName = sourceApp.name || 'untitled app';
-        const sourcePreviewPath = `/projects/${sourceProjectUuid}/apps/${sourceApp.app_id}/versions/${sourceVersion.version}/preview`;
+        const sourcePreviewPath = `/projects/${sourceProjectUuid}/apps/${sourceApp.app_id}/versions/${sourceVersion.version}/view`;
         const prompt = `Duplicate [${sourceDisplayName}](${sourcePreviewPath})`;
 
         // Keep the S3 copy inside the try so an S3 failure is per-app (logged

@@ -10,6 +10,7 @@ import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
 import CreateProjectSettings from './components/Settings/CreateProjectSettings';
 import UserCompletionModal from './components/UserCompletionModal';
+import LegacyAppPreviewRedirect from './features/apps/LegacyAppPreviewRedirect';
 import { loadLazyRouteDefault } from './features/chunkErrorHandler';
 import { MetricCatalogView } from './features/metricsCatalog/types';
 import { TrackPage } from './providers/Tracking/TrackingProvider';
@@ -637,7 +638,7 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         },
     },
     {
-        path: 'apps/:appUuid/versions/:version/preview',
+        path: 'apps/:appUuid/versions/:version/view',
         handle: { hideAILauncher: true },
         lazy: async () => {
             const AppPreviewTest = await loadLazyRouteDefault(
@@ -648,7 +649,7 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         },
     },
     {
-        path: 'apps/:appUuid/preview',
+        path: 'apps/:appUuid/view',
         handle: { hideAILauncher: true },
         lazy: async () => {
             const AppPreviewTest = await loadLazyRouteDefault(
@@ -657,6 +658,14 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
             );
             return { Component: AppPreviewTest };
         },
+    },
+    {
+        path: 'apps/:appUuid/versions/:version/preview',
+        element: <LegacyAppPreviewRedirect />,
+    },
+    {
+        path: 'apps/:appUuid/preview',
+        element: <LegacyAppPreviewRedirect />,
     },
     {
         path: 'user-activity',

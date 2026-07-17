@@ -36,6 +36,7 @@ import ProjectSwitcher from './components/NavBar/ProjectSwitcher';
 import { ThemeSwitcher } from './components/NavBar/ThemeSwitcher';
 import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
+import LegacyAppPreviewRedirect from './features/apps/LegacyAppPreviewRedirect';
 import { loadLazyRouteDefault } from './features/chunkErrorHandler';
 import { useActiveProjectUuid } from './hooks/useActiveProject';
 import useLogoutMutation from './hooks/user/useUserLogoutMutation';
@@ -441,7 +442,7 @@ const APP_ROUTES: RouteObject[] = [
                         },
                     },
                     {
-                        path: '/projects/:projectUuid/apps/:appUuid/preview',
+                        path: '/projects/:projectUuid/apps/:appUuid/view',
                         lazy: async () => {
                             const AppPreviewTest = await loadLazyRouteDefault(
                                 './pages/AppPreviewTest',
@@ -451,7 +452,7 @@ const APP_ROUTES: RouteObject[] = [
                         },
                     },
                     {
-                        path: '/projects/:projectUuid/apps/:appUuid/versions/:version/preview',
+                        path: '/projects/:projectUuid/apps/:appUuid/versions/:version/view',
                         lazy: async () => {
                             const AppPreviewTest = await loadLazyRouteDefault(
                                 './pages/AppPreviewTest',
@@ -459,6 +460,14 @@ const APP_ROUTES: RouteObject[] = [
                             );
                             return { Component: AppPreviewTest };
                         },
+                    },
+                    {
+                        path: '/projects/:projectUuid/apps/:appUuid/preview',
+                        element: <LegacyAppPreviewRedirect />,
+                    },
+                    {
+                        path: '/projects/:projectUuid/apps/:appUuid/versions/:version/preview',
+                        element: <LegacyAppPreviewRedirect />,
                     },
                 ],
             },

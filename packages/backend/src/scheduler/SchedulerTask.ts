@@ -510,7 +510,7 @@ export default class SchedulerTask {
                 throw new Error(`App not found: ${appUuid}`);
             }
             return {
-                url: `${this.lightdashConfig.siteUrl}/projects/${app.project_uuid}/apps/${appUuid}/preview`,
+                url: `${this.lightdashConfig.siteUrl}/projects/${app.project_uuid}/apps/${appUuid}/view`,
                 minimalUrl: `${this.lightdashConfig.headlessBrowser.internalLightdashHost}/minimal/projects/${app.project_uuid}/apps/${appUuid}`,
                 details: {
                     name: app.name,
@@ -653,7 +653,7 @@ export default class SchedulerTask {
         );
         let deliveryUrl: string;
         if (appUuid) {
-            deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/apps/${appUuid}/preview?${schedulerUuidParam}`;
+            deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/apps/${appUuid}/view?${schedulerUuidParam}`;
         } else if (savedChartUuid) {
             deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${savedChartUuid}/view?${schedulerUuidParam}`;
         } else {
