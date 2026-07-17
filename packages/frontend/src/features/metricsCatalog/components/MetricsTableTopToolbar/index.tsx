@@ -33,8 +33,9 @@ import {
     ActionIcon,
     SegmentedControl,
     Badge,
+    Popover,
 } from '@mantine-8/core';
-import { Popover, Tooltip } from '@mantine/core';
+import { Tooltip } from '@mantine/core';
 import {
     IconEye,
     IconEyeOff,

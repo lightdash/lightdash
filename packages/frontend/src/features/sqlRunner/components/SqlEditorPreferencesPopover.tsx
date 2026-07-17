@@ -5,8 +5,8 @@ import {
     Text,
     ActionIcon,
     SegmentedControl,
+    Popover,
 } from '@mantine-8/core';
-import { Popover } from '@mantine/core';
 import { IconCodeCircle } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';

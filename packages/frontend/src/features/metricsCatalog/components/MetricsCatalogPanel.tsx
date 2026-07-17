@@ -8,8 +8,9 @@ import {
     Button,
     type ButtonProps,
     ActionIcon,
+    Popover,
 } from '@mantine-8/core';
-import { Popover, useMantineTheme } from '@mantine/core';
+import { useMantineTheme } from '@mantine/core';
 import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import { IconRefresh, IconSparkles, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
@@ -41,6 +42,7 @@ import {
 } from '../store/metricsCatalogSlice';
 import { type MetricCatalogView } from '../types';
 import { MetricChartUsageModal } from './MetricChartUsageModal';
+import classes from './MetricsCatalogPanel.module.css';
 import { MetricsTable } from './MetricsTable';
 
 const LOCAL_STORAGE_KEY = 'metrics-catalog-learn-more-popover-closed';
@@ -99,10 +101,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                 bg="ldDark.6"
                 c="white"
                 p={16}
-                sx={{
-                    borderRadius: 12,
-                    alignItems: 'flex-start',
-                }}
+                className={classes.spotlightDropdown}
             >
                 <Stack gap="sm" w="100%" ref={ref}>
                     <Group justify="space-between">

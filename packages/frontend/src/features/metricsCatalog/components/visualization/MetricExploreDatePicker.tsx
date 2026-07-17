@@ -14,8 +14,9 @@ import {
     UnstyledButton,
     Button,
     SegmentedControl,
+    Popover,
 } from '@mantine-8/core';
-import { Popover, Tooltip } from '@mantine/core';
+import { Tooltip } from '@mantine/core';
 import { DatePicker, MonthPicker, YearPicker } from '@mantine/dates';
 import { useCallback, useEffect, useRef, type FC } from 'react';
 import useTracking from '../../../../providers/Tracking/useTracking';

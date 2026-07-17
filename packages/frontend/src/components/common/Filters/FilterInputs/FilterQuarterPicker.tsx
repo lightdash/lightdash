@@ -1,6 +1,6 @@
 import { formatDate, TimeFrames } from '@lightdash/common';
-import { TextInput, Stack, Text } from '@mantine-8/core';
-import { Popover, type MantineTheme, type Sx } from '@mantine/core';
+import { TextInput, Stack, Text, Popover } from '@mantine-8/core';
+import { type MantineTheme, type Sx } from '@mantine/core';
 import { MonthPicker, type MonthPickerProps } from '@mantine/dates';
 import { useDisclosure } from '@mantine/hooks';
 import dayjs from 'dayjs';

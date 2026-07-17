@@ -13,8 +13,8 @@ import {
     Group,
     Stack,
     Select,
+    Popover,
 } from '@mantine-8/core';
-import { Popover } from '@mantine/core';
 import { useDebouncedState, useHover } from '@mantine/hooks';
 import {
     IconChevronDown,
