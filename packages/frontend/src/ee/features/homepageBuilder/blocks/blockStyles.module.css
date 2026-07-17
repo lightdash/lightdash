@@ -328,3 +328,270 @@ a .hoverCard:hover,
     background: var(--mantine-color-ldGray-0);
     border-color: var(--mantine-color-ldGray-3);
 }
+
+/* --- Resource cards ---------------------------------------------------- */
+
+.mediaGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 10px;
+}
+
+.mediaCard {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 10px;
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    box-shadow: var(--mantine-shadow-subtle);
+    color: inherit;
+    text-decoration: none;
+    transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mediaCard.clickable:hover {
+    box-shadow: var(--mantine-shadow-heavy);
+    transform: translateY(-2px);
+    text-decoration: none;
+    color: inherit;
+}
+
+.resThumb {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: var(--mantine-color-ldGray-1);
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.resThumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    animation: resFadeIn 0.2s ease-out;
+    transition: transform 0.25s ease;
+}
+
+.mediaCard.clickable:hover .resThumb img {
+    transform: scale(1.03);
+}
+
+.resThumbFallback {
+    display: grid;
+    place-items: center;
+    color: var(--mantine-color-ldGray-6);
+}
+
+/* App-store style tile: blurred colour backdrop + crisp floating favicon */
+.resThumbTile {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    background: var(--mantine-color-ldGray-1);
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.resThumbBackdrop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: blur(18px) saturate(1.25);
+    transform: scale(1.35);
+    animation: resFadeIn 0.2s ease-out;
+}
+
+.resFaviconFloat,
+.resGlyphFloat {
+    position: relative;
+    z-index: 1;
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    object-fit: contain;
+    background: light-dark(#fff, var(--mantine-color-dark-5));
+    box-shadow:
+        0 3px 14px rgba(0, 0, 0, 0.22),
+        0 0 0 1px rgba(0, 0, 0, 0.04);
+    animation: resFadeIn 0.2s ease-out;
+}
+
+.resFaviconFloat {
+    padding: 8px;
+}
+
+.resGlyphFloat {
+    display: grid;
+    place-items: center;
+    color: var(--mantine-color-ldGray-7);
+}
+
+.resThumbClaude {
+    background: light-dark(#f8ede8, #3a2a22);
+    color: light-dark(#c15f3c, #e0916f);
+}
+
+.resThumbYoutube {
+    background: light-dark(#fdecec, #3a2323);
+    color: light-dark(#c0392b, #e07a6f);
+}
+
+.resFavicon {
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+    object-fit: contain;
+    animation: resFadeIn 0.2s ease-out;
+}
+
+.mediaBody {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 9px 11px 11px;
+}
+
+.mediaKind {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--mantine-color-ldGray-5);
+}
+
+.mediaExternal {
+    margin-left: auto;
+    color: var(--mantine-color-ldGray-4);
+}
+
+.mediaTitle {
+    font-size: 13.5px;
+    font-weight: 600;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.mediaDesc {
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--mantine-color-ldGray-6);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.mediaTitleInput input {
+    font-weight: 600;
+}
+
+/* Small leading thumbnail for list rows */
+.rowThumb {
+    width: 34px;
+    height: 34px;
+    border-radius: 7px;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 1px solid var(--mantine-color-ldGray-2);
+    background: var(--mantine-color-ldGray-1);
+}
+
+.rowThumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.rowThumbFallback {
+    display: grid;
+    place-items: center;
+}
+
+.rowFavicon {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+}
+
+/* Skeletons while a pasted link resolves */
+.skeletonBlock,
+.skeletonLine {
+    background: linear-gradient(
+        90deg,
+        var(--mantine-color-ldGray-1),
+        var(--mantine-color-ldGray-2),
+        var(--mantine-color-ldGray-1)
+    );
+    background-size: 200% 100%;
+    animation: resShimmer 1.2s ease-in-out infinite;
+    border-radius: 6px;
+}
+
+.skeletonLine {
+    height: 10px;
+}
+
+.skeletonKind {
+    width: 40%;
+}
+
+.skeletonShort {
+    width: 60%;
+}
+
+.skeletonRowSecond {
+    margin-top: 5px;
+}
+
+@keyframes resShimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+@keyframes resFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mediaCard,
+    .resThumb img {
+        transition: none;
+    }
+    .mediaCard.clickable:hover {
+        transform: none;
+    }
+    .mediaCard.clickable:hover .resThumb img {
+        transform: none;
+    }
+    .resThumb img,
+    .resFavicon {
+        animation: none;
+    }
+    .skeletonBlock,
+    .skeletonLine {
+        animation: none;
+    }
+}

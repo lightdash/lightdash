@@ -3,6 +3,7 @@ import {
     ParameterError,
     type ApiErrorPayload,
     type ApiHomepageAssignmentsResponse,
+    type ApiHomepageLinkMetadataResponse,
     type ApiHomepageViewAsResponse,
     type ApiProjectHomepageOrNullResponse,
     type ApiProjectHomepageResponse,
@@ -190,6 +191,27 @@ export class ProjectHomepageController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 homepageUuid,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/link-metadata')
+    @OperationId('getHomepageLinkMetadata')
+    async getLinkMetadata(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Query() url: string,
+    ): Promise<ApiHomepageLinkMetadataResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getHomepageService().fetchLinkMetadata(
+                toSessionUser(req.account),
+                projectUuid,
+                url,
             ),
         };
     }

@@ -53,6 +53,7 @@ import type {
     ApiGetAppResponse,
     ApiGetDataAppVizResponse,
     ApiGetUserAgentPreferencesResponse,
+    ApiHomepageLinkMetadataResponse,
     ApiHomepageViewAsResponse,
     ApiListDataAppVizsResponse,
     ApiManagedAgentActionResponse,
@@ -1289,6 +1290,7 @@ type ApiResults =
     | ApiProjectHomepageOrNullResponse['results']
     | ApiResolvedHomepageResponse['results']
     | ApiHomepageViewAsResponse['results']
+    | ApiHomepageLinkMetadataResponse['results']
     | ApiProjectColorPaletteResponse['results']
     | ApiOrganizationBrandResponse['results']
     | ApiManagedAgentRunResponse['results']

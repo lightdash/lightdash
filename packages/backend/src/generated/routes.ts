@@ -1534,6 +1534,8 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['video'] },
                 { dataType: 'enum', enums: ['doc'] },
                 { dataType: 'enum', enums: ['link'] },
+                { dataType: 'enum', enums: ['claude'] },
+                { dataType: 'enum', enums: ['youtube'] },
             ],
             validators: {},
         },
@@ -1544,10 +1546,24 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                imageUrl: { dataType: 'string' },
+                description: { dataType: 'string' },
                 kind: { ref: 'HomepageResourceKind', required: true },
                 url: { dataType: 'string', required: true },
                 title: { dataType: 'string', required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageResourcesLayout: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['card'] },
+                { dataType: 'enum', enums: ['list'] },
+            ],
             validators: {},
         },
     },
@@ -1560,6 +1576,7 @@ const models: TsoaRoute.Models = {
                 config: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        layout: { ref: 'HomepageResourcesLayout' },
                         items: {
                             dataType: 'array',
                             array: {
@@ -2119,6 +2136,58 @@ const models: TsoaRoute.Models = {
     ApiProjectHomepageOrNullResponse: {
         dataType: 'refAlias',
         type: { ref: 'ApiSuccess_ProjectHomepage-or-null_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageLinkMetadata: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                imageUrl: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                description: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                title: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                kind: { ref: 'HomepageResourceKind', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_HomepageLinkMetadata_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'HomepageLinkMetadata', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiHomepageLinkMetadataResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess_HomepageLinkMetadata_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     HomepageRecentlyViewedItem: {
@@ -50657,6 +50726,68 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getForBuilder',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectHomepageController_getLinkMetadata: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        url: { in: 'query', name: 'url', required: true, dataType: 'string' },
+    };
+    app.get(
+        '/api/v1/projects/:projectUuid/homepage/link-metadata',
+        ...fetchMiddlewares<RequestHandler>(ProjectHomepageController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectHomepageController.prototype.getLinkMetadata,
+        ),
+
+        async function ProjectHomepageController_getLinkMetadata(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsProjectHomepageController_getLinkMetadata,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ProjectHomepageController>(
+                        ProjectHomepageController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getLinkMetadata',
                     controller,
                     response,
                     next,

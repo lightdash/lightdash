@@ -24,18 +24,41 @@ export type HomepageCollectionBlock = {
     config: { title: string; items: HomepageCollectionItemRef[] };
 };
 
-export type HomepageResourceKind = 'video' | 'doc' | 'link';
+export type HomepageResourceKind =
+    | 'video'
+    | 'doc'
+    | 'link'
+    | 'claude'
+    | 'youtube';
 
 export type HomepageResourceItem = {
     title: string;
     url: string;
     kind: HomepageResourceKind;
+    // Optional for back-compat with already-stored items; new items always set them.
+    description?: string;
+    imageUrl?: string;
 };
+
+export type HomepageResourcesLayout = 'card' | 'list';
 
 export type HomepageResourcesBlock = {
     id: string;
     type: 'resources';
-    config: { title: string; items: HomepageResourceItem[] };
+    config: {
+        title: string;
+        items: HomepageResourceItem[];
+        // Optional for back-compat: undefined renders as 'list'.
+        layout?: HomepageResourcesLayout;
+    };
+};
+
+/** Detected metadata for a pasted resource URL (Claude Artifact / YouTube). */
+export type HomepageLinkMetadata = {
+    kind: HomepageResourceKind;
+    title: string | null;
+    description: string | null;
+    imageUrl: string | null;
 };
 
 export type HomepageAnnouncementItem = {
@@ -261,6 +284,8 @@ export type UpdateProjectHomepageDraftRequest = {
     /** Compare-and-set token: the updatedAt the client based its edit on */
     baseUpdatedAt: Date;
 };
+
+export type ApiHomepageLinkMetadataResponse = ApiSuccess<HomepageLinkMetadata>;
 
 export type ApiProjectHomepageResponse = ApiSuccess<ProjectHomepage>;
 export type ApiProjectHomepagesResponse = ApiSuccess<ProjectHomepage[]>;

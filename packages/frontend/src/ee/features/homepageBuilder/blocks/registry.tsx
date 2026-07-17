@@ -103,12 +103,12 @@ export const blockLibrary: BlockDefinition[] = [
     {
         type: 'resources',
         label: 'Resources',
-        description: 'Curated links — docs, videos, request forms.',
+        description: 'Rich cards — Claude artifacts, YouTube, docs, links.',
         icon: IconBook,
         create: () => ({
             id: uuidv4(),
             type: 'resources',
-            config: { title: 'Getting started', items: [] },
+            config: { title: 'Getting started', items: [], layout: 'card' },
         }),
         View: ResourcesBlockView,
         Build: ResourcesBlockBuild,

@@ -11,6 +11,7 @@ import {
     type HomepageAssignment,
     type HomepageAudience,
     type HomepageConfig,
+    type HomepageLinkMetadata,
     type HomepageRecentlyViewedItem,
     type HomepageViewAsResult,
     type HomepageViewAsTarget,
@@ -24,7 +25,21 @@ import { type GroupsModel } from '../../models/GroupsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
+import { secureFetch } from '../../utils/secureFetch/secureFetch';
 import { type ProjectHomepageModel } from '../models/ProjectHomepageModel';
+import {
+    classifyResourceUrl,
+    parseOpenGraph,
+    parseYoutubeOembed,
+} from './homepageLinkMetadata';
+
+const LINK_METADATA_TIMEOUT_MS = 5_000;
+const LINK_METADATA_MAX_BYTES = 256 * 1024;
+// Some providers (e.g. claude.ai) only server-render per-page OpenGraph tags for
+// recognised link-unfurl crawlers, so identify as one while staying honest about
+// who we are.
+const LINK_PREVIEW_USER_AGENT =
+    'Lightdash-LinkPreview/1.0 (+https://www.lightdash.com; like Slackbot-LinkExpanding)';
 
 export type ProjectHomepageServiceArguments = {
     projectHomepageModel: Pick<
@@ -417,5 +432,57 @@ export class ProjectHomepageService extends BaseService {
             audience,
             allowPersonal,
         );
+    }
+
+    /**
+     * Unfurl a pasted resource URL for the homepage builder. Rejects any host
+     * outside the allowlist (400); for allowed hosts, returns the detected kind
+     * with title/description/imageUrl (nulls if the fetch or parse fails, so the
+     * author can still add the item and type a title). The outbound fetch is
+     * SSRF-hardened (https-only, private-IP blocking, redirect + size + time
+     * caps) via the shared `secureFetch` util.
+     */
+    async fetchLinkMetadata(
+        user: SessionUser,
+        projectUuid: string,
+        url: string,
+    ): Promise<HomepageLinkMetadata> {
+        await this.assertFlagEnabled(user);
+        this.assertCanManage(user, projectUuid);
+
+        const provider = classifyResourceUrl(url);
+        try {
+            if (provider.fetchKind === 'oembed') {
+                const { bodyText } = await secureFetch(provider.fetchUrl, {
+                    method: 'GET',
+                    timeoutMs: LINK_METADATA_TIMEOUT_MS,
+                    maxResponseBytes: LINK_METADATA_MAX_BYTES,
+                    allowedContentTypes: ['application/json'],
+                    headers: { 'User-Agent': LINK_PREVIEW_USER_AGENT },
+                });
+                let json: unknown = null;
+                try {
+                    json = JSON.parse(bodyText);
+                } catch {
+                    json = null;
+                }
+                return { kind: provider.kind, ...parseYoutubeOembed(json) };
+            }
+            const { bodyText } = await secureFetch(provider.fetchUrl, {
+                method: 'GET',
+                timeoutMs: LINK_METADATA_TIMEOUT_MS,
+                maxResponseBytes: LINK_METADATA_MAX_BYTES,
+                allowedContentTypes: ['text/html'],
+                headers: { 'User-Agent': LINK_PREVIEW_USER_AGENT },
+            });
+            return { kind: provider.kind, ...parseOpenGraph(bodyText) };
+        } catch {
+            return {
+                kind: provider.kind,
+                title: null,
+                description: null,
+                imageUrl: null,
+            };
+        }
     }
 }
