@@ -108,6 +108,16 @@ const publishHomepageApi = async (
         body: JSON.stringify({ audience, allowPersonal }),
     });
 
+const discardHomepageDraftApi = async (
+    projectUuid: string,
+    homepageUuid: string,
+) =>
+    lightdashApi<ProjectHomepage>({
+        url: `/projects/${projectUuid}/homepage/${homepageUuid}/discard-draft`,
+        method: 'POST',
+        body: undefined,
+    });
+
 const viewAsApi = async (projectUuid: string, target: HomepageViewAsTarget) => {
     const params = new URLSearchParams({ targetType: target.type });
     if (target.type === 'user') params.set('userUuid', target.userUuid);
@@ -394,6 +404,33 @@ export const useUpdateGroupPriorities = (projectUuid: string) => {
             onError: ({ error }) => {
                 showToastApiError({
                     title: 'Failed to reorder group priority',
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
+
+export const useDiscardHomepageDraft = (
+    projectUuid: string,
+    homepageUuid: string | undefined,
+) => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+    const queryClient = useQueryClient();
+    return useMutation<ProjectHomepage, ApiError, void>(
+        () => discardHomepageDraftApi(projectUuid, homepageUuid!),
+        {
+            mutationKey: ['discard_project_homepage_draft'],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries([
+                    PROJECT_HOMEPAGE_QUERY_KEY,
+                    projectUuid,
+                ]);
+                showToastSuccess({ title: 'Draft reverted to published' });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to revert draft',
                     apiError: error,
                 });
             },

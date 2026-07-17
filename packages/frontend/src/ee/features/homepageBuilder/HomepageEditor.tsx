@@ -39,6 +39,7 @@ import {
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
+    IconArrowBackUp,
     IconArrowDown,
     IconArrowLeft,
     IconArrowRight,
@@ -83,6 +84,7 @@ import {
 import classes from './HomepageEditor.module.css';
 import {
     useDeleteHomepage,
+    useDiscardHomepageDraft,
     usePublishHomepage,
     useUpdateHomepageDraft,
 } from './hooks/useProjectHomepage';
@@ -440,7 +442,7 @@ type Props = {
     onSwitchHomepage: (homepageUuid: string) => void;
     onCreateNew: () => void;
     onDeleted: () => void;
-    onConflictReload: () => void;
+    onReload: () => void;
 };
 
 export const HomepageEditor: FC<Props> = ({
@@ -450,7 +452,7 @@ export const HomepageEditor: FC<Props> = ({
     onSwitchHomepage,
     onCreateNew,
     onDeleted,
-    onConflictReload,
+    onReload,
 }) => {
     const navigate = useNavigate();
     const updateMutation = useUpdateHomepageDraft(
@@ -462,7 +464,12 @@ export const HomepageEditor: FC<Props> = ({
         homepage.homepageUuid,
     );
     const deleteMutation = useDeleteHomepage(projectUuid);
+    const discardDraftMutation = useDiscardHomepageDraft(
+        projectUuid,
+        homepage.homepageUuid,
+    );
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isDiscardModalOpen, setIsDiscardModalOpen] = useState(false);
     const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
 
     const isAiEnabled = useAiAgentButtonVisibility();
@@ -556,6 +563,17 @@ export const HomepageEditor: FC<Props> = ({
             }
         }
         setIsPublishModalOpen(true);
+    };
+
+    const handleDiscardDraft = () => {
+        discardDraftMutation.mutate(undefined, {
+            // Remount from the reverted server state instead of patching local
+            // state — a stale debounced draft would otherwise re-save over it.
+            onSuccess: () => {
+                setIsDiscardModalOpen(false);
+                onReload();
+            },
+        });
     };
 
     const isDirty = draft !== lastSavedRef.current || updateMutation.isLoading;
@@ -772,6 +790,16 @@ export const HomepageEditor: FC<Props> = ({
                         Draft saved
                     </span>
                 )}
+                {homepage.publishedConfig !== null && (
+                    <button
+                        type="button"
+                        className={classes.tbBtn}
+                        onClick={() => setIsDiscardModalOpen(true)}
+                    >
+                        <MantineIcon icon={IconArrowBackUp} size={15} />
+                        Revert to published
+                    </button>
+                )}
                 <button
                     type="button"
                     className={classes.tbBtn}
@@ -799,7 +827,7 @@ export const HomepageEditor: FC<Props> = ({
                         This homepage was changed somewhere else — your latest
                         edits here can’t be saved.
                     </Text>
-                    <Button size="xs" onClick={onConflictReload}>
+                    <Button size="xs" onClick={onReload}>
                         Reload homepage
                     </Button>
                 </div>
@@ -1119,6 +1147,20 @@ export const HomepageEditor: FC<Props> = ({
                         },
                     )
                 }
+            />
+            <MantineModal
+                opened={isDiscardModalOpen}
+                onClose={() =>
+                    !discardDraftMutation.isLoading &&
+                    setIsDiscardModalOpen(false)
+                }
+                title="Revert to published"
+                role="alertdialog"
+                description="This discards your unpublished changes and restores the last published version of this homepage. This can't be undone."
+                confirmLabel="Revert draft"
+                cancelDisabled={discardDraftMutation.isLoading}
+                onConfirm={handleDiscardDraft}
+                confirmLoading={discardDraftMutation.isLoading}
             />
             <MantineModal
                 opened={isDeleteModalOpen}
