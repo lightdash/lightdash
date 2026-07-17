@@ -1,36 +1,59 @@
 import {
+    aiDeepResearchChartDefinitionSchema,
     countDeepResearchFindings,
-    extractDeepResearchCharts,
     findDeepResearchChartBlocks,
-    lintDeepResearchReportMarkdown,
-    spliceDeepResearchChartBlocks,
+    findDeepResearchChartRefs,
+    getDeepResearchChartKey,
+    lintDeepResearchReport,
+    spliceDeepResearchRanges,
+    type AiDeepResearchChartDefinition,
 } from './markdown';
-
-const chartJson = (queryUuid: string, title = 'Revenue by month') =>
-    JSON.stringify({
-        queryUuid,
-        title,
-        chartConfig: {
-            defaultVizType: 'bar',
-            xAxisDimension: 'orders_month',
-            yAxisMetrics: ['orders_total_revenue'],
-            groupBy: null,
-            xAxisType: 'time',
-            stackBars: null,
-            lineType: null,
-            funnelDataInput: null,
-            xAxisLabel: 'Month',
-            yAxisLabel: 'Revenue',
-            secondaryYAxisMetric: null,
-            secondaryYAxisLabel: null,
-        },
-    });
 
 const UUID_A = '11111111-1111-4111-8111-111111111111';
 const UUID_B = '22222222-2222-4222-8222-222222222222';
 
-const chartFence = (queryUuid: string, title?: string) =>
-    `\`\`\`chart\n${chartJson(queryUuid, title)}\n\`\`\``;
+const chartConfig = {
+    defaultVizType: 'bar' as const,
+    xAxisDimension: 'orders_month',
+    yAxisMetrics: ['orders_total_revenue'],
+    groupBy: null,
+    xAxisType: 'time' as const,
+    stackBars: null,
+    lineType: null,
+    funnelDataInput: null,
+    xAxisLabel: 'Month',
+    yAxisLabel: 'Revenue',
+    secondaryYAxisMetric: null,
+    secondaryYAxisLabel: null,
+};
+
+const warehouseChart = (
+    queryUuid: string,
+    title = 'Revenue by month',
+): AiDeepResearchChartDefinition => ({
+    source: 'warehouse',
+    queryUuid,
+    title,
+    chartConfig,
+});
+
+const inlineChart = (
+    key: string,
+    title = 'Derived ratio',
+): AiDeepResearchChartDefinition => ({
+    source: 'inline',
+    key,
+    title,
+    chartConfig,
+    columns: [
+        { id: 'segment', label: 'Segment', type: 'string' },
+        { id: 'ratio', label: 'Ratio', type: 'number' },
+    ],
+    rows: [
+        ['enterprise', 0.8],
+        ['smb', 2.4],
+    ],
+});
 
 const validReport = `The seasonal dip is driven by B2B churn, with high confidence overall.
 
@@ -40,113 +63,57 @@ const validReport = `The seasonal dip is driven by B2B churn, with high confiden
 
 Revenue grew steadily until spring.
 
-${chartFence(UUID_A)}
+[Revenue by month](#chart-${UUID_A})
 
 The dip aligns with contract renewals.
 
 ## Conclusion
 
 - B2B churn explains the dip.
-- Renewal timing is the main driver.
 `;
 
-describe('findDeepResearchChartBlocks', () => {
-    it('finds a backtick chart block with offsets covering the fences', () => {
-        const markdown = `intro\n\n${chartFence(UUID_A)}\n\nafter`;
-        const matches = findDeepResearchChartBlocks(markdown);
-        expect(matches).toHaveLength(1);
-        expect(matches[0].block?.queryUuid).toBe(UUID_A);
-        expect(matches[0].error).toBeNull();
-        expect(markdown.slice(matches[0].start, matches[0].end)).toBe(
-            `${chartFence(UUID_A)}\n`,
+describe('findDeepResearchChartRefs', () => {
+    it('finds chart reference links with offsets', () => {
+        const refs = findDeepResearchChartRefs(validReport);
+        expect(refs).toHaveLength(1);
+        expect(refs[0].key).toBe(UUID_A);
+        expect(refs[0].title).toBe('Revenue by month');
+        expect(validReport.slice(refs[0].start, refs[0].end)).toBe(
+            `[Revenue by month](#chart-${UUID_A})`,
         );
     });
 
-    it('finds tilde-fenced chart blocks', () => {
-        const markdown = `~~~chart\n${chartJson(UUID_A)}\n~~~`;
-        const matches = findDeepResearchChartBlocks(markdown);
-        expect(matches).toHaveLength(1);
-        expect(matches[0].block?.queryUuid).toBe(UUID_A);
-    });
-
-    it('ignores a chart fence nested inside a longer fence', () => {
-        const markdown = `\`\`\`\`md\n${chartFence(UUID_A)}\n\`\`\`\`\n`;
-        expect(findDeepResearchChartBlocks(markdown)).toHaveLength(0);
-    });
-
-    it('ignores non-chart fences', () => {
-        const markdown = '```sql\nSELECT 1;\n```';
-        expect(findDeepResearchChartBlocks(markdown)).toHaveLength(0);
-    });
-
-    it('captures an unclosed chart fence at end of document', () => {
-        const markdown = `text\n\n\`\`\`chart\n${chartJson(UUID_A)}`;
-        const matches = findDeepResearchChartBlocks(markdown);
-        expect(matches).toHaveLength(1);
-        expect(matches[0].end).toBe(markdown.length);
-        expect(matches[0].block?.queryUuid).toBe(UUID_A);
-    });
-
-    it('reports invalid JSON with an actionable error', () => {
-        const matches = findDeepResearchChartBlocks(
-            '```chart\n{not json}\n```',
+    it('ignores references inside code fences', () => {
+        const refs = findDeepResearchChartRefs(
+            '```md\n[Example](#chart-abc)\n```\n\n[Real](#chart-xyz-1)',
         );
-        expect(matches).toHaveLength(1);
-        expect(matches[0].block).toBeNull();
-        expect(matches[0].error).toContain('not valid JSON');
+        expect(refs).toHaveLength(1);
+        expect(refs[0].key).toBe('xyz-1');
     });
 
-    it('rejects grouped charts with an actionable error', () => {
-        const grouped = JSON.parse(chartJson(UUID_A));
-        grouped.chartConfig.groupBy = ['orders_status'];
-        const matches = findDeepResearchChartBlocks(
-            `\`\`\`chart\n${JSON.stringify(grouped)}\n\`\`\``,
-        );
-        expect(matches[0].block).toBeNull();
-        expect(matches[0].error).toContain('groupBy is not supported');
-    });
-
-    it('reports schema violations with the offending path', () => {
-        const matches = findDeepResearchChartBlocks(
-            `\`\`\`chart\n${JSON.stringify({
-                queryUuid: 'not-a-uuid',
-                title: 'x',
-                chartConfig: null,
-            })}\n\`\`\``,
-        );
-        expect(matches[0].block).toBeNull();
-        expect(matches[0].error).toContain('queryUuid');
+    it('does not match ordinary links or citations', () => {
+        expect(
+            findDeepResearchChartRefs(
+                '[Docs](https://example.com) and [1] and [anchor](#sources)',
+            ),
+        ).toHaveLength(0);
     });
 });
 
-describe('extractDeepResearchCharts', () => {
-    it('returns parsed blocks only', () => {
-        const markdown = `${chartFence(UUID_A)}\n\n\`\`\`chart\noops\n\`\`\``;
-        const charts = extractDeepResearchCharts(markdown);
-        expect(charts).toHaveLength(1);
-        expect(charts[0].queryUuid).toBe(UUID_A);
-    });
-});
-
-describe('spliceDeepResearchChartBlocks', () => {
-    it('replaces multiple blocks without invalidating offsets', () => {
-        const markdown = `a\n\n${chartFence(UUID_A)}\n\nb\n\n${chartFence(
-            UUID_B,
-        )}\n\nc`;
-        const matches = findDeepResearchChartBlocks(markdown);
-        const result = spliceDeepResearchChartBlocks(
+describe('spliceDeepResearchRanges', () => {
+    it('replaces multiple ranges without invalidating offsets', () => {
+        const markdown = `a ${'[X](#chart-k1)'} b ${'[Y](#chart-k2)'} c`;
+        const refs = findDeepResearchChartRefs(markdown);
+        const result = spliceDeepResearchRanges(
             markdown,
-            matches.map((match, i) => ({
-                match,
+            refs.map((ref, i) => ({
+                match: ref,
                 replacement: `[removed ${i}]`,
             })),
         );
         expect(result).toContain('[removed 0]');
         expect(result).toContain('[removed 1]');
-        expect(result).not.toContain('```chart');
-        expect(result).toContain('a\n');
-        expect(result).toContain('b\n');
-        expect(result).toContain('c');
+        expect(result).not.toContain('#chart-');
     });
 });
 
@@ -157,90 +124,74 @@ describe('countDeepResearchFindings', () => {
     });
 });
 
-describe('lintDeepResearchReportMarkdown', () => {
+describe('chart definition schemas', () => {
+    it('derives keys per source', () => {
+        expect(getDeepResearchChartKey(warehouseChart(UUID_A))).toBe(UUID_A);
+        expect(getDeepResearchChartKey(inlineChart('tickets-per-1k'))).toBe(
+            'tickets-per-1k',
+        );
+    });
+});
+
+describe('lintDeepResearchReport', () => {
     it('accepts a valid report', () => {
-        expect(lintDeepResearchReportMarkdown(validReport)).toEqual([]);
+        expect(
+            lintDeepResearchReport(validReport, [warehouseChart(UUID_A)]),
+        ).toEqual([]);
     });
 
-    it('requires intro prose before the first heading', () => {
-        const errors = lintDeepResearchReportMarkdown(
-            validReport.replace(/^.*\n\n## Baseline/, '## Baseline'),
-        );
-        expect(errors.some((e) => e.includes('introduction'))).toBe(true);
-    });
-
-    it('requires a conclusion section', () => {
-        const errors = lintDeepResearchReportMarkdown(
-            validReport.replace('## Conclusion', '## Wrap up'),
-        );
-        expect(errors.some((e) => e.includes('## Conclusion'))).toBe(true);
-    });
-
-    it('requires at least one finding section', () => {
-        const errors = lintDeepResearchReportMarkdown(
-            'Intro only.\n\n## Conclusion\n\n- done',
-        );
-        expect(errors.some((e) => e.includes('finding section'))).toBe(true);
-    });
-
-    it('requires exactly one confidence tag per finding section', () => {
-        const errors = lintDeepResearchReportMarkdown(
-            validReport.replace(
-                '<confidence level="high">Complete order history since 2022.</confidence>\n\n',
-                '',
-            ),
+    it('accepts an inline chart referenced by key', () => {
+        const markdown = validReport.replace(
+            `[Revenue by month](#chart-${UUID_A})`,
+            '[Derived ratio](#chart-tickets-per-1k)',
         );
         expect(
+            lintDeepResearchReport(markdown, [inlineChart('tickets-per-1k')]),
+        ).toEqual([]);
+    });
+
+    it('requires every defined chart to be referenced exactly once', () => {
+        const errors = lintDeepResearchReport(validReport, [
+            warehouseChart(UUID_A),
+            warehouseChart(UUID_B, 'Orphan chart'),
+        ]);
+        expect(
             errors.some(
-                (e) => e.includes('Baseline revenue trend') && e.includes('0'),
+                (e) => e.includes(UUID_B) && e.includes('exactly once'),
             ),
         ).toBe(true);
     });
 
-    it('rejects invalid confidence levels', () => {
-        const errors = lintDeepResearchReportMarkdown(
-            validReport.replace('level="high"', 'level="certain"'),
-        );
-        expect(errors.some((e) => e.includes('invalid level'))).toBe(true);
-    });
-
-    it('rejects disallowed html tags', () => {
-        const errors = lintDeepResearchReportMarkdown(
-            `${validReport}\n<script>alert(1)</script>\n`,
-        );
-        expect(errors.some((e) => e.includes('script'))).toBe(true);
-    });
-
-    it('does not flag autolinks as html tags', () => {
-        const errors = lintDeepResearchReportMarkdown(
-            validReport.replace(
-                'Revenue grew steadily until spring.',
-                'Revenue grew steadily until spring, see <https://example.com>.',
+    it('rejects references to undefined charts', () => {
+        const errors = lintDeepResearchReport(validReport, []);
+        expect(
+            errors.some(
+                (e) =>
+                    e.includes(UUID_A) && e.includes('no chart with that key'),
             ),
-        );
-        expect(errors).toEqual([]);
+        ).toBe(true);
     });
 
-    it('rejects unbalanced tags', () => {
-        const errors = lintDeepResearchReportMarkdown(
-            validReport.replace(
-                'The dip aligns with contract renewals.',
-                '<note>\n\nThe dip aligns with contract renewals.',
-            ),
+    it('rejects a chart referenced twice', () => {
+        const markdown = validReport.replace(
+            'The dip aligns with contract renewals.',
+            `The dip aligns with contract renewals.\n\n[Again](#chart-${UUID_A})`,
         );
-        expect(errors.some((e) => e.includes('Unbalanced <note>'))).toBe(true);
+        const errors = lintDeepResearchReport(markdown, [
+            warehouseChart(UUID_A),
+        ]);
+        expect(errors.some((e) => e.includes('found 2 references'))).toBe(true);
     });
 
-    it('rejects more than one chart in a finding section', () => {
-        const errors = lintDeepResearchReportMarkdown(
-            validReport.replace(
-                'The dip aligns with contract renewals.',
-                `The dip aligns with contract renewals.\n\n${chartFence(
-                    UUID_B,
-                    'Second chart',
-                )}`,
-            ),
+    it('rejects more than one chart reference in a finding section', () => {
+        const markdown = validReport.replace(
+            'The dip aligns with contract renewals.',
+            `The dip aligns with contract renewals.\n\n[Second](#chart-${UUID_B})`,
         );
+        const errors = lintDeepResearchReport(markdown, [
+            warehouseChart(UUID_A),
+            warehouseChart(UUID_B, 'Second'),
+        ]);
         expect(
             errors.some(
                 (e) =>
@@ -251,73 +202,194 @@ describe('lintDeepResearchReportMarkdown', () => {
     });
 
     it('accepts one chart in each of two finding sections', () => {
-        const errors = lintDeepResearchReportMarkdown(
+        const markdown = validReport.replace(
+            '## Conclusion',
+            `## Second finding\n\n<confidence level="medium">ok</confidence>\n\nMore prose.\n\n[Second](#chart-${UUID_B})\n\n## Conclusion`,
+        );
+        expect(
+            lintDeepResearchReport(markdown, [
+                warehouseChart(UUID_A),
+                warehouseChart(UUID_B, 'Second'),
+            ]),
+        ).toEqual([]);
+    });
+
+    it('rejects duplicate chart keys', () => {
+        const errors = lintDeepResearchReport(validReport, [
+            warehouseChart(UUID_A),
+            warehouseChart(UUID_A, 'Duplicate'),
+        ]);
+        expect(errors.some((e) => e.includes('defined 2 times'))).toBe(true);
+    });
+
+    it('rejects more than the maximum number of charts', () => {
+        const charts = Array.from({ length: 9 }, (_, i) =>
+            warehouseChart(`33333333-3333-4333-8333-33333333333${i}`),
+        );
+        const errors = lintDeepResearchReport(validReport, charts);
+        expect(errors.some((e) => e.includes('at most 8'))).toBe(true);
+    });
+
+    it('rejects legacy chart code fences', () => {
+        const markdown = validReport.replace(
+            `[Revenue by month](#chart-${UUID_A})`,
+            `\`\`\`chart\n{"queryUuid":"${UUID_A}"}\n\`\`\``,
+        );
+        const errors = lintDeepResearchReport(markdown, [
+            warehouseChart(UUID_A),
+        ]);
+        expect(errors.some((e) => e.includes('Do not embed ```chart'))).toBe(
+            true,
+        );
+    });
+
+    it('requires intro prose before the first heading', () => {
+        const errors = lintDeepResearchReport(
+            validReport.replace(/^.*\n\n## Baseline/, '## Baseline'),
+            [warehouseChart(UUID_A)],
+        );
+        expect(errors.some((e) => e.includes('introduction'))).toBe(true);
+    });
+
+    it('requires a conclusion section', () => {
+        const errors = lintDeepResearchReport(
+            validReport.replace('## Conclusion', '## Wrap up'),
+            [warehouseChart(UUID_A)],
+        );
+        expect(errors.some((e) => e.includes('## Conclusion'))).toBe(true);
+    });
+
+    it('requires exactly one confidence tag per finding section', () => {
+        const errors = lintDeepResearchReport(
             validReport.replace(
-                '## Conclusion',
-                `## Second finding\n\n<confidence level="medium">ok</confidence>\n\nMore prose.\n\n${chartFence(
-                    UUID_B,
-                    'Second chart',
-                )}\n\n## Conclusion`,
+                '<confidence level="high">Complete order history since 2022.</confidence>\n\n',
+                '',
             ),
+            [warehouseChart(UUID_A)],
+        );
+        expect(
+            errors.some(
+                (e) => e.includes('Baseline revenue trend') && e.includes('0'),
+            ),
+        ).toBe(true);
+    });
+
+    it('rejects a finding section with two confidence tags', () => {
+        const errors = lintDeepResearchReport(
+            validReport.replace(
+                'Revenue grew steadily until spring.',
+                '<confidence level="low">extra</confidence>\n\nRevenue grew steadily until spring.',
+            ),
+            [warehouseChart(UUID_A)],
+        );
+        expect(errors.some((e) => e.includes('found 2'))).toBe(true);
+    });
+
+    it('rejects invalid confidence levels', () => {
+        const errors = lintDeepResearchReport(
+            validReport.replace('level="high"', 'level="certain"'),
+            [warehouseChart(UUID_A)],
+        );
+        expect(errors.some((e) => e.includes('invalid level'))).toBe(true);
+    });
+
+    it('rejects disallowed html tags', () => {
+        const errors = lintDeepResearchReport(
+            `${validReport}\n<script>alert(1)</script>\n`,
+            [warehouseChart(UUID_A)],
+        );
+        expect(errors.some((e) => e.includes('script'))).toBe(true);
+    });
+
+    it('ignores tags and headings inside code fences', () => {
+        const errors = lintDeepResearchReport(
+            validReport.replace(
+                'Revenue grew steadily until spring.',
+                'Revenue grew steadily until spring.\n\n```sql\n-- <script> ## Not a heading\nSELECT 1;\n```',
+            ),
+            [warehouseChart(UUID_A)],
         );
         expect(errors).toEqual([]);
     });
 
-    it('rejects duplicate chart queryUuids', () => {
-        const errors = lintDeepResearchReportMarkdown(
+    it('rejects unbalanced tags', () => {
+        const errors = lintDeepResearchReport(
             validReport.replace(
                 'The dip aligns with contract renewals.',
-                `The dip aligns with contract renewals.\n\n${chartFence(
-                    UUID_A,
-                    'Duplicate',
-                )}`,
+                '<note>\n\nThe dip aligns with contract renewals.',
             ),
+            [warehouseChart(UUID_A)],
         );
-        expect(
-            errors.some((e) => e.includes('more than one chart block')),
-        ).toBe(true);
-    });
-
-    it('rejects more than the maximum number of charts', () => {
-        const manyCharts = Array.from({ length: 9 }, (_, i) =>
-            chartFence(`33333333-3333-4333-8333-33333333333${i}`, `Chart ${i}`),
-        ).join('\n\n');
-        const errors = lintDeepResearchReportMarkdown(
-            validReport.replace(chartFence(UUID_A), manyCharts),
-        );
-        expect(errors.some((e) => e.includes('at most 8'))).toBe(true);
-    });
-
-    it('surfaces chart block json errors', () => {
-        const errors = lintDeepResearchReportMarkdown(
-            validReport.replace(chartFence(UUID_A), '```chart\n{broken\n```'),
-        );
-        expect(
-            errors.some(
-                (e) =>
-                    e.includes('Chart block 1 is invalid') &&
-                    e.includes('not valid JSON'),
-            ),
-        ).toBe(true);
+        expect(errors.some((e) => e.includes('Unbalanced <note>'))).toBe(true);
     });
 
     it('requires a sources section when citations are used', () => {
-        const errors = lintDeepResearchReportMarkdown(
+        const errors = lintDeepResearchReport(
             validReport.replace(
                 'The dip aligns with contract renewals.',
                 'The dip aligns with contract renewals [1].',
             ),
+            [warehouseChart(UUID_A)],
         );
         expect(errors.some((e) => e.includes('## Sources'))).toBe(true);
     });
 
     it('accepts citations when a sources section exists', () => {
-        const errors = lintDeepResearchReportMarkdown(
+        const errors = lintDeepResearchReport(
             `${validReport.replace(
                 'The dip aligns with contract renewals.',
                 'The dip aligns with contract renewals [1].',
-            )}\n## Sources\n\n1. [SaaS churn benchmarks](https://example.com) — industry baseline\n`,
+            )}\n## Sources\n\n1. [Benchmarks](https://example.com) — baseline\n`,
+            [warehouseChart(UUID_A)],
         );
         expect(errors).toEqual([]);
+    });
+});
+
+describe('chart definition validation', () => {
+    it('rejects grouped chart configs', () => {
+        const result = aiDeepResearchChartDefinitionSchema.safeParse({
+            ...warehouseChart(UUID_A),
+            chartConfig: { ...chartConfig, groupBy: ['orders_status'] },
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(
+                result.error.issues.some((i) =>
+                    i.message.includes('groupBy is not supported'),
+                ),
+            ).toBe(true);
+        }
+    });
+
+    it('rejects inline rows wider than the columns', () => {
+        const chart = inlineChart('bad-rows');
+        const result = aiDeepResearchChartDefinitionSchema.safeParse({
+            ...chart,
+            rows: [['enterprise', 0.8, 'extra']],
+        });
+        expect(result.success).toBe(false);
+    });
+
+    it('rejects inline charts exceeding the row cap', () => {
+        const chart = inlineChart('too-big');
+        const result = aiDeepResearchChartDefinitionSchema.safeParse({
+            ...chart,
+            rows: Array.from({ length: 101 }, (_, i) => [`s${i}`, i]),
+        });
+        expect(result.success).toBe(false);
+    });
+});
+
+describe('legacy chart fences', () => {
+    it('still parses legacy fenced blocks for migration', () => {
+        const legacy = `\`\`\`chart\n${JSON.stringify({
+            queryUuid: UUID_A,
+            title: 'Legacy',
+            chartConfig,
+        })}\n\`\`\``;
+        const matches = findDeepResearchChartBlocks(legacy);
+        expect(matches).toHaveLength(1);
+        expect(matches[0].block?.queryUuid).toBe(UUID_A);
     });
 });

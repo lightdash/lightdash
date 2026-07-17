@@ -213,6 +213,7 @@ export const adaptDeepResearchRun = ({
                 createdAt: event.createdAt,
             })),
         resultMarkdown: run.resultMarkdown,
+        resultChartData: run.resultChartData,
         errorMessage: run.errorMessage,
     };
 };

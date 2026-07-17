@@ -1,4 +1,6 @@
 import { type ApiSuccess } from '../../types/api/success';
+import { type ItemsMap } from '../../types/field';
+import { type MetricQuery } from '../../types/metricQuery';
 
 export const AI_DEEP_RESEARCH_RUN_STATUSES = [
     'queued',
@@ -87,6 +89,45 @@ export type AiDeepResearchChartConfig = {
     secondaryYAxisLabel: string | null;
 };
 
+export type AiDeepResearchChartSnapshotValue = string | number | boolean | null;
+
+/** The rendered dataset of a report chart, frozen at publish time. */
+export type AiDeepResearchChartSnapshot = {
+    takenAt: string;
+    rowCount: number;
+    truncated: boolean;
+    /** Field ids ordering the values in each row. */
+    columnOrder: string[];
+    /** Raw row values ordered by `columnOrder`; formatted client-side. */
+    rows: AiDeepResearchChartSnapshotValue[][];
+};
+
+/**
+ * Everything the UI needs to render one report chart, keyed by chart key in
+ * `AiDeepResearchRun.resultChartData`. Written entirely by the backend at
+ * publish time; the markdown only carries [title](#chart-<key>) references.
+ */
+export type AiDeepResearchChartData = {
+    source: 'warehouse' | 'inline';
+    title: string;
+    chartConfig: AiDeepResearchChartConfig;
+    /** Warehouse charts: the verified execution this chart is evidence of. */
+    queryUuid: string | null;
+    /** Inline charts: verified executions the data was derived from. */
+    derivedFrom: string[] | null;
+    /** Real for warehouse charts, synthesized for inline ones. */
+    metricQuery: MetricQuery;
+    /** Selected + filter fields; drives labels and value formatting. */
+    fields: ItemsMap;
+    /** Null only for reports persisted before snapshots existed. */
+    snapshot: AiDeepResearchChartSnapshot | null;
+};
+
+export type AiDeepResearchChartDataMap = Record<
+    string,
+    AiDeepResearchChartData
+>;
+
 export const AI_DEEP_RESEARCH_EVENT_TYPES = [
     'status_changed',
     'cancellation_requested',
@@ -165,8 +206,10 @@ export type AiDeepResearchRun = {
     promptUuid: string | null;
     prompt: string;
     status: AiDeepResearchRunStatus;
-    /** The report as a single markdown document with embedded chart blocks. */
+    /** The report narrative with [title](#chart-<key>) chart references. */
     resultMarkdown: string | null;
+    /** Render data for each referenced chart, keyed by chart key. */
+    resultChartData: AiDeepResearchChartDataMap | null;
     budget: AiDeepResearchBudget;
     errorMessage: string | null;
     cancellationRequestedAt: string | null;

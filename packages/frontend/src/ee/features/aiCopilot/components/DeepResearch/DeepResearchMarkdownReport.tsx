@@ -1,7 +1,6 @@
 import {
-    AI_DEEP_RESEARCH_CHART_LANGUAGE,
     AI_DEEP_RESEARCH_MARKDOWN_TAGS,
-    aiDeepResearchChartBlockSchema,
+    type AiDeepResearchChartDataMap,
     type AiDeepResearchConfidence,
 } from '@lightdash/common';
 import { Badge, Group, Text } from '@mantine-8/core';
@@ -9,12 +8,13 @@ import {
     createContext,
     useContext,
     useMemo,
+    type AnchorHTMLAttributes,
     type FC,
     type ReactNode,
 } from 'react';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
-import { type CustomRendererProps, type StreamdownProps } from 'streamdown';
+import { type StreamdownProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown/AiMarkdown';
 import Callout from '../../../../../components/common/Callout';
 import { DeepResearchChartTile } from './DeepResearchChartTile';
@@ -23,6 +23,7 @@ import styles from './DeepResearchReport.module.css';
 const DeepResearchReportContext = createContext<{
     projectUuid: string;
     runUuid: string;
+    chartData: AiDeepResearchChartDataMap | null;
 } | null>(null);
 
 const CONFIDENCE_COLORS: Record<AiDeepResearchConfidence, string> = {
@@ -60,42 +61,45 @@ const ConfidenceBadge: FC<{ level: unknown; children?: ReactNode }> = ({
     );
 };
 
-const ChartBlockRenderer: FC<CustomRendererProps> = ({ code }) => {
-    const context = useContext(DeepResearchReportContext);
-    const chart = useMemo(() => {
-        try {
-            const parsed = aiDeepResearchChartBlockSchema.safeParse(
-                JSON.parse(code),
-            );
-            return parsed.success ? parsed.data : null;
-        } catch {
-            return null;
-        }
-    }, [code]);
+const CHART_HREF_PREFIX = '#chart-';
 
-    if (!context || !chart) {
+/**
+ * Chart references arrive as plain links, [Title](#chart-<key>), and hydrate
+ * into chart tiles from the run's persisted chart data. Every other link
+ * renders as a regular external anchor.
+ */
+const ReportLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
+    href,
+    children,
+}) => {
+    const context = useContext(DeepResearchReportContext);
+    const linkHref = typeof href === 'string' ? href : undefined;
+
+    if (linkHref?.startsWith(CHART_HREF_PREFIX)) {
+        const chartKey = linkHref.slice(CHART_HREF_PREFIX.length);
+        const chart = context?.chartData?.[chartKey];
+        if (!context || !chart) {
+            return (
+                <Callout variant="warning" title="Chart unavailable">
+                    This chart could not be displayed.
+                </Callout>
+            );
+        }
         return (
-            <Callout variant="warning" title="Chart unavailable">
-                This chart could not be displayed.
-            </Callout>
+            <DeepResearchChartTile
+                chartKey={chartKey}
+                chart={chart}
+                projectUuid={context.projectUuid}
+                runUuid={context.runUuid}
+            />
         );
     }
-    return (
-        <DeepResearchChartTile
-            chart={chart}
-            projectUuid={context.projectUuid}
-            runUuid={context.runUuid}
-        />
-    );
-};
 
-const CHART_PLUGINS: StreamdownProps['plugins'] = {
-    renderers: [
-        {
-            language: AI_DEEP_RESEARCH_CHART_LANGUAGE,
-            component: ChartBlockRenderer,
-        },
-    ],
+    return (
+        <a href={linkHref} target="_blank" rel="noreferrer">
+            {children as ReactNode}
+        </a>
+    );
 };
 
 // Streamdown's `allowedTags` prop cannot be used here: it rewrites blank
@@ -142,35 +146,39 @@ const MARKDOWN_COMPONENTS: StreamdownProps['components'] = {
     confidence: ({ children, level }: Record<string, unknown>) => (
         <ConfidenceBadge level={level}>{children as ReactNode}</ConfidenceBadge>
     ),
+    // The components map's custom-tag index signature and the `a` key demand
+    // contradictory prop types; the runtime contract is plain anchor props.
+    a: ReportLink as unknown as NonNullable<StreamdownProps['components']>['a'],
 };
 
 type Props = {
     markdown: string;
+    chartData: AiDeepResearchChartDataMap | null;
     projectUuid: string;
     runUuid: string;
 };
 
 /**
  * Renders a deep research report markdown document as one linear flow:
- * prose via streamdown, ```chart fences hydrated into live visualizations,
- * and the whitelisted callout/confidence tags mapped to house components.
- * Must NOT pass rehypePlugins — that would disable `allowedTags` sanitization.
+ * prose via streamdown, [title](#chart-<key>) references hydrated into
+ * chart tiles from the run's chart data, and the whitelisted
+ * callout/confidence tags mapped to house components.
  */
 export const DeepResearchMarkdownReport: FC<Props> = ({
     markdown,
+    chartData,
     projectUuid,
     runUuid,
 }) => {
     const contextValue = useMemo(
-        () => ({ projectUuid, runUuid }),
-        [projectUuid, runUuid],
+        () => ({ projectUuid, runUuid, chartData }),
+        [projectUuid, runUuid, chartData],
     );
     return (
         <DeepResearchReportContext.Provider value={contextValue}>
             <AiMarkdown
                 className={styles.reportBody}
                 rehypePlugins={REHYPE_PLUGINS}
-                plugins={CHART_PLUGINS}
                 components={MARKDOWN_COMPONENTS}
             >
                 {markdown}

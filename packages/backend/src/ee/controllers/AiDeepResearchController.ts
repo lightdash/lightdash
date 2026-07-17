@@ -117,29 +117,30 @@ export class AiDeepResearchController extends BaseController {
     }
 
     /**
-     * Load the exact completed metric query behind a report chart.
-     * @summary Get Deep Research chart query
+     * Re-execute the metric query behind a warehouse-backed report chart to
+     * load its live results instead of the persisted snapshot.
+     * @summary Refresh Deep Research chart
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/{aiDeepResearchRunUuid}/charts/{chartQueryUuid}/viz-query')
-    @OperationId('getAiDeepResearchChartVizQuery')
-    async getChartVizQuery(
+    @Post('/{aiDeepResearchRunUuid}/charts/{chartKey}/refresh')
+    @OperationId('refreshAiDeepResearchChart')
+    async refreshChart(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
         @Path() aiDeepResearchRunUuid: UUID,
-        @Path() chartQueryUuid: UUID,
+        @Path() chartKey: string,
     ): Promise<ApiAiAgentThreadMessageVizQueryResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await this.getAiDeepResearchService().getChartVizQuery({
+            results: await this.getAiDeepResearchService().refreshChart({
                 account: req.account,
                 user: toSessionUser(req.account),
                 projectUuid,
                 aiDeepResearchRunUuid,
-                chartQueryUuid,
+                chartKey,
             }),
         };
     }

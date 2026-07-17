@@ -28137,6 +28137,213 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiDeepResearchChartConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                secondaryYAxisLabel: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                secondaryYAxisMetric: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                yAxisLabel: { dataType: 'string', required: true },
+                xAxisLabel: { dataType: 'string', required: true },
+                funnelDataInput: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['row'] },
+                        { dataType: 'enum', enums: ['column'] },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                lineType: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['line'] },
+                        { dataType: 'enum', enums: ['area'] },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                stackBars: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                xAxisType: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['category'] },
+                        { dataType: 'enum', enums: ['time'] },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                groupBy: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'array', array: { dataType: 'string' } },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                yAxisMetrics: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'array', array: { dataType: 'string' } },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                xAxisDimension: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                defaultVizType: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['table'] },
+                        { dataType: 'enum', enums: ['bar'] },
+                        { dataType: 'enum', enums: ['horizontal'] },
+                        { dataType: 'enum', enums: ['line'] },
+                        { dataType: 'enum', enums: ['scatter'] },
+                        { dataType: 'enum', enums: ['pie'] },
+                        { dataType: 'enum', enums: ['funnel'] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiDeepResearchChartSnapshotValue: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'string' },
+                { dataType: 'double' },
+                { dataType: 'boolean' },
+                { dataType: 'enum', enums: [null] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiDeepResearchChartSnapshot: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                rows: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'array',
+                        array: {
+                            dataType: 'refAlias',
+                            ref: 'AiDeepResearchChartSnapshotValue',
+                        },
+                    },
+                    required: true,
+                },
+                columnOrder: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                truncated: { dataType: 'boolean', required: true },
+                rowCount: { dataType: 'double', required: true },
+                takenAt: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiDeepResearchChartData: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                snapshot: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiDeepResearchChartSnapshot' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                fields: { ref: 'ItemsMap', required: true },
+                metricQuery: { ref: 'MetricQuery', required: true },
+                derivedFrom: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'array', array: { dataType: 'string' } },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                queryUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                chartConfig: {
+                    ref: 'AiDeepResearchChartConfig',
+                    required: true,
+                },
+                title: { dataType: 'string', required: true },
+                source: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['warehouse'] },
+                        { dataType: 'enum', enums: ['inline'] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.AiDeepResearchChartData_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'AiDeepResearchChartData' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiDeepResearchChartDataMap: {
+        dataType: 'refAlias',
+        type: { ref: 'Record_string.AiDeepResearchChartData_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiDeepResearchBudget: {
         dataType: 'refAlias',
         type: {
@@ -28192,6 +28399,14 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 budget: { ref: 'AiDeepResearchBudget', required: true },
+                resultChartData: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiDeepResearchChartDataMap' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 resultMarkdown: {
                     dataType: 'union',
                     subSchemas: [
@@ -68091,7 +68306,7 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsAiDeepResearchController_getChartVizQuery: Record<
+    const argsAiDeepResearchController_refreshChart: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -68108,21 +68323,21 @@ export function RegisterRoutes(app: Router) {
             required: true,
             ref: 'UUID',
         },
-        chartQueryUuid: {
+        chartKey: {
             in: 'path',
-            name: 'chartQueryUuid',
+            name: 'chartKey',
             required: true,
-            ref: 'UUID',
+            dataType: 'string',
         },
     };
-    app.get(
-        '/api/v1/ee/projects/:projectUuid/ai-deep-research/:aiDeepResearchRunUuid/charts/:chartQueryUuid/viz-query',
+    app.post(
+        '/api/v1/ee/projects/:projectUuid/ai-deep-research/:aiDeepResearchRunUuid/charts/:chartKey/refresh',
         ...fetchMiddlewares<RequestHandler>(AiDeepResearchController),
         ...fetchMiddlewares<RequestHandler>(
-            AiDeepResearchController.prototype.getChartVizQuery,
+            AiDeepResearchController.prototype.refreshChart,
         ),
 
-        async function AiDeepResearchController_getChartVizQuery(
+        async function AiDeepResearchController_refreshChart(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -68132,7 +68347,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsAiDeepResearchController_getChartVizQuery,
+                    args: argsAiDeepResearchController_refreshChart,
                     request,
                     response,
                 });
@@ -68151,7 +68366,7 @@ export function RegisterRoutes(app: Router) {
                 }
 
                 await templateService.apiHandler({
-                    methodName: 'getChartVizQuery',
+                    methodName: 'refreshChart',
                     controller,
                     response,
                     next,

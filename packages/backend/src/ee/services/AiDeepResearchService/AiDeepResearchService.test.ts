@@ -12,6 +12,7 @@ import {
     type MemberAbility,
     type SessionUser,
 } from '@lightdash/common';
+import { Readable } from 'stream';
 import { AiDeepResearchService } from './AiDeepResearchService';
 
 const budget: AiDeepResearchBudget = {
@@ -66,6 +67,7 @@ const effortBudgets = [
 ] as const;
 
 const chart = {
+    source: 'warehouse' as const,
     queryUuid: '7c4b40ba-79f8-4fd2-9c43-223eca8fa76f',
     title: 'Revenue trend',
     chartConfig: {
@@ -84,9 +86,9 @@ const chart = {
     },
 };
 
-const chartFence = `\`\`\`chart\n${JSON.stringify(chart)}\n\`\`\``;
+const chartRef = `[${chart.title}](#chart-${chart.queryUuid})`;
 
-const report = `Revenue held steady overall, with high confidence.
+const reportMarkdown = `Revenue held steady overall, with high confidence.
 
 ## Baseline
 
@@ -99,10 +101,14 @@ The baseline trend is stable.
 - Revenue held steady.
 `;
 
-const chartReport = report.replace(
+const report = { markdown: reportMarkdown, charts: [] };
+
+const chartReportMarkdown = reportMarkdown.replace(
     'The baseline trend is stable.',
-    `The baseline trend is stable.\n\n${chartFence}`,
+    `The baseline trend is stable.\n\n${chartRef}`,
 );
+
+const chartReport = { markdown: chartReportMarkdown, charts: [chart] };
 
 const userWithProjectAccess = (): SessionUser => {
     const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
@@ -139,6 +145,7 @@ const runRow = (overrides: Record<string, unknown> = {}) => ({
     status: 'queued',
     claude_session_id: null,
     result_markdown: null,
+    result_chart_data: null,
     budget_snapshot: budget,
     error_message: null,
     cancellation_requested_at: null,
@@ -158,6 +165,7 @@ const buildService = (
         schedulerClient?: Record<string, unknown>;
         asyncQueryService?: Record<string, unknown>;
         queryHistoryModel?: Record<string, unknown>;
+        resultsFileStorageClient?: Record<string, unknown>;
         executor?: AnyType;
     } = {},
 ) => {
@@ -212,19 +220,22 @@ const buildService = (
         ...overrides.schedulerClient,
     };
     const asyncQueryService = {
-        getAsyncQueryHistory: vi.fn(),
+        executeAsyncMetricQuery: vi.fn(),
         ...overrides.asyncQueryService,
     };
     const queryHistoryModel = {
         getByQueryUuid: vi.fn(),
-        preserveResults: vi.fn().mockResolvedValue(true),
         ...overrides.queryHistoryModel,
+    };
+    const resultsFileStorageClient = {
+        getDownloadStream: vi.fn().mockResolvedValue(Readable.from([])),
+        ...overrides.resultsFileStorageClient,
     };
     const executor =
         overrides.executor ??
         vi.fn().mockResolvedValue({
             status: 'completed',
-            reportMarkdown: report,
+            report,
             warehouseQueryUuids: [],
         });
     const service = new AiDeepResearchService({
@@ -235,6 +246,7 @@ const buildService = (
         schedulerClient: schedulerClient as AnyType,
         asyncQueryService: asyncQueryService as AnyType,
         queryHistoryModel: queryHistoryModel as AnyType,
+        resultsFileStorageClient: resultsFileStorageClient as AnyType,
         executor,
     });
     return {
@@ -246,6 +258,7 @@ const buildService = (
         schedulerClient,
         asyncQueryService,
         queryHistoryModel,
+        resultsFileStorageClient,
         executor,
     };
 };
@@ -772,45 +785,157 @@ describe('AiDeepResearchService', () => {
 
             await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
 
-            expect(model.markCompleted).toHaveBeenCalledWith('run-1', report);
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                reportMarkdown,
+                {},
+            );
         });
 
-        it('preserves only chart evidence returned by this research run', async () => {
-            const { service, model, queryHistoryModel } = buildService({
+        it('snapshots chart evidence returned by this research run', async () => {
+            const verifiedQuery = {
+                queryUuid: chart.queryUuid,
+                context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                projectUuid: 'project-1',
+                organizationUuid: 'org-1',
+                createdByUserUuid: 'user-1',
+                createdByActorType: 'pat',
+                status: QueryHistoryStatus.READY,
+                resultsFileName: 'evidence.jsonl',
+                resultsExpiresAt: new Date('2099-07-15T12:00:00.000Z'),
+                totalRowCount: 2,
+                metricQuery: {
+                    dimensions: ['orders_order_month'],
+                    metrics: ['orders_total_revenue'],
+                },
+                fields: { orders_order_month: { name: 'orders_order_month' } },
+            };
+            const { service, model, resultsFileStorageClient } = buildService({
                 executor: vi.fn().mockResolvedValue({
                     status: 'completed',
-                    reportMarkdown: chartReport,
+                    report: chartReport,
                     warehouseQueryUuids: [chart.queryUuid],
                 }),
                 queryHistoryModel: {
-                    getByQueryUuid: vi.fn().mockResolvedValue({
-                        queryUuid: chart.queryUuid,
-                        context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
-                        projectUuid: 'project-1',
-                        organizationUuid: 'org-1',
-                        createdByUserUuid: 'user-1',
-                        createdByActorType: 'pat',
-                        status: QueryHistoryStatus.READY,
-                        resultsFileName: 'evidence.jsonl',
-                        resultsExpiresAt: new Date('2099-07-15T12:00:00.000Z'),
-                        metricQuery: {
-                            dimensions: ['orders_order_month'],
-                            metrics: ['orders_total_revenue'],
-                        },
-                    }),
+                    getByQueryUuid: vi.fn().mockResolvedValue(verifiedQuery),
+                },
+                resultsFileStorageClient: {
+                    getDownloadStream: vi
+                        .fn()
+                        .mockResolvedValue(
+                            Readable.from([
+                                '{"orders_order_month":"2026-05","orders_total_revenue":120}\n',
+                                '{"orders_order_month":"2026-06","orders_total_revenue":90}\n',
+                            ]),
+                        ),
                 },
             });
 
             await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
 
-            expect(queryHistoryModel.preserveResults).toHaveBeenCalledWith({
-                queryUuid: chart.queryUuid,
-                projectUuid: 'project-1',
-                createdByUserUuid: 'user-1',
-            });
+            expect(
+                resultsFileStorageClient.getDownloadStream,
+            ).toHaveBeenCalledWith('evidence.jsonl');
             expect(model.markCompleted).toHaveBeenCalledWith(
                 'run-1',
-                chartReport,
+                chartReportMarkdown,
+                {
+                    [chart.queryUuid]: {
+                        source: 'warehouse',
+                        title: chart.title,
+                        chartConfig: chart.chartConfig,
+                        queryUuid: chart.queryUuid,
+                        derivedFrom: null,
+                        metricQuery: verifiedQuery.metricQuery,
+                        fields: verifiedQuery.fields,
+                        snapshot: {
+                            takenAt: expect.any(String),
+                            rowCount: 2,
+                            truncated: false,
+                            columnOrder: [
+                                'orders_order_month',
+                                'orders_total_revenue',
+                            ],
+                            rows: [
+                                ['2026-05', 120],
+                                ['2026-06', 90],
+                            ],
+                        },
+                    },
+                },
+            );
+        });
+
+        it('persists an inline chart with synthesized query metadata and run-scoped provenance', async () => {
+            const inlineChart = {
+                source: 'inline' as const,
+                key: 'refund-share',
+                title: 'Refund share by month',
+                chartConfig: chart.chartConfig,
+                columns: [
+                    { id: 'month', label: 'Month', type: 'string' as const },
+                    {
+                        id: 'refund_share',
+                        label: 'Refund share',
+                        type: 'number' as const,
+                    },
+                ],
+                rows: [
+                    ['2026-05', 0.12],
+                    ['2026-06', 0.19],
+                ],
+                derivedFrom: [
+                    chart.queryUuid,
+                    '00000000-0000-4000-8000-000000000009',
+                ],
+            };
+            const inlineMarkdown = reportMarkdown.replace(
+                'The baseline trend is stable.',
+                `The baseline trend is stable.\n\n[${inlineChart.title}](#chart-${inlineChart.key})`,
+            );
+            const { service, model } = buildService({
+                executor: vi.fn().mockResolvedValue({
+                    status: 'completed',
+                    report: {
+                        markdown: inlineMarkdown,
+                        charts: [inlineChart],
+                    },
+                    warehouseQueryUuids: [chart.queryUuid],
+                }),
+            });
+
+            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
+
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                inlineMarkdown,
+                {
+                    'refund-share': expect.objectContaining({
+                        source: 'inline',
+                        title: inlineChart.title,
+                        queryUuid: null,
+                        derivedFrom: [chart.queryUuid],
+                        metricQuery: expect.objectContaining({
+                            exploreName: 'inline',
+                            dimensions: ['month'],
+                            metrics: ['refund_share'],
+                        }),
+                        fields: expect.objectContaining({
+                            month: expect.objectContaining({
+                                fieldType: 'dimension',
+                            }),
+                            refund_share: expect.objectContaining({
+                                fieldType: 'metric',
+                            }),
+                        }),
+                        snapshot: expect.objectContaining({
+                            rowCount: 2,
+                            truncated: false,
+                            columnOrder: ['month', 'refund_share'],
+                            rows: inlineChart.rows,
+                        }),
+                    }),
+                },
             );
         });
 
@@ -818,7 +943,7 @@ describe('AiDeepResearchService', () => {
             const { service, model, queryHistoryModel } = buildService({
                 executor: vi.fn().mockResolvedValue({
                     status: 'completed',
-                    reportMarkdown: chartReport,
+                    report: chartReport,
                     warehouseQueryUuids: [],
                 }),
             });
@@ -826,20 +951,20 @@ describe('AiDeepResearchService', () => {
             await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
 
             expect(queryHistoryModel.getByQueryUuid).not.toHaveBeenCalled();
-            expect(queryHistoryModel.preserveResults).not.toHaveBeenCalled();
-            const [, persisted] = model.markCompleted.mock.calls[0];
-            expect(persisted).not.toContain('```chart');
-            expect(persisted).toContain('<warning title="Chart omitted">');
+            const [, persisted, chartData] = model.markCompleted.mock.calls[0];
+            expect(chartData).toEqual({});
+            expect(persisted).not.toContain('#chart-');
+            expect(persisted).toContain('*(chart omitted:');
             expect(persisted).toContain(
                 'Some proposed charts were omitted because their query evidence could not be verified.',
             );
         });
 
         it('omits chart fields that are absent from the verified query', async () => {
-            const { service, model, queryHistoryModel } = buildService({
+            const { service, model } = buildService({
                 executor: vi.fn().mockResolvedValue({
                     status: 'completed',
-                    reportMarkdown: chartReport,
+                    report: chartReport,
                     warehouseQueryUuids: [chart.queryUuid],
                 }),
                 queryHistoryModel: {
@@ -853,20 +978,22 @@ describe('AiDeepResearchService', () => {
                         status: QueryHistoryStatus.READY,
                         resultsFileName: 'evidence.jsonl',
                         resultsExpiresAt: null,
+                        totalRowCount: 0,
                         metricQuery: {
                             dimensions: ['orders_order_month'],
                             metrics: ['orders_order_count'],
                         },
+                        fields: {},
                     }),
                 },
             });
 
             await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
 
-            expect(queryHistoryModel.preserveResults).not.toHaveBeenCalled();
-            const [, persisted] = model.markCompleted.mock.calls[0];
-            expect(persisted).not.toContain('```chart');
-            expect(persisted).toContain('<warning title="Chart omitted">');
+            const [, persisted, chartData] = model.markCompleted.mock.calls[0];
+            expect(chartData).toEqual({});
+            expect(persisted).not.toContain('#chart-');
+            expect(persisted).toContain('*(chart omitted:');
         });
 
         it('lets a concurrent cancellation request win over completion', async () => {
@@ -920,12 +1047,13 @@ describe('AiDeepResearchService', () => {
         });
     });
 
-    describe('getChartVizQuery', () => {
-        const queryHistory = {
+    describe('refreshChart', () => {
+        const chartDataEntry = {
+            source: 'warehouse' as const,
+            title: chart.title,
+            chartConfig: chart.chartConfig,
             queryUuid: chart.queryUuid,
-            context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
-            createdByUserUuid: 'user-1',
-            status: QueryHistoryStatus.READY,
+            derivedFrom: null,
             metricQuery: {
                 exploreName: 'orders',
                 dimensions: ['orders_order_month'],
@@ -938,52 +1066,57 @@ describe('AiDeepResearchService', () => {
                 timezone: 'Europe/London',
             },
             fields: {},
-            requestParameters: {
-                parameters: { reporting_currency: 'GBP' },
-            },
+            snapshot: null,
         };
 
-        it('returns the exact creator-owned metric query behind a report chart', async () => {
+        it('re-executes the stored metric query behind a report chart', async () => {
             const { service, asyncQueryService } = buildService({
                 model: {
-                    findByUuidScoped: vi
-                        .fn()
-                        .mockResolvedValue(
-                            runRow({ result_markdown: chartReport }),
-                        ),
+                    findByUuidScoped: vi.fn().mockResolvedValue(
+                        runRow({
+                            result_chart_data: {
+                                [chart.queryUuid]: chartDataEntry,
+                            },
+                        }),
+                    ),
                 },
                 asyncQueryService: {
-                    getAsyncQueryHistory: vi
-                        .fn()
-                        .mockResolvedValue(queryHistory),
+                    executeAsyncMetricQuery: vi.fn().mockResolvedValue({
+                        queryUuid: 'query-2',
+                        cacheMetadata: { cacheHit: true },
+                        metricQuery: chartDataEntry.metricQuery,
+                        fields: {},
+                        warnings: [],
+                    }),
                 },
             });
 
-            const result = await service.getChartVizQuery({
+            const result = await service.refreshChart({
                 account: {} as AnyType,
                 user: userWithProjectAccess(),
                 projectUuid: 'project-1',
                 aiDeepResearchRunUuid: 'run-1',
-                chartQueryUuid: chart.queryUuid,
+                chartKey: chart.queryUuid,
             });
 
-            expect(asyncQueryService.getAsyncQueryHistory).toHaveBeenCalledWith(
-                {
-                    account: {},
-                    projectUuid: 'project-1',
-                    queryUuid: chart.queryUuid,
-                },
-            );
+            expect(
+                asyncQueryService.executeAsyncMetricQuery,
+            ).toHaveBeenCalledWith({
+                account: {},
+                projectUuid: 'project-1',
+                metricQuery: chartDataEntry.metricQuery,
+                context: QueryExecutionContext.AI,
+            });
             expect(result).toEqual({
                 type: AiResultType.QUERY_RESULT,
                 query: {
-                    queryUuid: chart.queryUuid,
-                    cacheMetadata: { cacheHit: false },
-                    metricQuery: queryHistory.metricQuery,
+                    queryUuid: 'query-2',
+                    cacheMetadata: { cacheHit: true },
+                    metricQuery: chartDataEntry.metricQuery,
                     fields: {},
                     warnings: [],
-                    parameterReferences: ['reporting_currency'],
-                    usedParametersValues: { reporting_currency: 'GBP' },
+                    parameterReferences: [],
+                    usedParametersValues: {},
                     resolvedTimezone: 'Europe/London',
                 },
                 metadata: {
@@ -993,32 +1126,58 @@ describe('AiDeepResearchService', () => {
             });
         });
 
-        it('rejects a query that was not executed by the run creator', async () => {
-            const { service } = buildService({
+        it('rejects a chart key that is not part of the persisted report', async () => {
+            const { service, asyncQueryService } = buildService({
                 model: {
                     findByUuidScoped: vi
                         .fn()
-                        .mockResolvedValue(
-                            runRow({ result_markdown: chartReport }),
-                        ),
-                },
-                asyncQueryService: {
-                    getAsyncQueryHistory: vi.fn().mockResolvedValue({
-                        ...queryHistory,
-                        createdByUserUuid: 'user-2',
-                    }),
+                        .mockResolvedValue(runRow({ result_chart_data: {} })),
                 },
             });
 
             await expect(
-                service.getChartVizQuery({
+                service.refreshChart({
                     account: {} as AnyType,
                     user: userWithProjectAccess(),
                     projectUuid: 'project-1',
                     aiDeepResearchRunUuid: 'run-1',
-                    chartQueryUuid: chart.queryUuid,
+                    chartKey: chart.queryUuid,
                 }),
             ).rejects.toBeInstanceOf(NotFoundError);
+            expect(
+                asyncQueryService.executeAsyncMetricQuery,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('rejects refreshing an inline chart', async () => {
+            const { service, asyncQueryService } = buildService({
+                model: {
+                    findByUuidScoped: vi.fn().mockResolvedValue(
+                        runRow({
+                            result_chart_data: {
+                                'refund-share': {
+                                    ...chartDataEntry,
+                                    source: 'inline' as const,
+                                    queryUuid: null,
+                                },
+                            },
+                        }),
+                    ),
+                },
+            });
+
+            await expect(
+                service.refreshChart({
+                    account: {} as AnyType,
+                    user: userWithProjectAccess(),
+                    projectUuid: 'project-1',
+                    aiDeepResearchRunUuid: 'run-1',
+                    chartKey: 'refund-share',
+                }),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(
+                asyncQueryService.executeAsyncMetricQuery,
+            ).not.toHaveBeenCalled();
         });
     });
 

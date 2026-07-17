@@ -1,5 +1,6 @@
 import {
     type AiDeepResearchBudget,
+    type AiDeepResearchChartDataMap,
     type AiDeepResearchEventPayload,
     type AiDeepResearchEventType,
     type AiDeepResearchRunStatus,
@@ -20,6 +21,7 @@ export type DbAiDeepResearchRun = {
     status: AiDeepResearchRunStatus;
     claude_session_id: string | null;
     result_markdown: string | null;
+    result_chart_data: AiDeepResearchChartDataMap | null;
     budget_snapshot: AiDeepResearchBudget;
     error_message: string | null;
     cancellation_requested_at: Date | null;
@@ -48,6 +50,7 @@ export type AiDeepResearchRunsTable = Knex.CompositeTableType<
             | 'status'
             | 'claude_session_id'
             | 'result_markdown'
+            | 'result_chart_data'
             | 'error_message'
             | 'cancellation_requested_at'
             | 'started_at'

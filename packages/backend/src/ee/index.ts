@@ -167,6 +167,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     asyncQueryService: repository.getAsyncQueryService(),
                     queryHistoryModel: models.getQueryHistoryModel(),
+                    resultsFileStorageClient:
+                        clients.getResultsFileStorageClient(),
                     executor: executor.execute,
                 });
             },

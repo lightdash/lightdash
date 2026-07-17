@@ -1,5 +1,6 @@
 import {
     type AiDeepResearchBudget,
+    type AiDeepResearchChartDataMap,
     type AiDeepResearchEventPayload,
     type AiDeepResearchEventPayloadMap,
     type AiDeepResearchEventType,
@@ -195,6 +196,7 @@ export class AiDeepResearchRunModel {
         aiDeepResearchRunUuid: string,
         status: 'completed' | 'partially_completed',
         resultMarkdown: string,
+        resultChartData: AiDeepResearchChartDataMap,
     ): Promise<boolean> {
         return this.database.transaction(async (transaction) => {
             const [run] = await transaction<AiDeepResearchRunsTable>(
@@ -206,6 +208,9 @@ export class AiDeepResearchRunModel {
                 .update({
                     status,
                     result_markdown: resultMarkdown,
+                    result_chart_data: JSON.stringify(
+                        resultChartData,
+                    ) as unknown as AiDeepResearchChartDataMap,
                     error_message: null,
                     completed_at: transaction.fn.now() as unknown as Date,
                     updated_at: transaction.fn.now() as unknown as Date,
@@ -229,22 +234,26 @@ export class AiDeepResearchRunModel {
     async markCompleted(
         aiDeepResearchRunUuid: string,
         resultMarkdown: string,
+        resultChartData: AiDeepResearchChartDataMap,
     ): Promise<boolean> {
         return this.markWithReport(
             aiDeepResearchRunUuid,
             'completed',
             resultMarkdown,
+            resultChartData,
         );
     }
 
     async markPartiallyCompleted(
         aiDeepResearchRunUuid: string,
         resultMarkdown: string,
+        resultChartData: AiDeepResearchChartDataMap,
     ): Promise<boolean> {
         return this.markWithReport(
             aiDeepResearchRunUuid,
             'partially_completed',
             resultMarkdown,
+            resultChartData,
         );
     }
 

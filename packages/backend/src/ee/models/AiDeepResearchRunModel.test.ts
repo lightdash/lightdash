@@ -75,7 +75,7 @@ describe('AiDeepResearchRunModel', () => {
     it('does not overwrite a cancellation request with completion', async () => {
         tracker.on.update(AiDeepResearchRunsTableName).responseOnce([]);
 
-        const updated = await model.markCompleted(RUN_UUID, reportMarkdown);
+        const updated = await model.markCompleted(RUN_UUID, reportMarkdown, {});
 
         expect(updated).toBe(false);
         const [update] = tracker.history.update;

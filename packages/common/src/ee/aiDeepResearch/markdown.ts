@@ -1,17 +1,28 @@
 import { z } from 'zod';
 import { getErrorMessage } from '../../types/errors';
 import {
+    DimensionType,
+    FieldType,
+    MetricType,
+    type Dimension,
+    type ItemsMap,
+    type Metric,
+} from '../../types/field';
+import { type MetricQuery } from '../../types/metricQuery';
+import {
     AI_DEEP_RESEARCH_CONFIDENCE_LEVELS,
     type AiDeepResearchChartConfig,
 } from './types';
 
 export const AI_DEEP_RESEARCH_CHART_LANGUAGE = 'chart';
 export const AI_DEEP_RESEARCH_MAX_CHARTS = 8;
+export const AI_DEEP_RESEARCH_MAX_INLINE_ROWS = 100;
+export const AI_DEEP_RESEARCH_MAX_INLINE_COLUMNS = 10;
 
 /**
  * Whitelisted HTML tags allowed in report markdown, mapped to their allowed
- * attributes. Single source for the frontend sanitizer (streamdown
- * `allowedTags`) and the backend markdown lint.
+ * attributes. Single source for the frontend sanitizer and the backend
+ * markdown lint.
  */
 export const AI_DEEP_RESEARCH_MARKDOWN_TAGS: Record<string, string[]> = {
     note: ['title'],
@@ -44,37 +55,207 @@ const chartConfigSchema: z.ZodType<AiDeepResearchChartConfig> = z.object({
     secondaryYAxisLabel: z.string().nullable(),
 });
 
-export const aiDeepResearchChartBlockSchema = z
-    .object({
-        queryUuid: z.string().uuid(),
-        /** Metadata only (accessibility, error messages) — not rendered. */
-        title: z.string().min(1),
-        chartConfig: chartConfigSchema,
-    })
-    .superRefine((block, context) => {
-        // Grouped charts need a pivoted query execution, which report charts
-        // do not have — they replay the exact preserved research query.
-        if (block.chartConfig.groupBy?.length) {
-            context.addIssue({
-                code: 'custom',
-                path: ['chartConfig', 'groupBy'],
-                message:
-                    'groupBy is not supported in report charts; set it to null and use a separate chart per breakdown instead.',
+const rejectGroupBy = (
+    chartConfig: AiDeepResearchChartConfig,
+    context: z.RefinementCtx,
+) => {
+    // Grouped charts need a pivoted execution; snapshots are unpivoted.
+    if (chartConfig.groupBy?.length) {
+        context.addIssue({
+            code: 'custom',
+            path: ['chartConfig', 'groupBy'],
+            message:
+                'groupBy is not supported in report charts; set it to null and use a separate chart per breakdown instead.',
+        });
+    }
+};
+
+const inlineValueSchema = z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.null(),
+]);
+
+export const aiDeepResearchInlineColumnSchema = z.object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    type: z.enum(['string', 'number', 'boolean', 'date']),
+});
+
+/**
+ * A chart backed by a completed run_metric_query execution. The backend
+ * verifies the queryUuid and injects the snapshot at publish time.
+ */
+const warehouseChartObjectSchema = z.object({
+    source: z.literal('warehouse'),
+    queryUuid: z.string().uuid(),
+    title: z.string().min(1),
+    chartConfig: chartConfigSchema,
+});
+
+/**
+ * A chart whose data the agent computed itself (derived analysis, MCP or
+ * web data). Snapshot-only; `derivedFrom` cites the verified executions
+ * the computation used, when any.
+ */
+const inlineChartObjectSchema = z.object({
+    source: z.literal('inline'),
+    key: z
+        .string()
+        .regex(
+            /^[a-z0-9][a-z0-9-]{1,47}$/,
+            'must be a short lowercase slug (letters, numbers, hyphens)',
+        ),
+    title: z.string().min(1),
+    chartConfig: chartConfigSchema,
+    columns: z
+        .array(aiDeepResearchInlineColumnSchema)
+        .min(1)
+        .max(AI_DEEP_RESEARCH_MAX_INLINE_COLUMNS),
+    rows: z
+        .array(z.array(inlineValueSchema))
+        .min(1)
+        .max(AI_DEEP_RESEARCH_MAX_INLINE_ROWS),
+    derivedFrom: z.array(z.string().uuid()).optional(),
+});
+
+export const aiDeepResearchChartDefinitionSchema = z
+    .discriminatedUnion('source', [
+        warehouseChartObjectSchema,
+        inlineChartObjectSchema,
+    ])
+    .superRefine((chart, context) => {
+        rejectGroupBy(chart.chartConfig, context);
+        if (chart.source === 'inline') {
+            chart.rows.forEach((row, rowIndex) => {
+                if (row.length !== chart.columns.length) {
+                    context.addIssue({
+                        code: 'custom',
+                        path: ['rows', rowIndex],
+                        message: `row ${rowIndex + 1} has ${row.length} values but there are ${chart.columns.length} columns`,
+                    });
+                }
             });
         }
     });
 
-export type AiDeepResearchChartBlock = z.infer<
-    typeof aiDeepResearchChartBlockSchema
+export type AiDeepResearchWarehouseChart = z.infer<
+    typeof warehouseChartObjectSchema
+>;
+export type AiDeepResearchInlineChart = z.infer<typeof inlineChartObjectSchema>;
+export type AiDeepResearchChartDefinition = z.infer<
+    typeof aiDeepResearchChartDefinitionSchema
+>;
+
+export const getDeepResearchChartKey = (
+    chart: AiDeepResearchChartDefinition,
+): string => (chart.source === 'warehouse' ? chart.queryUuid : chart.key);
+
+const INLINE_CHART_TABLE = 'inline';
+
+/**
+ * Synthesizes a fields map for an inline (agent-computed) chart so it renders
+ * through the same pipeline as warehouse-backed charts: number columns become
+ * metrics, everything else dimensions.
+ */
+export const buildInlineChartFields = (
+    columns: AiDeepResearchInlineChart['columns'],
+): ItemsMap =>
+    Object.fromEntries(
+        columns.map((column) => {
+            const base = {
+                name: column.id,
+                label: column.label,
+                table: INLINE_CHART_TABLE,
+                tableLabel: '',
+                sql: '',
+                hidden: false,
+            };
+            if (column.type === 'number') {
+                const metric: Metric = {
+                    ...base,
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.NUMBER,
+                };
+                return [column.id, metric];
+            }
+            const dimensionTypes: Record<string, DimensionType> = {
+                date: DimensionType.DATE,
+                boolean: DimensionType.BOOLEAN,
+                string: DimensionType.STRING,
+            };
+            const dimensionType =
+                dimensionTypes[column.type] ?? DimensionType.STRING;
+            const dimension: Dimension = {
+                ...base,
+                fieldType: FieldType.DIMENSION,
+                type: dimensionType,
+            };
+            return [column.id, dimension];
+        }),
+    );
+
+/** Synthesizes a metric query describing an inline chart's embedded data. */
+export const buildInlineChartMetricQuery = (
+    chart: Pick<AiDeepResearchInlineChart, 'columns' | 'rows'>,
+): MetricQuery => ({
+    exploreName: INLINE_CHART_TABLE,
+    dimensions: chart.columns
+        .filter((column) => column.type !== 'number')
+        .map((column) => column.id),
+    metrics: chart.columns
+        .filter((column) => column.type === 'number')
+        .map((column) => column.id),
+    filters: {},
+    sorts: [],
+    limit: chart.rows.length,
+    tableCalculations: [],
+    additionalMetrics: [],
+});
+
+// ---------------------------------------------------------------------------
+// Chart references: charts appear in the markdown as plain links,
+// [Title](#chart-<key>), resolved against the chart definitions.
+// ---------------------------------------------------------------------------
+
+const CHART_REF_RE = /\[([^\]\n]*)\]\(#chart-([A-Za-z0-9-]+)\)/g;
+
+export type AiDeepResearchChartRef = {
+    key: string;
+    title: string;
+    /** Char range of the whole link in the markdown. */
+    start: number;
+    end: number;
+    raw: string;
+};
+
+export const getDeepResearchChartRefMarkdown = (
+    title: string,
+    key: string,
+): string => `[${title}](#chart-${key})`;
+
+// ---------------------------------------------------------------------------
+// Legacy fenced ```chart blocks. Kept for the data migration that converts
+// previously persisted reports to chart references; new reports never
+// contain them (the lint rejects fences).
+// ---------------------------------------------------------------------------
+
+export const legacyDeepResearchChartBlockSchema = z.object({
+    queryUuid: z.string().uuid(),
+    title: z.string().min(1),
+    chartConfig: chartConfigSchema,
+});
+
+export type LegacyAiDeepResearchChartBlock = z.infer<
+    typeof legacyDeepResearchChartBlockSchema
 >;
 
 export type AiDeepResearchChartBlockMatch = {
-    /** Char offset of the opening fence line. */
     start: number;
-    /** Char offset just past the closing fence line (or end of document). */
     end: number;
     raw: string;
-    block: AiDeepResearchChartBlock | null;
+    block: LegacyAiDeepResearchChartBlock | null;
     error: string | null;
 };
 
@@ -163,7 +344,7 @@ const toChartBlockMatch = (
             error: `Chart block is not valid JSON: ${getErrorMessage(e)}`,
         };
     }
-    const result = aiDeepResearchChartBlockSchema.safeParse(parsedJson);
+    const result = legacyDeepResearchChartBlockSchema.safeParse(parsedJson);
     if (!result.success) {
         return {
             start,
@@ -185,17 +366,11 @@ export const findDeepResearchChartBlocks = (
         .filter((block) => block.lang === AI_DEEP_RESEARCH_CHART_LANGUAGE)
         .map((block) => toChartBlockMatch(markdown, block));
 
-export const extractDeepResearchCharts = (
-    markdown: string,
-): AiDeepResearchChartBlock[] =>
-    findDeepResearchChartBlocks(markdown).flatMap((match) =>
-        match.block ? [match.block] : [],
-    );
-
-export const spliceDeepResearchChartBlocks = (
+/** Splices char ranges out of a markdown document, back to front. */
+export const spliceDeepResearchRanges = (
     markdown: string,
     replacements: Array<{
-        match: Pick<AiDeepResearchChartBlockMatch, 'start' | 'end'>;
+        match: { start: number; end: number };
         replacement: string;
     }>,
 ): string =>
@@ -203,9 +378,11 @@ export const spliceDeepResearchChartBlocks = (
         .sort((a, b) => b.match.start - a.match.start)
         .reduce(
             (doc, { match, replacement }) =>
-                `${doc.slice(0, match.start)}${replacement}\n${doc.slice(
-                    match.end,
-                )}`,
+                `${doc.slice(0, match.start)}${replacement}${
+                    match.end < doc.length && doc[match.end - 1] !== '\n'
+                        ? ''
+                        : '\n'
+                }${doc.slice(match.end)}`,
             markdown,
         );
 
@@ -219,6 +396,27 @@ const maskFencedBlocks = (markdown: string): string => {
                 .replace(/[^\n]/g, ' ')}${doc.slice(end)}`,
         markdown,
     );
+};
+
+export const findDeepResearchChartRefs = (
+    markdown: string,
+): AiDeepResearchChartRef[] => {
+    const masked = maskFencedBlocks(markdown);
+    const refs: AiDeepResearchChartRef[] = [];
+    for (
+        let match = CHART_REF_RE.exec(masked);
+        match !== null;
+        match = CHART_REF_RE.exec(masked)
+    ) {
+        refs.push({
+            key: match[2],
+            title: match[1],
+            start: match.index,
+            end: match.index + match[0].length,
+            raw: markdown.slice(match.index, match.index + match[0].length),
+        });
+    }
+    return refs;
 };
 
 const CONFIDENCE_TAG_RE = /<confidence\b[^>]*>/g;
@@ -321,7 +519,16 @@ const lintHtmlTags = (masked: string): string[] => {
     return errors;
 };
 
-export const lintDeepResearchReportMarkdown = (markdown: string): string[] => {
+/**
+ * Validates a submitted report: the markdown structure and the referential
+ * integrity between chart definitions (tool arguments) and the
+ * [title](#chart-key) references in the markdown. Returns actionable errors
+ * the agent can self-correct from.
+ */
+export const lintDeepResearchReport = (
+    markdown: string,
+    charts: AiDeepResearchChartDefinition[],
+): string[] => {
     const errors: string[] = [];
     const masked = maskFencedBlocks(markdown);
     const { preamble, sections } = splitSections(masked);
@@ -369,36 +576,64 @@ export const lintDeepResearchReportMarkdown = (markdown: string): string[] => {
         });
     });
 
-    const chartMatches = findDeepResearchChartBlocks(markdown);
-    chartMatches.forEach((match, index) => {
-        if (match.error) {
-            errors.push(`Chart block ${index + 1} is invalid: ${match.error}`);
-        }
-    });
-    findingSections.forEach(({ title, start, end }) => {
-        const chartsInSection = chartMatches.filter(
-            (match) => match.start >= start && match.start < end,
-        ).length;
-        if (chartsInSection > 1) {
-            errors.push(
-                `Finding section "${title}" embeds ${chartsInSection} chart blocks; embed at most one chart per finding and split additional charts into their own finding sections.`,
-            );
-        }
-    });
-    if (chartMatches.length > AI_DEEP_RESEARCH_MAX_CHARTS) {
+    // Charts are tool arguments referenced by [title](#chart-<key>) links;
+    // fenced ```chart blocks are the legacy form and are rejected.
+    if (findDeepResearchChartBlocks(markdown).length > 0) {
         errors.push(
-            `The report contains ${chartMatches.length} chart blocks; use at most ${AI_DEEP_RESEARCH_MAX_CHARTS}.`,
+            'Do not embed ```chart code fences in the markdown; define charts in the `charts` argument and reference each one inline with a [Chart title](#chart-<key>) link.',
         );
     }
-    const seenQueryUuids = new Set<string>();
-    chartMatches.forEach((match) => {
-        if (!match.block) return;
-        if (seenQueryUuids.has(match.block.queryUuid)) {
+
+    if (charts.length > AI_DEEP_RESEARCH_MAX_CHARTS) {
+        errors.push(
+            `The report defines ${charts.length} charts; use at most ${AI_DEEP_RESEARCH_MAX_CHARTS}.`,
+        );
+    }
+
+    const keyCounts = new Map<string, number>();
+    charts.forEach((chart) => {
+        const key = getDeepResearchChartKey(chart);
+        keyCounts.set(key, (keyCounts.get(key) ?? 0) + 1);
+    });
+    keyCounts.forEach((count, key) => {
+        if (count > 1) {
             errors.push(
-                `Chart queryUuid ${match.block.queryUuid} is used by more than one chart block; each completed query may be embedded once.`,
+                `Chart key ${key} is defined ${count} times; every chart needs a unique queryUuid or key.`,
             );
         }
-        seenQueryUuids.add(match.block.queryUuid);
+    });
+
+    const refs = findDeepResearchChartRefs(markdown);
+    const refCounts = new Map<string, number>();
+    refs.forEach((ref) => {
+        refCounts.set(ref.key, (refCounts.get(ref.key) ?? 0) + 1);
+    });
+
+    keyCounts.forEach((_, key) => {
+        const refCount = refCounts.get(key) ?? 0;
+        if (refCount !== 1) {
+            errors.push(
+                `Chart ${key} must be referenced exactly once in the markdown as [Chart title](#chart-${key}) (found ${refCount} references).`,
+            );
+        }
+    });
+    refCounts.forEach((_, key) => {
+        if (!keyCounts.has(key)) {
+            errors.push(
+                `The markdown references chart ${key} but no chart with that key is defined in the charts argument.`,
+            );
+        }
+    });
+
+    findingSections.forEach(({ title, start, end }) => {
+        const refsInSection = refs.filter(
+            (ref) => ref.start >= start && ref.start < end,
+        ).length;
+        if (refsInSection > 1) {
+            errors.push(
+                `Finding section "${title}" references ${refsInSection} charts; reference at most one chart per finding and split additional charts into their own finding sections.`,
+            );
+        }
     });
 
     errors.push(...lintHtmlTags(masked));

@@ -28389,6 +28389,210 @@
                     "cancelled"
                 ]
             },
+            "AiDeepResearchChartConfig": {
+                "properties": {
+                    "secondaryYAxisLabel": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "secondaryYAxisMetric": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "yAxisLabel": {
+                        "type": "string"
+                    },
+                    "xAxisLabel": {
+                        "type": "string"
+                    },
+                    "funnelDataInput": {
+                        "type": "string",
+                        "enum": ["row", "column", null],
+                        "nullable": true
+                    },
+                    "lineType": {
+                        "type": "string",
+                        "enum": ["line", "area", null],
+                        "nullable": true
+                    },
+                    "stackBars": {
+                        "type": "boolean",
+                        "nullable": true
+                    },
+                    "xAxisType": {
+                        "type": "string",
+                        "enum": ["category", "time", null],
+                        "nullable": true
+                    },
+                    "groupBy": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "yAxisMetrics": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "xAxisDimension": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "defaultVizType": {
+                        "type": "string",
+                        "enum": [
+                            "table",
+                            "bar",
+                            "horizontal",
+                            "line",
+                            "scatter",
+                            "pie",
+                            "funnel"
+                        ]
+                    }
+                },
+                "required": [
+                    "secondaryYAxisLabel",
+                    "secondaryYAxisMetric",
+                    "yAxisLabel",
+                    "xAxisLabel",
+                    "funnelDataInput",
+                    "lineType",
+                    "stackBars",
+                    "xAxisType",
+                    "groupBy",
+                    "yAxisMetrics",
+                    "xAxisDimension",
+                    "defaultVizType"
+                ],
+                "type": "object"
+            },
+            "AiDeepResearchChartSnapshotValue": {
+                "anyOf": [
+                    {
+                        "type": "string"
+                    },
+                    {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    {
+                        "type": "boolean"
+                    }
+                ],
+                "nullable": true
+            },
+            "AiDeepResearchChartSnapshot": {
+                "properties": {
+                    "rows": {
+                        "items": {
+                            "items": {
+                                "$ref": "#/components/schemas/AiDeepResearchChartSnapshotValue"
+                            },
+                            "type": "array"
+                        },
+                        "type": "array",
+                        "description": "Raw row values ordered by `columnOrder`; formatted client-side."
+                    },
+                    "columnOrder": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Field ids ordering the values in each row."
+                    },
+                    "truncated": {
+                        "type": "boolean"
+                    },
+                    "rowCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "takenAt": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "rows",
+                    "columnOrder",
+                    "truncated",
+                    "rowCount",
+                    "takenAt"
+                ],
+                "type": "object",
+                "description": "The rendered dataset of a report chart, frozen at publish time."
+            },
+            "AiDeepResearchChartData": {
+                "properties": {
+                    "snapshot": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiDeepResearchChartSnapshot"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Null only for reports persisted before snapshots existed."
+                    },
+                    "fields": {
+                        "$ref": "#/components/schemas/ItemsMap",
+                        "description": "Selected + filter fields; drives labels and value formatting."
+                    },
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/MetricQuery",
+                        "description": "Real for warehouse charts, synthesized for inline ones."
+                    },
+                    "derivedFrom": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true,
+                        "description": "Inline charts: verified executions the data was derived from."
+                    },
+                    "queryUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Warehouse charts: the verified execution this chart is evidence of."
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/AiDeepResearchChartConfig"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": ["warehouse", "inline"]
+                    }
+                },
+                "required": [
+                    "snapshot",
+                    "fields",
+                    "metricQuery",
+                    "derivedFrom",
+                    "queryUuid",
+                    "chartConfig",
+                    "title",
+                    "source"
+                ],
+                "type": "object",
+                "description": "Everything the UI needs to render one report chart, keyed by chart key in\n`AiDeepResearchRun.resultChartData`. Written entirely by the backend at\npublish time; the markdown only carries [title](#chart-<key>) references."
+            },
+            "Record_string.AiDeepResearchChartData_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/AiDeepResearchChartData"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "AiDeepResearchChartDataMap": {
+                "$ref": "#/components/schemas/Record_string.AiDeepResearchChartData_"
+            },
             "AiDeepResearchBudget": {
                 "properties": {
                     "maxResultRows": {
@@ -28448,10 +28652,19 @@
                     "budget": {
                         "$ref": "#/components/schemas/AiDeepResearchBudget"
                     },
+                    "resultChartData": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiDeepResearchChartDataMap"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Render data for each referenced chart, keyed by chart key."
+                    },
                     "resultMarkdown": {
                         "type": "string",
                         "nullable": true,
-                        "description": "The report as a single markdown document with embedded chart blocks."
+                        "description": "The report narrative with [title](#chart-<key>) chart references."
                     },
                     "status": {
                         "$ref": "#/components/schemas/AiDeepResearchRunStatus"
@@ -28482,6 +28695,7 @@
                     "cancellationRequestedAt",
                     "errorMessage",
                     "budget",
+                    "resultChartData",
                     "resultMarkdown",
                     "status",
                     "prompt",
@@ -59384,9 +59598,9 @@
                 ]
             }
         },
-        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/charts/{chartQueryUuid}/viz-query": {
-            "get": {
-                "operationId": "getAiDeepResearchChartVizQuery",
+        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/charts/{chartKey}/refresh": {
+            "post": {
+                "operationId": "refreshAiDeepResearchChart",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -59409,8 +59623,8 @@
                         }
                     }
                 },
-                "description": "Load the exact completed metric query behind a report chart.",
-                "summary": "Get Deep Research chart query",
+                "description": "Re-execute the metric query behind a warehouse-backed report chart to\nload its live results instead of the persisted snapshot.",
+                "summary": "Refresh Deep Research chart",
                 "security": [],
                 "parameters": [
                     {
@@ -59431,10 +59645,10 @@
                     },
                     {
                         "in": "path",
-                        "name": "chartQueryUuid",
+                        "name": "chartKey",
                         "required": true,
                         "schema": {
-                            "$ref": "#/components/schemas/UUID"
+                            "type": "string"
                         }
                     }
                 ]
