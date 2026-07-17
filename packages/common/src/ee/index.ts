@@ -1,4 +1,5 @@
 export * from './AiAgent';
+export * from './aiDeepResearch/markdown';
 export * from './aiDeepResearch/types';
 export * from './aiWriteback/types';
 export * from './externalConnections/types';

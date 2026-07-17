@@ -52,7 +52,36 @@ export type AiDeepResearchRequestBody = {
     effort?: AiDeepResearchEffort;
 };
 
-export type AiDeepResearchConfidence = 'low' | 'medium' | 'high';
+export const AI_DEEP_RESEARCH_CONFIDENCE_LEVELS = [
+    'low',
+    'medium',
+    'high',
+] as const;
+
+export type AiDeepResearchConfidence =
+    (typeof AI_DEEP_RESEARCH_CONFIDENCE_LEVELS)[number];
+
+export type AiDeepResearchChartConfig = {
+    defaultVizType:
+        | 'table'
+        | 'bar'
+        | 'horizontal'
+        | 'line'
+        | 'scatter'
+        | 'pie'
+        | 'funnel';
+    xAxisDimension: string | null;
+    yAxisMetrics: string[] | null;
+    groupBy: string[] | null;
+    xAxisType: 'category' | 'time' | null;
+    stackBars: boolean | null;
+    lineType: 'line' | 'area' | null;
+    funnelDataInput: 'row' | 'column' | null;
+    xAxisLabel: string;
+    yAxisLabel: string;
+    secondaryYAxisMetric: string | null;
+    secondaryYAxisLabel: string | null;
+};
 
 export type AiDeepResearchEvidence = {
     title: string;
