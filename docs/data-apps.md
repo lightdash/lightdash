@@ -281,7 +281,7 @@ review rules):**
   when one of the invalidation conditions becomes true, not on every refetch.
 
 This is read-only — pinning an older version is preview-only and does **not** mutate `app_versions` or change which
-version is served outside the generation page (the public `/preview` route still shows the latest ready version). A
+version is served outside the generation page (the public `/view` route still shows the latest ready version). A
 true "restore this version as v_next" flow is a separate, later step ([GLITCH-443](https://linear.app/lightdash/issue/GLITCH-443)).
 
 ### Deletion
@@ -945,8 +945,11 @@ If the org design linked to the app has more than **30 asset files**, the theme 
 | `/projects/:projectUuid/apps`                                    | `SavedApps.tsx`      | Browse all data apps (content section)    |
 | `/projects/:projectUuid/apps/generate`                           | `AppGenerate.tsx`    | New app creation (split-panel chat UI)    |
 | `/projects/:projectUuid/apps/:appUuid`                           | `AppGenerate.tsx`    | Edit existing app (loads version history) |
-| `/projects/:projectUuid/apps/:appUuid/versions/:version/preview` | `AppPreviewTest.tsx` | Standalone preview                        |
-| `/projects/:projectUuid/apps/:appUuid/preview`                   | `AppPreviewTest.tsx` | Preview latest ready version              |
+| `/projects/:projectUuid/apps/:appUuid/versions/:version/view`    | `AppPreviewTest.tsx` | View a specific version                   |
+| `/projects/:projectUuid/apps/:appUuid/view`                      | `AppPreviewTest.tsx` | View latest ready version                 |
+
+The `.../view` routes previously lived at `.../preview`; the old paths are kept as client-side redirects
+(`LegacyAppPreviewRedirect.tsx`) so bookmarked links keep working.
 
 ### Key Hooks
 

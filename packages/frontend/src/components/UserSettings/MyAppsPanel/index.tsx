@@ -338,7 +338,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                                 {hasReadyVersion(app) && (
                                     <Menu.Item
                                         component={Link}
-                                        to={`/projects/${app.projectUuid}/apps/${app.appUuid}/preview`}
+                                        to={`/projects/${app.projectUuid}/apps/${app.appUuid}/view`}
                                         target="_blank"
                                         leftSection={
                                             <MantineIcon
