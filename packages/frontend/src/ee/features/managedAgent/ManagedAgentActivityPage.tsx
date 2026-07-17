@@ -51,6 +51,7 @@ import {
     IconPlayerPlay,
     IconSelector,
     IconSettings,
+    IconTarget,
     IconTool,
     IconTrash,
     IconX,
@@ -183,7 +184,7 @@ const SetupSection: FC<{
                 <Stack gap={0}>
                     <Group gap="sm" align="center">
                         <Box className={classes.setupOrb}>
-                            <IconBolt size={16} />
+                            <IconTarget size={16} />
                         </Box>
                         <Title order={4} fw={700}>
                             Autopilot
@@ -520,7 +521,7 @@ const FixedBrokenDiff: FC<{
             <Stack gap="sm">
                 <MetadataLabel label="Changes applied" />
                 <Text fz="xs" c="dimmed" lh={1.6}>
-                    Diff unavailable for this fix — see chart history for
+                    Diff unavailable for this fix, see chart history for
                     details.
                 </Text>
                 {historyLink}
@@ -597,7 +598,7 @@ const FixedBrokenDiff: FC<{
                 </Stack>
             ) : (
                 <Text fz="xs" c="dimmed" lh={1.6}>
-                    This fix touched fields not surfaced in this view — see
+                    This fix touched fields not surfaced in this view, see
                     chart history for details.
                 </Text>
             )}
@@ -775,7 +776,7 @@ const DetailSidebar: FC<{
                 showRestoreBanner && error?.statusCode === 404;
             showToastApiError({
                 title: isHardDeleted
-                    ? 'Could not restore — the original was permanently deleted'
+                    ? 'Could not restore. The original was permanently deleted'
                     : category === 'undo'
                       ? 'Could not undo action'
                       : 'Could not dismiss action',
@@ -1066,7 +1067,7 @@ const DetailSidebar: FC<{
                         </Button>
                     ) : (
                         <Tooltip
-                            label="This fix was recorded before revert support — restore manually via chart history."
+                            label="This fix was recorded before revert support. Restore manually via chart history."
                             withinPortal
                             multiline
                             w={240}
@@ -1341,7 +1342,7 @@ const SettingsSidebar: FC<{
                                         />
                                         <Text fz="xs" c="dimmed">
                                             Please invite Lightdash to this
-                                            channel — we can&apos;t post
+                                            channel, we can&apos;t post
                                             messages until you do. (
                                             <Text
                                                 component="span"
@@ -2067,7 +2068,7 @@ export const ManagedAgentActivityPage: FC = () => {
                                         No activity yet
                                     </Text>
                                     <Text fz="xs" c="dimmed">
-                                        The agent runs on a schedule — check
+                                        The agent runs on a schedule, check
                                         back soon.
                                     </Text>
                                 </Box>

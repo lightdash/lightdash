@@ -98,7 +98,7 @@ export const ManagedAgentSetupModal: FC<{
                 {/* Description */}
                 <Text fz="sm" c="dimmed">
                     An AI agent that monitors your project&apos;s health
-                    automatically — cleaning up stale content, fixing broken
+                    automatically, cleaning up stale content, fixing broken
                     charts, and surfacing insights. All actions are logged and
                     reversible.
                 </Text>

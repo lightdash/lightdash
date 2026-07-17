@@ -448,12 +448,15 @@
     align-items: center;
     justify-content: center;
     background-color: light-dark(
-        var(--mantine-color-violet-0),
-        var(--mantine-color-violet-9)
+        var(--mantine-color-gray-1),
+        var(--mantine-color-dark-6)
     );
     border: 1px solid
-        light-dark(var(--mantine-color-violet-1), var(--mantine-color-violet-7));
-    color: var(--mantine-color-violet-5);
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    color: light-dark(
+        var(--mantine-color-violet-6),
+        var(--mantine-color-violet-4)
+    );
 }
 
 .activeBadge {

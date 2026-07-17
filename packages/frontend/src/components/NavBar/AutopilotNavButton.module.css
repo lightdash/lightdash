@@ -1,0 +1,191 @@
+/* Tighten padding so the collapsed state reads as an icon cell, not a wide button. */
+.cell {
+    padding-left: 10px;
+    padding-right: 10px;
+    /* Let the corner status dot poke past the icon without being clipped. */
+    overflow: visible;
+}
+
+/* Mantine's Button label clips overflow by default — allow the dot to show. */
+.labelSlot {
+    overflow: visible;
+}
+
+.inner {
+    display: inline-flex;
+    align-items: center;
+}
+
+.iconWrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Corner status dot on the icon while collapsed; fades out on hover. */
+.dotCorner {
+    position: absolute;
+    top: -3px;
+    right: -4px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1.5px var(--mantine-color-body);
+    transition: opacity 140ms ease;
+}
+
+.cell:hover .dotCorner {
+    opacity: 0;
+}
+
+/* Label expands in on hover. */
+.label {
+    max-width: 0;
+    margin-left: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    opacity: 0;
+    font-weight: 500;
+    transition:
+        max-width 200ms ease,
+        margin-left 200ms ease,
+        opacity 160ms ease;
+}
+
+.cell:hover .label {
+    max-width: 140px;
+    margin-left: 8px;
+    opacity: 1;
+}
+
+/* Inline status dot appears alongside the label on hover. */
+.dotInline {
+    width: 0;
+    height: 7px;
+    margin-left: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    opacity: 0;
+    transition:
+        width 180ms ease,
+        margin-left 180ms ease,
+        opacity 160ms ease;
+}
+
+.cell:hover .dotInline {
+    width: 7px;
+    margin-left: 8px;
+    opacity: 1;
+}
+
+.dotActive {
+    background: var(--mantine-color-green-6);
+}
+
+.dotFailed {
+    background: var(--mantine-color-red-6);
+}
+
+/* --- Promo hovercard (deliberately dark in both themes) --- */
+.promoDropdown {
+    padding: 0;
+    border: none;
+    background: transparent;
+    overflow: visible;
+}
+
+.promo {
+    position: relative;
+    overflow: hidden;
+    padding: 15px 15px 14px;
+    border-radius: 12px;
+    color: #ededed;
+    background: #141414;
+    box-shadow:
+        0 14px 40px rgba(0, 0, 0, 0.46),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+}
+
+.promoHeader {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 14px;
+}
+
+.promoOrb {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    color: #d0d0d0;
+    background: rgba(255, 255, 255, 0.06);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.promoTitle {
+    font-size: 13.5px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+}
+
+.promoTagline {
+    font-size: 11.5px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.promoFeatures {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 13px;
+    margin-bottom: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.promoFeature {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12.5px;
+    color: rgba(255, 255, 255, 0.74);
+}
+
+.promoFeatureIcon {
+    color: rgba(255, 255, 255, 0.46);
+    flex-shrink: 0;
+}
+
+.promoCta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #141414;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    background: #f2f2f2;
+    transition: background-color 140ms ease;
+}
+
+.promoCta:hover {
+    background: #ffffff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .label,
+    .dotInline,
+    .dotCorner {
+        transition: none;
+    }
+}
