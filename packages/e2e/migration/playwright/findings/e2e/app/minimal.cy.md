@@ -128,3 +128,21 @@ For controlled dual-run validation, launch those two final commands in separate 
 ## Port history
 
 Not started.
+
+### 2026-07-17
+
+- Target: `packages/e2e/playwright/app/minimal.spec.ts`.
+- Ported all five active tests: standalone chart, table, and big-number rendering; the seeded minimal dashboard; and edge-case screenshot readiness. Added file-local validated UUID lookup, hidden readiness-indicator synchronization, dashboard-scoped Loom blocking, and strict scoped locators. No tests were skipped, and Cypress remains unchanged.
+- Verification passed:
+  - `pnpm -F common build:fast` (made the frozen-install worktree's common build output available).
+  - `pnpm -F e2e typecheck:playwright`.
+  - `pnpm -F e2e linter ./playwright/app/minimal.spec.ts`.
+  - `pnpm -F e2e formatter ./playwright/app/minimal.spec.ts --check`.
+  - Playwright discovery: 6 tests in 2 files (setup plus 5 target tests).
+  - Focused Firefox: 6/6 passed.
+  - Focused Firefox `--repeat-each=3`: 16/16 passed (setup plus 15 target executions).
+  - Focused Cypress parity: 5/5 passed.
+  - Concurrent Playwright/Cypress dual-run: Playwright 6/6 and Cypress 5/5 passed.
+- The findings' package-script Cypress command (`pnpm -F e2e cypress:run -- --spec ...`) did not forward the spec filter with this CLI combination and began the full 29-spec Cypress suite; it was stopped on timeout. The equivalent direct focused invocation, `pnpm -F e2e exec cypress run --spec cypress/e2e/app/minimal.cy.ts`, selected exactly one spec and passed.
+- Full Playwright destination suite: the target's 5 tests and 5 other tests passed; pre-existing `playwright/app/globalSearch.spec.ts` failed at its `Spaces` assertion after the app rendered `Unexpected error`. A focused rerun reproduced that unrelated failure. No shared helper/config change was made.
+- Remaining risks: demo warehouse values `2,397` and `1,961.5` remain fixture-sensitive; v1 list lookup retains the Cypress first-page assumption. Commit: `PENDING`.
