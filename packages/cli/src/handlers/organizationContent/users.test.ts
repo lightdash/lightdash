@@ -13,6 +13,7 @@ import { vi } from 'vitest';
 import { lightdashApi } from '../dbt/apiClient';
 import {
     downloadUsers,
+    formatUserUploadSummary,
     getUsersFolder,
     readUserFiles,
     uploadUsers,
@@ -54,6 +55,23 @@ describe('users as code', () => {
     afterEach(async () => {
         vi.restoreAllMocks();
         await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('formats upload results using CRUD statuses only', () => {
+        expect(
+            formatUserUploadSummary({
+                created: 1,
+                updated: 2,
+                unchanged: 3,
+                awaitingAuthentication: 4,
+                invited: 5,
+                skippedAuthenticated: 6,
+                skippedDisabled: 7,
+                skippedValidInvite: 8,
+                failed: 9,
+                failures: [],
+            }),
+        ).toBe('1 created, 2 updated, 3 unchanged, 9 failed');
     });
 
     it('downloads deterministic portable users and preserves unknown YAML', async () => {

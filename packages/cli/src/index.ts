@@ -744,7 +744,12 @@ const ORGANIZATION_MODE_OPTIONS = new Set([
 ]);
 
 const withOrganizationMode =
-    <Options extends { organization: boolean; sendInvites?: boolean }>(
+    <
+        Options extends {
+            organization: boolean;
+            sendInvites?: boolean;
+        },
+    >(
         handler: (options: Options) => Promise<void>,
     ) =>
     async (options: Options, command: Command): Promise<void> => {
