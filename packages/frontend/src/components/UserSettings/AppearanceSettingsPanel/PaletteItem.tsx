@@ -8,8 +8,9 @@ import {
     ActionIcon,
     Badge,
     ColorSwatch,
+    Menu,
 } from '@mantine-8/core';
-import { Menu, Tooltip } from '@mantine/core';
+import { Tooltip } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import {
     IconDotsVertical,
@@ -186,20 +187,26 @@ export const PaletteItem: FC<PaletteItemProps> = ({
 
                             <Menu.Dropdown>
                                 <Menu.Item
-                                    icon={<MantineIcon icon={IconCopy} />}
+                                    leftSection={
+                                        <MantineIcon icon={IconCopy} />
+                                    }
                                     onClick={handleCopyUuid}
                                 >
                                     Copy UUID
                                 </Menu.Item>
                                 <Menu.Item
                                     disabled={readOnly}
-                                    icon={<MantineIcon icon={IconEdit} />}
+                                    leftSection={
+                                        <MantineIcon icon={IconEdit} />
+                                    }
                                     onClick={() => setIsEditModalOpen(true)}
                                 >
                                     Edit palette
                                 </Menu.Item>
                                 <Menu.Item
-                                    icon={<MantineIcon icon={IconTrash} />}
+                                    leftSection={
+                                        <MantineIcon icon={IconTrash} />
+                                    }
                                     onClick={() => setIsDeleteModalOpen(true)}
                                     disabled={isActive || readOnly}
                                     color="red"
