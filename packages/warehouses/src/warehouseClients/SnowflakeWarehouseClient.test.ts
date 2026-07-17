@@ -119,6 +119,15 @@ describe('SnowflakeWarehouseClient', () => {
         vi.clearAllMocks();
     });
 
+    it('caps result chunk size via CLIENT_RESULT_CHUNK_SIZE session parameter', async () => {
+        const warehouse = new SnowflakeWarehouseClient(credentials);
+        await warehouse.streamQuery('SELECT 1', () => {}, {});
+        const alterSessionSql = executeMock.mock.calls
+            .map((call) => call[0].sqlText as string)
+            .find((sql) => sql.startsWith('ALTER SESSION SET'));
+        expect(alterSessionSql).toContain('CLIENT_RESULT_CHUNK_SIZE = 16');
+    });
+
     it('configures the local application authorization-code flow with SDK defaults', () => {
         const warehouse = new SnowflakeWarehouseClient({
             ...credentials,

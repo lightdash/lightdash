@@ -6,6 +6,10 @@ import {
 import { credentials, rows, schema } from './DatabricksWarehouseClient.mock';
 import { expectedFields } from './WarehouseClient.mock';
 
+const mocks = vi.hoisted(() => ({
+    fetchChunk: vi.fn(),
+}));
+
 vi.mock('@databricks/sql', async () => ({
     ...(await vi.importActual<typeof import('@databricks/sql')>(
         '@databricks/sql',
@@ -16,7 +20,9 @@ vi.mock('@databricks/sql', async () => ({
                 openSession: vi.fn(() => ({
                     executeStatement: vi.fn(() => ({
                         getSchema: vi.fn(async () => schema),
-                        fetchChunk: vi.fn(async () => rows),
+                        fetchChunk: mocks.fetchChunk.mockImplementation(
+                            async () => rows,
+                        ),
                         hasMoreRows: vi.fn(async () => false),
                         close: vi.fn(async () => undefined),
                     })),
@@ -36,6 +42,14 @@ describe('DatabricksWarehouseClient', () => {
 
         expect(results.fields).toEqual(expectedFields);
         expect(results.rows[0]).toEqual(rows[0]);
+    });
+
+    it('caps fetchChunk size to avoid materializing whole results', async () => {
+        const warehouse = new DatabricksWarehouseClient(credentials);
+
+        await warehouse.runQuery('fake sql');
+
+        expect(mocks.fetchChunk).toHaveBeenCalledWith({ maxRows: 5000 });
     });
 });
 
