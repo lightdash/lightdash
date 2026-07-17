@@ -48332,7 +48332,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3404.0",
+        "version": "0.3405.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -48418,7 +48418,8 @@
                                                         {
                                                             "value": "viewer",
                                                             "display": "Viewer",
-                                                            "type": "Organization"
+                                                            "type": "Organization",
+                                                            "primary": true
                                                         },
                                                         {
                                                             "value": "3675b69e-8324-4110-bdca-059031aa8da3:editor",
@@ -48575,7 +48576,8 @@
                                                 {
                                                     "value": "viewer",
                                                     "display": "Viewer",
-                                                    "type": "Organization"
+                                                    "type": "Organization",
+                                                    "primary": true
                                                 },
                                                 {
                                                     "value": "3675b69e-8324-4110-bdca-059031aa8da3:editor",

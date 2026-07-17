@@ -1,3 +1,20 @@
+# [0.3405.0](https://github.com/lightdash/lightdash/compare/0.3404.0...0.3405.0) (2026-07-17)
+
+
+### Bug Fixes
+
+* group Explorer selected fields by table and show row actions on hover ([#25678](https://github.com/lightdash/lightdash/issues/25678)) ([cb3fb67](https://github.com/lightdash/lightdash/commit/cb3fb6725cf5d1df9d72ba3870732d47ee0331ef))
+* **homepage:** greet pre-5am as evening, not morning ([#25694](https://github.com/lightdash/lightdash/issues/25694)) ([09515a9](https://github.com/lightdash/lightdash/commit/09515a97699c2b95b944186433aa9bb588c751eb))
+* **homepage:** reserve height for day-0 AI chips so they fade in without shifting ([#25692](https://github.com/lightdash/lightdash/issues/25692)) ([7179623](https://github.com/lightdash/lightdash/commit/71796235aaaba04e247353e105eb8503690b8588))
+* **scim:** support Entra quoted primary role mappings ([#25676](https://github.com/lightdash/lightdash/issues/25676)) ([2c759eb](https://github.com/lightdash/lightdash/commit/2c759eb3a82ef4d83b08f2557bca795c384bf546))
+
+
+### Features
+
+* **homepage:** drag-to-reorder collection tiles in build mode ([#25696](https://github.com/lightdash/lightdash/issues/25696)) ([c2039b7](https://github.com/lightdash/lightdash/commit/c2039b7bd7a53f0f7bdf550d80d16b85150f7422))
+* **homepage:** positional layout rules — fold-aware hero, intro, compact composer, two axes ([#25693](https://github.com/lightdash/lightdash/issues/25693)) ([3ed5012](https://github.com/lightdash/lightdash/commit/3ed50125661420ed8133a749575da62121e75c68)), closes [#25695](https://github.com/lightdash/lightdash/issues/25695)
+* **homepage:** rich resource cards — Claude artifacts, YouTube, smart-paste builder ([#25688](https://github.com/lightdash/lightdash/issues/25688)) ([887078c](https://github.com/lightdash/lightdash/commit/887078cb8c78c8d9fc540ffce7293d85c703de5d))
+
 # [0.3404.0](https://github.com/lightdash/lightdash/compare/0.3403.0...0.3404.0) (2026-07-16)
 
 
