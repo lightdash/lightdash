@@ -99,6 +99,7 @@
 }
 
 .label {
+    flex-shrink: 0;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -107,9 +108,11 @@
 }
 
 .tableLabel {
-    flex-shrink: 0;
-    font-size: 12px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 12px;
 }
 
 .row[data-field-kind='dimension'] .tableLabel {
