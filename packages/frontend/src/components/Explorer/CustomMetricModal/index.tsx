@@ -3,7 +3,6 @@ import {
     CustomFormatType,
     DimensionType,
     friendlyName,
-    getCustomFormatFromLegacy,
     getCustomMetricType,
     getFilterableDimensionsFromItemsMap,
     getItemId,
@@ -56,6 +55,7 @@ import {
     addFieldIdToMetricFilterRule,
     getCustomMetricName,
     getFilterRulesFromMetricBaseFilters,
+    getFormatFromBaseMetric,
     prepareCustomMetricData,
 } from './utils';
 
@@ -348,17 +348,9 @@ export const CustomMetricModal = memo(() => {
                     setFieldValue('percentile', item.percentile);
 
                 // Carry the base metric's formatting into the clone
-                if (item.formatOptions) {
-                    setFieldValue('format', { ...item.formatOptions });
-                } else if (item.format || item.round !== undefined) {
-                    setFieldValue(
-                        'format',
-                        getCustomFormatFromLegacy({
-                            format: item.format,
-                            round: item.round,
-                            compact: item.compact,
-                        }),
-                    );
+                const baseFormat = getFormatFromBaseMetric(item);
+                if (baseFormat) {
+                    setFieldValue('format', baseFormat);
                 }
             }
         },

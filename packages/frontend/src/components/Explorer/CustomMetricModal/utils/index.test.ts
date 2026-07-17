@@ -1,15 +1,18 @@
 import {
+    Compact,
     CustomFormatType,
     DimensionType,
     FieldType,
     FilterOperator,
     MetricType,
+    NumberSeparator,
     TimeFrames,
     type Metric,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     getFilterRulesFromMetricBaseFilters,
+    getFormatFromBaseMetric,
     prepareCustomMetricData,
 } from '.';
 
@@ -67,6 +70,70 @@ describe('getFilterRulesFromMetricBaseFilters', () => {
                 filters: undefined,
             }),
         ).toEqual([]);
+    });
+});
+
+describe('getFormatFromBaseMetric', () => {
+    it('converts a compact-only legacy format', () => {
+        expect(
+            getFormatFromBaseMetric({
+                ...baseMetric,
+                compact: Compact.THOUSANDS,
+            }),
+        ).toEqual({
+            type: CustomFormatType.NUMBER,
+            compact: Compact.THOUSANDS,
+            round: undefined,
+        });
+    });
+
+    it('carries the field-level separator alongside a legacy format', () => {
+        expect(
+            getFormatFromBaseMetric({
+                ...baseMetric,
+                format: 'usd',
+                round: 2,
+                separator: NumberSeparator.COMMA_PERIOD,
+            }),
+        ).toEqual({
+            type: CustomFormatType.CURRENCY,
+            currency: 'USD',
+            round: 2,
+            compact: undefined,
+            separator: NumberSeparator.COMMA_PERIOD,
+        });
+    });
+
+    it('carries the field-level separator alongside structured formatOptions', () => {
+        expect(
+            getFormatFromBaseMetric({
+                ...baseMetric,
+                formatOptions: { type: CustomFormatType.NUMBER, round: 1 },
+                separator: NumberSeparator.PERIOD_COMMA,
+            }),
+        ).toEqual({
+            type: CustomFormatType.NUMBER,
+            round: 1,
+            separator: NumberSeparator.PERIOD_COMMA,
+        });
+    });
+
+    it('converts a separator-only metric', () => {
+        expect(
+            getFormatFromBaseMetric({
+                ...baseMetric,
+                separator: NumberSeparator.SPACE_PERIOD,
+            }),
+        ).toEqual({
+            type: CustomFormatType.NUMBER,
+            round: undefined,
+            compact: undefined,
+            separator: NumberSeparator.SPACE_PERIOD,
+        });
+    });
+
+    it('returns undefined when the base metric has no formatting', () => {
+        expect(getFormatFromBaseMetric(baseMetric)).toBeUndefined();
     });
 });
 

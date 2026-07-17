@@ -2,6 +2,7 @@ import {
     CustomFormatType,
     DimensionType,
     friendlyName,
+    getCustomFormatFromLegacy,
     isAdditionalMetric,
     isCustomBinDimension,
     isCustomDimension,
@@ -63,6 +64,34 @@ export const getFilterRulesFromMetricBaseFilters = (
             target: { ...filterRule.target, fieldRef },
         });
     });
+
+// Formatting the clone should inherit: structured formatOptions when present,
+// otherwise any combination of legacy format/round/compact. The field-level
+// separator composes with both shapes, so it carries over in either case.
+export const getFormatFromBaseMetric = (
+    metric: Metric,
+): CustomFormat | undefined => {
+    const hasLegacyFormat =
+        metric.format !== undefined ||
+        metric.round !== undefined ||
+        metric.compact !== undefined;
+
+    const base = metric.formatOptions
+        ? { ...metric.formatOptions }
+        : hasLegacyFormat || metric.separator !== undefined
+          ? getCustomFormatFromLegacy({
+                format: metric.format,
+                round: metric.round,
+                compact: metric.compact,
+            })
+          : undefined;
+
+    if (!base) return undefined;
+    if (metric.separator && !base.separator) {
+        return { ...base, separator: metric.separator };
+    }
+    return base;
+};
 
 export const getCustomMetricName = (
     table: string,
