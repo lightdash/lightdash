@@ -98,8 +98,6 @@ const EXTERNAL_BROWSER_AUTHENTICATOR = 'EXTERNALBROWSER';
 const OAUTH_AUTHORIZATION_CODE_AUTHENTICATOR = 'OAUTH_AUTHORIZATION_CODE';
 const SESSION_DISCOVERY_LIMIT = 100;
 const SESSION_SCHEMA_DISCOVERY_LIMIT = 1000;
-// Minimum allowed by Snowflake (range 16-160, default 160)
-const SNOWFLAKE_RESULT_CHUNK_SIZE_MB = 16;
 
 export type SnowflakeOAuthTokens = {
     accessToken: string;
@@ -1157,14 +1155,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             `Setting Snowflake session STATEMENT_TIMEOUT_IN_SECONDS = ${timeoutSeconds}`,
         );
         sessionParams.push(`STATEMENT_TIMEOUT_IN_SECONDS = ${timeoutSeconds}`);
-
-        // Snowflake grows result chunks up to 160MB and the driver holds ~4
-        // chunks in memory regardless of consumer backpressure, so uncapped
-        // chunks make heap usage scale with the query row limit and can OOM
-        // the worker on large results
-        sessionParams.push(
-            `CLIENT_RESULT_CHUNK_SIZE = ${SNOWFLAKE_RESULT_CHUNK_SIZE_MB}`,
-        );
 
         await this.executeStatements(
             connection,
