@@ -1,3 +1,11 @@
+# [0.3415.0](https://github.com/lightdash/lightdash/compare/0.3414.0...0.3415.0) (2026-07-17)
+
+
+### Features
+
+* homepage card rotation & schema-grounded AI suggestions [4/4] ([#25758](https://github.com/lightdash/lightdash/issues/25758)) ([a57e859](https://github.com/lightdash/lightdash/commit/a57e859383eb5c71363c9be252b7c56cb95e8111))
+* warehouse-connect onboarding — Snowflake CLI-SSO and BigQuery SSO smart defaults ([#25757](https://github.com/lightdash/lightdash/issues/25757)) ([ca995fc](https://github.com/lightdash/lightdash/commit/ca995fc604360763326ce4400d19dc302d3f550b))
+
 # [0.3414.0](https://github.com/lightdash/lightdash/compare/0.3413.1...0.3414.0) (2026-07-17)
 
 

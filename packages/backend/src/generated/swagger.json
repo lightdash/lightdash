@@ -31666,6 +31666,11 @@
                     "databases": {
                         "items": {
                             "properties": {
+                                "sizeBytes": {
+                                    "type": "number",
+                                    "format": "double",
+                                    "nullable": true
+                                },
                                 "comment": {
                                     "type": "string",
                                     "nullable": true
@@ -45227,6 +45232,11 @@
             },
             "BigqueryDataset": {
                 "properties": {
+                    "sizeBytes": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
                     "datasetId": {
                         "type": "string"
                     },
@@ -45277,6 +45287,30 @@
                             "$ref": "#/components/schemas/BigqueryProject"
                         },
                         "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "BigqueryProjectRecommendation": {
+                "properties": {
+                    "projectId": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["projectId"],
+                "type": "object"
+            },
+            "ApiBigqueryProjectRecommendation": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/BigqueryProjectRecommendation"
                     },
                     "status": {
                         "type": "string",
@@ -48512,7 +48546,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3414.0",
+        "version": "0.3415.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -77455,6 +77489,38 @@
                 },
                 "description": "Get BigQuery projects accessible by the user",
                 "summary": "Get BigQuery projects",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/bigquery/sso/projects/recommendation": {
+            "get": {
+                "operationId": "GetBigQueryProjectRecommendation",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiBigqueryProjectRecommendation"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the recommended BigQuery project based on dataset size",
+                "summary": "Get BigQuery project recommendation",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": []
