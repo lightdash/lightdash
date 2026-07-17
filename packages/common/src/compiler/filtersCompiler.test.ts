@@ -74,11 +74,19 @@ import {
     InTheNextFilterBase,
     InThePastFilterBase,
     MonthToDateFilterBase,
+    MultiValueEqualsDateFilter,
+    MultiValueEqualsDateFilterSQL,
+    MultiValueEqualsTimestampFilterSQL,
+    MultiValueNotEqualsDateFilter,
+    MultiValueNotEqualsDateFilterSQL,
+    MultiValueNotEqualsTimestampFilterSQL,
     NumberDimensionMock,
     NumberFilterBase,
     NumberFilterBaseWithMultiValues,
     NumberOperatorsWithMultipleValues,
     QuarterToDateFilterBase,
+    SingleValueEqualsDateFilter,
+    SingleValueEqualsDateFilterSQL,
     stringFilterDimension,
     stringFilterRuleMocks,
     TrinoExpectedInTheCurrentFilterSQL,
@@ -101,6 +109,7 @@ import {
     TrinoInTheLast1MonthFilterSQL,
     TrinoInTheLast1WeekFilterSQL,
     TrinoInTheLast1YearFilterSQL,
+    TrinoMultiValueEqualsDateFilterSQL,
     WeekToDateFilterBase,
     YearToDateFilterBase,
 } from './filtersCompiler.mock';
@@ -661,6 +670,69 @@ describe('Filter SQL', () => {
                 timestampFormatter: formatTimestamp,
             }),
         ).toStrictEqual(TrinoInBetweenPastTwoYearsTimestampFilterSQL);
+    });
+
+    test('should return equals date filter sql for a single value', () => {
+        expect(
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: SingleValueEqualsDateFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+            }),
+        ).toStrictEqual(SingleValueEqualsDateFilterSQL);
+    });
+    test('should return IN list for equals date filter with multiple values', () => {
+        expect(
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: MultiValueEqualsDateFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+            }),
+        ).toStrictEqual(MultiValueEqualsDateFilterSQL);
+    });
+    test('should return IN list for equals date filter with multiple values for trino adapter', () => {
+        expect(
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: MultiValueEqualsDateFilter,
+                adapterType: adapterType.trino,
+                timezone: 'UTC',
+            }),
+        ).toStrictEqual(TrinoMultiValueEqualsDateFilterSQL);
+    });
+    test('should return NOT IN list for notEquals date filter with multiple values', () => {
+        expect(
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: MultiValueNotEqualsDateFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+            }),
+        ).toStrictEqual(MultiValueNotEqualsDateFilterSQL);
+    });
+    test('should return IN list for equals timestamp filter with multiple values', () => {
+        expect(
+            renderTimestampFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: MultiValueEqualsDateFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+                timestampFormatter: formatTimestamp,
+            }),
+        ).toStrictEqual(MultiValueEqualsTimestampFilterSQL);
+    });
+    test('should return NOT IN list for notEquals timestamp filter with multiple values', () => {
+        expect(
+            renderTimestampFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: MultiValueNotEqualsDateFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+                timestampFormatter: formatTimestamp,
+            }),
+        ).toStrictEqual(MultiValueNotEqualsTimestampFilterSQL);
     });
 
     // To-date filter tests (system time: 04 Apr 2020 06:12:30 GMT)

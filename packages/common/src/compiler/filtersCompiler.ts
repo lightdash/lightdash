@@ -361,15 +361,25 @@ const renderDateOrTimestampFilterSql = ({
 
     const settings = isDateFilterRule(filter) ? filter.settings : undefined;
 
+    // Multi-value equals/notEquals match any value, like string/number filters
+    const castValues = (values: Date[]): string =>
+        values.map((value) => castValue(literalFormatter(value))).join(',');
+
     switch (filter.operator) {
         case FilterOperator.EQUALS:
-            return `(${dimensionSql}) = ${castValue(
-                literalFormatter(filter.values?.[0]),
-            )}`;
+            return filter.values && filter.values.length > 1
+                ? `(${dimensionSql}) IN (${castValues(filter.values)})`
+                : `(${dimensionSql}) = ${castValue(
+                      literalFormatter(filter.values?.[0]),
+                  )}`;
         case FilterOperator.NOT_EQUALS:
-            return `((${dimensionSql}) != ${castValue(
-                literalFormatter(filter.values?.[0]),
-            )} OR (${dimensionSql}) IS NULL)`;
+            return filter.values && filter.values.length > 1
+                ? `((${dimensionSql}) NOT IN (${castValues(
+                      filter.values,
+                  )}) OR (${dimensionSql}) IS NULL)`
+                : `((${dimensionSql}) != ${castValue(
+                      literalFormatter(filter.values?.[0]),
+                  )} OR (${dimensionSql}) IS NULL)`;
         case FilterOperator.NULL:
             return `(${dimensionSql}) IS NULL`;
         case FilterOperator.NOT_NULL:
