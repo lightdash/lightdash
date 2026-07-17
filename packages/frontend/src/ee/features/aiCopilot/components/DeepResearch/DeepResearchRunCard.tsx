@@ -3,6 +3,7 @@ import {
     Badge,
     Button,
     Collapse,
+    Divider,
     Group,
     Paper,
     SimpleGrid,
@@ -22,11 +23,11 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { formatDuration } from '../../../../../utils/formatters';
 import {
     DEEP_RESEARCH_DEPTH_CONFIG,
+    getDeepResearchReportPreview,
     isDeepResearchRunTerminal,
-} from '../../deepResearch/deepResearchAdapter';
+} from '../../deepResearch/runProgress';
 import { type DeepResearchRunView } from '../../deepResearch/types';
 import { useCancelDeepResearchMutation } from '../../hooks/useDeepResearch';
 import { DeepResearchReport } from './DeepResearchReport';
@@ -53,7 +54,48 @@ const STATUS_CONFIG: Record<
 };
 
 const getElapsedLabel = (elapsedMs: number) => {
-    return formatDuration(Math.max(0, elapsedMs));
+    const elapsedSeconds = Math.floor(Math.max(0, elapsedMs) / 1_000);
+    if (elapsedSeconds < 60) {
+        return `${elapsedSeconds}s`;
+    }
+
+    const minutes = Math.floor(elapsedSeconds / 60);
+    const seconds = elapsedSeconds % 60;
+    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+};
+
+const useElapsedMs = (run: DeepResearchRunView, isTerminal: boolean) => {
+    const [elapsed, setElapsed] = useState({
+        runUuid: run.uuid,
+        elapsedMs: run.elapsedMs,
+    });
+
+    useEffect(() => {
+        setElapsed((currentElapsed) => ({
+            runUuid: run.uuid,
+            elapsedMs:
+                currentElapsed.runUuid !== run.uuid || isTerminal
+                    ? run.elapsedMs
+                    : Math.max(currentElapsed.elapsedMs, run.elapsedMs),
+        }));
+    }, [isTerminal, run.elapsedMs, run.uuid]);
+
+    useEffect(() => {
+        if (isTerminal) {
+            return undefined;
+        }
+
+        const interval = window.setInterval(() => {
+            setElapsed((currentElapsed) => ({
+                ...currentElapsed,
+                elapsedMs: currentElapsed.elapsedMs + 1_000,
+            }));
+        }, 1_000);
+
+        return () => window.clearInterval(interval);
+    }, [isTerminal, run.uuid]);
+
+    return elapsed.elapsedMs;
 };
 
 type Props = {
@@ -81,9 +123,14 @@ export const DeepResearchRunCard = ({
         }
     }, [announcedStatus, run.status]);
 
-    const hasReport = !!run.artifact;
+    const hasReport = !!run.resultMarkdown;
     const isTerminal = isDeepResearchRunTerminal(run.status);
+    const elapsedMs = useElapsedMs(run, isTerminal);
     const isActionRequired = !!run.actionRequired;
+    const canShowActionRequired =
+        isActionRequired &&
+        !!run.actionRequired &&
+        !!(onReconnect || onContinueWithoutSource);
 
     return (
         <Paper
@@ -136,6 +183,8 @@ export const DeepResearchRunCard = ({
                     Research status changed to {status.label}
                 </Text>
 
+                <Divider />
+
                 {run.phase && !isTerminal && (
                     <Group gap="xs" wrap="nowrap">
                         <ThemeIcon size="sm" color="indigo" variant="light">
@@ -155,7 +204,7 @@ export const DeepResearchRunCard = ({
                         <Group gap={5}>
                             <IconClock size={13} />
                             <Text size="sm" ff="monospace">
-                                {getElapsedLabel(run.elapsedMs)}
+                                {getElapsedLabel(elapsedMs)}
                             </Text>
                         </Group>
                     </Stack>
@@ -185,54 +234,50 @@ export const DeepResearchRunCard = ({
                     </Stack>
                 </SimpleGrid>
 
-                {isActionRequired &&
-                    run.actionRequired &&
-                    (onReconnect || onContinueWithoutSource) && (
-                        <Alert
-                            color="yellow"
-                            icon={<IconPlugConnected size={16} />}
-                        >
-                            <Stack gap="sm">
-                                <Text size="sm">
-                                    {run.actionRequired.message}
-                                </Text>
-                                <Group gap="xs">
-                                    {onReconnect && (
-                                        <Button
-                                            size="xs"
-                                            onClick={() =>
-                                                onReconnect?.(
-                                                    run.actionRequired
-                                                        ?.integrationName,
-                                                )
-                                            }
-                                        >
-                                            {run.actionRequired.type ===
-                                            'permission'
-                                                ? 'Review permissions'
-                                                : `Reconnect ${run.actionRequired.integrationName ?? 'source'}`}
-                                        </Button>
-                                    )}
-                                    {onContinueWithoutSource && (
-                                        <Button
-                                            size="xs"
-                                            variant="default"
-                                            onClick={() =>
-                                                onContinueWithoutSource?.(
-                                                    run.actionRequired
-                                                        ?.integrationName,
-                                                )
-                                            }
-                                        >
-                                            Continue without{' '}
-                                            {run.actionRequired
-                                                .integrationName ?? 'source'}
-                                        </Button>
-                                    )}
-                                </Group>
-                            </Stack>
-                        </Alert>
-                    )}
+                {canShowActionRequired && run.actionRequired && (
+                    <Alert
+                        color="yellow"
+                        icon={<IconPlugConnected size={16} />}
+                    >
+                        <Stack gap="sm">
+                            <Text size="sm">{run.actionRequired.message}</Text>
+                            <Group gap="xs">
+                                {onReconnect && (
+                                    <Button
+                                        size="xs"
+                                        onClick={() =>
+                                            onReconnect?.(
+                                                run.actionRequired
+                                                    ?.integrationName,
+                                            )
+                                        }
+                                    >
+                                        {run.actionRequired.type ===
+                                        'permission'
+                                            ? 'Review permissions'
+                                            : `Reconnect ${run.actionRequired.integrationName ?? 'source'}`}
+                                    </Button>
+                                )}
+                                {onContinueWithoutSource && (
+                                    <Button
+                                        size="xs"
+                                        variant="default"
+                                        onClick={() =>
+                                            onContinueWithoutSource?.(
+                                                run.actionRequired
+                                                    ?.integrationName,
+                                            )
+                                        }
+                                    >
+                                        Continue without{' '}
+                                        {run.actionRequired.integrationName ??
+                                            'source'}
+                                    </Button>
+                                )}
+                            </Group>
+                        </Stack>
+                    </Alert>
+                )}
 
                 {run.status === 'failed' && (
                     <Alert color="red" icon={<IconAlertCircle size={16} />}>
@@ -269,7 +314,11 @@ export const DeepResearchRunCard = ({
                                 </Text>
                             </Group>
                             <Text size="sm" lineClamp={5}>
-                                {run.artifact?.executiveAnswer}
+                                {run.resultMarkdown
+                                    ? getDeepResearchReportPreview(
+                                          run.resultMarkdown,
+                                      )
+                                    : null}
                             </Text>
                             <Button
                                 variant="light"
@@ -315,6 +364,8 @@ export const DeepResearchRunCard = ({
                         </Collapse>
                     </>
                 )}
+
+                <Divider />
 
                 <Group justify="space-between" align="center">
                     <Text size="xs" c="dimmed">

@@ -9,7 +9,7 @@ import {
 } from '@mantine-8/core';
 import { IconClock, IconDatabase, IconSearch } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { DEEP_RESEARCH_DEPTH_CONFIG } from '../../deepResearch/deepResearchAdapter';
+import { DEEP_RESEARCH_DEPTH_CONFIG } from '../../deepResearch/runProgress';
 import {
     DEEP_RESEARCH_DEPTHS,
     type DeepResearchDepth,

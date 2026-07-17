@@ -5,6 +5,8 @@ import {
     type AiDeepResearchRun,
     type ApiAiDeepResearchEventsResponse,
     type ApiAiDeepResearchRunResponse,
+    type ApiAiAgentThreadMessageVizQuery,
+    type ApiAiAgentThreadMessageVizQueryResponse,
     type ApiError,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -12,15 +14,15 @@ import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import useUser from '../../../../hooks/user/useUser';
 import {
-    adaptDeepResearchRun,
-    DEEP_RESEARCH_DEPTH_CONFIG,
-    isDeepResearchRunTerminal,
-} from '../deepResearch/deepResearchAdapter';
-import {
     registerDeepResearchRun,
     replaceDeepResearchRun,
     updateDeepResearchRun,
 } from '../deepResearch/deepResearchRegistry';
+import {
+    adaptDeepResearchRun,
+    DEEP_RESEARCH_DEPTH_CONFIG,
+    isDeepResearchRunTerminal,
+} from '../deepResearch/runProgress';
 import {
     type DeepResearchRunRegistration,
     type StartDeepResearchArgs,
@@ -97,6 +99,18 @@ const cancelDeepResearch = (projectUuid: string, runUuid: string) =>
         method: 'POST',
         body: JSON.stringify({}),
     }) as Promise<ApiAiDeepResearchRunResponse['results']>;
+
+const getDeepResearchChartVizQuery = (
+    projectUuid: string,
+    runUuid: string,
+    queryUuid: string,
+) =>
+    lightdashApi<AnyType>({
+        version: 'v1',
+        url: `${getBaseUrl(projectUuid)}/${runUuid}/charts/${queryUuid}/viz-query`,
+        method: 'GET',
+        body: undefined,
+    }) as Promise<ApiAiAgentThreadMessageVizQueryResponse['results']>;
 
 export const useStartDeepResearchMutation = ({
     projectUuid,
@@ -287,6 +301,29 @@ export const useCancelDeepResearchMutation = (
         },
     });
 };
+
+export const useDeepResearchChartVizQuery = ({
+    projectUuid,
+    runUuid,
+    queryUuid,
+}: {
+    projectUuid: string;
+    runUuid: string;
+    queryUuid: string;
+}) =>
+    useQuery<ApiAiAgentThreadMessageVizQuery, ApiError>({
+        queryKey: [
+            DEEP_RESEARCH_QUERY_KEY,
+            projectUuid,
+            runUuid,
+            'charts',
+            queryUuid,
+        ],
+        queryFn: () =>
+            getDeepResearchChartVizQuery(projectUuid, runUuid, queryUuid),
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
+    });
 
 export const useContinueDeepResearchMutation = ({
     projectUuid,

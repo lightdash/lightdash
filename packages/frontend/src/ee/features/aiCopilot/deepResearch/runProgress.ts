@@ -1,16 +1,14 @@
 import {
     assertUnreachable,
+    countDeepResearchFindings,
     type AiDeepResearchActivity,
-    type AiDeepResearchEvidence,
     type AiDeepResearchEffort,
     type AiDeepResearchEvent,
     type AiDeepResearchPhase,
     type AiDeepResearchRun,
 } from '@lightdash/common';
 import {
-    type DeepResearchArtifact,
     type DeepResearchDepth,
-    type DeepResearchEvidence,
     type DeepResearchRunRegistration,
     type DeepResearchRunStatus,
     type DeepResearchRunView,
@@ -55,96 +53,6 @@ export const DEEP_RESEARCH_DEPTH_CONFIG: Record<
         warehouseQueries: 100,
         description: 'The widest evidence review for high-stakes questions.',
     },
-};
-
-const QUERY_UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f-]{27,36}/i;
-
-const getSafeEvidenceUrl = (value: string | null): string | null => {
-    if (!value) return null;
-    if (value.startsWith('/') && !value.startsWith('//')) return value;
-    try {
-        const url = new URL(value);
-        return url.protocol === 'https:' ? url.toString() : null;
-    } catch {
-        return null;
-    }
-};
-
-const getEvidenceSourceType = (
-    sourceType: 'lightdash' | 'warehouse' | 'web',
-    sourceLabel: string,
-): DeepResearchEvidence['sourceType'] => {
-    if (/github|repository|pull request/i.test(sourceLabel)) {
-        return 'repository';
-    }
-    if (/document|knowledge|notion/i.test(sourceLabel)) {
-        return 'document';
-    }
-    return sourceType;
-};
-
-const getEvidence = (
-    evidence: AiDeepResearchEvidence,
-    findingIndex: number,
-    evidenceIndex: number,
-): DeepResearchEvidence => {
-    const sourceUrl = getSafeEvidenceUrl(evidence.sourceUrl);
-    const sourceType = getEvidenceSourceType(
-        evidence.sourceType,
-        evidence.sourceLabel,
-    );
-    return {
-        uuid: `evidence-${findingIndex + 1}-${evidenceIndex + 1}`,
-        title: evidence.title,
-        description: evidence.description,
-        sourceType,
-        sourceLabel: evidence.sourceLabel,
-        sourceUrl,
-        queryUuid:
-            sourceUrl &&
-            (evidence.sourceType === 'lightdash' ||
-                evidence.sourceType === 'warehouse')
-                ? (sourceUrl.match(QUERY_UUID_PATTERN)?.[0] ?? null)
-                : null,
-        metrics: [],
-        filters: [],
-        dateRange: null,
-    };
-};
-
-const getArtifact = (run: AiDeepResearchRun): DeepResearchArtifact | null => {
-    if (!run.result) {
-        return null;
-    }
-
-    const findingConfidences = run.result.findings.map(
-        (finding) => finding.confidence,
-    );
-    const confidence = findingConfidences.includes('low')
-        ? 'low'
-        : findingConfidences.includes('medium')
-          ? 'medium'
-          : 'high';
-
-    return {
-        executiveAnswer: run.result.summary,
-        findings: run.result.findings.map((finding, findingIndex) => ({
-            uuid: `finding-${findingIndex + 1}`,
-            title: finding.title,
-            summary: finding.summary,
-            confidence: finding.confidence,
-            evidence: finding.evidence.map((evidence, evidenceIndex) =>
-                getEvidence(evidence, findingIndex, evidenceIndex),
-            ),
-        })),
-        contradictoryEvidence: run.result.caveats,
-        definitionsAndMethodology: run.result.scope,
-        confidence,
-        limitations: run.result.caveats,
-        nextQuestions: run.result.unresolvedQuestions.length
-            ? run.result.unresolvedQuestions
-            : run.result.nextSteps,
-    };
 };
 
 const getActivityLabel = (activity: AiDeepResearchActivity | null): string => {
@@ -215,6 +123,15 @@ export const isDeepResearchRunTerminal = (
         'waiting_for_reconnection',
     ].includes(status);
 
+/** Plain-text intro of the report markdown, for compact previews. */
+export const getDeepResearchReportPreview = (markdown: string): string =>
+    markdown
+        .split(/^## /m)[0]
+        .replace(/^(`{3,}|~{3,})[\s\S]*?(\1|$)/gm, ' ')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
 export const adaptDeepResearchRun = ({
     run,
     events,
@@ -243,6 +160,7 @@ export const adaptDeepResearchRun = ({
 
     return {
         uuid: run.aiDeepResearchRunUuid,
+        projectUuid: run.projectUuid,
         threadUuid: registration.threadUuid,
         question: registration.question,
         depth: registration.depth,
@@ -256,7 +174,9 @@ export const adaptDeepResearchRun = ({
         elapsedMs: Math.max(0, endTime - startTime),
         sourceCount: null,
         queryCount,
-        findingCount: run.result?.findings.length ?? 0,
+        findingCount: run.resultMarkdown
+            ? countDeepResearchFindings(run.resultMarkdown)
+            : 0,
         actionRequired: null,
         latestEvents: events
             .slice(-4)
@@ -267,7 +187,7 @@ export const adaptDeepResearchRun = ({
                 label: getEventLabel(event),
                 createdAt: event.createdAt,
             })),
-        artifact: getArtifact(run),
+        resultMarkdown: run.resultMarkdown,
         errorMessage: run.errorMessage,
     };
 };
