@@ -503,7 +503,7 @@ const allocateSpaceFileNames = async (
     });
 };
 
-/** Writes first-class space YAML files returned by GET /spaces/code. */
+/** Writes first-class space YAML files returned by GET /code/spaces. */
 export const writeSpaceFiles = async (
     spaces: SpaceAsCode[],
     projectName: string,
@@ -759,7 +759,7 @@ export const downloadSpaces = async (
             results = await lightdashApi<ApiSpaceAsCodeListResponse['results']>(
                 {
                     method: 'GET',
-                    url: `/api/v1/projects/${projectId}/spaces/code`,
+                    url: `/api/v1/projects/${projectId}/code/spaces`,
                     body: undefined,
                 },
             );
@@ -877,7 +877,7 @@ export const upsertSpaces = async (
                     ApiSpaceAsCodeUpsertResponse['results']
                 >({
                     method: 'POST',
-                    url: `/api/v1/projects/${projectId}/spaces/code?${params.toString()}`,
+                    url: `/api/v1/projects/${projectId}/code/spaces?${params.toString()}`,
                     body: JSON.stringify(space),
                 });
                 const action = getSpacePromoteAction(result.action);

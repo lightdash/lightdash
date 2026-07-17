@@ -239,8 +239,12 @@ access:
 
 The endpoints are:
 
-- `GET /api/v1/projects/{projectUuid}/spaces/code`
-- `POST /api/v1/projects/{projectUuid}/spaces/code`
+- `GET /api/v1/projects/{projectUuid}/code/spaces`
+- `POST /api/v1/projects/{projectUuid}/code/spaces`
+
+The previous `GET` and `POST /api/v1/projects/{projectUuid}/spaces/code`
+routes are deprecated compatibility aliases. New clients should use
+`/code/spaces`; the aliases are scheduled for removal after 17 August 2026.
 
 The full hierarchy path in `slug` is the portable identity. Uploads process
 parents before descendants and create missing spaces unless

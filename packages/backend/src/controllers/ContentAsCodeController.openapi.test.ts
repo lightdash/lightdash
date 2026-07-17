@@ -32,6 +32,8 @@ const CONTENT_AS_CODE_ENDPOINTS = [
     ],
     ['get', '/api/v1/projects/{projectUuid}/spaces/code', 'getSpacesAsCode'],
     ['post', '/api/v1/projects/{projectUuid}/spaces/code', 'upsertSpaceAsCode'],
+    ['get', '/api/v1/projects/{projectUuid}/code/spaces', 'getCodeSpaces'],
+    ['post', '/api/v1/projects/{projectUuid}/code/spaces', 'upsertCodeSpace'],
     [
         'get',
         '/api/v1/projects/{projectUuid}/virtualViews/code',
@@ -105,14 +107,19 @@ describe('content-as-code OpenAPI compatibility', () => {
             const pathDefinition = swagger.paths[
                 path as keyof typeof swagger.paths
             ] as Record<string, { operationId?: string }> | undefined;
-            if (
-                path === '/api/v1/projects/{projectUuid}/spaces/code' &&
-                pathDefinition === undefined
-            ) {
-                return;
-            }
 
             expect(pathDefinition?.[method]?.operationId).toBe(operationId);
+        },
+    );
+
+    it.each(['get', 'post'] as const)(
+        'marks the legacy %s spaces route as deprecated',
+        (method) => {
+            expect(
+                swagger.paths['/api/v1/projects/{projectUuid}/spaces/code'][
+                    method
+                ].deprecated,
+            ).toBe(true);
         },
     );
 
@@ -128,7 +135,6 @@ describe('content-as-code OpenAPI compatibility', () => {
             "'/api/v1/projects/:projectUuid/spaces/:spaceUuid'",
         );
 
-        if (codeRoute === -1) return;
         expect(codeRoute).toBeGreaterThan(-1);
         expect(spaceUuidRoute).toBeGreaterThan(-1);
         expect(codeRoute).toBeLessThan(spaceUuidRoute);

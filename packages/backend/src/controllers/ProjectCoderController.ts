@@ -280,9 +280,9 @@ export class ProjectCoderController extends BaseController {
     @Tags('Spaces')
     @Middlewares(CODE_READ_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Get('/spaces/code')
-    @OperationId('getSpacesAsCode')
-    async getSpacesAsCode(
+    @Get('/code/spaces')
+    @OperationId('getCodeSpaces')
+    async getCodeSpaces(
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSpaceAsCodeListResponse> {
@@ -293,6 +293,22 @@ export class ProjectCoderController extends BaseController {
                 .getCoderService()
                 .getSpaces(req.account, projectUuid),
         );
+    }
+
+    /**
+     * @summary List spaces as code (deprecated)
+     * @deprecated Use GET /code/spaces. Scheduled for removal after 2026-08-17.
+     */
+    @Tags('Spaces')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/spaces/code')
+    @OperationId('getSpacesAsCode')
+    async getSpacesAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSpaceAsCodeListResponse> {
+        return this.getCodeSpaces(projectUuid, req);
     }
 
     @Middlewares(CODE_READ_MIDDLEWARES)
@@ -576,9 +592,9 @@ export class ProjectCoderController extends BaseController {
     @Tags('Spaces')
     @Middlewares(CODE_WRITE_MIDDLEWARES)
     @SuccessResponse('200', 'Success')
-    @Post('/spaces/code')
-    @OperationId('upsertSpaceAsCode')
-    async upsertSpaceAsCode(
+    @Post('/code/spaces')
+    @OperationId('upsertCodeSpace')
+    async upsertCodeSpace(
         @Path() projectUuid: string,
         @Body() space: SpaceAsCode,
         @Request() req: express.Request,
@@ -594,6 +610,31 @@ export class ProjectCoderController extends BaseController {
                     skipSpaceCreate,
                     publicSpaceCreate,
                 }),
+        );
+    }
+
+    /**
+     * @summary Upsert space as code (deprecated)
+     * @deprecated Use POST /code/spaces. Scheduled for removal after 2026-08-17.
+     */
+    @Tags('Spaces')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/spaces/code')
+    @OperationId('upsertSpaceAsCode')
+    async upsertSpaceAsCode(
+        @Path() projectUuid: string,
+        @Body() space: SpaceAsCode,
+        @Request() req: express.Request,
+        @Query() skipSpaceCreate: boolean = false,
+        @Query() publicSpaceCreate: boolean = false,
+    ): Promise<ApiSpaceAsCodeUpsertResponse> {
+        return this.upsertCodeSpace(
+            projectUuid,
+            space,
+            req,
+            skipSpaceCreate,
+            publicSpaceCreate,
         );
     }
 
