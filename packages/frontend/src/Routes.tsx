@@ -153,9 +153,12 @@ const PUBLIC_ROUTES: RouteObject[] = [
             );
             return {
                 Component: () => (
-                    <TrackPage name={PageName.ORGANIZATION_SETUP}>
-                        <OrganizationSetup />
-                    </TrackPage>
+                    <>
+                        <NavBar />
+                        <TrackPage name={PageName.ORGANIZATION_SETUP}>
+                            <OrganizationSetup />
+                        </TrackPage>
+                    </>
                 ),
             };
         },
@@ -797,9 +800,14 @@ const PRIVATE_ROUTES: RouteObject[] = [
                     );
                     return {
                         Component: () => (
-                            <TrackPage name={PageName.ONBOARDING_DATA_SOURCE}>
-                                <OnboardingDataSource />
-                            </TrackPage>
+                            <>
+                                <NavBar />
+                                <TrackPage
+                                    name={PageName.ONBOARDING_DATA_SOURCE}
+                                >
+                                    <OnboardingDataSource />
+                                </TrackPage>
+                            </>
                         ),
                     };
                 },
@@ -814,9 +822,14 @@ const PRIVATE_ROUTES: RouteObject[] = [
                     );
                     return {
                         Component: () => (
-                            <TrackPage name={PageName.ONBOARDING_PROJECT_READY}>
-                                <OnboardingProjectReady />
-                            </TrackPage>
+                            <>
+                                <NavBar />
+                                <TrackPage
+                                    name={PageName.ONBOARDING_PROJECT_READY}
+                                >
+                                    <OnboardingProjectReady />
+                                </TrackPage>
+                            </>
                         ),
                     };
                 },

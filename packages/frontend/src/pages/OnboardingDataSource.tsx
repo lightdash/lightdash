@@ -17,6 +17,7 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
+import AboutFooter from '../components/AboutFooter';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -114,8 +115,7 @@ const DataSourcePicker: FC = () => {
                     Add a data source
                 </Title>
                 <Text size="md" c="dimmed" ta="center">
-                    Connecting a warehouse is the main event — it's what makes
-                    Aurora useful.
+                    Connect your warehouse so your agents can query your data.
                 </Text>
             </Stack>
 
@@ -252,6 +252,8 @@ const OnboardingDataSourceContent: FC = () => {
             ) : (
                 <DataSourcePicker />
             )}
+
+            <AboutFooter />
         </Box>
     );
 };

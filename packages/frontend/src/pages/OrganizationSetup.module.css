@@ -1,32 +1,26 @@
 .page {
-    min-height: 100vh;
+    min-height: calc(100vh - var(--navbar-height));
     display: flex;
     flex-direction: column;
     background-color: var(--mantine-color-ldGray-0);
 }
 
-.topBar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--mantine-spacing-lg) var(--mantine-spacing-xl);
-    flex-shrink: 0;
-}
-
 .body {
     flex: 1;
     display: flex;
-    align-items: stretch;
+    align-items: center;
+    justify-content: center;
+    gap: 5rem;
+    width: 100%;
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: var(--mantine-spacing-xl) 3rem;
     min-height: 0;
 }
 
 .leftPane {
     flex: 4;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: var(--mantine-spacing-xl) 4rem;
-    max-width: 640px;
+    max-width: 560px;
 }
 
 .rightPane {
@@ -34,9 +28,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: var(--mantine-spacing-xl) 3rem;
-    background-color: var(--mantine-color-white);
-    border-left: 1px solid var(--mantine-color-ldGray-2);
 }
 
 .heading {
@@ -124,17 +115,17 @@
 @media (max-width: 992px) {
     .body {
         flex-direction: column;
+        gap: var(--mantine-spacing-xl);
     }
 
     .leftPane {
         flex: none;
         max-width: none;
-        padding: var(--mantine-spacing-xl);
+        width: 100%;
     }
 
     .rightPane {
         flex: none;
-        border-left: none;
-        border-top: 1px solid var(--mantine-color-ldGray-2);
+        width: 100%;
     }
 }

@@ -15,9 +15,7 @@ import layout from './homepageLayout.module.css';
 const NoProjectHomepage: FC = () => {
     const { user } = useApp();
     const { data: organization, isInitialLoading } = useOrganization();
-    const orgSetupPageFlag = useServerFeatureFlag(
-        FeatureFlags.OrganizationSetupPage,
-    );
+    const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
     const actions = useRecommendedActions(null);
 
     if (isInitialLoading || orgSetupPageFlag.isLoading) {

@@ -83,7 +83,6 @@ const linePath = (points: number[]): string => {
 };
 
 type BrandPreviewProps = {
-    domain: string;
     name: string | null;
     logos: OrganizationBrandLogo[];
     colors: OrganizationBrandColor[];
@@ -92,7 +91,6 @@ type BrandPreviewProps = {
 };
 
 export const BrandPreview: FC<BrandPreviewProps> = ({
-    domain,
     name,
     logos,
     colors,
@@ -102,7 +100,6 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
     const primary = pickPrimaryColor(colors);
     const navLogo = pickNavLogo(logos);
     const displayName = name ?? 'Your company';
-    const displayDomain = domain.trim() || 'yourcompany.com';
     const barColors = [primary, `${primary}59`];
 
     // Apply a brand font family only when we can actually load it, otherwise
@@ -123,7 +120,7 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
                 </Group>
                 <Box className={classes.urlBar}>
                     <Text size="xs" c="dimmed">
-                        app.{displayDomain}
+                        {window.location.host}
                     </Text>
                 </Box>
             </Group>

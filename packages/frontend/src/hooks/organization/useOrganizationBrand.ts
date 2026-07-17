@@ -61,6 +61,7 @@ export const useDetectOrganizationBrand = (domain: string, enabled: boolean) =>
         queryFn: () => fetchOrganizationBrand({ domain }),
         enabled: enabled && domain.length > 0,
         retry: false,
+        retryOnMount: false,
         staleTime: Infinity,
         refetchOnWindowFocus: false,
     });

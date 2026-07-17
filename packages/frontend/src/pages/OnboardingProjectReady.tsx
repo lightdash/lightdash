@@ -12,6 +12,7 @@ import { IconCheck } from '@tabler/icons-react';
 import confetti from 'canvas-confetti';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
+import AboutFooter from '../components/AboutFooter';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import MantineIcon from '../components/common/MantineIcon';
 import { useTables } from '../features/sqlRunner/hooks/useTables';
@@ -135,7 +136,7 @@ const OnboardingProjectReadyContent: FC<{ projectUuid: string }> = ({
                         We're getting your project ready
                     </Title>
                     <Text c="dimmed" size="lg" ta="center">
-                        Aurora now understands your data.
+                        Your agents now understand your data.
                     </Text>
                 </Stack>
 
@@ -201,6 +202,8 @@ const OnboardingProjectReadyContent: FC<{ projectUuid: string }> = ({
                     </Button>
                 )}
             </Box>
+
+            <AboutFooter />
         </Box>
     );
 };

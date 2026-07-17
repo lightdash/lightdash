@@ -525,6 +525,10 @@ EMAIL_SMTP_SENDER_EMAIL=noreply@lightdash.local
 # Dev API access (auto-provisioned PAT from seed data)
 LIGHTDASH_API_URL=http://localhost:${PORT}
 LDPAT=ldpat_deadbeefdeadbeefdeadbeefdeadbeef
+
+# Allow registering fresh users/orgs (signup flow testing). Always on by default
+# in dev — without it, POST /api/v1/user 403s once the seed org exists.
+ALLOW_MULTIPLE_ORGS=true
 EOF
 echo "DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo" >> .env.development.local
 ```
