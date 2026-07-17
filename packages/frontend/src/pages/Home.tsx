@@ -52,8 +52,10 @@ const Home: FC = () => {
 
     const { user } = useApp();
     const isAiAgentsEnabled = useAiAgentButtonVisibility();
-    const { isEnabled: isHomepageBuilderFlagEnabled } =
-        useHomepageBuilderFlag();
+    const {
+        isEnabled: isHomepageBuilderFlagEnabled,
+        isLoading: isHomepageBuilderFlagLoading,
+    } = useHomepageBuilderFlag();
     const { isCopilotEnabled, isLoading: isCopilotLoading } =
         useIsCopilotEnabled();
     // The builder's centerpiece is the AI hero, so without copilot it is a
@@ -71,7 +73,9 @@ const Home: FC = () => {
         isMostPopularAndRecentlyUpdatedLoading ||
         pinnedItems.isInitialLoading ||
         favorites.isInitialLoading ||
-        isCopilotLoading;
+        isCopilotLoading ||
+        isHomepageBuilderFlagLoading ||
+        resolvedHomepage.isInitialLoading;
 
     const error = onboarding.error || project.error;
 
