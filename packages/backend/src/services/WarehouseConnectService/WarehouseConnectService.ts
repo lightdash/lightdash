@@ -40,10 +40,7 @@ const isDurableSnowflakeCredential = (
 
 type WarehouseConnectCodeModelMethods = Pick<
     WarehouseConnectCodeModel,
-    | 'create'
-    | 'consumeForDeposit'
-    | 'findDepositedForClaim'
-    | 'deleteDepositedForClaim'
+    'create' | 'consumeForDeposit' | 'findDepositedForClaim'
 >;
 
 type EncryptionUtilMethods = Pick<EncryptionUtil, 'encrypt' | 'decrypt'>;
@@ -184,27 +181,18 @@ export class WarehouseConnectService extends BaseService {
             return { status: 'pending' };
         }
 
-        const claimed =
-            await this.warehouseConnectCodeModel.deleteDepositedForClaim(
-                codeHash,
-                user.userUuid,
-            );
-        if (claimed === null || claimed.encryptedCredentials === null) {
-            throw new NotFoundError('Warehouse connect code not found');
-        }
-
         try {
             const deposit = JSON.parse(
-                this.encryptionUtil.decrypt(claimed.encryptedCredentials),
+                this.encryptionUtil.decrypt(connectCode.encryptedCredentials),
             ) as {
                 credentials: DepositSnowflakeCredentials;
                 inventory: WarehouseConnectInventory | null;
             };
             this.analytics.track({
-                userId: claimed.createdByUserUuid,
+                userId: connectCode.createdByUserUuid,
                 event: 'warehouse_connect.claimed',
                 properties: {
-                    organizationId: claimed.organizationUuid,
+                    organizationId: connectCode.organizationUuid,
                 },
             });
             return {

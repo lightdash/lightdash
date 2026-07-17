@@ -19,12 +19,14 @@ const dbRow = {
 };
 
 describe('WarehouseConnectCodeModel', () => {
-    it('deletes all prior codes for the user when creating a code', async () => {
+    it('deletes prior codes for the user and expired codes when creating a code', async () => {
         const deleteBuilder = {
             where: vi.fn(),
+            orWhere: vi.fn(),
             delete: vi.fn(async () => 1),
         };
         deleteBuilder.where.mockReturnValue(deleteBuilder);
+        deleteBuilder.orWhere.mockReturnValue(deleteBuilder);
         const insert = vi.fn(async () => [dbRow]);
         const trx = vi
             .fn()
@@ -35,6 +37,7 @@ describe('WarehouseConnectCodeModel', () => {
                 async (callback: (value: typeof trx) => unknown) =>
                     callback(trx),
             ),
+            fn: { now: vi.fn(() => 'database-now') },
         } as unknown as Knex;
         const model = new WarehouseConnectCodeModel({ database });
 
@@ -48,6 +51,11 @@ describe('WarehouseConnectCodeModel', () => {
         expect(deleteBuilder.where).toHaveBeenCalledWith(
             'created_by_user_uuid',
             userUuid,
+        );
+        expect(deleteBuilder.orWhere).toHaveBeenCalledWith(
+            'expires_at',
+            '<=',
+            'database-now',
         );
         expect(deleteBuilder.delete).toHaveBeenCalledOnce();
         expect(insert).toHaveBeenCalledWith({
@@ -152,44 +160,5 @@ describe('WarehouseConnectCodeModel', () => {
             '>',
             'database-now',
         );
-    });
-
-    it('deletes and returns deposited credentials for the creator only once', async () => {
-        const builder = {
-            where: vi.fn(),
-            whereNotNull: vi.fn(),
-            delete: vi.fn(),
-            returning: vi.fn(async () => [dbRow]),
-        };
-        builder.where.mockReturnValue(builder);
-        builder.whereNotNull.mockReturnValue(builder);
-        builder.delete.mockReturnValue(builder);
-        const database = Object.assign(
-            vi.fn(() => builder),
-            {
-                fn: { now: vi.fn(() => 'database-now') },
-            },
-        ) as unknown as Knex;
-        const model = new WarehouseConnectCodeModel({ database });
-
-        await expect(
-            model.deleteDepositedForClaim('hashed-code', userUuid),
-        ).resolves.toEqual({
-            organizationUuid,
-            createdByUserUuid: userUuid,
-            expiresAt,
-            usedAt,
-            encryptedCredentials,
-        });
-        expect(builder.where).toHaveBeenCalledWith(
-            'created_by_user_uuid',
-            userUuid,
-        );
-        expect(builder.whereNotNull).toHaveBeenCalledWith('used_at');
-        expect(builder.whereNotNull).toHaveBeenCalledWith(
-            'encrypted_credentials',
-        );
-        expect(builder.delete).toHaveBeenCalledOnce();
-        expect(builder.returning).toHaveBeenCalledWith('*');
     });
 });

@@ -47,6 +47,10 @@ import { getWarehouseIcon } from '../ProjectConnectFlow/utils';
 import { useProjectFormContext } from '../useProjectFormContext';
 import DataTimezoneField from './DataTimezoneField';
 import { SnowflakeDefaultValues } from './defaultValues';
+import {
+    useSetSnowflakeCliSsoMode,
+    useSnowflakeCliSsoMode,
+} from './SnowflakeCliSsoModeContext';
 import SnowflakeCliSsoPanel from './SnowflakeCliSsoPanel';
 import {
     CLI_SSO_LABEL,
@@ -65,6 +69,10 @@ export const SnowflakeSchemaInput: FC<{
     description?: ReactNode;
 }> = ({ disabled, description }) => {
     const form = useFormContext();
+    const isCliSsoMode = useSnowflakeCliSsoMode();
+    if (isCliSsoMode) {
+        return null;
+    }
     return (
         <TextInput
             name="warehouse.schema"
@@ -146,11 +154,12 @@ const SnowflakeForm: FC<{
     const isEditMode = !!savedProject;
 
     const warehouseConnectFlag = useServerFeatureFlag(
-        FeatureFlags.WarehouseConnectOnboarding,
+        FeatureFlags.NewOnboarding,
     );
     const isCliSsoEnabled =
         !savedProject && (warehouseConnectFlag.data?.enabled ?? false);
-    const [isCliSsoMode, setIsCliSsoMode] = useState(false);
+    const isCliSsoMode = useSnowflakeCliSsoMode();
+    const setIsCliSsoMode = useSetSnowflakeCliSsoMode();
     const userSelectedAuthType = useRef(false);
     const [cliSsoCredentials, setCliSsoCredentials] =
         useState<DepositSnowflakeCredentials | null>(null);
@@ -186,7 +195,7 @@ const SnowflakeForm: FC<{
         if (isCliSsoEnabled && !userSelectedAuthType.current) {
             setIsCliSsoMode(true);
         }
-    }, [isCliSsoEnabled]);
+    }, [isCliSsoEnabled, setIsCliSsoMode]);
     const authenticationType: SnowflakeAuthenticationType =
         form.values.warehouse.authenticationType ?? defaultAuthType;
 
@@ -329,7 +338,7 @@ const SnowflakeForm: FC<{
                         <TextInput
                             name="warehouse.account"
                             label="Account"
-                            placeholder="AAA99827"
+                            placeholder="xy12345.eu-west-2.aws"
                             description={
                                 isCliSsoMode && cliSsoCredentials !== null
                                     ? 'Your CLI SSO connection is bound to this account.'

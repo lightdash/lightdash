@@ -536,6 +536,14 @@ describe('SnowflakeWarehouseClient', () => {
                             database_name: 'ANALYTICS',
                         },
                     ];
+                } else if (sqlText.startsWith('SELECT SUM(bytes)')) {
+                    if (sqlText.includes('DATABASE_0.')) {
+                        rows = [{ total_bytes: 1250 }];
+                    } else if (sqlText.includes('DATABASE_1.')) {
+                        rows = [{ total_bytes: 500 }];
+                    } else {
+                        rows = [{ total_bytes: null }];
+                    }
                 }
                 complete(
                     undefined,
@@ -568,6 +576,7 @@ describe('SnowflakeWarehouseClient', () => {
                     name: `DATABASE_${index}`,
                     comment: index === 0 ? 'Primary analytics' : null,
                     kind: index === 1 ? 'IMPORTED DATABASE' : 'STANDARD',
+                    sizeBytes: [1250, 500][index] ?? null,
                 })),
                 warehouses: [
                     {
@@ -595,8 +604,89 @@ describe('SnowflakeWarehouseClient', () => {
         );
         expect(execute).toHaveBeenCalledWith(
             expect.objectContaining({
+                sqlText: `SELECT SUM(bytes) AS "total_bytes" FROM DATABASE_0.INFORMATION_SCHEMA.TABLES WHERE table_type = 'BASE TABLE'`,
+            }),
+        );
+        expect(
+            execute.mock.calls.filter(([statement]) =>
+                statement.sqlText.startsWith('SELECT SUM(bytes)'),
+            ),
+        ).toHaveLength(25);
+        expect(
+            execute.mock.calls.some(([statement]) =>
+                statement.sqlText.startsWith('USE WAREHOUSE'),
+            ),
+        ).toBe(false);
+        expect(execute).toHaveBeenCalledWith(
+            expect.objectContaining({
                 sqlText:
                     'SHOW GRANTS TO USER "user.name@example.com" LIMIT 100',
+            }),
+        );
+    });
+
+    it('returns null database sizes when size discovery fails', async () => {
+        const execute = vi.fn(
+            ({
+                sqlText,
+                complete,
+            }: {
+                sqlText: string;
+                complete: (
+                    error: Error | undefined,
+                    statement: { getColumns: () => typeof queryColumnsMock },
+                    rows: Record<string, AnyType>[],
+                ) => void;
+            }) => {
+                if (sqlText.startsWith('SELECT SUM(bytes)')) {
+                    complete(
+                        new Error('Insufficient privileges'),
+                        { getColumns: () => queryColumnsMock },
+                        [],
+                    );
+                    return;
+                }
+                let rows: Record<string, AnyType>[] = [];
+                if (sqlText.startsWith('SELECT CURRENT_USER')) {
+                    rows = [{ USER: 'test-user' }];
+                } else if (sqlText.startsWith('SHOW DATABASES')) {
+                    rows = [{ name: 'ANALYTICS' }, { name: 'RAW' }];
+                } else if (sqlText.startsWith('SHOW WAREHOUSES')) {
+                    rows = [
+                        { name: 'WH_BIG', size: 'Large', state: 'SUSPENDED' },
+                        {
+                            name: 'WH_SMALL',
+                            size: 'X-Small',
+                            state: 'STARTED',
+                        },
+                    ];
+                }
+                complete(
+                    undefined,
+                    { getColumns: () => queryColumnsMock },
+                    rows,
+                );
+            },
+        );
+        vi.mocked(createConnection).mockImplementationOnce(() =>
+            interactiveConnectionMock(execute),
+        );
+        const warehouse = new SnowflakeWarehouseClient(credentials);
+
+        const discovery = await warehouse.getSessionDiscovery('test-user');
+
+        expect(discovery.inventory.databases).toEqual([
+            {
+                name: 'ANALYTICS',
+                comment: null,
+                kind: null,
+                sizeBytes: null,
+            },
+            { name: 'RAW', comment: null, kind: null, sizeBytes: null },
+        ]);
+        expect(execute).toHaveBeenCalledWith(
+            expect.objectContaining({
+                sqlText: 'USE WAREHOUSE WH_SMALL',
             }),
         );
     });

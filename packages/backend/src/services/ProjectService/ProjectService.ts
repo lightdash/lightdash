@@ -9830,6 +9830,42 @@ export class ProjectService extends BaseService {
         }
     }
 
+    async getBigqueryProjectRecommendation(user: SessionUser) {
+        // At this point, there might not be any projects
+        // so we can't check any permissions here.
+        // Bigquery will handle the permissions
+        const refreshToken = await this.userModel.getRefreshToken(
+            user.userUuid,
+            OpenIdIdentityIssuerType.GOOGLE,
+        );
+        const accessToken = await UserService.generateGoogleAccessToken(
+            refreshToken,
+            'bigquery',
+        );
+
+        try {
+            const projects =
+                await BigqueryWarehouseClient.getProjects(accessToken);
+            return await BigqueryWarehouseClient.getProjectRecommendation(
+                projects,
+                refreshToken,
+            );
+        } catch (error) {
+            this.logger.error(
+                `getBigqueryProjectRecommendation error: ${JSON.stringify(error)}`,
+            );
+
+            if (BigqueryWarehouseClient.isBigqueryError(error)) {
+                throw new WarehouseConnectionError(
+                    'Failed to get a project recommendation from BigQuery',
+                );
+            }
+            throw new UnexpectedServerError(
+                'Failed to get a project recommendation',
+            );
+        }
+    }
+
     // eslint-disable-next-line class-methods-use-this
     getUserQueryTags(account: Account) {
         if (account.isJwtUser()) {

@@ -31,10 +31,46 @@ import MantineIcon from '../../common/MantineIcon';
 import { useFormContext } from '../formContext';
 import {
     buildSnowflakeConnectCommand,
+    largestDatabaseName,
     recommendedWarehouseName,
     SNOWFLAKE_CLI_INSTALL_COMMAND,
     warehouseSecondaryText,
 } from './snowflakeCliSso';
+
+const STORED_CODE_KEY = 'snowflakeCliSsoConnectCode';
+
+const readStoredCode = (): { code: string; expiresAt: string } | null => {
+    try {
+        const raw = sessionStorage.getItem(STORED_CODE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (
+            typeof parsed?.code === 'string' &&
+            typeof parsed?.expiresAt === 'string'
+        ) {
+            return parsed;
+        }
+        return null;
+    } catch {
+        return null;
+    }
+};
+
+const readValidStoredCode = (): {
+    code: string;
+    secondsRemaining: number;
+} | null => {
+    const stored = readStoredCode();
+    if (!stored) return null;
+    const secondsRemaining = Math.round(
+        (new Date(stored.expiresAt).getTime() - Date.now()) / 1000,
+    );
+    if (secondsRemaining <= 0) {
+        sessionStorage.removeItem(STORED_CODE_KEY);
+        return null;
+    }
+    return { code: stored.code, secondsRemaining };
+};
 
 const CopyableCommand: FC<{ command: string }> = ({ command }) => (
     <Group gap="xs" align="flex-start" wrap="nowrap">
@@ -104,9 +140,12 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
     const form = useFormContext();
     const siteUrl = health.data?.siteUrl ?? '';
     const mint = useMintWarehouseConnectCode();
-    const [code, setCode] = useState<string | null>(null);
+    const [storedCode] = useState(() =>
+        connectedCredentials === null ? readValidStoredCode() : null,
+    );
+    const [code, setCode] = useState<string | null>(storedCode?.code ?? null);
     const [secondsRemaining, setSecondsRemaining] = useState<number | null>(
-        null,
+        storedCode?.secondsRemaining ?? null,
     );
     const [claimed, setClaimed] = useState(false);
     const [inventory, setInventory] =
@@ -123,8 +162,42 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
             setClaimed(true);
             setInventory(claim.data.inventory);
             onDeposited(claim.data.credentials);
+            const depositedInventory = claim.data.inventory;
+            const selectedDatabase =
+                claim.data.credentials.database ??
+                largestDatabaseName(depositedInventory?.databases ?? []) ??
+                undefined;
+            if (!claim.data.credentials.database && selectedDatabase) {
+                form.setFieldValue('warehouse.database', selectedDatabase);
+            }
+            if (!claim.data.credentials.warehouse) {
+                const recommended = recommendedWarehouseName(
+                    depositedInventory?.warehouses ?? [],
+                );
+                if (recommended) {
+                    form.setFieldValue('warehouse.warehouse', recommended);
+                }
+            }
+            if (!claim.data.credentials.schema) {
+                const firstSchema = (depositedInventory?.schemas ?? []).find(
+                    (schema) =>
+                        !selectedDatabase ||
+                        schema.database === selectedDatabase,
+                )?.name;
+                if (firstSchema) {
+                    form.setFieldValue('warehouse.schema', firstSchema);
+                }
+            }
         }
-    }, [claimed, claim.data, onDeposited]);
+    }, [claimed, claim.data, onDeposited, form]);
+
+    useEffect(() => {
+        if (claim.error) {
+            sessionStorage.removeItem(STORED_CODE_KEY);
+            setCode(null);
+            setSecondsRemaining(null);
+        }
+    }, [claim.error]);
 
     useEffect(() => {
         if (secondsRemaining === null || secondsRemaining <= 0)
@@ -141,6 +214,17 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
         const result = await mint.mutateAsync();
         setClaimed(false);
         setCode(result.code);
+        try {
+            sessionStorage.setItem(
+                STORED_CODE_KEY,
+                JSON.stringify({
+                    code: result.code,
+                    expiresAt: result.expiresAt,
+                }),
+            );
+        } catch {
+            // best-effort persistence; refresh recovery just won't apply
+        }
         const expiry = new Date(result.expiresAt).getTime();
         setSecondsRemaining(
             Math.max(0, Math.round((expiry - Date.now()) / 1000)),
@@ -171,6 +255,9 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
         const recommendedWarehouse = recommendedWarehouseName(
             inventory?.warehouses ?? [],
         );
+        const recommendedDatabase = largestDatabaseName(
+            inventory?.databases ?? [],
+        );
         const schemaOptions = [
             ...new Set(
                 (inventory?.schemas ?? [])
@@ -186,9 +273,13 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
             twoLineOption(
                 option.label,
                 databaseMeta.get(option.value)?.comment ?? null,
-                option.value === connectedCredentials.database
-                    ? defaultBadge
-                    : null,
+                option.value === connectedCredentials.database ? (
+                    defaultBadge
+                ) : option.value === recommendedDatabase ? (
+                    <Badge size="xs" color="green" variant="light" radius="sm">
+                        Recommended · largest
+                    </Badge>
+                ) : null,
             );
         const renderWarehouseOption = ({
             option,

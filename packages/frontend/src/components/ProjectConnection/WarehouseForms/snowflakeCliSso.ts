@@ -61,6 +61,22 @@ export const recommendedWarehouseName = (
         : (best as WarehouseConnectInventory['warehouses'][number]).name;
 };
 
+export const largestDatabaseName = (
+    databases: WarehouseConnectInventory['databases'],
+): string | null => {
+    let best: WarehouseConnectInventory['databases'][number] | null = null;
+    databases.forEach((database) => {
+        const size = database.sizeBytes ?? 0;
+        if (size <= 0) return;
+        if (best === null || size > (best.sizeBytes ?? 0)) {
+            best = database;
+        }
+    });
+    return best === null
+        ? null
+        : (best as WarehouseConnectInventory['databases'][number]).name;
+};
+
 export const buildSnowflakeConnectCommand = ({
     siteUrl,
     code,
