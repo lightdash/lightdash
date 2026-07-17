@@ -42,7 +42,7 @@ import {
     type CustomGranularity,
     type LightdashProjectConfig,
 } from '../types/lightdashProjectConfig';
-import { OrderFieldsByStrategy, type GroupType } from '../types/table';
+import { OrderFieldsByStrategy, type FieldGroupType } from '../types/table';
 import { type TimeFrames } from '../types/timeFrames';
 import { type WarehouseSqlBuilder } from '../types/warehouse';
 import assertUnreachable from '../utils/assertUnreachable';
@@ -921,12 +921,15 @@ export const convertTable = (
         });
     }
 
-    const groupDetails: Record<string, GroupType> = {};
+    const groupDetails: Record<string, FieldGroupType> = {};
     if (meta.group_details) {
         Object.entries(meta.group_details).forEach(([key, data]) => {
             groupDetails[key] = {
                 label: data.label,
                 description: data.description,
+                ...(data.ai_hint
+                    ? { aiHint: convertToAiHints(data.ai_hint) }
+                    : {}),
             };
         });
     }

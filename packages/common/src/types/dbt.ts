@@ -18,6 +18,7 @@ import {
     friendlyName,
     getMinMaxBaseDimensionMetadata,
     type CompactOrAlias,
+    type Dimension,
     type DimensionType,
     type FieldUrl,
     type FilterAutocompleteValue,
@@ -29,7 +30,7 @@ import {
 } from './field';
 import { parseFilters, type RequiredFilter } from './filterGrammar';
 import { type LightdashProjectConfig } from './lightdashProjectConfig';
-import { type OrderFieldsByStrategy } from './table';
+import { type OrderFieldsByStrategy, type TableBase } from './table';
 import { type DefaultTimeDimension, type TimeFrames } from './timeFrames';
 
 export enum SupportedDbtAdapter {
@@ -194,6 +195,7 @@ export type DbtModelLightdashConfig = ExploreConfig &
 export type DbtModelGroup = {
     label: string;
     description?: string;
+    ai_hint?: string | string[];
 };
 
 export type DbtModelJoinType = 'inner' | 'full' | 'left' | 'right';
@@ -569,6 +571,21 @@ export const convertToAiHints = (
         return [aiHint];
     }
     return aiHint;
+};
+
+export const getEffectiveFieldAiHints = (
+    field: Pick<Dimension | Metric, 'aiHint' | 'groups'>,
+    table: Pick<TableBase, 'groupDetails'> | undefined,
+): string[] | undefined => {
+    const hints = [
+        ...(convertToAiHints(field.aiHint) ?? []),
+        ...(field.groups ?? []).flatMap(
+            (group) =>
+                convertToAiHints(table?.groupDetails?.[group]?.aiHint) ?? [],
+        ),
+    ];
+
+    return hints.length > 0 ? [...new Set(hints)] : undefined;
 };
 
 export const isDbtRpcRunSqlResults = (

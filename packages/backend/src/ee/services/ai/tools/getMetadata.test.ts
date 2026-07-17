@@ -115,6 +115,30 @@ describe('getMetadata description truncation', () => {
     });
 });
 
+describe('getMetadata group AI hints', () => {
+    it('resolves group hints only when rendering a field for the agent', async () => {
+        const explore = makeExplore({});
+        explore.tables.orders.groupDetails = {
+            settlements: {
+                label: 'Settlements',
+                aiHint: 'Use for zephyr settlement questions.',
+            },
+        };
+        explore.tables.orders.dimensions.status.groups = ['settlements'];
+
+        const result = await execute(explore, [
+            {
+                type: 'field',
+                fields: [{ exploreId: 'sales', fieldId: 'orders_status' }],
+            },
+        ]);
+
+        expect(result.result).toContain(
+            'hint: Use for zephyr settlement questions.',
+        );
+    });
+});
+
 describe('getMetadata explore field listing', () => {
     // The explore summary must list the base table's field ids directly: when
     // field discovery (grep/FTS) misbehaves, this is the agent's ground-truth

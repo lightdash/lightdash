@@ -1,4 +1,5 @@
 import {
+    getEffectiveFieldAiHints,
     getFilterTypeFromItemType,
     getMetadataToolDefinition,
     isDimension,
@@ -158,7 +159,9 @@ const renderField = (
             `  description: ${collapse(field.description, FIELD_DESCRIPTION_MAX)}`,
         );
     }
-    const hint = flatHint(field.aiHint);
+    const hint = flatHint(
+        getEffectiveFieldAiHints(field, explore.tables[field.table]),
+    );
     if (hint) lines.push(`  hint: ${collapse(hint, FIELD_DESCRIPTION_MAX)}`);
     return lines.join('\n');
 };
@@ -203,7 +206,9 @@ const buildFieldStructuredResult = (
 ): GetMetadataResult['fields'][number] => {
     const { field, isJoined } = found;
     const exploreId = explore.name;
-    const hint = flatHint(field.aiHint);
+    const hint = flatHint(
+        getEffectiveFieldAiHints(field, explore.tables[field.table]),
+    );
     const defaultTimeDimension = getResolvedDefaultTimeDimension(
         explore,
         field,

@@ -526,6 +526,20 @@
                                 },
                                 "description": {
                                     "type": "string"
+                                },
+                                "ai_hint": {
+                                    "oneOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    ],
+                                    "description": "Hints inherited by fields in this group for AI-powered query generation"
                                 }
                             },
                             "required": ["label"]

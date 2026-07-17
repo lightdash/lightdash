@@ -12,6 +12,12 @@ export type GroupType = {
     description?: string;
 };
 
+export type FieldGroupType = {
+    label: string;
+    description?: string;
+    aiHint?: string | string[];
+};
+
 export type TableBase = {
     name: string; // Must be sql friendly (a-Z, 0-9, _)
     label: string; // Friendly name
@@ -36,7 +42,7 @@ export type TableBase = {
     hidden?: boolean;
     requiredAttributes?: Record<string, string | string[]>;
     anyAttributes?: Record<string, string | string[]>;
-    groupDetails?: Record<string, GroupType>;
+    groupDetails?: Record<string, FieldGroupType>;
     defaultTimeDimension?: DefaultTimeDimension;
     defaultShowUnderlyingValues?: string[];
     aiHint?: string | string[];
