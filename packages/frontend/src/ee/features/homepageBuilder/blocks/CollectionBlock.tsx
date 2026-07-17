@@ -13,7 +13,6 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-    assertUnreachable,
     ContentType,
     contentToResourceViewItem,
     ResourceViewItemType,
@@ -21,32 +20,43 @@ import {
     type SummaryContent,
 } from '@lightdash/common';
 import {
-    Box,
     Button,
-    Checkbox,
-    Divider,
+    type ComboboxItem,
+    type ComboboxLikeRenderOptionInput,
     Group,
+    Loader,
+    MultiSelect,
     Skeleton,
     Stack,
     Text,
     TextInput,
 } from '@mantine-8/core';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import { IconLayoutGrid, IconPin, IconPlus } from '@tabler/icons-react';
-import { useMemo, useRef, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { ResourceIcon } from '../../../../components/common/ResourceIcon';
-import SpaceSelector from '../../../../components/common/SpaceSelector/SpaceSelector';
 import { useFavoriteMutation } from '../../../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../../../hooks/favorites/useFavorites';
 import { usePinnedItems } from '../../../../hooks/pinning/usePinnedItems';
 import { useInfiniteContent } from '../../../../hooks/useContent';
 import { useProject } from '../../../../hooks/useProject';
-import { useSpaceSummaries } from '../../../../hooks/useSpaces';
 import { reorderCollectionItems } from '../configOps';
 import { useCollectionContent } from '../hooks/useCollectionContent';
 import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
+import {
+    buildSelectionRefs,
+    groupContentBySpace,
+} from './collectionPickerUtils';
 import { ContentCard } from './ContentCard';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
@@ -55,145 +65,9 @@ const toFavoriteType = (content: SummaryContent) =>
         ? ResourceViewItemType.DASHBOARD
         : ResourceViewItemType.CHART;
 
-const toItemRef = (content: SummaryContent): HomepageCollectionItemRef => ({
-    contentType:
-        content.contentType === ContentType.DASHBOARD ? 'dashboard' : 'chart',
-    uuid: content.uuid,
-});
+const PICKER_PAGE_SIZE = 50;
 
-type SortKey = 'name' | 'updated' | 'type';
-
-const sortContent = (
-    items: SummaryContent[],
-    sort: SortKey,
-): SummaryContent[] =>
-    [...items].sort((a, b) => {
-        switch (sort) {
-            case 'name':
-                return a.name.localeCompare(b.name);
-            case 'updated':
-                return (
-                    new Date(b.lastUpdatedAt ?? 0).getTime() -
-                    new Date(a.lastUpdatedAt ?? 0).getTime()
-                );
-            case 'type':
-                return (
-                    a.contentType.localeCompare(b.contentType) ||
-                    a.name.localeCompare(b.name)
-                );
-            default:
-                return assertUnreachable(sort, 'Unknown collection sort');
-        }
-    });
-
-const PAGE_SIZE = 50;
-
-const ContentRow: FC<{
-    content: SummaryContent;
-    checked: boolean;
-    onToggle: () => void;
-}> = ({ content, checked, onToggle }) => (
-    <Group
-        gap="sm"
-        wrap="nowrap"
-        className={classes.pickerRow}
-        onClick={onToggle}
-    >
-        <Checkbox size="xs" checked={checked} readOnly />
-        <ResourceIcon item={contentToResourceViewItem(content)} />
-        <Text size="sm" truncate flex={1}>
-            {content.name}
-        </Text>
-    </Group>
-);
-
-// The right pane: the selected space's charts/dashboards, fetched lazily so
-// only the open space ever loads (scales to large projects).
-const SpaceContent: FC<{
-    projectUuid: string;
-    spaceUuid: string;
-    selected: Map<string, HomepageCollectionItemRef>;
-    onToggleItem: (content: SummaryContent) => void;
-    onToggleMany: (items: SummaryContent[]) => void;
-}> = ({ projectUuid, spaceUuid, selected, onToggleItem, onToggleMany }) => {
-    const { data, isFetching, hasNextPage, fetchNextPage, isFetchingNextPage } =
-        useInfiniteContent(
-            {
-                projectUuids: [projectUuid],
-                spaceUuids: [spaceUuid],
-                contentTypes: [ContentType.CHART, ContentType.DASHBOARD],
-                pageSize: PAGE_SIZE,
-            },
-            { enabled: true, keepPreviousData: true },
-        );
-    const items = useMemo(
-        () =>
-            sortContent(
-                (data?.pages ?? []).flatMap((page) => page.data),
-                'name',
-            ),
-        [data],
-    );
-
-    if (isFetching && items.length === 0) {
-        return (
-            <Stack gap={4} p="xs">
-                <Skeleton h={24} />
-                <Skeleton h={24} />
-                <Skeleton h={24} />
-            </Stack>
-        );
-    }
-    if (items.length === 0) {
-        return (
-            <Text size="sm" c="dimmed" p="sm">
-                This space has no charts or dashboards.
-            </Text>
-        );
-    }
-    const selectedCount = items.filter((content) =>
-        selected.has(content.uuid),
-    ).length;
-
-    return (
-        <Stack gap={2}>
-            <Group gap="sm" wrap="nowrap" className={classes.pickerRow}>
-                <Checkbox
-                    size="xs"
-                    checked={selectedCount === items.length}
-                    indeterminate={
-                        selectedCount > 0 && selectedCount < items.length
-                    }
-                    onChange={() => onToggleMany(items)}
-                />
-                <Text size="xs" c="dimmed" fw={600} tt="uppercase">
-                    Select all ({items.length})
-                </Text>
-            </Group>
-            {items.map((content) => (
-                <ContentRow
-                    key={content.uuid}
-                    content={content}
-                    checked={selected.has(content.uuid)}
-                    onToggle={() => onToggleItem(content)}
-                />
-            ))}
-            {hasNextPage && (
-                <Button
-                    variant="subtle"
-                    size="xs"
-                    w="fit-content"
-                    loading={isFetchingNextPage}
-                    onClick={() => void fetchNextPage()}
-                >
-                    Load more
-                </Button>
-            )}
-        </Stack>
-    );
-};
-
-const CollectionPicker: FC<{
+const CollectionPickerMultiSelect: FC<{
     projectUuid: string;
     initialSelected: HomepageCollectionItemRef[];
     onApply: (refs: HomepageCollectionItemRef[]) => void;
@@ -201,9 +75,59 @@ const CollectionPicker: FC<{
      * selection — the footer lives in MantineModal, outside this component. */
     registerApply: (commit: () => void) => void;
 }> = ({ projectUuid, initialSelected, onApply, registerApply }) => {
-    const [selectedSpaceUuid, setSelectedSpaceUuid] = useState<string | null>(
-        null,
+    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
+    const viewportRef = useRef<HTMLDivElement>(null);
+
+    const initialUuids = useMemo(
+        () => initialSelected.map((ref) => ref.uuid),
+        [initialSelected],
     );
+    const { data: initialContent } = useCollectionContent(
+        projectUuid,
+        initialUuids,
+    );
+
+    const {
+        data: contentPages,
+        isFetching,
+        hasNextPage,
+        fetchNextPage,
+    } = useInfiniteContent(
+        {
+            projectUuids: [projectUuid],
+            contentTypes: [ContentType.CHART, ContentType.DASHBOARD],
+            search: debouncedSearchQuery,
+            pageSize: PICKER_PAGE_SIZE,
+        },
+        { keepPreviousData: true },
+    );
+
+    const [contentMap, setContentMap] = useState<Map<string, SummaryContent>>(
+        () => new Map(),
+    );
+
+    useEffect(() => {
+        const pages = contentPages?.pages.flatMap((page) => page.data) ?? [];
+        if (pages.length === 0) return;
+        setContentMap((prev) => {
+            const next = new Map(prev);
+            pages.forEach((content) => next.set(content.uuid, content));
+            return next;
+        });
+    }, [contentPages?.pages]);
+
+    useEffect(() => {
+        if (!initialContent || initialContent.length === 0) return;
+        setContentMap((prev) => {
+            const next = new Map(prev);
+            initialContent.forEach((content) =>
+                next.set(content.uuid, content),
+            );
+            return next;
+        });
+    }, [initialContent]);
+
     const [selected, setSelected] = useState<
         Map<string, HomepageCollectionItemRef>
     >(() => new Map(initialSelected.map((ref) => [ref.uuid, ref])));
@@ -212,66 +136,63 @@ const CollectionPicker: FC<{
     // latest selection (idempotent, so safe during render — no effect needed).
     registerApply(() => onApply([...selected.values()]));
 
-    const { data: spaces } = useSpaceSummaries(projectUuid, true);
+    const handleChange = (newUuids: string[]) => {
+        setSelected((prev) => buildSelectionRefs(newUuids, prev, contentMap));
+    };
 
-    const toggleItem = (content: SummaryContent) =>
-        setSelected((prev) => {
-            const next = new Map(prev);
-            if (next.has(content.uuid)) next.delete(content.uuid);
-            else next.set(content.uuid, toItemRef(content));
-            return next;
-        });
+    const data = useMemo(() => groupContentBySpace(contentMap), [contentMap]);
 
-    const toggleMany = (items: SummaryContent[]) =>
-        setSelected((prev) => {
-            const next = new Map(prev);
-            const allSelected = items.every((content) =>
-                next.has(content.uuid),
+    const renderOption = useCallback(
+        ({ option }: ComboboxLikeRenderOptionInput<ComboboxItem>) => {
+            const content = contentMap.get(option.value);
+            if (!content) return option.label;
+            return (
+                <Group gap="sm" wrap="nowrap">
+                    <ResourceIcon item={contentToResourceViewItem(content)} />
+                    <Text size="sm" truncate>
+                        {content.name}
+                    </Text>
+                </Group>
             );
-            items.forEach((content) => {
-                if (allSelected) next.delete(content.uuid);
-                else next.set(content.uuid, toItemRef(content));
-            });
-            return next;
-        });
+        },
+        [contentMap],
+    );
+
+    const handleScrollPositionChange = useCallback(
+        ({ y }: { x: number; y: number }) => {
+            if (!viewportRef.current || isFetching || !hasNextPage) return;
+            const { scrollHeight, clientHeight } = viewportRef.current;
+            if (scrollHeight <= clientHeight) return;
+            const isNearBottom = y >= scrollHeight - clientHeight - 50;
+            if (isNearBottom) void fetchNextPage();
+        },
+        [isFetching, hasNextPage, fetchNextPage],
+    );
 
     return (
-        <Stack gap="sm">
-            <Group align="stretch" gap="md" wrap="nowrap" h="min(64vh, 720px)">
-                <Box w={340} className={classes.pickerScrollList}>
-                    <SpaceSelector
-                        projectUuid={projectUuid}
-                        spaces={spaces}
-                        selectedSpaceUuid={selectedSpaceUuid}
-                        onSelectSpace={setSelectedSpaceUuid}
-                        itemType={undefined}
-                        isRootSelectionEnabled={false}
-                    />
-                </Box>
-                <Divider orientation="vertical" />
-                <Stack gap="xs" flex={1} miw={0}>
-                    <Text size="sm" c="dimmed">
-                        {selected.size} selected
-                    </Text>
-                    <Box flex={1} miw={0} className={classes.pickerScrollList}>
-                        {selectedSpaceUuid == null ? (
-                            <Text size="sm" c="dimmed" p="sm">
-                                Pick a space on the left to see its charts and
-                                dashboards.
-                            </Text>
-                        ) : (
-                            <SpaceContent
-                                key={selectedSpaceUuid}
-                                projectUuid={projectUuid}
-                                spaceUuid={selectedSpaceUuid}
-                                selected={selected}
-                                onToggleItem={toggleItem}
-                                onToggleMany={toggleMany}
-                            />
-                        )}
-                    </Box>
-                </Stack>
-            </Group>
+        <Stack gap="xs">
+            <Text size="sm" c="dimmed">
+                {selected.size} selected
+            </Text>
+            <MultiSelect
+                placeholder="Search charts and dashboards..."
+                searchable
+                clearable
+                searchValue={searchQuery}
+                onSearchChange={setSearchQuery}
+                value={[...selected.keys()]}
+                onChange={handleChange}
+                data={data}
+                renderOption={renderOption}
+                maxDropdownHeight={300}
+                nothingFoundMessage="No charts or dashboards found"
+                rightSection={isFetching ? <Loader size="xs" /> : null}
+                scrollAreaProps={{
+                    viewportRef,
+                    onScrollPositionChange: handleScrollPositionChange,
+                }}
+                filter={({ options }) => options}
+            />
         </Stack>
     );
 };
@@ -293,7 +214,7 @@ const CollectionPickerModal: FC<{
             onClose={onClose}
             title="Add content"
             icon={IconPlus}
-            size="min(92vw, 1280px)"
+            size="lg"
             confirmLabel="Apply"
             onConfirm={() => {
                 applyRef.current();
@@ -301,7 +222,7 @@ const CollectionPickerModal: FC<{
             }}
         >
             {opened && (
-                <CollectionPicker
+                <CollectionPickerMultiSelect
                     projectUuid={projectUuid}
                     initialSelected={initialSelected}
                     onApply={onApply}
