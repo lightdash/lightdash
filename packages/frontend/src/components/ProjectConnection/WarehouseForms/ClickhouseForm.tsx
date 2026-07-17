@@ -1,6 +1,6 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { TextInput, Stack, Anchor } from '@mantine-8/core';
-import { NumberInput, PasswordInput } from '@mantine/core';
+import { TextInput, Stack, Anchor, PasswordInput } from '@mantine-8/core';
+import { NumberInput } from '@mantine/core';
 import React, { type FC } from 'react';
 import { useToggle } from 'react-use';
 import FormCollapseButton from '../FormCollapseButton';

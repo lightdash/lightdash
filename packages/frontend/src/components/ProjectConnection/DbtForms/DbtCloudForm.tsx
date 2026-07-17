@@ -6,8 +6,9 @@ import {
     Anchor,
     CopyButton,
     Stack,
+    PasswordInput,
 } from '@mantine-8/core';
-import { MultiSelect, PasswordInput, Tooltip } from '@mantine/core';
+import { MultiSelect, Tooltip } from '@mantine/core';
 import { IconCheck, IconCopy, IconInfoCircle } from '@tabler/icons-react';
 import React, { useCallback, useState, type FC } from 'react';
 import useApp from '../../../providers/App/useApp';
