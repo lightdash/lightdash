@@ -70,7 +70,7 @@ const GithubSettingsPanel: FC = () => {
         <SettingsGridCard>
             <Box>
                 <Group gap="sm">
-                    <Avatar src={githubIcon} size="md" />
+                    <Avatar src={githubIcon} size="md" alt="" />
                     <Title order={4}>Github</Title>
                 </Group>
             </Box>

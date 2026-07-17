@@ -74,6 +74,7 @@ const PasswordReset: FC = () => {
                                                 label="Password"
                                                 name="password"
                                                 placeholder="Enter a new password"
+                                                autoComplete="new-password"
                                                 disabled={
                                                     passwordResetMutation.isLoading
                                                 }

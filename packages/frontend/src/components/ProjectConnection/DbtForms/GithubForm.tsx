@@ -147,6 +147,7 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     <Avatar
                         src={githubIcon}
                         size="sm"
+                        alt=""
                         classNames={{ image: styles.githubButtonLogo }}
                     />
                 }

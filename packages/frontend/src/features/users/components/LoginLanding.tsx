@@ -301,6 +301,7 @@ const Login: FC<{}> = () => {
                                     label="Password"
                                     name="password"
                                     placeholder="Your password"
+                                    autoComplete="current-password"
                                     required
                                     autoFocus
                                     {...form.getInputProps('password')}
