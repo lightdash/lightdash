@@ -19,8 +19,9 @@ import {
     Button,
     ActionIcon,
     Anchor,
+    PasswordInput,
 } from '@mantine-8/core';
-import { Card, PasswordInput } from '@mantine/core';
+import { Card } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { useTimeout } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';

@@ -1,6 +1,5 @@
 import { DbtProjectType } from '@lightdash/common';
-import { TextInput, Alert, Anchor } from '@mantine-8/core';
-import { PasswordInput } from '@mantine/core';
+import { TextInput, Alert, Anchor, PasswordInput } from '@mantine-8/core';
 import React, { type FC } from 'react';
 import { useFormContext } from '../formContext';
 import DbtVersionSelect from '../Inputs/DbtVersion';

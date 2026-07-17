@@ -14,8 +14,9 @@ import {
     Stack,
     Text,
     Select,
+    PasswordInput,
 } from '@mantine-8/core';
-import { NumberInput, PasswordInput, Tooltip } from '@mantine/core';
+import { NumberInput, Tooltip } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useToggle } from 'react-use';

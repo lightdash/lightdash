@@ -10,8 +10,9 @@ import {
     SegmentedControl,
     Select,
     Switch,
+    PasswordInput,
 } from '@mantine-8/core';
-import { NumberInput, PasswordInput } from '@mantine/core';
+import { NumberInput } from '@mantine/core';
 import { type FC } from 'react';
 import { useToggle } from 'react-use';
 import FormCollapseButton from '../FormCollapseButton';
