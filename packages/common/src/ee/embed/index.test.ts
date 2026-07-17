@@ -52,6 +52,36 @@ describe('EmbedJwtSchema canAddFilters', () => {
     });
 });
 
+describe('EmbedJwtSchema scheduled delivery recipients', () => {
+    it('accepts email destinations on dashboard tokens', () => {
+        expect(
+            EmbedJwtSchema.parse({
+                ...baseJwt,
+                content: {
+                    ...baseJwt.content,
+                    scheduledDeliveryRecipients: ['viewer@example.com'],
+                },
+            }).content,
+        ).toEqual(
+            expect.objectContaining({
+                scheduledDeliveryRecipients: ['viewer@example.com'],
+            }),
+        );
+    });
+
+    it('rejects invalid email destinations', () => {
+        expect(() =>
+            EmbedJwtSchema.parse({
+                ...baseJwt,
+                content: {
+                    ...baseJwt.content,
+                    scheduledDeliveryRecipients: ['not-an-email'],
+                },
+            }),
+        ).toThrow();
+    });
+});
+
 describe('canAddDashboardFiltersInEmbed', () => {
     const cases: Array<{
         name: string;

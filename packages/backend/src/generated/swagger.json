@@ -3514,6 +3514,12 @@
                         "required": ["enabled"],
                         "type": "object"
                     },
+                    "scheduledDeliveryRecipients": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "isPreview": {
                         "type": "boolean"
                     },

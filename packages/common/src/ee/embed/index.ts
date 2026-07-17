@@ -150,6 +150,9 @@ export const EmbedJwtSchema = z
                     projectUuid: z.string().optional(),
                     dashboardUuid: z.string(),
                     isPreview: z.boolean().optional(),
+                    scheduledDeliveryRecipients: z
+                        .array(z.string().email())
+                        .optional(),
                 })
                 .merge(InteractivityOptionsSchema),
             z
@@ -158,6 +161,9 @@ export const EmbedJwtSchema = z
                     projectUuid: z.string().optional(),
                     dashboardSlug: z.string(),
                     isPreview: z.boolean().optional(),
+                    scheduledDeliveryRecipients: z
+                        .array(z.string().email())
+                        .optional(),
                 })
                 .merge(InteractivityOptionsSchema),
             z
@@ -206,6 +212,7 @@ export type CommonEmbedJwtContent = {
     type: 'dashboard';
     projectUuid?: string;
     isPreview?: boolean;
+    scheduledDeliveryRecipients?: string[];
     dashboardFiltersInteractivity?: {
         enabled: FilterInteractivityValues | boolean;
         allowedFilters?: string[] | null;
