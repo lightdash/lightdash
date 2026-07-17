@@ -1,6 +1,7 @@
 import {
     canApplyFormattingToCustomMetric,
     CustomFormatType,
+    DimensionType,
     friendlyName,
     getCustomFormatFromLegacy,
     getCustomMetricType,
@@ -183,6 +184,22 @@ export const CustomMetricModal = memo(() => {
         if (!customMetricType) return false;
         // Metric-derived custom metrics have no base dimension to check
         if (isMetricDerived) {
+            // MIN/MAX-of-date clones are date-valued; numeric formats don't apply
+            const isDateValued =
+                sourceMetric?.baseDimensionType === DimensionType.DATE ||
+                sourceMetric?.baseDimensionType === DimensionType.TIMESTAMP ||
+                (isAdditionalMetric(item) &&
+                    item.formatOptions &&
+                    [
+                        CustomFormatType.DATE,
+                        CustomFormatType.TIMESTAMP,
+                    ].includes(item.formatOptions.type));
+            if (
+                isDateValued &&
+                [MetricType.MIN, MetricType.MAX].includes(customMetricType)
+            ) {
+                return false;
+            }
             return (
                 isNumericItem(item) ||
                 [MetricType.COUNT, MetricType.COUNT_DISTINCT].includes(
@@ -194,7 +211,13 @@ export const CustomMetricModal = memo(() => {
             !!dimensionToCheck &&
             canApplyFormattingToCustomMetric(dimensionToCheck, customMetricType)
         );
-    }, [dimensionToCheck, customMetricType, isMetricDerived, item]);
+    }, [
+        dimensionToCheck,
+        customMetricType,
+        isMetricDerived,
+        item,
+        sourceMetric,
+    ]);
 
     const form = useForm<
         Pick<AdditionalMetric, 'percentile'> & {

@@ -100,29 +100,47 @@ const getTypeOverridesForAdditionalMetric = (
     item: Dimension | AdditionalMetric | CustomDimension | Metric,
     type: MetricType,
 ): Partial<AdditionalMetric> | undefined => {
+    if (type !== MetricType.MIN && type !== MetricType.MAX) return;
+
+    // Clones of MIN/MAX-of-date metrics keep the base metric's date formatting
+    if (isMetric(item)) {
+        switch (item.baseDimensionType) {
+            case DimensionType.DATE:
+                return {
+                    formatOptions: {
+                        type: CustomFormatType.DATE,
+                        timeInterval: item.baseDimensionTimeInterval,
+                    },
+                };
+            case DimensionType.TIMESTAMP:
+                return {
+                    formatOptions: {
+                        type: CustomFormatType.TIMESTAMP,
+                        timeInterval: item.baseDimensionTimeInterval,
+                    },
+                };
+            default:
+                return;
+        }
+    }
+
     if (!isDimension(item)) return;
 
-    switch (type) {
-        case MetricType.MIN:
-        case MetricType.MAX:
-            switch (item.type) {
-                case DimensionType.DATE:
-                    return {
-                        formatOptions: {
-                            type: CustomFormatType.DATE,
-                            timeInterval: item.timeInterval,
-                        },
-                    };
-                case DimensionType.TIMESTAMP:
-                    return {
-                        formatOptions: {
-                            type: CustomFormatType.TIMESTAMP,
-                            timeInterval: item.timeInterval,
-                        },
-                    };
-                default:
-                    return;
-            }
+    switch (item.type) {
+        case DimensionType.DATE:
+            return {
+                formatOptions: {
+                    type: CustomFormatType.DATE,
+                    timeInterval: item.timeInterval,
+                },
+            };
+        case DimensionType.TIMESTAMP:
+            return {
+                formatOptions: {
+                    type: CustomFormatType.TIMESTAMP,
+                    timeInterval: item.timeInterval,
+                },
+            };
         default:
             return;
     }

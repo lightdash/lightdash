@@ -1,7 +1,10 @@
 import {
+    CustomFormatType,
+    DimensionType,
     FieldType,
     FilterOperator,
     MetricType,
+    TimeFrames,
     type Metric,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
@@ -91,6 +94,30 @@ describe('prepareCustomMetricData from an explore metric', () => {
         expect(data.filters).toHaveLength(2);
         expect(data.filters?.[0].target).toEqual({
             fieldRef: 'orders.status',
+        });
+    });
+
+    it('keeps date formatting when cloning a MIN-of-timestamp metric', () => {
+        const data = prepareCustomMetricData({
+            item: {
+                ...baseMetric,
+                name: 'date_of_first_order',
+                label: 'Date of first order',
+                type: MetricType.MIN,
+                sql: '${TABLE}.created',
+                filters: undefined,
+                baseDimensionType: DimensionType.TIMESTAMP,
+                baseDimensionTimeInterval: TimeFrames.DAY,
+            },
+            type: MetricType.MIN,
+            customMetricLabel: 'Copy of Date of first order',
+            customMetricFiltersWithIds: [],
+            isEditingCustomMetric: false,
+        });
+
+        expect(data.formatOptions).toEqual({
+            type: CustomFormatType.TIMESTAMP,
+            timeInterval: TimeFrames.DAY,
         });
     });
 
