@@ -81,6 +81,15 @@ describe('organization content download', () => {
         );
     });
 
+    it('reports a duration for every downloaded resource', async () => {
+        await downloadOrganizationContent({ config });
+
+        expect(spinner.succeed).toHaveBeenCalledTimes(3);
+        spinner.succeed.mock.calls.forEach(([message]) =>
+            expect(message).toMatch(/\(\d+ms\)$/),
+        );
+    });
+
     it('still fails for other group download errors', async () => {
         vi.mocked(downloadGroups).mockRejectedValue(new Error('Network error'));
 
@@ -171,6 +180,15 @@ describe('organization content upload sequencing', () => {
             'groups:start',
             'groups:end',
         ]);
+    });
+
+    it('reports a duration for every uploaded resource', async () => {
+        await uploadOrganizationContent({ config });
+
+        expect(spinner.succeed).toHaveBeenCalledTimes(3);
+        spinner.succeed.mock.calls.forEach(([message]) =>
+            expect(message).toMatch(/\(\d+ms\)$/),
+        );
     });
 
     it('does not start users or groups when custom roles fail', async () => {

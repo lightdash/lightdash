@@ -7,6 +7,7 @@ import { LightdashAnalytics } from '../../analytics/analytics';
 import { type Config } from '../../config';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
+import { createContentAsCodeOutput } from '../../terminal/contentAsCodeOutput';
 import {
     assertCodeResourceDependencyOrder,
     ORGANIZATION_CODE_RESOURCES,
@@ -51,6 +52,17 @@ const isGroupServiceDisabledError = (error: unknown): boolean =>
     error.statusCode === 403 &&
     error.message === 'Group service is not enabled';
 
+const getElapsedMilliseconds = (startedAt: number): number =>
+    Date.now() - startedAt;
+
+const measureAction = async <T>(
+    action: () => Promise<T>,
+): Promise<{ value: T; durationMs: number }> => {
+    const startedAt = Date.now();
+    const value = await action();
+    return { value, durationMs: getElapsedMilliseconds(startedAt) };
+};
+
 export const getOrganizationContentFolder = (customPath?: string): string =>
     getDownloadFolder(customPath);
 
@@ -76,44 +88,83 @@ export const downloadOrganizationContent = async ({
         },
     });
 
-    const spinner = GlobalState.startSpinner(`Downloading custom roles`);
+    const output = createContentAsCodeOutput({
+        operation: 'download',
+        scope: 'organization',
+        initialLabel: 'Custom roles',
+    });
     try {
-        const customRolesTotal = await downloadCustomRoles(
-            organizationUuid,
-            organizationContentPath,
+        const { value: customRolesTotal, durationMs: customRolesDurationMs } =
+            await measureAction(() =>
+                downloadCustomRoles(organizationUuid, organizationContentPath),
+            );
+        output.completeItem(
+            {
+                label: 'Custom roles',
+                detail: `${customRolesTotal} downloaded`,
+                durationMs: customRolesDurationMs,
+            },
+            'Users',
         );
-        spinner.succeed(`Downloaded ${customRolesTotal} custom roles`);
-
-        spinner.start(`Downloading users`);
-        const usersTotal = await downloadUsers(
-            organizationUuid,
-            organizationContentPath,
+        const { value: usersTotal, durationMs: usersDurationMs } =
+            await measureAction(() =>
+                downloadUsers(organizationUuid, organizationContentPath),
+            );
+        output.completeItem(
+            {
+                label: 'Users',
+                detail: `${usersTotal} downloaded`,
+                durationMs: usersDurationMs,
+            },
+            'Groups',
         );
-        spinner.succeed(`Downloaded ${usersTotal} users`);
-
-        spinner.start(`Downloading groups`);
+        const groupsStartedAt = Date.now();
         let groupsTotal = 0;
+        let groupsDurationMs: number;
         try {
             groupsTotal = await downloadGroups(
                 organizationUuid,
                 organizationContentPath,
             );
-            spinner.succeed(`Downloaded ${groupsTotal} groups`);
+            groupsDurationMs = getElapsedMilliseconds(groupsStartedAt);
+            output.completeItem(
+                {
+                    label: 'Groups',
+                    detail: `${groupsTotal} downloaded`,
+                    durationMs: groupsDurationMs,
+                },
+                null,
+            );
         } catch (error) {
+            groupsDurationMs = getElapsedMilliseconds(groupsStartedAt);
             if (!isGroupServiceDisabledError(error)) {
                 throw error;
             }
-            spinner.stop();
+            output.completeItem(
+                {
+                    label: 'Groups',
+                    detail: 'service unavailable',
+                    durationMs: groupsDurationMs,
+                    variant: 'warning',
+                },
+                null,
+            );
             GlobalState.debug(
                 '> Warning: groups were not downloaded because the group service is not enabled',
             );
         }
 
-        GlobalState.log(
-            styles.success(
-                `Downloaded organization content saved to ${organizationContentPath}`,
-            ),
+        const renderedSummary = output.complete(
+            organizationContentPath,
+            (Date.now() - start) / 1000,
         );
+        if (!renderedSummary) {
+            GlobalState.log(
+                styles.success(
+                    `Downloaded organization content saved to ${organizationContentPath}`,
+                ),
+            );
+        }
 
         await LightdashAnalytics.track({
             event: 'download.completed',
@@ -128,9 +179,7 @@ export const downloadOrganizationContent = async ({
             },
         });
     } catch (error) {
-        spinner.fail(
-            `Failed to download organization content: ${getErrorMessage(error)}`,
-        );
+        output.fail(getErrorMessage(error), (Date.now() - start) / 1000, true);
         await LightdashAnalytics.track({
             event: 'download.error',
             properties: {
@@ -168,18 +217,22 @@ export const uploadOrganizationContent = async ({
         },
     });
 
-    const spinner = GlobalState.startSpinner(`Uploading custom roles`);
+    const output = createContentAsCodeOutput({
+        operation: 'upload',
+        scope: 'organization',
+        initialLabel: 'Custom roles',
+    });
     try {
-        const summary = await uploadCustomRoles(
-            organizationUuid,
-            organizationContentPath,
-        );
+        const { value: summary, durationMs: customRolesDurationMs } =
+            await measureAction(() =>
+                uploadCustomRoles(organizationUuid, organizationContentPath),
+            );
         const summaryMessage = formatCustomRoleUploadSummary(summary);
         if (summary.failed > 0) {
             summary.failures.forEach(({ message }) =>
                 GlobalState.log(styles.error(message)),
             );
-            spinner.stop();
+            output.prepareForFailureDetails();
             const skippedGroups = await countDependencySkippedGroups(
                 organizationContentPath,
             );
@@ -192,20 +245,28 @@ export const uploadOrganizationContent = async ({
                 `Processed custom roles: ${summaryMessage}`,
             );
         }
-        spinner.succeed(`Uploaded custom roles: ${summaryMessage}`);
-
-        spinner.start(`Uploading users`);
-        const userSummary = await uploadUsers(
-            organizationUuid,
-            organizationContentPath,
-            sendInvites,
+        output.completeItem(
+            {
+                label: 'Custom roles',
+                detail: summaryMessage,
+                durationMs: customRolesDurationMs,
+            },
+            'Users',
         );
+        const { value: userSummary, durationMs: usersDurationMs } =
+            await measureAction(() =>
+                uploadUsers(
+                    organizationUuid,
+                    organizationContentPath,
+                    sendInvites,
+                ),
+            );
         const userSummaryMessage = formatUserUploadSummary(userSummary);
         if (userSummary.failed > 0) {
             userSummary.failures.forEach(({ message }) =>
                 GlobalState.log(styles.error(message)),
             );
-            spinner.stop();
+            output.prepareForFailureDetails();
             const skippedGroups = await countDependencySkippedGroups(
                 organizationContentPath,
             );
@@ -218,29 +279,47 @@ export const uploadOrganizationContent = async ({
                 `Processed users: ${userSummaryMessage}`,
             );
         }
-        spinner.succeed(`Uploaded users: ${userSummaryMessage}`);
-
-        spinner.start(`Uploading groups`);
-        const groupSummary = await uploadGroups(
-            organizationUuid,
-            organizationContentPath,
+        output.completeItem(
+            {
+                label: 'Users',
+                detail: userSummaryMessage,
+                durationMs: usersDurationMs,
+            },
+            'Groups',
         );
+        const { value: groupSummary, durationMs: groupsDurationMs } =
+            await measureAction(() =>
+                uploadGroups(organizationUuid, organizationContentPath),
+            );
         const groupSummaryMessage = formatGroupUploadSummary(groupSummary);
         if (groupSummary.failed > 0) {
             groupSummary.failures.forEach(({ message }) =>
                 GlobalState.log(styles.error(message)),
             );
-            spinner.stop();
+            output.prepareForFailureDetails();
             throw createGroupPartialUploadError(
                 `Processed groups: ${groupSummaryMessage}`,
             );
         }
-        spinner.succeed(`Uploaded groups: ${groupSummaryMessage}`);
-        GlobalState.log(
-            styles.success(
-                `Uploaded organization content from ${organizationContentPath}`,
-            ),
+        output.completeItem(
+            {
+                label: 'Groups',
+                detail: groupSummaryMessage,
+                durationMs: groupsDurationMs,
+            },
+            null,
         );
+        const renderedSummary = output.complete(
+            organizationContentPath,
+            (Date.now() - start) / 1000,
+        );
+        if (!renderedSummary) {
+            GlobalState.log(
+                styles.success(
+                    `Uploaded organization content from ${organizationContentPath}`,
+                ),
+            );
+        }
         await LightdashAnalytics.track({
             event: 'upload.completed',
             properties: {
@@ -262,11 +341,11 @@ export const uploadOrganizationContent = async ({
             },
         });
     } catch (error) {
-        if (!isPartialUploadError(error)) {
-            spinner.fail(
-                `Failed to upload organization content: ${getErrorMessage(error)}`,
-            );
-        }
+        output.fail(
+            getErrorMessage(error),
+            (Date.now() - start) / 1000,
+            !isPartialUploadError(error),
+        );
         await LightdashAnalytics.track({
             event: 'upload.error',
             properties: {

@@ -61,24 +61,13 @@ type UserFile = { filePath: string; document: UserAsCode };
 export const getUsersFolder = (organizationContentPath: string): string =>
     path.join(organizationContentPath, USER_CODE_RESOURCE.folderName);
 
-export const formatUserUploadSummary = (summary: UserUploadSummary): string => {
-    const invitationSummary = [
-        `${summary.invited} invited`,
-        `${
-            summary.skippedAuthenticated +
-            summary.skippedDisabled +
-            summary.skippedValidInvite
-        } invitation-skipped`,
-    ];
-    return [
+export const formatUserUploadSummary = (summary: UserUploadSummary): string =>
+    [
         `${summary.created} created`,
         `${summary.updated} updated`,
         `${summary.unchanged} unchanged`,
-        `${summary.awaitingAuthentication} awaiting authentication`,
-        invitationSummary.join(', '),
         `${summary.failed} failed`,
     ].join(', ');
-};
 
 export const readUserFiles = async (
     organizationContentPath: string,
