@@ -12,9 +12,7 @@ type OnboardingPageGuardResult =
 
 export const useOnboardingPageGuard = (): OnboardingPageGuardResult => {
     const { health, user } = useApp();
-    const orgSetupPageFlag = useServerFeatureFlag(
-        FeatureFlags.OrganizationSetupPage,
-    );
+    const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
 
     if (health.isInitialLoading || health.error) {
         return { status: 'blocked', element: <PageSpinner /> };

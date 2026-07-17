@@ -154,7 +154,7 @@ const SnowflakeForm: FC<{
     const isEditMode = !!savedProject;
 
     const warehouseConnectFlag = useServerFeatureFlag(
-        FeatureFlags.WarehouseConnectOnboarding,
+        FeatureFlags.NewOnboarding,
     );
     const isCliSsoEnabled =
         !savedProject && (warehouseConnectFlag.data?.enabled ?? false);

@@ -1579,7 +1579,7 @@ export class UserService extends BaseService {
         } else {
             const emailOnlySignupFlag = await this.featureFlagModel.get({
                 user: undefined,
-                featureFlagId: FeatureFlags.EmailOnlySignup,
+                featureFlagId: FeatureFlags.NewOnboarding,
             });
             if (!emailOnlySignupFlag.enabled) {
                 throw new ForbiddenError('Email-only signup is not enabled');
@@ -1880,7 +1880,7 @@ export class UserService extends BaseService {
     private async assertEmailOtpLoginEnabled(): Promise<void> {
         const featureFlag = await this.featureFlagModel.get({
             user: undefined,
-            featureFlagId: FeatureFlags.EmailOnlySignup,
+            featureFlagId: FeatureFlags.NewOnboarding,
         });
         if (!featureFlag.enabled) {
             throw new ForbiddenError('Email OTP login is not enabled');
@@ -3265,7 +3265,7 @@ export class UserService extends BaseService {
             ] = await Promise.all([
                 this.featureFlagModel.get({
                     user: undefined,
-                    featureFlagId: FeatureFlags.EmailOnlySignup,
+                    featureFlagId: FeatureFlags.NewOnboarding,
                 }),
                 this.userModel.hasPassword(existingUser.userUuid),
                 this.userModel.hasOpenIdIdentity(existingUser.userUuid),

@@ -13,9 +13,7 @@ const AppRoute: FC<React.PropsWithChildren> = ({ children }) => {
     const location = useLocation();
     const orgRequest = useOrganization();
     const homepageBuilderFlag = useHomepageBuilderFlag();
-    const orgSetupPageFlag = useServerFeatureFlag(
-        FeatureFlags.OrganizationSetupPage,
-    );
+    const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
 
     if (health.isInitialLoading || orgRequest.isInitialLoading) {
         return <PageSpinner />;

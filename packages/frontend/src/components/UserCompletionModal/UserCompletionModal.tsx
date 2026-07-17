@@ -179,9 +179,7 @@ const UserCompletionModal: FC = () => {
 const UserCompletionModalWithUser = () => {
     const { user, health } = useApp();
     const location = useLocation();
-    const orgSetupPageFlag = useServerFeatureFlag(
-        FeatureFlags.OrganizationSetupPage,
-    );
+    const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
 
     if (orgSetupPageFlag.isLoading) {
         return null;

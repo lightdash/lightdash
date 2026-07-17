@@ -473,9 +473,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
 const OrganizationSetup: FC = () => {
     const { health, user } = useApp();
     const navigate = useNavigate();
-    const orgSetupPageFlag = useServerFeatureFlag(
-        FeatureFlags.OrganizationSetupPage,
-    );
+    const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
     const completeMutation = useUserCompleteMutation({
         onSuccess: () => void navigate('/'),
     });

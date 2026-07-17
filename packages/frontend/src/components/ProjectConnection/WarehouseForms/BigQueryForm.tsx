@@ -299,7 +299,7 @@ const BigQueryForm: FC<{
     const defaultAuthenticationType = BigqueryAuthenticationType.SSO;
 
     const warehouseConnectFlag = useServerFeatureFlag(
-        FeatureFlags.WarehouseConnectOnboarding,
+        FeatureFlags.NewOnboarding,
     );
     const shouldDefaultToSso =
         !savedProject && (warehouseConnectFlag.data?.enabled ?? false);

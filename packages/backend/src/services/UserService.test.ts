@@ -192,7 +192,7 @@ const createUserService = (
                 get: vi.fn<FeatureFlagModel['get']>(
                     async ({ featureFlagId }) => ({
                         id: featureFlagId,
-                        enabled: featureFlagId !== FeatureFlags.EmailOnlySignup,
+                        enabled: featureFlagId !== FeatureFlags.NewOnboarding,
                     }),
                 ),
             } as unknown as FeatureFlagModel),
@@ -299,7 +299,7 @@ describe('UserService', () => {
 
             expect(featureFlagModel.get).toHaveBeenCalledWith({
                 user: undefined,
-                featureFlagId: FeatureFlags.EmailOnlySignup,
+                featureFlagId: FeatureFlags.NewOnboarding,
             });
             expect(userModel.createUser).toHaveBeenCalledWith({
                 firstName: '',
@@ -658,7 +658,7 @@ describe('UserService', () => {
             });
             expect(featureFlagModel.get).toHaveBeenCalledWith({
                 user: undefined,
-                featureFlagId: FeatureFlags.EmailOnlySignup,
+                featureFlagId: FeatureFlags.NewOnboarding,
             });
         });
 

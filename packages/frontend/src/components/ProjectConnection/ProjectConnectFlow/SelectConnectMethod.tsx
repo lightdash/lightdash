@@ -35,7 +35,7 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
     const { track } = useTracking();
 
     const warehouseConnectFlag = useServerFeatureFlag(
-        FeatureFlags.WarehouseConnectOnboarding,
+        FeatureFlags.NewOnboarding,
     );
     const isWarehouseConnectEnabled =
         warehouseConnectFlag.data?.enabled ?? false;
