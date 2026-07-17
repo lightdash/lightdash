@@ -104,4 +104,6 @@ The scripts are defined in `packages/e2e/package.json:7-20`; focused Playwright 
 
 ## Port history
 
-Not started.
+- 2026-07-18: Diagnosed the space-navigation failure as a stale shared-app runtime, not a migration, seed, search ambiguity, route identity, or product-source defect. Search returned one exact `Jaffle shop` space (`9d128fee-4c90-4df0-8d6c-bb2036826fed`), and the database contained one active matching space. Firefox emitted no `pageerror`; the space list returned 200, but GET `/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/spaces/9d128fee-4c90-4df0-8d6c-bb2036826fed` returned 500 and surfaced its `UnexpectedServerError` in the console. The backend stack failed at `SpacePermissionService.ts:243` because `getOrganizationRoleForSpaceAccess` was present in Common source but `undefined` in the running Common CJS build.
+- The orchestrator repaired the shared `playwright-migration` app without resetting or reseeding by running `pnpm -F common build:fast` and restarting `pnpm -F backend dev`. No test change was required, preserving all five result types and Cypress dual-run behavior.
+- Verification after the repair: `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 pnpm -F e2e exec playwright test playwright/app/globalSearch.spec.ts --project=firefox --repeat-each=3 --reporter=list` passed all three repetitions (4/4 including setup), and `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 pnpm -F e2e playwright:run` passed the complete Playwright suite (6/6).
