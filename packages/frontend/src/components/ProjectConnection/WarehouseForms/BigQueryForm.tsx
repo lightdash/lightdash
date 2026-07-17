@@ -20,8 +20,8 @@ import {
     Select,
     Switch,
     Tooltip,
+    NumberInput,
 } from '@mantine-8/core';
-import { NumberInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconCheck, IconExclamationCircle } from '@tabler/icons-react';
 import {
@@ -833,6 +833,7 @@ const BigQueryForm: FC<{
                                 />
 
                                 <NumberInput
+                                    decimalScale={0}
                                     name="warehouse.timeoutSeconds"
                                     {...form.getInputProps(
                                         'warehouse.timeoutSeconds',
@@ -903,6 +904,7 @@ const BigQueryForm: FC<{
                                 />
 
                                 <NumberInput
+                                    decimalScale={0}
                                     name="warehouse.retries"
                                     {...form.getInputProps('warehouse.retries')}
                                     defaultValue={BigQueryDefaultValues.retries}
@@ -928,6 +930,7 @@ const BigQueryForm: FC<{
                                 />
 
                                 <NumberInput
+                                    decimalScale={0}
                                     name="warehouse.maximumBytesBilled"
                                     {...form.getInputProps(
                                         'warehouse.maximumBytesBilled',

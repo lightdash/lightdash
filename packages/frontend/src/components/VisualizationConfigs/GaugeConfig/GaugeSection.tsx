@@ -88,6 +88,7 @@ const GaugeSectionComponent: FC<Props> = memo(
                         <Group gap="xs" align="flex-end">
                             {minValueMode === GaugeValueMode.FIXED ? (
                                 <NumberInput
+                                    size="xs"
                                     label="Min value"
                                     description="Set the minimum value for the section"
                                     value={section.min}
@@ -155,6 +156,7 @@ const GaugeSectionComponent: FC<Props> = memo(
                         <Group gap="xs" align="flex-end">
                             {maxValueMode === GaugeValueMode.FIXED ? (
                                 <NumberInput
+                                    size="xs"
                                     label="Max value"
                                     description="Set the maximum value for the section"
                                     value={section.max}

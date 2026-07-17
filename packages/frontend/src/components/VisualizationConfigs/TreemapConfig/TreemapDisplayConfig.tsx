@@ -34,6 +34,7 @@ export const Display: React.FC = () => {
                             />
                         </Tooltip>
                         <NumberInput
+                            size="xs"
                             value={visibleMin}
                             onChange={(value) => {
                                 if (typeof value === 'number')
@@ -60,6 +61,7 @@ export const Display: React.FC = () => {
                             />
                         </Tooltip>
                         <NumberInput
+                            size="xs"
                             value={leafDepth}
                             onChange={(value) => {
                                 if (typeof value === 'number')

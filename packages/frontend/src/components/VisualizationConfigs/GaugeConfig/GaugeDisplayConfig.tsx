@@ -10,9 +10,10 @@ import {
     SegmentedControl,
     Stack,
     Tooltip,
+    NumberInput,
 } from '@mantine-8/core';
-import { NumberInput } from '@mantine/core';
 import { memo, type FC } from 'react';
+import { handleNumberInputChange } from '../../../utils/numberInputUtils';
 import FieldSelect from '../../common/FieldSelect';
 import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -67,24 +68,28 @@ export const GaugeDisplayConfig: FC = memo(() => {
                 <Config.Section>
                     <Config.Heading>Scale</Config.Heading>
                     <NumberInput
+                        size="xs"
                         label="Minimum value"
                         description="Set the minimum value for the gauge scale"
                         value={min}
-                        onChange={(value) => setMin(Number(value))}
+                        onChange={handleNumberInputChange(setMin, () =>
+                            setMin(0),
+                        )}
                         placeholder="0"
-                        precision={2}
-                        removeTrailingZeros={true}
+                        decimalScale={2}
                     />
                     <Group gap="xs" align="flex-end">
                         {maxValueMode === GaugeValueMode.FIXED ? (
                             <NumberInput
+                                size="xs"
                                 label="Maximum value"
                                 description="Set the maximum value for the gauge scale"
                                 value={max}
-                                onChange={(value) => setMax(Number(value))}
+                                onChange={handleNumberInputChange(setMax, () =>
+                                    setMax(0),
+                                )}
                                 placeholder="100"
-                                precision={2}
-                                removeTrailingZeros={true}
+                                decimalScale={2}
                                 style={{ flex: 1 }}
                             />
                         ) : (

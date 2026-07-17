@@ -5,8 +5,8 @@ import {
     Anchor,
     Select,
     PasswordInput,
+    NumberInput,
 } from '@mantine-8/core';
-import { NumberInput } from '@mantine/core';
 import React, { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import FormCollapseButton from '../FormCollapseButton';
@@ -107,6 +107,7 @@ const TrinoForm: FC<{
                         />
 
                         <NumberInput
+                            decimalScale={0}
                             name="warehouse.port"
                             {...form.getInputProps('warehouse.port')}
                             defaultValue={TrinoDefaultValues.port}
