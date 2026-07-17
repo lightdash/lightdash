@@ -5,6 +5,7 @@ import {
     isValuelessDashboardFilterRule,
     type DashboardFilterRule,
     type FilterableItem,
+    type FilterType,
     type WeekDay,
 } from '@lightdash/common';
 import {
@@ -43,6 +44,7 @@ import TruncatedText from '../../../components/common/TruncatedText';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import { hasFilterValueSet } from '../FilterConfiguration/utils';
 import classes from './GuidedFilterSetup.module.css';
+import OperatorPicker from './OperatorPicker';
 import { AndSeparator, OrSeparator } from './RuleSeparators';
 import { useFilterableItemsMap } from './useFilterableItemsMap';
 import { useUpdateDashboardFilterRule } from './useUpdateDashboardFilterRule';
@@ -52,6 +54,16 @@ import {
     isRequirementRuleSatisfied,
     type FilterRequirementRule,
 } from './utils';
+
+const getMemberFilterType = (
+    member: DashboardFilterRule,
+    field: FilterableItem | undefined,
+): FilterType =>
+    field
+        ? getFilterTypeFromItem(field)
+        : getFilterTypeFromItemType(
+              member.target.fallbackType ?? DimensionType.STRING,
+          );
 
 const RuleStatusIcon: FC<{ satisfied: boolean }> = ({ satisfied }) =>
     satisfied ? (
@@ -83,30 +95,44 @@ const MemberInput: FC<MemberInputProps> = ({
     showLabel,
     popoverProps,
     onChange,
-}) => (
-    // Label sits on its own line above a full-width input so long field
-    // names aren't squeezed by the input column
-    <Stack gap={4}>
-        {showLabel && (
-            <TruncatedText maxWidth="100%" fz="xs" c="ldGray.6">
-                {label}
-            </TruncatedText>
-        )}
-        <FilterInputComponent
-            filterType={
-                field
-                    ? getFilterTypeFromItem(field)
-                    : getFilterTypeFromItemType(
-                          member.target.fallbackType ?? DimensionType.STRING,
-                      )
-            }
-            field={field}
-            rule={member}
-            popoverProps={popoverProps}
-            onChange={(newRule) => onChange(newRule as DashboardFilterRule)}
-        />
-    </Stack>
-);
+}) => {
+    const filterType = getMemberFilterType(member, field);
+
+    return (
+        // Label sits on its own line above a full-width input so long field
+        // names aren't squeezed by the input column
+        <Stack gap={4}>
+            {showLabel && (
+                <Group gap={6} wrap="nowrap" align="baseline">
+                    <TruncatedText maxWidth="100%" fz="xs" fw={500}>
+                        {label}
+                    </TruncatedText>
+                    <OperatorPicker
+                        filterType={filterType}
+                        field={field}
+                        member={member}
+                        label={label}
+                        onChange={onChange}
+                        onOpen={popoverProps.onOpen}
+                        onClose={popoverProps.onClose}
+                    />
+                </Group>
+            )}
+            {/* Keyed so a changed operator fades its new input shape in */}
+            <Box key={member.operator} className={classes.valueSwap}>
+                <FilterInputComponent
+                    filterType={filterType}
+                    field={field}
+                    rule={member}
+                    popoverProps={popoverProps}
+                    onChange={(newRule) =>
+                        onChange(newRule as DashboardFilterRule)
+                    }
+                />
+            </Box>
+        </Stack>
+    );
+};
 
 type RuleSummaryProps = {
     rule: FilterRequirementRule;
@@ -123,8 +149,11 @@ const RuleSummary: FC<RuleSummaryProps> = ({ rule, fieldsMap, onChange }) => {
     if (!setMember) return null;
 
     const field = fieldsMap[setMember.target.fieldId];
-    const valueLabel = field
-        ? getConditionalRuleLabelFromItem(setMember, field).value
+    const ruleLabels = field
+        ? getConditionalRuleLabelFromItem(setMember, field)
+        : undefined;
+    const valueLabel = ruleLabels
+        ? [ruleLabels.operator, ruleLabels.value].filter(Boolean).join(' ')
         : undefined;
 
     return (
@@ -288,6 +317,9 @@ const GuidedFilterSetup: FC<Props> = ({
                                 isSatisfied &&
                                 !expandedRuleIds.includes(rule.id);
                             const isMultiMember = rule.members.length > 1;
+                            const firstMember = rule.members[0];
+                            const firstMemberField =
+                                fieldsMap[firstMember.target.fieldId];
 
                             return (
                                 <Fragment key={rule.id}>
@@ -313,19 +345,52 @@ const GuidedFilterSetup: FC<Props> = ({
                                                     <RuleStatusIcon
                                                         satisfied={isSatisfied}
                                                     />
-                                                    <Text
-                                                        size="xs"
-                                                        fw={500}
-                                                        truncate
+                                                    <Group
+                                                        gap={6}
+                                                        wrap="nowrap"
+                                                        align="baseline"
+                                                        miw={0}
                                                     >
-                                                        {isMultiMember
-                                                            ? 'At least one of'
-                                                            : getDashboardFilterRuleLabel(
-                                                                  rule
-                                                                      .members[0],
-                                                                  fieldsMap,
-                                                              )}
-                                                    </Text>
+                                                        <Text
+                                                            size="xs"
+                                                            fw={500}
+                                                            truncate
+                                                        >
+                                                            {isMultiMember
+                                                                ? 'At least one of'
+                                                                : getDashboardFilterRuleLabel(
+                                                                      firstMember,
+                                                                      fieldsMap,
+                                                                  )}
+                                                        </Text>
+                                                        {!isMultiMember && (
+                                                            <OperatorPicker
+                                                                filterType={getMemberFilterType(
+                                                                    firstMember,
+                                                                    firstMemberField,
+                                                                )}
+                                                                field={
+                                                                    firstMemberField
+                                                                }
+                                                                member={
+                                                                    firstMember
+                                                                }
+                                                                label={getDashboardFilterRuleLabel(
+                                                                    firstMember,
+                                                                    fieldsMap,
+                                                                )}
+                                                                onChange={
+                                                                    handleChangeFilterRule
+                                                                }
+                                                                onOpen={
+                                                                    onSubPopoverOpen
+                                                                }
+                                                                onClose={
+                                                                    onSubPopoverClose
+                                                                }
+                                                            />
+                                                        )}
+                                                    </Group>
                                                 </Group>
                                                 <Stack
                                                     gap={6}
