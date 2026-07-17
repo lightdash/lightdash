@@ -1,3 +1,10 @@
+# [0.3407.0](https://github.com/lightdash/lightdash/compare/0.3406.2...0.3407.0) (2026-07-17)
+
+
+### Features
+
+* homepage-first onboarding — provisioned custom homepage with recommended actions, multi-warehouse connect ([#25679](https://github.com/lightdash/lightdash/issues/25679)) ([44f437f](https://github.com/lightdash/lightdash/commit/44f437fe7c4495a54a544b385619b0557658853f))
+
 ## [0.3406.2](https://github.com/lightdash/lightdash/compare/0.3406.1...0.3406.2) (2026-07-17)
 
 
