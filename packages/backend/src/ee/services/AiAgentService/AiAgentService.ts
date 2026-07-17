@@ -1664,6 +1664,13 @@ export class AiAgentService extends BaseService {
             };
         });
 
+        // Semantic-layer-less projects (dbt-less / NONE) have no explores, so
+        // ground empty-state chips in the indexed warehouse schema instead.
+        const warehouseTables =
+            explores.length === 0 && canRunSql
+                ? await this.getSuggestionWarehouseTables(user, projectUuid)
+                : [];
+
         const verifiedQuestionsData =
             await this.aiAgentModel.getVerifiedQuestions(agentUuid);
         const verifiedQuestions = verifiedQuestionsData
@@ -1720,6 +1727,7 @@ export class AiAgentService extends BaseService {
                     canManageContent: agent.enableContentTools,
                     enabledTools,
                     explores,
+                    warehouseTables,
                     verifiedQuestions,
                     verifiedContentTags: agent.tags ?? [],
                     verifiedContent,
@@ -1813,6 +1821,37 @@ export class AiAgentService extends BaseService {
         });
 
         return { chips };
+    }
+
+    // Flattens the cached warehouse catalog to up to 50 `database.schema.table`
+    // names; returns [] on any failure so suggestion generation still proceeds.
+    private async getSuggestionWarehouseTables(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<string[]> {
+        try {
+            const catalog = await this.projectService.getWarehouseTables(
+                user,
+                projectUuid,
+            );
+            const tables: string[] = [];
+            for (const [database, schemas] of Object.entries(catalog)) {
+                for (const [schema, schemaTables] of Object.entries(schemas)) {
+                    for (const table of Object.keys(schemaTables)) {
+                        tables.push(`${database}.${schema}.${table}`);
+                        if (tables.length >= 50) return tables;
+                    }
+                }
+            }
+            return tables;
+        } catch (error) {
+            Logger.warn(
+                `[AiAgentService] Failed to read warehouse tables for suggestions: ${String(
+                    error,
+                )}`,
+            );
+            return [];
+        }
     }
 
     private async buildSuggestionsThreadContext({
