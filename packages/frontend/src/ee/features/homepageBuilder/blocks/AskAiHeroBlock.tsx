@@ -3,14 +3,8 @@ import { type FC } from 'react';
 import useApp from '../../../../providers/App/useApp';
 import { useAiAgentButtonVisibility } from '../../aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { DayOneAskInput } from '../DayOneAskInput';
+import { dayPart } from './dayPart';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
-
-const dayPart = (): string => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'morning';
-    if (hour < 18) return 'afternoon';
-    return 'evening';
-};
 
 // The day-0 hero, as a reusable unit: greeting + the real agent chat
 // composer with live suggestions. Shared between DayOneHomepage (always
@@ -35,8 +29,8 @@ export const AskAiHero: FC<{
                     ta="center"
                     m={0}
                 >
-                    Good {dayPart()}, {user.data?.firstName}. What do you want
-                    to know?
+                    Good {dayPart(new Date().getHours())},{' '}
+                    {user.data?.firstName}. What do you want to know?
                 </Text>
             )}
             <Box w="100%">
