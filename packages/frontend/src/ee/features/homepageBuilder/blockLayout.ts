@@ -13,6 +13,8 @@ export type BlockLayoutTrait = {
     // Relative flex weight when this block shares a row with others.
     columnWeight: number;
     rhythm: BlockRhythm;
+    // Full-row blocks can never share a row (enforced by configOps guards).
+    fullRowOnly: boolean;
 };
 
 // Declarative per-type layout. A resolver composes these for whatever
@@ -23,23 +25,56 @@ const blockLayoutTraits: Record<HomepageBlock['type'], BlockLayoutTrait> = {
         widthTier: 'composer',
         columnWeight: 2,
         rhythm: 'section',
+        fullRowOnly: true,
     },
     'quick-actions': {
         widthTier: 'content',
         columnWeight: 1,
         rhythm: 'grouped',
+        fullRowOnly: false,
     },
-    metrics: { widthTier: 'full', columnWeight: 2, rhythm: 'section' },
-    collection: { widthTier: 'full', columnWeight: 2, rhythm: 'section' },
-    resources: { widthTier: 'content', columnWeight: 1, rhythm: 'grouped' },
+    metrics: {
+        widthTier: 'full',
+        columnWeight: 2,
+        rhythm: 'section',
+        fullRowOnly: false,
+    },
+    collection: {
+        widthTier: 'full',
+        columnWeight: 2,
+        rhythm: 'section',
+        fullRowOnly: false,
+    },
+    resources: {
+        widthTier: 'content',
+        columnWeight: 1,
+        rhythm: 'grouped',
+        fullRowOnly: false,
+    },
     announcements: {
         widthTier: 'reading',
         columnWeight: 1,
         rhythm: 'section',
+        fullRowOnly: false,
     },
-    favorites: { widthTier: 'content', columnWeight: 1, rhythm: 'grouped' },
-    recent: { widthTier: 'content', columnWeight: 1, rhythm: 'grouped' },
-    markdown: { widthTier: 'reading', columnWeight: 1, rhythm: 'grouped' },
+    favorites: {
+        widthTier: 'content',
+        columnWeight: 1,
+        rhythm: 'grouped',
+        fullRowOnly: false,
+    },
+    recent: {
+        widthTier: 'content',
+        columnWeight: 1,
+        rhythm: 'grouped',
+        fullRowOnly: false,
+    },
+    markdown: {
+        widthTier: 'reading',
+        columnWeight: 1,
+        rhythm: 'grouped',
+        fullRowOnly: false,
+    },
 };
 
 export const traitFor = (type: HomepageBlock['type']): BlockLayoutTrait =>
