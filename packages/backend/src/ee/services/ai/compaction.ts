@@ -10,8 +10,52 @@ const TOOL_RESULT_CHAR_LIMIT = 2000;
 const SUMMARY_MESSAGE_PREFIX =
     'Earlier conversation summary for this thread:\n\n';
 
+// Placeholder-only line, e.g. "[no further messages]" or "[no assistant message]"
+const PLACEHOLDER_LINE_REGEX = /^\[[^[\]]*\]$/;
+const MARKDOWN_HEADING_REGEX = /^#{1,6}(\s|$)/;
+
 export class Compaction {
     static readonly RESERVE_TOKENS = 16384;
+
+    static readonly MIN_MEANINGFUL_SUMMARY_CHARS = 20;
+
+    static readonly MIN_INPUT_CHARS_FOR_LENGTH_CHECK = 1000;
+
+    /**
+     * Guards against persisting a degenerate summary (which would destroy
+     * thread context). Conservative: only rejects clearly-bad summaries —
+     * empty/whitespace, placeholder-only output, or trivially short content
+     * relative to a large serialized input.
+     */
+    static isUsableSummary({
+        summary,
+        serializedInputChars,
+    }: {
+        summary: string;
+        serializedInputChars: number;
+    }): boolean {
+        // Content that isn't markdown structure or bracket-only placeholders
+        const meaningfulChars = summary
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(
+                (line) =>
+                    line.length > 0 &&
+                    !MARKDOWN_HEADING_REGEX.test(line) &&
+                    !PLACEHOLDER_LINE_REGEX.test(line),
+            )
+            .join('\n').length;
+
+        if (meaningfulChars === 0) {
+            return false;
+        }
+
+        return !(
+            serializedInputChars >=
+                Compaction.MIN_INPUT_CHARS_FOR_LENGTH_CHECK &&
+            meaningfulChars < Compaction.MIN_MEANINGFUL_SUMMARY_CHARS
+        );
+    }
 
     static shouldCompactPrompt({
         totalTokens,

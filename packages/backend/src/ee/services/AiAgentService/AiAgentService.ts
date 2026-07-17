@@ -4385,10 +4385,48 @@ export class AiAgentService extends BaseService {
         const serializedInput =
             Compaction.serializeConversation(messagesToCompact);
 
-        const summary = await generateCompactionSummary(compactionModel, {
-            previousSummary: latestCompaction?.summary,
-            conversation: serializedInput,
-        });
+        let summary: string;
+        try {
+            summary = await generateCompactionSummary(compactionModel, {
+                previousSummary: latestCompaction?.summary,
+                conversation: serializedInput,
+            });
+        } catch (error) {
+            // Compaction is best-effort: an uncompacted turn beats a failed one
+            Logger.warn(
+                `${compactionLogContext} skipped reason=summary-generation-failed error=${getErrorMessage(error)}`,
+            );
+            Sentry.captureException(error, {
+                tags: { aiThreadUuid: threadUuid },
+                extra: { promptUuid: prompt.promptUuid },
+            });
+            return latestCompaction ?? null;
+        }
+
+        if (
+            !Compaction.isUsableSummary({
+                summary,
+                serializedInputChars: serializedInput.length,
+            })
+        ) {
+            // Persisting a degenerate summary would destroy thread context
+            Logger.warn(
+                `${compactionLogContext} skipped reason=unusable-summary summaryChars=${summary.length} serializedInputChars=${serializedInput.length}`,
+            );
+            Sentry.captureMessage(
+                'AI compaction summary rejected as unusable',
+                {
+                    level: 'warning',
+                    tags: { aiThreadUuid: threadUuid },
+                    extra: {
+                        promptUuid: prompt.promptUuid,
+                        summaryChars: summary.length,
+                        serializedInputChars: serializedInput.length,
+                    },
+                },
+            );
+            return latestCompaction ?? null;
+        }
 
         const createdCompaction =
             await this.aiAgentModel.createThreadCompaction({

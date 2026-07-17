@@ -187,6 +187,101 @@ describe('AI context compaction helpers', () => {
         ]);
     });
 
+    describe('isUsableSummary', () => {
+        const serializedInputChars = 10000;
+
+        it('rejects empty and whitespace-only summaries', () => {
+            expect(
+                Compaction.isUsableSummary({
+                    summary: '',
+                    serializedInputChars,
+                }),
+            ).toBe(false);
+            expect(
+                Compaction.isUsableSummary({
+                    summary: '   \n\t\n  ',
+                    serializedInputChars,
+                }),
+            ).toBe(false);
+        });
+
+        it('rejects placeholder-only summaries', () => {
+            expect(
+                Compaction.isUsableSummary({
+                    summary: '[no further messages]',
+                    serializedInputChars,
+                }),
+            ).toBe(false);
+            expect(
+                Compaction.isUsableSummary({
+                    summary: '[no assistant message]',
+                    serializedInputChars,
+                }),
+            ).toBe(false);
+            expect(
+                Compaction.isUsableSummary({
+                    summary: '  [no content]  \n[none]',
+                    serializedInputChars,
+                }),
+            ).toBe(false);
+        });
+
+        it('rejects summaries that are only markdown structure', () => {
+            expect(
+                Compaction.isUsableSummary({
+                    summary:
+                        '## Goal\n## Progress\n### Done\n[no further messages]\n## Next Steps',
+                    serializedInputChars,
+                }),
+            ).toBe(false);
+        });
+
+        it('rejects trivially short summaries for large inputs', () => {
+            expect(
+                Compaction.isUsableSummary({
+                    summary: '## Goal\nn/a',
+                    serializedInputChars: 10000,
+                }),
+            ).toBe(false);
+        });
+
+        it('accepts a short summary when the input is also small', () => {
+            expect(
+                Compaction.isUsableSummary({
+                    summary: 'User said hi.',
+                    serializedInputChars: 50,
+                }),
+            ).toBe(true);
+        });
+
+        it('accepts a legitimate structured summary', () => {
+            expect(
+                Compaction.isUsableSummary({
+                    summary: [
+                        '## Goal',
+                        'Analyze monthly revenue by region for 2025.',
+                        '## Progress',
+                        '### Done',
+                        'Built a bar chart of revenue by region (artifact "Revenue by region").',
+                        '## Next Steps',
+                        'Add a month-over-month growth metric.',
+                    ].join('\n'),
+                    serializedInputChars,
+                }),
+            ).toBe(true);
+        });
+
+        it('accepts summaries containing bracketed text within sentences', () => {
+            expect(
+                Compaction.isUsableSummary({
+                    summary:
+                        'User pinned chart [Revenue 2025] and asked for a breakdown by country.',
+                    serializedInputChars,
+                }),
+            ).toBe(true);
+        });
+    });
+
     it('matches the triggering prompt for compaction UI events', () => {
         expect(
             Compaction.isCompactionPrompt(
