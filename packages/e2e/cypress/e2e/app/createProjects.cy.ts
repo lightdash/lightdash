@@ -1,5 +1,6 @@
 import {
     CustomDimensionType,
+    JobStatusType,
     ResultRow,
     SEED_PROJECT,
 } from '@lightdash/common';
@@ -165,13 +166,34 @@ const configureSnowflakeWarehouse = (
     cy.get('input[name="warehouse.schema"]').type(config.schema);
 };
 
+// The app polls the compile job every 500ms, so 360 polls ≈ 3 minutes
+const waitForCompileJob = (attempt = 0): void => {
+    cy.wait('@jobStatus', { timeout: 30000 }).then(({ response }) => {
+        const job = response?.body?.results;
+        switch (job?.jobStatus) {
+            case JobStatusType.DONE:
+                return;
+            case JobStatusType.ERROR:
+                throw new Error(
+                    `Compile job failed: ${JSON.stringify(job.steps)}`,
+                );
+            default:
+                if (attempt >= 360) {
+                    throw new Error('Compile job did not finish');
+                }
+                waitForCompileJob(attempt + 1);
+        }
+    });
+};
+
 const testCompile = (): Cypress.Chainable<string> => {
     // Compile
+    cy.intercept('GET', '**/api/v1/jobs/*').as('jobStatus');
     cy.findByText('Test & deploy project').click();
-    cy.contains('Step 1/3', { timeout: 60000 });
-    cy.contains('Step 2/3', { timeout: 60000 });
-    cy.contains('Successfully synced dbt project!', { timeout: 60000 });
+    waitForCompileJob();
 
+    cy.url({ timeout: 30000 }).should('include', '/createProjectSettings');
+    cy.contains('Your project has connected successfully!');
     cy.contains(/selected \d+ models/);
     // Configure
     cy.contains('button', 'Save changes').click();
