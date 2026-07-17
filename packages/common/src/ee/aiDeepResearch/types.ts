@@ -50,6 +50,10 @@ export type AiDeepResearchRequestBody = {
     prompt: string;
     /** Server-owned execution budget tier. Defaults to medium. */
     effort?: AiDeepResearchEffort;
+    /** Agent thread to attach the run to. Must be owned by the caller. */
+    threadUuid?: string;
+    /** Thread message that captured this prompt. Requires threadUuid. */
+    promptUuid?: string;
 };
 
 export const AI_DEEP_RESEARCH_CONFIDENCE_LEVELS = [
@@ -157,6 +161,9 @@ export type AiDeepResearchEvent =
 export type AiDeepResearchRun = {
     aiDeepResearchRunUuid: string;
     projectUuid: string;
+    aiThreadUuid: string | null;
+    promptUuid: string | null;
+    prompt: string;
     status: AiDeepResearchRunStatus;
     /** The report as a single markdown document with embedded chart blocks. */
     resultMarkdown: string | null;
@@ -175,6 +182,8 @@ export type AiDeepResearchEventsPage = {
 };
 
 export type ApiAiDeepResearchRunResponse = ApiSuccess<AiDeepResearchRun>;
+
+export type ApiAiDeepResearchRunListResponse = ApiSuccess<AiDeepResearchRun[]>;
 
 export type ApiAiDeepResearchEventsResponse =
     ApiSuccess<AiDeepResearchEventsPage>;

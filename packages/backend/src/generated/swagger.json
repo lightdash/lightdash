@@ -28456,6 +28456,17 @@
                     "status": {
                         "$ref": "#/components/schemas/AiDeepResearchRunStatus"
                     },
+                    "prompt": {
+                        "type": "string"
+                    },
+                    "promptUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "aiThreadUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "projectUuid": {
                         "type": "string"
                     },
@@ -28473,6 +28484,9 @@
                     "budget",
                     "resultMarkdown",
                     "status",
+                    "prompt",
+                    "promptUuid",
+                    "aiThreadUuid",
                     "projectUuid",
                     "aiDeepResearchRunUuid"
                 ],
@@ -28501,6 +28515,14 @@
             },
             "AiDeepResearchRequestBody": {
                 "properties": {
+                    "promptUuid": {
+                        "type": "string",
+                        "description": "Thread message that captured this prompt. Requires threadUuid."
+                    },
+                    "threadUuid": {
+                        "type": "string",
+                        "description": "Agent thread to attach the run to. Must be owned by the caller."
+                    },
                     "effort": {
                         "$ref": "#/components/schemas/AiDeepResearchEffort",
                         "description": "Server-owned execution budget tier. Defaults to medium."
@@ -28511,6 +28533,26 @@
                 },
                 "required": ["prompt"],
                 "type": "object"
+            },
+            "ApiSuccess_AiDeepResearchRun-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiDeepResearchRun"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiDeepResearchRunListResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchRun-Array_"
             },
             "Record_string.never_": {
                 "properties": {},
@@ -59246,6 +59288,52 @@
                         }
                     }
                 }
+            },
+            "get": {
+                "operationId": "listAiDeepResearchRuns",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiDeepResearchRunListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List the caller's Deep Research runs attached to an agent thread.",
+                "summary": "List Deep Research runs",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}": {

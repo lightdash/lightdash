@@ -217,6 +217,7 @@ const AiAgentNewThreadPage: FC = () => {
                 question,
                 depth,
                 threadUuid: thread.uuid,
+                promptUuid: thread.firstMessage.uuid,
             });
         },
         [

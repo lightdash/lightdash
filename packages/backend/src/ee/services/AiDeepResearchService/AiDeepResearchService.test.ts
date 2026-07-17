@@ -152,6 +152,7 @@ const runRow = (overrides: Record<string, unknown> = {}) => ({
 const buildService = (
     overrides: {
         model?: Record<string, unknown>;
+        aiAgentModel?: Record<string, unknown>;
         projectModel?: Record<string, unknown>;
         featureFlagModel?: Record<string, unknown>;
         schedulerClient?: Record<string, unknown>;
@@ -182,8 +183,18 @@ const buildService = (
         appendProgressEvent: vi.fn().mockResolvedValue(true),
         setClaudeSessionId: vi.fn().mockResolvedValue(true),
         touch: vi.fn().mockResolvedValue(true),
+        findByThreadScoped: vi.fn().mockResolvedValue([]),
         markStaleRunsAsFailed: vi.fn().mockResolvedValue([]),
         ...overrides.model,
+    };
+    const aiAgentModel = {
+        findThreadOwnership: vi.fn().mockResolvedValue({
+            threadUuid: 'thread-1',
+            projectUuid: 'project-1',
+            agentUuid: null,
+            ownerUserUuid: 'user-1',
+        }),
+        ...overrides.aiAgentModel,
     };
     const projectModel = {
         getSummary: vi.fn().mockResolvedValue({ organizationUuid: 'org-1' }),
@@ -218,6 +229,7 @@ const buildService = (
         });
     const service = new AiDeepResearchService({
         aiDeepResearchRunModel: model as AnyType,
+        aiAgentModel: aiAgentModel as AnyType,
         projectModel: projectModel as AnyType,
         featureFlagModel: featureFlagModel as AnyType,
         schedulerClient: schedulerClient as AnyType,
@@ -228,6 +240,7 @@ const buildService = (
     return {
         service,
         model,
+        aiAgentModel,
         projectModel,
         featureFlagModel,
         schedulerClient,
@@ -272,6 +285,105 @@ describe('AiDeepResearchService', () => {
             });
             expect(run.status).toBe('queued');
         });
+
+        it('persists the thread link when the caller owns the thread', async () => {
+            const { service, model, aiAgentModel } = buildService();
+
+            await service.createRun({
+                user: userWithProjectAccess(),
+                projectUuid: 'project-1',
+                prompt: 'Investigate revenue',
+                budget,
+                aiThreadUuid: 'thread-1',
+            });
+
+            expect(aiAgentModel.findThreadOwnership).toHaveBeenCalledWith({
+                organizationUuid: 'org-1',
+                threadUuid: 'thread-1',
+            });
+            expect(model.create).toHaveBeenCalledWith(
+                expect.objectContaining({ aiThreadUuid: 'thread-1' }),
+            );
+        });
+
+        it('persists the prompt link alongside its thread', async () => {
+            const { service, model } = buildService();
+
+            await service.createRun({
+                user: userWithProjectAccess(),
+                projectUuid: 'project-1',
+                prompt: 'Investigate revenue',
+                budget,
+                aiThreadUuid: 'thread-1',
+                promptUuid: 'prompt-1',
+            });
+
+            expect(model.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    aiThreadUuid: 'thread-1',
+                    promptUuid: 'prompt-1',
+                }),
+            );
+        });
+
+        it('rejects a prompt link without its thread', async () => {
+            const { service, model } = buildService();
+
+            await expect(
+                service.createRun({
+                    user: userWithProjectAccess(),
+                    projectUuid: 'project-1',
+                    prompt: 'Investigate revenue',
+                    budget,
+                    promptUuid: 'prompt-1',
+                }),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(model.create).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            ['missing', undefined],
+            [
+                'owned by another user',
+                {
+                    threadUuid: 'thread-1',
+                    projectUuid: 'project-1',
+                    agentUuid: null,
+                    ownerUserUuid: 'user-2',
+                },
+            ],
+            [
+                'in another project',
+                {
+                    threadUuid: 'thread-1',
+                    projectUuid: 'project-2',
+                    agentUuid: null,
+                    ownerUserUuid: 'user-1',
+                },
+            ],
+        ] as const)(
+            'rejects a thread link that is %s',
+            async (_case, ownership) => {
+                const { service, model } = buildService({
+                    aiAgentModel: {
+                        findThreadOwnership: vi
+                            .fn()
+                            .mockResolvedValue(ownership),
+                    },
+                });
+
+                await expect(
+                    service.createRun({
+                        user: userWithProjectAccess(),
+                        projectUuid: 'project-1',
+                        prompt: 'Investigate revenue',
+                        budget,
+                        aiThreadUuid: 'thread-1',
+                    }),
+                ).rejects.toBeInstanceOf(NotFoundError);
+                expect(model.create).not.toHaveBeenCalled();
+            },
+        );
 
         it('uses the server-owned default budget when none is provided', async () => {
             const { service, model } = buildService();
@@ -608,6 +720,36 @@ describe('AiDeepResearchService', () => {
                 ),
             ).rejects.toBeInstanceOf(NotFoundError);
             expect(model.requestCancellation).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('listRunsForThread', () => {
+        it('lists only the callers runs for the thread, scoped to org and project', async () => {
+            const { service, model } = buildService({
+                model: {
+                    findByThreadScoped: vi
+                        .fn()
+                        .mockResolvedValue([
+                            runRow({ ai_thread_uuid: 'thread-1' }),
+                        ]),
+                },
+            });
+
+            const runs = await service.listRunsForThread(
+                userWithProjectAccess(),
+                'project-1',
+                'thread-1',
+            );
+
+            expect(model.findByThreadScoped).toHaveBeenCalledWith({
+                aiThreadUuid: 'thread-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+                createdByUserUuid: 'user-1',
+            });
+            expect(runs).toHaveLength(1);
+            expect(runs[0].aiThreadUuid).toBe('thread-1');
+            expect(runs[0].prompt).toBe('Investigate revenue');
         });
     });
 

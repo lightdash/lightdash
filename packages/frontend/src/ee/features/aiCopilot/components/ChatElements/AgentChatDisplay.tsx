@@ -11,12 +11,14 @@ import {
 import { IconCrop, IconInfoCircle } from '@tabler/icons-react';
 import {
     Fragment,
+    useMemo,
     useRef,
     useState,
     type FC,
     type PropsWithChildren,
 } from 'react';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
+import { useDeepResearchThreadRuns } from '../../hooks/useDeepResearch';
 import { useAgentAiMcpServers } from '../../hooks/useProjectAiMcpServers';
 import { AddToEvalModal } from '../Admin/AddToEvalModal';
 import { DeepResearchThreadRuns } from '../DeepResearch/DeepResearchThreadRuns';
@@ -107,6 +109,22 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     const [addToEvalsPromptUuid, setAddToEvalsPromptUuid] = useState<
         string | null
     >(null);
+    // Deep research prompts never receive a chat response — the run card is
+    // the response — so their assistant bubbles must not render (they would
+    // show as failed generations).
+    const deepResearchRuns = useDeepResearchThreadRuns(
+        projectUuid,
+        thread.uuid,
+    );
+    const deepResearchPromptUuids = useMemo(
+        () =>
+            new Set(
+                (deepResearchRuns.data ?? []).flatMap((run) =>
+                    run.promptUuid ? [run.promptUuid] : [],
+                ),
+            ),
+        [deepResearchRuns.data],
+    );
     const compactionsByTriggeringPromptUuid = new Map(
         thread.compactions.map((compaction) => [
             compaction.triggeringPromptUuid,
@@ -142,6 +160,12 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                     !(
                                         message.role === 'user' &&
                                         message.hidden
+                                    ) &&
+                                    !(
+                                        message.role === 'assistant' &&
+                                        deepResearchPromptUuids.has(
+                                            message.uuid,
+                                        )
                                     ),
                             )
                             .map((message, i, xs) => (

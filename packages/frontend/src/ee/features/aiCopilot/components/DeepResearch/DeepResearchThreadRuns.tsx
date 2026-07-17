@@ -1,10 +1,13 @@
 import { Alert, Button, Paper, Skeleton, Stack, Text } from '@mantine-8/core';
+import { useMemo } from 'react';
 import useUser from '../../../../../hooks/user/useUser';
 import { useDeepResearchRunsForThread } from '../../deepResearch/deepResearchRegistry';
+import { toDeepResearchRegistration } from '../../deepResearch/runProgress';
 import { type DeepResearchRunRegistration } from '../../deepResearch/types';
 import {
     useContinueDeepResearchMutation,
     useDeepResearchRun,
+    useDeepResearchThreadRuns,
 } from '../../hooks/useDeepResearch';
 import { DeepResearchRunCard } from './DeepResearchRunCard';
 
@@ -107,11 +110,34 @@ export const DeepResearchThreadRuns = ({
     threadUuid: string;
 }) => {
     const user = useUser(true);
-    const registrations = useDeepResearchRunsForThread(
+    const userUuid = user.data?.userUuid;
+    // Server is the source of truth; the local registry only contributes
+    // optimistic entries (starting / start_failed / just-started runs the
+    // list has not caught up with yet).
+    const serverRuns = useDeepResearchThreadRuns(projectUuid, threadUuid);
+    const localRegistrations = useDeepResearchRunsForThread(
         projectUuid,
         threadUuid,
-        user.data?.userUuid,
+        userUuid,
     );
+    const registrations = useMemo(() => {
+        const fromServer = (serverRuns.data ?? []).map((run) =>
+            toDeepResearchRegistration(run, {
+                threadUuid,
+                userUuid: userUuid ?? '',
+            }),
+        );
+        const serverRunUuids = new Set(
+            fromServer.map((registration) => registration.runUuid),
+        );
+        return [
+            ...fromServer,
+            ...localRegistrations.filter(
+                (registration) => !serverRunUuids.has(registration.runUuid),
+            ),
+        ];
+    }, [serverRuns.data, localRegistrations, threadUuid, userUuid]);
+
     if (!registrations.length) {
         return null;
     }
