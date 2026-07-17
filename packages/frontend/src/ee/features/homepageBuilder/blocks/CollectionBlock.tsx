@@ -140,7 +140,20 @@ const CollectionPickerMultiSelect: FC<{
         setSelected((prev) => buildSelectionRefs(newUuids, prev, contentMap));
     };
 
-    const data = useMemo(() => groupContentBySpace(contentMap), [contentMap]);
+    const visibleUuids = useMemo(() => {
+        const pageUuids =
+            contentPages?.pages.flatMap((page) =>
+                page.data.map((content) => content.uuid),
+            ) ?? [];
+        return new Set([...pageUuids, ...selected.keys()]);
+    }, [contentPages?.pages, selected]);
+
+    const data = useMemo(() => {
+        const visibleContent = new Map(
+            [...contentMap].filter(([uuid]) => visibleUuids.has(uuid)),
+        );
+        return groupContentBySpace(visibleContent);
+    }, [contentMap, visibleUuids]);
 
     const renderOption = useCallback(
         ({ option }: ComboboxLikeRenderOptionInput<ComboboxItem>) => {
