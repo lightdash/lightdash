@@ -38,14 +38,7 @@ const makeBlock = (
                 },
             };
         case 'announcements':
-            return {
-                id,
-                type,
-                config: {
-                    title: 't',
-                    items: empty ? [] : [{ text: 'x', date: 'd', author: 'a' }],
-                },
-            };
+            return { id, type, config: { title: 't', categoryUuids: [] } };
         case 'quick-actions':
             return {
                 id,
@@ -189,7 +182,7 @@ describe('resolveHomepageLayout', () => {
     describe('config-empty blocks are invisible to the layout', () => {
         it('an empty leading block does not demote the hero', () => {
             const config = makeConfig([
-                [emptyBlock('ann', 'announcements')],
+                [emptyBlock('res', 'resources')],
                 [block('a', 'ask-ai-hero')],
                 [block('c', 'collection')],
             ]);

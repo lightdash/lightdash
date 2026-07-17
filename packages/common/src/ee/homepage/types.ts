@@ -66,19 +66,12 @@ export type HomepageLinkMetadata = {
     imageUrl: string | null;
 };
 
-export type HomepageAnnouncementItem = {
-    /** Markdown — @-mentioned charts/dashboards are plain markdown links
-     * (`[label](/projects/.../saved/:uuid/view)`), rendered as rich chips by
-     * `rehypeAiAgentContentLinks`. */
-    text: string;
-    date: string;
-    author: string;
-};
-
 export type HomepageAnnouncementsBlock = {
     id: string;
     type: 'announcements';
-    config: { title: string; items: HomepageAnnouncementItem[] };
+    /** Feed reference — items live in `project_announcements`. Empty
+     * categoryUuids = all categories. */
+    config: { title: string; categoryUuids: string[] };
 };
 
 export type HomepageQuickAction =
@@ -208,6 +201,19 @@ export const defaultHomepageConfig = (): HomepageConfig => ({
 // block into a markdown block so old configs still load, save and render — its
 // {name} token keeps personalizing via the markdown block's own interpolation.
 const migrateBlock = (block: HomepageBlock): HomepageBlock => {
+    // Announcements moved from config-embedded items to the
+    // project_announcements feed; legacy items are dropped (pre-release).
+    if (block.type === 'announcements') {
+        const legacyConfig = block.config as { categoryUuids?: unknown };
+        if (!Array.isArray(legacyConfig.categoryUuids)) {
+            return {
+                id: block.id,
+                type: 'announcements',
+                config: { title: block.config.title, categoryUuids: [] },
+            };
+        }
+        return block;
+    }
     if ((block.type as string) !== 'hero') return block;
     const legacyConfig = (block as { config: Record<string, unknown> }).config;
     const title =
