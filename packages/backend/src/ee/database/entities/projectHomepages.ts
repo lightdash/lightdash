@@ -93,3 +93,52 @@ export type HomepageAssignmentsTable = Knex.CompositeTableType<
     DbHomepageAssignmentIn,
     DbHomepageAssignmentUpdate
 >;
+
+export const AnnouncementCategoriesTableName =
+    'project_announcement_categories';
+
+export type DbAnnouncementCategory = {
+    category_uuid: string;
+    project_uuid: string;
+    name: string;
+    color: string;
+    created_at: Date;
+};
+
+export type AnnouncementCategoriesTable = Knex.CompositeTableType<
+    DbAnnouncementCategory,
+    Pick<DbAnnouncementCategory, 'project_uuid' | 'name' | 'color'>,
+    Partial<Pick<DbAnnouncementCategory, 'name' | 'color'>>
+>;
+
+export const AnnouncementsTableName = 'project_announcements';
+
+export type DbAnnouncement = {
+    announcement_uuid: string;
+    project_uuid: string;
+    title: string;
+    body: string | null;
+    category_uuid: string | null;
+    pinned: boolean;
+    created_by_user_uuid: string | null;
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type DbAnnouncementIn = Pick<
+    DbAnnouncement,
+    'project_uuid' | 'title' | 'body' | 'category_uuid' | 'created_by_user_uuid'
+>;
+
+export type DbAnnouncementUpdate = Partial<
+    Pick<
+        DbAnnouncement,
+        'title' | 'body' | 'category_uuid' | 'pinned' | 'updated_at'
+    >
+>;
+
+export type AnnouncementsTable = Knex.CompositeTableType<
+    DbAnnouncement,
+    DbAnnouncementIn,
+    DbAnnouncementUpdate
+>;
