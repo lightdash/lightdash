@@ -11,6 +11,10 @@
                     "$ref": "#/$defs/FieldId",
                     "description": "For PoP-generated metrics, the base metric id that this metric is derived from."
                 },
+                "baseMetricName": {
+                    "description": "Name of the explore metric this metric was cloned from",
+                    "type": "string"
+                },
                 "compact": {
                     "$ref": "#/$defs/CompactOrAlias",
                     "description": "Compact format for large numbers"
