@@ -35,7 +35,6 @@ import {
 import {
     IconAlertTriangle,
     IconArrowBackUp,
-    IconBolt,
     IconBrandSlack,
     IconChartBar,
     IconChevronRight,
@@ -1510,9 +1509,9 @@ const ActionRow: FC<{
 
 // --- Run row ---
 
-const BoltPulseLoader: FC<{ size?: number }> = ({ size = 12 }) => (
+const TargetPulseLoader: FC<{ size?: number }> = ({ size = 12 }) => (
     <Box className={classes.boltPulseLoader} aria-label="Running">
-        <IconBolt size={size} fill="currentColor" stroke={0} />
+        <IconTarget size={size} stroke={2.5} />
     </Box>
 );
 
@@ -1564,7 +1563,7 @@ const RunHeaderRow: FC<{
                         <Box w={12} />
                     )}
                     {variant === 'live' ? (
-                        <BoltPulseLoader size={12} />
+                        <TargetPulseLoader size={12} />
                     ) : variant === 'errored' ? (
                         <IconAlertTriangle
                             size={12}

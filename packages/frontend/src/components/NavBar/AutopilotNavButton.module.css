@@ -1,28 +1,10 @@
-/* Tighten padding so the collapsed state reads as an icon cell, not a wide button. */
-.cell {
-    padding-left: 10px;
-    padding-right: 10px;
-    /* Let the corner status dot poke past the icon without being clipped. */
-    overflow: visible;
-}
-
-/* Mantine's Button label clips overflow by default — allow the dot to show. */
-.labelSlot {
-    overflow: visible;
-}
-
-.inner {
-    display: inline-flex;
-    align-items: center;
-}
-
 .iconWrap {
     position: relative;
     display: inline-flex;
     align-items: center;
 }
 
-/* Corner status dot on the icon while collapsed; fades out on hover. */
+/* Corner status dot on the icon. */
 .dotCorner {
     position: absolute;
     top: -3px;
@@ -31,51 +13,6 @@
     height: 6px;
     border-radius: 50%;
     box-shadow: 0 0 0 1.5px var(--mantine-color-body);
-    transition: opacity 140ms ease;
-}
-
-.cell:hover .dotCorner {
-    opacity: 0;
-}
-
-/* Label expands in on hover. */
-.label {
-    max-width: 0;
-    margin-left: 0;
-    overflow: hidden;
-    white-space: nowrap;
-    opacity: 0;
-    font-weight: 500;
-    transition:
-        max-width 200ms ease,
-        margin-left 200ms ease,
-        opacity 160ms ease;
-}
-
-.cell:hover .label {
-    max-width: 140px;
-    margin-left: 8px;
-    opacity: 1;
-}
-
-/* Inline status dot appears alongside the label on hover. */
-.dotInline {
-    width: 0;
-    height: 7px;
-    margin-left: 0;
-    border-radius: 50%;
-    overflow: hidden;
-    opacity: 0;
-    transition:
-        width 180ms ease,
-        margin-left 180ms ease,
-        opacity 160ms ease;
-}
-
-.cell:hover .dotInline {
-    width: 7px;
-    margin-left: 8px;
-    opacity: 1;
 }
 
 .dotActive {
@@ -180,12 +117,4 @@
 
 .promoCta:hover {
     background: #ffffff;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .label,
-    .dotInline,
-    .dotCorner {
-        transition: none;
-    }
 }

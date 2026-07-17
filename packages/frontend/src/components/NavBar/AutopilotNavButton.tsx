@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags, ManagedAgentRunStatus } from '@lightdash/common';
-import { Button, HoverCard, Text } from '@mantine-8/core';
+import { Button, HoverCard } from '@mantine-8/core';
 import {
     IconArrowRight,
     IconChartBar,
@@ -8,9 +8,11 @@ import {
     IconTarget,
     IconTrendingUp,
 } from '@tabler/icons-react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useManagedAgentLatestRun } from '../../ee/features/managedAgent/hooks/useManagedAgentLatestRun';
 import { useManagedAgentSettings } from '../../ee/features/managedAgent/hooks/useManagedAgentSettings';
+import { ManagedAgentSetupModal } from '../../ee/features/managedAgent/ManagedAgentSetupModal';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
@@ -30,8 +32,9 @@ const CAPABILITIES = [
  * Autopilot cell in the primary nav group, right after Ask AI. Icon-only (target
  * glyph + status dot) until hovered, then it expands to reveal the label —
  * present but quiet. Managers only, gated on the AiAutopilot flag. When it isn't
- * set up yet, hovering opens a promo card; the cell and its CTA both lead to the
- * /autopilot page, where setup happens inline.
+ * set up yet, hovering opens a promo card explaining what it does; clicking opens
+ * the setup modal directly (first time) or jumps to /autopilot to resume (a
+ * settings row already exists, just switched off).
  */
 export const AutopilotNavButton = ({ projectUuid }: Props) => {
     const navigate = useNavigate();
@@ -55,12 +58,22 @@ export const AutopilotNavButton = ({ projectUuid }: Props) => {
         enabled: active && isEnabled,
     });
 
+    const [setupOpen, setSetupOpen] = useState(false);
+
     const goToAutopilot = () =>
         void navigate(`/projects/${projectUuid}/autopilot`);
 
     if (!active) return null;
 
     if (!isEnabled) {
+        // A settings row already exists (it was configured before, just
+        // switched off) — resuming just needs the toggle on /autopilot.
+        // No row yet — walk them through the setup modal first.
+        const hasExistingSettings = !!settings;
+        const handleCellClick = hasExistingSettings
+            ? goToAutopilot
+            : () => setSetupOpen(true);
+
         return (
             <HoverCard
                 width={280}
@@ -76,25 +89,15 @@ export const AutopilotNavButton = ({ projectUuid }: Props) => {
                     <Button
                         size="xs"
                         variant="default"
-                        classNames={{
-                            root: classes.cell,
-                            label: classes.labelSlot,
-                        }}
-                        onClick={goToAutopilot}
-                        aria-label="Autopilot"
+                        px={10}
+                        onClick={handleCellClick}
+                        aria-label={
+                            hasExistingSettings
+                                ? 'Resume Autopilot'
+                                : 'Set up Autopilot'
+                        }
                     >
-                        <span className={classes.inner}>
-                            <span className={classes.iconWrap}>
-                                <MantineIcon
-                                    icon={IconTarget}
-                                    size={16}
-                                    color="dimmed"
-                                />
-                            </span>
-                            <Text span className={classes.label} size="sm">
-                                Autopilot
-                            </Text>
-                        </span>
+                        <MantineIcon icon={IconTarget} size={16} color="dimmed" />
                     </Button>
                 </HoverCard.Target>
                 <HoverCard.Dropdown className={classes.promoDropdown}>
@@ -130,13 +133,24 @@ export const AutopilotNavButton = ({ projectUuid }: Props) => {
                         <button
                             type="button"
                             className={classes.promoCta}
-                            onClick={goToAutopilot}
+                            onClick={handleCellClick}
                         >
-                            Set up Autopilot
+                            {hasExistingSettings
+                                ? 'Resume Autopilot'
+                                : 'Set up Autopilot'}
                             <MantineIcon icon={IconArrowRight} size={14} />
                         </button>
                     </div>
                 </HoverCard.Dropdown>
+                <ManagedAgentSetupModal
+                    projectUuid={projectUuid}
+                    opened={setupOpen}
+                    onClose={() => setSetupOpen(false)}
+                    onEnabled={() => {
+                        setSetupOpen(false);
+                        goToAutopilot();
+                    }}
+                />
             </HoverCard>
         );
     }
@@ -148,24 +162,15 @@ export const AutopilotNavButton = ({ projectUuid }: Props) => {
         <Button
             size="xs"
             variant="default"
-            classNames={{ root: classes.cell, label: classes.labelSlot }}
+            px={10}
             onClick={goToAutopilot}
             aria-label="Autopilot"
             title={`Autopilot · ${failed ? 'run failed' : 'active'}`}
         >
-            <span className={classes.inner}>
-                <span className={classes.iconWrap}>
-                    <MantineIcon icon={IconTarget} size={16} />
-                    <span
-                        className={`${classes.dotCorner} ${dotClass}`}
-                        aria-hidden="true"
-                    />
-                </span>
-                <Text span className={classes.label} size="sm">
-                    Autopilot
-                </Text>
+            <span className={classes.iconWrap}>
+                <MantineIcon icon={IconTarget} size={16} />
                 <span
-                    className={`${classes.dotInline} ${dotClass}`}
+                    className={`${classes.dotCorner} ${dotClass}`}
                     aria-hidden="true"
                 />
             </span>
