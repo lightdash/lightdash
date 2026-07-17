@@ -120,3 +120,18 @@ pnpm -F api-tests exec vitest run --config vitest.config.ts tests/averageDistinc
 ## Port history
 
 Not started.
+
+### 2026-07-17
+
+- Target: `packages/api-tests/tests/averageDistinctWithFanout.test.ts`.
+- Ported both active API behaviors: fanout-safe `average_distinct` matches the sequential non-fanned-out AVG query within `0.01`, and an all-NULL filtered input returns one row with a NULL raw value.
+- Added typed local async-query/result shapes, seed-admin login, 60-second/200 ms polling, immediate terminal-state failures, and clear missing-query/field failures. No skipped tests were ported; Cypress remains unchanged.
+- Verification:
+  - `pnpm -F common build:fast` — passed (required to populate the frozen worktree's missing common build output).
+  - `pnpm -F api-tests test:api -- tests/averageDistinctWithFanout.test.ts` — the documented invocation did not focus with this pnpm/Vitest combination and collection failed before tests because `@lightdash/common` build output was initially absent.
+  - `SITE_URL=http://127.0.0.1:3000 pnpm -F api-tests exec vitest run --config vitest.config.ts tests/averageDistinctWithFanout.test.ts` — passed, 1 file and 2 tests.
+  - `pnpm -F api-tests typecheck` — passed.
+  - `pnpm -F api-tests lint` — passed with 5 existing disabled-test warnings in unrelated files.
+  - `pnpm -F api-tests format` — passed.
+- Remaining risks: repeated runs retain API-managed query-history/S3 result artifacts; behavior still depends on the seeded project, warehouse, and result storage. No migration-specific unresolved risk.
+- Commit: pending signed commit.
