@@ -212,6 +212,24 @@ export const RecommendedActionsChecklist: FC<{
                 if (previous.includes(actionKey)) return previous;
                 const next = [...previous, actionKey];
                 writeSkippedActions(projectUuid, next);
+                // Advance to the next non-skipped card, wrapping — without
+                // this the skipped card can stay on top when the active
+                // index is past the front
+                const oldIncomplete = RECOMMENDED_ACTION_KEYS.filter(
+                    (key) =>
+                        statuses[key].isVisible &&
+                        !statuses[key].isComplete &&
+                        !previous.includes(key),
+                );
+                const skippedPosition = oldIncomplete.indexOf(actionKey);
+                const nextIncomplete = oldIncomplete.filter(
+                    (key) => key !== actionKey,
+                );
+                setCarouselIndex(
+                    nextIncomplete.length > 0 && skippedPosition >= 0
+                        ? skippedPosition % nextIncomplete.length
+                        : 0,
+                );
                 return next;
             });
             track({
@@ -219,7 +237,7 @@ export const RecommendedActionsChecklist: FC<{
                 properties: { actionKey },
             });
         },
-        [projectUuid, track, setSkippedActions],
+        [projectUuid, track, setSkippedActions, statuses],
     );
 
     const handleRestore = useCallback(
