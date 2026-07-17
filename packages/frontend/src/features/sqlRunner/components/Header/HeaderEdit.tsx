@@ -6,8 +6,9 @@ import {
     Title,
     Button,
     ActionIcon,
+    HoverCard,
 } from '@mantine-8/core';
-import { HoverCard, Menu, Tooltip } from '@mantine/core';
+import { Menu, Tooltip } from '@mantine/core';
 import {
     IconArrowBack,
     IconDots,

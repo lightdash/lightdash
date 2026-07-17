@@ -5,3 +5,7 @@
 .root:hover {
     background-color: var(--tree-node-hover-bg);
 }
+
+.detailPreviewDropdown {
+    overflow: auto;
+}
