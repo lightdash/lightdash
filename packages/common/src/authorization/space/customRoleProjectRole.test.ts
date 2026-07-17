@@ -1,7 +1,13 @@
 import { ProjectMemberRole } from '../../types/projectMemberRole';
-import { convertProjectRoleToSpaceRole } from '../../utils/projectMemberRole';
+import {
+    convertOrganizationRoleToProjectRole,
+    convertProjectRoleToSpaceRole,
+} from '../../utils/projectMemberRole';
 import { PROJECT_ROLE_TO_SCOPES_MAP } from '../roleToScopeMapping';
-import { getProjectRoleForSpaceAccess } from './customRoleProjectRole';
+import {
+    getOrganizationRoleForSpaceAccess,
+    getProjectRoleForSpaceAccess,
+} from './customRoleProjectRole';
 
 describe('getProjectRoleForSpaceAccess', () => {
     it.each(Object.values(ProjectMemberRole))(
@@ -13,6 +19,20 @@ describe('getProjectRoleForSpaceAccess', () => {
             expect(convertProjectRoleToSpaceRole(derivedRole)).toEqual(
                 convertProjectRoleToSpaceRole(role),
             );
+        },
+    );
+});
+
+describe('getOrganizationRoleForSpaceAccess', () => {
+    it.each(Object.values(ProjectMemberRole))(
+        'org derivation converts to the same project role as the direct derivation for %s scopes',
+        (role) => {
+            const scopes = [...PROJECT_ROLE_TO_SCOPES_MAP[role]];
+            expect(
+                convertOrganizationRoleToProjectRole(
+                    getOrganizationRoleForSpaceAccess(scopes),
+                ),
+            ).toEqual(getProjectRoleForSpaceAccess(scopes));
         },
     );
 });

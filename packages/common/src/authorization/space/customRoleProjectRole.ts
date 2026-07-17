@@ -1,3 +1,4 @@
+import { OrganizationMemberRole } from '../../types/organizationMemberProfile';
 import { ProjectMemberRole } from '../../types/projectMemberRole';
 
 /**
@@ -20,4 +21,23 @@ export const getProjectRoleForSpaceAccess = (
         return ProjectMemberRole.EDITOR;
     }
     return ProjectMemberRole.VIEWER;
+};
+
+/**
+ * Organization-role equivalent of a custom role for space-access resolution.
+ * Same derivation as `getProjectRoleForSpaceAccess` — org-level custom-role
+ * assignments persist a placeholder `member` in `organization_memberships`,
+ * which would otherwise grant no inherited space access at all.
+ */
+export const getOrganizationRoleForSpaceAccess = (
+    scopes: string[],
+): OrganizationMemberRole => {
+    switch (getProjectRoleForSpaceAccess(scopes)) {
+        case ProjectMemberRole.ADMIN:
+            return OrganizationMemberRole.ADMIN;
+        case ProjectMemberRole.EDITOR:
+            return OrganizationMemberRole.EDITOR;
+        default:
+            return OrganizationMemberRole.VIEWER;
+    }
 };
