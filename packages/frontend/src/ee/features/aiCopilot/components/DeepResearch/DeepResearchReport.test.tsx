@@ -1,17 +1,19 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { deepResearchRunFixture } from '../../deepResearch/fixtures';
 import { DeepResearchReport } from './DeepResearchReport';
 
-const renderReport = (onClose = vi.fn()) =>
+vi.mock('./DeepResearchChartTile', () => ({
+    DeepResearchChartTile: ({ chart }: { chart: { title: string } }) => (
+        <div data-testid="deep-research-chart">{chart.title}</div>
+    ),
+}));
+
+const renderReport = (onClose = vi.fn(), run = deepResearchRunFixture) =>
     renderWithProviders(
-        <DeepResearchReport
-            run={deepResearchRunFixture}
-            opened
-            onClose={onClose}
-        />,
+        <DeepResearchReport run={run} opened onClose={onClose} />,
     );
 
 describe('DeepResearchReport', () => {
@@ -24,50 +26,102 @@ describe('DeepResearchReport', () => {
         expect(onClose).toHaveBeenCalledOnce();
     });
 
-    it('navigates from a claim marker to its supporting query', async () => {
-        const user = userEvent.setup();
+    it('renders the markdown as one flow with the chart between setup and interpretation', async () => {
         renderReport();
 
-        const marker = screen.getByRole('button', {
-            name: /Evidence 1: Enterprise renewal cohort/i,
-        });
-        await user.click(marker);
+        await waitFor(() =>
+            expect(
+                screen.getByRole('heading', {
+                    name: /Churn was concentrated/i,
+                }),
+            ).toBeInTheDocument(),
+        );
 
-        expect(marker).toHaveAttribute('aria-pressed', 'true');
-        const evidence = screen.getByTestId(
-            'evidence-detail-evidence-retention-query',
+        const setup = screen.getByText(/The renewal cohort joins/i);
+        const chart = screen.getByTestId('deep-research-chart');
+        const interpretation = screen.getByText(
+            /reliability the strongest explanation/i,
         );
-        await waitFor(() => expect(evidence).toHaveFocus());
-        expect(evidence).toHaveTextContent(
-            '7c4b40ba-79f8-4fd2-9c43-223eca8fa76f',
+        expect(chart).toHaveTextContent(
+            'Enterprise retention by incident exposure',
         );
-        expect(within(evidence).getByText(/Renewed ARR/)).toBeInTheDocument();
         expect(
-            within(evidence).getByText(/Segment is Enterprise/),
-        ).toBeInTheDocument();
+            Boolean(
+                setup.compareDocumentPosition(chart) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+            ),
+        ).toBe(true);
         expect(
-            within(evidence).getByRole('link', {
-                name: 'Open in Lightdash',
-            }),
+            Boolean(
+                chart.compareDocumentPosition(interpretation) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+            ),
+        ).toBe(true);
+    });
+
+    it('renders confidence tags as badges with their caveats', async () => {
+        renderReport();
+
+        await waitFor(() =>
+            expect(screen.getByText('high confidence')).toBeInTheDocument(),
+        );
+        expect(screen.getByText('medium confidence')).toBeInTheDocument();
+        expect(
+            screen.getByText(/Association, not a controlled causal estimate/i),
         ).toBeInTheDocument();
     });
 
-    it('supports keyboard navigation between evidence markers', () => {
+    it('renders whitelisted callouts with markdown children', async () => {
         renderReport();
 
-        const firstMarker = screen.getByRole('button', {
-            name: /Evidence 1: Enterprise renewal cohort/i,
-        });
-        firstMarker.focus();
-        fireEvent.keyDown(firstMarker, { key: 'ArrowRight' });
-
-        const secondMarker = screen.getByRole('button', {
-            name: /Evidence 2: Q2 enterprise incident review/i,
-        });
-        expect(secondMarker).toHaveFocus();
-        expect(secondMarker).toHaveAttribute('aria-pressed', 'true');
+        await waitFor(() =>
+            expect(screen.getByText('Data quality')).toBeInTheDocument(),
+        );
+        // Bold and lists inside a callout must render as markdown, not as
+        // raw text (regression: streamdown allowedTags glued tag content
+        // into one raw html block, leaving literal ** and flattened lists).
+        expect(screen.queryByText(/\*\*/)).not.toBeInTheDocument();
+        expect(screen.getByText('incomplete')).toBeInTheDocument();
         expect(
-            screen.getByTestId('evidence-detail-evidence-incident-review'),
-        ).toHaveTextContent('Q2 enterprise incident review');
+            screen.getByText('Missing exit-survey responses').closest('li'),
+        ).not.toBeNull();
+    });
+
+    it('renders the model-authored conclusion bullets and sources', async () => {
+        renderReport();
+
+        await waitFor(() =>
+            expect(
+                screen.getByRole('heading', { name: 'Conclusion' }),
+            ).toBeInTheDocument(),
+        );
+        expect(
+            screen.getByText(/Reliability incidents, not adoption/i),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(/Q2 enterprise incident review/i),
+        ).toBeInTheDocument();
+    });
+
+    it('strips disallowed html from the report markdown', async () => {
+        renderReport(vi.fn(), {
+            ...deepResearchRunFixture,
+            resultMarkdown: `Intro prose.\n\n<script>window.pwned = true;</script>\n\n<img src="x" onerror="window.pwned = true" />\n\n## Finding\n\n<confidence level="high">ok</confidence>\n\nBody.\n\n## Conclusion\n\n- done`,
+        });
+
+        await waitFor(() =>
+            expect(screen.getByText('Intro prose.')).toBeInTheDocument(),
+        );
+        expect(document.querySelector('script')).toBeNull();
+        expect(document.querySelector('img[onerror]')).toBeNull();
+        expect(screen.getByText('high confidence')).toBeInTheDocument();
+    });
+
+    it('renders nothing when the run has no report', () => {
+        renderReport(vi.fn(), {
+            ...deepResearchRunFixture,
+            resultMarkdown: null,
+        });
+        expect(screen.queryByText('Back to chat')).not.toBeInTheDocument();
     });
 });

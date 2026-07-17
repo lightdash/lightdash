@@ -13,7 +13,7 @@
 }
 
 .reportControls {
-    width: min(100%, 46rem);
+    width: min(100%, 60rem);
     margin-inline: auto;
     padding-inline: clamp(1.25rem, 4vw, 3rem);
 }
@@ -23,7 +23,7 @@
 }
 
 .report {
-    width: min(100%, 46rem);
+    width: min(100%, 60rem);
     margin-inline: auto;
     padding: var(--mantine-spacing-lg) clamp(1.25rem, 4vw, 3rem) 6rem;
 }
@@ -45,6 +45,16 @@
     gap: var(--mantine-spacing-sm);
 }
 
+.introduction,
+.notes {
+    display: grid;
+    gap: var(--mantine-spacing-md);
+}
+
+.notes {
+    gap: var(--mantine-spacing-xl);
+}
+
 .eyebrow {
     color: var(--mantine-color-indigo-light-color);
     font-size: 0.6875rem;
@@ -55,7 +65,6 @@
 }
 
 .reportTitle {
-    max-width: 38rem;
     font-size: clamp(1.45rem, 3vw, 1.85rem);
     font-weight: 650;
     letter-spacing: -0.025em;
@@ -63,10 +72,17 @@
 }
 
 .executiveAnswer {
-    max-width: 43rem;
+    max-width: 46rem;
     color: var(--mantine-color-text);
     font-size: 0.875rem;
     line-height: 1.7;
+}
+
+.conclusionList {
+    display: grid;
+    gap: var(--mantine-spacing-xs);
+    margin: 0;
+    padding-inline-start: 1.1rem;
 }
 
 .section {
@@ -81,6 +97,12 @@
     line-height: 1.35;
 }
 
+.subsectionTitle {
+    font-size: 0.8125rem;
+    font-weight: 650;
+    line-height: 1.45;
+}
+
 .sectionIntro,
 .caption {
     color: var(--mantine-color-dimmed);
@@ -93,10 +115,44 @@
     line-height: 1.7;
 }
 
-.finding {
+.storySection {
     display: grid;
-    gap: 0.4rem;
-    padding-block: 1rem;
+    gap: var(--mantine-spacing-lg);
+    padding-block: var(--mantine-spacing-sm);
+}
+
+.chartSequence {
+    width: 100%;
+}
+
+.reportBody {
+    h2 {
+        margin-top: var(--mantine-spacing-3xl);
+    }
+
+    li + li {
+        margin-top: var(--mantine-spacing-xs);
+    }
+}
+
+.chartTile {
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+    height: 28rem;
+    min-height: 0;
+    min-width: 0;
+    margin: var(--mantine-spacing-lg) 0;
+    overflow: hidden;
+    flex-direction: column;
+
+    > * {
+        width: 100%;
+        max-width: 100%;
+        min-height: 0;
+        min-width: 0;
+        flex: 1;
+    }
 }
 
 .findingTitle,

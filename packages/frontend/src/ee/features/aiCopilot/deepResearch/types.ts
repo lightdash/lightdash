@@ -1,5 +1,3 @@
-import { type AiDeepResearchConfidence } from '@lightdash/common';
-
 export const DEEP_RESEARCH_DEPTHS = [
     'quick',
     'standard',
@@ -25,39 +23,9 @@ export type DeepResearchSource = {
     warning: string | null;
 };
 
-export type DeepResearchEvidence = {
-    uuid: string;
-    title: string;
-    description: string;
-    sourceType: 'lightdash' | 'warehouse' | 'repository' | 'document' | 'web';
-    sourceLabel: string;
-    sourceUrl: string | null;
-    queryUuid: string | null;
-    metrics: string[];
-    filters: string[];
-    dateRange: string | null;
-};
-
-export type DeepResearchFinding = {
-    uuid: string;
-    title: string;
-    summary: string;
-    confidence: AiDeepResearchConfidence;
-    evidence: DeepResearchEvidence[];
-};
-
-export type DeepResearchArtifact = {
-    executiveAnswer: string;
-    findings: DeepResearchFinding[];
-    contradictoryEvidence: string[];
-    definitionsAndMethodology: string;
-    confidence: AiDeepResearchConfidence;
-    limitations: string[];
-    nextQuestions: string[];
-};
-
 export type DeepResearchRunView = {
     uuid: string;
+    projectUuid: string;
     threadUuid: string;
     question: string;
     depth: DeepResearchDepth;
@@ -80,7 +48,8 @@ export type DeepResearchRunView = {
         label: string;
         createdAt: string;
     }>;
-    artifact: DeepResearchArtifact | null;
+    /** The report as a markdown document with embedded chart blocks. */
+    resultMarkdown: string | null;
     errorMessage: string | null;
 };
 

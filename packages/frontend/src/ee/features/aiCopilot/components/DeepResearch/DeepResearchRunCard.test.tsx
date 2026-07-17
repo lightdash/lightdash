@@ -1,6 +1,6 @@
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { deepResearchRunFixture } from '../../deepResearch/fixtures';
 import { DeepResearchRunCard } from './DeepResearchRunCard';
@@ -19,6 +19,10 @@ describe('DeepResearchRunCard', () => {
         cancelRun.mockClear();
     });
 
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
     it.each([
         ['queued', 'Queued'],
         ['running', 'Running'],
@@ -30,7 +34,7 @@ describe('DeepResearchRunCard', () => {
                     run={{
                         ...deepResearchRunFixture,
                         status,
-                        artifact: null,
+                        resultMarkdown: null,
                         findingCount: 0,
                         completedAt: null,
                     }}
@@ -45,8 +49,32 @@ describe('DeepResearchRunCard', () => {
             expect(
                 screen.getByRole('button', { name: 'Stop research' }),
             ).toBeInTheDocument();
+            expect(screen.getAllByRole('separator')).toHaveLength(2);
         },
     );
+
+    it('updates elapsed time once per second without milliseconds', async () => {
+        vi.useFakeTimers();
+        renderWithProviders(
+            <DeepResearchRunCard
+                run={{
+                    ...deepResearchRunFixture,
+                    status: 'running',
+                    resultMarkdown: null,
+                    completedAt: null,
+                    elapsedMs: 250,
+                }}
+                projectUuid="project-1"
+            />,
+        );
+
+        expect(screen.getByText('0s')).toBeInTheDocument();
+        expect(screen.queryByText(/ms$/)).not.toBeInTheDocument();
+
+        await act(() => vi.advanceTimersByTimeAsync(1_000));
+
+        expect(screen.getByText('1s')).toBeInTheDocument();
+    });
 
     it('cancels an active run and exposes safe activity', async () => {
         const user = userEvent.setup();
@@ -55,7 +83,7 @@ describe('DeepResearchRunCard', () => {
                 run={{
                     ...deepResearchRunFixture,
                     status: 'running',
-                    artifact: null,
+                    resultMarkdown: null,
                     completedAt: null,
                 }}
                 projectUuid="project-1"
@@ -83,10 +111,10 @@ describe('DeepResearchRunCard', () => {
                     run={{
                         ...deepResearchRunFixture,
                         status,
-                        artifact:
+                        resultMarkdown:
                             status === 'cancelled'
                                 ? null
-                                : deepResearchRunFixture.artifact,
+                                : deepResearchRunFixture.resultMarkdown,
                         errorMessage:
                             status === 'failed'
                                 ? 'The warehouse timed out.'
