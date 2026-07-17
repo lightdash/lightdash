@@ -147,3 +147,20 @@
 .col[data-weight='2'] {
     flex: 2 1 0;
 }
+
+/* Hug rows: the cluster sizes to its content and centres as one unit. Columns
+ * grow only to their natural width, so sparse combos stop smearing full-bleed;
+ * dense content still reaches the tier width and behaves like a full row. */
+.row[data-fit='hug'] {
+    justify-content: center;
+}
+
+.row[data-fit='hug'] .col {
+    flex: 1 1 auto;
+    max-width: max-content;
+    min-width: 0;
+}
+
+.row[data-fit='hug'] .col[data-weight='2'] {
+    flex: 2 1 auto;
+}

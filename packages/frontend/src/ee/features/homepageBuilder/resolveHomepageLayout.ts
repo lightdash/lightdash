@@ -31,6 +31,10 @@ export type ResolvedColumn = {
     weight: number;
 };
 
+// 'hug' = the row's cluster sizes to its content and centres as one unit
+// (multi-column rows); 'fill' = the row stretches to its width tier.
+export type RowFit = 'hug' | 'fill';
+
 export type ResolvedRow = {
     id: string;
     gap: RowGap;
@@ -38,6 +42,7 @@ export type ResolvedRow = {
     // tier; multi-column rows always span full width.
     widthTier: BlockWidthTier;
     role: RowRole;
+    fit: RowFit;
     columns: ResolvedColumn[];
 };
 
@@ -120,7 +125,14 @@ const resolveRow = (
             ? 'grouped'
             : 'section';
     })();
-    return { id: row.id, gap, widthTier, role: 'body', columns };
+    return {
+        id: row.id,
+        gap,
+        widthTier,
+        role: 'body',
+        fit: single ? 'fill' : 'hug',
+        columns,
+    };
 };
 
 // Width smoothing keeps the page to two visual axes. Focal rows (reading /
