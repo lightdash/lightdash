@@ -8,19 +8,12 @@ import {
     Stack,
     Text,
     Title,
-    Tooltip,
 } from '@mantine-8/core';
-import {
-    IconFileCode,
-    IconFileSpreadsheet,
-    IconPlugConnected,
-} from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import AboutFooter from '../components/AboutFooter';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import ErrorState from '../components/common/ErrorState';
-import MantineIcon from '../components/common/MantineIcon';
 import PageSpinner from '../components/PageSpinner';
 import ConnectManuallyStep2 from '../components/ProjectConnection/ProjectConnectFlow/ConnectManually/ConnectManuallyStep2';
 import InviteExpertFooter from '../components/ProjectConnection/ProjectConnectFlow/InviteExpertFooter';
@@ -55,6 +48,32 @@ const orderedWarehouses = WAREHOUSE_ORDER.map((key) =>
     WarehouseTypeLabels.find((warehouse) => warehouse.key === key),
 ).filter((warehouse) => warehouse !== undefined);
 
+const POPULAR_WAREHOUSES: { key: WarehouseTypes; subtitle: string }[] = [
+    {
+        key: WarehouseTypes.BIGQUERY,
+        subtitle: 'Sign in with Google to connect',
+    },
+    {
+        key: WarehouseTypes.SNOWFLAKE,
+        subtitle: 'Connect with SSO',
+    },
+];
+
+const popularKeys: SelectedWarehouse[] = POPULAR_WAREHOUSES.map(
+    (warehouse) => warehouse.key,
+);
+
+const popularWarehouses = POPULAR_WAREHOUSES.map(({ key, subtitle }) => {
+    const label = WarehouseTypeLabels.find(
+        (warehouse) => warehouse.key === key,
+    )?.label;
+    return label ? { key, subtitle, label } : undefined;
+}).filter((warehouse) => warehouse !== undefined);
+
+const allWarehouses = orderedWarehouses.filter(
+    (warehouse) => !popularKeys.includes(warehouse.key),
+);
+
 const OTHER_ROUTE_PARAM = 'other';
 
 const isWarehouseType = (value: string): value is WarehouseTypes =>
@@ -64,30 +83,6 @@ const getWarehouseRoute = (key: SelectedWarehouse) =>
     `/onboarding/data-source/${
         key === OtherWarehouse.Other ? OTHER_ROUTE_PARAM : key
     }`;
-
-const OTHER_SOURCES = [
-    {
-        icon: IconPlugConnected,
-        tileClass: classes.iconTileViolet,
-        iconColor: 'violet',
-        title: 'MCP server',
-        subtitle: 'Connect a tool via MCP',
-    },
-    {
-        icon: IconFileCode,
-        tileClass: classes.iconTileTeal,
-        iconColor: 'teal',
-        title: 'dbt project',
-        subtitle: 'Import models & metrics',
-    },
-    {
-        icon: IconFileSpreadsheet,
-        tileClass: classes.iconTileBlue,
-        iconColor: 'blue',
-        title: 'CSV / Sheet',
-        subtitle: 'Upload a flat file',
-    },
-];
 
 const SectionHeader: FC<{ title: string; hint?: string }> = ({
     title,
@@ -120,12 +115,36 @@ const DataSourcePicker: FC = () => {
             </Stack>
 
             <Stack gap="md">
-                <SectionHeader
-                    title="Data warehouses"
-                    hint="Pick yours to connect"
-                />
-                <SimpleGrid cols={{ base: 2, sm: 3, md: 5 }} spacing="md">
-                    {orderedWarehouses.map((warehouse) => (
+                <SectionHeader title="Most popular" />
+                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                    {popularWarehouses.map((warehouse) => (
+                        <Paper
+                            key={warehouse.key}
+                            withBorder
+                            radius="md"
+                            className={`${classes.heroCard} ${classes.warehouseCardEnabled}`}
+                            onClick={() =>
+                                void navigate(getWarehouseRoute(warehouse.key))
+                            }
+                        >
+                            <Box>{getWarehouseIcon(warehouse.key, 48)}</Box>
+                            <Stack gap={2}>
+                                <Text className={classes.heroName}>
+                                    {warehouse.label}
+                                </Text>
+                                <Text size="sm" c="dimmed">
+                                    {warehouse.subtitle}
+                                </Text>
+                            </Stack>
+                        </Paper>
+                    ))}
+                </SimpleGrid>
+            </Stack>
+
+            <Stack gap="md">
+                <SectionHeader title="All warehouses" />
+                <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing="md">
+                    {allWarehouses.map((warehouse) => (
                         <Paper
                             key={warehouse.key}
                             withBorder
@@ -140,42 +159,6 @@ const DataSourcePicker: FC = () => {
                                 {warehouse.label}
                             </Text>
                         </Paper>
-                    ))}
-                </SimpleGrid>
-            </Stack>
-
-            <Stack gap="md">
-                <SectionHeader title="Other sources" />
-                <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
-                    {OTHER_SOURCES.map((source) => (
-                        <Tooltip
-                            key={source.title}
-                            label="Coming soon"
-                            position="top"
-                        >
-                            <Paper
-                                withBorder
-                                radius="md"
-                                p="md"
-                                className={`${classes.otherCard} ${classes.disabledContent}`}
-                            >
-                                <Box
-                                    className={`${classes.iconTile} ${source.tileClass}`}
-                                >
-                                    <MantineIcon
-                                        icon={source.icon}
-                                        color={source.iconColor}
-                                        size={24}
-                                    />
-                                </Box>
-                                <Stack gap={2}>
-                                    <Text fw={600}>{source.title}</Text>
-                                    <Text size="sm" c="dimmed">
-                                        {source.subtitle}
-                                    </Text>
-                                </Stack>
-                            </Paper>
-                        </Tooltip>
                     ))}
                 </SimpleGrid>
             </Stack>
