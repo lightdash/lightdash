@@ -25945,7 +25945,9 @@ const models: TsoaRoute.Models = {
                 },
                 requireUserCredentials: { dataType: 'boolean' },
                 keyfileContents: {
-                    ref: 'Record_string.string_',
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {},
+                    additionalProperties: { dataType: 'string' },
                     required: true,
                 },
                 authenticationType: { ref: 'BigqueryAuthenticationType' },
@@ -32887,7 +32889,9 @@ const models: TsoaRoute.Models = {
                 nestedProperties: {
                     type: { ref: 'WarehouseTypes.BIGQUERY', required: true },
                     keyfileContents: {
-                        ref: 'Record_string.string_',
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {},
+                        additionalProperties: { dataType: 'string' },
                         required: true,
                     },
                     authenticationType: {

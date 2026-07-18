@@ -1,3 +1,10 @@
+## [0.3416.2](https://github.com/lightdash/lightdash/compare/0.3416.1...0.3416.2) (2026-07-18)
+
+
+### Bug Fixes
+
+* stop TSOA intersection validation emptying BigQuery keyfileContents ([#25768](https://github.com/lightdash/lightdash/issues/25768)) ([8f266d1](https://github.com/lightdash/lightdash/commit/8f266d124a764fe89006fed4667be398c9922997))
+
 ## [0.3416.1](https://github.com/lightdash/lightdash/compare/0.3416.0...0.3416.1) (2026-07-18)
 
 
