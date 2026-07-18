@@ -43,7 +43,7 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
           ) => {
               try {
                   const issuer = 'https://accounts.google.com';
-                  const { inviteCode } = req.session.oauth || {};
+                  const { inviteCode, intent } = req.session.oauth || {};
                   const [{ value: email }] = profile.emails || [];
                   const { id: subject } = profile;
                   if (!(email && subject)) {
@@ -78,6 +78,7 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                                   'user-agent',
                               ),
                           },
+                          { isLinkFlow: intent === 'link' },
                       );
 
                   if (hasBigqueryScope && user) {

@@ -161,6 +161,10 @@ export type AuthAuditContext = {
     requestId?: string;
 };
 
+type LoginWithOpenIdOptions = {
+    isLinkFlow?: boolean;
+};
+
 const emitAuthAuditEvent = ({
     actor,
     action,
@@ -757,6 +761,7 @@ export class UserService extends BaseService {
         inviteCode: string | undefined,
         refreshToken?: string,
         context?: AuthAuditContext,
+        options?: LoginWithOpenIdOptions,
     ): Promise<SessionUser> {
         this.logger.info(
             `Starting loginWithOpenId - Email: ${
@@ -772,6 +777,7 @@ export class UserService extends BaseService {
                 authenticatedUser,
                 inviteCode,
                 refreshToken,
+                options,
             );
             emitAuthAuditEvent({
                 actor: createActorFromUser(loggedInUser),
@@ -844,7 +850,14 @@ export class UserService extends BaseService {
         authenticatedUser: SessionUser | undefined,
         inviteCode: string | undefined,
         refreshToken: string | undefined,
+        options: LoginWithOpenIdOptions | undefined,
     ): Promise<SessionUser> {
+        if (options?.isLinkFlow && !authenticatedUser) {
+            throw new AuthorizationError(
+                'You must be logged in to connect a Google account',
+            );
+        }
+
         const openIdSession = await this.userModel.findSessionUserByOpenId(
             openIdUser.openId.issuer,
             openIdUser.openId.subject,
@@ -875,6 +888,15 @@ export class UserService extends BaseService {
         );
         // Identity already exists. Update the identity attributes and login the user
         if (openIdSession) {
+            if (
+                options?.isLinkFlow &&
+                openIdSession.userUuid !== authenticatedUser?.userUuid
+            ) {
+                throw new ForbiddenError(
+                    'This Google account is already connected to another Lightdash user',
+                );
+            }
+
             if (!openIdSession.isActive) {
                 this.logger.info(
                     `User ${openIdSession.userUuid} account is deactivated`,

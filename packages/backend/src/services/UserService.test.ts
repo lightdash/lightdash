@@ -1869,6 +1869,103 @@ describe('UserService', () => {
                 userModel.createUser as import('vitest').Mock,
             ).toHaveBeenCalledTimes(0);
         });
+        test('rejects a link flow when the identity belongs to another user', async () => {
+            const currentUser: SessionUser = {
+                ...authenticatedUser,
+                userUuid: 'current-user-uuid',
+            };
+            (
+                userModel.findSessionUserByOpenId as import('vitest').Mock
+            ).mockResolvedValueOnce(sessionUser);
+
+            await expect(
+                userService.loginWithOpenId(
+                    openIdUser,
+                    currentUser,
+                    undefined,
+                    undefined,
+                    undefined,
+                    { isLinkFlow: true },
+                ),
+            ).rejects.toThrowError(
+                new ForbiddenError(
+                    'This Google account is already connected to another Lightdash user',
+                ),
+            );
+
+            expect(
+                openIdIdentityModel.updateIdentityByOpenId,
+            ).not.toHaveBeenCalled();
+            expect(auditLogSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    action: 'login',
+                    status: 'denied',
+                    actor: expect.objectContaining({ uuid: 'unknown' }),
+                }),
+            );
+        });
+        test('keeps the same user in a link flow when they own the identity', async () => {
+            const currentUser: SessionUser = { ...sessionUser };
+            (
+                userModel.findSessionUserByOpenId as import('vitest').Mock
+            ).mockResolvedValueOnce(sessionUser);
+
+            const result = await userService.loginWithOpenId(
+                openIdUser,
+                currentUser,
+                undefined,
+                undefined,
+                undefined,
+                { isLinkFlow: true },
+            );
+
+            expect(result).toEqual(currentUser);
+            expect(
+                openIdIdentityModel.updateIdentityByOpenId,
+            ).toHaveBeenCalledTimes(1);
+        });
+        test('rejects a link flow without an authenticated user', async () => {
+            await expect(
+                userService.loginWithOpenId(
+                    openIdUser,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    { isLinkFlow: true },
+                ),
+            ).rejects.toThrowError(
+                new AuthorizationError(
+                    'You must be logged in to connect a Google account',
+                ),
+            );
+
+            expect(userModel.findSessionUserByOpenId).not.toHaveBeenCalled();
+        });
+        test('logs in as the identity owner in a non-link flow', async () => {
+            const currentUser: SessionUser = {
+                ...authenticatedUser,
+                userUuid: 'current-user-uuid',
+            };
+            (
+                userModel.findSessionUserByOpenId as import('vitest').Mock
+            ).mockResolvedValueOnce(sessionUser);
+
+            const result = await userService.loginWithOpenId(
+                openIdUser,
+                currentUser,
+                undefined,
+                undefined,
+                undefined,
+                { isLinkFlow: false },
+            );
+
+            expect(result.userUuid).toBe(sessionUser.userUuid);
+            expect(result.userUuid).not.toBe(currentUser.userUuid);
+            expect(
+                openIdIdentityModel.updateIdentityByOpenId,
+            ).toHaveBeenCalledTimes(1);
+        });
         test('should update openid', async () => {
             // Mock that identity is found for that openid
             (
