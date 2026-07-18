@@ -8,6 +8,7 @@ import {
     Alert,
     Button,
     CopyButton,
+    Group,
     Stack,
     Text,
     TextInput,
@@ -18,11 +19,14 @@ import { IconCheck, IconCopy, IconUserPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { z } from 'zod';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
+import { useUserUpdateMutation } from '../../../hooks/user/useUserUpdateMutation';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 
 type SetupInviteFormValues = {
+    firstName: string;
+    lastName: string;
     email: string;
 };
 
@@ -30,13 +34,25 @@ const SetupInviteModal: FC<{
     opened: boolean;
     onClose: () => void;
 }> = ({ opened, onClose }) => {
-    const { health } = useApp();
+    const { health, user } = useApp();
+    const existingFirstName = user.data?.firstName ?? '';
+    const existingLastName = user.data?.lastName ?? '';
+    const needsName = !existingFirstName.trim() || !existingLastName.trim();
+
     const form = useForm<SetupInviteFormValues>({
         initialValues: {
+            firstName: existingFirstName,
+            lastName: existingLastName,
             email: '',
         },
         validate: zodResolver(
             z.object({
+                firstName: needsName
+                    ? z.string().trim().min(1, 'Required')
+                    : z.string(),
+                lastName: needsName
+                    ? z.string().trim().min(1, 'Required')
+                    : z.string(),
                 email: getEmailSchema(),
             }),
         ),
@@ -47,6 +63,8 @@ const SetupInviteModal: FC<{
         reset,
         isLoading,
     } = useCreateInviteLinkMutation();
+    const { mutateAsync: updateUserAsync, isLoading: isUpdatingUser } =
+        useUserUpdateMutation();
 
     const handleClose = () => {
         form.reset();
@@ -55,12 +73,20 @@ const SetupInviteModal: FC<{
     };
 
     const handleSubmit = async (values: SetupInviteFormValues) => {
+        if (needsName) {
+            await updateUserAsync({
+                firstName: values.firstName.trim(),
+                lastName: values.lastName.trim(),
+            });
+        }
         await mutateAsync({
             email: values.email,
             role: OrganizationMemberRole.ADMIN,
             purpose: InviteLinkPurpose.Setup,
         });
     };
+
+    const isSubmitting = isLoading || isUpdatingUser;
 
     return (
         <MantineModal
@@ -75,7 +101,7 @@ const SetupInviteModal: FC<{
                     <Button onClick={handleClose}>Done</Button>
                 ) : (
                     <Button
-                        disabled={isLoading}
+                        loading={isSubmitting}
                         type="submit"
                         form="setup_invite"
                     >
@@ -139,17 +165,40 @@ const SetupInviteModal: FC<{
                     onSubmit={form.onSubmit((values) => handleSubmit(values))}
                 >
                     <Stack gap="sm">
+                        {needsName && (
+                            <>
+                                <Group grow gap="sm">
+                                    <TextInput
+                                        name="firstName"
+                                        label="Your first name"
+                                        required
+                                        disabled={isSubmitting}
+                                        {...form.getInputProps('firstName')}
+                                    />
+                                    <TextInput
+                                        name="lastName"
+                                        label="Your last name"
+                                        required
+                                        disabled={isSubmitting}
+                                        {...form.getInputProps('lastName')}
+                                    />
+                                </Group>
+                                <Text size="sm" c="dimmed">
+                                    We'll include your name in the invite so
+                                    they know who's asking.
+                                </Text>
+                            </>
+                        )}
                         <TextInput
                             name="email"
                             label="Their email address"
                             placeholder="example@company.com"
                             required
-                            disabled={isLoading}
+                            disabled={isSubmitting}
                             {...form.getInputProps('email')}
                         />
                         <Text size="sm" c="dimmed">
-                            We'll ask them to connect your data warehouse —
-                            takes about 5 minutes.
+                            We'll ask them to connect your data warehouse.
                         </Text>
                     </Stack>
                 </form>
