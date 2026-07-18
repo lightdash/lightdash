@@ -58,7 +58,7 @@ import {
     getSsoLabel,
     NONE_LABEL,
     PASSWORD_LABEL,
-    PRIVATE_KEY_LABEL,
+    SNOWFLAKE_KEY_PAIR_LABEL,
 } from './util';
 import styles from './WarehouseButtons.module.css';
 
@@ -210,7 +210,7 @@ const SnowflakeForm: FC<{
               },
               {
                   value: SnowflakeAuthenticationType.PRIVATE_KEY,
-                  label: PRIVATE_KEY_LABEL,
+                  label: SNOWFLAKE_KEY_PAIR_LABEL,
               },
               {
                   value: SnowflakeAuthenticationType.PASSWORD,
@@ -220,7 +220,7 @@ const SnowflakeForm: FC<{
         : [
               {
                   value: SnowflakeAuthenticationType.PRIVATE_KEY,
-                  label: PRIVATE_KEY_LABEL,
+                  label: SNOWFLAKE_KEY_PAIR_LABEL,
               },
               {
                   value: SnowflakeAuthenticationType.PASSWORD,
