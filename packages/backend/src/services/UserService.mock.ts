@@ -3,6 +3,7 @@ import {
     AnyType,
     CreateInviteLink,
     InviteLink,
+    InviteLinkPurpose,
     LightdashUser,
     OpenIdIdentity,
     OpenIdIdentityIssuerType,
@@ -76,6 +77,7 @@ export const inviteLink: InviteLink = {
     inviteUrl: 'inviteUrl',
     organizationUuid: 'organizationUuid',
     userUuid: 'userUuid',
+    purpose: InviteLinkPurpose.Member,
 };
 
 export const inviteUser: CreateInviteLink = {

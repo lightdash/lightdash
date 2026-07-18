@@ -1,10 +1,12 @@
 import {
     AdminNotificationPayload,
     AdminNotificationType,
+    assertUnreachable,
     CreateProjectMember,
     EmailSenderIdentity,
     getErrorMessage,
     InviteLink,
+    InviteLinkPurpose,
     MissingConfigError,
     PasswordResetLink,
     ProjectMemberRole,
@@ -613,17 +615,42 @@ export default class EmailClient {
         >,
         invite: InviteLink,
     ) {
-        return this.sendEmail({
-            to: invite.email,
-            subject: `You've been invited to join Lightdash`,
-            template: 'invitation',
-            context: {
-                orgName: userThatInvited.organizationName,
-                inviteUrl: `${invite.inviteUrl}?from=email`,
-                host: this.lightdashConfig.siteUrl,
-            },
-            text: `Your teammates at ${userThatInvited.organizationName} are using Lightdash to discover and share data insights. Click on the link below within the next 72 hours to join your team and start exploring your data! ${invite.inviteUrl}?from=email`,
-        });
+        const inviteUrl = `${invite.inviteUrl}?from=email`;
+        switch (invite.purpose) {
+            case InviteLinkPurpose.Member:
+                return this.sendEmail({
+                    to: invite.email,
+                    subject: `You've been invited to join Lightdash`,
+                    template: 'invitation',
+                    context: {
+                        orgName: userThatInvited.organizationName,
+                        inviteUrl,
+                        host: this.lightdashConfig.siteUrl,
+                    },
+                    text: `Your teammates at ${userThatInvited.organizationName} are using Lightdash to discover and share data insights. Click on the link below within the next 72 hours to join your team and start exploring your data! ${inviteUrl}`,
+                });
+            case InviteLinkPurpose.Setup: {
+                const inviterName =
+                    `${userThatInvited.firstName} ${userThatInvited.lastName}`.trim();
+                return this.sendEmail({
+                    to: invite.email,
+                    subject: `${inviterName} needs your help setting up Lightdash for ${userThatInvited.organizationName}`,
+                    template: 'setupInvitation',
+                    context: {
+                        inviterName,
+                        orgName: userThatInvited.organizationName,
+                        inviteUrl,
+                        host: this.lightdashConfig.siteUrl,
+                    },
+                    text: `${inviterName} is setting up Lightdash for ${userThatInvited.organizationName} and needs someone with data-warehouse access to connect their data. It takes about 5 minutes. This link is valid for the next 72 hours. ${inviteUrl}`,
+                });
+            }
+            default:
+                return assertUnreachable(
+                    invite.purpose,
+                    `Unknown invite link purpose: ${invite.purpose}`,
+                );
+        }
     }
 
     public async sendProjectAccessEmail(

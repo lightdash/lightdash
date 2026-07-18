@@ -30,6 +30,7 @@ import {
     hasInviteCode,
     hasProperty,
     InviteLink,
+    InviteLinkPurpose,
     isOpenIdIdentityIssuerType,
     isOpenIdUser,
     isUserAvatarColorValue,
@@ -590,6 +591,7 @@ export class UserService extends BaseService {
             throw new ForbiddenError();
         }
         const { email, role } = createInviteLink;
+        const purpose = createInviteLink.purpose ?? InviteLinkPurpose.Member;
         // Same default expiry as the invite modal in the frontend
         const expiresAt =
             createInviteLink.expiresAt ??
@@ -614,12 +616,31 @@ export class UserService extends BaseService {
         }
 
         let userUuid: string;
-        const userRole = auditedAbility.can(
+        const canGrantRoles = auditedAbility.can(
             'manage',
             subject('OrganizationMemberProfile', { organizationUuid }),
-        )
-            ? role || OrganizationMemberRole.MEMBER
-            : OrganizationMemberRole.MEMBER;
+        );
+        let userRole: OrganizationMemberRole;
+        switch (purpose) {
+            case InviteLinkPurpose.Member:
+                userRole = canGrantRoles
+                    ? role || OrganizationMemberRole.MEMBER
+                    : OrganizationMemberRole.MEMBER;
+                break;
+            case InviteLinkPurpose.Setup:
+                if (!canGrantRoles) {
+                    throw new ForbiddenError(
+                        'A setup invite requires permission to grant the admin role',
+                    );
+                }
+                userRole = OrganizationMemberRole.ADMIN;
+                break;
+            default:
+                return assertUnreachable(
+                    purpose,
+                    `Unknown invite link purpose: ${purpose}`,
+                );
+        }
         if (!existingUserWithEmail) {
             const pendingUser = await this.userModel.createPendingUser(
                 organizationUuid,
@@ -645,6 +666,15 @@ export class UserService extends BaseService {
                 userRole,
                 undefined,
             );
+        } else if (
+            existingUserWithEmail &&
+            purpose === InviteLinkPurpose.Setup
+        ) {
+            await this.organizationMemberProfileModel.updateOrganizationMember(
+                organizationUuid,
+                existingUserWithEmail.userUuid,
+                { role: OrganizationMemberRole.ADMIN },
+            );
         }
 
         const inviteLink = await this.inviteLinkModel.upsert(
@@ -652,6 +682,7 @@ export class UserService extends BaseService {
             expiresAt,
             organizationUuid,
             userUuid,
+            purpose,
         );
         await this.emailClient.sendInviteEmail(user, inviteLink);
         this.analytics.track({
