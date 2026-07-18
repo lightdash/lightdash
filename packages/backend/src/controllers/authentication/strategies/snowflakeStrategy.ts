@@ -4,9 +4,7 @@ import {
     AnyType,
     ForbiddenError,
     OpenIdIdentityIssuerType,
-    OpenIdUser,
 } from '@lightdash/common';
-import express from 'express';
 import { Strategy as OAuth2Strategy, VerifyCallback } from 'passport-oauth2';
 import { URL } from 'url';
 import { lightdashConfig } from '../../../config/lightdashConfig';
@@ -37,7 +35,7 @@ export const snowflakePassportStrategy = !(
               req: Express.Request,
               accessToken: string,
               refreshToken: string,
-              profile: AnyType,
+              _profile: AnyType,
               done: VerifyCallback,
           ) => {
               try {
@@ -55,45 +53,28 @@ export const snowflakePassportStrategy = !(
                       throw new ForbiddenError('User not authenticated');
                   }
 
-                  // Snowflake returns this empty (are we missing a scope?)
-                  const openIdUser: OpenIdUser = {
-                      openId: {
+                  const userService = req.services.getUserService();
+                  await userService.storeOAuthGrant(
+                      loggedUser,
+                      OpenIdIdentityIssuerType.SNOWFLAKE,
+                      refreshToken,
+                      [],
+                      {
                           subject: loggedUser.userUuid,
-                          issuer: lightdashConfig.auth.snowflake
-                              .authorizationEndpoint!,
-                          issuerType: OpenIdIdentityIssuerType.SNOWFLAKE,
                           email: loggedUser.email!,
-                          firstName: loggedUser.firstName,
-                          lastName: loggedUser.lastName,
                       },
-                  };
+                  );
                   // we'll also be adding the token to the warehouse credentials
                   // so they can use it to query snowflake
                   Logger.info(
                       `Creating user warehouse credentials for snowflake`,
                   );
-                  await req.services
-                      .getUserService()
-                      .createSnowflakeWarehouseCredentials(
-                          req.user!,
-                          refreshToken,
-                      );
+                  await userService.createSnowflakeWarehouseCredentials(
+                      loggedUser,
+                      refreshToken,
+                  );
 
-                  const user = await req.services
-                      .getUserService()
-                      .loginWithOpenId(
-                          openIdUser,
-                          req.user,
-                          undefined,
-                          refreshToken,
-                          {
-                              ip: (req as express.Request).ip,
-                              userAgent: (req as express.Request).get(
-                                  'user-agent',
-                              ),
-                          },
-                      );
-                  done(null, user);
+                  done(null, loggedUser);
                   // Use the generic OIDC handler to process the profile
               } catch (error) {
                   // Handle any errors that occur during processing

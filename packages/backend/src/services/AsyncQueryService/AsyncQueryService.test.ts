@@ -67,6 +67,7 @@ import type { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import type { TagsModel } from '../../models/TagsModel';
 import type { UserAttributesModel } from '../../models/UserAttributesModel';
 import type { UserModel } from '../../models/UserModel';
+import type { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import type { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import type { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -383,6 +384,8 @@ const getMockedAsyncQueryService = (
             })),
         } as unknown as OrganizationSettingsModel,
         ...overrides,
+        userOAuthGrantsModel:
+            overrides.userOAuthGrantsModel ?? ({} as UserOAuthGrantsModel),
     });
 
 const getJsonlStream = (rows: Record<string, unknown>[]) =>

@@ -33,6 +33,7 @@ import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserAvatarModel } from '../models/UserAvatarModel';
 import { UserModel } from '../models/UserModel';
+import { UserOAuthGrantsModel } from '../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { UserService } from './UserService';
@@ -75,6 +76,14 @@ const userModel = {
     hasUsers: vi.fn<UserModel['hasUsers']>(async () => false),
     updateUser: vi.fn(async () => sessionUser),
     upsertPassword: vi.fn<UserModel['upsertPassword']>(async () => undefined),
+};
+
+const userOAuthGrantsModel = {
+    upsertGrant: vi.fn<UserOAuthGrantsModel['upsertGrant']>(async () => {}),
+    getRefreshToken: vi.fn<UserOAuthGrantsModel['getRefreshToken']>(
+        async () => 'refresh-token',
+    ),
+    deleteGrant: vi.fn<UserOAuthGrantsModel['deleteGrant']>(async () => {}),
 };
 
 const openIdIdentityModel = {
@@ -165,6 +174,8 @@ const createUserService = (
         lightdashConfig,
         inviteLinkModel: inviteLinkModel as unknown as InviteLinkModel,
         userModel: userModel as unknown as UserModel,
+        userOAuthGrantsModel:
+            userOAuthGrantsModel as unknown as UserOAuthGrantsModel,
         groupsModel: {} as GroupsModel,
         sessionModel: {} as SessionModel,
         emailModel: emailModel as unknown as EmailModel,
@@ -209,6 +220,45 @@ describe('UserService', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    describe('OAuth grants', () => {
+        test('stores a provider grant for the session user', async () => {
+            await userService.storeOAuthGrant(
+                sessionUser,
+                OpenIdIdentityIssuerType.GOOGLE,
+                'refresh-token',
+                ['scope-a'],
+                openIdUser.openId,
+            );
+
+            expect(userOAuthGrantsModel.upsertGrant).toHaveBeenCalledWith({
+                userUuid: sessionUser.userUuid,
+                provider: OpenIdIdentityIssuerType.GOOGLE,
+                subject: openIdUser.openId.subject,
+                email: openIdUser.openId.email,
+                scopes: ['scope-a'],
+                refreshToken: 'refresh-token',
+            });
+        });
+
+        test('reads Google access tokens from OAuth grants', async () => {
+            const generateAccessToken = vi
+                .spyOn(UserService, 'generateGoogleAccessToken')
+                .mockResolvedValueOnce('access-token');
+
+            await expect(
+                userService.getAccessToken(sessionUser, 'bigquery'),
+            ).resolves.toBe('access-token');
+            expect(userOAuthGrantsModel.getRefreshToken).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                OpenIdIdentityIssuerType.GOOGLE,
+            );
+            expect(generateAccessToken).toHaveBeenCalledWith(
+                'refresh-token',
+                'bigquery',
+            );
+        });
     });
 
     describe('getAccountByUserUuid', () => {
@@ -2040,6 +2090,8 @@ describe('UserService', () => {
                 lightdashConfig: lightdashConfigMock,
                 inviteLinkModel: inviteLinkModel as unknown as InviteLinkModel,
                 userModel: failingUserModel as unknown as UserModel,
+                userOAuthGrantsModel:
+                    userOAuthGrantsModel as unknown as UserOAuthGrantsModel,
                 groupsModel: {} as GroupsModel,
                 sessionModel: {} as SessionModel,
                 emailModel: emailModel as unknown as EmailModel,
@@ -2117,6 +2169,8 @@ describe('UserService', () => {
                 lightdashConfig: lightdashConfigMock,
                 inviteLinkModel: inviteLinkModel as unknown as InviteLinkModel,
                 userModel: tokenUserModel as unknown as UserModel,
+                userOAuthGrantsModel:
+                    userOAuthGrantsModel as unknown as UserOAuthGrantsModel,
                 groupsModel: {} as GroupsModel,
                 sessionModel: {} as SessionModel,
                 emailModel: emailModel as unknown as EmailModel,

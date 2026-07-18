@@ -1055,7 +1055,7 @@ export class SchedulerService extends BaseService {
             }
 
             try {
-                await this.userModel.getRefreshToken(newOwnerUserUuid);
+                await this.userService.getRefreshToken(newOwnerUserUuid);
             } catch (error) {
                 if (error instanceof NotFoundError) {
                     throw new ForbiddenError(
@@ -1992,7 +1992,7 @@ export class SchedulerService extends BaseService {
         // Check if user has any GSHEETS schedulers - new owner must have Google refresh token
         if (summary.hasGsheetsSchedulers) {
             try {
-                await this.userModel.getRefreshToken(newOwnerUserUuid);
+                await this.userService.getRefreshToken(newOwnerUserUuid);
             } catch (error) {
                 if (error instanceof NotFoundError) {
                     throw new ForbiddenError(

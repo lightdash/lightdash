@@ -66,6 +66,7 @@ import { UserAttributesModel } from './UserAttributesModel';
 import { UserAvatarModel } from './UserAvatarModel';
 import { UserFavoritesModel } from './UserFavoritesModel';
 import { UserModel } from './UserModel';
+import { UserOAuthGrantsModel } from './UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from './UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { ValidationModel } from './ValidationModel/ValidationModel';
 import { WarehouseAvailableTablesModel } from './WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
@@ -130,6 +131,7 @@ export type ModelManifest = {
     userAttributesModel: UserAttributesModel;
     userFavoritesModel: UserFavoritesModel;
     userModel: UserModel;
+    userOAuthGrantsModel: UserOAuthGrantsModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     warehouseConnectCodeModel: WarehouseConnectCodeModel;
@@ -710,6 +712,18 @@ export class ModelRepository
                     database: this.database,
                     lightdashConfig: this.lightdashConfig,
                     featureFlagModel: this.getFeatureFlagModel(),
+                }),
+        );
+    }
+
+    public getUserOAuthGrantsModel(): UserOAuthGrantsModel {
+        return this.getModel(
+            'userOAuthGrantsModel',
+            () =>
+                new UserOAuthGrantsModel({
+                    database: this.database,
+                    encryptionUtil: this.utils.getEncryptionUtil(),
+                    userModel: this.getUserModel(),
                 }),
         );
     }
