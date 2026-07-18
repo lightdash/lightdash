@@ -1,3 +1,10 @@
+## [0.3416.1](https://github.com/lightdash/lightdash/compare/0.3416.0...0.3416.1) (2026-07-18)
+
+
+### Bug Fixes
+
+* **scripts:** serialize shared-services compose startup in dev-fast-start ([#25765](https://github.com/lightdash/lightdash/issues/25765)) ([d9c6b81](https://github.com/lightdash/lightdash/commit/d9c6b81b57163dbffaf3a7a5b6892f2278190d60))
+
 # [0.3416.0](https://github.com/lightdash/lightdash/compare/0.3415.0...0.3416.0) (2026-07-18)
 
 
