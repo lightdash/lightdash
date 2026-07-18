@@ -644,7 +644,7 @@ export default class EmailClient {
                         inviteUrl,
                         host: this.lightdashConfig.siteUrl,
                     },
-                    text: `${inviterName} is setting up Lightdash for ${userThatInvited.organizationName} and needs someone with data-warehouse access to connect their data. It takes about 5 minutes. This link is valid for the next 72 hours. ${inviteUrl}`,
+                    text: `${inviterName} is setting up Lightdash for ${userThatInvited.organizationName} and needs someone with data-warehouse access to connect their data. Lightdash is the Agentic BI platform for modern data teams — build and manage analytics straight from the tools you already use, with AI handling the busywork. Built on dbt. Loved by developers. Actually used by businesses. Accept the invite and we'll take you straight to connecting ${userThatInvited.organizationName}'s data warehouse — the last step before your team can start asking questions of their data. This link is valid for the next 72 hours. ${inviteUrl}`,
                 });
             }
             default:
