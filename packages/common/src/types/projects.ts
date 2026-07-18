@@ -57,7 +57,9 @@ export type CreateBigqueryCredentials = {
     timeoutSeconds: number | undefined;
     priority: 'interactive' | 'batch' | undefined;
     authenticationType?: BigqueryAuthenticationType;
-    keyfileContents: Record<string, string>; // used for both sso and private key
+    // Index signature (not Record) so tsoa generates additionalProperties and
+    // intersection-body validation preserves the keyfile fields.
+    keyfileContents: { [key: string]: string }; // used for both sso and private key
     requireUserCredentials?: boolean;
     retries: number | undefined;
     location: string | undefined;
