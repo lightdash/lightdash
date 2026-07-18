@@ -10,7 +10,7 @@
     width: 100%;
     max-width: 1140px;
     margin: 0 auto;
-    padding: 56px var(--mantine-spacing-sm) var(--mantine-spacing-xl);
+    padding: 56px var(--mantine-spacing-xxl) var(--mantine-spacing-xl);
     display: flex;
     flex-direction: column;
     gap: var(--mantine-spacing-xl);
