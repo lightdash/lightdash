@@ -98,6 +98,7 @@ describe('EmailClient', () => {
                 {
                     firstName: 'Taylor',
                     lastName: 'Smith',
+                    email: 'taylor@example.com',
                     organizationName: 'Acme',
                 },
                 {

@@ -611,7 +611,7 @@ export default class EmailClient {
     public async sendInviteEmail(
         userThatInvited: Pick<
             SessionUser,
-            'firstName' | 'lastName' | 'organizationName'
+            'firstName' | 'lastName' | 'email' | 'organizationName'
         >,
         invite: InviteLink,
     ) {
@@ -631,7 +631,9 @@ export default class EmailClient {
                 });
             case InviteLinkPurpose.Setup: {
                 const inviterName =
-                    `${userThatInvited.firstName} ${userThatInvited.lastName}`.trim();
+                    `${userThatInvited.firstName} ${userThatInvited.lastName}`.trim() ||
+                    userThatInvited.email ||
+                    'A teammate';
                 return this.sendEmail({
                     to: invite.email,
                     subject: `${inviterName} needs your help setting up Lightdash for ${userThatInvited.organizationName}`,

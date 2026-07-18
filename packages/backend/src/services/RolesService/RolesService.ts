@@ -736,6 +736,7 @@ export class RolesService extends BaseService {
                 {
                     firstName: account.user.firstName,
                     lastName: account.user.lastName,
+                    email: account.user.email,
                     organizationName: account.organization.name,
                 },
                 inviteLink,
