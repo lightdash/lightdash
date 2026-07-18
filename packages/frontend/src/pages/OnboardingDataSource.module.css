@@ -36,43 +36,25 @@
     border-color: var(--mantine-color-ldGray-4);
 }
 
-.disabledContent {
-    opacity: 0.45;
-}
-
 .warehouseLabel {
     font-weight: 600;
     font-size: 15px;
 }
 
-.otherCard {
+.heroCard {
     display: flex;
     flex-direction: row;
     align-items: center;
     gap: var(--mantine-spacing-md);
-    cursor: not-allowed;
+    padding: 24px;
+    transition:
+        box-shadow 100ms ease,
+        border-color 100ms ease;
 }
 
-.iconTile {
-    width: 40px;
-    height: 40px;
-    border-radius: var(--mantine-radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.iconTileViolet {
-    background-color: var(--mantine-color-violet-0);
-}
-
-.iconTileTeal {
-    background-color: var(--mantine-color-teal-0);
-}
-
-.iconTileBlue {
-    background-color: var(--mantine-color-blue-0);
+.heroName {
+    font-weight: 600;
+    font-size: 18px;
 }
 
 .connectColumn {
