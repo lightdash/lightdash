@@ -19677,6 +19677,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['editContent'] },
                 { dataType: 'enum', enums: ['createContent'] },
                 { dataType: 'enum', enums: ['createScheduledDelivery'] },
+                { dataType: 'enum', enums: ['updateUserName'] },
                 { dataType: 'enum', enums: ['runContentQuery'] },
                 { dataType: 'enum', enums: ['improveContext'] },
                 { dataType: 'enum', enums: ['listProjects'] },

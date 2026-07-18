@@ -1,3 +1,10 @@
+# [0.3416.0](https://github.com/lightdash/lightdash/compare/0.3415.0...0.3416.0) (2026-07-18)
+
+
+### Features
+
+* **ai:** agent asks for and saves the user's name when not collected ([#25760](https://github.com/lightdash/lightdash/issues/25760)) ([957b0aa](https://github.com/lightdash/lightdash/commit/957b0aab4b8e251252ad594da7d5bd02b8534622))
+
 # [0.3415.0](https://github.com/lightdash/lightdash/compare/0.3414.0...0.3415.0) (2026-07-17)
 
 
