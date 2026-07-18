@@ -382,11 +382,30 @@ export class UserService extends BaseService {
         activateUser: ActivateUser | OpenIdUser,
     ): Promise<LightdashUser> {
         const inviteLink = await this.inviteLinkModel.getByCode(inviteCode);
-        const userEmail = isOpenIdUser(activateUser)
-            ? activateUser.openId.email
-            : inviteLink.email;
+        return this.activateUserFromInviteLink(inviteLink, activateUser);
+    }
 
-        if (isOpenIdUser(activateUser)) {
+    async activateUserFromInviteWithoutPassword(
+        inviteCode: string,
+    ): Promise<SessionUser> {
+        const inviteLink = await this.getInviteLink(inviteCode);
+        const user = await this.activateUserFromInviteLink(inviteLink);
+        // The invite link was delivered to this address, so opening it proves
+        // mailbox ownership — same trust as OpenID email verification.
+        await this.tryVerifyUserEmail(user, inviteLink.email);
+        return this.userModel.findSessionUserByUUID(user.userUuid);
+    }
+
+    private async activateUserFromInviteLink(
+        inviteLink: InviteLink,
+        activateUser?: ActivateUser | OpenIdUser,
+    ): Promise<LightdashUser> {
+        const userEmail =
+            activateUser && isOpenIdUser(activateUser)
+                ? activateUser.openId.email
+                : inviteLink.email;
+
+        if (activateUser && isOpenIdUser(activateUser)) {
             if (
                 (await this.isLoginMethodAllowed(
                     userEmail,
@@ -416,10 +435,14 @@ export class UserService extends BaseService {
                 `Provided email ${userEmail} does not match the invited email.`,
             );
         }
-        const user = await this.userModel.activateUser(
-            inviteLink.userUuid,
-            activateUser,
-        );
+        const user = activateUser
+            ? await this.userModel.activateUser(
+                  inviteLink.userUuid,
+                  activateUser,
+              )
+            : await this.userModel.activateUserWithoutPassword(
+                  inviteLink.userUuid,
+              );
         await this.inviteLinkModel.deleteByCode(inviteLink.inviteCode);
 
         // Apply default project memberships from allowed email domains config.
@@ -466,6 +489,17 @@ export class UserService extends BaseService {
         }
 
         this.identifyUser(user);
+        let userConnectionType:
+            | 'email_only'
+            | 'password'
+            | OpenIdIdentityIssuerType;
+        if (!activateUser) {
+            userConnectionType = 'email_only';
+        } else if (isOpenIdUser(activateUser)) {
+            userConnectionType = activateUser.openId.issuerType;
+        } else {
+            userConnectionType = 'password';
+        }
         this.analytics.track({
             event: 'user.created',
             userId: user.userUuid,
@@ -473,10 +507,10 @@ export class UserService extends BaseService {
                 context: 'accept_invite',
                 createdUserId: user.userUuid,
                 organizationId: user.organizationUuid,
-                userConnectionType: 'password',
+                userConnectionType,
             },
         });
-        if (!isOpenIdUser(activateUser)) {
+        if (activateUser && !isOpenIdUser(activateUser)) {
             await this.sendOneTimePasscodeToPrimaryEmail(user);
         }
         return user;
