@@ -11,6 +11,7 @@ import {
     getOidcRedirectURL,
     initiateOktaOpenIdLogin,
     isAuthenticated,
+    storeOIDCLinkIntent,
     storeOIDCRedirect,
     storeSlackContext,
 } from '../controllers/authentication';
@@ -686,6 +687,7 @@ apiV1Router.get(
 apiV1Router.get(
     '/login/gdrive',
     storeOIDCRedirect,
+    storeOIDCLinkIntent,
     passport.authenticate('google', {
         scope: [
             'profile',
@@ -703,6 +705,7 @@ apiV1Router.get(
 apiV1Router.get(
     '/login/bigquery',
     storeOIDCRedirect,
+    storeOIDCLinkIntent,
     passport.authenticate('google', {
         scope: ['profile', 'email', 'https://www.googleapis.com/auth/bigquery'],
         accessType: 'offline',
