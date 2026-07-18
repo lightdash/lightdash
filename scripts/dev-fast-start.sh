@@ -277,8 +277,25 @@ fi
 
 # ---------------------------------------------------------------------------
 step "Start Docker services"
-docker compose -p ld-shared -f "$SHARED_COMPOSE" --env-file .env.development up -d \
-    || fail "docker-shared" "could not start shared services (minio/headless-browser/mailpit/nats)"
+# Two instances booting concurrently race inside `compose up` on the shared
+# project (container-name conflicts / vanished-container errors). Serialize
+# with flock where available (Linux); everywhere else a single retry after a
+# short delay resolves the transient race — by then the winner has the
+# services up and this call becomes an idempotent no-op.
+start_shared_services() {
+    docker compose -p ld-shared -f "$SHARED_COMPOSE" --env-file .env.development up -d
+}
+SHARED_LOCK="${HOME}/.lightdash/shared-compose.lock"
+mkdir -p "${HOME}/.lightdash"
+if command -v flock >/dev/null 2>&1; then
+    flock "$SHARED_LOCK" docker compose -p ld-shared -f "$SHARED_COMPOSE" --env-file .env.development up -d \
+        || { sleep 5; start_shared_services; } \
+        || fail "docker-shared" "could not start shared services (minio/headless-browser/mailpit/nats)"
+else
+    start_shared_services \
+        || { sleep 5; start_shared_services; } \
+        || fail "docker-shared" "could not start shared services (minio/headless-browser/mailpit/nats)"
+fi
 docker compose -p "$LD_COMPOSE_PROJECT" -f "$INSTANCE_COMPOSE" --env-file .env.development up -d \
     || fail "docker-instance" "could not start per-instance PostgreSQL"
 
