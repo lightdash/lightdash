@@ -38,6 +38,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     editContent: 'edit_content',
     createContent: 'create_content',
     createScheduledDelivery: 'create_scheduled_delivery',
+    updateUserName: 'update_user_name',
     generateTableVizConfig: 'table',
     generateTimeSeriesVizConfig: 'time_series_chart',
     generateBarVizConfig: 'vertical_bar_chart',

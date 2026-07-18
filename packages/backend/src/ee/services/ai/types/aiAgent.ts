@@ -67,6 +67,7 @@ import {
     UpdateProgressFn,
     UpdatePromptFn,
     UpdateSlackMessageFn,
+    UpdateUserNameFn,
     ValidateContentFn,
     WaitForSqlApprovalFn,
 } from './aiAgentDependencies';
@@ -191,6 +192,7 @@ export type AiAgentDependencies = {
     editContent: EditContentFn;
     createContent: CreateContentFn;
     createScheduledDelivery: CreateScheduledDeliveryFn;
+    updateUserName: UpdateUserNameFn;
     validateContent: ValidateContentFn;
     getDashboardCharts: GetDashboardChartsFn;
     findExplores: FindExploresFn;

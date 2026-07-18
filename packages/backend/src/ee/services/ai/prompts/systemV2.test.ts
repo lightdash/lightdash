@@ -155,6 +155,9 @@ describe('getSystemPromptV2 requesting user', () => {
         expect(content).toContain('business user');
         expect(content).toContain('Never advise them to use a different table');
         expect(content).toContain("user's team(s)");
+        expect(content).toContain(
+            'If the user asks to correct or change their name, use the updateUserName tool.',
+        );
     });
 
     test('renders technical guidance for a developer', () => {
@@ -231,12 +234,21 @@ describe('getSystemPromptV2 requesting user', () => {
         }
     });
 
-    test('omits the section when all identity fields are empty', () => {
+    test('asks for an uncollected name without blocking the request', () => {
         const content = promptText({
             availableExplores: [],
             requestingUser: { name: '', role: null, groups: [] },
         });
-        expect(content).not.toContain('## Who you are talking to');
+        expect(content).toContain('## Who you are talking to');
+        expect(content).toContain(
+            "You don't yet know the user's name — it hasn't been collected.",
+        );
+        expect(content).toContain('Answer their request first');
+        expect(content).toContain('first and last name');
+        expect(content).toContain('save it with the updateUserName tool');
+        expect(content).toContain(
+            'If they decline or ignore the request, do not ask again',
+        );
     });
 });
 

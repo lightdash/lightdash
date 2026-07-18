@@ -369,6 +369,7 @@ export const ToolCallDescription: FC<{
         case 'editDbtProject':
         case 'editProjectContext':
         case 'editRepo':
+        case 'updateUserName':
         case 'syncDbtProject':
         case 'setupPreviewDeploy':
         case 'runSavedChart':

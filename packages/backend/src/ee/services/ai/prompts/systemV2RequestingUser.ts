@@ -62,7 +62,6 @@ export const getRequestingUserSection = (
     if (role) identityParts.push(`organization role: ${role.name}`);
     if (groups.length > 0)
         identityParts.push(`member of: ${groups.join(', ')}`);
-    if (identityParts.length === 0) return '';
 
     // Unknown role → default to the safe, non-technical register.
     const guidance = role?.isTechnical
@@ -74,10 +73,29 @@ export const getRequestingUserSection = (
             ? "\nWhen a question is ambiguous, prefer the interpretation, metrics, and terminology most relevant to the user's team(s)."
             : '';
 
+    if (!name) {
+        const knownIdentity =
+            identityParts.length > 0
+                ? `\nWhat you know about them: ${identityParts.join(', ')}.\n`
+                : '\n';
+
+        return `## Who you are talking to
+
+You don't yet know the user's name — it hasn't been collected.
+- Answer their request first; never block on collecting the name.
+- Then, once and at a natural moment (ideally at the end of your first reply), politely ask for their first and last name so you can address them properly.
+- When they tell you their name, save it with the updateUserName tool and greet them by first name in your reply.
+- If they decline or ignore the request, do not ask again in this conversation.
+${knownIdentity}
+${guidance}${teamGuidance}
+Do not recite this profile back to the user or mention that you were given it; just let it shape your answers.`;
+    }
+
     return `## Who you are talking to
 
 The user you are speaking with is ${identityParts.join(', ')}.
 
 ${guidance}${teamGuidance}
-Do not recite this profile back to the user or mention that you were given it; just let it shape your answers.`;
+Do not recite this profile back to the user or mention that you were given it; just let it shape your answers.
+If the user asks to correct or change their name, use the updateUserName tool.`;
 };

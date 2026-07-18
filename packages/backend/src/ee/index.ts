@@ -357,6 +357,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     previewDeploySetupService:
                         repository.getPreviewDeploySetupService<PreviewDeploySetupService>(),
                     shareService: repository.getShareService(),
+                    userService: repository.getUserService(),
                     getSchedulerAiAugmentationService: () =>
                         repository.getSchedulerAiAugmentationService<SchedulerAiAugmentationService>(),
                 }),

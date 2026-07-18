@@ -298,6 +298,11 @@ import {
     toolTimeSeriesOutputSchema,
 } from './toolTimeSeriesArgs';
 import {
+    TOOL_UPDATE_USER_NAME_DESCRIPTION,
+    toolUpdateUserNameArgsSchema,
+    toolUpdateUserNameOutputSchema,
+} from './toolUpdateUserNameArgs';
+import {
     TOOL_VERTICAL_BAR_VIZ_DESCRIPTION,
     toolVerticalBarArgsSchema,
     toolVerticalBarArgsSchemaTransformed,
@@ -769,6 +774,20 @@ export const createScheduledDeliveryToolDefinition: ToolDefinitionWithoutMcpOutp
         name: 'create_scheduled_delivery',
         annotations: writeAnnotations,
     },
+});
+
+export const updateUserNameToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'updateUserName',
+    typeof toolUpdateUserNameArgsSchema,
+    typeof toolUpdateUserNameArgsSchema,
+    typeof toolUpdateUserNameOutputSchema
+> = defineTool({
+    name: 'updateUserName',
+    title: 'Update user name',
+    description: TOOL_UPDATE_USER_NAME_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolUpdateUserNameArgsSchema,
+    agent: { outputSchema: toolUpdateUserNameOutputSchema },
 });
 
 export const runContentQueryToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -1446,6 +1465,7 @@ type AgentToolDefinitionsByName = {
     editContent: typeof editContentToolDefinition;
     createContent: typeof createContentToolDefinition;
     createScheduledDelivery: typeof createScheduledDeliveryToolDefinition;
+    updateUserName: typeof updateUserNameToolDefinition;
     runContentQuery: typeof runContentQueryToolDefinition;
     listContent: typeof listContentToolDefinition;
     improveContext: typeof improveContextToolDefinition;
@@ -1498,6 +1518,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     editContent: editContentToolDefinition,
     createContent: createContentToolDefinition,
     createScheduledDelivery: createScheduledDeliveryToolDefinition,
+    updateUserName: updateUserNameToolDefinition,
     runContentQuery: runContentQueryToolDefinition,
     listContent: listContentToolDefinition,
     improveContext: improveContextToolDefinition,
@@ -1552,6 +1573,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     editContentToolDefinition,
     createContentToolDefinition,
     createScheduledDeliveryToolDefinition,
+    updateUserNameToolDefinition,
     runContentQueryToolDefinition,
     listContentToolDefinition,
     improveContextToolDefinition,
