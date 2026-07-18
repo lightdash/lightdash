@@ -1,6 +1,7 @@
 import {
     ApiErrorPayload,
     ApiInviteLinkResponse,
+    ApiRegisterUserResponse,
     ApiSuccessEmpty,
     assertRegisteredAccount,
     CreateInviteLink,
@@ -53,6 +54,31 @@ export class InviteLinksController extends BaseController {
             status: 'ok',
             results: inviteLink,
         };
+    }
+
+    @Middlewares([unauthorisedInDemo])
+    @SuccessResponse('200', 'Success')
+    @Post('{inviteCode}/activate')
+    @OperationId('ActivateInviteLink')
+    async activateInviteLink(
+        @Request() req: express.Request,
+        @Path() inviteCode: string,
+    ): Promise<ApiRegisterUserResponse> {
+        const sessionUser = await this.services
+            .getUserService()
+            .activateUserFromInviteWithoutPassword(inviteCode);
+        return new Promise((resolve, reject) => {
+            req.login(sessionUser, (err) => {
+                if (err) {
+                    reject(err);
+                }
+                this.setStatus(200);
+                resolve({
+                    status: 'ok',
+                    results: sessionUser,
+                });
+            });
+        });
     }
 
     /**

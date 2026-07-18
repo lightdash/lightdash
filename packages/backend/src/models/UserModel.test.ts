@@ -272,6 +272,55 @@ describe('UserModel', () => {
         expect(merge).toHaveBeenCalledOnce();
     });
 
+    it('activates an invited user without creating a password login', async () => {
+        const update = vi.fn(() => ({
+            returning: vi.fn(async () => [{ user_id: 1 }]),
+        }));
+        const where = vi.fn(() => ({ update }));
+        const transactionClient = vi.fn((tableName: string) => {
+            if (tableName === UserTableName) {
+                return { where };
+            }
+            throw new Error(`Unexpected table ${tableName}`);
+        }) as unknown as Knex.Transaction;
+        const database = Object.assign(vi.fn(), {
+            transaction: vi.fn(
+                async (callback: (trx: Knex.Transaction) => Promise<unknown>) =>
+                    callback(transactionClient),
+            ),
+        }) as unknown as Knex;
+        const model = new UserModel({
+            database,
+            lightdashConfig,
+            featureFlagModel,
+        });
+        const activatedUser = mapDbUserDetailsToLightdashUser(
+            {
+                ...userDetails,
+                first_name: '',
+                last_name: '',
+            },
+            false,
+        );
+        vi.spyOn(model, 'getUserDetailsByUuid').mockResolvedValue(
+            activatedUser,
+        );
+
+        await expect(
+            model.activateUserWithoutPassword(userDetails.user_uuid),
+        ).resolves.toEqual(activatedUser);
+
+        expect(activatedUser.isActive).toBe(true);
+        expect(update).toHaveBeenCalledWith({
+            first_name: '',
+            last_name: '',
+            updated_at: expect.any(Date),
+        });
+        expect(transactionClient).not.toHaveBeenCalledWith(
+            PasswordLoginTableName,
+        );
+    });
+
     it('collapses legacy service account project membership rules before returning the ability builder', async () => {
         const model = createUserModel();
 

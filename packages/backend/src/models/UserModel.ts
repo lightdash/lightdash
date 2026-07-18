@@ -1070,6 +1070,25 @@ export class UserModel {
         ) {
             throw new ParameterError("Password doesn't meet requirements");
         }
+        return this.activateInvitedUser(userUuid, activateUser);
+    }
+
+    async activateUserWithoutPassword(
+        userUuid: string,
+    ): Promise<LightdashUser> {
+        return this.activateInvitedUser(userUuid, {
+            firstName: '',
+            lastName: '',
+        });
+    }
+
+    private async activateInvitedUser(
+        userUuid: string,
+        activateUser:
+            | ActivateUser
+            | OpenIdUser
+            | Pick<ActivateUser, 'firstName' | 'lastName'>,
+    ): Promise<LightdashUser> {
         await this.database.transaction(async (trx) => {
             const [user] = await trx(UserTableName)
                 .where('user_uuid', userUuid)
@@ -1084,7 +1103,7 @@ export class UserModel {
                 })
                 .returning('*');
 
-            if (!isOpenIdUser(activateUser)) {
+            if (!isOpenIdUser(activateUser) && 'password' in activateUser) {
                 await UserModel.createPasswordLogin(trx, {
                     user_id: user.user_id,
                     password_hash: await bcrypt.hash(
@@ -1092,7 +1111,7 @@ export class UserModel {
                         await bcrypt.genSalt(),
                     ),
                 });
-            } else {
+            } else if (isOpenIdUser(activateUser)) {
                 await trx(OpenIdIdentitiesTableName)
                     .insert({
                         issuer_type: activateUser.openId.issuerType,
