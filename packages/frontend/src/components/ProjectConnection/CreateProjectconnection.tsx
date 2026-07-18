@@ -12,6 +12,7 @@ import useActiveJob from '../../providers/ActiveJob/useActiveJob';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import classes from './CreateProjectconnection.module.css';
 import { dbtDefaults, noneDefaultValues } from './DbtForms/defaultValues';
 import { dbtFormValidators } from './DbtForms/validators';
 import { FormContainer } from './FormContainer';
@@ -125,7 +126,10 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
 
     return (
         <FormProvider form={form}>
-            <form onSubmit={form.onSubmit(handleSubmit, handleError)}>
+            <form
+                className={classes.form}
+                onSubmit={form.onSubmit(handleSubmit, handleError)}
+            >
                 <FormContainer>
                     <ProjectFormProvider>
                         <ProjectForm
