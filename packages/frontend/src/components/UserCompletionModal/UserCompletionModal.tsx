@@ -194,7 +194,16 @@ const UserCompletionModalWithUser = () => {
         // redirect (e.g. AppRoute's needsProject -> /createProject) wins the
         // same render commit.
         return shouldSetup ? (
-            <Navigate key={location.pathname} to="/organization-setup" />
+            <Navigate
+                key={location.pathname}
+                to={
+                    location.pathname && location.pathname !== '/'
+                        ? `/organization-setup?redirect=${encodeURIComponent(
+                              location.pathname,
+                          )}`
+                        : '/organization-setup'
+                }
+            />
         ) : null;
     }
 

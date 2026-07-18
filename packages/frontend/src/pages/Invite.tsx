@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     InviteLinkPurpose,
     OpenIdIdentityIssuerType,
     type ActivateUserWithInviteCode,
@@ -28,7 +29,11 @@ import CreateUserForm from '../components/RegisterForms/CreateUserForm';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useFlashMessages } from '../hooks/useFlashMessages';
-import { useInviteLink } from '../hooks/useInviteLink';
+import {
+    useActivateInviteLinkMutation,
+    useInviteLink,
+} from '../hooks/useInviteLink';
+import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
 
@@ -88,6 +93,63 @@ const ErrorCard: FC<{ title: string }> = ({ title }) => {
     );
 };
 
+const PrivacyTermsFootnote: FC = () => (
+    <Text c="ldGray.6" ta="center" fz="sm" fw={500}>
+        By creating an account, you agree to
+        <br />
+        our{' '}
+        <Anchor
+            href="https://www.lightdash.com/privacy-policy"
+            target="_blank"
+            fz="sm"
+            fw={500}
+        >
+            Privacy Policy
+        </Anchor>{' '}
+        and our{' '}
+        <Anchor
+            href="https://www.lightdash.com/terms-of-service"
+            target="_blank"
+            fz="sm"
+            fw={500}
+        >
+            Terms of Service.
+        </Anchor>
+    </Text>
+);
+
+interface OneClickCardProps {
+    email: string;
+    isSetupInvite: boolean;
+    isLoading: boolean;
+    onActivate: () => void;
+}
+
+const OneClickCard: FC<OneClickCardProps> = ({
+    email,
+    isSetupInvite,
+    isLoading,
+    onActivate,
+}) => (
+    <Card p="xl" withBorder shadow="subtle" data-cy="one-click-invite">
+        <Stack gap="md" align="center">
+            <Title order={3} ta="center">
+                {isSetupInvite
+                    ? 'You’ve been asked to help with setup'
+                    : 'You’ve been invited to Lightdash'}
+            </Title>
+            <Text c="ldGray.6" ta="center">
+                {isSetupInvite
+                    ? 'One click and we’ll take you straight to connecting the data warehouse.'
+                    : 'One click to join your team.'}
+            </Text>
+            <Button fullWidth loading={isLoading} onClick={onActivate}>
+                Continue as {email}
+            </Button>
+        </Stack>
+    </Card>
+);
+
 const createUserQuery = async (data: ActivateUserWithInviteCode) =>
     lightdashApi<LightdashUser>({
         url: `/user`,
@@ -118,6 +180,14 @@ const Invite: FC = () => {
         inviteLinkQuery.data?.purpose === InviteLinkPurpose.Setup;
     const redirectUrl = isSetupInvite ? '/onboarding/data-source' : '/';
 
+    const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding, {
+        retry: 3,
+    });
+    const activateInvite = useActivateInviteLinkMutation(
+        inviteCode,
+        redirectUrl,
+    );
+
     const { isLoading, mutate, isSuccess } = useMutation<
         LightdashUser,
         ApiError,
@@ -138,6 +208,9 @@ const Invite: FC = () => {
 
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
+    const isNewOnboarding = newOnboardingFlag.data?.enabled ?? false;
+    const showOneClick =
+        isNewOnboarding && allowPasswordAuthentication && Boolean(inviteCode);
 
     useEffect(() => {
         const searchParams = new URLSearchParams(search);
@@ -147,7 +220,11 @@ const Invite: FC = () => {
         }
     }, [search]);
 
-    if (health.isInitialLoading || inviteLinkQuery.isInitialLoading) {
+    if (
+        health.isInitialLoading ||
+        inviteLinkQuery.isInitialLoading ||
+        newOnboardingFlag.isInitialLoading
+    ) {
         return <PageSpinner />;
     }
 
@@ -220,6 +297,19 @@ const Invite: FC = () => {
                                 : inviteLinkQuery.error.error.message
                         }
                     />
+                ) : showOneClick && inviteLinkQuery.data ? (
+                    <>
+                        <OneClickCard
+                            email={inviteLinkQuery.data.email}
+                            isSetupInvite={isSetupInvite}
+                            isLoading={
+                                activateInvite.isLoading ||
+                                activateInvite.isSuccess
+                            }
+                            onActivate={() => activateInvite.mutate()}
+                        />
+                        <PrivacyTermsFootnote />
+                    </>
                 ) : isLinkFromEmail || isSetupInvite ? (
                     <>
                         <Card p="xl" withBorder shadow="subtle">
@@ -236,28 +326,7 @@ const Invite: FC = () => {
                             )}
                             {logins}
                         </Card>
-                        <Text c="ldGray.6" ta="center" fz="sm" fw={500}>
-                            By creating an account, you agree to
-                            <br />
-                            our{' '}
-                            <Anchor
-                                href="https://www.lightdash.com/privacy-policy"
-                                target="_blank"
-                                fz="sm"
-                                fw={500}
-                            >
-                                Privacy Policy
-                            </Anchor>{' '}
-                            and our{' '}
-                            <Anchor
-                                href="https://www.lightdash.com/terms-of-service"
-                                target="_blank"
-                                fz="sm"
-                                fw={500}
-                            >
-                                Terms of Service.
-                            </Anchor>
-                        </Text>
+                        <PrivacyTermsFootnote />
                     </>
                 ) : (
                     <WelcomeCard
