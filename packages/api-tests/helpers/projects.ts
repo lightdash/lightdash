@@ -188,18 +188,18 @@ export async function createProject(
 async function waitForV1JobCompletion(
     client: ApiClient,
     jobUuid: string,
-    maxRetries = 120,
-): Promise<boolean> {
+    maxRetries = 300,
+): Promise<'DONE' | 'ERROR' | 'TIMEOUT'> {
     for (let i = 0; i < maxRetries; i++) {
         const resp = await client.get<
             Body<{ jobStatus: 'STARTED' | 'RUNNING' | 'DONE' | 'ERROR' }>
         >(`/api/v1/jobs/${jobUuid}`);
         const { jobStatus } = resp.body.results;
-        if (jobStatus === 'ERROR') return false;
-        if (jobStatus === 'DONE') return true;
+        if (jobStatus === 'ERROR') return 'ERROR';
+        if (jobStatus === 'DONE') return 'DONE';
         await new Promise((r) => setTimeout(r, 1000));
     }
-    return false;
+    return 'TIMEOUT';
 }
 
 /**
@@ -223,12 +223,24 @@ export async function createAndRefreshProject(
     );
     expect(refreshResp.status).toBe(200);
 
-    const success = await waitForV1JobCompletion(
-        client,
-        refreshResp.body.results.jobUuid,
-    );
-    if (!success) {
-        throw new Error(`Project refresh failed for "${projectName}"`);
+    const { jobUuid } = refreshResp.body.results;
+    const outcome = await waitForV1JobCompletion(client, jobUuid);
+    if (outcome === 'ERROR') {
+        const jobResp = await client.get<
+            Body<{ steps: { stepError?: string }[] }>
+        >(`/api/v1/jobs/${jobUuid}`);
+        const stepErrors = jobResp.body.results.steps
+            .map((step) => step.stepError)
+            .filter(Boolean)
+            .join('; ');
+        throw new Error(
+            `Project refresh errored for "${projectName}" (job ${jobUuid}): ${stepErrors}`,
+        );
+    }
+    if (outcome === 'TIMEOUT') {
+        throw new Error(
+            `Project refresh timed out for "${projectName}" (job ${jobUuid} still running after poll window)`,
+        );
     }
     return projectUuid;
 }

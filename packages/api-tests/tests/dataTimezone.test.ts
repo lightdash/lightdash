@@ -427,7 +427,7 @@ describe.skipIf(!hasBigqueryCredentials())(
                 projectName,
                 bigqueryWarehouseConfig(),
             );
-        }, 180_000);
+        }, 420_000);
 
         afterAll(async () => {
             if (bqAdmin) {
