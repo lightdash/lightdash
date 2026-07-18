@@ -37,6 +37,7 @@ import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import type { TagsModel } from '../../models/TagsModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
+import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -86,6 +87,7 @@ describe('Csv service', () => {
             contentModel: {} as ContentModel,
             encryptionUtil: {} as EncryptionUtil,
             userModel: {} as UserModel,
+            userOAuthGrantsModel: {} as UserOAuthGrantsModel,
             featureFlagModel: {} as FeatureFlagModel,
             projectParametersModel: {} as ProjectParametersModel,
             organizationWarehouseCredentialsModel:

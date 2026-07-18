@@ -14,14 +14,13 @@ import {
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
-import { UserModel } from '../../models/UserModel';
+import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { BaseService } from '../../services/BaseService';
-import { UserService } from '../../services/UserService';
 
 type OrganizationWarehouseCredentialsServiceArguments = {
     analytics: LightdashAnalytics;
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
-    userModel: UserModel;
+    userOAuthGrantsModel: UserOAuthGrantsModel;
 };
 
 export class OrganizationWarehouseCredentialsService extends BaseService {
@@ -29,18 +28,18 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
 
     private readonly organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
 
-    private readonly userModel: UserModel;
+    private readonly userOAuthGrantsModel: UserOAuthGrantsModel;
 
     constructor({
         analytics,
         organizationWarehouseCredentialsModel,
-        userModel,
+        userOAuthGrantsModel,
     }: OrganizationWarehouseCredentialsServiceArguments) {
         super();
         this.analytics = analytics;
         this.organizationWarehouseCredentialsModel =
             organizationWarehouseCredentialsModel;
-        this.userModel = userModel;
+        this.userOAuthGrantsModel = userOAuthGrantsModel;
     }
 
     private canManage(account: Account) {
@@ -155,10 +154,11 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
             data.credentials.authenticationType ===
                 SnowflakeAuthenticationType.SSO
         ) {
-            const refreshToken = await this.userModel.getRefreshToken(
-                userUuid,
-                OpenIdIdentityIssuerType.SNOWFLAKE,
-            );
+            const refreshToken =
+                await this.userOAuthGrantsModel.getRefreshToken(
+                    userUuid,
+                    OpenIdIdentityIssuerType.SNOWFLAKE,
+                );
             // We save the refresh token, so we can use it to generate new access tokens on ProjectService.refreshCredentials
             return {
                 ...data,

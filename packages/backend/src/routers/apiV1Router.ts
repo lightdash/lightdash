@@ -792,6 +792,21 @@ apiV1Router.get(
 );
 
 apiV1Router.get(lightdashConfig.auth.google.callbackPath, (req, res, next) => {
+    if (req.session.oauth?.intent === 'link') {
+        passport.authenticate(
+            'google',
+            { includeGrantedScopes: true, session: false },
+            (error, user) => {
+                if (error) {
+                    next(error);
+                    return;
+                }
+                res.redirect(getOidcRedirectURL(Boolean(user))(req));
+            },
+        )(req, res, next);
+        return;
+    }
+
     passport.authenticate('google', {
         failureRedirect: getOidcRedirectURL(false)(req),
         successRedirect: getOidcRedirectURL(true)(req),

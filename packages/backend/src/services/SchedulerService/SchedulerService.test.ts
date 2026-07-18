@@ -291,6 +291,8 @@ describe('SchedulerService', () => {
             };
             const userModel = {
                 findSessionUserAndOrgByUuid: vi.fn(async () => newOwner),
+            };
+            const userService = {
                 getRefreshToken: vi.fn(async () => 'refresh-token'),
             };
 
@@ -309,7 +311,7 @@ describe('SchedulerService', () => {
                 emailClient: {} as EmailClient,
                 userModel: userModel as unknown as UserModel,
                 googleDriveClient: {} as GoogleDriveClient,
-                userService: {} as UserService,
+                userService: userService as unknown as UserService,
                 jobModel: {} as JobModel,
                 spacePermissionService:
                     spacePermissionService as unknown as SpacePermissionService,

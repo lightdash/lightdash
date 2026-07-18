@@ -56,6 +56,7 @@ import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import type { TagsModel } from '../../models/TagsModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
+import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -301,6 +302,7 @@ const getMockedProjectService = (
         contentModel: {} as ContentModel,
         encryptionUtil: {} as EncryptionUtil,
         userModel: {} as UserModel,
+        userOAuthGrantsModel: {} as UserOAuthGrantsModel,
         featureFlagModel: {
             // Mirror production behaviour: ResultsCacheEnabled resolves from
             // the env-derived lightdashConfig.results.cacheEnabled when there

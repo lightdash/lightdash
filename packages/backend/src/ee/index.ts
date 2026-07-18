@@ -626,7 +626,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     analytics: context.lightdashAnalytics,
                     organizationWarehouseCredentialsModel:
                         models.getOrganizationWarehouseCredentialsModel(),
-                    userModel: models.getUserModel(),
+                    userOAuthGrantsModel: models.getUserOAuthGrantsModel(),
                 }),
             projectService: ({ models, context, clients, utils, repository }) =>
                 new ProjectService({
@@ -660,6 +660,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     contentModel: models.getContentModel(),
                     encryptionUtil: utils.getEncryptionUtil(),
                     userModel: models.getUserModel(),
+                    userOAuthGrantsModel: models.getUserOAuthGrantsModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     projectParametersModel: models.getProjectParametersModel(),
                     organizationWarehouseCredentialsModel:
@@ -771,6 +772,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     contentModel: models.getContentModel(),
                     encryptionUtil: utils.getEncryptionUtil(),
                     userModel: models.getUserModel(),
+                    userOAuthGrantsModel: models.getUserOAuthGrantsModel(),
                     queryHistoryModel: models.getQueryHistoryModel(),
                     downloadAuditModel: models.getDownloadAuditModel(),
                     cacheService: repository.getCacheService(),
