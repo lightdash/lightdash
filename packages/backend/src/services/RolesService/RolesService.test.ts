@@ -4,6 +4,7 @@ import {
     defineUserAbility,
     ForbiddenError,
     getSystemRoles,
+    InviteLinkPurpose,
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
@@ -450,6 +451,7 @@ describe('RolesService', () => {
                 organizationUuid: 'test-org-uuid',
                 userUuid: pendingUser.userUuid,
                 email: pendingUser.email,
+                purpose: InviteLinkPurpose.Member,
             });
 
             await expect(

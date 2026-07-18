@@ -1,4 +1,9 @@
-import { InviteLink, NotFoundError } from '@lightdash/common';
+import {
+    InviteLink,
+    InviteLinkPurpose,
+    NotFoundError,
+    ParameterError,
+} from '@lightdash/common';
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
 import { URL } from 'url';
@@ -40,7 +45,18 @@ export class InviteLinkModel {
             organizationUuid: data.organization_uuid,
             userUuid: data.user_uuid,
             email: data.email,
+            purpose: InviteLinkModel.parsePurpose(data.purpose),
         };
+    }
+
+    private static parsePurpose(purpose: string): InviteLinkPurpose {
+        if (purpose === InviteLinkPurpose.Member) {
+            return InviteLinkPurpose.Member;
+        }
+        if (purpose === InviteLinkPurpose.Setup) {
+            return InviteLinkPurpose.Setup;
+        }
+        throw new ParameterError(`Invalid invite link purpose: ${purpose}`);
     }
 
     private transformInviteCodeToUrl(code: string): string {
@@ -89,6 +105,7 @@ export class InviteLinkModel {
         expiresAt: Date,
         organizationUuid: string,
         userUuid: string,
+        purpose: InviteLinkPurpose,
     ): Promise<InviteLink> {
         const inviteCodeHash = InviteLinkModel._hash(inviteCode);
         const orgs = await this.database('organizations')
@@ -104,6 +121,7 @@ export class InviteLinkModel {
                 invite_code_hash: inviteCodeHash,
                 expires_at: expiresAt,
                 user_uuid: userUuid,
+                purpose,
             })
             .onConflict('user_uuid')
             .merge();

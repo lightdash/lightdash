@@ -9,6 +9,7 @@ import {
     CustomRoleAsCode,
     ForbiddenError,
     getAllScopeMap,
+    InviteLinkPurpose,
     isOrganizationMemberRole,
     isScopeAssignableAtLevel,
     isSystemRole,
@@ -728,6 +729,7 @@ export class RolesService extends BaseService {
             new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
             organizationUuid,
             userUuid,
+            InviteLinkPurpose.Member,
         );
         try {
             await this.emailClient.sendInviteEmail(

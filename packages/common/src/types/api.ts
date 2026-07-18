@@ -996,6 +996,10 @@ export type PasswordReset = {
 };
 
 export type ApiHealthResults = HealthState;
+export enum InviteLinkPurpose {
+    Member = 'member',
+    Setup = 'setup',
+}
 export type InviteLink = {
     expiresAt: Date;
     inviteCode: string;
@@ -1003,11 +1007,13 @@ export type InviteLink = {
     organizationUuid: string;
     userUuid: string;
     email: string;
+    purpose: InviteLinkPurpose;
 };
 export type CreateInviteLink = {
     email: string;
     expiresAt?: Date;
     role?: OrganizationMemberRole;
+    purpose?: InviteLinkPurpose;
 };
 
 export type ApiInviteLinkResponse = {

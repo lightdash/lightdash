@@ -4,6 +4,7 @@ import {
     EmailStatus,
     FeatureFlags,
     ForbiddenError,
+    InviteLinkPurpose,
     NotFoundError,
     OpenIdIdentityIssuerType,
     OrganizationMemberRole,
@@ -2090,6 +2091,85 @@ describe('UserService', () => {
             expect(
                 inviteLinkModel.upsert as import('vitest').Mock,
             ).toHaveBeenCalledTimes(1);
+        });
+        test('should default the purpose to member', async () => {
+            await userService.createPendingUserAndInviteLink(
+                sessionUser,
+                inviteUser,
+            );
+
+            expect(vi.mocked(inviteLinkModel.upsert)).toHaveBeenCalledWith(
+                expect.any(String),
+                inviteUser.expiresAt,
+                sessionUser.organizationUuid,
+                newUser.userUuid,
+                InviteLinkPurpose.Member,
+            );
+        });
+        test('should force setup invites to use the admin role', async () => {
+            const adminUser = {
+                ...sessionUser,
+                ability: defineUserAbility(
+                    {
+                        userUuid: sessionUser.userUuid,
+                        role: OrganizationMemberRole.ADMIN,
+                        organizationUuid: sessionUser.organizationUuid,
+                        roleUuid: undefined,
+                    },
+                    [],
+                ),
+            };
+            const setupInviteLink = {
+                ...inviteLink,
+                purpose: InviteLinkPurpose.Setup,
+            };
+            vi.mocked(inviteLinkModel.upsert).mockResolvedValueOnce(
+                setupInviteLink,
+            );
+
+            await userService.createPendingUserAndInviteLink(adminUser, {
+                ...inviteUser,
+                role: OrganizationMemberRole.MEMBER,
+                purpose: InviteLinkPurpose.Setup,
+            });
+
+            expect(vi.mocked(userModel.createPendingUser)).toHaveBeenCalledWith(
+                sessionUser.organizationUuid,
+                {
+                    email: inviteUser.email,
+                    firstName: '',
+                    lastName: '',
+                    role: OrganizationMemberRole.ADMIN,
+                },
+            );
+            expect(vi.mocked(inviteLinkModel.upsert)).toHaveBeenCalledWith(
+                expect.any(String),
+                inviteUser.expiresAt,
+                sessionUser.organizationUuid,
+                newUser.userUuid,
+                InviteLinkPurpose.Setup,
+            );
+            expect(vi.mocked(emailClient.sendInviteEmail)).toHaveBeenCalledWith(
+                adminUser,
+                setupInviteLink,
+            );
+        });
+        test('should reject setup invites when the caller cannot grant roles', async () => {
+            await expect(
+                userService.createPendingUserAndInviteLink(sessionUser, {
+                    ...inviteUser,
+                    purpose: InviteLinkPurpose.Setup,
+                }),
+            ).rejects.toThrowError(
+                new ForbiddenError(
+                    'A setup invite requires permission to grant the admin role',
+                ),
+            );
+
+            expect(
+                vi.mocked(userModel.createPendingUser),
+            ).not.toHaveBeenCalled();
+            expect(vi.mocked(inviteLinkModel.upsert)).not.toHaveBeenCalled();
         });
         test('should send invite when email belongs to user without org', async () => {
             (
