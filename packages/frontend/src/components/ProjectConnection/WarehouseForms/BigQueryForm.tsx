@@ -77,11 +77,16 @@ export const BigQuerySchemaInput: FC<{
     description?: ReactNode;
 }> = ({ disabled, description }) => {
     const form = useFormContext();
+    const { savedProject } = useProjectFormContext();
     const { data, error: bigqueryAuthError } = useIsBigQueryAuthenticated();
     const isAuthenticated = data !== undefined && bigqueryAuthError === null;
     const isSso =
         form.values.warehouse?.type === WarehouseTypes.BIGQUERY &&
         form.values.warehouse?.authenticationType ===
+            BigqueryAuthenticationType.SSO;
+    const isSavedBigquerySsoProject =
+        savedProject?.warehouseConnection?.type === WarehouseTypes.BIGQUERY &&
+        savedProject?.warehouseConnection?.authenticationType ===
             BigqueryAuthenticationType.SSO;
     const projectField = form.getInputProps('warehouse.project');
     const [debouncedProject] = useDebouncedValue(projectField.value, 300);
@@ -127,6 +132,10 @@ export const BigQuerySchemaInput: FC<{
         recommendedDataset,
     ]);
 
+    if (isSso && !isAuthenticated && !isSavedBigquerySsoProject) {
+        return null;
+    }
+
     if (!isSso || !isAuthenticated) {
         return (
             <TextInput
@@ -166,7 +175,7 @@ export const BigQuerySchemaInput: FC<{
                     );
                 }
             }}
-            disabled={disabled || !hasProject}
+            disabled={disabled || !hasProject || isLoadingDatasets}
             data={datasets?.map((dataset) => dataset.datasetId) ?? []}
             renderOption={({ option }) => (
                 <Group justify="space-between" wrap="nowrap" gap="xs" w="100%">
@@ -276,9 +285,10 @@ const BigQueryForm: FC<{
         !savedProject &&
         !project.value &&
         !hasAppliedProjectRecommendation.current;
-    const { data: projectRecommendation } = useBigqueryProjectRecommendation(
-        shouldFetchProjectRecommendation,
-    );
+    const {
+        data: projectRecommendation,
+        isInitialLoading: isLoadingProjectRecommendation,
+    } = useBigqueryProjectRecommendation(shouldFetchProjectRecommendation);
     const [isOpen, toggleOpen] = useToggle(false);
     const [temporaryFile, setTemporaryFile] = useState<File | null>(null);
     const requireSecrets: boolean = !(
@@ -294,6 +304,13 @@ const BigQueryForm: FC<{
     if (form.values.warehouse?.type !== WarehouseTypes.BIGQUERY) {
         throw new Error('Bigquery form is not used for this warehouse type');
     }
+
+    const isSavedBigquerySsoProject =
+        savedProject?.warehouseConnection?.type === WarehouseTypes.BIGQUERY &&
+        savedProject?.warehouseConnection?.authenticationType ===
+            BigqueryAuthenticationType.SSO;
+    const showWarehouseConfigFields =
+        !isSso || isAuthenticated || isSavedBigquerySsoProject;
 
     // savedProject might not be loaded when the form is rendered, so we need to set the defaultValue also on a hook
     const defaultAuthenticationType = BigqueryAuthenticationType.SSO;
@@ -424,426 +441,464 @@ const BigQueryForm: FC<{
                         openLoginPopup={openLoginPopup}
                     />
                 )}
-                <Group gap="sm">
-                    {isSso && isAuthenticated ? (
-                        <Autocomplete
-                            name="warehouse.project"
-                            label="Project"
-                            description={
-                                <p>
-                                    <Anchor
-                                        inherit
-                                        target="_blank"
-                                        href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#project"
-                                        rel="noreferrer"
-                                    >
-                                        This is the GCP project ID
-                                    </Anchor>
-                                    .
-                                </p>
-                            }
-                            placeholder={
-                                isLoadingProjects
-                                    ? 'Loading projects...'
-                                    : 'Type or select a project'
-                            }
-                            required
-                            {...project}
-                            onChange={(value) => {
-                                hasAppliedProjectRecommendation.current = true;
-                                project.onChange(value);
-                            }}
-                            disabled={disabled}
-                            labelProps={{ style: { marginTop: '8px' } }}
-                            w={hasDatasets ? '90%' : '100%'}
-                            data={gcpProjects?.map((p) => p.projectId) ?? []}
-                            maxDropdownHeight={220}
-                            renderOption={({ option }) => {
-                                const projectOption = gcpProjects?.find(
-                                    (projectItem) =>
-                                        projectItem.projectId === option.value,
-                                );
-
-                                return (
-                                    <Group
-                                        justify="space-between"
-                                        wrap="nowrap"
-                                        gap="xs"
-                                        w="100%"
-                                    >
-                                        <Text size="sm" truncate="end">
-                                            {projectOption?.friendlyName
-                                                ? `${projectOption.friendlyName} (${projectOption.projectId})`
-                                                : option.value}
-                                        </Text>
-                                        {option.value ===
-                                        projectRecommendation?.projectId ? (
-                                            <Badge
-                                                size="xs"
-                                                color="green"
-                                                variant="light"
-                                                radius="sm"
-                                            >
-                                                Recommended · largest
-                                            </Badge>
-                                        ) : null}
-                                    </Group>
-                                );
-                            }}
-                            rightSectionPointerEvents={
-                                projectsError ? 'all' : 'none'
-                            }
-                            rightSection={
-                                isLoadingProjects ? (
-                                    <Loader size="xs" />
-                                ) : projectsError ? (
-                                    <Tooltip label="Failed to load projects. You can type manually.">
-                                        <MantineIcon
-                                            icon={IconExclamationCircle}
-                                            color="yellow"
-                                        />
-                                    </Tooltip>
-                                ) : undefined
-                            }
-                            error={
-                                datasetsError ? (
-                                    <Text c="red">
-                                        {datasetsError.error.message}
-                                    </Text>
-                                ) : undefined
-                            }
-                        />
-                    ) : (
-                        <TextInput
-                            name="warehouse.project"
-                            label="Project"
-                            description={
-                                <p>
-                                    <Anchor
-                                        inherit
-                                        target="_blank"
-                                        href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#project"
-                                        rel="noreferrer"
-                                    >
-                                        This is the GCP project ID
-                                    </Anchor>
-                                    .
-                                </p>
-                            }
-                            required
-                            {...form.getInputProps('warehouse.project')}
-                            disabled={disabled}
-                            labelProps={{ style: { marginTop: '8px' } }}
-                            w={hasDatasets ? '90%' : '100%'}
-                            error={
-                                datasetsError ? (
-                                    <Text c="red">
-                                        {datasetsError.error.message}
-                                    </Text>
-                                ) : undefined
-                            }
-                        />
-                    )}
-                    {hasDatasets && (
-                        <Tooltip label="You have access to this project">
-                            <Group mt="50px">
-                                <MantineIcon icon={IconCheck} color="green" />
-                            </Group>
-                        </Tooltip>
-                    )}
-                </Group>
-
-                <TextInput
-                    name="warehouse.location"
-                    label="Location"
-                    description={
-                        <p>
-                            The location of BigQuery datasets. You can see more
-                            details in{' '}
-                            <Anchor
-                                inherit
-                                target="_blank"
-                                href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#dataset-locations"
-                                rel="noreferrer"
-                            >
-                                dbt documentation
-                            </Anchor>
-                            .
-                        </p>
-                    }
-                    {...locationField}
-                    onChange={onChangeFactory(locationField.onChange)}
-                    disabled={disabled}
-                />
-
-                {authenticationType === BigqueryAuthenticationType.SSO ? (
-                    <></>
-                ) : authenticationType ===
-                  BigqueryAuthenticationType.PRIVATE_KEY ? (
+                {showWarehouseConfigFields && (
                     <>
-                        <FileInput
-                            name="warehouse.keyfileContents"
-                            {...form.getInputProps(
-                                'warehouse.keyfileContents',
-                                {
-                                    withError: true,
-                                },
-                            )}
-                            label="Key File"
-                            placeholder={
-                                !requireSecrets
-                                    ? '**************'
-                                    : 'Choose file...'
-                            }
-                            description={
-                                <p>
-                                    This is the JSON key file. You can see{' '}
-                                    <Anchor
-                                        inherit
-                                        target="_blank"
-                                        href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#key-file"
-                                        rel="noreferrer"
-                                    >
-                                        how to create a key here
-                                    </Anchor>
-                                    .
-                                </p>
-                            }
-                            required={requireSecrets}
-                            accept="application/json"
-                            value={temporaryFile}
-                            onChange={(file) => {
-                                if (!file) {
-                                    form.setFieldValue(
-                                        'warehouse.keyfileContents',
-                                        null,
-                                    );
-                                    return;
-                                }
-
-                                const fileReader = new FileReader();
-                                fileReader.onload = function (event) {
-                                    const contents = event.target?.result;
-
-                                    if (typeof contents === 'string') {
-                                        try {
-                                            setTemporaryFile(file);
-                                            form.setFieldValue(
-                                                'warehouse.keyfileContents',
-                                                JSON.parse(contents),
-                                            );
-                                        } catch (error) {
-                                            // 🤷‍♂️
-                                            setTimeout(() => {
-                                                form.setFieldError(
-                                                    'warehouse.keyfileContents',
-                                                    'Invalid JSON file',
-                                                );
-                                            });
-
-                                            form.setFieldValue(
-                                                'warehouse.keyfileContents',
-                                                null,
-                                            );
-                                        }
-                                    } else {
-                                        form.setFieldValue(
-                                            'warehouse.keyfileContents',
-                                            null,
-                                        );
-                                        setTemporaryFile(null);
+                        <Group gap="sm">
+                            {isSso && isAuthenticated ? (
+                                <Autocomplete
+                                    name="warehouse.project"
+                                    label="Project"
+                                    description={
+                                        <p>
+                                            <Anchor
+                                                inherit
+                                                target="_blank"
+                                                href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#project"
+                                                rel="noreferrer"
+                                            >
+                                                This is the GCP project ID
+                                            </Anchor>
+                                            .
+                                        </p>
                                     }
-                                };
-                                fileReader.readAsText(file);
-                            }}
-                            disabled={disabled}
-                        />
-                    </>
-                ) : (
-                    /* BigqueryAuthenticationType.ADC */
-                    <></>
-                )}
-                <FormSection isOpen={isOpen} name="advanced">
-                    <Stack mt={8}>
-                        <Switch
-                            name="warehouse.requireUserCredentials"
-                            {...form.getInputProps(
-                                'warehouse.requireUserCredentials',
-                                {
-                                    type: 'checkbox',
-                                },
+                                    placeholder={
+                                        isLoadingProjects ||
+                                        isLoadingProjectRecommendation
+                                            ? 'Loading projects...'
+                                            : 'Type or select a project'
+                                    }
+                                    required
+                                    {...project}
+                                    onChange={(value) => {
+                                        hasAppliedProjectRecommendation.current = true;
+                                        project.onChange(value);
+                                    }}
+                                    disabled={
+                                        disabled ||
+                                        isLoadingProjects ||
+                                        isLoadingProjectRecommendation
+                                    }
+                                    labelProps={{ style: { marginTop: '8px' } }}
+                                    w={hasDatasets ? '90%' : '100%'}
+                                    data={
+                                        gcpProjects?.map((p) => p.projectId) ??
+                                        []
+                                    }
+                                    maxDropdownHeight={220}
+                                    renderOption={({ option }) => {
+                                        const projectOption = gcpProjects?.find(
+                                            (projectItem) =>
+                                                projectItem.projectId ===
+                                                option.value,
+                                        );
+
+                                        return (
+                                            <Group
+                                                justify="space-between"
+                                                wrap="nowrap"
+                                                gap="xs"
+                                                w="100%"
+                                            >
+                                                <Text size="sm" truncate="end">
+                                                    {projectOption?.friendlyName
+                                                        ? `${projectOption.friendlyName} (${projectOption.projectId})`
+                                                        : option.value}
+                                                </Text>
+                                                {option.value ===
+                                                projectRecommendation?.projectId ? (
+                                                    <Badge
+                                                        size="xs"
+                                                        color="green"
+                                                        variant="light"
+                                                        radius="sm"
+                                                    >
+                                                        Recommended · largest
+                                                    </Badge>
+                                                ) : null}
+                                            </Group>
+                                        );
+                                    }}
+                                    rightSectionPointerEvents={
+                                        projectsError ? 'all' : 'none'
+                                    }
+                                    rightSection={
+                                        isLoadingProjects ||
+                                        isLoadingProjectRecommendation ? (
+                                            <Loader size="xs" />
+                                        ) : projectsError ? (
+                                            <Tooltip label="Failed to load projects. You can type manually.">
+                                                <MantineIcon
+                                                    icon={IconExclamationCircle}
+                                                    color="yellow"
+                                                />
+                                            </Tooltip>
+                                        ) : undefined
+                                    }
+                                    error={
+                                        datasetsError ? (
+                                            <Text c="red">
+                                                {datasetsError.error.message}
+                                            </Text>
+                                        ) : undefined
+                                    }
+                                />
+                            ) : (
+                                <TextInput
+                                    name="warehouse.project"
+                                    label="Project"
+                                    description={
+                                        <p>
+                                            <Anchor
+                                                inherit
+                                                target="_blank"
+                                                href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#project"
+                                                rel="noreferrer"
+                                            >
+                                                This is the GCP project ID
+                                            </Anchor>
+                                            .
+                                        </p>
+                                    }
+                                    required
+                                    {...form.getInputProps('warehouse.project')}
+                                    disabled={disabled}
+                                    labelProps={{ style: { marginTop: '8px' } }}
+                                    w={hasDatasets ? '90%' : '100%'}
+                                    error={
+                                        datasetsError ? (
+                                            <Text c="red">
+                                                {datasetsError.error.message}
+                                            </Text>
+                                        ) : undefined
+                                    }
+                                />
                             )}
-                            label="Require users to provide their own credentials"
-                            disabled={disabled}
-                            defaultChecked={
-                                BigQueryDefaultValues.requireUserCredentials
-                            }
-                        />
+                            {hasDatasets && (
+                                <Tooltip label="You have access to this project">
+                                    <Group mt="50px">
+                                        <MantineIcon
+                                            icon={IconCheck}
+                                            color="green"
+                                        />
+                                    </Group>
+                                </Tooltip>
+                            )}
+                        </Group>
 
                         <TextInput
-                            name="warehouse.executionProject"
-                            label="Execution project"
+                            name="warehouse.location"
+                            label="Location"
                             description={
                                 <p>
-                                    You may specify a project to bill for query
-                                    execution, instead of the project/database
-                                    where you materialize most resources. You
-                                    can see more details in{' '}
-                                    <Anchor
-                                        inherit
-                                        target="_blank"
-                                        href="https://docs.getdbt.com/docs/core/connect-data-platform/bigquery-setup#execution-project"
-                                        rel="noreferrer"
-                                    >
-                                        dbt documentation
-                                    </Anchor>
-                                    .
-                                </p>
-                            }
-                            {...executionProjectField}
-                            onChange={onChangeFactory(
-                                executionProjectField.onChange,
-                            )}
-                            disabled={disabled}
-                        />
-                        <TextInput
-                            name="warehouse.accessUrl"
-                            label="BigQuery URL override"
-                            placeholder="e.g. https://bigquery.googleapis.com"
-                            description={
-                                <p>
-                                    Override the default BigQuery API endpoint.
-                                    This is useful for Private Service Connect,
-                                    custom proxies, or local emulators.
-                                </p>
-                            }
-                            {...accessUrlField}
-                            onChange={onChangeFactory(accessUrlField.onChange)}
-                            disabled={disabled}
-                        />
-
-                        <NumberInput
-                            name="warehouse.timeoutSeconds"
-                            {...form.getInputProps('warehouse.timeoutSeconds')}
-                            label="Timeout in seconds"
-                            defaultValue={BigQueryDefaultValues.timeoutSeconds}
-                            description={
-                                <p>
-                                    If a dbt model takes longer than this
-                                    timeout to complete, then BigQuery may
-                                    cancel the query. You can see more details
-                                    in{' '}
-                                    <Anchor
-                                        inherit
-                                        target="_blank"
-                                        href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#timeouts"
-                                        rel="noreferrer"
-                                    >
-                                        dbt documentation
-                                    </Anchor>
-                                    .
-                                </p>
-                            }
-                            required
-                            disabled={disabled}
-                        />
-
-                        <Select
-                            allowDeselect={false}
-                            name="warehouse.priority"
-                            {...form.getInputProps('warehouse.priority')}
-                            defaultValue={BigQueryDefaultValues.priority}
-                            label="Priority"
-                            description={
-                                <p>
-                                    The priority for the BigQuery jobs that dbt
-                                    executes. You can see more details in{' '}
-                                    <Anchor
-                                        inherit
-                                        target="_blank"
-                                        href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#priority"
-                                        rel="noreferrer"
-                                    >
-                                        dbt documentation
-                                    </Anchor>
-                                    .
-                                </p>
-                            }
-                            data={[
-                                {
-                                    value: 'interactive',
-                                    label: 'interactive',
-                                },
-                                {
-                                    value: 'batch',
-                                    label: 'batch',
-                                },
-                            ]}
-                            required
-                            disabled={disabled}
-                        />
-
-                        <NumberInput
-                            name="warehouse.retries"
-                            {...form.getInputProps('warehouse.retries')}
-                            defaultValue={BigQueryDefaultValues.retries}
-                            label="Retries"
-                            description={
-                                <p>
-                                    The number of times dbt should retry queries
-                                    that result in unhandled server errors You
-                                    can see more details in{' '}
-                                    <Anchor
-                                        inherit
-                                        target="_blank"
-                                        href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#retries"
-                                        rel="noreferrer"
-                                    >
-                                        dbt documentation
-                                    </Anchor>
-                                    .
-                                </p>
-                            }
-                            required
-                        />
-
-                        <NumberInput
-                            name="warehouse.maximumBytesBilled"
-                            {...form.getInputProps(
-                                'warehouse.maximumBytesBilled',
-                            )}
-                            defaultValue={
-                                BigQueryDefaultValues.maximumBytesBilled
-                            }
-                            label="Maximum bytes billed"
-                            description={
-                                <p>
-                                    When a value is configured, queries executed
-                                    by dbt will fail if they exceed the
-                                    configured maximum bytes threshold. You can
+                                    The location of BigQuery datasets. You can
                                     see more details in{' '}
                                     <Anchor
                                         inherit
                                         target="_blank"
-                                        href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#maximum-bytes-billed"
+                                        href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#dataset-locations"
                                         rel="noreferrer"
                                     >
                                         dbt documentation
                                     </Anchor>
-                                    . Leaving this field empty or with a 0 value
-                                    means no limit.
+                                    .
                                 </p>
                             }
+                            {...locationField}
+                            onChange={onChangeFactory(locationField.onChange)}
                             disabled={disabled}
                         />
 
-                        <DataTimezoneField disabled={disabled} />
-                        <StartOfWeekSelect disabled={disabled} />
-                    </Stack>
-                </FormSection>
-                <FormCollapseButton isSectionOpen={isOpen} onClick={toggleOpen}>
-                    Advanced configuration options
-                </FormCollapseButton>
+                        {authenticationType ===
+                        BigqueryAuthenticationType.SSO ? (
+                            <></>
+                        ) : authenticationType ===
+                          BigqueryAuthenticationType.PRIVATE_KEY ? (
+                            <>
+                                <FileInput
+                                    name="warehouse.keyfileContents"
+                                    {...form.getInputProps(
+                                        'warehouse.keyfileContents',
+                                        {
+                                            withError: true,
+                                        },
+                                    )}
+                                    label="Key File"
+                                    placeholder={
+                                        !requireSecrets
+                                            ? '**************'
+                                            : 'Choose file...'
+                                    }
+                                    description={
+                                        <p>
+                                            This is the JSON key file. You can
+                                            see{' '}
+                                            <Anchor
+                                                inherit
+                                                target="_blank"
+                                                href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#key-file"
+                                                rel="noreferrer"
+                                            >
+                                                how to create a key here
+                                            </Anchor>
+                                            .
+                                        </p>
+                                    }
+                                    required={requireSecrets}
+                                    accept="application/json"
+                                    value={temporaryFile}
+                                    onChange={(file) => {
+                                        if (!file) {
+                                            form.setFieldValue(
+                                                'warehouse.keyfileContents',
+                                                null,
+                                            );
+                                            return;
+                                        }
+
+                                        const fileReader = new FileReader();
+                                        fileReader.onload = function (event) {
+                                            const contents =
+                                                event.target?.result;
+
+                                            if (typeof contents === 'string') {
+                                                try {
+                                                    setTemporaryFile(file);
+                                                    form.setFieldValue(
+                                                        'warehouse.keyfileContents',
+                                                        JSON.parse(contents),
+                                                    );
+                                                } catch (error) {
+                                                    // 🤷‍♂️
+                                                    setTimeout(() => {
+                                                        form.setFieldError(
+                                                            'warehouse.keyfileContents',
+                                                            'Invalid JSON file',
+                                                        );
+                                                    });
+
+                                                    form.setFieldValue(
+                                                        'warehouse.keyfileContents',
+                                                        null,
+                                                    );
+                                                }
+                                            } else {
+                                                form.setFieldValue(
+                                                    'warehouse.keyfileContents',
+                                                    null,
+                                                );
+                                                setTemporaryFile(null);
+                                            }
+                                        };
+                                        fileReader.readAsText(file);
+                                    }}
+                                    disabled={disabled}
+                                />
+                            </>
+                        ) : (
+                            /* BigqueryAuthenticationType.ADC */
+                            <></>
+                        )}
+                        <FormSection isOpen={isOpen} name="advanced">
+                            <Stack mt={8}>
+                                <Switch
+                                    name="warehouse.requireUserCredentials"
+                                    {...form.getInputProps(
+                                        'warehouse.requireUserCredentials',
+                                        {
+                                            type: 'checkbox',
+                                        },
+                                    )}
+                                    label="Require users to provide their own credentials"
+                                    disabled={disabled}
+                                    defaultChecked={
+                                        BigQueryDefaultValues.requireUserCredentials
+                                    }
+                                />
+
+                                <TextInput
+                                    name="warehouse.executionProject"
+                                    label="Execution project"
+                                    description={
+                                        <p>
+                                            You may specify a project to bill
+                                            for query execution, instead of the
+                                            project/database where you
+                                            materialize most resources. You can
+                                            see more details in{' '}
+                                            <Anchor
+                                                inherit
+                                                target="_blank"
+                                                href="https://docs.getdbt.com/docs/core/connect-data-platform/bigquery-setup#execution-project"
+                                                rel="noreferrer"
+                                            >
+                                                dbt documentation
+                                            </Anchor>
+                                            .
+                                        </p>
+                                    }
+                                    {...executionProjectField}
+                                    onChange={onChangeFactory(
+                                        executionProjectField.onChange,
+                                    )}
+                                    disabled={disabled}
+                                />
+                                <TextInput
+                                    name="warehouse.accessUrl"
+                                    label="BigQuery URL override"
+                                    placeholder="e.g. https://bigquery.googleapis.com"
+                                    description={
+                                        <p>
+                                            Override the default BigQuery API
+                                            endpoint. This is useful for Private
+                                            Service Connect, custom proxies, or
+                                            local emulators.
+                                        </p>
+                                    }
+                                    {...accessUrlField}
+                                    onChange={onChangeFactory(
+                                        accessUrlField.onChange,
+                                    )}
+                                    disabled={disabled}
+                                />
+
+                                <NumberInput
+                                    name="warehouse.timeoutSeconds"
+                                    {...form.getInputProps(
+                                        'warehouse.timeoutSeconds',
+                                    )}
+                                    label="Timeout in seconds"
+                                    defaultValue={
+                                        BigQueryDefaultValues.timeoutSeconds
+                                    }
+                                    description={
+                                        <p>
+                                            If a dbt model takes longer than
+                                            this timeout to complete, then
+                                            BigQuery may cancel the query. You
+                                            can see more details in{' '}
+                                            <Anchor
+                                                inherit
+                                                target="_blank"
+                                                href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#timeouts"
+                                                rel="noreferrer"
+                                            >
+                                                dbt documentation
+                                            </Anchor>
+                                            .
+                                        </p>
+                                    }
+                                    required
+                                    disabled={disabled}
+                                />
+
+                                <Select
+                                    allowDeselect={false}
+                                    name="warehouse.priority"
+                                    {...form.getInputProps(
+                                        'warehouse.priority',
+                                    )}
+                                    defaultValue={
+                                        BigQueryDefaultValues.priority
+                                    }
+                                    label="Priority"
+                                    description={
+                                        <p>
+                                            The priority for the BigQuery jobs
+                                            that dbt executes. You can see more
+                                            details in{' '}
+                                            <Anchor
+                                                inherit
+                                                target="_blank"
+                                                href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#priority"
+                                                rel="noreferrer"
+                                            >
+                                                dbt documentation
+                                            </Anchor>
+                                            .
+                                        </p>
+                                    }
+                                    data={[
+                                        {
+                                            value: 'interactive',
+                                            label: 'interactive',
+                                        },
+                                        {
+                                            value: 'batch',
+                                            label: 'batch',
+                                        },
+                                    ]}
+                                    required
+                                    disabled={disabled}
+                                />
+
+                                <NumberInput
+                                    name="warehouse.retries"
+                                    {...form.getInputProps('warehouse.retries')}
+                                    defaultValue={BigQueryDefaultValues.retries}
+                                    label="Retries"
+                                    description={
+                                        <p>
+                                            The number of times dbt should retry
+                                            queries that result in unhandled
+                                            server errors You can see more
+                                            details in{' '}
+                                            <Anchor
+                                                inherit
+                                                target="_blank"
+                                                href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#retries"
+                                                rel="noreferrer"
+                                            >
+                                                dbt documentation
+                                            </Anchor>
+                                            .
+                                        </p>
+                                    }
+                                    required
+                                />
+
+                                <NumberInput
+                                    name="warehouse.maximumBytesBilled"
+                                    {...form.getInputProps(
+                                        'warehouse.maximumBytesBilled',
+                                    )}
+                                    defaultValue={
+                                        BigQueryDefaultValues.maximumBytesBilled
+                                    }
+                                    label="Maximum bytes billed"
+                                    description={
+                                        <p>
+                                            When a value is configured, queries
+                                            executed by dbt will fail if they
+                                            exceed the configured maximum bytes
+                                            threshold. You can see more details
+                                            in{' '}
+                                            <Anchor
+                                                inherit
+                                                target="_blank"
+                                                href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#maximum-bytes-billed"
+                                                rel="noreferrer"
+                                            >
+                                                dbt documentation
+                                            </Anchor>
+                                            . Leaving this field empty or with a
+                                            0 value means no limit.
+                                        </p>
+                                    }
+                                    disabled={disabled}
+                                />
+
+                                <DataTimezoneField disabled={disabled} />
+                                <StartOfWeekSelect disabled={disabled} />
+                            </Stack>
+                        </FormSection>
+                        <FormCollapseButton
+                            isSectionOpen={isOpen}
+                            onClick={toggleOpen}
+                        >
+                            Advanced configuration options
+                        </FormCollapseButton>
+                    </>
+                )}
             </Stack>
         </>
     );
