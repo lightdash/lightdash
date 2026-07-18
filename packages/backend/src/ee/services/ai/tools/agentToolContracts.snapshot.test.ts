@@ -35,6 +35,7 @@ import { getRunSavedChart } from './runSavedChart';
 import { getRunSql } from './runSql';
 import { getSearchFieldValues } from './searchFieldValues';
 import { getSetupPreviewDeploy } from './setupPreviewDeploy';
+import { getUpdateUserName } from './updateUserName';
 
 const schemaToJson = (schema: FlexibleSchema | undefined): unknown => {
     if (!schema) {
@@ -105,6 +106,7 @@ const makeAgentTools = () => {
         createScheduledDelivery: getCreateScheduledDelivery({
             createScheduledDelivery: noop,
         }),
+        updateUserName: getUpdateUserName({ updateUserName: noopAsync }),
         editContent: getEditContent({ editContent: noop }),
         findContent: getFindContent({
             findContent: noop,

@@ -347,6 +347,11 @@ export type CreateScheduledDeliveryFn = (args: {
     warnings: string[];
 }>;
 
+export type UpdateUserNameFn = (args: {
+    firstName: string;
+    lastName: string;
+}) => Promise<void>;
+
 export type UpdateProgressFn = (
     progress: string,
     // The tool the progress belongs to. Web step-progress rendering uses this

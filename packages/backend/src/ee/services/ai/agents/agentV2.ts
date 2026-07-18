@@ -67,6 +67,7 @@ import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
 import { getSyncDbtProject } from '../tools/syncDbtProject';
+import { getUpdateUserName } from '../tools/updateUserName';
 import type {
     AiAgentArgs,
     AiAgentDependencies,
@@ -612,6 +613,13 @@ export const getAgentTools = (
         getKnowledgeDocumentContent,
         readPinnedThread,
         resolveUrl,
+        ...(args.requestingUser
+            ? {
+                  updateUserName: getUpdateUserName({
+                      updateUserName: dependencies.updateUserName,
+                  }),
+              }
+            : {}),
         ...(enableContentTools
             ? {
                   readContent,

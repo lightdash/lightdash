@@ -66,6 +66,7 @@ import {
     getFilteredExplore,
     mergeUserAttributes,
 } from '../../../services/UserAttributesService/UserAttributeUtils';
+import type { UserService } from '../../../services/UserService';
 import { wrapSentryTransaction } from '../../../utils';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
@@ -103,6 +104,7 @@ import {
     SearchSemanticLayerFn,
     SetupPreviewDeployFn,
     SyncDbtProjectFn,
+    UpdateUserNameFn,
     ValidateContentFn,
 } from '../ai/types/aiAgentDependencies';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
@@ -192,6 +194,7 @@ export type AiAgentToolsRuntime = {
     editContent: EditContentFn;
     createContent: CreateContentFn;
     createScheduledDelivery: CreateScheduledDeliveryFn;
+    updateUserName: UpdateUserNameFn;
     validateContent: ValidateContentFn;
     listKnowledgeDocuments: ListKnowledgeDocumentsFn;
     getKnowledgeDocumentContent: (args: {
@@ -208,7 +211,7 @@ export type AiAgentToolsRuntime = {
 
 export type McpAiAgentToolsRuntime = Omit<
     AiAgentToolsRuntime,
-    'getExplore' | 'findExplores' | 'findFields'
+    'getExplore' | 'findExplores' | 'findFields' | 'updateUserName'
 > & {
     getExplore: (
         args: Parameters<GetExploreFn>[0],
@@ -257,6 +260,7 @@ type AiAgentToolsServiceDependencies = {
     featureFlagService: FeatureFlagService;
     previewDeploySetupService: PreviewDeploySetupService;
     shareService: ShareService;
+    userService: UserService;
     // Lazy to break the construction cycle: schedulerAiAugmentationService →
     // aiAgentService → aiAgentToolsService.
     getSchedulerAiAugmentationService: () => SchedulerAiAugmentationService;
@@ -310,6 +314,8 @@ export class AiAgentToolsService extends BaseService {
     private readonly previewDeploySetupService: PreviewDeploySetupService;
 
     private readonly shareService: ShareService;
+
+    private readonly userService: UserService;
 
     private readonly getSchedulerAiAugmentationService: () => SchedulerAiAugmentationService;
 
@@ -372,6 +378,7 @@ export class AiAgentToolsService extends BaseService {
         featureFlagService,
         previewDeploySetupService,
         shareService,
+        userService,
         getSchedulerAiAugmentationService,
         lightdashConfig,
     }: AiAgentToolsServiceDependencies) {
@@ -399,6 +406,7 @@ export class AiAgentToolsService extends BaseService {
         this.featureFlagService = featureFlagService;
         this.previewDeploySetupService = previewDeploySetupService;
         this.shareService = shareService;
+        this.userService = userService;
         this.getSchedulerAiAugmentationService =
             getSchedulerAiAugmentationService;
         this.lightdashConfig = lightdashConfig;
@@ -505,7 +513,7 @@ export class AiAgentToolsService extends BaseService {
     createRuntime(
         context: AiAgentToolsRuntimeContext,
     ): AiAgentToolsRuntime | McpAiAgentToolsRuntime {
-        const runtime: AiAgentToolsRuntime = {
+        const runtime: Omit<AiAgentToolsRuntime, 'updateUserName'> = {
             listExplores: () => this.listExplores(context),
             getExplore: (args) => this.getExploreForRuntime(context, args),
             findExplores: (args) => this.findExplores(context, args),
@@ -554,11 +562,14 @@ export class AiAgentToolsService extends BaseService {
 
         return context.source === 'mcp'
             ? this.withMcpRuntimeResults(runtime)
-            : runtime;
+            : {
+                  ...runtime,
+                  updateUserName: (args) => this.updateUserName(context, args),
+              };
     }
 
     private withMcpRuntimeResults(
-        runtime: AiAgentToolsRuntime,
+        runtime: Omit<AiAgentToolsRuntime, 'updateUserName'>,
     ): McpAiAgentToolsRuntime {
         return {
             ...runtime,
@@ -1794,6 +1805,16 @@ export class AiAgentToolsService extends BaseService {
                 }
             },
         );
+    }
+
+    private async updateUserName(
+        context: AiAgentToolsRuntimeContext,
+        args: Parameters<UpdateUserNameFn>[0],
+    ): ReturnType<UpdateUserNameFn> {
+        await this.userService.updateUser(context.user, {
+            firstName: args.firstName.trim(),
+            lastName: args.lastName.trim(),
+        });
     }
 
     private runAsyncQuery(

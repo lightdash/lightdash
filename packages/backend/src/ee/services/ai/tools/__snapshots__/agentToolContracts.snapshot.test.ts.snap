@@ -918,6 +918,79 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
     },
   },
   {
+    "description": "Update the first and last name of the user you are currently talking to. Use this when the user tells you their name — either because you asked (their name has not been collected yet) or because they want to correct how their name is stored. Only save a name the user explicitly provided for themselves; never invent or infer one, and never use it to change another user's name.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "firstName": {
+          "maxLength": 255,
+          "minLength": 1,
+          "type": "string",
+        },
+        "lastName": {
+          "maxLength": 255,
+          "minLength": 1,
+          "type": "string",
+        },
+      },
+      "required": [
+        "firstName",
+        "lastName",
+      ],
+      "type": "object",
+    },
+    "name": "updateUserName",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "const": "error",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "fullName": {
+                  "type": "string",
+                },
+                "status": {
+                  "const": "success",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+                "fullName",
+              ],
+              "type": "object",
+            },
+          ],
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
+  },
+  {
     "description": "Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -7647,6 +7720,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "editContent",
   "createContent",
   "createScheduledDelivery",
+  "updateUserName",
   "runContentQuery",
   "listContent",
   "improveContext",
