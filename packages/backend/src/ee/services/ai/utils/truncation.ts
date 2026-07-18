@@ -22,5 +22,30 @@ export const truncate = (value: string, max: number) => {
     return `${valueChars.slice(0, maxChars).join('')}${TRUNCATED_SUFFIX}`;
 };
 
+const DEFAULT_WORD_BOUNDARY_ELLIPSIS = '...';
+
+export const truncateAtWordBoundary = (
+    value: string,
+    maxLength: number,
+    ellipsis = DEFAULT_WORD_BOUNDARY_ELLIPSIS,
+): string => {
+    const trimmed = value.trim();
+    const chars = Array.from(trimmed);
+    if (chars.length <= maxLength) return trimmed;
+
+    const ellipsisChars = Array.from(ellipsis);
+    const maxContentLength = maxLength - ellipsisChars.length;
+    if (maxContentLength <= 0) {
+        return ellipsisChars.slice(0, maxLength).join('');
+    }
+
+    const content = chars.slice(0, maxContentLength).join('');
+    const lastSpace = content.lastIndexOf(' ');
+    const truncatedContent =
+        lastSpace > 0 ? content.slice(0, lastSpace) : content;
+
+    return `${truncatedContent.trimEnd()}${ellipsis}`;
+};
+
 // TODO: move this out...
 export const DASHBOARD_CHARTS_PREVIEW_COUNT = 5;

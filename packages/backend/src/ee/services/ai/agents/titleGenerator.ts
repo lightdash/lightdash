@@ -6,16 +6,14 @@ import {
 } from '../../../../analytics/aiUsage';
 import { GeneratorModelOptions } from '../models/types';
 import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
+import { truncateAtWordBoundary } from '../utils/truncation';
 
-const TITLE_MAX_LENGTH_CHARS = 60;
+export const TITLE_MAX_LENGTH_CHARS = 60;
+
 const TitleSchema = z.object({
     title: z
         .string()
         .min(1, 'Title must not be empty')
-        .max(
-            TITLE_MAX_LENGTH_CHARS,
-            `Title must be ${TITLE_MAX_LENGTH_CHARS} characters or less`,
-        )
         .describe('A concise, descriptive title for the conversation thread'),
 });
 
@@ -62,5 +60,5 @@ The title should be clear, specific, and helpful for someone browsing a list of 
 
     emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
-    return result.object.title;
+    return truncateAtWordBoundary(result.object.title, TITLE_MAX_LENGTH_CHARS);
 }
