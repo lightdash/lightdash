@@ -21,7 +21,7 @@ import { ProjectFormProvider } from './ProjectFormProvider';
 import { type ProjectConnectionForm } from './types';
 import { useOnProjectError } from './useOnProjectError';
 import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
-import { warehouseValueValidators } from './WarehouseForms/validators';
+import { createWarehouseValueValidators } from './WarehouseForms/validators';
 
 interface CreateProjectConnectionProps {
     isCreatingFirstProject: boolean;
@@ -61,7 +61,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             organizationWarehouseCredentialsUuid: undefined,
         },
         validate: {
-            warehouse: warehouseValueValidators[warehouseType],
+            warehouse: createWarehouseValueValidators[warehouseType],
             dbt: warehouseOnly ? {} : dbtFormValidators,
         },
         validateInputOnBlur: true,
@@ -129,7 +129,9 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                 <FormContainer>
                     <ProjectFormProvider>
                         <ProjectForm
-                            showGeneralSettings={!isCreatingFirstProject}
+                            showGeneralSettings={
+                                !isCreatingFirstProject && !warehouseOnly
+                            }
                             disabled={isSavingProject}
                             defaultType={health.data?.defaultProject?.type}
                             warehouseOnly={warehouseOnly}
@@ -139,6 +141,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                             style={{ alignSelf: 'end' }}
                             type="submit"
                             loading={isSavingProject}
+                            disabled={!form.isValid()}
                         >
                             {warehouseOnly
                                 ? 'Test & save'

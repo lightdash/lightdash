@@ -23,7 +23,7 @@ import { ProjectFormProvider } from '../ProjectFormProvider';
 import { type ProjectConnectionForm } from '../types';
 import { useOnProjectError } from '../useOnProjectError';
 import { warehouseDefaultValues } from '../WarehouseForms/defaultValues';
-import { warehouseValueValidators } from '../WarehouseForms/validators';
+import { createWarehouseValueValidators } from '../WarehouseForms/validators';
 import WarehouseSettingsForm from '../WarehouseSettingsForm';
 import { OnboardingTitle } from './common/OnboardingTitle';
 import { getWarehouseIcon, getWarehouseLabel } from './utils';
@@ -116,7 +116,7 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
             organizationWarehouseCredentialsUuid: undefined,
         },
         validate: {
-            warehouse: warehouseValueValidators[selectedWarehouse],
+            warehouse: createWarehouseValueValidators[selectedWarehouse],
         },
         validateInputOnBlur: true,
     });
