@@ -12,6 +12,7 @@ import useActiveJob from '../../providers/ActiveJob/useActiveJob';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import classes from './CreateProjectconnection.module.css';
 import { dbtDefaults, noneDefaultValues } from './DbtForms/defaultValues';
 import { dbtFormValidators } from './DbtForms/validators';
 import { FormContainer } from './FormContainer';
@@ -21,7 +22,7 @@ import { ProjectFormProvider } from './ProjectFormProvider';
 import { type ProjectConnectionForm } from './types';
 import { useOnProjectError } from './useOnProjectError';
 import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
-import { warehouseValueValidators } from './WarehouseForms/validators';
+import { createWarehouseValueValidators } from './WarehouseForms/validators';
 
 interface CreateProjectConnectionProps {
     isCreatingFirstProject: boolean;
@@ -61,7 +62,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             organizationWarehouseCredentialsUuid: undefined,
         },
         validate: {
-            warehouse: warehouseValueValidators[warehouseType],
+            warehouse: createWarehouseValueValidators[warehouseType],
             dbt: warehouseOnly ? {} : dbtFormValidators,
         },
         validateInputOnBlur: true,
@@ -125,11 +126,16 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
 
     return (
         <FormProvider form={form}>
-            <form onSubmit={form.onSubmit(handleSubmit, handleError)}>
+            <form
+                className={classes.form}
+                onSubmit={form.onSubmit(handleSubmit, handleError)}
+            >
                 <FormContainer>
                     <ProjectFormProvider>
                         <ProjectForm
-                            showGeneralSettings={!isCreatingFirstProject}
+                            showGeneralSettings={
+                                !isCreatingFirstProject && !warehouseOnly
+                            }
                             disabled={isSavingProject}
                             defaultType={health.data?.defaultProject?.type}
                             warehouseOnly={warehouseOnly}
@@ -139,6 +145,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                             style={{ alignSelf: 'end' }}
                             type="submit"
                             loading={isSavingProject}
+                            disabled={!form.isValid()}
                         >
                             {warehouseOnly
                                 ? 'Test & save'
