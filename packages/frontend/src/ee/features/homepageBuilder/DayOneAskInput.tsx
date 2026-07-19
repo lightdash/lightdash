@@ -116,7 +116,8 @@ const DayOneAskInputInner: FC<Props> = ({
     hideSuggestions,
 }) => {
     const navigate = useNavigate();
-    const { track } = useTracking();
+    const { track, data: trackingData } = useTracking();
+    const isTrackingReady = !!trackingData.rudder;
     const { user } = useApp();
     const { setPendingPrompt } = usePendingPrompt();
     const { data: agents, isInitialLoading: isLoadingAgents } =
@@ -248,6 +249,7 @@ const DayOneAskInputInner: FC<Props> = ({
     const impressionFiredRef = useRef(false);
     useEffect(() => {
         if (impressionFiredRef.current) return;
+        if (!isTrackingReady) return;
         if (hideSuggestions) return;
         if (!projectUuid || !referenceAgent?.uuid) return;
         if (chips.length === 0) return;
@@ -262,6 +264,7 @@ const DayOneAskInputInner: FC<Props> = ({
             },
         });
     }, [
+        isTrackingReady,
         chips.length,
         projectUuid,
         referenceAgent?.uuid,
