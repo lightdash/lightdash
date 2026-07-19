@@ -1,3 +1,10 @@
+# [0.3419.0](https://github.com/lightdash/lightdash/compare/0.3418.0...0.3419.0) (2026-07-19)
+
+
+### Features
+
+* end-to-end analytics for the new onboarding flow ([#25774](https://github.com/lightdash/lightdash/issues/25774)) ([2f77870](https://github.com/lightdash/lightdash/commit/2f77870b3485c4819cb9383b640f4971c000f58c))
+
 # [0.3418.0](https://github.com/lightdash/lightdash/compare/0.3417.2...0.3418.0) (2026-07-19)
 
 
