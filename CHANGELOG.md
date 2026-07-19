@@ -1,3 +1,10 @@
+## [0.3417.1](https://github.com/lightdash/lightdash/compare/0.3417.0...0.3417.1) (2026-07-19)
+
+
+### Bug Fixes
+
+* **api-tests:** widen project-refresh poll window and report job outcome ([#25771](https://github.com/lightdash/lightdash/issues/25771)) ([a2a4c9c](https://github.com/lightdash/lightdash/commit/a2a4c9c49c473bb038d583ac464a1196ff13b2b9))
+
 # [0.3417.0](https://github.com/lightdash/lightdash/compare/0.3416.2...0.3417.0) (2026-07-19)
 
 
