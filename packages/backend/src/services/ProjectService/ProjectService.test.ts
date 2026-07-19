@@ -365,6 +365,23 @@ describe('ProjectService', () => {
         vi.clearAllMocks();
     });
 
+    test('includes onboarding flow in project analytics properties', () => {
+        expect(
+            ProjectService.getAnalyticProperties(
+                {
+                    name: projectWithSensitiveFields.name,
+                    type: projectWithSensitiveFields.type,
+                    dbtConnection: projectWithSensitiveFields.dbtConnection,
+                    warehouseConnection: warehouseClientMock.credentials,
+                },
+                projectUuid,
+                user,
+                RequestMethod.WEB_APP,
+                'new',
+            ),
+        ).toMatchObject({ onboardingFlow: 'new' });
+    });
+
     describe('refreshTablesAndProjectConfig for a CLI/NONE preview', () => {
         const upstreamProjectUuid = 'upstream-project-uuid';
         const previewProjectUuid = 'preview-project-uuid';

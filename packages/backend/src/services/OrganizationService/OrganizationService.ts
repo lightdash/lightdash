@@ -860,6 +860,11 @@ export class OrganizationService extends BaseService {
             throw new ForbiddenError('User already has an organization');
         }
         const org = await this.organizationModel.create(data);
+        const { enabled: newOnboardingEnabled } =
+            await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.NewOnboarding,
+            });
         this.analytics.track({
             event: 'organization.created',
             userId: user.userUuid,
@@ -870,6 +875,7 @@ export class OrganizationService extends BaseService {
                         : 'self-hosted',
                 organizationId: org.organizationUuid,
                 organizationName: org.name,
+                onboardingFlow: newOnboardingEnabled ? 'new' : 'legacy',
             },
         });
         await this.userModel.joinOrg(

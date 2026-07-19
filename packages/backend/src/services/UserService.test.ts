@@ -373,7 +373,21 @@ describe('UserService', () => {
                 'email-only@example.com',
                 'email',
             );
-            expect(sendOneTimePasscodeSpy).toHaveBeenCalledWith(sessionUser);
+            expect(sendOneTimePasscodeSpy).toHaveBeenCalledWith(
+                sessionUser,
+                'signup_verification',
+            );
+            expect(analyticsMock.track).toHaveBeenCalledWith({
+                event: 'user.created',
+                userId: sessionUser.userUuid,
+                properties: {
+                    context: 'registration',
+                    createdUserId: sessionUser.userUuid,
+                    organizationId: sessionUser.organizationUuid,
+                    userConnectionType: 'email_only',
+                    onboardingFlow: 'new',
+                },
+            });
         });
 
         test('rejects an email-only user when the feature is disabled', async () => {
@@ -414,14 +428,20 @@ describe('UserService', () => {
                 password: 'password1!',
             });
 
-            expect(featureFlagModel.get).not.toHaveBeenCalled();
+            expect(featureFlagModel.get).toHaveBeenCalledWith({
+                user: undefined,
+                featureFlagId: FeatureFlags.NewOnboarding,
+            });
             expect(userModel.createUser).toHaveBeenCalledWith({
                 firstName: 'Full',
                 lastName: 'User',
                 email: 'full@example.com',
                 password: 'password1!',
             });
-            expect(sendOneTimePasscodeSpy).toHaveBeenCalledWith(sessionUser);
+            expect(sendOneTimePasscodeSpy).toHaveBeenCalledWith(
+                sessionUser,
+                'signup_verification',
+            );
         });
     });
 
@@ -478,6 +498,7 @@ describe('UserService', () => {
                     createdUserId: memberUser.userUuid,
                     organizationId: memberUser.organizationUuid,
                     userConnectionType: 'email_only',
+                    onboardingFlow: 'legacy',
                 },
             });
         });
@@ -643,6 +664,7 @@ describe('UserService', () => {
         );
         expect(service.sendOneTimePasscodeToPrimaryEmail).toHaveBeenCalledWith(
             sessionUser,
+            'signup_verification',
         );
         expect(analyticsMock.track).toHaveBeenCalledWith({
             event: 'user.created',
@@ -652,6 +674,7 @@ describe('UserService', () => {
                 createdUserId: sessionUser.userUuid,
                 organizationId: sessionUser.organizationUuid,
                 userConnectionType: 'password',
+                onboardingFlow: 'legacy',
             },
         });
     });
@@ -746,6 +769,39 @@ describe('UserService', () => {
                     recipient: 'email',
                     passcode,
                 });
+                expect(analyticsMock.track).toHaveBeenCalledWith({
+                    event: 'one_time_passcode.sent',
+                    userId: sessionUser.userUuid,
+                    properties: {
+                        purpose: 'login',
+                        isResend: false,
+                        onboardingFlow: 'new',
+                    },
+                });
+            });
+
+            test('marks an unexpired OTP replacement as a resend', async () => {
+                const service = createUserService(lightdashConfigMock, {
+                    featureFlagModel: createFeatureFlagModel(true),
+                });
+                userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
+                userModel.hasPassword.mockResolvedValueOnce(false);
+                userModel.hasOpenIdIdentity.mockResolvedValueOnce(false);
+                emailModel.getPrimaryEmailStatus.mockResolvedValueOnce(
+                    activeOtp(),
+                );
+
+                await service.requestEmailOtpLogin('email');
+
+                expect(analyticsMock.track).toHaveBeenCalledWith({
+                    event: 'one_time_passcode.sent',
+                    userId: sessionUser.userUuid,
+                    properties: {
+                        purpose: 'login',
+                        isResend: true,
+                        onboardingFlow: 'new',
+                    },
+                });
             });
         });
 
@@ -788,6 +844,19 @@ describe('UserService', () => {
                 );
                 expect(analyticsMock.track).toHaveBeenCalledWith({
                     userId: sessionUser.userUuid,
+                    event: 'user.verified',
+                    properties: {
+                        email: emailStatus.email,
+                        location: sessionUser.isSetupComplete
+                            ? 'settings'
+                            : 'onboarding',
+                        isTrackingAnonymized: sessionUser.isTrackingAnonymized,
+                        method: 'otp',
+                        onboardingFlow: 'new',
+                    },
+                });
+                expect(analyticsMock.track).toHaveBeenCalledWith({
+                    userId: sessionUser.userUuid,
                     event: 'user.logged_in',
                     properties: { loginProvider: 'email_otp' },
                 });
@@ -812,6 +881,15 @@ describe('UserService', () => {
                 expect(
                     emailModel.incrementPrimaryEmailOtpAttempts,
                 ).toHaveBeenCalledWith(sessionUser.userUuid);
+                expect(analyticsMock.track).toHaveBeenCalledWith({
+                    event: 'one_time_passcode.failed',
+                    userId: sessionUser.userUuid,
+                    properties: {
+                        purpose: 'login',
+                        reason: 'invalid',
+                        onboardingFlow: 'new',
+                    },
+                });
             });
 
             test('rejects a sixth attempt without comparing the code', async () => {
@@ -833,6 +911,15 @@ describe('UserService', () => {
                 expect(
                     emailModel.incrementPrimaryEmailOtpAttempts,
                 ).not.toHaveBeenCalled();
+                expect(analyticsMock.track).toHaveBeenCalledWith({
+                    event: 'one_time_passcode.failed',
+                    userId: sessionUser.userUuid,
+                    properties: {
+                        purpose: 'login',
+                        reason: 'max_attempts',
+                        onboardingFlow: 'new',
+                    },
+                });
             });
 
             test('rejects an expired OTP', async () => {
@@ -851,6 +938,15 @@ describe('UserService', () => {
                 expect(
                     emailModel.getPrimaryEmailStatusByUserAndOtp,
                 ).not.toHaveBeenCalled();
+                expect(analyticsMock.track).toHaveBeenCalledWith({
+                    event: 'one_time_passcode.failed',
+                    userId: sessionUser.userUuid,
+                    properties: {
+                        purpose: 'login',
+                        reason: 'expired',
+                        onboardingFlow: 'new',
+                    },
+                });
             });
 
             test('rejects a passworded account with the generic error', async () => {
@@ -899,6 +995,65 @@ describe('UserService', () => {
                 await expect(
                     service.loginWithEmailOtp('EMAIL', '123456'),
                 ).resolves.toBe(sessionUser);
+            });
+        });
+
+        describe('getPrimaryEmailStatus', () => {
+            test.each([
+                {
+                    status: activeOtp(5),
+                    reason: 'max_attempts' as const,
+                },
+                {
+                    status: activeOtp(0, new Date(Date.now() - 16 * 60 * 1000)),
+                    reason: 'expired' as const,
+                },
+            ])(
+                'tracks $reason verification failures',
+                async ({ status, reason }) => {
+                    const service = createUserService(lightdashConfigMock, {
+                        featureFlagModel: createFeatureFlagModel(true),
+                    });
+                    emailModel.getPrimaryEmailStatusByUserAndOtp.mockResolvedValueOnce(
+                        status,
+                    );
+
+                    await service.getPrimaryEmailStatus(
+                        { ...sessionUser, isSetupComplete: false },
+                        '123456',
+                    );
+
+                    expect(analyticsMock.track).toHaveBeenCalledWith({
+                        event: 'one_time_passcode.failed',
+                        userId: sessionUser.userUuid,
+                        properties: {
+                            purpose: 'signup_verification',
+                            reason,
+                            onboardingFlow: 'new',
+                        },
+                    });
+                },
+            );
+
+            test('tracks an invalid verification passcode', async () => {
+                const service = createUserService(lightdashConfigMock, {
+                    featureFlagModel: createFeatureFlagModel(true),
+                });
+                emailModel.getPrimaryEmailStatusByUserAndOtp.mockRejectedValueOnce(
+                    new NotFoundError('No matching OTP'),
+                );
+
+                await service.getPrimaryEmailStatus(sessionUser, 'wrong');
+
+                expect(analyticsMock.track).toHaveBeenCalledWith({
+                    event: 'one_time_passcode.failed',
+                    userId: sessionUser.userUuid,
+                    properties: {
+                        purpose: 'email_change',
+                        reason: 'invalid',
+                        onboardingFlow: 'new',
+                    },
+                });
             });
         });
     });

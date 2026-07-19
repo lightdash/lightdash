@@ -216,6 +216,7 @@ import {
     LightdashAnalytics,
     MetricQueryExecutionProperties,
     ProjectEvent,
+    type OnboardingFlow,
 } from '../../analytics/LightdashAnalytics';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
@@ -568,6 +569,16 @@ export class ProjectService extends BaseService {
         this.onProjectCreated = onProjectCreated;
     }
 
+    private async getOnboardingFlow(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<OnboardingFlow> {
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.NewOnboarding,
+        });
+        return enabled ? 'new' : 'legacy';
+    }
+
     private async provisionDefaultAiAgent(
         user: SessionUser,
         projectUuid: string,
@@ -577,12 +588,12 @@ export class ProjectService extends BaseService {
             return;
         }
 
-        try {
-            const { organizationUuid } = user;
-            if (!organizationUuid) {
-                return;
-            }
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            return;
+        }
 
+        try {
             const projects =
                 await this.projectModel.getAllByOrganizationUuid(
                     organizationUuid,
@@ -602,8 +613,19 @@ export class ProjectService extends BaseService {
                 projectUuid,
             );
         } catch (error) {
+            const errorMessage =
+                error instanceof Error ? error.message : String(error);
+            this.analytics.track({
+                event: 'ai_agent.provisioning_failed',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    error: errorMessage,
+                },
+            });
             this.logger.warn(
-                `Failed to provision default AI agent for project ${projectUuid}: ${error instanceof Error ? error.message : String(error)}`,
+                `Failed to provision default AI agent for project ${projectUuid}: ${errorMessage}`,
             );
         }
     }
@@ -2384,6 +2406,7 @@ export class ProjectService extends BaseService {
                 ),
             );
 
+        const onboardingFlow = await this.getOnboardingFlow(user);
         // Do not give this user admin permissions on this new project,
         // as it could be an interactive viewer creating a preview
         // and we don't want to allow users to acces sql runner or leak admin data
@@ -2395,6 +2418,7 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 user,
                 method,
+                onboardingFlow,
             ),
         });
 
@@ -2631,6 +2655,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         user: SessionUser,
         method: RequestMethod,
+        onboardingFlow: OnboardingFlow,
     ): ProjectEvent['properties'] {
         const warehouseType = createProject.warehouseConnection?.type;
         const authenticationType =
@@ -2650,6 +2675,7 @@ export class ProjectService extends BaseService {
             authenticationType,
             requireUserCredentials:
                 createProject.warehouseConnection?.requireUserCredentials,
+            onboardingFlow,
         };
     }
 
@@ -2675,7 +2701,13 @@ export class ProjectService extends BaseService {
             const { adapter, sshTunnel } = await this.jobModel.tryJobStep(
                 jobUuid,
                 JobStepType.TESTING_ADAPTOR,
-                async () => this.testProjectAdapter(createProject, user),
+                async () =>
+                    this.testProjectAdapter(
+                        createProject,
+                        user,
+                        'project_create',
+                        method,
+                    ),
             );
 
             const { explores, lightdashProjectConfig, projectContext } =
@@ -2814,6 +2846,7 @@ export class ProjectService extends BaseService {
                     projectUuid,
                 },
             });
+            const onboardingFlow = await this.getOnboardingFlow(user);
             this.analytics.track({
                 event: 'project.created',
                 userId: user.userUuid,
@@ -2822,6 +2855,7 @@ export class ProjectService extends BaseService {
                     projectUuid,
                     user,
                     method,
+                    onboardingFlow,
                 ),
             });
 
@@ -3316,6 +3350,8 @@ export class ProjectService extends BaseService {
                     this.testProjectAdapter(
                         updatedProject as UpdateProject,
                         user,
+                        'project_update',
+                        method,
                     ),
             );
             timings.testAdapter.end = performance.now();
@@ -3453,6 +3489,7 @@ export class ProjectService extends BaseService {
                 ...updatedProject,
                 warehouseConnection: updatedProject.warehouseConnection,
             };
+            const onboardingFlow = await this.getOnboardingFlow(user);
             this.analytics.track({
                 event: 'project.updated',
                 userId: user.userUuid,
@@ -3461,6 +3498,7 @@ export class ProjectService extends BaseService {
                     projectUuid,
                     user,
                     method,
+                    onboardingFlow,
                 ),
             });
             const totalTime = performance.now() - totalStartTime;
@@ -3535,7 +3573,9 @@ export class ProjectService extends BaseService {
 
     private async testProjectAdapter(
         data: UpdateProject,
-        _user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        context: 'project_create' | 'project_update',
+        method: RequestMethod,
     ): Promise<{
         adapter: ProjectAdapter;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
@@ -3543,40 +3583,70 @@ export class ProjectService extends BaseService {
         cachedWarehouse: CachedWarehouse;
         dbtVersionOption: DbtVersionOption;
     }> {
+        const onboardingFlow = await this.getOnboardingFlow(user);
         const sshTunnel = new SshTunnel(data.warehouseConnection);
-        await sshTunnel.connect();
-        const dbtConnection = await this.resolveDbtConnectionInstallationId(
-            data.dbtConnection,
-            _user.organizationUuid,
-        );
-        const warehouseCredentials = sshTunnel.overrideCredentials;
-        const cachedWarehouse: CachedWarehouse = {
-            warehouseCatalog: undefined,
-            onWarehouseCatalogChange: () => {},
-        };
-        const dbtVersionOption = data.dbtVersion || DefaultSupportedDbtVersion;
-        const adapter = await projectAdapterFromConfig(
-            dbtConnection,
-            warehouseCredentials,
-            cachedWarehouse,
-            dbtVersionOption,
-            this.analytics,
-        );
+        let adapter: ProjectAdapter | undefined;
         try {
+            await sshTunnel.connect();
+            const dbtConnection = await this.resolveDbtConnectionInstallationId(
+                data.dbtConnection,
+                user.organizationUuid,
+            );
+            const warehouseCredentials = sshTunnel.overrideCredentials;
+            const cachedWarehouse: CachedWarehouse = {
+                warehouseCatalog: undefined,
+                onWarehouseCatalogChange: () => {},
+            };
+            const dbtVersionOption =
+                data.dbtVersion || DefaultSupportedDbtVersion;
+            adapter = await projectAdapterFromConfig(
+                dbtConnection,
+                warehouseCredentials,
+                cachedWarehouse,
+                dbtVersionOption,
+                this.analytics,
+            );
             await adapter.test();
-        } catch (e) {
-            Logger.error(`Error testing project adapter: ${e}`);
-            await adapter.destroy();
+            this.analytics.track({
+                event: 'warehouse_connection.tested',
+                userId: user.userUuid,
+                properties: {
+                    warehouseType: data.warehouseConnection.type,
+                    result: 'success',
+                    context,
+                    method,
+                    onboardingFlow,
+                },
+            });
+            return {
+                adapter,
+                sshTunnel,
+                warehouseCredentials,
+                cachedWarehouse,
+                dbtVersionOption,
+            };
+        } catch (error) {
+            const errorType =
+                error instanceof Error && error.constructor.name
+                    ? error.constructor.name
+                    : 'UnknownError';
+            this.analytics.track({
+                event: 'warehouse_connection.tested',
+                userId: user.userUuid,
+                properties: {
+                    warehouseType: data.warehouseConnection.type,
+                    result: 'failure',
+                    errorType,
+                    context,
+                    method,
+                    onboardingFlow,
+                },
+            });
+            Logger.error(`Error testing project adapter: ${error}`);
+            await adapter?.destroy();
             await sshTunnel.disconnect();
-            throw e;
+            throw error;
         }
-        return {
-            adapter,
-            sshTunnel,
-            warehouseCredentials,
-            cachedWarehouse,
-            dbtVersionOption,
-        };
     }
 
     async previewDataTimezone(

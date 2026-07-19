@@ -93,6 +93,8 @@ const buildArguments = () => {
         vi.fn<
             ProvisionOnboardingHomepageArguments['projectHomepageModel']['publish']
         >();
+    const track =
+        vi.fn<ProvisionOnboardingHomepageArguments['analytics']['track']>();
 
     const featureFlagService = { get: getFeatureFlag };
     const projectModel = { getAllByOrganizationUuid };
@@ -101,6 +103,7 @@ const buildArguments = () => {
         create: createHomepage,
         publish: publishHomepage,
     };
+    const analytics = { track };
 
     vi.mocked(getFeatureFlag).mockImplementation(async ({ featureFlagId }) => ({
         id: featureFlagId,
@@ -121,12 +124,14 @@ const buildArguments = () => {
             featureFlagService,
             projectModel,
             projectHomepageModel,
+            analytics,
         } satisfies ProvisionOnboardingHomepageArguments,
         getFeatureFlag: vi.mocked(getFeatureFlag),
         getAllByOrganizationUuid: vi.mocked(getAllByOrganizationUuid),
         listHomepages: vi.mocked(listHomepages),
         createHomepage: vi.mocked(createHomepage),
         publishHomepage: vi.mocked(publishHomepage),
+        track: vi.mocked(track),
     };
 };
 
@@ -213,5 +218,14 @@ describe('provisionOnboardingHomepage', () => {
             { type: 'everyone' },
             true,
         );
+        expect(mocks.track).toHaveBeenCalledWith({
+            event: 'onboarding_homepage.provisioned',
+            userId: USER_UUID,
+            properties: {
+                organizationId: ORGANIZATION_UUID,
+                projectId: PROJECT_UUID,
+                homepageUuid: HOMEPAGE_UUID,
+            },
+        });
     });
 });
