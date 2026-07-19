@@ -513,6 +513,7 @@ const SnowflakeForm: FC<{
                                             value={temporaryFile}
                                             onChange={(file) => {
                                                 if (!file) {
+                                                    setTemporaryFile(undefined);
                                                     form.setFieldValue(
                                                         'warehouse.privateKey',
                                                         null,
@@ -543,6 +544,13 @@ const SnowflakeForm: FC<{
                                                             null,
                                                         );
                                                     }
+                                                };
+                                                fileReader.onerror = () => {
+                                                    setTemporaryFile(undefined);
+                                                    form.setFieldValue(
+                                                        'warehouse.privateKey',
+                                                        null,
+                                                    );
                                                 };
                                                 fileReader.readAsText(file);
                                             }}
