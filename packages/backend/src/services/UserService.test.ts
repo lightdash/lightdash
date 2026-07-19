@@ -2,8 +2,10 @@ import {
     AuthorizationError,
     defineUserAbility,
     EmailStatus,
+    ExpiredError,
     FeatureFlags,
     ForbiddenError,
+    InviteLinkPurpose,
     NotFoundError,
     OpenIdIdentityIssuerType,
     OrganizationMemberRole,
@@ -67,6 +69,8 @@ const userModel = {
     })),
     createUser: vi.fn<UserModel['createUser']>(async () => sessionUser),
     activateUser: vi.fn(async () => sessionUser),
+    activateUserWithoutPassword: vi.fn(async () => sessionUser),
+    addProjectMemberships: vi.fn(async () => undefined),
     getOrganizationsForUser: vi.fn(async () => [sessionUser]),
     findUserByEmail: vi.fn<UserModel['findUserByEmail']>(async () => undefined),
     createPendingUser: vi.fn(async () => newUser),
@@ -157,8 +161,16 @@ const organizationSettingsModel = {
     update: vi.fn(),
 };
 
+const organizationAllowedEmailDomainsModel = {
+    findAllowedEmailDomains: vi.fn(async () => undefined),
+};
+
 type UserServiceTestOverrides = {
     featureFlagModel?: Pick<FeatureFlagModel, 'get'>;
+    organizationAllowedEmailDomainsModel?: Pick<
+        OrganizationAllowedEmailDomainsModel,
+        'findAllowedEmailDomains'
+    >;
     passwordResetLinkModel?: Pick<
         PasswordResetLinkModel,
         'getByCode' | 'deleteByCode'
@@ -189,7 +201,8 @@ const createUserService = (
         organizationModel: organizationModel as unknown as OrganizationModel,
         personalAccessTokenModel: {} as PersonalAccessTokenModel,
         organizationAllowedEmailDomainsModel:
-            {} as OrganizationAllowedEmailDomainsModel,
+            (overrides.organizationAllowedEmailDomainsModel as OrganizationAllowedEmailDomainsModel) ??
+            (organizationAllowedEmailDomainsModel as unknown as OrganizationAllowedEmailDomainsModel),
         organizationSsoModel:
             organizationSsoModel as unknown as OrganizationSsoModel,
         organizationSettingsModel:
@@ -409,6 +422,237 @@ describe('UserService', () => {
                 password: 'password1!',
             });
             expect(sendOneTimePasscodeSpy).toHaveBeenCalledWith(sessionUser);
+        });
+    });
+
+    describe('activateUserFromInviteWithoutPassword', () => {
+        const validInviteLink = {
+            ...inviteLink,
+            email: 'invitee@example.com',
+            expiresAt: new Date('2099-01-01'),
+        };
+        const memberUser = {
+            ...sessionUser,
+            userUuid: validInviteLink.userUuid,
+            email: validInviteLink.email,
+            role: OrganizationMemberRole.MEMBER,
+        };
+
+        test('activates the invited user without a password and consumes the invite', async () => {
+            vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce(
+                validInviteLink,
+            );
+            vi.mocked(
+                userModel.activateUserWithoutPassword,
+            ).mockResolvedValueOnce(memberUser);
+            vi.mocked(userModel.findSessionUserByUUID).mockResolvedValueOnce(
+                memberUser,
+            );
+            const service = createUserService(lightdashConfigMock);
+            const loginMethodAllowedSpy = vi
+                .spyOn(service, 'isLoginMethodAllowed')
+                .mockResolvedValue(true);
+
+            await expect(
+                service.activateUserFromInviteWithoutPassword(
+                    validInviteLink.inviteCode,
+                ),
+            ).resolves.toEqual(memberUser);
+
+            expect(loginMethodAllowedSpy).toHaveBeenCalledWith(
+                validInviteLink.email,
+                'email',
+            );
+            expect(userModel.activateUserWithoutPassword).toHaveBeenCalledWith(
+                validInviteLink.userUuid,
+            );
+            expect(inviteLinkModel.deleteByCode).toHaveBeenCalledWith(
+                validInviteLink.inviteCode,
+            );
+            expect(emailClient.sendOneTimePasscodeEmail).not.toHaveBeenCalled();
+            expect(analyticsMock.track).toHaveBeenCalledWith({
+                event: 'user.created',
+                userId: memberUser.userUuid,
+                properties: {
+                    context: 'accept_invite',
+                    createdUserId: memberUser.userUuid,
+                    organizationId: memberUser.organizationUuid,
+                    userConnectionType: 'email_only',
+                },
+            });
+        });
+
+        test('rejects and consumes an expired invite without activating the user', async () => {
+            vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce({
+                ...validInviteLink,
+                expiresAt: new Date('2000-01-01'),
+            });
+            const service = createUserService(lightdashConfigMock);
+
+            await expect(
+                service.activateUserFromInviteWithoutPassword(
+                    validInviteLink.inviteCode,
+                ),
+            ).rejects.toThrow(new ExpiredError('Invite link expired'));
+
+            expect(inviteLinkModel.deleteByCode).toHaveBeenCalledWith(
+                validInviteLink.inviteCode,
+            );
+            expect(
+                userModel.activateUserWithoutPassword,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('returns not found for an unknown invite without activating the user', async () => {
+            vi.mocked(inviteLinkModel.getByCode).mockRejectedValueOnce(
+                new NotFoundError('No invite link found'),
+            );
+            const service = createUserService(lightdashConfigMock);
+
+            await expect(
+                service.activateUserFromInviteWithoutPassword('unknown'),
+            ).rejects.toThrow(new NotFoundError('No invite link found'));
+
+            expect(
+                userModel.activateUserWithoutPassword,
+            ).not.toHaveBeenCalled();
+            expect(inviteLinkModel.deleteByCode).not.toHaveBeenCalled();
+        });
+
+        test('returns not found when the same invite is consumed again', async () => {
+            vi.mocked(inviteLinkModel.getByCode)
+                .mockResolvedValueOnce(validInviteLink)
+                .mockRejectedValueOnce(
+                    new NotFoundError('No invite link found'),
+                );
+            vi.mocked(
+                userModel.activateUserWithoutPassword,
+            ).mockResolvedValueOnce(memberUser);
+            const service = createUserService(lightdashConfigMock);
+            vi.spyOn(service, 'isLoginMethodAllowed').mockResolvedValue(true);
+
+            await service.activateUserFromInviteWithoutPassword(
+                validInviteLink.inviteCode,
+            );
+            await expect(
+                service.activateUserFromInviteWithoutPassword(
+                    validInviteLink.inviteCode,
+                ),
+            ).rejects.toThrow(new NotFoundError('No invite link found'));
+
+            expect(userModel.activateUserWithoutPassword).toHaveBeenCalledTimes(
+                1,
+            );
+        });
+
+        test('applies allowed-domain project memberships for a member invite', async () => {
+            const allowedEmailDomainsModel: Pick<
+                OrganizationAllowedEmailDomainsModel,
+                'findAllowedEmailDomains'
+            > = {
+                findAllowedEmailDomains: vi.fn<
+                    OrganizationAllowedEmailDomainsModel['findAllowedEmailDomains']
+                >(async () => ({
+                    organizationUuid: memberUser.organizationUuid!,
+                    emailDomains: ['example.com'],
+                    role: OrganizationMemberRole.MEMBER,
+                    projects: [
+                        {
+                            projectUuid: 'project-uuid',
+                            role: ProjectMemberRole.VIEWER,
+                        },
+                    ],
+                })),
+            };
+            vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce(
+                validInviteLink,
+            );
+            vi.mocked(
+                userModel.activateUserWithoutPassword,
+            ).mockResolvedValueOnce(memberUser);
+            const service = createUserService(lightdashConfigMock, {
+                organizationAllowedEmailDomainsModel: allowedEmailDomainsModel,
+            });
+            vi.spyOn(service, 'isLoginMethodAllowed').mockResolvedValue(true);
+
+            await service.activateUserFromInviteWithoutPassword(
+                validInviteLink.inviteCode,
+            );
+
+            expect(userModel.addProjectMemberships).toHaveBeenCalledWith(
+                memberUser.userUuid,
+                { 'project-uuid': ProjectMemberRole.VIEWER },
+            );
+        });
+
+        test('preserves an admin invite role without applying member defaults', async () => {
+            const adminUser = {
+                ...memberUser,
+                role: OrganizationMemberRole.ADMIN,
+            };
+            vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce(
+                validInviteLink,
+            );
+            vi.mocked(
+                userModel.activateUserWithoutPassword,
+            ).mockResolvedValueOnce(adminUser);
+            vi.mocked(userModel.findSessionUserByUUID).mockResolvedValueOnce(
+                adminUser,
+            );
+            const service = createUserService(lightdashConfigMock);
+            vi.spyOn(service, 'isLoginMethodAllowed').mockResolvedValue(true);
+
+            await expect(
+                service.activateUserFromInviteWithoutPassword(
+                    validInviteLink.inviteCode,
+                ),
+            ).resolves.toMatchObject({ role: OrganizationMemberRole.ADMIN });
+
+            expect(
+                organizationAllowedEmailDomainsModel.findAllowedEmailDomains,
+            ).not.toHaveBeenCalled();
+            expect(userModel.addProjectMemberships).not.toHaveBeenCalled();
+        });
+    });
+
+    test('keeps password-based invite activation unchanged', async () => {
+        vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce({
+            ...inviteLink,
+            expiresAt: new Date('2099-01-01'),
+        });
+        const service = createUserService(lightdashConfigMock);
+        vi.spyOn(service, 'isLoginMethodAllowed').mockResolvedValue(true);
+        vi.spyOn(
+            service,
+            'sendOneTimePasscodeToPrimaryEmail',
+        ).mockResolvedValue({
+            email: inviteLink.email,
+            isVerified: false,
+        });
+        const activation = {
+            firstName: 'Invite',
+            lastName: 'User',
+            password: 'password1!',
+        };
+
+        await service.activateUserFromInvite(inviteLink.inviteCode, activation);
+
+        expect(userModel.activateUser).toHaveBeenCalledWith(
+            inviteLink.userUuid,
+            activation,
+        );
+        expect(service.sendOneTimePasscodeToPrimaryEmail).toHaveBeenCalledWith(
+            sessionUser,
+        );
+        expect(analyticsMock.track).toHaveBeenCalledWith({
+            event: 'user.created',
+            userId: sessionUser.userUuid,
+            properties: {
+                context: 'accept_invite',
+                createdUserId: sessionUser.userUuid,
+                organizationId: sessionUser.organizationUuid,
+                userConnectionType: 'password',
+            },
         });
     });
 
@@ -2241,6 +2485,85 @@ describe('UserService', () => {
             expect(
                 inviteLinkModel.upsert as import('vitest').Mock,
             ).toHaveBeenCalledTimes(1);
+        });
+        test('should default the purpose to member', async () => {
+            await userService.createPendingUserAndInviteLink(
+                sessionUser,
+                inviteUser,
+            );
+
+            expect(vi.mocked(inviteLinkModel.upsert)).toHaveBeenCalledWith(
+                expect.any(String),
+                inviteUser.expiresAt,
+                sessionUser.organizationUuid,
+                newUser.userUuid,
+                InviteLinkPurpose.Member,
+            );
+        });
+        test('should force setup invites to use the admin role', async () => {
+            const adminUser = {
+                ...sessionUser,
+                ability: defineUserAbility(
+                    {
+                        userUuid: sessionUser.userUuid,
+                        role: OrganizationMemberRole.ADMIN,
+                        organizationUuid: sessionUser.organizationUuid,
+                        roleUuid: undefined,
+                    },
+                    [],
+                ),
+            };
+            const setupInviteLink = {
+                ...inviteLink,
+                purpose: InviteLinkPurpose.Setup,
+            };
+            vi.mocked(inviteLinkModel.upsert).mockResolvedValueOnce(
+                setupInviteLink,
+            );
+
+            await userService.createPendingUserAndInviteLink(adminUser, {
+                ...inviteUser,
+                role: OrganizationMemberRole.MEMBER,
+                purpose: InviteLinkPurpose.Setup,
+            });
+
+            expect(vi.mocked(userModel.createPendingUser)).toHaveBeenCalledWith(
+                sessionUser.organizationUuid,
+                {
+                    email: inviteUser.email,
+                    firstName: '',
+                    lastName: '',
+                    role: OrganizationMemberRole.ADMIN,
+                },
+            );
+            expect(vi.mocked(inviteLinkModel.upsert)).toHaveBeenCalledWith(
+                expect.any(String),
+                inviteUser.expiresAt,
+                sessionUser.organizationUuid,
+                newUser.userUuid,
+                InviteLinkPurpose.Setup,
+            );
+            expect(vi.mocked(emailClient.sendInviteEmail)).toHaveBeenCalledWith(
+                adminUser,
+                setupInviteLink,
+            );
+        });
+        test('should reject setup invites when the caller cannot grant roles', async () => {
+            await expect(
+                userService.createPendingUserAndInviteLink(sessionUser, {
+                    ...inviteUser,
+                    purpose: InviteLinkPurpose.Setup,
+                }),
+            ).rejects.toThrowError(
+                new ForbiddenError(
+                    'A setup invite requires permission to grant the admin role',
+                ),
+            );
+
+            expect(
+                vi.mocked(userModel.createPendingUser),
+            ).not.toHaveBeenCalled();
+            expect(vi.mocked(inviteLinkModel.upsert)).not.toHaveBeenCalled();
         });
         test('should send invite when email belongs to user without org', async () => {
             (

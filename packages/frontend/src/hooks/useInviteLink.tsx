@@ -2,6 +2,7 @@ import {
     type ApiError,
     type CreateInviteLink,
     type InviteLink,
+    type LightdashUser,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
@@ -45,6 +46,35 @@ export const useInviteLink = (inviteCode: string | undefined) =>
         queryFn: () => inviteLinkQuery(inviteCode!),
         enabled: inviteCode !== undefined,
     });
+
+const activateInviteLinkQuery = async (inviteCode: string) =>
+    lightdashApi<LightdashUser>({
+        url: `/invite-links/${inviteCode}/activate`,
+        method: 'POST',
+        body: undefined,
+    });
+
+export const useActivateInviteLinkMutation = (
+    inviteCode: string | undefined,
+    redirectUrl: string,
+) => {
+    const { showToastApiError } = useToaster();
+    return useMutation<LightdashUser, ApiError>(
+        () => activateInviteLinkQuery(inviteCode!),
+        {
+            mutationKey: ['activate_invite_link', inviteCode],
+            onSuccess: () => {
+                window.location.href = redirectUrl;
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to accept invite',
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
 
 export const useCreateInviteLinkMutation = () => {
     const queryClient = useQueryClient();

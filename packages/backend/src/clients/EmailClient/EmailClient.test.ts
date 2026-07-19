@@ -1,3 +1,4 @@
+import { InviteLinkPurpose } from '@lightdash/common';
 import * as nodemailer from 'nodemailer';
 import type SMTPConnection from 'nodemailer/lib/smtp-connection';
 import EmailClient from './EmailClient';
@@ -86,6 +87,47 @@ describe('EmailClient', () => {
             });
             await client.sendPasswordRecoveryEmail(passwordResetLinkMock);
             expect(client.transporter?.sendMail).toHaveBeenCalledTimes(1);
+        });
+
+        test('should use the setup invitation template for setup invites', async () => {
+            const client = new EmailClient({
+                lightdashConfig: lightdashConfigWithBasicSMTP,
+            });
+
+            await client.sendInviteEmail(
+                {
+                    firstName: 'Taylor',
+                    lastName: 'Smith',
+                    email: 'taylor@example.com',
+                    organizationName: 'Acme',
+                },
+                {
+                    email: 'expert@example.com',
+                    expiresAt: new Date('2026-07-21T00:00:00Z'),
+                    inviteCode: 'invite-code',
+                    inviteUrl: 'https://example.com/invite/invite-code',
+                    organizationUuid: 'organization-uuid',
+                    userUuid: 'user-uuid',
+                    purpose: InviteLinkPurpose.Setup,
+                },
+            );
+
+            expect(
+                vi.mocked(client.transporter!.sendMail),
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    to: 'expert@example.com',
+                    subject:
+                        'Taylor Smith needs your help setting up Lightdash for Acme',
+                    template: 'setupInvitation',
+                    context: expect.objectContaining({
+                        inviterName: 'Taylor Smith',
+                        orgName: 'Acme',
+                        inviteUrl:
+                            'https://example.com/invite/invite-code?from=email',
+                    }),
+                }),
+            );
         });
 
         test('should retry email sending on ECONNRESET error', async () => {

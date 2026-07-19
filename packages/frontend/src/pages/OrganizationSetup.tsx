@@ -23,7 +23,7 @@ import {
 import { useForm } from '@mantine/form';
 import { zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useRef, useState, type FC } from 'react';
-import { Navigate, useNavigate } from 'react-router';
+import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import AboutFooter from '../components/AboutFooter';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import PageSpinner from '../components/PageSpinner';
@@ -473,9 +473,17 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
 const OrganizationSetup: FC = () => {
     const { health, user } = useApp();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const redirectParam = searchParams.get('redirect');
+    const redirectTo =
+        redirectParam &&
+        redirectParam.startsWith('/') &&
+        !redirectParam.startsWith('//')
+            ? redirectParam
+            : '/';
     const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
     const completeMutation = useUserCompleteMutation({
-        onSuccess: () => void navigate('/'),
+        onSuccess: () => void navigate(redirectTo),
     });
     const isCompletingSetup =
         completeMutation.isLoading || completeMutation.isSuccess;
