@@ -563,6 +563,20 @@ pm2 restart ${LD_INSTANCE_ID}-scheduler # Restart only the scheduler
 pm2 restart ${LD_INSTANCE_ID}-frontend  # Restart only the frontend
 \`\`\`
 
+### SDK test app is opt-in
+
+The `<instanceId>-sdk-test` process (a second full Vite dev server, ~1.5GB RSS) does NOT start by default. Enable it only when working on the embedded SDK:
+
+```bash
+scripts/dev-fast-start.sh --sdk-test        # one-off at instance start
+# or persist it for this instance:
+echo 'LD_ENABLE_SDK_TEST=true' >> .env.development.local && pnpm pm2:start
+# or ephemeral without touching the env file:
+LD_ENABLE_SDK_TEST=true pnpm pm2:start
+```
+
+When the flag is off the process is absent from `pm2 status` entirely (not "stopped" — the ecosystem config omits it).
+
 ### Picking up new env vars
 
 \`pm2 restart --update-env\` only inherits env from the **current shell**, not from \`.env.development.local\`. The dotenv loader inside Node only runs at *spawn* time, so PM2's cached env wins on restart. After editing the env file:

@@ -57,6 +57,8 @@ const schedulerPort = env.SCHEDULER_PORT || '8081';
 const debugPort = env.DEBUG_PORT || '9229';
 const fePort = env.FE_PORT || undefined; // Vite auto-detects if not set
 const sdkTestPort = env.SDK_TEST_PORT || '3030';
+const sdkTestEnabled =
+    (process.env.LD_ENABLE_SDK_TEST ?? env.LD_ENABLE_SDK_TEST) === 'true';
 const spotlightPort = env.SPOTLIGHT_PORT || '8969';
 
 // Log the root directory so it's obvious which worktree PM2 is running from
@@ -171,22 +173,27 @@ module.exports = {
             time: true,
         },
 
-        // SDK Test App
-        {
-            name: `${instanceId}-sdk-test`,
-            script: 'node_modules/.bin/vite',
-            args: `--port ${sdkTestPort}`,
-            interpreter: 'none',
-            cwd: path.join(__dirname, 'packages/sdk-test-app'),
-            env: {
-                NODE_ENV: 'development',
-            },
-            watch: false,
-            autorestart: false,
-            kill_timeout: 3000,
-            merge_logs: true,
-            time: true,
-        },
+        // SDK Test App (opt-in via LD_ENABLE_SDK_TEST=true — a full Vite dev
+        // server that costs ~1.5GB RSS, so it must not start by default)
+        ...(sdkTestEnabled
+            ? [
+                  {
+                      name: `${instanceId}-sdk-test`,
+                      script: 'node_modules/.bin/vite',
+                      args: `--port ${sdkTestPort}`,
+                      interpreter: 'none',
+                      cwd: path.join(__dirname, 'packages/sdk-test-app'),
+                      env: {
+                          NODE_ENV: 'development',
+                      },
+                      watch: false,
+                      autorestart: false,
+                      kill_timeout: 3000,
+                      merge_logs: true,
+                      time: true,
+                  },
+              ]
+            : []),
 
         // Spotlight.js Sidecar (Sentry Dev Debugging UI)
         {
