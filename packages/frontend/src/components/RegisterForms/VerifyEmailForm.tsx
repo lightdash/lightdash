@@ -8,6 +8,8 @@ import {
     useVerifyEmail,
 } from '../../hooks/useEmailVerification';
 import useApp from '../../providers/App/useApp';
+import useTracking from '../../providers/Tracking/useTracking';
+import { EventName } from '../../types/Events';
 import Callout from '../common/Callout';
 import EmptyStateLoader from '../common/EmptyStateLoader';
 
@@ -17,6 +19,7 @@ const VerifyEmailForm: FC<{
     statusLoading?: boolean;
 }> = ({ isLoading, emailStatusData, statusLoading }) => {
     const { health } = useApp();
+    const { track } = useTracking();
     const { mutate: verifyCode, isLoading: verificationLoading } =
         useVerifyEmail();
     const data = emailStatusData;
@@ -157,6 +160,10 @@ const VerifyEmailForm: FC<{
                 fz="sm"
                 component="button"
                 onClick={() => {
+                    track({
+                        name: EventName.OTP_RESEND_CLICKED,
+                        properties: { purpose: 'signup_verification' },
+                    });
                     form.reset();
                     sendVerificationEmail();
                 }}

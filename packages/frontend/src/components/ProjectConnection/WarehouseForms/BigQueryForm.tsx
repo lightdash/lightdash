@@ -40,6 +40,8 @@ import {
     useIsBigQueryAuthenticated,
 } from '../../../hooks/useBigquerySSO';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import FormCollapseButton from '../FormCollapseButton';
@@ -355,13 +357,29 @@ const BigQueryForm: FC<{
         savedProject,
     ]);
 
+    const { track } = useTracking();
     const { mutate: openLoginPopup } = useGoogleLoginPopup(
         'bigquery',
         async () => {
             await refetchAuth();
             await refetchDatasets();
+            track({
+                name: EventName.BIGQUERY_SSO_SIGNIN_COMPLETED,
+                properties: { success: true },
+            });
         },
     );
+    const handleBigQuerySsoSignIn = () => {
+        track({ name: EventName.BIGQUERY_SSO_SIGNIN_CLICKED });
+        openLoginPopup(undefined, {
+            onError: () => {
+                track({
+                    name: EventName.BIGQUERY_SSO_SIGNIN_COMPLETED,
+                    properties: { success: false },
+                });
+            },
+        });
+    };
     const authenticationType: string =
         form.values.warehouse.authenticationType ?? defaultAuthenticationType;
     const locationField = form.getInputProps('warehouse.location');
@@ -438,7 +456,7 @@ const BigQueryForm: FC<{
                     <BigQuerySSOInput
                         isAuthenticated={isAuthenticated}
                         disabled={disabled}
-                        openLoginPopup={openLoginPopup}
+                        openLoginPopup={handleBigQuerySsoSignIn}
                     />
                 )}
                 {showWarehouseConfigFields && (

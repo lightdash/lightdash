@@ -29,6 +29,8 @@ import {
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';
+import useTracking from '../providers/Tracking/useTracking';
+import { EventName } from '../types/Events';
 import classes from './OnboardingDataSource.module.css';
 
 const WAREHOUSE_ORDER = [
@@ -102,6 +104,18 @@ const SectionHeader: FC<{ title: string; hint?: string }> = ({
 
 const DataSourcePicker: FC = () => {
     const navigate = useNavigate();
+    const { track } = useTracking();
+
+    const handleSelect = (
+        key: SelectedWarehouse,
+        tier: 'popular' | 'all' | 'other',
+    ) => {
+        track({
+            name: EventName.ONBOARDING_WAREHOUSE_SELECTED,
+            properties: { warehouse: String(key), tier },
+        });
+        void navigate(getWarehouseRoute(key));
+    };
 
     return (
         <Box className={classes.column}>
@@ -124,7 +138,7 @@ const DataSourcePicker: FC = () => {
                             radius="md"
                             className={`${classes.heroCard} ${classes.warehouseCardEnabled}`}
                             onClick={() =>
-                                void navigate(getWarehouseRoute(warehouse.key))
+                                handleSelect(warehouse.key, 'popular')
                             }
                         >
                             <Box>{getWarehouseIcon(warehouse.key, 48)}</Box>
@@ -151,7 +165,12 @@ const DataSourcePicker: FC = () => {
                             radius="md"
                             className={`${classes.warehouseCard} ${classes.warehouseCardEnabled}`}
                             onClick={() =>
-                                void navigate(getWarehouseRoute(warehouse.key))
+                                handleSelect(
+                                    warehouse.key,
+                                    warehouse.key === OtherWarehouse.Other
+                                        ? 'other'
+                                        : 'all',
+                                )
                             }
                         >
                             <Box>{getWarehouseIcon(warehouse.key, 40)}</Box>

@@ -25,7 +25,14 @@ import {
 import { useForm, zodResolver } from '@mantine/form';
 import { useTimeout } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -36,6 +43,7 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useFlashMessages } from '../../../hooks/useFlashMessages';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import {
     useFetchLoginOptions,
     useLoginWithEmailMutation,
@@ -49,7 +57,7 @@ import LoginWithEmailOtp from './LoginWithEmailOtp';
 
 const Login: FC<{}> = () => {
     const { health } = useApp();
-    const { identify } = useTracking();
+    const { identify, track } = useTracking();
     const location = useLocation();
 
     const { showToastError, showToastApiError } = useToaster();
@@ -125,6 +133,44 @@ const Login: FC<{}> = () => {
             }
         }
     }, [loginOptionsSuccess, loginOptions, redirectUrl]);
+
+    const trackedMethodForEmail = useRef<string | undefined>(undefined);
+    useEffect(() => {
+        if (
+            !preCheckEmail ||
+            !loginOptions ||
+            !loginOptionsSuccess ||
+            loginOptionsFetching
+        ) {
+            return;
+        }
+        if (trackedMethodForEmail.current === preCheckEmail) {
+            return;
+        }
+        trackedMethodForEmail.current = preCheckEmail;
+        const method =
+            loginOptions.forceRedirect && loginOptions.redirectUri
+                ? 'sso_redirect'
+                : loginOptions.showOptions.includes(LocalIssuerTypes.EMAIL)
+                  ? 'password'
+                  : loginOptions.showOptions.includes(
+                          LocalIssuerTypes.EMAIL_OTP,
+                      )
+                    ? 'email_otp'
+                    : undefined;
+        if (method) {
+            track({
+                name: EventName.LOGIN_FLOW_METHOD_SELECTED,
+                properties: { method },
+            });
+        }
+    }, [
+        preCheckEmail,
+        loginOptions,
+        loginOptionsSuccess,
+        loginOptionsFetching,
+        track,
+    ]);
 
     const ssoOptions = loginOptions
         ? (loginOptions.showOptions.filter(

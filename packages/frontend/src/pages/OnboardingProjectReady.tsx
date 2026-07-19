@@ -18,6 +18,8 @@ import MantineIcon from '../components/common/MantineIcon';
 import { useTables } from '../features/sqlRunner/hooks/useTables';
 import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';
 import { useProject } from '../hooks/useProject';
+import useTracking from '../providers/Tracking/useTracking';
+import { EventName } from '../types/Events';
 import classes from './OnboardingProjectReady.module.css';
 
 const TOTAL_STEPS = 3;
@@ -27,6 +29,7 @@ const OnboardingProjectReadyContent: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
     const navigate = useNavigate();
+    const { track } = useTracking();
     const { data: project } = useProject(projectUuid);
     const {
         data: tables,
@@ -194,9 +197,13 @@ const OnboardingProjectReadyContent: FC<{ projectUuid: string }> = ({
                         size="lg"
                         radius="md"
                         className={classes.startButton}
-                        onClick={() =>
-                            void navigate(`/projects/${projectUuid}/home`)
-                        }
+                        onClick={() => {
+                            track({
+                                name: EventName.ONBOARDING_PROJECT_READY_START_EXPLORING_CLICKED,
+                                properties: { projectId: projectUuid },
+                            });
+                            void navigate(`/projects/${projectUuid}/home`);
+                        }}
                     >
                         Go to your homepage
                     </Button>

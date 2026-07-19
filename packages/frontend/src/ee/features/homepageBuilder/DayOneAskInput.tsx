@@ -8,10 +8,13 @@ import {
 import { Anchor, Skeleton, Text } from '@mantine-8/core';
 import { IconArrowUpRight } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState, type FC } from 'react';
+import { useEffect, useRef, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProject } from '../../../hooks/useProject';
+import useApp from '../../../providers/App/useApp';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import {
     AI_ROUTING_AUTO_VALUE,
     AI_ROUTING_SEARCH_PARAM,
@@ -74,17 +77,17 @@ const useAiRouterEnabledFromCache = (): boolean | undefined => {
 const SuggestionPills: FC<{
     chips: AgentSuggestion[];
     loading: boolean;
-    onPick: (chip: AgentSuggestion) => void;
+    onPick: (chip: AgentSuggestion, index: number) => void;
 }> = ({ chips, loading, onPick }) => {
     if (!loading && chips.length === 0) return null;
     return (
         <div className={classes.pillRow}>
-            {chips.map((chip) => (
+            {chips.map((chip, index) => (
                 <button
                     key={chip.label}
                     type="button"
                     className={classes.pill}
-                    onClick={() => onPick(chip)}
+                    onClick={() => onPick(chip, index)}
                 >
                     <MantineIcon
                         icon={IconArrowUpRight}
@@ -113,6 +116,8 @@ const DayOneAskInputInner: FC<Props> = ({
     hideSuggestions,
 }) => {
     const navigate = useNavigate();
+    const { track } = useTracking();
+    const { user } = useApp();
     const { setPendingPrompt } = usePendingPrompt();
     const { data: agents, isInitialLoading: isLoadingAgents } =
         useProjectAiAgents({
@@ -204,16 +209,65 @@ const DayOneAskInputInner: FC<Props> = ({
     }) => {
         const prompt = message.trim();
         if (!prompt) return;
+        track({
+            name: EventName.HOMEPAGE_ASK_SUBMITTED,
+            properties: {
+                mode: activeSelection === 'auto' ? 'auto' : 'agent',
+                hasProject: !!projectUuid,
+            },
+        });
         submitPrompt(prompt, toolHints, context, optimisticContext);
     };
 
-    const handleChipPick = (chip: AgentSuggestion) => {
+    const handleChipPick = (chip: AgentSuggestion, index: number) => {
+        const organizationId = user.data?.organizationUuid;
+        if (organizationId && projectUuid && referenceAgent?.uuid) {
+            track({
+                name: EventName.AI_AGENT_SUGGESTION_CLICK,
+                properties: {
+                    organizationId,
+                    projectId: projectUuid,
+                    agentId: referenceAgent.uuid,
+                    chipLabel: chip.label,
+                    chipKind: chip.kind,
+                    chipTool: chip.kind === 'prompt' ? chip.tool : undefined,
+                    chipIndex: index,
+                    mode: 'empty-state',
+                    placement: 'homepage_hero',
+                },
+            });
+        }
         if (chip.kind === 'navigate') {
             void navigate(chip.url);
             return;
         }
         submitPrompt(chip.label, [chip.tool]);
     };
+
+    const chips = suggestionsQuery.data?.chips ?? [];
+    const impressionFiredRef = useRef(false);
+    useEffect(() => {
+        if (impressionFiredRef.current) return;
+        if (hideSuggestions) return;
+        if (!projectUuid || !referenceAgent?.uuid) return;
+        if (chips.length === 0) return;
+        impressionFiredRef.current = true;
+        track({
+            name: EventName.AI_AGENT_SUGGESTION_IMPRESSION,
+            properties: {
+                projectId: projectUuid,
+                agentId: referenceAgent.uuid,
+                chipCount: chips.length,
+                placement: 'homepage_hero',
+            },
+        });
+    }, [
+        chips.length,
+        projectUuid,
+        referenceAgent?.uuid,
+        hideSuggestions,
+        track,
+    ]);
 
     if (isLoadingAgents || isLoadingPreferences) {
         return <Skeleton h={64} radius="lg" />;
@@ -267,7 +321,7 @@ const DayOneAskInputInner: FC<Props> = ({
             )}
             {!hideSuggestions && (canCreateThread || preview) && (
                 <SuggestionPills
-                    chips={suggestionsQuery.data?.chips ?? []}
+                    chips={chips}
                     loading={suggestionsQuery.isLoading}
                     onPick={handleChipPick}
                 />

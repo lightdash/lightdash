@@ -413,6 +413,7 @@ export const AgentChatInput = ({
                             chip.kind === 'prompt' ? chip.tool : undefined,
                         chipIndex: index,
                         mode: emptyStateMode ? 'empty-state' : 'post-response',
+                        placement: 'agent_chat',
                     },
                 });
             };
@@ -475,6 +476,7 @@ export const AgentChatInput = ({
                     projectId: projectUuid,
                     agentId: agentUuid,
                     chipCount,
+                    placement: 'agent_chat',
                 },
             });
         },

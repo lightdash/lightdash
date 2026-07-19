@@ -80,6 +80,14 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         } = formValues;
         track({
             name: EventName.CREATE_PROJECT_BUTTON_CLICKED,
+            properties: {
+                warehouse: selectedWarehouse ?? warehouseConnection.type,
+                authenticationType:
+                    'authenticationType' in warehouseConnection
+                        ? warehouseConnection.authenticationType
+                        : undefined,
+                warehouseOnly,
+            },
         });
         if (selectedWarehouse) {
             const data = await mutateAsync({

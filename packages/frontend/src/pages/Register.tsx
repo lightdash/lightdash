@@ -30,6 +30,7 @@ import { useFlashMessages } from '../hooks/useFlashMessages';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
+import { EventName } from '../types/Events';
 
 const registerQuery = async (data: CreateUserArgs | CreateEmailOnlyUserArgs) =>
     lightdashApi<LightdashUser>({
@@ -58,7 +59,7 @@ const Register: FC = () => {
         FeatureFlags.NewOnboarding,
         { retry: 3 },
     );
-    const { identify } = useTracking();
+    const { identify, track } = useTracking();
     const redirectUrl = location.state?.from
         ? `${location.state.from.pathname}${location.state.from.search}`
         : '/';
@@ -110,6 +111,10 @@ const Register: FC = () => {
             <CreateEmailOnlyUserForm
                 isLoading={isLoading || isSuccess}
                 onSubmit={(data: CreateEmailOnlyUserArgs) => {
+                    track({
+                        name: EventName.SIGNUP_FORM_SUBMITTED,
+                        properties: { variant: 'email_only' },
+                    });
                     mutate(data);
                 }}
             />
@@ -117,6 +122,10 @@ const Register: FC = () => {
             <CreateUserForm
                 isLoading={isLoading || isSuccess}
                 onSubmit={(data: CreateUserArgs) => {
+                    track({
+                        name: EventName.SIGNUP_FORM_SUBMITTED,
+                        properties: { variant: 'password' },
+                    });
                     mutate(data);
                 }}
             />

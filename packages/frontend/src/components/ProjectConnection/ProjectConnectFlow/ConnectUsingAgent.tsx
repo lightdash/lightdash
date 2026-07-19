@@ -12,6 +12,8 @@ import { Button, Code, CopyButton, Stack, Text, Title } from '@mantine-8/core';
 import { IconCheck, IconChevronLeft, IconCopy } from '@tabler/icons-react';
 import { useMemo, useRef, useState, type FC } from 'react';
 import { useCreateProjectWithoutCompileMutation } from '../../../hooks/useProject';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import {
     SettingsCard,
@@ -106,6 +108,7 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
     const isCreatingProjectRef = useRef(false);
     const createProjectMutation = useCreateProjectWithoutCompileMutation();
     const onProjectError = useOnProjectError();
+    const { track } = useTracking();
 
     const form = useForm({
         initialValues: {
@@ -211,7 +214,12 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
                         <CopyButton value={agentSetupPrompt ?? ''}>
                             {({ copied, copy }) => (
                                 <Button
-                                    onClick={copy}
+                                    onClick={() => {
+                                        copy();
+                                        track({
+                                            name: EventName.AGENT_SETUP_PROMPT_COPIED,
+                                        });
+                                    }}
                                     leftSection={
                                         <MantineIcon
                                             icon={copied ? IconCheck : IconCopy}

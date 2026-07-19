@@ -21,6 +21,8 @@ import { z } from 'zod';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import { useUserUpdateMutation } from '../../../hooks/user/useUserUpdateMutation';
 import useApp from '../../../providers/App/useApp';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 
@@ -65,6 +67,7 @@ const SetupInviteModal: FC<{
     } = useCreateInviteLinkMutation();
     const { mutateAsync: updateUserAsync, isLoading: isUpdatingUser } =
         useUserUpdateMutation();
+    const { track } = useTracking();
 
     const handleClose = () => {
         form.reset();
@@ -84,6 +87,7 @@ const SetupInviteModal: FC<{
             role: OrganizationMemberRole.ADMIN,
             purpose: InviteLinkPurpose.Setup,
         });
+        track({ name: EventName.SETUP_INVITE_SENT });
     };
 
     const isSubmitting = isLoading || isUpdatingUser;
