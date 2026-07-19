@@ -75,7 +75,12 @@ import { randomInt } from 'crypto';
 import { uniq } from 'lodash';
 import { nanoid } from 'nanoid';
 import refresh from 'passport-oauth2-refresh';
-import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import {
+    LightdashAnalytics,
+    type OnboardingFlow,
+    type OneTimePasscodeFailureReason,
+    type OneTimePasscodePurpose,
+} from '../analytics/LightdashAnalytics';
 import * as AccountFactory from '../auth/account';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../config/parseConfig';
@@ -356,15 +361,27 @@ export class UserService extends BaseService {
         }
     }
 
+    private async getOnboardingFlow(
+        user?: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<OnboardingFlow> {
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.NewOnboarding,
+        });
+        return enabled ? 'new' : 'legacy';
+    }
+
     private async tryVerifyUserEmail(
         user: LightdashUser,
         email: string,
+        method: 'otp' | 'link' | 'sso',
     ): Promise<void> {
         const updatedEmails = await this.emailModel.verifyUserEmailIfExists(
             user.userUuid,
             email,
         );
         if (updatedEmails.length > 0) {
+            const onboardingFlow = await this.getOnboardingFlow(user);
             this.analytics.track({
                 userId: user.userUuid,
                 event: 'user.verified',
@@ -372,6 +389,8 @@ export class UserService extends BaseService {
                     email,
                     location: user.isSetupComplete ? 'settings' : 'onboarding',
                     isTrackingAnonymized: user.isTrackingAnonymized,
+                    method,
+                    onboardingFlow,
                 },
             });
         }
@@ -392,7 +411,7 @@ export class UserService extends BaseService {
         const user = await this.activateUserFromInviteLink(inviteLink);
         // The invite link was delivered to this address, so opening it proves
         // mailbox ownership — same trust as OpenID email verification.
-        await this.tryVerifyUserEmail(user, inviteLink.email);
+        await this.tryVerifyUserEmail(user, inviteLink.email, 'link');
         return this.userModel.findSessionUserByUUID(user.userUuid);
     }
 
@@ -500,6 +519,7 @@ export class UserService extends BaseService {
         } else {
             userConnectionType = 'password';
         }
+        const onboardingFlow = await this.getOnboardingFlow(user);
         this.analytics.track({
             event: 'user.created',
             userId: user.userUuid,
@@ -508,10 +528,14 @@ export class UserService extends BaseService {
                 createdUserId: user.userUuid,
                 organizationId: user.organizationUuid,
                 userConnectionType,
+                onboardingFlow,
             },
         });
         if (activateUser && !isOpenIdUser(activateUser)) {
-            await this.sendOneTimePasscodeToPrimaryEmail(user);
+            await this.sendOneTimePasscodeToPrimaryEmail(
+                user,
+                'signup_verification',
+            );
         }
         return user;
     }
@@ -1009,7 +1033,11 @@ export class UserService extends BaseService {
                 ...openIdUser.openId,
                 refreshToken,
             });
-            await this.tryVerifyUserEmail(loginUser, openIdUser.openId.email);
+            await this.tryVerifyUserEmail(
+                loginUser,
+                openIdUser.openId.email,
+                'sso',
+            );
             this.identifyUser(loginUser);
             this.analytics.track({
                 userId: loginUser.userUuid,
@@ -1198,7 +1226,11 @@ export class UserService extends BaseService {
             openIdUser,
             inviteCode,
         );
-        await this.tryVerifyUserEmail(createdUser, openIdUser.openId.email);
+        await this.tryVerifyUserEmail(
+            createdUser,
+            openIdUser.openId.email,
+            'sso',
+        );
         const allowedOrgs =
             await this.organizationModel.getAllowedOrgsForDomain(
                 getEmailDomain(openIdUser.openId.email),
@@ -1260,7 +1292,10 @@ export class UserService extends BaseService {
             );
             return this.userModel.findSessionUserByUUID(user.userUuid);
         }
-        const user = await this.registerUser(openIdUser);
+        const user = await this.registerUser(
+            openIdUser,
+            await this.getOnboardingFlow(),
+        );
         return this.userModel.findSessionUserByUUID(user.userUuid);
     }
 
@@ -1278,7 +1313,11 @@ export class UserService extends BaseService {
             refreshToken,
             teamId: openIdUser.openId.teamId,
         });
-        await this.tryVerifyUserEmail(sessionUser, openIdUser.openId.email);
+        await this.tryVerifyUserEmail(
+            sessionUser,
+            openIdUser.openId.email,
+            'sso',
+        );
         this.analytics.track({
             userId: sessionUser.userUuid,
             event: 'user.identity_linked',
@@ -1608,7 +1647,10 @@ export class UserService extends BaseService {
         });
 
         if (emailChanged) {
-            await this.sendOneTimePasscodeToPrimaryEmail(updatedUser);
+            await this.sendOneTimePasscodeToPrimaryEmail(
+                updatedUser,
+                'email_change',
+            );
         }
 
         return updatedUser;
@@ -1662,30 +1704,34 @@ export class UserService extends BaseService {
                 password: user.password,
             });
         } else if ('password' in user) {
+            const onboardingFlow = await this.getOnboardingFlow();
             await this.checkNewUserRegistrationAllowed(undefined, user.email);
 
-            lightdashUser = await this.registerUser({
-                firstName: user.firstName,
-                lastName: user.lastName,
-                email: user.email,
-                password: user.password,
-            });
+            lightdashUser = await this.registerUser(
+                {
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    email: user.email,
+                    password: user.password,
+                },
+                onboardingFlow,
+            );
         } else {
-            const emailOnlySignupFlag = await this.featureFlagModel.get({
-                user: undefined,
-                featureFlagId: FeatureFlags.NewOnboarding,
-            });
-            if (!emailOnlySignupFlag.enabled) {
+            const onboardingFlow = await this.getOnboardingFlow();
+            if (onboardingFlow !== 'new') {
                 throw new ForbiddenError('Email-only signup is not enabled');
             }
 
             await this.checkNewUserRegistrationAllowed(undefined, user.email);
 
-            lightdashUser = await this.registerUser({
-                firstName: '',
-                lastName: '',
-                email: user.email,
-            });
+            lightdashUser = await this.registerUser(
+                {
+                    firstName: '',
+                    lastName: '',
+                    email: user.email,
+                },
+                onboardingFlow,
+            );
         }
 
         return this.userModel.findSessionUserByUUID(lightdashUser.userUuid);
@@ -1693,6 +1739,7 @@ export class UserService extends BaseService {
 
     private async registerUser(
         createUser: CreateUserArgs | CreatePasswordlessUserArgs | OpenIdUser,
+        onboardingFlow: OnboardingFlow,
     ) {
         if (isOpenIdUser(createUser)) {
             if (
@@ -1737,10 +1784,11 @@ export class UserService extends BaseService {
             event: 'user.created',
             userId: user.userUuid,
             properties: {
-                context: 'accept_invite',
+                context: 'registration',
                 createdUserId: user.userUuid,
                 organizationId: user.organizationUuid,
                 userConnectionType,
+                onboardingFlow,
             },
         });
         if (isOpenIdUser(createUser)) {
@@ -1752,7 +1800,10 @@ export class UserService extends BaseService {
                 },
             });
         } else {
-            await this.sendOneTimePasscodeToPrimaryEmail(user);
+            await this.sendOneTimePasscodeToPrimaryEmail(
+                user,
+                'signup_verification',
+            );
         }
         return user;
     }
@@ -1943,8 +1994,16 @@ export class UserService extends BaseService {
     }
 
     async sendOneTimePasscodeToPrimaryEmail(
-        user: Pick<SessionUser, 'userUuid'>,
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        purpose: OneTimePasscodePurpose,
     ): Promise<EmailStatusExpiring> {
+        const currentEmailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        const isResend = Boolean(
+            currentEmailStatus.otp &&
+            !this.isOtpExpired(currentEmailStatus.otp.createdAt),
+        );
         const passcode =
             this.lightdashConfig.mode === LightdashMode.PR ||
             this.lightdashConfig.mode === LightdashMode.DEV
@@ -1958,6 +2017,16 @@ export class UserService extends BaseService {
             recipient: emailStatus.email,
             passcode,
         });
+        const onboardingFlow = await this.getOnboardingFlow(user);
+        this.analytics.track({
+            event: 'one_time_passcode.sent',
+            userId: user.userUuid,
+            properties: {
+                purpose,
+                isResend,
+                onboardingFlow,
+            },
+        });
         return {
             ...emailStatus,
             otp: emailStatus.otp && {
@@ -1969,6 +2038,23 @@ export class UserService extends BaseService {
                 ),
             },
         };
+    }
+
+    private async trackOneTimePasscodeFailed(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        purpose: OneTimePasscodePurpose,
+        reason: OneTimePasscodeFailureReason,
+    ): Promise<void> {
+        const onboardingFlow = await this.getOnboardingFlow(user);
+        this.analytics.track({
+            event: 'one_time_passcode.failed',
+            userId: user.userUuid,
+            properties: {
+                purpose,
+                reason,
+                onboardingFlow,
+            },
+        });
     }
 
     private async isStrictlyPasswordlessUser(
@@ -1997,7 +2083,7 @@ export class UserService extends BaseService {
         ) {
             return;
         }
-        await this.sendOneTimePasscodeToPrimaryEmail(user);
+        await this.sendOneTimePasscodeToPrimaryEmail(user, 'login');
     }
 
     async loginWithEmailOtp(
@@ -2035,16 +2121,26 @@ export class UserService extends BaseService {
             );
         } catch (error) {
             if (error instanceof NotFoundError) {
+                await this.trackOneTimePasscodeFailed(user, 'login', 'invalid');
                 throw invalidCode();
             }
             throw error;
         }
 
-        if (
-            !emailStatus.otp ||
-            this.isOtpMaxAttempts(emailStatus.otp.numberOfAttempts) ||
-            this.isOtpExpired(emailStatus.otp.createdAt)
-        ) {
+        if (!emailStatus.otp) {
+            await this.trackOneTimePasscodeFailed(user, 'login', 'invalid');
+            throw invalidCode();
+        }
+        if (this.isOtpMaxAttempts(emailStatus.otp.numberOfAttempts)) {
+            await this.trackOneTimePasscodeFailed(
+                user,
+                'login',
+                'max_attempts',
+            );
+            throw invalidCode();
+        }
+        if (this.isOtpExpired(emailStatus.otp.createdAt)) {
+            await this.trackOneTimePasscodeFailed(user, 'login', 'expired');
             throw invalidCode();
         }
 
@@ -2058,6 +2154,7 @@ export class UserService extends BaseService {
                 await this.emailModel.incrementPrimaryEmailOtpAttempts(
                     user.userUuid,
                 );
+                await this.trackOneTimePasscodeFailed(user, 'login', 'invalid');
                 throw invalidCode();
             }
             throw error;
@@ -2074,7 +2171,7 @@ export class UserService extends BaseService {
             }
             throw error;
         }
-        await this.tryVerifyUserEmail(sessionUser, emailStatus.email);
+        await this.tryVerifyUserEmail(sessionUser, emailStatus.email, 'otp');
         await this.emailModel.deleteEmailOtp(
             sessionUser.userUuid,
             emailStatus.email,
@@ -2113,6 +2210,9 @@ export class UserService extends BaseService {
     ): Promise<EmailStatusExpiring> {
         // Attempt to verify the passcode if it's provided
         if (passcode) {
+            const purpose = user.isSetupComplete
+                ? 'email_change'
+                : 'signup_verification';
             try {
                 const emailStatus =
                     await this.emailModel.getPrimaryEmailStatusByUserAndOtp({
@@ -2124,10 +2224,29 @@ export class UserService extends BaseService {
                     !this.isOtpMaxAttempts(emailStatus.otp.numberOfAttempts) &&
                     !this.isOtpExpired(emailStatus.otp.createdAt)
                 ) {
-                    await this.tryVerifyUserEmail(user, emailStatus.email);
+                    await this.tryVerifyUserEmail(
+                        user,
+                        emailStatus.email,
+                        'otp',
+                    );
                     await this.emailModel.deleteEmailOtp(
                         user.userUuid,
                         emailStatus.email,
+                    );
+                } else {
+                    let reason: OneTimePasscodeFailureReason = 'invalid';
+                    if (
+                        emailStatus.otp &&
+                        this.isOtpMaxAttempts(emailStatus.otp.numberOfAttempts)
+                    ) {
+                        reason = 'max_attempts';
+                    } else if (emailStatus.otp) {
+                        reason = 'expired';
+                    }
+                    await this.trackOneTimePasscodeFailed(
+                        user,
+                        purpose,
+                        reason,
                     );
                 }
             } catch (e) {
@@ -2135,6 +2254,11 @@ export class UserService extends BaseService {
                 if (e instanceof NotFoundError) {
                     await this.emailModel.incrementPrimaryEmailOtpAttempts(
                         user.userUuid,
+                    );
+                    await this.trackOneTimePasscodeFailed(
+                        user,
+                        purpose,
+                        'invalid',
                     );
                 } else {
                     throw e;

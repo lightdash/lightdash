@@ -25,7 +25,20 @@ const projectModel = {
 };
 const organizationModel = {
     get: vi.fn(async () => organization),
+    create: vi.fn<OrganizationModel['create']>(async () => organization),
+    hasOrgs: vi.fn<OrganizationModel['hasOrgs']>(async () => false),
 };
+const userModel = {
+    hasUsers: vi.fn<UserModel['hasUsers']>(async () => false),
+    joinOrg: vi.fn<UserModel['joinOrg']>(async () => user),
+};
+const featureFlagModel = {
+    get: vi.fn<FeatureFlagModel['get']>(async ({ featureFlagId }) => ({
+        id: featureFlagId,
+        enabled: true,
+    })),
+};
+vi.spyOn(analyticsMock, 'track');
 const organizationMemberProfileModel = {
     getOrganizationMembersAndGroups: vi.fn(),
 };
@@ -39,11 +52,11 @@ describe('organization service', () => {
         onboardingModel: {} as OnboardingModel,
         organizationMemberProfileModel:
             organizationMemberProfileModel as unknown as OrganizationMemberProfileModel,
-        userModel: {} as UserModel,
+        userModel: userModel as unknown as UserModel,
         organizationAllowedEmailDomainsModel:
             {} as OrganizationAllowedEmailDomainsModel,
         groupsModel: {} as GroupsModel,
-        featureFlagModel: {} as FeatureFlagModel,
+        featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
     });
 
     afterEach(() => {
@@ -54,6 +67,24 @@ describe('organization service', () => {
         process.env = {
             LIGHTDASH_INSTALL_TYPE: LightdashInstallType.UNKNOWN,
         };
+    });
+
+    it('tracks the onboarding flow when creating an organization', async () => {
+        await organizationService.createAndJoinOrg(
+            { ...user, organizationUuid: undefined },
+            { name: 'Organization' },
+        );
+
+        expect(analyticsMock.track).toHaveBeenCalledWith({
+            event: 'organization.created',
+            userId: user.userUuid,
+            properties: {
+                type: 'self-hosted',
+                organizationId: organization.organizationUuid,
+                organizationName: organization.name,
+                onboardingFlow: 'new',
+            },
+        });
     });
 
     it('Should return needsProject false if there are projects in DB', async () => {

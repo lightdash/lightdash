@@ -161,9 +161,13 @@ export class UserController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiEmailStatusResponse> {
         assertRegisteredAccount(req.account);
+        const user = toSessionUser(req.account);
         const status = await this.services
             .getUserService()
-            .sendOneTimePasscodeToPrimaryEmail(toSessionUser(req.account));
+            .sendOneTimePasscodeToPrimaryEmail(
+                user,
+                user.isSetupComplete ? 'email_change' : 'signup_verification',
+            );
         this.setStatus(200);
         return {
             status: 'ok',

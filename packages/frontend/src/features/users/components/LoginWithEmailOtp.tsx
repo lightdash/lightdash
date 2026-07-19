@@ -3,6 +3,8 @@ import { Anchor, Button, PinInput, Stack, Text } from '@mantine-8/core';
 import { isNotEmpty, useForm } from '@mantine/form';
 import { useCallback, useEffect, useRef, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import {
     useEmailOtpRequestMutation,
     useEmailOtpVerifyMutation,
@@ -14,6 +16,7 @@ const LoginWithEmailOtp: FC<{
     onSuccess: (user: LightdashUser) => void;
 }> = ({ email, disabled, onSuccess }) => {
     const { showToastApiError, showToastSuccess } = useToaster();
+    const { track } = useTracking();
 
     const form = useForm<{ passcode: string }>({
         initialValues: { passcode: '' },
@@ -123,6 +126,10 @@ const LoginWithEmailOtp: FC<{
                 type="button"
                 disabled={isRequesting}
                 onClick={() => {
+                    track({
+                        name: EventName.OTP_RESEND_CLICKED,
+                        properties: { purpose: 'login' },
+                    });
                     form.reset();
                     requestCodeForEmail(() => {
                         showToastSuccess({

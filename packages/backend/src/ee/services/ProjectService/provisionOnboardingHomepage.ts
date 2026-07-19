@@ -5,6 +5,7 @@ import {
     ProjectType,
     type SessionUser,
 } from '@lightdash/common';
+import { type LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { type ProjectHomepageModel } from '../../models/ProjectHomepageModel';
@@ -19,6 +20,7 @@ export type ProvisionOnboardingHomepageArguments = {
         ProjectHomepageModel,
         'list' | 'create' | 'publish'
     >;
+    analytics: Pick<LightdashAnalytics, 'track'>;
 };
 
 export const provisionOnboardingHomepage = async ({
@@ -28,6 +30,7 @@ export const provisionOnboardingHomepage = async ({
     featureFlagService,
     projectModel,
     projectHomepageModel,
+    analytics,
 }: ProvisionOnboardingHomepageArguments): Promise<void> => {
     if (projectType !== ProjectType.DEFAULT || !user.organizationUuid) {
         return;
@@ -73,4 +76,13 @@ export const provisionOnboardingHomepage = async ({
         { type: 'everyone' },
         true,
     );
+    analytics.track({
+        event: 'onboarding_homepage.provisioned',
+        userId: user.userUuid,
+        properties: {
+            organizationId: user.organizationUuid,
+            projectId: projectUuid,
+            homepageUuid: homepage.homepageUuid,
+        },
+    });
 };

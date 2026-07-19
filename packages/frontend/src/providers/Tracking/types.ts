@@ -4,6 +4,7 @@ import {
     type SearchItemType,
     type TableCalculationType,
     type TimeFrames,
+    type WarehouseTypes,
 } from '@lightdash/common';
 import type * as rudderSDK from 'rudder-sdk-js';
 import {
@@ -24,7 +25,6 @@ type GenericEvent = {
         | EventName.CONFIRM_DELETE_TABLE_CALCULATION_BUTTON_CLICKED
         | EventName.DELETE_TABLE_CALCULATION_BUTTON_CLICKED
         | EventName.EDIT_TABLE_CALCULATION_BUTTON_CLICKED
-        | EventName.CREATE_PROJECT_BUTTON_CLICKED
         | EventName.REFRESH_DBT_CONNECTION_BUTTON_CLICKED
         | EventName.UPDATE_PROJECT_TABLES_CONFIGURATION_BUTTON_CLICKED
         | EventName.UPDATE_PROJECT_BUTTON_CLICKED
@@ -74,7 +74,11 @@ type GenericEvent = {
         | EventName.METRICS_CATALOG_SEARCH_APPLIED
         | EventName.METRICS_CATALOG_TREES_EDGE_CREATED
         | EventName.METRICS_CATALOG_TREES_EDGE_REMOVED
-        | EventName.METRICS_CATALOG_TREES_CANVAS_MODE_CLICKED;
+        | EventName.METRICS_CATALOG_TREES_CANVAS_MODE_CLICKED
+        | EventName.BIGQUERY_SSO_SIGNIN_CLICKED
+        | EventName.SNOWFLAKE_CLI_SSO_COMMAND_COPIED
+        | EventName.SETUP_INVITE_SENT
+        | EventName.AGENT_SETUP_PROMPT_COPIED;
     properties?: {};
 };
 
@@ -500,6 +504,7 @@ type AiAgentSuggestionImpressionEvent = {
         projectId: string;
         agentId: string;
         chipCount: number;
+        placement: 'agent_chat' | 'homepage_hero';
     };
 };
 
@@ -516,6 +521,7 @@ type AiAgentSuggestionClickEvent = {
         chipTool?: string;
         chipIndex: number;
         mode: 'empty-state' | 'post-response';
+        placement: 'agent_chat' | 'homepage_hero';
     };
 };
 
@@ -584,8 +590,111 @@ type DashboardFilterRequirementsSavedEvent = {
     };
 };
 
+type CreateProjectButtonClickedEvent = {
+    name: EventName.CREATE_PROJECT_BUTTON_CLICKED;
+    properties: {
+        warehouse: WarehouseTypes;
+        authenticationType?: string;
+        warehouseOnly?: boolean;
+    };
+};
+
+type SignupFormSubmittedEvent = {
+    name: EventName.SIGNUP_FORM_SUBMITTED;
+    properties: {
+        variant: 'email_only' | 'password';
+    };
+};
+
+type OtpResendClickedEvent = {
+    name: EventName.OTP_RESEND_CLICKED;
+    properties: {
+        purpose: 'signup_verification' | 'login';
+    };
+};
+
+type LoginFlowMethodSelectedEvent = {
+    name: EventName.LOGIN_FLOW_METHOD_SELECTED;
+    properties: {
+        method: 'password' | 'email_otp' | 'sso_redirect';
+    };
+};
+
+type OrganizationSetupStepCompletedEvent = {
+    name: EventName.ORGANIZATION_SETUP_STEP_COMPLETED;
+    properties: {
+        step: 'workspace' | 'about_you';
+    };
+};
+
+type OrganizationBrandDetectedEvent = {
+    name: EventName.ORGANIZATION_BRAND_DETECTED;
+    properties: {
+        found: boolean;
+        autoApplied: boolean;
+    };
+};
+
+type OnboardingWarehouseSelectedEvent = {
+    name: EventName.ONBOARDING_WAREHOUSE_SELECTED;
+    properties: {
+        warehouse: string;
+        tier: 'popular' | 'all' | 'other';
+    };
+};
+
+type BigquerySsoSigninCompletedEvent = {
+    name: EventName.BIGQUERY_SSO_SIGNIN_COMPLETED;
+    properties: {
+        success: boolean;
+    };
+};
+
+type OnboardingProjectReadyStartExploringClickedEvent = {
+    name: EventName.ONBOARDING_PROJECT_READY_START_EXPLORING_CLICKED;
+    properties: {
+        projectId: string;
+    };
+};
+
+type HomepageAskSubmittedEvent = {
+    name: EventName.HOMEPAGE_ASK_SUBMITTED;
+    properties: {
+        mode: string;
+        hasProject: boolean;
+    };
+};
+
+type HomepageRecommendedActionImpressionEvent = {
+    name: EventName.HOMEPAGE_RECOMMENDED_ACTION_IMPRESSION;
+    properties: {
+        actionKey: HomepageRecommendedActionKey;
+        position: number;
+        trigger: 'initial' | 'auto_rotate' | 'manual';
+    };
+};
+
+type HomepageRecommendedActionRestoredEvent = {
+    name: EventName.HOMEPAGE_RECOMMENDED_ACTION_RESTORED;
+    properties: {
+        actionKey: HomepageRecommendedActionKey;
+    };
+};
+
 export type EventData =
     | GenericEvent
+    | CreateProjectButtonClickedEvent
+    | SignupFormSubmittedEvent
+    | OtpResendClickedEvent
+    | LoginFlowMethodSelectedEvent
+    | OrganizationSetupStepCompletedEvent
+    | OrganizationBrandDetectedEvent
+    | OnboardingWarehouseSelectedEvent
+    | BigquerySsoSigninCompletedEvent
+    | OnboardingProjectReadyStartExploringClickedEvent
+    | HomepageAskSubmittedEvent
+    | HomepageRecommendedActionImpressionEvent
+    | HomepageRecommendedActionRestoredEvent
     | HomepageQuickActionClickedEvent
     | HomepageRecommendedActionClickedEvent
     | HomepageRecommendedActionSkippedEvent

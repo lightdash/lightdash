@@ -707,6 +707,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             projectModel: models.getProjectModel(),
                             projectHomepageModel:
                                 models.getProjectHomepageModel<ProjectHomepageModel>(),
+                            analytics: context.lightdashAnalytics,
                         }),
                 }),
             instanceConfigurationService: ({

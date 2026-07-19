@@ -27,6 +27,8 @@ import {
     useWarehouseConnectCodeClaim,
 } from '../../../hooks/useWarehouseConnectCode';
 import useApp from '../../../providers/App/useApp';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { useFormContext } from '../formContext';
 import {
@@ -72,7 +74,10 @@ const readValidStoredCode = (): {
     return { code: stored.code, secondsRemaining };
 };
 
-const CopyableCommand: FC<{ command: string }> = ({ command }) => (
+const CopyableCommand: FC<{ command: string; onCopy?: () => void }> = ({
+    command,
+    onCopy,
+}) => (
     <Group gap="xs" align="flex-start" wrap="nowrap">
         <Code block flex={1} miw={0}>
             {command}
@@ -83,7 +88,10 @@ const CopyableCommand: FC<{ command: string }> = ({ command }) => (
                     <ActionIcon
                         variant="subtle"
                         color={copied ? 'green' : 'gray'}
-                        onClick={copy}
+                        onClick={() => {
+                            copy();
+                            onCopy?.();
+                        }}
                         aria-label="Copy command"
                     >
                         <MantineIcon icon={copied ? IconCheck : IconCopy} />
@@ -137,6 +145,7 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
     onDeposited,
 }) => {
     const { health } = useApp();
+    const { track } = useTracking();
     const form = useFormContext();
     const siteUrl = health.data?.siteUrl ?? '';
     const mint = useMintWarehouseConnectCode();
@@ -430,7 +439,14 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                                 ? 'Connect with SSO (dev CLI — run from the repo root)'
                                 : '2. Connect with SSO'}
                         </Text>
-                        <CopyableCommand command={connectCommand} />
+                        <CopyableCommand
+                            command={connectCommand}
+                            onCopy={() =>
+                                track({
+                                    name: EventName.SNOWFLAKE_CLI_SSO_COMMAND_COPIED,
+                                })
+                            }
+                        />
                     </Stack>
 
                     <Group gap="xs">

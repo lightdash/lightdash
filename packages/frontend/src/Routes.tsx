@@ -784,7 +784,9 @@ const PRIVATE_ROUTES: RouteObject[] = [
                         Component: () => (
                             <>
                                 <NavBar />
-                                <NoProjectHomepage />
+                                <TrackPage name={PageName.NO_PROJECT_HOMEPAGE}>
+                                    <NoProjectHomepage />
+                                </TrackPage>
                             </>
                         ),
                     };

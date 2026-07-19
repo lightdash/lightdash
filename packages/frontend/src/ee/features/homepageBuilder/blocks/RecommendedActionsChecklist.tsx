@@ -13,7 +13,7 @@ import {
     IconX,
     type Icon,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useState, type FC } from 'react';
+import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useTracking from '../../../../providers/Tracking/useTracking';
@@ -203,7 +203,8 @@ export const RecommendedActionsChecklist: FC<{
     projectUuid: string | null;
     actions: RecommendedActionsState;
 }> = ({ projectUuid, actions }) => {
-    const { track } = useTracking();
+    const { track, data: trackingData } = useTracking();
+    const isTrackingReady = !!trackingData.rudder;
     const { statuses, skippedActions, setSkippedActions, visibleActions } =
         actions;
     const [carouselIndex, setCarouselIndex] = useState(0);
@@ -262,8 +263,12 @@ export const RecommendedActionsChecklist: FC<{
                 );
                 return next;
             });
+            track({
+                name: EventName.HOMEPAGE_RECOMMENDED_ACTION_RESTORED,
+                properties: { actionKey },
+            });
         },
-        [projectUuid, statuses, setSkippedActions],
+        [projectUuid, statuses, setSkippedActions, track],
     );
 
     const isSkipped = (key: HomepageRecommendedActionKey) =>
@@ -294,13 +299,35 @@ export const RecommendedActionsChecklist: FC<{
 
     const rotatableCount = incompleteActions.length;
 
+    const impressionTriggerRef = useRef<'initial' | 'auto_rotate' | 'manual'>(
+        'initial',
+    );
+    const lastImpressionKeyRef = useRef<string | null>(null);
+    const frontActionKey = orderedAll[activeIndex];
+
     useEffect(() => {
         if (isStackHovered || rotatableCount <= 1) return;
         const timeout = setTimeout(() => {
+            impressionTriggerRef.current = 'auto_rotate';
             setCarouselIndex((activeIndex + 1) % rotatableCount);
         }, AUTO_ROTATE_INTERVAL_MS);
         return () => clearTimeout(timeout);
     }, [activeIndex, isStackHovered, rotatableCount]);
+
+    useEffect(() => {
+        if (!isTrackingReady || !frontActionKey) return;
+        if (lastImpressionKeyRef.current === frontActionKey) return;
+        lastImpressionKeyRef.current = frontActionKey;
+        track({
+            name: EventName.HOMEPAGE_RECOMMENDED_ACTION_IMPRESSION,
+            properties: {
+                actionKey: frontActionKey,
+                position: activeIndex,
+                trigger: impressionTriggerRef.current,
+            },
+        });
+        impressionTriggerRef.current = 'initial';
+    }, [isTrackingReady, frontActionKey, activeIndex, track]);
 
     if (visibleActions.length === 0) return null;
 
@@ -316,12 +343,13 @@ export const RecommendedActionsChecklist: FC<{
                                 color="gray"
                                 size="sm"
                                 aria-label="Previous step"
-                                onClick={() =>
+                                onClick={() => {
+                                    impressionTriggerRef.current = 'manual';
                                     setCarouselIndex(
                                         (activeIndex - 1 + orderedAll.length) %
                                             orderedAll.length,
-                                    )
-                                }
+                                    );
+                                }}
                             >
                                 <MantineIcon icon={IconChevronUp} size={14} />
                             </ActionIcon>
@@ -330,11 +358,12 @@ export const RecommendedActionsChecklist: FC<{
                                 color="gray"
                                 size="sm"
                                 aria-label="Next step"
-                                onClick={() =>
+                                onClick={() => {
+                                    impressionTriggerRef.current = 'manual';
                                     setCarouselIndex(
                                         (activeIndex + 1) % orderedAll.length,
-                                    )
-                                }
+                                    );
+                                }}
                             >
                                 <MantineIcon icon={IconChevronDown} size={14} />
                             </ActionIcon>

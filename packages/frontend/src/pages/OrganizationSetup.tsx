@@ -36,6 +36,8 @@ import { type UserWithAbility } from '../hooks/user/useUser';
 import { useUserCompleteMutation } from '../hooks/user/useUserCompleteMutation';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
+import useTracking from '../providers/Tracking/useTracking';
+import { EventName } from '../types/Events';
 import classes from './OrganizationSetup.module.css';
 import { OrganizationSetupPreview } from './OrganizationSetupPreview';
 
@@ -146,9 +148,12 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         ),
     });
 
+    const { track } = useTracking();
+    const brandDetectionEnabled =
+        health.hasBrandfetch && canEnterOrganizationName && isCompanyDomain;
     const brandDetection = useDetectOrganizationBrand(
         emailDomain,
-        health.hasBrandfetch && canEnterOrganizationName && isCompanyDomain,
+        brandDetectionEnabled,
     );
     const saveBrand = useSaveOrganizationBrand({ showSuccessToast: false });
 
@@ -169,6 +174,30 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                 : {}),
         }));
     }, [brandDetection.data, isDirty, setValues]);
+
+    const hasTrackedBrandDetection = useRef(false);
+    useEffect(() => {
+        if (!brandDetectionEnabled || hasTrackedBrandDetection.current) return;
+        if (!brandDetection.isFetched || brandDetection.isFetching) return;
+        hasTrackedBrandDetection.current = true;
+        const brand = brandDetection.data;
+        track({
+            name: EventName.ORGANIZATION_BRAND_DETECTED,
+            properties: {
+                found: !!brand,
+                autoApplied: !!(
+                    brand &&
+                    (brand.name || brandColorsSorted(brand.colors).length > 0)
+                ),
+            },
+        });
+    }, [
+        brandDetectionEnabled,
+        brandDetection.isFetched,
+        brandDetection.isFetching,
+        brandDetection.data,
+        track,
+    ]);
 
     const detectedBrand = brandDetection.data ?? null;
     const detectedColors = detectedBrand
@@ -200,10 +229,19 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
     const handleSubmit = form.onSubmit((values) => {
         if (isWorkspaceStep) {
             if (values.organizationName.trim()) {
+                track({
+                    name: EventName.ORGANIZATION_SETUP_STEP_COMPLETED,
+                    properties: { step: 'workspace' },
+                });
                 setStep(2);
             }
             return;
         }
+
+        track({
+            name: EventName.ORGANIZATION_SETUP_STEP_COMPLETED,
+            properties: { step: 'about_you' },
+        });
 
         if (user.organizationName) {
             completeMutation.mutate({

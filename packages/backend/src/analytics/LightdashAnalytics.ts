@@ -62,6 +62,15 @@ type Identify = {
     };
 };
 export type BaseTrack = Omit<AnalyticsTrack, 'context'>;
+export type OnboardingFlow = 'new' | 'legacy';
+export type OneTimePasscodePurpose =
+    | 'signup_verification'
+    | 'login'
+    | 'email_change';
+export type OneTimePasscodeFailureReason =
+    | 'invalid'
+    | 'expired'
+    | 'max_attempts';
 type Group = {
     userId: string;
     groupId: string;
@@ -114,14 +123,19 @@ export type CreateUserEvent = BaseTrack & {
     event: 'user.created';
     userId?: string;
     properties: {
-        context: string; // context on where/why this user was created
         createdUserId: string;
         organizationId: string | undefined; // undefined because they can join an org later
         userConnectionType:
             | 'password'
             | 'email_only'
             | OpenIdIdentityIssuerType;
-    };
+    } & (
+        | {
+              context: 'registration' | 'accept_invite';
+              onboardingFlow: OnboardingFlow;
+          }
+        | { context: 'scim' }
+    );
 };
 
 export type DeleteUserEvent = BaseTrack & {
@@ -158,6 +172,28 @@ type VerifiedUserEvent = BaseTrack & {
         isTrackingAnonymized: boolean;
         email?: string;
         location: 'onboarding' | 'settings';
+        method: 'otp' | 'link' | 'sso';
+        onboardingFlow: OnboardingFlow;
+    };
+};
+
+type OneTimePasscodeSentEvent = BaseTrack & {
+    event: 'one_time_passcode.sent';
+    userId: string;
+    properties: {
+        purpose: OneTimePasscodePurpose;
+        isResend: boolean;
+        onboardingFlow: OnboardingFlow;
+    };
+};
+
+type OneTimePasscodeFailedEvent = BaseTrack & {
+    event: 'one_time_passcode.failed';
+    userId: string;
+    properties: {
+        purpose: OneTimePasscodePurpose;
+        reason: OneTimePasscodeFailureReason;
+        onboardingFlow: OnboardingFlow;
     };
 };
 
@@ -193,6 +229,19 @@ type WarehouseConnectEvent = BaseTrack & {
         userId?: string;
         warehouseType?: WarehouseTypes.SNOWFLAKE;
         authenticationMethod?: 'private_key' | 'password';
+    };
+};
+
+type WarehouseConnectionTestedEvent = BaseTrack & {
+    event: 'warehouse_connection.tested';
+    userId: string;
+    properties: {
+        warehouseType: WarehouseTypes;
+        result: 'success' | 'failure';
+        errorType?: string;
+        context: 'project_create' | 'project_update';
+        method: RequestMethod;
+        onboardingFlow: OnboardingFlow;
     };
 };
 
@@ -463,6 +512,7 @@ type CreateOrganizationEvent = BaseTrack & {
         type: string;
         organizationId: string;
         organizationName: string;
+        onboardingFlow: OnboardingFlow;
     };
 };
 
@@ -733,6 +783,17 @@ export type ProjectEvent = BaseTrack & {
         copiedFromProjectUuid?: string;
         authenticationType?: string;
         requireUserCredentials?: boolean;
+        onboardingFlow: OnboardingFlow;
+    };
+};
+
+type OnboardingHomepageProvisionedEvent = BaseTrack & {
+    event: 'onboarding_homepage.provisioned';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        homepageUuid: string;
     };
 };
 
@@ -2022,6 +2083,16 @@ export type AiAgentCreatedEvent = BaseTrack & {
     };
 };
 
+type AiAgentProvisioningFailedEvent = BaseTrack & {
+    event: 'ai_agent.provisioning_failed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        error: string;
+    };
+};
+
 export type AiAgentGithubMcpConnectedEvent = BaseTrack & {
     event: 'ai_agent.github_mcp_connected';
     userId: string;
@@ -2517,6 +2588,8 @@ type TypedEvent =
     | UpdateUserEvent
     | DeleteUserEvent
     | VerifiedUserEvent
+    | OneTimePasscodeSentEvent
+    | OneTimePasscodeFailedEvent
     | UserJoinOrganizationEvent
     | QueryExecutionEvent
     | QueryReadyEvent
@@ -2546,6 +2619,7 @@ type TypedEvent =
     | ProjectErrorEvent
     | ApiErrorEvent
     | ProjectEvent
+    | OnboardingHomepageProvisionedEvent
     | ProjectDeletedEvent
     | ProjectCompiledEvent
     | UpdatedDashboardEvent
@@ -2560,6 +2634,7 @@ type TypedEvent =
     | UserWarehouseCredentialsEvent
     | UserWarehouseCredentialsDeleteEvent
     | WarehouseConnectEvent
+    | WarehouseConnectionTestedEvent
     | LoginEvent
     | IdentityLinkedEvent
     | DbtCloudIntegration
@@ -2624,6 +2699,7 @@ type TypedEvent =
     | SubtotalQueryEvent
     | DeprecatedRouteCalled
     | AiAgentCreatedEvent
+    | AiAgentProvisioningFailedEvent
     | AiAgentGithubMcpConnectedEvent
     | AiAgentDeletedEvent
     | AiAgentUpdatedEvent

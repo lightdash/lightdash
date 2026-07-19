@@ -52,6 +52,7 @@ export enum PageName {
     ORGANIZATION_SETUP = 'organization_setup',
     ONBOARDING_DATA_SOURCE = 'onboarding_data_source',
     ONBOARDING_PROJECT_READY = 'onboarding_project_ready',
+    NO_PROJECT_HOMEPAGE = 'no_project_homepage',
     EMBED_DASHBOARD = 'embed_dashboard',
     EMBED_SAVED_CHART = 'embed_saved_chart',
     EMBED_EXPLORE = 'embed_explore',
@@ -186,4 +187,20 @@ export enum EventName {
 
     // Dashboard UI Version Toggle
     DASHBOARD_UI_VERSION_TOGGLED = 'dashboard_ui_version.toggled',
+
+    SIGNUP_FORM_SUBMITTED = 'signup_form.submitted',
+    OTP_RESEND_CLICKED = 'otp.resend_clicked',
+    LOGIN_FLOW_METHOD_SELECTED = 'login_flow.method_selected',
+    ORGANIZATION_SETUP_STEP_COMPLETED = 'organization_setup_step.completed',
+    ORGANIZATION_BRAND_DETECTED = 'organization_brand.detected',
+    ONBOARDING_WAREHOUSE_SELECTED = 'onboarding_warehouse.selected',
+    BIGQUERY_SSO_SIGNIN_CLICKED = 'bigquery_sso.signin_clicked',
+    BIGQUERY_SSO_SIGNIN_COMPLETED = 'bigquery_sso.signin_completed',
+    SNOWFLAKE_CLI_SSO_COMMAND_COPIED = 'snowflake_cli_sso.command_copied',
+    SETUP_INVITE_SENT = 'setup_invite.sent',
+    ONBOARDING_PROJECT_READY_START_EXPLORING_CLICKED = 'onboarding_project_ready.start_exploring_clicked',
+    HOMEPAGE_ASK_SUBMITTED = 'homepage_ask.submitted',
+    HOMEPAGE_RECOMMENDED_ACTION_IMPRESSION = 'homepage_recommended_action.impression',
+    HOMEPAGE_RECOMMENDED_ACTION_RESTORED = 'homepage_recommended_action.restored',
+    AGENT_SETUP_PROMPT_COPIED = 'agent_setup_prompt.copied',
 }
