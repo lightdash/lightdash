@@ -1,3 +1,10 @@
+## [0.3417.2](https://github.com/lightdash/lightdash/compare/0.3417.1...0.3417.2) (2026-07-19)
+
+
+### Bug Fixes
+
+* prevent Google link-flow session switching; decouple OAuth grants from login identities ([#25762](https://github.com/lightdash/lightdash/issues/25762)) ([bc07bfe](https://github.com/lightdash/lightdash/commit/bc07bfe1cc20095d9d6ffeb9b8f93689a7ead098))
+
 ## [0.3417.1](https://github.com/lightdash/lightdash/compare/0.3417.0...0.3417.1) (2026-07-19)
 
 
