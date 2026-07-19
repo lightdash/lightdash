@@ -13,7 +13,7 @@
 #   - Exits 0 only after the backend /api/v1/health endpoint returns 200.
 #   - Idempotent: safe to re-run at any time.
 #
-# Usage: scripts/dev-fast-start.sh [--ee]
+# Usage: scripts/dev-fast-start.sh [--ee] [--sdk-test]
 #
 # When this script fails, /docker-dev reads the FAIL line, fixes the root cause
 # using the documented agentic steps, then patches this script so it won't recur.
@@ -22,9 +22,11 @@ set -uo pipefail
 
 SCHEMA_VERSION=1
 EE_MODE=false
+SDK_TEST_MODE=false
 for arg in "$@"; do
     case "$arg" in
         --ee|ee) EE_MODE=true ;;
+        --sdk-test|sdk-test) SDK_TEST_MODE=true ;;
         *) echo "FAIL: args -- unknown argument '$arg'" >&2; exit 2 ;;
     esac
 done
@@ -514,6 +516,9 @@ elif [ "${ENV_PORTS_CHANGED:-0}" = 1 ]; then
     echo "Env ports changed — recycling PM2 so the new env is picked up"
     # shellcheck disable=SC2046
     pm2 delete $(instance_pm2_names) >/dev/null 2>&1 || true
+fi
+if [ "$SDK_TEST_MODE" = true ]; then
+    export LD_ENABLE_SDK_TEST=true
 fi
 pnpm pm2:start >/dev/null 2>&1 || fail "pm2" "pnpm pm2:start failed (check 'pm2 logs ${LD_INSTANCE_ID}-api')"
 echo "OK: pm2 started"
