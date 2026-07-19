@@ -1,3 +1,10 @@
+# [0.3417.0](https://github.com/lightdash/lightdash/compare/0.3416.2...0.3417.0) (2026-07-19)
+
+
+### Features
+
+* onboarding warehouse-connect UX — popular-tier picker, SSO-gated BigQuery form, submit readiness ([#25761](https://github.com/lightdash/lightdash/issues/25761)) ([e76916c](https://github.com/lightdash/lightdash/commit/e76916c9622c7e39f14cbcf096423fc1fc0fb7ba))
+
 ## [0.3416.2](https://github.com/lightdash/lightdash/compare/0.3416.1...0.3416.2) (2026-07-18)
 
 
