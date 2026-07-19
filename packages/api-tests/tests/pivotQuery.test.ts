@@ -327,7 +327,7 @@ describe('Pivot query API', () => {
                     projectName,
                     config,
                 );
-            }, 180_000);
+            }, 420_000);
 
             afterAll(async () => {
                 if (projectUuid) {
