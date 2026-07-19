@@ -4,6 +4,8 @@ import { IconCheck } from '@tabler/icons-react';
 import confetti from 'canvas-confetti';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
 import { OnboardingTitle } from './common/OnboardingTitle';
@@ -33,6 +35,7 @@ interface ConnectSuccessProps {
 
 const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
     const { classes } = useStyles();
+    const { track } = useTracking();
 
     return (
         <OnboardingWrapper>
@@ -82,6 +85,12 @@ const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
                         component={Link}
                         size="md"
                         to={`/projects/${projectUuid}/home`}
+                        onClick={() => {
+                            track({
+                                name: EventName.ONBOARDING_PROJECT_READY_START_EXPLORING_CLICKED,
+                                properties: { projectId: projectUuid },
+                            });
+                        }}
                     >
                         Let's do some data!
                     </Button>

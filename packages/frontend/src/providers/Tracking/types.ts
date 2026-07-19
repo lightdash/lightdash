@@ -681,6 +681,13 @@ type HomepageRecommendedActionRestoredEvent = {
     };
 };
 
+type CreateProjectColumnsDefinedButtonClickedEvent = {
+    name: EventName.CREATE_PROJECT_COLUMNS_DEFINED_BUTTON_CLICKED;
+    properties: {
+        warehouse: WarehouseTypes;
+    };
+};
+
 export type EventData =
     | GenericEvent
     | CreateProjectButtonClickedEvent
@@ -695,6 +702,7 @@ export type EventData =
     | HomepageAskSubmittedEvent
     | HomepageRecommendedActionImpressionEvent
     | HomepageRecommendedActionRestoredEvent
+    | CreateProjectColumnsDefinedButtonClickedEvent
     | HomepageQuickActionClickedEvent
     | HomepageRecommendedActionClickedEvent
     | HomepageRecommendedActionSkippedEvent
