@@ -46,7 +46,7 @@ describe('GdriveService.scheduleUploadGsheetFromRows', () => {
         const projectService = {
             getProject: vi.fn().mockResolvedValue({ organizationUuid }),
         };
-        const userModel = {
+        const userOAuthGrantsModel = {
             getRefreshToken: overrides.refreshTokenThrows
                 ? vi
                       .fn()
@@ -66,7 +66,8 @@ describe('GdriveService.scheduleUploadGsheetFromRows', () => {
             projectService: projectService as never,
             savedChartModel: {} as never,
             dashboardModel: {} as never,
-            userModel: userModel as never,
+            userModel: {} as never,
+            userOAuthGrantsModel: userOAuthGrantsModel as never,
             schedulerClient: schedulerClient as never,
             projectModel: projectModel as never,
         });
@@ -81,7 +82,7 @@ describe('GdriveService.scheduleUploadGsheetFromRows', () => {
             }
         ).createAuditedAbility = () => ability;
 
-        return { service, schedulerClient, userModel, ability };
+        return { service, schedulerClient, userOAuthGrantsModel, ability };
     }
 
     it('enqueues a rows job and returns the jobId', async () => {

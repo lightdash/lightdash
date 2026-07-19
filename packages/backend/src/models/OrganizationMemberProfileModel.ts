@@ -26,6 +26,7 @@ import {
     OrganizationTableName,
 } from '../database/entities/organizations';
 import { UserAvatarsTableName } from '../database/entities/userAvatars';
+import { UserOAuthGrantsTableName } from '../database/entities/userOAuthGrants';
 import { DbUser, UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
 import { getColumnMatchRegexQuery } from './SearchModel/utils/search';
@@ -180,18 +181,35 @@ export class OrganizationMemberProfileModel {
 
         // Filter by users with Google Drive refresh token (using subquery to avoid duplicates)
         if (googleOidcOnly) {
-            query = query.whereExists(
-                this.database
-                    .select(1)
-                    .from(OpenIdIdentitiesTableName)
-                    .whereRaw(
-                        `${OpenIdIdentitiesTableName}.user_id = ${UserTableName}.user_id`,
+            query = query.where((builder) =>
+                builder
+                    .whereExists(
+                        this.database
+                            .select(1)
+                            .from(UserOAuthGrantsTableName)
+                            .whereRaw(
+                                `${UserOAuthGrantsTableName}.user_uuid = ${UserTableName}.user_uuid`,
+                            )
+                            .andWhere(
+                                `${UserOAuthGrantsTableName}.provider`,
+                                OpenIdIdentityIssuerType.GOOGLE,
+                            ),
                     )
-                    .andWhere(
-                        `${OpenIdIdentitiesTableName}.issuer_type`,
-                        OpenIdIdentityIssuerType.GOOGLE,
-                    )
-                    .whereNotNull(`${OpenIdIdentitiesTableName}.refresh_token`),
+                    .orWhereExists(
+                        this.database
+                            .select(1)
+                            .from(OpenIdIdentitiesTableName)
+                            .whereRaw(
+                                `${OpenIdIdentitiesTableName}.user_id = ${UserTableName}.user_id`,
+                            )
+                            .andWhere(
+                                `${OpenIdIdentitiesTableName}.issuer_type`,
+                                OpenIdIdentityIssuerType.GOOGLE,
+                            )
+                            .whereNotNull(
+                                `${OpenIdIdentitiesTableName}.refresh_token`,
+                            ),
+                    ),
             );
         }
 
@@ -402,18 +420,36 @@ export class OrganizationMemberProfileModel {
 
         // Filter by users with Google Drive refresh token (using subquery to avoid duplicates)
         if (googleOidcOnly) {
-            orgMembersAndGroupsQuery = orgMembersAndGroupsQuery.whereExists(
-                this.database
-                    .select(1)
-                    .from(OpenIdIdentitiesTableName)
-                    .whereRaw(
-                        `${OpenIdIdentitiesTableName}.user_id = ${UserTableName}.user_id`,
-                    )
-                    .andWhere(
-                        `${OpenIdIdentitiesTableName}.issuer_type`,
-                        OpenIdIdentityIssuerType.GOOGLE,
-                    )
-                    .whereNotNull(`${OpenIdIdentitiesTableName}.refresh_token`),
+            orgMembersAndGroupsQuery = orgMembersAndGroupsQuery.where(
+                (builder) =>
+                    builder
+                        .whereExists(
+                            this.database
+                                .select(1)
+                                .from(UserOAuthGrantsTableName)
+                                .whereRaw(
+                                    `${UserOAuthGrantsTableName}.user_uuid = ${UserTableName}.user_uuid`,
+                                )
+                                .andWhere(
+                                    `${UserOAuthGrantsTableName}.provider`,
+                                    OpenIdIdentityIssuerType.GOOGLE,
+                                ),
+                        )
+                        .orWhereExists(
+                            this.database
+                                .select(1)
+                                .from(OpenIdIdentitiesTableName)
+                                .whereRaw(
+                                    `${OpenIdIdentitiesTableName}.user_id = ${UserTableName}.user_id`,
+                                )
+                                .andWhere(
+                                    `${OpenIdIdentitiesTableName}.issuer_type`,
+                                    OpenIdIdentityIssuerType.GOOGLE,
+                                )
+                                .whereNotNull(
+                                    `${OpenIdIdentitiesTableName}.refresh_token`,
+                                ),
+                        ),
             );
         }
 

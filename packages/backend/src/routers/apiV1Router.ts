@@ -11,6 +11,7 @@ import {
     getOidcRedirectURL,
     initiateOktaOpenIdLogin,
     isAuthenticated,
+    storeOIDCLinkIntent,
     storeOIDCRedirect,
     storeSlackContext,
 } from '../controllers/authentication';
@@ -686,6 +687,7 @@ apiV1Router.get(
 apiV1Router.get(
     '/login/gdrive',
     storeOIDCRedirect,
+    storeOIDCLinkIntent,
     passport.authenticate('google', {
         scope: [
             'profile',
@@ -703,6 +705,7 @@ apiV1Router.get(
 apiV1Router.get(
     '/login/bigquery',
     storeOIDCRedirect,
+    storeOIDCLinkIntent,
     passport.authenticate('google', {
         scope: ['profile', 'email', 'https://www.googleapis.com/auth/bigquery'],
         accessType: 'offline',
@@ -789,6 +792,21 @@ apiV1Router.get(
 );
 
 apiV1Router.get(lightdashConfig.auth.google.callbackPath, (req, res, next) => {
+    if (req.session.oauth?.intent === 'link') {
+        passport.authenticate(
+            'google',
+            { includeGrantedScopes: true, session: false },
+            (error, user) => {
+                if (error) {
+                    next(error);
+                    return;
+                }
+                res.redirect(getOidcRedirectURL(Boolean(user))(req));
+            },
+        )(req, res, next);
+        return;
+    }
+
     passport.authenticate('google', {
         failureRedirect: getOidcRedirectURL(false)(req),
         successRedirect: getOidcRedirectURL(true)(req),

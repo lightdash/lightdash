@@ -78,6 +78,7 @@ import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import * as AccountFactory from '../auth/account';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../config/parseConfig';
+import { UserOAuthGrantProvider } from '../database/entities/userOAuthGrants';
 import {
     createAuditLogEvent,
     createUnknownAuthActor,
@@ -107,6 +108,7 @@ import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserAvatarModel } from '../models/UserAvatarModel';
 import { CreatePasswordlessUserArgs, UserModel } from '../models/UserModel';
+import { UserOAuthGrantsModel } from '../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { wrapSentryTransaction } from '../utils';
@@ -131,6 +133,7 @@ type UserServiceArguments = {
     analytics: LightdashAnalytics;
     inviteLinkModel: InviteLinkModel;
     userModel: UserModel;
+    userOAuthGrantsModel: UserOAuthGrantsModel;
     groupsModel: GroupsModel;
     sessionModel: SessionModel;
     emailModel: EmailModel;
@@ -159,6 +162,10 @@ export type AuthAuditContext = {
     ip?: string;
     userAgent?: string;
     requestId?: string;
+};
+
+type LoginWithOpenIdOptions = {
+    isLinkFlow?: boolean;
 };
 
 const emitAuthAuditEvent = ({
@@ -228,6 +235,8 @@ export class UserService extends BaseService {
 
     private readonly userModel: UserModel;
 
+    private readonly userOAuthGrantsModel: UserOAuthGrantsModel;
+
     private readonly userAvatarModel: UserAvatarModel;
 
     private readonly groupsModel: GroupsModel;
@@ -271,6 +280,7 @@ export class UserService extends BaseService {
         analytics,
         inviteLinkModel,
         userModel,
+        userOAuthGrantsModel,
         groupsModel,
         sessionModel,
         emailModel,
@@ -294,6 +304,7 @@ export class UserService extends BaseService {
         this.analytics = analytics;
         this.inviteLinkModel = inviteLinkModel;
         this.userModel = userModel;
+        this.userOAuthGrantsModel = userOAuthGrantsModel;
         this.groupsModel = groupsModel;
         this.sessionModel = sessionModel;
         this.emailModel = emailModel;
@@ -757,6 +768,7 @@ export class UserService extends BaseService {
         inviteCode: string | undefined,
         refreshToken?: string,
         context?: AuthAuditContext,
+        options?: LoginWithOpenIdOptions,
     ): Promise<SessionUser> {
         this.logger.info(
             `Starting loginWithOpenId - Email: ${
@@ -772,6 +784,7 @@ export class UserService extends BaseService {
                 authenticatedUser,
                 inviteCode,
                 refreshToken,
+                options,
             );
             emitAuthAuditEvent({
                 actor: createActorFromUser(loggedInUser),
@@ -844,7 +857,14 @@ export class UserService extends BaseService {
         authenticatedUser: SessionUser | undefined,
         inviteCode: string | undefined,
         refreshToken: string | undefined,
+        options: LoginWithOpenIdOptions | undefined,
     ): Promise<SessionUser> {
+        if (options?.isLinkFlow && !authenticatedUser) {
+            throw new AuthorizationError(
+                'You must be logged in to connect a Google account',
+            );
+        }
+
         const openIdSession = await this.userModel.findSessionUserByOpenId(
             openIdUser.openId.issuer,
             openIdUser.openId.subject,
@@ -875,6 +895,15 @@ export class UserService extends BaseService {
         );
         // Identity already exists. Update the identity attributes and login the user
         if (openIdSession) {
+            if (
+                options?.isLinkFlow &&
+                openIdSession.userUuid !== authenticatedUser?.userUuid
+            ) {
+                throw new ForbiddenError(
+                    'This Google account is already connected to another Lightdash user',
+                );
+            }
+
             if (!openIdSession.isActive) {
                 this.logger.info(
                     `User ${openIdSession.userUuid} account is deactivated`,
@@ -2541,10 +2570,11 @@ export class UserService extends BaseService {
                     'Snowflake client is not configured',
                 );
             }
-            const refreshToken: string = await this.userModel.getRefreshToken(
-                user.userUuid,
-                OpenIdIdentityIssuerType.SNOWFLAKE,
-            );
+            const refreshToken =
+                await this.userOAuthGrantsModel.getRefreshToken(
+                    user.userUuid,
+                    OpenIdIdentityIssuerType.SNOWFLAKE,
+                );
             const { accessToken } =
                 await UserService.generateSnowflakeAccessToken(refreshToken);
             return accessToken;
@@ -2556,15 +2586,16 @@ export class UserService extends BaseService {
                     'Databricks client is not configured',
                 );
             }
-            const refreshToken: string = await this.userModel.getRefreshToken(
-                user.userUuid,
-                OpenIdIdentityIssuerType.DATABRICKS,
-            );
+            const refreshToken =
+                await this.userOAuthGrantsModel.getRefreshToken(
+                    user.userUuid,
+                    OpenIdIdentityIssuerType.DATABRICKS,
+                );
             const accessToken =
                 await UserService.generateDatabricksAccessToken(refreshToken);
             return accessToken;
         }
-        const refreshToken: string = await this.userModel.getRefreshToken(
+        const refreshToken = await this.userOAuthGrantsModel.getRefreshToken(
             user.userUuid,
             OpenIdIdentityIssuerType.GOOGLE,
         );
@@ -2680,8 +2711,28 @@ export class UserService extends BaseService {
      * @param user
      * @returns accessToken
      */
+    async storeOAuthGrant(
+        user: SessionUser,
+        provider: UserOAuthGrantProvider,
+        refreshToken: string,
+        scopes: string[],
+        profile: Pick<OpenIdUser['openId'], 'subject' | 'email'>,
+    ): Promise<void> {
+        await this.userOAuthGrantsModel.upsertGrant({
+            userUuid: user.userUuid,
+            provider,
+            subject: profile.subject,
+            email: profile.email,
+            scopes,
+            refreshToken,
+        });
+    }
+
     async getRefreshToken(userUuid: string): Promise<string> {
-        return this.userModel.getRefreshToken(userUuid);
+        return this.userOAuthGrantsModel.getRefreshToken(
+            userUuid,
+            OpenIdIdentityIssuerType.GOOGLE,
+        );
     }
 
     async getWarehouseCredentials(user: SessionUser) {

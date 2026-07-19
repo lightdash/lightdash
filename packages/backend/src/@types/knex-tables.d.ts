@@ -312,6 +312,10 @@ import {
     UserFavoritesTable,
     UserFavoritesTableName,
 } from '../database/entities/userFavorites';
+import {
+    UserOAuthGrantsTable,
+    UserOAuthGrantsTableName,
+} from '../database/entities/userOAuthGrants';
 import { UserTable, UserTableName } from '../database/entities/users';
 import {
     ProjectUserWarehouseCredentialPreferenceTable,
@@ -589,6 +593,7 @@ declare module 'knex/types/tables' {
         [GithubAppInstallationTableName]: GithubAppInstallationTable;
         [GitlabAppInstallationTableName]: GitlabAppInstallationTable;
         [GitUserCredentialsTableName]: GitUserCredentialsTable;
+        [UserOAuthGrantsTableName]: UserOAuthGrantsTable;
         [PullRequestsTableName]: PullRequestsTable;
         [DashboardTileCommentsTableName]: DashboardTileCommentsTable;
         [AiThreadTableName]: AiThreadTable;

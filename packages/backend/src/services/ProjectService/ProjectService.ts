@@ -260,6 +260,7 @@ import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import type { TagsModel } from '../../models/TagsModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
+import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
@@ -326,6 +327,7 @@ export type ProjectServiceArguments = {
     contentModel: ContentModel;
     encryptionUtil: EncryptionUtil;
     userModel: UserModel;
+    userOAuthGrantsModel: UserOAuthGrantsModel;
     featureFlagModel: FeatureFlagModel;
     projectParametersModel: ProjectParametersModel;
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
@@ -432,6 +434,8 @@ export class ProjectService extends BaseService {
 
     userModel: UserModel;
 
+    userOAuthGrantsModel: UserOAuthGrantsModel;
+
     featureFlagModel: FeatureFlagModel;
 
     projectParametersModel: ProjectParametersModel;
@@ -499,6 +503,7 @@ export class ProjectService extends BaseService {
         contentModel,
         encryptionUtil,
         userModel,
+        userOAuthGrantsModel,
         featureFlagModel,
         projectParametersModel,
         projectCompileLogModel,
@@ -544,6 +549,7 @@ export class ProjectService extends BaseService {
         this.contentModel = contentModel;
         this.encryptionUtil = encryptionUtil;
         this.userModel = userModel;
+        this.userOAuthGrantsModel = userOAuthGrantsModel;
         this.featureFlagModel = featureFlagModel;
         this.projectParametersModel = projectParametersModel;
         this.projectCompileLogModel = projectCompileLogModel;
@@ -1329,10 +1335,11 @@ export class ProjectService extends BaseService {
                 BigqueryAuthenticationType.SSO &&
             args.warehouseConnection.keyfileContents.type !== 'authorized_user'
         ) {
-            const refreshToken = await this.userModel.getRefreshToken(
-                userUuid,
-                OpenIdIdentityIssuerType.GOOGLE,
-            );
+            const refreshToken =
+                await this.userOAuthGrantsModel.getRefreshToken(
+                    userUuid,
+                    OpenIdIdentityIssuerType.GOOGLE,
+                );
 
             // Validate refresh token has the right bigquery scopes
             await UserService.generateGoogleAccessToken(
@@ -1360,10 +1367,11 @@ export class ProjectService extends BaseService {
             args.warehouseConnection.authenticationType === 'sso' &&
             !organizationWarehouseCredentialsUuid
         ) {
-            const refreshToken = await this.userModel.getRefreshToken(
-                userUuid,
-                OpenIdIdentityIssuerType.SNOWFLAKE,
-            );
+            const refreshToken =
+                await this.userOAuthGrantsModel.getRefreshToken(
+                    userUuid,
+                    OpenIdIdentityIssuerType.SNOWFLAKE,
+                );
             // Validate refresh token and generate new access token
             this.logger.debug(
                 `Refreshing snowflake warehouse credentials from user uuid: ${userUuid}`,
@@ -9759,7 +9767,7 @@ export class ProjectService extends BaseService {
         // At this point, there might not be any projects
         // so we can't check any permissions here.
         // Bigquery will handle the permissions
-        const refreshToken = await this.userModel.getRefreshToken(
+        const refreshToken = await this.userOAuthGrantsModel.getRefreshToken(
             user.userUuid,
             OpenIdIdentityIssuerType.GOOGLE,
         );
@@ -9801,7 +9809,7 @@ export class ProjectService extends BaseService {
         // At this point, there might not be any projects
         // so we can't check any permissions here.
         // Bigquery will handle the permissions
-        const refreshToken = await this.userModel.getRefreshToken(
+        const refreshToken = await this.userOAuthGrantsModel.getRefreshToken(
             user.userUuid,
             OpenIdIdentityIssuerType.GOOGLE,
         );
@@ -9834,7 +9842,7 @@ export class ProjectService extends BaseService {
         // At this point, there might not be any projects
         // so we can't check any permissions here.
         // Bigquery will handle the permissions
-        const refreshToken = await this.userModel.getRefreshToken(
+        const refreshToken = await this.userOAuthGrantsModel.getRefreshToken(
             user.userUuid,
             OpenIdIdentityIssuerType.GOOGLE,
         );
