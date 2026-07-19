@@ -42123,11 +42123,17 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    InviteLinkPurpose: {
+        dataType: 'refEnum',
+        enums: ['member', 'setup'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     InviteLink: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                purpose: { ref: 'InviteLinkPurpose', required: true },
                 email: { dataType: 'string', required: true },
                 userUuid: { dataType: 'string', required: true },
                 organizationUuid: { dataType: 'string', required: true },
@@ -42156,6 +42162,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                purpose: { ref: 'InviteLinkPurpose' },
                 role: { ref: 'OrganizationMemberRole' },
                 expiresAt: { dataType: 'datetime' },
                 email: { dataType: 'string', required: true },
@@ -84625,6 +84632,67 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getInviteLink',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsInviteLinksController_activateInviteLink: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        inviteCode: {
+            in: 'path',
+            name: 'inviteCode',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.post(
+        '/api/v1/invite-links/:inviteCode/activate',
+        ...fetchMiddlewares<RequestHandler>(InviteLinksController),
+        ...fetchMiddlewares<RequestHandler>(
+            InviteLinksController.prototype.activateInviteLink,
+        ),
+
+        async function InviteLinksController_activateInviteLink(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsInviteLinksController_activateInviteLink,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<InviteLinksController>(
+                        InviteLinksController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'activateInviteLink',
                     controller,
                     response,
                     next,

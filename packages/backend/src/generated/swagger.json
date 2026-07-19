@@ -42175,8 +42175,15 @@
                 "required": ["parameterReferences", "query"],
                 "type": "object"
             },
+            "InviteLinkPurpose": {
+                "enum": ["member", "setup"],
+                "type": "string"
+            },
             "InviteLink": {
                 "properties": {
+                    "purpose": {
+                        "$ref": "#/components/schemas/InviteLinkPurpose"
+                    },
                     "email": {
                         "type": "string"
                     },
@@ -42198,6 +42205,7 @@
                     }
                 },
                 "required": [
+                    "purpose",
                     "email",
                     "userUuid",
                     "organizationUuid",
@@ -42223,6 +42231,9 @@
             },
             "CreateInviteLink": {
                 "properties": {
+                    "purpose": {
+                        "$ref": "#/components/schemas/InviteLinkPurpose"
+                    },
                     "role": {
                         "$ref": "#/components/schemas/OrganizationMemberRole"
                     },
@@ -48555,7 +48566,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3417.2",
+        "version": "0.3418.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -72377,6 +72388,45 @@
                         "description": "the code of the invite link",
                         "in": "path",
                         "name": "inviteLinkCode",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/invite-links/{inviteCode}/activate": {
+            "post": {
+                "operationId": "ActivateInviteLink",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRegisterUserResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "inviteCode",
                         "required": true,
                         "schema": {
                             "type": "string"

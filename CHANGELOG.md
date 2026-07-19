@@ -1,3 +1,15 @@
+# [0.3418.0](https://github.com/lightdash/lightdash/compare/0.3417.2...0.3418.0) (2026-07-19)
+
+
+### Bug Fixes
+
+* keep AI suggestion chips SQL-only on projects without explores ([#25764](https://github.com/lightdash/lightdash/issues/25764)) ([8e5c8af](https://github.com/lightdash/lightdash/commit/8e5c8af11992eb16ebdc628d854881b51e03f3cc))
+
+
+### Features
+
+* setup invites — hand warehouse connect to a teammate with one-click passwordless accept ([#25763](https://github.com/lightdash/lightdash/issues/25763)) ([7c282e9](https://github.com/lightdash/lightdash/commit/7c282e9dc49f3200f7fb4d7025e1326cf75246a6))
+
 ## [0.3417.2](https://github.com/lightdash/lightdash/compare/0.3417.1...0.3417.2) (2026-07-19)
 
 
