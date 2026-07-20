@@ -1,5 +1,6 @@
 volumes:
     postgres_data:
+    minio_data:
 
 services:
     minio:
@@ -9,6 +10,7 @@ services:
             - '9000:9000'
             - '9001:9001' # for minio console
         volumes:
+            - minio_data:/data
             - ./init-minio.sh:/init-minio.sh
         entrypoint: '/init-minio.sh'
         environment:
@@ -16,6 +18,7 @@ services:
             - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
             - MINIO_DEFAULT_BUCKETS=${MINIO_DEFAULT_BUCKETS}
             - MINIO_BROWSER=${MINIO_BROWSER:-off}
+            - MINIO_EXPIRATION_DAYS=${MINIO_EXPIRATION_DAYS:-1}
 
     db-dev:
         image: pgvector/pgvector:pg18
