@@ -142,3 +142,16 @@ No verification commands were run during discovery, as required by the discovery
 ## Port history
 
 Not started.
+
+### 2026-07-18 — API replacement implemented
+
+- Target: `packages/api-tests/tests/organizationPermissions.test.ts`.
+- Replacement: added one read-only test using the seeded organization editor and `SEED_PROJECT`; `GET /api/v1/projects/{projectUuid}` returns 200 without creating a user or project grant.
+- Disposition: no Playwright test was added and none of the five skipped Cypress bodies was activated. Existing API tests remain authoritative for member access and denial. Settings-menu, greeting, and `Browse` assertions are intentionally retired.
+- Verification:
+  - `SITE_URL=http://127.0.0.1:3000 pnpm -F api-tests exec vitest run --config vitest.config.ts tests/organizationPermissions.test.ts` — passed, 50/50 tests.
+  - `pnpm -F api-tests lint` — passed with five pre-existing disabled-test warnings in unrelated files.
+  - `pnpm -F api-tests typecheck` — passed.
+  - `pnpm -F api-tests format` — passed.
+- Remaining risk: the focused test requires the standard development seed, including `demo2@lightdash.com` as the organization editor.
+- Commit: pending serialized signing lease.
