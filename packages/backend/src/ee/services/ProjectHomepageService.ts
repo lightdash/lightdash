@@ -4,6 +4,7 @@ import {
     CommercialFeatureFlags,
     defaultHomepageConfig,
     ForbiddenError,
+    getErrorMessage,
     HOMEPAGE_MAX_BLOCKS_PER_ROW,
     NotFoundError,
     ParameterError,
@@ -27,6 +28,9 @@ import {
     type UpdateAnnouncementRequest,
     type UpdateProjectHomepageDraftRequest,
 } from '@lightdash/common';
+import { createCanvas, loadImage } from 'canvas';
+import { randomUUID } from 'crypto';
+import { type Readable } from 'stream';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { type GroupsModel } from '../../models/GroupsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -40,6 +44,17 @@ import {
     parseOpenGraph,
     parseYoutubeOembed,
 } from './homepageLinkMetadata';
+
+const ANNOUNCEMENT_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const ANNOUNCEMENT_IMAGE_MAX_DIMENSION_PX = 2000;
+const ANNOUNCEMENT_IMAGE_PERSISTENT_URL_EXPIRY_SECONDS =
+    10 * 365 * 24 * 60 * 60;
+const ALLOWED_ANNOUNCEMENT_IMAGE_MIME_TYPES = new Set([
+    'image/png',
+    'image/jpeg',
+    'image/gif',
+    'image/webp',
+]);
 
 const LINK_METADATA_TIMEOUT_MS = 5_000;
 const LINK_METADATA_MAX_BYTES = 256 * 1024;
@@ -652,5 +667,109 @@ export class ProjectHomepageService extends BaseService {
             name,
             color: data.color.toLowerCase(),
         });
+    }
+
+    private static async bufferAnnouncementImageUpload(
+        body: Readable,
+        contentLength: number,
+    ): Promise<Buffer> {
+        if (contentLength > ANNOUNCEMENT_IMAGE_MAX_BYTES) {
+            throw new ParameterError(
+                `Image too large: ${contentLength} bytes. Maximum: ${ANNOUNCEMENT_IMAGE_MAX_BYTES} bytes`,
+            );
+        }
+        const chunks: Buffer[] = [];
+        let totalBytes = 0;
+        for await (const chunk of body) {
+            const chunkBuffer = Buffer.isBuffer(chunk)
+                ? chunk
+                : Buffer.from(chunk);
+            totalBytes += chunkBuffer.length;
+            if (totalBytes > ANNOUNCEMENT_IMAGE_MAX_BYTES) {
+                throw new ParameterError(
+                    `Image too large: ${totalBytes} bytes. Maximum: ${ANNOUNCEMENT_IMAGE_MAX_BYTES} bytes`,
+                );
+            }
+            chunks.push(chunkBuffer);
+        }
+        if (totalBytes === 0) {
+            throw new ParameterError('Upload body is empty');
+        }
+        return Buffer.concat(chunks);
+    }
+
+    private static async normalizeAnnouncementImage(
+        upload: Buffer,
+    ): Promise<Buffer> {
+        let image;
+        try {
+            image = await loadImage(upload);
+        } catch (error) {
+            throw new ParameterError(
+                `Invalid image: ${getErrorMessage(error)}`,
+            );
+        }
+        const scale = Math.min(
+            1,
+            ANNOUNCEMENT_IMAGE_MAX_DIMENSION_PX /
+                Math.max(image.width, image.height),
+        );
+        const width = Math.round(image.width * scale);
+        const height = Math.round(image.height * scale);
+        const canvas = createCanvas(width, height);
+        const context = canvas.getContext('2d');
+        context.drawImage(image, 0, 0, width, height);
+        return canvas.toBuffer('image/png');
+    }
+
+    async uploadAnnouncementImage(
+        user: SessionUser,
+        projectUuid: string,
+        mimeType: string,
+        body: Readable,
+        contentLength: number,
+    ): Promise<{ url: string }> {
+        await this.assertFlagEnabled(user);
+        this.assertCanManage(user, projectUuid);
+        if (!user.organizationUuid) {
+            throw new ForbiddenError();
+        }
+
+        const normalizedMimeType = mimeType.toLowerCase().split(';', 1)[0];
+        if (!ALLOWED_ANNOUNCEMENT_IMAGE_MIME_TYPES.has(normalizedMimeType)) {
+            throw new ParameterError(
+                `Invalid image type: ${mimeType}. Allowed: ${Array.from(
+                    ALLOWED_ANNOUNCEMENT_IMAGE_MIME_TYPES,
+                ).join(', ')}`,
+            );
+        }
+
+        const bufferedUpload =
+            await ProjectHomepageService.bufferAnnouncementImageUpload(
+                body,
+                contentLength,
+            );
+        const normalizedImage =
+            await ProjectHomepageService.normalizeAnnouncementImage(
+                bufferedUpload,
+            );
+
+        const storageId = `announcements/${projectUuid}/${randomUUID()}`;
+        const s3Key = `${storageId}.png`;
+
+        await this.fileStorageClient.uploadImage(normalizedImage, storageId);
+
+        const url =
+            await this.persistentDownloadFileService.createPersistentUrl({
+                s3Key,
+                fileType: 'image',
+                organizationUuid: user.organizationUuid,
+                projectUuid,
+                createdByUserUuid: user.userUuid,
+                expirationSeconds:
+                    ANNOUNCEMENT_IMAGE_PERSISTENT_URL_EXPIRY_SECONDS,
+            });
+
+        return { url };
     }
 }

@@ -10,6 +10,7 @@ import {
     type ProjectHomepage,
     type SessionUser,
 } from '@lightdash/common';
+import { Readable } from 'stream';
 import {
     ProjectHomepageService,
     type ProjectHomepageServiceArguments,
@@ -595,6 +596,101 @@ describe('ProjectHomepageService', () => {
                     pageSize: 25,
                 }),
             ).rejects.toThrow(ParameterError);
+        });
+
+        describe('uploadAnnouncementImage', () => {
+            // Minimal 1x1 PNG, valid enough for `loadImage` to decode.
+            const tinyPng = Buffer.from(
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+                'base64',
+            );
+
+            const bufferToReadable = (buf: Buffer): Readable => {
+                const readable = new Readable();
+                readable.push(buf);
+                readable.push(null);
+                return readable;
+            };
+
+            it('is forbidden for a viewer', async () => {
+                const service = makeService();
+                await expect(
+                    service.uploadAnnouncementImage(
+                        makeViewerUser(),
+                        PROJECT_UUID,
+                        'image/png',
+                        bufferToReadable(tinyPng),
+                        tinyPng.length,
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+            });
+
+            it('rejects unsupported mime types', async () => {
+                const service = makeService();
+                await expect(
+                    service.uploadAnnouncementImage(
+                        makeAdminUser(),
+                        PROJECT_UUID,
+                        'application/pdf',
+                        bufferToReadable(tinyPng),
+                        tinyPng.length,
+                    ),
+                ).rejects.toThrow(ParameterError);
+            });
+
+            it('rejects uploads over the size cap', async () => {
+                const service = makeService();
+                await expect(
+                    service.uploadAnnouncementImage(
+                        makeAdminUser(),
+                        PROJECT_UUID,
+                        'image/png',
+                        bufferToReadable(tinyPng),
+                        6 * 1024 * 1024,
+                    ),
+                ).rejects.toThrow(ParameterError);
+            });
+
+            it('uploads the normalized image and returns a persistent URL', async () => {
+                const uploadImage = vi
+                    .fn()
+                    .mockResolvedValue('https://s3/presigned');
+                const createPersistentUrl = vi
+                    .fn()
+                    .mockResolvedValue(
+                        'https://app.lightdash.com/api/v1/file/abc123',
+                    );
+                const service = makeService({
+                    fileStorageClient: { uploadImage },
+                    persistentDownloadFileService: { createPersistentUrl },
+                });
+
+                const result = await service.uploadAnnouncementImage(
+                    makeAdminUser(),
+                    PROJECT_UUID,
+                    'image/png',
+                    bufferToReadable(tinyPng),
+                    tinyPng.length,
+                );
+
+                expect(uploadImage).toHaveBeenCalledWith(
+                    expect.any(Buffer),
+                    expect.stringMatching(
+                        new RegExp(`^announcements/${PROJECT_UUID}/`),
+                    ),
+                );
+                expect(createPersistentUrl).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        fileType: 'image',
+                        organizationUuid: ORGANIZATION_UUID,
+                        projectUuid: PROJECT_UUID,
+                        createdByUserUuid: USER_UUID,
+                    }),
+                );
+                expect(result).toEqual({
+                    url: 'https://app.lightdash.com/api/v1/file/abc123',
+                });
+            });
         });
     });
 });
