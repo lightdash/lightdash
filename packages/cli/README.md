@@ -34,7 +34,9 @@ lightdash upload
 
 Use `--agents <slugs...>` on either command to select specific agents. The
 files manage the agent name, description, image URL, instructions, semantic
-tags, data/content/user-context flags, self-improvement flag, and model config.
+tags, data/content/user-context flags, self-improvement flag, model config,
+and evaluation suites. Evaluation suites are upserted by title; suites omitted
+from YAML remain unchanged, and evaluation run history is never downloaded.
 The YAML `version` identifies the as-code schema, while `agentVersion` preserves
 the AI agent runtime version.
 Access lists, Slack integrations, MCP servers, documents, conversations, and

@@ -1,6 +1,16 @@
 import type { ContentAsCodeType } from '../../types/coder';
 import type { AiAgentModelConfig } from './requestTypes';
 
+export type AgentAsCodeEvaluationPrompt = {
+    prompt: string;
+    expectedResponse: string | null;
+};
+
+export type AgentAsCodeEvaluation = {
+    title: string;
+    prompts: AgentAsCodeEvaluationPrompt[];
+};
+
 export type AgentAsCode = {
     contentType: ContentAsCodeType.AI_AGENT;
     version: number;
@@ -16,6 +26,7 @@ export type AgentAsCode = {
     enableContentTools: boolean;
     enableUserContext: boolean;
     modelConfig: AiAgentModelConfig | null;
+    evaluations?: AgentAsCodeEvaluation[];
     updatedAt?: Date;
     downloadedAt?: Date;
 };
