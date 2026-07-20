@@ -11,6 +11,14 @@
     padding: 14px 16px;
 }
 
+.cardHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
 .pinnedTag {
     display: inline-flex;
     align-items: center;
@@ -20,7 +28,6 @@
     text-transform: uppercase;
     letter-spacing: 0.03em;
     color: var(--mantine-color-blue-6);
-    margin-bottom: 6px;
 }
 
 .cardTitle {
@@ -84,6 +91,33 @@
 
 .editorShell:focus-within {
     border-color: var(--mantine-color-blue-5);
+}
+
+.drawerLayout {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+}
+
+.drawerForm {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.drawerPreview {
+    flex: 1 1 0;
+    min-width: 0;
+    position: sticky;
+    top: 0;
+}
+
+@media (max-width: 900px) {
+    .drawerLayout {
+        flex-direction: column;
+    }
 }
 
 .announcementImage {

@@ -1,12 +1,20 @@
-import { type ProjectAnnouncement } from '@lightdash/common';
+import {
+    ANNOUNCEMENT_CATEGORY_META,
+    AnnouncementCategory,
+    type ProjectAnnouncement,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Button,
+    Drawer,
+    Group,
+    Select,
     Stack,
     Text,
     TextInput,
     Tooltip,
 } from '@mantine-8/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconPencil,
     IconPin,
@@ -16,9 +24,10 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC, type ReactNode } from 'react';
+import { CategoryBadge } from '../../../../components/common/CategoryBadge/CategoryBadge';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import MantineModal from '../../../../components/common/MantineModal';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
+import useApp from '../../../../providers/App/useApp';
 import {
     useAnnouncements,
     useCreateAnnouncement,
@@ -34,6 +43,20 @@ import { type BlockComponentProps, type BuildComponentProps } from './types';
 const FEED_PAGE_SIZE = 25;
 
 const NOOP = () => {};
+
+const CATEGORY_OPTIONS = Object.values(AnnouncementCategory).map((value) => ({
+    value,
+    label: ANNOUNCEMENT_CATEGORY_META[value].label,
+}));
+
+const AnnouncementCategoryBadge: FC<{ category: AnnouncementCategory }> = ({
+    category,
+}) => {
+    const meta = ANNOUNCEMENT_CATEGORY_META[category];
+    return (
+        <CategoryBadge label={meta.label} color={meta.color} variant="token" />
+    );
+};
 
 const Timestamp: FC<{ announcement: ProjectAnnouncement }> = ({
     announcement,
@@ -53,10 +76,21 @@ const AnnouncementCard: FC<{
     actions?: ReactNode;
 }> = ({ projectUuid, announcement, actions }) => (
     <div className={classes.card}>
-        {announcement.pinned && (
-            <div className={classes.pinnedTag}>
-                <MantineIcon icon={IconPin} size="sm" />
-                Pinned
+        {(announcement.pinned || announcement.category) && (
+            <div className={classes.cardHeader}>
+                {announcement.pinned ? (
+                    <span className={classes.pinnedTag}>
+                        <MantineIcon icon={IconPin} size="sm" />
+                        Pinned
+                    </span>
+                ) : (
+                    <span />
+                )}
+                {announcement.category && (
+                    <AnnouncementCategoryBadge
+                        category={announcement.category}
+                    />
+                )}
             </div>
         )}
         <div className={classes.cardTitle}>{announcement.title}</div>
@@ -107,14 +141,19 @@ export const AnnouncementsBlockView: FC<BlockComponentProps> = ({
     );
 };
 
-const AnnouncementFormModal: FC<{
+const AnnouncementDrawer: FC<{
     projectUuid: string;
     announcement: ProjectAnnouncement | null;
     onClose: () => void;
 }> = ({ projectUuid, announcement, onClose }) => {
     const isEdit = announcement !== null;
+    const { user } = useApp();
     const [title, setTitle] = useState(announcement?.title ?? '');
     const [body, setBody] = useState(announcement?.body ?? '');
+    const [category, setCategory] = useState<AnnouncementCategory | null>(
+        announcement?.category ?? null,
+    );
+    const [debouncedBody] = useDebouncedValue(body, 350);
     const { mutate: create, isLoading: creating } =
         useCreateAnnouncement(projectUuid);
     const { mutate: update, isLoading: updating } =
@@ -132,54 +171,101 @@ const AnnouncementFormModal: FC<{
                     announcementUuid: announcement.announcementUuid,
                     title: trimmedTitle,
                     body: bodyValue,
+                    category,
                 },
                 { onSuccess: onClose },
             );
         } else {
             create(
-                { title: trimmedTitle, body: bodyValue },
+                { title: trimmedTitle, body: bodyValue, category },
                 { onSuccess: onClose },
             );
         }
     };
 
-    let confirmLabel = isEdit ? 'Save' : 'Publish';
-    if (isLoading) confirmLabel = 'Saving…';
+    const authorName = user.data
+        ? `${user.data.firstName} ${user.data.lastName}`.trim()
+        : null;
+    const previewAnnouncement: ProjectAnnouncement = {
+        announcementUuid: 'preview',
+        projectUuid,
+        title: title.trim() || 'Untitled announcement',
+        body: debouncedBody.trim() || null,
+        category,
+        pinned: false,
+        createdByUserUuid: null,
+        authorName,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+    };
 
     return (
-        <MantineModal
+        <Drawer
             opened
             onClose={onClose}
+            position="right"
+            size="xl"
             title={isEdit ? 'Edit announcement' : 'New announcement'}
-            size="lg"
-            onConfirm={handleSave}
-            confirmLabel={confirmLabel}
         >
-            <Stack gap="sm">
-                <TextInput
-                    label="Title"
-                    placeholder="What's the update?"
-                    value={title}
-                    onChange={(e) => setTitle(e.currentTarget.value)}
-                    data-autofocus
-                />
-                <div>
-                    <Text size="sm" fw={500} mb={4}>
-                        Body
-                    </Text>
-                    <div className={classes.editorShell}>
-                        <TiptapMarkdownEditor
-                            content={announcement?.body ?? ''}
-                            onChange={setBody}
-                            onImageUpload={async (file) =>
-                                (await uploadImage.mutateAsync(file)).url
-                            }
-                            mentionProjectUuid={projectUuid}
-                        />
+            <div className={classes.drawerLayout}>
+                <div className={classes.drawerForm}>
+                    <TextInput
+                        label="Title"
+                        placeholder="What's the update?"
+                        value={title}
+                        onChange={(e) => setTitle(e.currentTarget.value)}
+                        data-autofocus
+                    />
+                    <Select
+                        label="Category"
+                        placeholder="Pick a category"
+                        clearable
+                        data={CATEGORY_OPTIONS}
+                        value={category}
+                        onChange={(value) =>
+                            setCategory(value as AnnouncementCategory | null)
+                        }
+                    />
+                    <div>
+                        <Text size="sm" fw={500} mb={4}>
+                            Body
+                        </Text>
+                        <div className={classes.editorShell}>
+                            <TiptapMarkdownEditor
+                                content={announcement?.body ?? ''}
+                                onChange={setBody}
+                                onImageUpload={async (file) =>
+                                    (await uploadImage.mutateAsync(file)).url
+                                }
+                                mentionProjectUuid={projectUuid}
+                            />
+                        </div>
                     </div>
                 </div>
-            </Stack>
-        </MantineModal>
+                <div className={classes.drawerPreview}>
+                    <Text size="xs" fw={600} c="dimmed" tt="uppercase" mb="xs">
+                        Preview
+                    </Text>
+                    <AnnouncementCard
+                        key={`${previewAnnouncement.title}|${category ?? ''}|${debouncedBody}`}
+                        projectUuid={projectUuid}
+                        announcement={previewAnnouncement}
+                    />
+                </div>
+            </div>
+            <Group justify="flex-end" mt="lg">
+                <Button variant="default" onClick={onClose}>
+                    Cancel
+                </Button>
+                <Button
+                    onClick={handleSave}
+                    loading={isLoading}
+                    disabled={title.trim().length === 0}
+                >
+                    {isEdit ? 'Save' : 'Publish'}
+                </Button>
+            </Group>
+        </Drawer>
     );
 };
 
@@ -268,18 +354,14 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
                     />
                 ))
             )}
-            {creating && (
-                <AnnouncementFormModal
-                    projectUuid={projectUuid}
-                    announcement={null}
-                    onClose={() => setCreating(false)}
-                />
-            )}
-            {editing && (
-                <AnnouncementFormModal
+            {(creating || editing !== null) && (
+                <AnnouncementDrawer
                     projectUuid={projectUuid}
                     announcement={editing}
-                    onClose={() => setEditing(null)}
+                    onClose={() => {
+                        setCreating(false);
+                        setEditing(null);
+                    }}
                 />
             )}
         </Stack>
