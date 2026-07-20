@@ -55,3 +55,4 @@ release_safety_api:
 timezone:
   - "packages/frontend/src/components/common/TimeZonePicker/index.tsx"
   - "packages/common/src/types/timezone.ts"
+  - "packages/e2e/playwright/app/dates.spec.ts"
