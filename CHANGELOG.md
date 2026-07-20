@@ -1,3 +1,10 @@
+## [0.3422.1](https://github.com/lightdash/lightdash/compare/0.3422.0...0.3422.1) (2026-07-20)
+
+
+### Bug Fixes
+
+* shortcut boolean AI field-value search ([#25720](https://github.com/lightdash/lightdash/issues/25720)) ([cfe9280](https://github.com/lightdash/lightdash/commit/cfe92808afe4938c43db8a0a7d4f7a3d9663619e)), closes [#25715](https://github.com/lightdash/lightdash/issues/25715)
+
 # [0.3422.0](https://github.com/lightdash/lightdash/compare/0.3421.0...0.3422.0) (2026-07-20)
 
 
