@@ -1,3 +1,4 @@
+import { Ability } from '@casl/ability';
 import {
     AuthorizationError,
     defineUserAbility,
@@ -6,11 +7,13 @@ import {
     FeatureFlags,
     ForbiddenError,
     InviteLinkPurpose,
+    LightdashUser,
     NotFoundError,
     OpenIdIdentityIssuerType,
     OrganizationMemberRole,
     ParameterError,
     PasswordResetLink,
+    PossibleAbilities,
     ProjectMemberRole,
     SessionUser,
 } from '@lightdash/common';
@@ -80,6 +83,10 @@ const userModel = {
     hasUsers: vi.fn<UserModel['hasUsers']>(async () => false),
     updateUser: vi.fn(async () => sessionUser),
     upsertPassword: vi.fn<UserModel['upsertPassword']>(async () => undefined),
+    getUserDetailsByUuid: vi.fn<UserModel['getUserDetailsByUuid']>(
+        async () => userWithoutOrg,
+    ),
+    delete: vi.fn<UserModel['delete']>(async () => undefined),
 };
 
 const userOAuthGrantsModel = {
@@ -165,6 +172,18 @@ const organizationAllowedEmailDomainsModel = {
     findAllowedEmailDomains: vi.fn(async () => undefined),
 };
 
+const sessionModel = {
+    deleteAllByUserUuid: vi.fn<SessionModel['deleteAllByUserUuid']>(
+        async () => undefined,
+    ),
+};
+
+const organizationMemberProfileModel = {
+    getOrganizationAdmins: vi.fn<
+        OrganizationMemberProfileModel['getOrganizationAdmins']
+    >(async () => []),
+};
+
 type UserServiceTestOverrides = {
     featureFlagModel?: Pick<FeatureFlagModel, 'get'>;
     organizationAllowedEmailDomainsModel?: Pick<
@@ -189,7 +208,7 @@ const createUserService = (
         userOAuthGrantsModel:
             userOAuthGrantsModel as unknown as UserOAuthGrantsModel,
         groupsModel: {} as GroupsModel,
-        sessionModel: {} as SessionModel,
+        sessionModel: sessionModel as unknown as SessionModel,
         emailModel: emailModel as unknown as EmailModel,
         openIdIdentityModel:
             openIdIdentityModel as unknown as OpenIdIdentityModel,
@@ -197,7 +216,8 @@ const createUserService = (
             (overrides.passwordResetLinkModel as PasswordResetLinkModel) ??
             ({} as PasswordResetLinkModel),
         emailClient: emailClient as unknown as EmailClient,
-        organizationMemberProfileModel: {} as OrganizationMemberProfileModel,
+        organizationMemberProfileModel:
+            organizationMemberProfileModel as unknown as OrganizationMemberProfileModel,
         organizationModel: organizationModel as unknown as OrganizationModel,
         personalAccessTokenModel: {} as PersonalAccessTokenModel,
         organizationAllowedEmailDomainsModel:
@@ -330,6 +350,59 @@ describe('UserService', () => {
                 email: sessionUser.email!,
             });
             expect(userModel.updateUser).toHaveBeenCalled();
+        });
+    });
+
+    describe('delete', () => {
+        const orglessActor: SessionUser = {
+            ...sessionUser,
+            userUuid: userWithoutOrg.userUuid,
+        };
+
+        test('allows a user without an organization to delete their own account', async () => {
+            const service = createUserService(lightdashConfigMock);
+
+            await service.delete(orglessActor, userWithoutOrg.userUuid);
+
+            expect(sessionModel.deleteAllByUserUuid).toHaveBeenCalledWith(
+                userWithoutOrg.userUuid,
+            );
+            expect(userModel.delete).toHaveBeenCalledWith(
+                userWithoutOrg.userUuid,
+            );
+        });
+
+        test('rejects deleting a different user without an organization', async () => {
+            const service = createUserService(lightdashConfigMock);
+
+            await expect(
+                service.delete(sessionUser, userWithoutOrg.userUuid),
+            ).rejects.toThrow(ForbiddenError);
+            expect(userModel.delete).not.toHaveBeenCalled();
+        });
+
+        test('deletes an org member when the organization has no admins', async () => {
+            const memberUser: LightdashUser = {
+                ...userWithoutOrg,
+                organizationUuid: sessionUser.organizationUuid,
+            };
+            vi.mocked(userModel.getUserDetailsByUuid).mockResolvedValueOnce(
+                memberUser,
+            );
+            const orgAdmin: SessionUser = {
+                ...sessionUser,
+                ability: new Ability<PossibleAbilities>([
+                    {
+                        subject: 'OrganizationMemberProfile',
+                        action: ['delete'],
+                    },
+                ]),
+            };
+            const service = createUserService(lightdashConfigMock);
+
+            await service.delete(orgAdmin, memberUser.userUuid);
+
+            expect(userModel.delete).toHaveBeenCalledWith(memberUser.userUuid);
         });
     });
 
