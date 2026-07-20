@@ -171,8 +171,6 @@ describe('getDefaultTimeDimensionFieldIds', () => {
         });
     });
 
-    // Malformed dbt YAML (wrong keys inside default_time_dimension) compiles
-    // to {}; must not crash the whole grep_fields index build
     it('returns null when the model default time dimension has no field', () => {
         const explore = makeExplore({
             name: 'orders',

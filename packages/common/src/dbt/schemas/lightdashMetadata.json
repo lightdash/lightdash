@@ -61,6 +61,20 @@
                 }
             }
         },
+        "DefaultTimeDimension": {
+            "type": "object",
+            "properties": {
+                "field": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "interval": {
+                    "type": "string",
+                    "enum": ["DAY", "WEEK", "MONTH", "YEAR"]
+                }
+            },
+            "required": ["field", "interval"]
+        },
         "Compact": {
             "type": "string",
             "enum": [
@@ -404,6 +418,9 @@
                 },
                 "tags": {
                     "$ref": "#/definitions/Tags"
+                },
+                "default_time_dimension": {
+                    "$ref": "#/definitions/DefaultTimeDimension"
                 }
             }
         },
@@ -427,6 +444,21 @@
                         "$ref": "#/definitions/LightdashMetric"
                     },
                     "default": {}
+                }
+            }
+        },
+        "LightdashColumnConfig": {
+            "type": "object",
+            "properties": {
+                "meta": {
+                    "oneOf": [
+                        {
+                            "$ref": "#/definitions/LightdashColumnMetadata"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
                 }
             }
         },
@@ -520,11 +552,21 @@
                     },
                     "maxItems": 5
                 },
+                "metrics": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/LightdashMetric"
+                    },
+                    "default": {}
+                },
                 "required_attributes": {
                     "$ref": "#/definitions/RequiredAttributes"
                 },
                 "any_attributes": {
                     "$ref": "#/definitions/AnyAttributes"
+                },
+                "default_time_dimension": {
+                    "$ref": "#/definitions/DefaultTimeDimension"
                 }
             },
             "default": {}

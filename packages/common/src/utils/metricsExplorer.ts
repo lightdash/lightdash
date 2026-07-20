@@ -37,7 +37,11 @@ import {
 } from '../types/metricsExplorer';
 import { type WarehouseTypes } from '../types/projects';
 import type { ResultRow } from '../types/results';
-import { TimeFrames, type DefaultTimeDimension } from '../types/timeFrames';
+import {
+    isDefaultTimeDimensionInterval,
+    TimeFrames,
+    type DefaultTimeDimension,
+} from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { createFilterRuleFromModelRequiredFilterRule } from './filters';
 import { getItemId } from './item';
@@ -502,6 +506,14 @@ export const DEFAULT_METRICS_EXPLORER_TIME_INTERVAL = TimeFrames.MONTH;
 
 export type TimeDimensionConfig = DefaultTimeDimension & { table: string };
 
+const hasValidDefaultTimeDimension = (
+    defaultTimeDimension: DefaultTimeDimension | undefined,
+): defaultTimeDimension is DefaultTimeDimension =>
+    typeof defaultTimeDimension?.field === 'string' &&
+    defaultTimeDimension.field.length > 0 &&
+    (defaultTimeDimension.interval === undefined ||
+        isDefaultTimeDimensionInterval(defaultTimeDimension.interval));
+
 export const getFirstAvailableTimeDimension = (
     metric: MetricWithAssociatedTimeDimension,
 ): TimeDimensionConfig | undefined => {
@@ -522,10 +534,8 @@ export const getDefaultTimeDimension = (
     metric: CompiledMetric,
     table?: CompiledTable,
 ): DefaultTimeDimension | undefined => {
-    // Malformed yml (e.g. wrong keys inside default_time_dimension) compiles
-    // to a field-less object — treat it as absent
     // Priority 1: Use metric-level default time dimension if defined in yml
-    if (metric.defaultTimeDimension?.field) {
+    if (hasValidDefaultTimeDimension(metric.defaultTimeDimension)) {
         return {
             field: metric.defaultTimeDimension.field,
             interval:
@@ -535,7 +545,7 @@ export const getDefaultTimeDimension = (
     }
 
     // Priority 2: Use model-level default time dimension if defined in yml
-    if (table?.defaultTimeDimension?.field) {
+    if (hasValidDefaultTimeDimension(table?.defaultTimeDimension)) {
         return {
             field: table.defaultTimeDimension.field,
             interval:

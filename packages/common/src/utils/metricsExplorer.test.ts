@@ -197,9 +197,6 @@ describe('getDefaultTimeDimension', () => {
         hidden: false,
     };
 
-    // Malformed dbt YAML (wrong keys inside default_time_dimension) compiles
-    // to an empty object; treat it as absent instead of returning
-    // { field: undefined } that crashes downstream getItemId calls.
     test('ignores a metric-level default time dimension without a field', () => {
         expect(
             getDefaultTimeDimension({
@@ -216,6 +213,41 @@ describe('getDefaultTimeDimension', () => {
         } as CompiledTable;
 
         expect(getDefaultTimeDimension(metric, table)).toBeUndefined();
+    });
+
+    test('falls back to the model default when the metric field is malformed', () => {
+        const table = {
+            name: 'orders',
+            defaultTimeDimension: {
+                field: 'created_at',
+                interval: TimeFrames.WEEK,
+            },
+        } as CompiledTable;
+
+        expect(
+            getDefaultTimeDimension(
+                {
+                    ...metric,
+                    defaultTimeDimension: {
+                        field: { created_at: null },
+                        interval: TimeFrames.DAY,
+                    } as unknown as DefaultTimeDimension,
+                },
+                table,
+            ),
+        ).toEqual({ field: 'created_at', interval: TimeFrames.WEEK });
+    });
+
+    test('ignores an unsupported default interval', () => {
+        expect(
+            getDefaultTimeDimension({
+                ...metric,
+                defaultTimeDimension: {
+                    field: 'created_at',
+                    interval: TimeFrames.HOUR,
+                } as unknown as DefaultTimeDimension,
+            }),
+        ).toBeUndefined();
     });
 
     test('returns the metric-level default time dimension when valid', () => {
