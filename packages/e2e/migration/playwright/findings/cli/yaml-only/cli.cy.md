@@ -133,3 +133,22 @@ For preview verification, replace the local URL with the assigned preview URL. C
 ## Port history
 
 Not started.
+
+### 2026-07-18 — CLI Node port implemented
+
+- Target: `packages/cli/integration/no-dbt/yaml-only.integration.test.ts`.
+- Ported both active compile/deploy behaviors to the coordinated Vitest Node runner. The tests execute the absolute built CLI with argument arrays, copy the YAML-only fixture into a fresh temporary cwd, isolate `HOME`, preserve stderr/exit-code assertions, and use a 120-second child timeout.
+- Deploy logs in as the seeded admin, creates one uniquely described PAT and one uniquely named project, captures canonical UUIDs, and cleans the project, PAT, and temporary root in `finally`. Exact-name/description fallback cleanup covers failures before UUID capture. Cleanup failures do not replace the primary test failure.
+- Skipped decisions: none; the Cypress source has no skipped tests and remains unchanged.
+- Verification passed: `pnpm common-build:fast`; `pnpm warehouses-build:fast`; `pnpm -F @lightdash/cli build:fast`; focused target execution against `SITE_URL=http://127.0.0.1:3000` (2/2 tests); three additional focused runs (2/2 each, 4.79–5.23 seconds); full `integration/no-dbt` lane (2/2, 5.06 seconds); `pnpm -F @lightdash/cli typecheck:fast`; `pnpm -F @lightdash/cli exec tsc6 --project tsconfig.eslint.json --noEmit`; CLI package lint/format; target lint/format; `git diff --check`; fixture-clean check.
+- Cleanup evidence: no `lightdash-cli-yaml-only-*` temporary roots remained; authenticated API checks found no `YAML-only CLI *` projects or `yaml-only-cli-*` PATs. Local `psql` was unavailable, so server cleanup was verified through the same authenticated API surfaces instead.
+- Non-gating tooling note: bare `pnpm -F @lightdash/cli exec tsc --project tsconfig.eslint.json --noEmit` selected the TypeScript 7 RC and rejected the inherited `moduleResolution=node10`; the repository's `tsc6` compiler passed the integration lint project.
+- Remaining risk: CLI analytics still awaits the external telemetry endpoint because no supported opt-out exists. Observed local runs stayed well below the bounded process timeout.
+- Commit: pending serialized signing lease.
+
+### 2026-07-18 — coordinator simplification review
+
+- Reworked the target around the sibling CLI integration pattern: one captured session cookie, narrow request/response helpers, and one `withTemporaryProject` lifecycle now replace the cookie-jar client and generic cleanup scaffolding.
+- Preserved the built-CLI process contract, isolated temporary `HOME`/cwd/fixture, canonical UUID assertion, exact unique-name/description fallback deletion, and primary-error precedence when project, PAT, or workspace cleanup also fails.
+- Post-reset verification passed against `SITE_URL=http://127.0.0.1:3000`: focused target 2/2 tests (16.40 seconds); full `integration/no-dbt` lane 2/2 tests (29.37 seconds).
+- Commit: still pending serialized signing lease; no signing or push performed.
