@@ -26,13 +26,14 @@ import {
     useUpdateAnnouncement,
     useUploadAnnouncementImage,
 } from '../hooks/useAnnouncements';
-import { AnnouncementContent } from './announcements/AnnouncementContent';
 import classes from './announcements/announcements.module.css';
 import { BlockHeader } from './BlockShell';
 import { TiptapMarkdownEditor } from './markdownEditor/TiptapMarkdownEditor';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 const FEED_PAGE_SIZE = 25;
+
+const NOOP = () => {};
 
 const Timestamp: FC<{ announcement: ProjectAnnouncement }> = ({
     announcement,
@@ -61,9 +62,11 @@ const AnnouncementCard: FC<{
         <div className={classes.cardTitle}>{announcement.title}</div>
         {announcement.body && (
             <div className={classes.cardBody}>
-                <AnnouncementContent
-                    projectUuid={projectUuid}
-                    text={announcement.body}
+                <TiptapMarkdownEditor
+                    content={announcement.body}
+                    editable={false}
+                    mentionProjectUuid={projectUuid}
+                    onChange={NOOP}
                 />
             </div>
         )}

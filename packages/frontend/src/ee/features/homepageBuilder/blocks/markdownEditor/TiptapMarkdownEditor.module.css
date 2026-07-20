@@ -78,6 +78,22 @@
     border-top: 1px solid var(--mantine-color-ldGray-2);
 }
 
+.editorContent :global(.ProseMirror) :global(img) {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--mantine-radius-md);
+    margin: 4px 0;
+}
+
+.editorContent :global(.ProseMirror) :global(a) {
+    color: var(--mantine-color-blue-6);
+    text-decoration: none;
+}
+
+.editorContent :global(.ProseMirror) :global(a:hover) {
+    text-decoration: underline;
+}
+
 .editorContent
     :global(.ProseMirror)
     :global(.is-editor-empty:first-child::before) {

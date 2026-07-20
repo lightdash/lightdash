@@ -1,11 +1,15 @@
 import Image from '@tiptap/extension-image';
+import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import { EditorContent, useEditor, type Extensions } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useRef, type ChangeEvent, type FC } from 'react';
 import { Markdown, type MarkdownStorage } from 'tiptap-markdown';
 import useToaster from '../../../../../hooks/toaster/useToaster';
-import { createMentionMarkdownExtension } from './contentMentionMarkdown';
+import {
+    createMentionMarkdownExtension,
+    hydrateContentMentions,
+} from './contentMentionMarkdown';
 import { SlashCommand } from './SlashCommandExtension';
 import { createSlashCommandItems } from './slashCommandItems';
 import classes from './TiptapMarkdownEditor.module.css';
@@ -24,9 +28,11 @@ type Props = {
     onImageUpload?: (file: File) => Promise<string>;
     /**
      * When set, enables `@`-mentions of charts/dashboards in this project,
-     * serialized to markdown links.
+     * serialized to markdown links and hydrated back into chips on load.
      */
     mentionProjectUuid?: string;
+    /** Read-only render mode — no editing, no toolbar. Defaults to true. */
+    editable?: boolean;
 };
 
 export const TiptapMarkdownEditor: FC<Props> = ({
@@ -34,12 +40,15 @@ export const TiptapMarkdownEditor: FC<Props> = ({
     onChange,
     onImageUpload,
     mentionProjectUuid,
+    editable = true,
 }) => {
     const { showToastError } = useToaster();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const extensions: Extensions = [
         StarterKit,
+        Link.configure({ openOnClick: !editable, autolink: false }),
+        Image,
         Markdown.configure({
             html: false,
             transformPastedText: true,
@@ -55,13 +64,16 @@ export const TiptapMarkdownEditor: FC<Props> = ({
                   }),
               })
             : SlashCommand,
-        ...(onImageUpload ? [Image] : []),
         ...(mentionProjectUuid
             ? [createMentionMarkdownExtension(mentionProjectUuid)]
             : []),
     ];
 
     const editor = useEditor({
+        editable,
+        onCreate: mentionProjectUuid
+            ? ({ editor: created }) => hydrateContentMentions(created)
+            : undefined,
         extensions,
         content,
         onUpdate: ({ editor: updatedEditor }) => {
