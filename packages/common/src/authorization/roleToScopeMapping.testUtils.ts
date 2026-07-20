@@ -207,6 +207,11 @@ export const createStandardTestCases = () => [
         resource: { projectUuid: 'test-project-uuid' },
     },
     {
+        action: 'view' as const,
+        subject: 'CompiledSql' as const,
+        resource: { projectUuid: 'test-project-uuid' },
+    },
+    {
         action: 'manage' as const,
         subject: 'CustomSqlTableCalculations' as const,
         resource: { projectUuid: 'test-project-uuid' },

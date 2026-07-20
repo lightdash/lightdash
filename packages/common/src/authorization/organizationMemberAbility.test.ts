@@ -997,6 +997,10 @@ describe('Organization member permissions', () => {
                 expect(ability.can('manage', 'SqlRunner')).toEqual(false);
             });
 
+            it('cannot view compiled SQL', () => {
+                expect(ability.can('view', 'CompiledSql')).toEqual(false);
+            });
+
             it('can use the SemanticViewer', () => {
                 expect(ability.can('manage', 'SemanticViewer')).toEqual(true);
             });
@@ -1108,6 +1112,10 @@ describe('Organization member permissions', () => {
 
             it('can run SQL Queries', () => {
                 expect(ability.can('manage', 'SqlRunner')).toEqual(true);
+            });
+
+            it('can view compiled SQL', () => {
+                expect(ability.can('view', 'CompiledSql')).toEqual(true);
             });
 
             it('can use the SemanticViewer', () => {

@@ -1081,6 +1081,15 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'view:CompiledSql',
+        description:
+            'View compiled SQL for charts, including charts with custom SQL fields',
+        isEnterprise: false,
+        group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:CustomFields',
         description: 'Create and edit custom dimensions',
         isEnterprise: false,

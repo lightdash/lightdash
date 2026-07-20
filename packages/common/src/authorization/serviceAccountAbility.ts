@@ -258,6 +258,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('manage', 'CustomFields', {
             organizationUuid,
         });
+        can('view', 'CompiledSql', {
+            organizationUuid,
+        });
         can('manage', 'CustomSqlTableCalculations', {
             organizationUuid,
         });
