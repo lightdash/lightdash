@@ -110,3 +110,15 @@ The latter is a fallback, not the recommendation.
 ## Port history
 
 Not started.
+
+### 2026-07-20 — retirement disposition verified
+
+- Retire this spec without Playwright or new unit coverage. Its only suite and test remain doubly disabled by `describe.skip` and `it.skip` (`packages/e2e/cypress/e2e/app/formats.cy.ts:3,9`), so it has zero active coverage and its login hook does not execute.
+- Existing Common tests are the authoritative replacement: legacy km/mi units, current currency defaults (including EUR/GBP two decimals, JPY zero decimals, and DKK two decimals), percent scaling, and explicit zero/positive/currency/percent rounds are covered in `packages/common/src/utils/formatting.test.ts:411-474,510-720,2255-2326`. The skipped browser's integer default expectations for EUR/GBP/DKK are stale and must not be preserved.
+- No Playwright file or unit file was created, and no Common implementation/test/config/package file changed. Keep the Cypress source unchanged during dual-run; deletion remains deferred to the final all-sources removal.
+- Authoritative verification used repository-pinned Node 20.19.4 from `.nvmrc`:
+  - `PATH=/nix/store/h498bf8iiv260ysmfslql4b1p8v3jvk2-nodejs-20.19.4/bin:$PATH pnpm -F common exec vitest run --config vitest.config.ts src/utils/formatting.test.ts --reporter=verbose` — 184/184 passed.
+  - `PATH=/nix/store/h498bf8iiv260ysmfslql4b1p8v3jvk2-nodejs-20.19.4/bin:$PATH pnpm -F common typecheck:fast` — passed.
+  - `PATH=/nix/store/h498bf8iiv260ysmfslql4b1p8v3jvk2-nodejs-20.19.4/bin:$PATH pnpm -F common lint` — passed with 0 errors and 6 existing warnings outside the formatter disposition.
+  - `PATH=/nix/store/h498bf8iiv260ysmfslql4b1p8v3jvk2-nodejs-20.19.4/bin:$PATH pnpm -F common format` — passed.
+- Environment evidence: ambient Node 24.16.0 uses newer Intl defaults (`COP 1` and `HUF 1`) and the direct focused file reported 183 passed/1 unrelated `available currencies` failure; pinned Node 20.19.4 reports the expected `COP 1.00`/`HUF 1.00` and is authoritative. The earlier package-script form with a literal `--` was parsed as a positional filter and ran 110 files, so its result is command-forwarding evidence, not focused coverage.
