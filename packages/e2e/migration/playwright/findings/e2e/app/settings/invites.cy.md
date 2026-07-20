@@ -162,3 +162,29 @@ The focused repeated run must leave no test-generated invitee after each attempt
 ## Port history
 
 Not started.
+
+### 2026-07-20 — static port complete; execution lease pending
+
+- Target: `packages/e2e/playwright/app/settings/invites.spec.ts`.
+- Ported both active contracts with `@mutating`: invite/accept/register/DEV `000000` verification in one test, and independent API invite/activation followed by rendered search/action-menu/delete behavior in the other. No skipped behavior was ported; the Cypress source remains unchanged.
+- Removed source ordering and fixed-identity coupling with a unique `demo+marygreen-<uuid>@lightdash.com` email per test. Each test captures a strictly parsed user UUID, cleans only `DELETE /api/v1/org/user/{userUuid}` in `finally`, and falls back to an exact-email organization-user search only when creation failed before the UUID response could be parsed. The separate admin-authenticated `request` fixture remains available after the page context logs out and becomes Mary.
+- Static evidence (final runs): `pnpm -F e2e typecheck:playwright` passed; `pnpm -F e2e run linter ./playwright/app/settings/invites.spec.ts` passed; `pnpm -F e2e run formatter ./playwright/app/settings/invites.spec.ts --check` passed. `git diff --check` passed, the Cypress-source diff was empty, and the pre-history scope check showed only the new target path. Initial static runs exposed browser `Response`/`APIResponse` type conflation, `no-new`, and formatting failures; these were corrected before the passing runs.
+- Runtime evidence: intentionally none. No Playwright, Cypress, browser, or API mutation command was run because the sole mutation lease has not been granted.
+- Remaining risks for leased execution: runtime accessibility/strictness of the Add user labels and unnamed row action button is not yet observed; the invite redirect and standalone API activation still depend on the supplied local `SITE_URL`; `000000` depends on the supplied DEV runtime; cleanup/repeat behavior and post-delete refetch synchronization remain browser-unverified. Focused Firefox, repeated Firefox, and full Playwright execution remain pending the mutation lease.
+- Commit: pending (`COMMIT_HASH_PLACEHOLDER`); nothing staged or committed.
+
+### 2026-07-20 — cleanup verification strengthened
+
+- Static-review fix: after authoritative exact-UUID cleanup returns 200 or 404, the admin-authenticated request fixture now searches organization users by the exact unique email and fails if any matching user UUID remains. This post-delete search is verification only and never triggers another deletion.
+- Static evidence: `pnpm -F e2e typecheck:playwright`, targeted ESLint (`pnpm -F e2e run linter ./playwright/app/settings/invites.spec.ts`), and targeted oxfmt check (`pnpm -F e2e run formatter ./playwright/app/settings/invites.spec.ts --check`) all passed.
+- Runtime evidence remains intentionally absent pending the sole mutation lease; no browser, Cypress, or API mutation command was run.
+
+### 2026-07-20 — execution lease verified
+
+- Runtime root fixes stayed target-local: Mantine modals are scoped by exact title text because their rendered dialogs are unnamed; required form fields use exact accessible textbox roles; the password-requirements dialog is closed by clicking the unobscured exact `Sign up` heading and asserted absent before submit; each test reauthenticates its page context as the exact seeded admin; invite cleanup creates its fresh admin API context only in `finally`; independent-delete setup uses a separate empty-storage admin API context from the observed page origin. The invite-origin equality assertion remains intact.
+- Playwright gates all used `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000` and direct `pnpm -F e2e exec playwright test` commands: focused Firefox target passed 3/3; target `--repeat-each=3` passed 7/7; explicit branch `--grep @mutating` passed 3/3; full branch Firefox passed 8/8.
+- After every final Playwright gate, strict admin searches returned zero `marygreen` active/pending users; database checks returned zero `marygreen` rows and exactly four primary human seed users. Every generated test identity was also checked by exact email in its `finally` after exact-UUID DELETE. One early failed cleanup exposed UUID `bfec7206-47ef-46c5-87b5-b81b17d66232`; it was deleted only by that exact UUID, then exact-email/API and database audits were clean. A later reported UUID `0d33e711-9974-4ce8-80a8-46588a78e670` was already absent when exact cleanup was attempted and was confirmed absent in the database before execution resumed.
+- Cypress baseline for fixed `demo+marygreen@lightdash.com` was empty. The exact unprefixed Cypress command ran unchanged source but failed invite acceptance because Cypress defaulted to `http://localhost:3000` while the invite URL used `http://127.0.0.1:3000`; its ordered delete test still removed the pending identity, leaving no post-baseline UUID delta. Re-running the same unchanged spec with `CYPRESS_BASE_URL=http://127.0.0.1:3000` passed 2/2. Final exact-email/API and database checks showed baseline `[]`, post-run `[]`, zero deltas, zero `marygreen` users, and four seed users.
+- Final static evidence: `pnpm -F e2e typecheck:playwright`, targeted ESLint, and targeted oxfmt check all passed. Cypress source/shared files remain unchanged.
+- Remaining runtime risk: local Cypress execution must align `CYPRESS_BASE_URL` with backend `SITE_URL`; without that environment override Cypress correctly reports a cross-origin failure. The `000000` contract remains DEV-only by design.
+- Commit remains pending (`COMMIT_HASH_PLACEHOLDER`); nothing staged, committed, or pushed. Proposed commit: `chore(e2e): port settings invites to Playwright`.
