@@ -70,13 +70,20 @@ export const safeUrl = (
     return url;
 };
 
+// A chart image for a message block: either a file hosted on the workspace's
+// Slack (referenced by id, no public URL needed) or an externally hosted URL
+// that Slack's servers must be able to fetch.
+export type SlackChartImage =
+    | { source: 'slackFile'; fileId: string }
+    | { source: 'url'; url: string };
+
 type GetChartAndDashboardBlocksArgs = {
     title: string;
     name?: string;
     description?: string;
     message?: string;
     ctaUrl: string;
-    imageUrl?: string;
+    image?: SlackChartImage;
     footerMarkdown?: string;
     includeLinks?: boolean;
 };
@@ -123,12 +130,56 @@ const DOWNLOAD_UNAVAILABLE_MESSAGE =
 const PREVIEW_UNAVAILABLE_MESSAGE =
     'Chart preview unavailable (the image URL was too long or invalid). Open in Lightdash to view.';
 
+const buildChartImageBlock = (
+    image: SlackChartImage | undefined,
+    altText: string,
+): KnownBlock | undefined => {
+    if (image === undefined) return undefined;
+    const truncatedAltText = truncateText(
+        sanitizeText(altText),
+        SLACK_LIMITS.ALT_TEXT,
+    );
+    if (image.source === 'slackFile') {
+        return {
+            type: 'image',
+            slack_file: { id: image.fileId },
+            alt_text: truncatedAltText,
+        };
+    }
+    if (!image.url.trim()) return undefined;
+    const safeImageUrl = safeUrl(image.url);
+    if (safeImageUrl) {
+        return {
+            type: 'image',
+            image_url: safeImageUrl,
+            alt_text: truncatedAltText,
+        };
+    }
+    return unavailableSection(PREVIEW_UNAVAILABLE_MESSAGE);
+};
+
+// Fallback for messages Slack rejected with invalid_blocks: swap the blocks
+// Slack pointed at for a notice so the delivery still reaches the channel.
+export const replaceImageBlocksWithNotice = <T extends { type?: string }>(
+    blocks: T[],
+    indices: number[],
+): (T | KnownBlock)[] => {
+    const rejected = new Set(indices);
+    return blocks.map((block, index) =>
+        rejected.has(index)
+            ? unavailableSection(
+                  'Chart preview unavailable. Open in Lightdash to view.',
+              )
+            : block,
+    );
+};
+
 export const getChartAndDashboardBlocks = ({
     title,
     name,
     description,
     message,
-    imageUrl,
+    image,
     ctaUrl,
     footerMarkdown,
     includeLinks,
@@ -147,24 +198,6 @@ export const getChartAndDashboardBlocks = ({
           }
         : undefined;
     const headerText = sanitizeHeaderText(title);
-    const hasImageUrl = Boolean(imageUrl?.trim());
-    const safeImageUrl = safeUrl(imageUrl);
-    const buildImageBlock = (): KnownBlock | undefined => {
-        if (safeImageUrl) {
-            return {
-                type: 'image',
-                image_url: safeImageUrl,
-                alt_text: truncateText(
-                    sanitizeText(title),
-                    SLACK_LIMITS.ALT_TEXT,
-                ),
-            };
-        }
-        if (hasImageUrl) {
-            return unavailableSection(PREVIEW_UNAVAILABLE_MESSAGE);
-        }
-        return undefined;
-    };
     return getBlocks([
         headerText
             ? {
@@ -195,7 +228,7 @@ export const getChartAndDashboardBlocks = ({
             ]),
             accessory: lightdashLink,
         },
-        buildImageBlock(),
+        buildChartImageBlock(image, title),
         footerMarkdown?.trim()
             ? {
                   type: 'context',
@@ -332,7 +365,7 @@ type GetChartThresholdBlocksArgs = {
     message?: string;
     description: string | undefined;
     ctaUrl: string;
-    imageUrl?: string;
+    image?: SlackChartImage;
     footerMarkdown?: string;
     thresholds: ThresholdOptions[];
     includeLinks?: boolean;
@@ -342,7 +375,7 @@ export const getChartThresholdAlertBlocks = ({
     title,
     message,
     description,
-    imageUrl,
+    image,
     ctaUrl,
     thresholds,
     footerMarkdown,
@@ -364,24 +397,6 @@ export const getChartThresholdAlertBlocks = ({
           }
         : undefined;
     const headerText = sanitizeHeaderText(title);
-    const hasImageUrl = Boolean(imageUrl?.trim());
-    const safeImageUrl = safeUrl(imageUrl);
-    const buildImageBlock = (): KnownBlock | undefined => {
-        if (safeImageUrl) {
-            return {
-                type: 'image',
-                image_url: safeImageUrl,
-                alt_text: truncateText(
-                    sanitizeText(title),
-                    SLACK_LIMITS.ALT_TEXT,
-                ),
-            };
-        }
-        if (hasImageUrl) {
-            return unavailableSection(PREVIEW_UNAVAILABLE_MESSAGE);
-        }
-        return undefined;
-    };
     const thresholdBlocks: KnownBlock[] = thresholds.map((threshold) => ({
         type: 'section',
         text: {
@@ -433,7 +448,7 @@ export const getChartThresholdAlertBlocks = ({
             accessory: lightdashLink,
         },
         ...thresholdBlocks,
-        buildImageBlock(),
+        buildChartImageBlock(image, title),
         footerMarkdown?.trim()
             ? {
                   type: 'context',
@@ -789,7 +804,9 @@ export const getUnfurlBlocks = (
                 : getChartAndDashboardBlocks({
                       title: unfurl.title,
                       description: unfurl.description,
-                      imageUrl: unfurl.imageUrl,
+                      image: unfurl.imageUrl
+                          ? { source: 'url', url: unfurl.imageUrl }
+                          : undefined,
                       ctaUrl: originalUrl,
                   }),
     },

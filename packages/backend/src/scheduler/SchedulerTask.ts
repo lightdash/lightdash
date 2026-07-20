@@ -1360,6 +1360,34 @@ export default class SchedulerTask {
         };
     }
 
+    // Reads the delivery screenshot straight from storage so consumers don't
+    // need an HTTP round-trip through the instance's public URL (which may not
+    // be reachable from inside the network). Returns undefined on any failure
+    // so callers can fall back to the image URL.
+    private async getImageBufferFromStorage(
+        imageS3Key: string | undefined,
+    ): Promise<Buffer | undefined> {
+        if (!imageS3Key || !this.fileStorageClient.isEnabled()) {
+            return undefined;
+        }
+        try {
+            const stream =
+                await this.fileStorageClient.getFileStream(imageS3Key);
+            const chunks: Buffer[] = [];
+            for await (const chunk of stream) {
+                chunks.push(
+                    Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk),
+                );
+            }
+            return Buffer.concat(chunks);
+        } catch (e) {
+            Logger.warn(
+                `Failed to read image from storage (key: ${imageS3Key}), falling back to external image URL: ${e}`,
+            );
+            return undefined;
+        }
+    }
+
     protected async sendSlackNotification(
         jobId: string,
         notification: SlackNotificationPayload,
@@ -1446,6 +1474,7 @@ export default class SchedulerTask {
                 pageType,
                 organizationUuid,
                 imageUrl,
+                imageS3Key,
                 csvUrl,
                 csvUrls,
                 pdfFile,
@@ -1487,12 +1516,16 @@ export default class SchedulerTask {
             if (thresholds !== undefined && thresholds.length > 0) {
                 // We assume the threshold is possitive , so we don't need to get results here
                 if (savedChartUuid) {
-                    const slackImageUrl =
-                        await this.slackClient.tryUploadingImageToSlack(
+                    const slackImage =
+                        await this.slackClient.tryUploadingImageToSlack({
                             organizationUuid,
                             imageUrl,
-                            name,
-                        );
+                            imageBuffer:
+                                await this.getImageBufferFromStorage(
+                                    imageS3Key,
+                                ),
+                            title: name,
+                        });
                     const thresholdFooter = includeLinks
                         ? `<${url}?${setUuidParam(
                               'threshold_uuid',
@@ -1500,14 +1533,15 @@ export default class SchedulerTask {
                           )}|data alert>`
                         : 'data alert';
 
-                    const expiration = slackImageUrl.expiring
-                        ? `Delivered files expire after ${slackExpirationDays} days.`
-                        : '';
+                    const expiration =
+                        slackImage?.source === 'url'
+                            ? `Delivered files expire after ${slackExpirationDays} days.`
+                            : '';
 
                     const blocks = getChartThresholdAlertBlocks({
                         ...getBlocksArgs,
                         footerMarkdown: `This is a ${thresholdFooter} sent by Lightdash. ${expiration}`,
-                        imageUrl: slackImageUrl.url,
+                        image: slackImage,
                         thresholds,
                         includeLinks,
                     });
@@ -1521,20 +1555,23 @@ export default class SchedulerTask {
                     throw new Error('Not implemented');
                 }
             } else if (format === SchedulerFormat.IMAGE) {
-                const slackImageUrl =
-                    await this.slackClient.tryUploadingImageToSlack(
+                const slackImage =
+                    await this.slackClient.tryUploadingImageToSlack({
                         organizationUuid,
                         imageUrl,
-                        name,
-                    );
+                        imageBuffer:
+                            await this.getImageBufferFromStorage(imageS3Key),
+                        title: name,
+                    });
 
-                const expiration = slackImageUrl.expiring
-                    ? `Delivered files expire after ${slackExpirationDays} days.`
-                    : '';
+                const expiration =
+                    slackImage?.source === 'url'
+                        ? `Delivered files expire after ${slackExpirationDays} days.`
+                        : '';
                 const blocks = getChartAndDashboardBlocks({
                     ...getBlocksArgs,
                     footerMarkdown: `${getBlocksArgs.footerMarkdown} ${expiration}`,
-                    imageUrl: slackImageUrl.url,
+                    image: slackImage,
                 });
 
                 const message = await this.slackClient.postMessage({
@@ -2978,28 +3015,10 @@ export default class SchedulerTask {
                 failures,
             } = notificationPageData;
 
-            let imageBuffer: Buffer | undefined;
-            if (
-                this.lightdashConfig.smtp?.inlineImageCid === true &&
-                imageS3Key &&
-                this.fileStorageClient.isEnabled()
-            ) {
-                try {
-                    const stream =
-                        await this.fileStorageClient.getFileStream(imageS3Key);
-                    const chunks: Buffer[] = [];
-                    for await (const chunk of stream) {
-                        chunks.push(
-                            Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk),
-                        );
-                    }
-                    imageBuffer = Buffer.concat(chunks);
-                } catch (e) {
-                    Logger.warn(
-                        `Failed to stream CID inline image from S3 (key: ${imageS3Key}), falling back to external image URL: ${e}`,
-                    );
-                }
-            }
+            const imageBuffer =
+                this.lightdashConfig.smtp?.inlineImageCid === true
+                    ? await this.getImageBufferFromStorage(imageS3Key)
+                    : undefined;
 
             const schedulerUrl = `${url}?${setUuidParam(
                 'scheduler_uuid',
