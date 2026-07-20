@@ -1,3 +1,10 @@
+# [0.3426.0](https://github.com/lightdash/lightdash/compare/0.3425.0...0.3426.0) (2026-07-20)
+
+
+### Features
+
+* **authorization:** add view:CompiledSql scope to view compiled SQL without authoring rights ([#25815](https://github.com/lightdash/lightdash/issues/25815)) ([839d99b](https://github.com/lightdash/lightdash/commit/839d99b16049d3fb0cda4c2c767be52c84df8de2))
+
 # [0.3425.0](https://github.com/lightdash/lightdash/compare/0.3424.1...0.3425.0) (2026-07-20)
 
 
