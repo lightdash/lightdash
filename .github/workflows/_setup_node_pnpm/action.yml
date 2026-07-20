@@ -1,6 +1,6 @@
-name: Setup Node, PNPM, and Cypress
+name: Setup Node and PNPM
 
-description: Sets up Node.js, PNPM, and Cypress.
+description: Sets up Node.js and PNPM.
 
 runs:
     using: 'composite'
@@ -24,9 +24,4 @@ runs:
 
         - name: Install Dependencies
           run: sfw pnpm install --frozen-lockfile --prefer-offline
-          shell: bash
-
-        - name: Install Cypress
-          run: sfw pnpm exec cypress install
-          working-directory: packages/e2e
           shell: bash

@@ -12,6 +12,7 @@ import {
     type Response,
 } from '@playwright/test';
 import { randomUUID } from 'crypto';
+import adminAuthenticationFile from '../../auth';
 
 const uuidPattern =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -299,6 +300,7 @@ const createAdminRequestContext = async (origin: string) => {
     });
     try {
         await authenticateSeededAdmin(adminRequest, 'fresh admin API');
+        await adminRequest.storageState({ path: adminAuthenticationFile });
         return adminRequest;
     } catch (error) {
         await adminRequest.dispose();
@@ -612,9 +614,8 @@ test('Should delete user', { tag: '@mutating' }, async ({ page }) => {
     let inviteeUserUuid: string | null = null;
 
     await openOrganizationUserManagement(page);
-    const adminRequest = await createAdminRequestContext(
-        new URL(page.url()).origin,
-    );
+    const { origin } = new URL(page.url());
+    const adminRequest = await createAdminRequestContext(origin);
     try {
         const invite = await createInviteWithApi(adminRequest, email);
         inviteeUserUuid = invite.userUuid;
@@ -721,10 +722,12 @@ test('Should delete user', { tag: '@mutating' }, async ({ page }) => {
         ).toBeVisible();
         await expect(exactUserRow).toHaveCount(0);
     } finally {
+        await adminRequest.dispose();
+        const cleanupRequest = await createAdminRequestContext(origin);
         try {
-            await cleanupInvitee(adminRequest, email, inviteeUserUuid);
+            await cleanupInvitee(cleanupRequest, email, inviteeUserUuid);
         } finally {
-            await adminRequest.dispose();
+            await cleanupRequest.dispose();
         }
     }
 });

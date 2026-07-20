@@ -6,8 +6,29 @@ import { ApiClient, Body } from './api-client';
 
 export const BIGQUERY_CREDENTIALS_PATH = path.resolve(
     __dirname,
-    '../../e2e/cypress/fixtures/credentials.json',
+    '../fixtures/credentials.json',
 );
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const readBigqueryCredentials = (): Record<string, unknown> | null => {
+    try {
+        const credentials: unknown = JSON.parse(
+            fs.readFileSync(BIGQUERY_CREDENTIALS_PATH, 'utf-8'),
+        );
+        if (
+            !isRecord(credentials) ||
+            typeof credentials.private_key !== 'string' ||
+            credentials.private_key.trim().length === 0
+        ) {
+            return null;
+        }
+        return credentials;
+    } catch {
+        return null;
+    }
+};
 
 /**
  * The BigQuery staging dataset (`e2e_jaffle_shop`) holds the same jaffle +
@@ -15,9 +36,10 @@ export const BIGQUERY_CREDENTIALS_PATH = path.resolve(
  * can assert the same expected counts against it.
  */
 export function bigqueryWarehouseConfig(): Record<string, unknown> {
-    const keyfileContents = JSON.parse(
-        fs.readFileSync(BIGQUERY_CREDENTIALS_PATH, 'utf-8'),
-    );
+    const keyfileContents = readBigqueryCredentials();
+    if (keyfileContents === null) {
+        throw new Error('Valid BigQuery credentials are required');
+    }
     return {
         project: 'lightdash-database-staging',
         location: 'europe-west1',
@@ -33,15 +55,7 @@ export function bigqueryWarehouseConfig(): Record<string, unknown> {
  * BigQuery-only suites should `describe.skipIf(!hasBigqueryCredentials())`.
  */
 export function hasBigqueryCredentials(): boolean {
-    if (!fs.existsSync(BIGQUERY_CREDENTIALS_PATH)) return false;
-    try {
-        const creds = JSON.parse(
-            fs.readFileSync(BIGQUERY_CREDENTIALS_PATH, 'utf-8'),
-        ) as { private_key?: string };
-        return Boolean(creds.private_key);
-    } catch {
-        return false;
-    }
+    return readBigqueryCredentials() !== null;
 }
 
 /**

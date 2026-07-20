@@ -121,7 +121,6 @@ allowBuilds:
   canvas: true
   core-js: true
   core-js-pure: true
-  cypress: true
   duckdb: true
   esbuild: true
   lz4: true

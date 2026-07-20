@@ -929,9 +929,7 @@ describe('OAuth API Integration Tests', () => {
                 },
             );
 
-            // Test that the token can be used to access protected endpoints
-            // Note: Cypress always sends session cookies alongside the Bearer token,
-            // so we use fetchWithAuth to match that behavior.
+            // Test the bearer token with the authenticated session cookies.
             const userResponse = await fetchWithAuth('/api/v1/user', {
                 headers: {
                     Authorization: `Bearer ${tokenResponse.body.access_token}`,

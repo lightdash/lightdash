@@ -25,6 +25,7 @@ import {
     type Page,
 } from '@playwright/test';
 import { randomUUID } from 'crypto';
+import adminAuthenticationFile from '../auth';
 
 const apiV1 = '/api/v1';
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000';
@@ -607,6 +608,7 @@ const cleanupWithFreshAdmin = async (
             },
             adminIdentity,
         );
+        await request.storageState({ path: adminAuthenticationFile });
 
         const failures: string[] = [];
         const run = async (label: string, action: () => Promise<void>) => {
