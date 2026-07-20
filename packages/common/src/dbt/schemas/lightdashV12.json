@@ -33,6 +33,9 @@
                                     "type": "null"
                                 }
                             ]
+                        },
+                        "config": {
+                            "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashColumnConfig"
                         }
                     }
                 }
