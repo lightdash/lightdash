@@ -1,3 +1,10 @@
+# [0.3420.0](https://github.com/lightdash/lightdash/compare/0.3419.0...0.3420.0) (2026-07-20)
+
+
+### Features
+
+* fill analytics gaps in classic onboarding project wizard ([#25773](https://github.com/lightdash/lightdash/issues/25773)) ([15d9720](https://github.com/lightdash/lightdash/commit/15d97201b4a2acb82897d502517c816e685a0ff6))
+
 # [0.3419.0](https://github.com/lightdash/lightdash/compare/0.3418.0...0.3419.0) (2026-07-19)
 
 
