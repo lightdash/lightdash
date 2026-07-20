@@ -56,6 +56,12 @@ import { CLI_VERSION } from '../env';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import {
+    createContentAsCodeOutput,
+    logContentAsCodeDiscovery,
+    type ContentAsCodeOutput,
+    type ContentAsCodeOutputVariant,
+} from '../terminal/contentAsCodeOutput';
+import {
     appFolderName,
     applySdkMirrorToTemplateDeps,
     attachDependenciesToCode,
@@ -458,7 +464,7 @@ const readCodeFiles = async <
 ): Promise<(T & { needsUpdating: boolean })[]> => {
     const baseDir = getDownloadFolder(customPath);
 
-    GlobalState.log(`Reading ${folder} from ${baseDir}`);
+    logContentAsCodeDiscovery(`Reading ${folder} from ${baseDir}`);
 
     const [major, minor] = process.versions.node.split('.').map(Number);
     if (major < 20 || (major === 20 && minor < 12)) {
@@ -722,8 +728,8 @@ export const downloadContent = async (
     skipSpaces: boolean = false,
     stripPivotSeries: boolean = false,
     rootSpaces: boolean = false,
+    onProgress?: (detail: string) => void,
 ): Promise<[number, string[], MetadataEntry[], SpaceAsCode[]]> => {
-    const spinner = GlobalState.getActiveSpinner();
     const contentFilters = parseContentFilters(ids);
     const folderScheme: FolderScheme = nested ? 'nested' : 'flat';
     const config = getContentTypeConfig(type, projectId);
@@ -756,8 +762,8 @@ export const downloadContent = async (
             body: undefined,
         });
 
-        spinner?.start(
-            `Downloaded ${results.offset} of ${results.total} ${config.displayName}`,
+        onProgress?.(
+            `${results.offset} of ${results.total} ${config.displayName} downloaded`,
         );
 
         // For the same chart slug, we run the code for saved charts and sql chart
@@ -1120,7 +1126,7 @@ const upsertAiAgents = async (
         }
         return changes;
     }
-    GlobalState.log(`Found ${filteredAgents.length} AI agent files`);
+    logContentAsCodeDiscovery(`Found ${filteredAgents.length} AI agent files`);
 
     const results = await lightdashApi<ApiAgentAsCodeUpsertResponse['results']>(
         {
@@ -1239,7 +1245,7 @@ const upsertScheduledContent = async (
         contentType,
         customPath,
     );
-    GlobalState.log(
+    logContentAsCodeDiscovery(
         `Found ${scheduledContent.length} ${config.singular} files`,
     );
     const filteredContent = slugs.length
@@ -1433,12 +1439,6 @@ export const downloadHandler = async (
     // Log current project info
     logSelectedProject(projectSelection, config, 'Downloading from');
 
-    const spinner = GlobalState.startSpinner(
-        options.spacesOnly
-            ? `Downloading spaces`
-            : `Downloading content from project`,
-    );
-
     // Fetch project details to get project name for folder structure
     const project = await lightdashApi<Project>({
         method: 'GET',
@@ -1460,11 +1460,15 @@ export const downloadHandler = async (
             projectId,
         },
     });
+    const output = createContentAsCodeOutput({
+        operation: 'download',
+        scope: 'project',
+    });
     try {
         let allMetadataEntries: MetadataEntry[] = [];
 
         if (shouldDownloadSpaces) {
-            if (!options.spacesOnly) spinner.start(`Downloading spaces`);
+            output.startItem('Spaces');
             try {
                 const spaceTotal = await downloadSpaces(
                     projectId,
@@ -1473,7 +1477,7 @@ export const downloadHandler = async (
                     options.nested,
                     options.rootSpaces,
                 );
-                spinner.succeed(`Downloaded ${spaceTotal} spaces`);
+                output.completeItem(`${spaceTotal} downloaded`);
             } catch (error) {
                 if (
                     !shouldFallBackToEmbeddedSpaces(error, options.spacesOnly)
@@ -1483,7 +1487,11 @@ export const downloadHandler = async (
                         : error;
                 }
                 skipEmbeddedSpaces = false;
-                spinner.warn(
+                output.completeItem(
+                    'access unavailable; using legacy metadata',
+                    'warning',
+                );
+                GlobalState.log(
                     styles.warning(
                         'Space access is unavailable; continuing with legacy space metadata where available.',
                     ),
@@ -1499,13 +1507,16 @@ export const downloadHandler = async (
             options.includeVirtualViews ||
             options.virtualViews.length > 0
         ) {
-            spinner.start(`Downloading virtual views`);
-            const total = await downloadVirtualViews(
-                projectId,
-                options.virtualViews,
-                options.path,
-            );
-            spinner.succeed(`Downloaded ${total} virtual views`);
+            await output.runItem({
+                label: 'Virtual views',
+                action: () =>
+                    downloadVirtualViews(
+                        projectId,
+                        options.virtualViews,
+                        options.path,
+                    ),
+                detail: (total) => `${total} downloaded`,
+            });
         }
 
         // Download regular charts and SQL charts
@@ -1516,39 +1527,47 @@ export const downloadHandler = async (
                 );
             } else {
                 const [regularChartTotal, , regularChartMeta] =
-                    await downloadContent(
-                        options.charts,
-                        'charts',
-                        projectId,
-                        projectName,
-                        options.path,
-                        options.languageMap,
-                        options.nested,
-                        skipEmbeddedSpaces,
-                        options.stripPivotSeries,
-                        options.rootSpaces,
-                    );
-                spinner.succeed(`Downloaded ${regularChartTotal} charts`);
+                    await output.runItem({
+                        label: 'Charts',
+                        action: () =>
+                            downloadContent(
+                                options.charts,
+                                'charts',
+                                projectId,
+                                projectName,
+                                options.path,
+                                options.languageMap,
+                                options.nested,
+                                skipEmbeddedSpaces,
+                                options.stripPivotSeries,
+                                options.rootSpaces,
+                                output.updateActive,
+                            ),
+                        detail: ([total]) => `${total} downloaded`,
+                    });
                 allMetadataEntries = [
                     ...allMetadataEntries,
                     ...regularChartMeta,
                 ];
 
-                // Download SQL charts
-                spinner.start(`Downloading SQL charts`);
-                const [sqlChartTotal, , sqlChartMeta] = await downloadContent(
-                    options.charts,
-                    'sqlCharts',
-                    projectId,
-                    projectName,
-                    options.path,
-                    options.languageMap,
-                    options.nested,
-                    skipEmbeddedSpaces,
-                    false,
-                    options.rootSpaces,
-                );
-                spinner.succeed(`Downloaded ${sqlChartTotal} SQL charts`);
+                const [sqlChartTotal, , sqlChartMeta] = await output.runItem({
+                    label: 'SQL charts',
+                    action: () =>
+                        downloadContent(
+                            options.charts,
+                            'sqlCharts',
+                            projectId,
+                            projectName,
+                            options.path,
+                            options.languageMap,
+                            options.nested,
+                            skipEmbeddedSpaces,
+                            false,
+                            options.rootSpaces,
+                            output.updateActive,
+                        ),
+                    detail: ([total]) => `${total} downloaded`,
+                });
                 allMetadataEntries = [...allMetadataEntries, ...sqlChartMeta];
 
                 chartTotal = regularChartTotal + sqlChartTotal;
@@ -1565,31 +1584,35 @@ export const downloadHandler = async (
                 let chartSlugs: string[] = [];
 
                 let dashMeta: MetadataEntry[];
-                [dashboardTotal, chartSlugs, dashMeta] = await downloadContent(
-                    options.dashboards,
-                    'dashboards',
-                    projectId,
-                    projectName,
-                    options.path,
-                    options.languageMap,
-                    options.nested,
-                    skipEmbeddedSpaces,
-                    false,
-                    options.rootSpaces,
-                );
+                [dashboardTotal, chartSlugs, dashMeta] = await output.runItem({
+                    label: 'Dashboards',
+                    action: () =>
+                        downloadContent(
+                            options.dashboards,
+                            'dashboards',
+                            projectId,
+                            projectName,
+                            options.path,
+                            options.languageMap,
+                            options.nested,
+                            skipEmbeddedSpaces,
+                            false,
+                            options.rootSpaces,
+                            output.updateActive,
+                        ),
+                    detail: ([total]) => `${total} downloaded`,
+                });
                 allMetadataEntries = [...allMetadataEntries, ...dashMeta];
-
-                spinner.succeed(`Downloaded ${dashboardTotal} dashboards`);
 
                 if (
                     hasFilters &&
                     chartSlugs.length > 0 &&
                     !options.skipCharts
                 ) {
-                    spinner.start(
-                        `Downloading ${chartSlugs.length} charts linked to dashboards`,
+                    output.startItem('Linked charts');
+                    output.updateActive(
+                        `${chartSlugs.length} dashboard dependencies`,
                     );
-
                     const [regularCharts, , linkedChartMeta] =
                         await downloadContent(
                             chartSlugs,
@@ -1602,6 +1625,7 @@ export const downloadHandler = async (
                             skipEmbeddedSpaces,
                             options.stripPivotSeries,
                             options.rootSpaces,
+                            output.updateActive,
                         );
                     allMetadataEntries = [
                         ...allMetadataEntries,
@@ -1619,29 +1643,27 @@ export const downloadHandler = async (
                         skipEmbeddedSpaces,
                         false,
                         options.rootSpaces,
+                        output.updateActive,
                     );
                     allMetadataEntries = [
                         ...allMetadataEntries,
                         ...linkedSqlMeta,
                     ];
 
-                    spinner.succeed(
-                        `Downloaded ${
-                            regularCharts + sqlCharts
-                        } charts linked to dashboards`,
+                    output.completeItem(
+                        `${regularCharts + sqlCharts} downloaded`,
                     );
                 }
             }
         }
 
         if (!options.spacesOnly && shouldDownloadAiAgents(options)) {
-            spinner.start(`Downloading AI agents`);
-            const agentTotal = await downloadAiAgents(
-                projectId,
-                options.agents,
-                options.path,
-            );
-            spinner.succeed(`Downloaded ${agentTotal} AI agents`);
+            await output.runItem({
+                label: 'AI agents',
+                action: () =>
+                    downloadAiAgents(projectId, options.agents, options.path),
+                detail: (total) => `${total} downloaded`,
+            });
         }
 
         if (
@@ -1649,14 +1671,17 @@ export const downloadHandler = async (
             options.includeAlerts ||
             options.alerts.length > 0
         ) {
-            spinner.start(`Downloading alerts`);
-            const alertTotal = await downloadScheduledContent(
-                projectId,
-                options.alerts,
-                ContentAsCodeTypeEnum.ALERT,
-                options.path,
-            );
-            spinner.succeed(`Downloaded ${alertTotal} alerts`);
+            await output.runItem({
+                label: 'Alerts',
+                action: () =>
+                    downloadScheduledContent(
+                        projectId,
+                        options.alerts,
+                        ContentAsCodeTypeEnum.ALERT,
+                        options.path,
+                    ),
+                detail: (total) => `${total} downloaded`,
+            });
         }
 
         if (
@@ -1664,16 +1689,17 @@ export const downloadHandler = async (
             options.includeScheduledDeliveries ||
             options.scheduledDeliveries.length > 0
         ) {
-            spinner.start(`Downloading scheduled deliveries`);
-            const scheduledDeliveryTotal = await downloadScheduledContent(
-                projectId,
-                options.scheduledDeliveries,
-                ContentAsCodeTypeEnum.SCHEDULED_DELIVERY,
-                options.path,
-            );
-            spinner.succeed(
-                `Downloaded ${scheduledDeliveryTotal} scheduled deliveries`,
-            );
+            await output.runItem({
+                label: 'Scheduled deliveries',
+                action: () =>
+                    downloadScheduledContent(
+                        projectId,
+                        options.scheduledDeliveries,
+                        ContentAsCodeTypeEnum.SCHEDULED_DELIVERY,
+                        options.path,
+                    ),
+                detail: (total) => `${total} downloaded`,
+            });
         }
 
         if (
@@ -1681,16 +1707,17 @@ export const downloadHandler = async (
             options.includeGoogleSheets ||
             options.googleSheets.length > 0
         ) {
-            spinner.start(`Downloading Google Sheets syncs`);
-            const googleSheetsTotal = await downloadScheduledContent(
-                projectId,
-                options.googleSheets,
-                ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC,
-                options.path,
-            );
-            spinner.succeed(
-                `Downloaded ${googleSheetsTotal} Google Sheets ${googleSheetsTotal === 1 ? 'sync' : 'syncs'}`,
-            );
+            await output.runItem({
+                label: 'Google Sheets syncs',
+                action: () =>
+                    downloadScheduledContent(
+                        projectId,
+                        options.googleSheets,
+                        ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC,
+                        options.path,
+                    ),
+                detail: (total) => `${total} downloaded`,
+            });
         }
 
         // Download data apps (enterprise, opt-in via --apps / --include-apps / --include-all)
@@ -1700,6 +1727,7 @@ export const downloadHandler = async (
         });
 
         if (appsSelection.mode !== 'none') {
+            output.startItem('Data apps');
             let appUuidsToDownload: string[];
             let appListingError: string | null = null;
 
@@ -1707,7 +1735,7 @@ export const downloadHandler = async (
                 appUuidsToDownload = appsSelection.appUuids;
             } else {
                 // List every app in the project (includes apps not in any space)
-                spinner.start(`Listing data apps in project`);
+                output.updateActive('listing project apps…');
                 let listedAppUuids: string[];
                 try {
                     const projectApps = await lightdashApi<
@@ -1724,9 +1752,6 @@ export const downloadHandler = async (
                             throw listErr;
                         }
                         appListingError = getErrorMessage(listErr);
-                        spinner.fail(
-                            `Error downloading data apps: ${appListingError}`,
-                        );
                         listedAppUuids = [];
                     } else {
                         GlobalState.log(
@@ -1758,11 +1783,16 @@ export const downloadHandler = async (
 
             if (appUuidsToDownload.length === 0) {
                 if (appListingError === null) {
-                    spinner.succeed(`No data apps found in project`);
+                    output.completeItem('0 found');
+                } else {
+                    output.completeItem(
+                        `listing failed: ${appListingError}`,
+                        'warning',
+                    );
                 }
             } else {
-                spinner.start(
-                    `Downloading ${appUuidsToDownload.length} data app(s)…`,
+                output.updateActive(
+                    `0 of ${appUuidsToDownload.length} downloaded`,
                 );
                 const baseDir = getDownloadFolder(options.path);
                 const appsDir = path.join(baseDir, 'apps');
@@ -1836,6 +1866,13 @@ export const downloadHandler = async (
                             );
                         }
                     }
+                    output.updateActive(
+                        `${
+                            appSuccessCount +
+                            appSkippedNotBuiltCount +
+                            appFailures.length
+                        } of ${appUuidsToDownload.length} processed`,
+                    );
                 }
 
                 const summary = appsDownloadSummary(
@@ -1845,10 +1882,19 @@ export const downloadHandler = async (
                     appsDir,
                     appSkippedNotBuiltCount,
                 );
-                if (summary.ok) {
-                    spinner.succeed(summary.message);
-                } else {
-                    spinner.warn(styles.warning(summary.message));
+                output.completeItem(
+                    `${appSuccessCount} downloaded${
+                        appSkippedNotBuiltCount > 0
+                            ? `, ${appSkippedNotBuiltCount} skipped`
+                            : ''
+                    }${
+                        appFailures.length > 0
+                            ? `, ${appFailures.length} failed`
+                            : ''
+                    }`,
+                    summary.ok ? undefined : 'warning',
+                );
+                if (!summary.ok) {
                     summary.failureLines.forEach((line) =>
                         GlobalState.log(styles.warning(line)),
                     );
@@ -1869,6 +1915,7 @@ export const downloadHandler = async (
         const downloadRoot = options.nested
             ? path.join(baseDir, projectName)
             : baseDir;
+        output.startItem('Metadata');
         await writeMetadataFile(baseDir, metadataToWrite);
         if (!config.answers?.metadataFileGitignoreNoticeShown) {
             GlobalState.log(
@@ -1878,11 +1925,17 @@ export const downloadHandler = async (
             );
             await setAnswer({ metadataFileGitignoreNoticeShown: true });
         }
-        GlobalState.log(
-            styles.success(`Downloaded content saved to ${downloadRoot}`),
-        );
-
+        output.completeItem('timestamps written');
         const end = Date.now();
+        const renderedSummary = output.complete(
+            downloadRoot,
+            (end - start) / 1000,
+        );
+        if (!renderedSummary) {
+            GlobalState.log(
+                styles.success(`Downloaded content saved to ${downloadRoot}`),
+            );
+        }
 
         await LightdashAnalytics.track({
             event: 'download.completed',
@@ -1896,7 +1949,7 @@ export const downloadHandler = async (
             },
         });
     } catch (error) {
-        console.error(styles.error(`\nError downloading ${error}`));
+        output.fail(getErrorMessage(error), (Date.now() - start) / 1000, true);
         await LightdashAnalytics.track({
             event: 'download.error',
             properties: {
@@ -1943,6 +1996,61 @@ const storeUploadChanges = (
         });
     });
 
+    return updatedChanges;
+};
+
+const UPLOAD_CHANGE_SUFFIXES = [
+    'dependency skipped',
+    'with errors',
+    'unchanged',
+    'created',
+    'updated',
+    'deleted',
+    'skipped',
+    'failed',
+] as const;
+
+const summarizeUploadChanges = (
+    before: Record<string, number>,
+    after: Record<string, number>,
+): { detail: string; variant?: ContentAsCodeOutputVariant } => {
+    const totals = new Map<string, number>();
+    Object.entries(after).forEach(([key, value]) => {
+        const difference = value - (before[key] ?? 0);
+        if (difference <= 0) return;
+        const suffix = UPLOAD_CHANGE_SUFFIXES.find((candidate) =>
+            key.endsWith(candidate),
+        );
+        const label = suffix ?? 'processed';
+        totals.set(label, (totals.get(label) ?? 0) + difference);
+    });
+
+    if (totals.size === 0) return { detail: 'no changes' };
+    const detail = [...totals]
+        .map(([label, total]) => `${total} ${label}`)
+        .join(', ');
+    const hasFailures = [...totals.keys()].some(
+        (label) => label === 'with errors' || label === 'failed',
+    );
+    return { detail, variant: hasFailures ? 'warning' : undefined };
+};
+
+const runUploadChangesPhase = async ({
+    output,
+    label,
+    changes,
+    action,
+}: {
+    output: ContentAsCodeOutput;
+    label: string;
+    changes: Record<string, number>;
+    action: () => Promise<Record<string, number>>;
+}): Promise<Record<string, number>> => {
+    const before = { ...changes };
+    output.startItem(label);
+    const updatedChanges = await action();
+    const summary = summarizeUploadChanges(before, updatedChanges);
+    output.completeItem(summary.detail, summary.variant);
     return updatedChanges;
 };
 
@@ -2134,7 +2242,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     const folderItems = await readCodeFiles<T>(type, customPath);
     const items = [...folderItems, ...extraItems];
 
-    GlobalState.log(`Found ${items.length} ${type} files`);
+    logContentAsCodeDiscovery(`Found ${items.length} ${type} files`);
 
     const hasFilter = slugs.length > 0;
     const filteredItems = hasFilter
@@ -2404,26 +2512,49 @@ export const uploadHandler = async (
             projectId,
         },
     });
+    const output = createContentAsCodeOutput({
+        operation: 'upload',
+        scope: 'project',
+    });
+    const uploadRoot = getDownloadFolder(options.path);
+    const completeUpload = () => {
+        const renderedSummary = output.complete(
+            uploadRoot,
+            (Date.now() - start) / 1000,
+        );
+        if (!renderedSummary) {
+            logUploadChanges(changes);
+            GlobalState.log(
+                styles.success(`Uploaded content from ${uploadRoot}`),
+            );
+        }
+    };
 
-    let uploadResource = 'content as code';
     try {
-        uploadResource = 'space definitions';
         const spaceFiles = preflightSpaceFiles;
         const spaceNames = shouldReconcileSpaces
             ? getSpaceNames(spaceFiles)
             : await readSpaceNames(options.path);
         if (spaceFiles.length > 0) {
-            GlobalState.log(`Found ${spaceFiles.length} space definition(s)`);
+            logContentAsCodeDiscovery(
+                `Found ${spaceFiles.length} space definition(s)`,
+            );
         }
 
         if (shouldReconcileSpaces) {
-            changes = await upsertSpaces(
-                projectId,
-                spaceFiles,
+            changes = await runUploadChangesPhase({
+                output,
+                label: 'Spaces',
                 changes,
-                options.skipSpaceCreate,
-                options.public,
-            );
+                action: () =>
+                    upsertSpaces(
+                        projectId,
+                        spaceFiles,
+                        changes,
+                        options.skipSpaceCreate,
+                        options.public,
+                    ),
+            });
         } else if (hasFilters) {
             GlobalState.debug(
                 'Skipping space access reconciliation for a filtered content upload',
@@ -2440,7 +2571,7 @@ export const uploadHandler = async (
                     timeToCompleted: (Date.now() - start) / 1000,
                 },
             });
-            logUploadChanges(changes);
+            completeUpload();
             return;
         }
 
@@ -2448,33 +2579,22 @@ export const uploadHandler = async (
             await getContentAsCodeUploadPermissions(projectId);
 
         // Discover loose YAML files (outside charts/ and dashboards/) classified by contentType
-        uploadResource = 'content files';
-        const looseFiles = await readLooseCodeFiles(options.path);
+        const looseFiles = await output.runItem({
+            label: 'Content files',
+            action: () => readLooseCodeFiles(options.path),
+            detail: ({ charts, dashboards }) =>
+                `${charts.length + dashboards.length} discovered`,
+        });
         if (looseFiles.charts.length > 0) {
-            GlobalState.log(
+            logContentAsCodeDiscovery(
                 `Found ${looseFiles.charts.length} chart(s) outside charts/ directory (classified by contentType)`,
             );
         }
         if (looseFiles.dashboards.length > 0) {
-            GlobalState.log(
+            logContentAsCodeDiscovery(
                 `Found ${looseFiles.dashboards.length} dashboard(s) outside dashboards/ directory (classified by contentType)`,
             );
         }
-
-        // Always include the charts from dashboards if includeCharts is true regardless of the charts filters
-        uploadResource = 'dashboard chart dependencies';
-        const chartSlugs = options.includeCharts
-            ? Array.from(
-                  new Set([
-                      ...options.charts,
-                      ...(await getDashboardChartSlugs(
-                          options.dashboards,
-                          options.path,
-                          looseFiles.dashboards,
-                      )),
-                  ]),
-              )
-            : options.charts;
 
         const concurrency = Math.min(
             Math.max(1, parseInt(String(options.concurrency), 10) || 1),
@@ -2497,26 +2617,47 @@ export const uploadHandler = async (
                     ),
                 );
             } else {
-                uploadResource = 'virtual views';
-                changes = await upsertVirtualViews(
-                    projectId,
-                    options.virtualViews,
+                changes = await runUploadChangesPhase({
+                    output,
+                    label: 'Virtual views',
                     changes,
-                    options.force,
-                    uploadPermissions.virtualViews,
-                    options.path,
-                );
+                    action: () =>
+                        upsertVirtualViews(
+                            projectId,
+                            options.virtualViews,
+                            changes,
+                            options.force,
+                            uploadPermissions.virtualViews,
+                            options.path,
+                        ),
+                });
             }
         }
 
-        if (hasFilters && chartSlugs.length === 0) {
-            GlobalState.log(
-                styles.warning(`No charts filters provided, skipping`),
-            );
-        } else {
-            uploadResource = 'charts';
-            const { changes: chartChanges, total } =
-                await upsertResources<ChartAsCode>(
+        changes = await runUploadChangesPhase({
+            output,
+            label: 'Charts',
+            changes,
+            action: async () => {
+                const chartSlugs = options.includeCharts
+                    ? Array.from(
+                          new Set([
+                              ...options.charts,
+                              ...(await getDashboardChartSlugs(
+                                  options.dashboards,
+                                  options.path,
+                                  looseFiles.dashboards,
+                              )),
+                          ]),
+                      )
+                    : options.charts;
+                if (hasFilters && chartSlugs.length === 0) {
+                    GlobalState.log(
+                        styles.warning(`No charts filters provided, skipping`),
+                    );
+                    return changes;
+                }
+                const result = await upsertResources<ChartAsCode>(
                     'charts',
                     projectId,
                     changes,
@@ -2531,18 +2672,25 @@ export const uploadHandler = async (
                     looseFiles.charts,
                     spaceNames,
                 );
-            changes = chartChanges;
-            chartTotal = total;
-        }
+                chartTotal = result.total;
+                return result.changes;
+            },
+        });
 
-        if (hasFilters && options.dashboards.length === 0) {
-            GlobalState.log(
-                styles.warning(`No dashboard filters provided, skipping`),
-            );
-        } else {
-            uploadResource = 'dashboards';
-            const { changes: dashboardChanges, total } =
-                await upsertResources<DashboardAsCode>(
+        changes = await runUploadChangesPhase({
+            output,
+            label: 'Dashboards',
+            changes,
+            action: async () => {
+                if (hasFilters && options.dashboards.length === 0) {
+                    GlobalState.log(
+                        styles.warning(
+                            `No dashboard filters provided, skipping`,
+                        ),
+                    );
+                    return changes;
+                }
+                const result = await upsertResources<DashboardAsCode>(
                     'dashboards',
                     projectId,
                     changes,
@@ -2557,9 +2705,10 @@ export const uploadHandler = async (
                     looseFiles.dashboards,
                     spaceNames,
                 );
-            changes = dashboardChanges;
-            dashboardTotal = total;
-        }
+                dashboardTotal = result.total;
+                return result.changes;
+            },
+        });
 
         if (!options.skipAgents) {
             if (hasFilters && options.agents.length === 0) {
@@ -2567,15 +2716,20 @@ export const uploadHandler = async (
                     styles.warning(`No AI agent filters provided, skipping`),
                 );
             } else {
-                uploadResource = 'AI agents';
                 try {
-                    changes = await upsertAiAgents(
-                        projectId,
-                        options.agents,
+                    changes = await runUploadChangesPhase({
+                        output,
+                        label: 'AI agents',
                         changes,
-                        options.force,
-                        options.path,
-                    );
+                        action: () =>
+                            upsertAiAgents(
+                                projectId,
+                                options.agents,
+                                changes,
+                                options.force,
+                                options.path,
+                            ),
+                    });
                 } catch (error) {
                     throw new AiAgentAsCodeUploadError(error);
                 }
@@ -2588,16 +2742,21 @@ export const uploadHandler = async (
                     styles.warning(`No alert filters provided, skipping`),
                 );
             } else {
-                uploadResource = 'alerts';
-                changes = await upsertScheduledContent(
-                    projectId,
-                    options.alerts,
+                changes = await runUploadChangesPhase({
+                    output,
+                    label: 'Alerts',
                     changes,
-                    options.force,
-                    ContentAsCodeTypeEnum.ALERT,
-                    uploadPermissions.alerts,
-                    options.path,
-                );
+                    action: () =>
+                        upsertScheduledContent(
+                            projectId,
+                            options.alerts,
+                            changes,
+                            options.force,
+                            ContentAsCodeTypeEnum.ALERT,
+                            uploadPermissions.alerts,
+                            options.path,
+                        ),
+                });
             }
         }
 
@@ -2609,16 +2768,21 @@ export const uploadHandler = async (
                     ),
                 );
             } else {
-                uploadResource = 'scheduled deliveries';
-                changes = await upsertScheduledContent(
-                    projectId,
-                    options.scheduledDeliveries,
+                changes = await runUploadChangesPhase({
+                    output,
+                    label: 'Scheduled deliveries',
                     changes,
-                    options.force,
-                    ContentAsCodeTypeEnum.SCHEDULED_DELIVERY,
-                    uploadPermissions.scheduledDeliveries,
-                    options.path,
-                );
+                    action: () =>
+                        upsertScheduledContent(
+                            projectId,
+                            options.scheduledDeliveries,
+                            changes,
+                            options.force,
+                            ContentAsCodeTypeEnum.SCHEDULED_DELIVERY,
+                            uploadPermissions.scheduledDeliveries,
+                            options.path,
+                        ),
+                });
             }
         }
 
@@ -2630,16 +2794,21 @@ export const uploadHandler = async (
                     ),
                 );
             } else {
-                uploadResource = 'Google Sheets syncs';
-                changes = await upsertScheduledContent(
-                    projectId,
-                    options.googleSheets,
+                changes = await runUploadChangesPhase({
+                    output,
+                    label: 'Google Sheets syncs',
                     changes,
-                    options.force,
-                    ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC,
-                    uploadPermissions.googleSheets,
-                    options.path,
-                );
+                    action: () =>
+                        upsertScheduledContent(
+                            projectId,
+                            options.googleSheets,
+                            changes,
+                            options.force,
+                            ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC,
+                            uploadPermissions.googleSheets,
+                            options.path,
+                        ),
+                });
             }
         }
 
@@ -2655,15 +2824,18 @@ export const uploadHandler = async (
         let appsUpdated = 0;
         let appsFailed = 0;
         let appsSkipped = 0;
+        const changesBeforeApps = { ...changes };
 
         if (shouldUploadApps && !uploadPermissions.dataApps) {
+            output.startItem('Data apps');
             GlobalState.log(
                 styles.error(
                     `Error uploading data apps: create:DataApp or manage:DataApp permission is required`,
                 ),
             );
+            output.completeItem('permission denied', 'warning');
         } else if (shouldUploadApps) {
-            uploadResource = 'data apps';
+            output.startItem('Data apps');
             // --include-apps uploads every folder on disk; explicit UUIDs
             // filter folders by their manifest appUuid
             const filterUuids: Set<string> | null =
@@ -2959,6 +3131,11 @@ export const uploadHandler = async (
             if (appsUpdated > 0) changes['data apps updated'] = appsUpdated;
             if (appsFailed > 0) changes['data apps failed'] = appsFailed;
             if (appsSkipped > 0) changes['data apps skipped'] = appsSkipped;
+            const appSummary = summarizeUploadChanges(
+                changesBeforeApps,
+                changes,
+            );
+            output.completeItem(appSummary.detail, appSummary.variant);
         }
 
         const end = Date.now();
@@ -2975,15 +3152,11 @@ export const uploadHandler = async (
             },
         });
 
-        logUploadChanges(changes);
+        completeUpload();
     } catch (error) {
-        GlobalState.log(
-            styles.error(
-                `\nError uploading ${uploadResource}: ${getErrorMessage(error)}`,
-            ),
-        );
+        output.fail(getErrorMessage(error), (Date.now() - start) / 1000, true);
         await LightdashAnalytics.track({
-            event: 'download.error',
+            event: 'upload.error',
             properties: {
                 userId: config.user?.userUuid,
                 organizationId: config.user?.organizationUuid,
@@ -3009,6 +3182,7 @@ export const testHelpers = {
     shouldFallBackToEmbeddedSpaces,
     shouldDownloadAiAgents,
     sortSpaceFilesParentFirst,
+    summarizeUploadChanges,
     upsertSpaces,
     upsertVirtualViews,
     validateSpaceIdentity,

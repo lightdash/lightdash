@@ -23,6 +23,7 @@ type ContentAsCodeProgressProps = Pick<
     'operation' | 'scope' | 'items'
 > & {
     activeLabel: string;
+    activeDetail?: string;
 };
 
 type ContentAsCodeFailureProps = Pick<
@@ -77,6 +78,7 @@ export const formatContentAsCodeProgress = ({
     scope,
     items,
     activeLabel,
+    activeDetail,
 }: ContentAsCodeProgressProps) => {
     const header = `${chalk.bold(
         getOperationLabel(operation, 'running'),
@@ -84,7 +86,12 @@ export const formatContentAsCodeProgress = ({
     const completedItems = items.map(formatTreeItem);
     const activeItem = `  ${TREE_CONNECTOR} ${chalk.yellow('◐')} ${chalk.bold(
         activeLabel,
-    )} ${chalk.gray(`· ${getOperationLabel(operation, 'running').toLowerCase()}…`)}`;
+    )} ${chalk.gray(
+        `· ${
+            activeDetail ??
+            `${getOperationLabel(operation, 'running').toLowerCase()}…`
+        }`,
+    )}`;
 
     return [header, ...completedItems, activeItem].join('\n');
 };
@@ -137,6 +144,14 @@ export const canRenderContentAsCodeTree = (): boolean =>
         process.env.NO_UNICODE !== 'true',
     );
 
+export const logContentAsCodeDiscovery = (message: string): void => {
+    if (canRenderContentAsCodeTree()) {
+        GlobalState.debug(message);
+    } else {
+        GlobalState.log(message);
+    }
+};
+
 export const renderContentAsCodeComplete = (
     props: ContentAsCodeOutputProps,
 ): boolean => {
@@ -151,65 +166,103 @@ export const renderContentAsCodeComplete = (
 type CreateContentAsCodeOutputProps = Pick<
     ContentAsCodeOutputProps,
     'operation' | 'scope'
-> & {
-    initialLabel: string;
+>;
+
+type RunContentAsCodeItemProps<T> = {
+    label: string;
+    action: () => Promise<T>;
+    detail: (value: T) => string;
+    variant?: (value: T) => ContentAsCodeOutputVariant | undefined;
 };
 
 export const createContentAsCodeOutput = ({
     operation,
     scope,
-    initialLabel,
 }: CreateContentAsCodeOutputProps) => {
     const useTree = canRenderContentAsCodeTree();
     const items: ContentAsCodeOutputItem[] = [];
-    let activeLabel = initialLabel;
+    let activeLabel = 'Content';
+    let activeDetail: string | undefined;
     let activeStartedAt = Date.now();
     const runningLabel = getOperationLabel(operation, 'running');
-    const spinner = GlobalState.startSpinner(
-        useTree
+    let spinner: ReturnType<typeof GlobalState.startSpinner> | undefined;
+
+    const startItem = (label: string, detail?: string) => {
+        activeLabel = label;
+        activeDetail = detail;
+        activeStartedAt = Date.now();
+        const text = useTree
             ? formatContentAsCodeProgress({
                   operation,
                   scope,
                   items,
                   activeLabel,
+                  activeDetail,
               })
-            : `${runningLabel} ${activeLabel.toLowerCase()}`,
-    );
-
-    const setActive = (label: string) => {
-        activeLabel = label;
-        activeStartedAt = Date.now();
+            : `${runningLabel} ${activeLabel.toLowerCase()}`;
+        if (!spinner) {
+            spinner = GlobalState.startSpinner(text);
+            return;
+        }
         if (useTree) {
+            spinner.text = text;
+        } else {
+            spinner.start(text);
+        }
+    };
+
+    const updateActive = (detail: string) => {
+        activeDetail = detail;
+        if (useTree && spinner) {
             spinner.text = formatContentAsCodeProgress({
                 operation,
                 scope,
                 items,
                 activeLabel,
+                activeDetail,
             });
-        } else {
-            spinner.start(`${runningLabel} ${activeLabel.toLowerCase()}`);
         }
     };
 
+    const completeItem = (
+        detail: string,
+        variant?: ContentAsCodeOutputVariant,
+    ) => {
+        const item: ContentAsCodeOutputItem = {
+            label: activeLabel,
+            detail,
+            durationMs: Date.now() - activeStartedAt,
+            variant,
+        };
+        items.push(item);
+        if (!useTree && spinner) {
+            if (item.variant === 'warning') {
+                spinner.warn(formatContentAsCodeAction(item));
+            } else {
+                spinner.succeed(formatContentAsCodeAction(item));
+            }
+        }
+    };
+
+    const runItem = async <T>({
+        label,
+        action,
+        detail,
+        variant,
+    }: RunContentAsCodeItemProps<T>): Promise<T> => {
+        startItem(label);
+        const value = await action();
+        completeItem(detail(value), variant?.(value));
+        return value;
+    };
+
     return {
-        completeItem: (
-            item: ContentAsCodeOutputItem,
-            nextLabel: string | null,
-        ) => {
-            items.push(item);
-            if (!useTree) {
-                if (item.variant === 'warning') {
-                    spinner.stop();
-                } else {
-                    spinner.succeed(formatContentAsCodeAction(item));
-                }
-            }
-            if (nextLabel !== null) {
-                setActive(nextLabel);
-            }
-        },
+        startItem,
+        updateActive,
+        completeItem,
+        runItem,
         prepareForFailureDetails: () => {
-            if (!useTree) {
+            if (!useTree && spinner) {
                 spinner.stop();
             }
         },
@@ -217,7 +270,7 @@ export const createContentAsCodeOutput = ({
             if (!useTree) {
                 return false;
             }
-            spinner.stop();
+            spinner?.stop();
             return renderContentAsCodeComplete({
                 operation,
                 scope,
@@ -232,24 +285,29 @@ export const createContentAsCodeOutput = ({
             showFallback: boolean,
         ) => {
             if (useTree) {
-                spinner.fail(
-                    formatContentAsCodeFailure({
-                        operation,
-                        scope,
-                        elapsedSeconds,
-                        items,
-                        failedItem: {
-                            label: activeLabel,
-                            detail,
-                            durationMs: Date.now() - activeStartedAt,
-                        },
-                    }),
-                );
+                const failure = formatContentAsCodeFailure({
+                    operation,
+                    scope,
+                    elapsedSeconds,
+                    items,
+                    failedItem: {
+                        label: activeLabel,
+                        detail,
+                        durationMs: Date.now() - activeStartedAt,
+                    },
+                });
+                if (spinner) {
+                    spinner.fail(failure);
+                } else {
+                    process.stderr.write(`${failure}\n`);
+                }
             } else if (showFallback) {
-                spinner.fail(
-                    `Failed to ${operation} ${scope} content: ${detail}`,
-                );
+                const failure = `Failed to ${operation} ${scope} content: ${detail}`;
+                if (spinner) spinner.fail(failure);
+                else process.stderr.write(`${failure}\n`);
             }
         },
     };
 };
+
+export type ContentAsCodeOutput = ReturnType<typeof createContentAsCodeOutput>;

@@ -35,6 +35,7 @@ const {
     sanitizeChartForDownload,
     shouldFallBackToEmbeddedSpaces,
     shouldDownloadAiAgents,
+    summarizeUploadChanges,
     upsertSpaces,
     upsertVirtualViews,
     validateSpaceIdentity,
@@ -72,6 +73,31 @@ const writeFolderDashboard = async (
     const yaml = `contentType: dashboard\nname: ${slug}\nslug: ${slug}\nspaceSlug: test-space\ntiles:\n${tilesYaml}\nversion: 1\n`;
     await fs.writeFile(path.join(baseDir, 'dashboards', `${slug}.yml`), yaml);
 };
+
+describe('summarizeUploadChanges', () => {
+    it('reports only phase deltas and warns when resources fail', () => {
+        expect(
+            summarizeUploadChanges(
+                { 'charts created': 1, 'spaces skipped': 3 },
+                {
+                    'charts created': 3,
+                    'spaces skipped': 3,
+                    'charts skipped': 2,
+                    'charts with errors': 1,
+                },
+            ),
+        ).toEqual({
+            detail: '2 created, 2 skipped, 1 with errors',
+            variant: 'warning',
+        });
+    });
+
+    it('reports an empty phase without inventing a resource count', () => {
+        expect(summarizeUploadChanges({}, {})).toEqual({
+            detail: 'no changes',
+        });
+    });
+});
 
 const pivotedSeries = (
     pivotValue: string,
@@ -561,6 +587,7 @@ version: 1
         );
 
         try {
+            const onProgress = vi.fn();
             await downloadContent(
                 ['pivoted-chart'],
                 'charts',
@@ -572,7 +599,10 @@ version: 1
                 false,
                 false,
                 false,
+                onProgress,
             );
+
+            expect(onProgress).toHaveBeenCalledWith('1 of 1 charts downloaded');
 
             await expect(readSpaceFiles(tmpDir)).resolves.toEqual([
                 expect.objectContaining({
