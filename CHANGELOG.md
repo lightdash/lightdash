@@ -1,3 +1,16 @@
+# [0.3422.0](https://github.com/lightdash/lightdash/compare/0.3421.0...0.3422.0) (2026-07-20)
+
+
+### Bug Fixes
+
+* homepage favourite data app link goes to view not builder ([#25798](https://github.com/lightdash/lightdash/issues/25798)) ([ed32790](https://github.com/lightdash/lightdash/commit/ed32790ccf9a1717c5aa2f24e5e8a58b8e1f737a))
+* show data app Duplicate to users with create but not manage rights ([#25786](https://github.com/lightdash/lightdash/issues/25786)) ([4eea87a](https://github.com/lightdash/lightdash/commit/4eea87ab118d6ce0a4e33d227dceac1701bb3b62))
+
+
+### Features
+
+* add AI agent evals as code ([#25791](https://github.com/lightdash/lightdash/issues/25791)) ([8b6804b](https://github.com/lightdash/lightdash/commit/8b6804badad989dfb36e1353e7807e2a78333a2b)), closes [#25781](https://github.com/lightdash/lightdash/issues/25781)
+
 # [0.3421.0](https://github.com/lightdash/lightdash/compare/0.3420.3...0.3421.0) (2026-07-20)
 
 

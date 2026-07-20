@@ -6044,6 +6044,34 @@
                 "required": ["modelProvider", "modelName"],
                 "type": "object"
             },
+            "AgentAsCodeEvaluationPrompt": {
+                "properties": {
+                    "expectedResponse": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "prompt": {
+                        "type": "string"
+                    }
+                },
+                "required": ["expectedResponse", "prompt"],
+                "type": "object"
+            },
+            "AgentAsCodeEvaluation": {
+                "properties": {
+                    "prompts": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentAsCodeEvaluationPrompt"
+                        },
+                        "type": "array"
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "required": ["prompts", "title"],
+                "type": "object"
+            },
             "AgentAsCode": {
                 "properties": {
                     "downloadedAt": {
@@ -6053,6 +6081,12 @@
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "evaluations": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentAsCodeEvaluation"
+                        },
+                        "type": "array"
                     },
                     "modelConfig": {
                         "allOf": [
@@ -48566,7 +48600,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3421.0",
+        "version": "0.3422.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
