@@ -6767,6 +6767,21 @@ const buildNaiveExplore = (
                     timeIntervalBaseDimensionName: 'occurred_at',
                     timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
                 },
+                occurred_at_hour: {
+                    type: DimensionType.TIMESTAMP,
+                    name: 'occurred_at_hour',
+                    label: 'occurred_at_hour',
+                    table: 'events',
+                    tableLabel: 'events',
+                    fieldType: FieldType.DIMENSION,
+                    sql: `DATE_TRUNC('HOUR', \${TABLE}.occurred_at)`,
+                    compiledSql: `DATE_TRUNC('HOUR', "events".occurred_at)`,
+                    tablesReferences: ['events'],
+                    hidden: false,
+                    timeInterval: TimeFrames.HOUR,
+                    timeIntervalBaseDimensionName: 'occurred_at',
+                    timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+                },
                 occurred_at_day: {
                     type: DimensionType.DATE,
                     name: 'occurred_at_day',
@@ -7112,6 +7127,74 @@ describe('Naive timestamp domain — explicit, session-independent conversion', 
             useTimezoneAwareDateTrunc: true,
         });
         expect(query).toContain(`MAX("events".occurred_at) AS "events_max_ts"`);
+    });
+
+    describe('filter literals follow the resolved domain', () => {
+        const filteredQuery = (fieldId: string): CompiledMetricQuery => ({
+            ...naiveQuery([fieldId]),
+            filters: {
+                dimensions: {
+                    id: 'root',
+                    and: [
+                        {
+                            id: 'f1',
+                            target: { fieldId },
+                            operator: FilterOperator.EQUALS,
+                            values: ['2024-01-14T17:00:00Z'],
+                        },
+                    ],
+                },
+            },
+        });
+
+        test('RAW filter on a known-naive column compares data-timezone wall clocks (Postgres)', () => {
+            const { query } = buildQuery({
+                explore: buildNaiveExplore(
+                    SupportedDbtAdapter.POSTGRES,
+                    'naive',
+                ),
+                compiledMetricQuery: filteredQuery('events_occurred_at_raw'),
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: 'Asia/Tokyo',
+                useTimezoneAwareDateTrunc: true,
+                columnTimezone: 'Asia/Tokyo',
+            });
+            expect(query).toContain(
+                `("events".occurred_at) = ('2024-01-15 02:00:00'::timestamp)`,
+            );
+        });
+
+        test('hour filter at display == data timezone wraps LHS and literal symmetrically (Trino, known-naive)', () => {
+            const { query } = buildQuery({
+                explore: buildNaiveExplore(SupportedDbtAdapter.TRINO, 'naive'),
+                compiledMetricQuery: filteredQuery('events_occurred_at_hour'),
+                warehouseSqlBuilder: trinoClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: 'Asia/Tokyo',
+                useTimezoneAwareDateTrunc: true,
+                columnTimezone: 'Asia/Tokyo',
+            });
+            const rebasedColumn = `CAST(with_timezone(CAST(with_timezone("events".occurred_at, 'Asia/Tokyo') AT TIME ZONE 'UTC' AS timestamp), 'UTC') AT TIME ZONE 'Asia/Tokyo' AS timestamp)`;
+            const wrappedLhs = `CAST(with_timezone(DATE_TRUNC('HOUR', CAST(${rebasedColumn} AS TIMESTAMP)), 'Asia/Tokyo') AT TIME ZONE 'UTC' AS timestamp)`;
+            const wrappedLiteral = `CAST(with_timezone(CAST('2024-01-15 02:00:00' AS timestamp), 'Asia/Tokyo') AT TIME ZONE 'UTC' AS timestamp)`;
+            expect(query).toContain(`(${wrappedLhs}) = ${wrappedLiteral}`);
+        });
+
+        test('hour filter without a domain stays byte-identical (Trino equal-zones skip)', () => {
+            const { query } = buildQuery({
+                explore: buildNaiveExplore(SupportedDbtAdapter.TRINO),
+                compiledMetricQuery: filteredQuery('events_occurred_at_hour'),
+                warehouseSqlBuilder: trinoClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: 'Asia/Tokyo',
+                useTimezoneAwareDateTrunc: true,
+                columnTimezone: 'Asia/Tokyo',
+            });
+            expect(query).toContain(
+                `(DATE_TRUNC('HOUR', CAST("events".occurred_at AS TIMESTAMP))) = CAST('2024-01-14 17:00:00+00:00' AS timestamp)`,
+            );
+        });
     });
 });
 
