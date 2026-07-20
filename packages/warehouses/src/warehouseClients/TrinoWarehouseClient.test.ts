@@ -23,10 +23,11 @@ vi.mock('trino-client', () => ({
 }));
 
 describe('TrinoWarehouseClient', () => {
-    const lowerCaseFields = Object.keys(warehouseClient.expectedFields).reduce<
-        Record<string, AnyType>
-    >((acc, key) => {
-        acc[key.toLowerCase()] = warehouseClient.expectedFields[key];
+    const lowerCaseFields = Object.keys(
+        warehouseClient.expectedFieldsWithNaiveTimestamp,
+    ).reduce<Record<string, AnyType>>((acc, key) => {
+        acc[key.toLowerCase()] =
+            warehouseClient.expectedFieldsWithNaiveTimestamp[key];
         return acc;
     }, {});
     const lowerCaseRow = Object.keys(warehouseClient.expectedRow).reduce<
@@ -76,7 +77,9 @@ describe('TrinoWarehouseClient', () => {
 
         await expect(
             warehouse.getCatalog(warehouseClient.config),
-        ).resolves.toEqual(warehouseClient.expectedWarehouseSchema);
+        ).resolves.toEqual(
+            warehouseClient.expectedWarehouseSchemaWithNaiveTimestamp,
+        );
     });
 
     describe('streamQuery client tag headers', () => {

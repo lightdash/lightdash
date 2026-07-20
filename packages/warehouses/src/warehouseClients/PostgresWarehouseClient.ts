@@ -6,12 +6,14 @@ import {
     getErrorMessage,
     Metric,
     MetricType,
+    setCatalogTimestampDomain,
     SslConfiguration,
     SupportedDbtAdapter,
     WarehouseCatalog,
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type TimestampDomain,
     type WarehouseQueryPhase,
 } from '@lightdash/common';
 import { readFileSync } from 'fs';
@@ -71,6 +73,7 @@ export enum PostgresTypes {
     TIMESTAMP = 'timestamp',
     TIMESTAMP_TZ = 'timestamptz',
     TIMESTAMP_WITHOUT_TIME_ZONE = 'timestamp without time zone',
+    TIMESTAMP_WITH_TIME_ZONE = 'timestamp with time zone',
 }
 
 const mapFieldType = (type: string): DimensionType => {
@@ -104,12 +107,29 @@ const mapFieldType = (type: string): DimensionType => {
         case PostgresTypes.TIMESTAMP_TZ:
         case PostgresTypes.TIME_WITHOUT_TIME_ZONE:
         case PostgresTypes.TIMESTAMP_WITHOUT_TIME_ZONE:
+        case PostgresTypes.TIMESTAMP_WITH_TIME_ZONE:
             return DimensionType.TIMESTAMP;
         case PostgresTypes.BOOLEAN:
         case PostgresTypes.BOOL:
             return DimensionType.BOOLEAN;
         default:
             return DimensionType.STRING;
+    }
+};
+
+// Strips the precision that format_type emits, e.g. `timestamp(3) with time zone`
+export const getPostgresTimestampDomain = (
+    type: string,
+): TimestampDomain | undefined => {
+    switch (type.replace(/\(\d+\)/, '').replace(/\s{2,}/g, ' ')) {
+        case PostgresTypes.TIMESTAMP:
+        case PostgresTypes.TIMESTAMP_WITHOUT_TIME_ZONE:
+            return 'naive';
+        case PostgresTypes.TIMESTAMP_TZ:
+        case PostgresTypes.TIMESTAMP_WITH_TIME_ZONE:
+            return 'aware';
+        default:
+            return undefined;
     }
 };
 
@@ -153,6 +173,19 @@ const convertDataTypeIdToDimensionType = (
             return DimensionType.BOOLEAN;
         default:
             return DimensionType.STRING;
+    }
+};
+
+export const convertDataTypeIdToTimestampDomain = (
+    dataTypeId: number,
+): TimestampDomain | undefined => {
+    switch (dataTypeId) {
+        case builtins.TIMESTAMP:
+            return 'naive';
+        case builtins.TIMESTAMPTZ:
+            return 'aware';
+        default:
+            return undefined;
     }
 };
 
@@ -226,12 +259,19 @@ export class PostgresClient<
 
     static convertQueryResultFields(
         fields: QueryResult<AnyType>['fields'],
-    ): Record<string, { type: DimensionType }> {
+    ): WarehouseResults['fields'] {
         return Object.fromEntries(
-            fields.map(({ name, dataTypeID }) => [
-                name,
-                { type: convertDataTypeIdToDimensionType(dataTypeID) },
-            ]),
+            fields.map(({ name, dataTypeID }) => {
+                const timestampDomain =
+                    convertDataTypeIdToTimestampDomain(dataTypeID);
+                return [
+                    name,
+                    {
+                        type: convertDataTypeIdToDimensionType(dataTypeID),
+                        ...(timestampDomain ? { timestampDomain } : {}),
+                    },
+                ];
+            }),
         );
     }
 
@@ -592,6 +632,14 @@ export class PostgresClient<
                         acc[table_catalog][table_schema][table_name] || {};
                     acc[table_catalog][table_schema][table_name][column_name] =
                         mapFieldType(data_type);
+                    setCatalogTimestampDomain(
+                        acc,
+                        table_catalog,
+                        table_schema,
+                        table_name,
+                        column_name,
+                        getPostgresTimestampDomain(data_type),
+                    );
                 }
 
                 return acc;
@@ -652,7 +700,11 @@ export class PostgresClient<
         }
         const { rows } = await this.runQuery(query, tags, undefined, values);
 
-        return this.parseWarehouseCatalog(rows, mapFieldType);
+        return this.parseWarehouseCatalog(
+            rows,
+            mapFieldType,
+            getPostgresTimestampDomain,
+        );
     }
 
     parseError(error: pg.DatabaseError, query: string = '') {

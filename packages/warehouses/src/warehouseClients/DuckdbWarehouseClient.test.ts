@@ -229,7 +229,10 @@ describe('DuckdbWarehouseClient', () => {
         expect(result.fields).toEqual({
             customer_name: { type: DimensionType.STRING },
             order_count: { type: DimensionType.NUMBER },
-            last_order_at: { type: DimensionType.TIMESTAMP },
+            last_order_at: {
+                type: DimensionType.TIMESTAMP,
+                timestampDomain: 'naive',
+            },
         });
     });
 
@@ -982,6 +985,11 @@ describe('DuckdbWarehouseClient', () => {
                         order_id: DimensionType.NUMBER,
                         created_at: DimensionType.TIMESTAMP,
                     },
+                },
+            },
+            __lightdashTimestampDomains: {
+                analytics: {
+                    main: { orders: { created_at: 'naive' } },
                 },
             },
         });

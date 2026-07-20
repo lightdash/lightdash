@@ -27,6 +27,7 @@ import {
     type MetricType,
     type NumberSeparator,
     type Source,
+    type TimestampDomain,
 } from './field';
 import { parseFilters, type RequiredFilter } from './filterGrammar';
 import { type LightdashProjectConfig } from './lightdashProjectConfig';
@@ -77,6 +78,9 @@ export type DbtModelNode = DbtRawModelNode & {
 export type DbtModelColumn = ColumnInfo & {
     meta?: DbtColumnMetadata;
     data_type?: DimensionType;
+    /** Catalog-derived timestamp domain; sibling of data_type because
+     *  attachTypesToModels overwrites data_type wholesale. */
+    timestamp_domain?: TimestampDomain;
     config?: {
         meta?: DbtColumnMetadata;
     };
@@ -236,6 +240,9 @@ export type DbtColumnLightdashDimension = {
     time_intervals?: boolean | 'default' | 'OFF' | (TimeFrames | string)[];
     /** Set to false to opt this dim out of display-tz conversion. Defaults to true. */
     convert_timezone?: boolean;
+    /** Declares whether the column stores an instant ('aware') or a bare wall
+     *  clock ('naive'); overrides the warehouse catalog. */
+    timestamp_domain?: TimestampDomain;
     hidden?: boolean;
     // @deprecated Use format expression instead
     round?: number;

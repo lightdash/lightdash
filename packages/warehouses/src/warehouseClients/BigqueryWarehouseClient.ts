@@ -27,12 +27,14 @@ import {
     PartitionType,
     sanitizeQueryTagKey,
     sanitizeQueryTagValue,
+    setCatalogTimestampDomain,
     SupportedDbtAdapter,
     TimeIntervalUnit,
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type TimestampDomain,
 } from '@lightdash/common';
 import Big from 'big.js';
 import { pipeline, Transform } from 'stream';
@@ -100,6 +102,19 @@ const parseCell = (cell: AnyType) => {
     }
 
     return `${cell}`;
+};
+
+export const getBigqueryTimestampDomain = (
+    type: string | undefined,
+): TimestampDomain | undefined => {
+    switch (type) {
+        case BigqueryFieldType.DATETIME:
+            return 'naive';
+        case BigqueryFieldType.TIMESTAMP:
+            return 'aware';
+        default:
+            return undefined;
+    }
 };
 
 const mapFieldType = (type: string | undefined): DimensionType => {
@@ -317,12 +332,16 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
     static getFieldsFromResponse(response: QueryRowsResponse[2] | undefined) {
         return (response?.schema?.fields || []).reduce<
-            Record<string, { type: DimensionType }>
+            WarehouseResults['fields']
         >((acc, field) => {
             if (field.name) {
+                const timestampDomain = getBigqueryTimestampDomain(field.type);
                 return {
                     ...acc,
-                    [field.name]: { type: mapFieldType(field.type) },
+                    [field.name]: {
+                        type: mapFieldType(field.type),
+                        ...(timestampDomain ? { timestampDomain } : {}),
+                    },
                 };
             }
             return acc;
@@ -499,14 +518,19 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 const [database, schema, table, tableSchema] = result;
                 acc[database] = acc[database] || {};
                 acc[database][schema] = acc[database][schema] || {};
-                acc[database][schema][table] =
-                    tableSchema.fields.reduce<WarehouseTableSchema>(
-                        (sum, { name, type }) => ({
-                            ...sum,
-                            [name]: mapFieldType(type),
-                        }),
-                        {},
+                acc[database][schema][table] = {};
+                tableSchema.fields.forEach(({ name, type }) => {
+                    if (name === undefined) return;
+                    acc[database][schema][table][name] = mapFieldType(type);
+                    setCatalogTimestampDomain(
+                        acc,
+                        database,
+                        schema,
+                        table,
+                        name,
+                        getBigqueryTimestampDomain(type),
                     );
+                });
             }
 
             return acc;
@@ -597,6 +621,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 data_type: column.type,
             })),
             mapFieldType,
+            getBigqueryTimestampDomain,
         );
     }
 

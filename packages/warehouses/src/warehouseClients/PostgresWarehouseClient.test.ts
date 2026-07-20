@@ -13,9 +13,9 @@ import {
 } from './PostgresWarehouseClient.mock';
 import {
     config,
-    expectedFields,
+    expectedFieldsWithNaiveTimestamp,
     expectedRow,
-    expectedWarehouseSchema,
+    expectedWarehouseSchemaWithNaiveTimestamp,
 } from './WarehouseClient.mock';
 
 vi.mock('pg', async () => ({
@@ -61,7 +61,7 @@ describe('PostgresWarehouseClient', () => {
     it('expect query rows', async () => {
         const warehouse = new PostgresWarehouseClient(credentials);
         const results = await warehouse.runQuery('fake sql');
-        expect(results.fields).toEqual(expectedFields);
+        expect(results.fields).toEqual(expectedFieldsWithNaiveTimestamp);
         expect(results.rows[0]).toEqual(expectedRow);
     });
     it('expect schema with postgres types mapped to dimension types', async () => {
@@ -134,7 +134,7 @@ describe('PostgresWarehouseClient', () => {
                 };
             });
         expect(await warehouse.getCatalog(config)).toEqual(
-            expectedWarehouseSchema,
+            expectedWarehouseSchemaWithNaiveTimestamp,
         );
     });
     it('expect empty catalog when dbt project has no references', async () => {

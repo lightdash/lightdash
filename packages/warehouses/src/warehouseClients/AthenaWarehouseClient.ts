@@ -16,12 +16,14 @@ import {
     getErrorMessage,
     Metric,
     MetricType,
+    setCatalogTimestampDomain,
     SupportedDbtAdapter,
     TimeIntervalUnit,
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type TimestampDomain,
 } from '@lightdash/common';
 import { WarehouseCatalog } from '../types';
 import {
@@ -57,6 +59,20 @@ export enum AthenaTypes {
     IPADDRESS = 'ipaddress',
     UUID = 'uuid',
 }
+
+// Athena follows Trino semantics: bare timestamp is naive, with time zone is aware
+export const getAthenaTimestampDomain = (
+    type: AthenaTypes | string,
+): TimestampDomain | undefined => {
+    switch (type.toLowerCase().replace(/\(\d+(,\s*\d+)?\)/, '')) {
+        case AthenaTypes.TIMESTAMP:
+            return 'naive';
+        case AthenaTypes.TIMESTAMP_TZ:
+            return 'aware';
+        default:
+            return undefined;
+    }
+};
 
 export const convertDataTypeToDimensionType = (
     type: AthenaTypes | string,
@@ -458,18 +474,25 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
 
                 // Parse fields from metadata (only on first batch)
                 if (isFirstBatch && columnInfo) {
-                    fields = columnInfo.reduce<
-                        Record<string, { type: DimensionType }>
-                    >((acc, col) => {
-                        if (col.Name) {
-                            acc[normalizeColumnName(col.Name)] = {
-                                type: convertDataTypeToDimensionType(
-                                    col.Type || 'varchar',
-                                ),
-                            };
-                        }
-                        return acc;
-                    }, {});
+                    fields = columnInfo.reduce<WarehouseResults['fields']>(
+                        (acc, col) => {
+                            if (col.Name) {
+                                const rawType = col.Type || 'varchar';
+                                const timestampDomain =
+                                    getAthenaTimestampDomain(rawType);
+                                acc[normalizeColumnName(col.Name)] = {
+                                    type: convertDataTypeToDimensionType(
+                                        rawType,
+                                    ),
+                                    ...(timestampDomain
+                                        ? { timestampDomain }
+                                        : {}),
+                                };
+                            }
+                            return acc;
+                        },
+                        {},
+                    );
                 }
 
                 // Skip header row on first batch
@@ -550,16 +573,19 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
                 const { database, schema, table, columns } = result;
                 acc[database] = acc[database] || {};
                 acc[database][schema] = acc[database][schema] || {};
-                acc[database][schema][table] = columns.reduce<
-                    Record<string, DimensionType>
-                >(
-                    (colAcc, { name, type }) => ({
-                        ...colAcc,
-                        [normalizeColumnName(name)]:
-                            convertDataTypeToDimensionType(type),
-                    }),
-                    {},
-                );
+                acc[database][schema][table] = {};
+                columns.forEach(({ name, type }) => {
+                    acc[database][schema][table][normalizeColumnName(name)] =
+                        convertDataTypeToDimensionType(type);
+                    setCatalogTimestampDomain(
+                        acc,
+                        database,
+                        schema,
+                        table,
+                        normalizeColumnName(name),
+                        getAthenaTimestampDomain(type),
+                    );
+                });
             }
             return acc;
         }, {});
@@ -626,23 +652,22 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
 
             const columns = response.TableMetadata?.Columns || [];
             const result: WarehouseCatalog = {
-                [db]: {
-                    [sch]: {
-                        [tableName]: columns.reduce<
-                            Record<string, DimensionType>
-                        >(
-                            (acc, col) => ({
-                                ...acc,
-                                [normalizeColumnName(col.Name || '')]:
-                                    convertDataTypeToDimensionType(
-                                        col.Type || 'varchar',
-                                    ),
-                            }),
-                            {},
-                        ),
-                    },
-                },
+                [db]: { [sch]: { [tableName]: {} } },
             };
+            columns.forEach((col) => {
+                const columnName = normalizeColumnName(col.Name || '');
+                const rawType = col.Type || 'varchar';
+                result[db][sch][tableName][columnName] =
+                    convertDataTypeToDimensionType(rawType);
+                setCatalogTimestampDomain(
+                    result,
+                    db,
+                    sch,
+                    tableName,
+                    columnName,
+                    getAthenaTimestampDomain(rawType),
+                );
+            });
 
             return result;
         } catch (e: unknown) {

@@ -17,9 +17,9 @@ import {
 } from './BigqueryWarehouseClient.mock';
 import {
     config,
-    expectedFields,
+    expectedFieldsWithAwareTimestamp,
     expectedRow,
-    expectedWarehouseSchema,
+    expectedWarehouseSchemaWithAwareTimestamp,
 } from './WarehouseClient.mock';
 
 describe('BigqueryWarehouseClient', () => {
@@ -32,7 +32,7 @@ describe('BigqueryWarehouseClient', () => {
 
         const results = await warehouse.runQuery('fake sql');
 
-        expect(results.fields).toEqual(expectedFields);
+        expect(results.fields).toEqual(expectedFieldsWithAwareTimestamp);
         expect(results.rows[0]).toEqual(expectedRow);
         expect(warehouse.client.createQueryJob as Mock).toHaveBeenCalledTimes(
             1,
@@ -77,7 +77,7 @@ describe('BigqueryWarehouseClient', () => {
         Dataset.prototype.table = getTableMock;
         const warehouse = new BigqueryWarehouseClient(credentials);
         expect(await warehouse.getCatalog(config)).toEqual(
-            expectedWarehouseSchema,
+            expectedWarehouseSchemaWithAwareTimestamp,
         );
         expect(getTableMock).toHaveBeenCalledTimes(1);
         expect(getTableResponse.getMetadata).toHaveBeenCalledTimes(1);

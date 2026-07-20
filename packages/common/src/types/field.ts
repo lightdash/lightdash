@@ -678,6 +678,15 @@ export enum DimensionType {
     BOOLEAN = 'boolean',
 }
 
+/**
+ * Whether a TIMESTAMP column stores an instant ('aware') or a bare wall clock
+ * ('naive'). Absent means unknown — never assume 'aware' for a missing value.
+ */
+export type TimestampDomain = 'aware' | 'naive';
+
+export const isTimestampDomain = (value: unknown): value is TimestampDomain =>
+    value === 'aware' || value === 'naive';
+
 export type FilterAutocompleteValue = {
     value: string;
     label?: string;
@@ -751,6 +760,7 @@ export interface Dimension extends Field {
     customTimeInterval?: string;
     isAdditionalDimension?: boolean;
     skipTimezoneConversion?: boolean;
+    timestampDomain?: TimestampDomain;
     colors?: Record<string, string>;
     isIntervalBase?: boolean;
     aiHint?: string | string[];

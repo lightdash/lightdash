@@ -7,6 +7,7 @@ import {
     Metric,
     MetricType,
     ParseError,
+    setCatalogTimestampDomain,
     SnowflakeAuthenticationType,
     SupportedDbtAdapter,
     UnexpectedServerError,
@@ -14,6 +15,7 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type TimestampDomain,
     type WarehouseExecuteAsyncQuery,
     type WarehouseExecuteAsyncQueryArgs,
 } from '@lightdash/common';
@@ -92,6 +94,24 @@ const normaliseSnowflakeType = (type: string): string => {
         );
     }
     return match[0];
+};
+
+// Classifies on the full raw string: normaliseSnowflakeType truncates at the
+// underscore, collapsing TIMESTAMP_NTZ/TZ/LTZ into TIMESTAMP. Strips parameter
+// suffixes like TIMESTAMP_NTZ(9). Bare TIMESTAMP is left unknown — it aliases
+// per-account via TIMESTAMP_TYPE_MAPPING.
+export const getSnowflakeTimestampDomain = (
+    type: string,
+): TimestampDomain | undefined => {
+    switch (type.toUpperCase().replace(/\s*\(.*\)$/, '')) {
+        case SnowflakeTypes.TIMESTAMP_NTZ:
+            return 'naive';
+        case SnowflakeTypes.TIMESTAMP_TZ:
+        case SnowflakeTypes.TIMESTAMP_LTZ:
+            return 'aware';
+        default:
+            return undefined;
+    }
 };
 
 const EXTERNAL_BROWSER_AUTHENTICATOR = 'EXTERNALBROWSER';
@@ -1291,15 +1311,17 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         // There is a bug/mistype in snowflake-sdk since this method can return undefined
         const columns = stmt.getColumns() as Column[] | undefined;
         return columns
-            ? columns.reduce(
-                  (acc, column) => ({
+            ? columns.reduce((acc, column) => {
+                  const rawType = column.getType().toUpperCase();
+                  const timestampDomain = getSnowflakeTimestampDomain(rawType);
+                  return {
                       ...acc,
                       [column.getName()]: {
-                          type: mapFieldType(column.getType().toUpperCase()),
+                          type: mapFieldType(rawType),
+                          ...(timestampDomain ? { timestampDomain } : {}),
                       },
-                  }),
-                  {},
-              )
+                  };
+              }, {})
             : {};
     }
 
@@ -1701,9 +1723,18 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                         acc[match.database][match.schema][match.table] =
                             acc[match.database][match.schema][match.table] ||
                             {};
+                        const rawType = JSON.parse(row.data_type).type;
                         acc[match.database][match.schema][match.table][
                             row.column_name
-                        ] = mapFieldType(JSON.parse(row.data_type).type);
+                        ] = mapFieldType(rawType);
+                        setCatalogTimestampDomain(
+                            acc,
+                            match.database,
+                            match.schema,
+                            match.table,
+                            row.column_name,
+                            getSnowflakeTimestampDomain(rawType),
+                        );
                     }
                 });
             }
@@ -1776,7 +1807,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             values,
         });
         const { rows } = await this.runQuery(query, tags, undefined, values);
-        return this.parseWarehouseCatalog(rows, mapFieldType);
+        return this.parseWarehouseCatalog(
+            rows,
+            mapFieldType,
+            getSnowflakeTimestampDomain,
+        );
     }
 
     /*

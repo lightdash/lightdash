@@ -2,7 +2,7 @@ import { type WeekDay } from '../utils/timeFrames';
 import { type QueryExecutionContext } from './analytics';
 import { type AnyType } from './any';
 import { type SupportedDbtAdapter } from './dbt';
-import { type DimensionType, type Metric } from './field';
+import { type DimensionType, type Metric, type TimestampDomain } from './field';
 import { type CreateWarehouseCredentials } from './projects';
 import type { WarehouseQueryMetadata } from './queryHistory';
 import { type UserAttributeValueMap } from './userAttributes';
@@ -80,12 +80,63 @@ export type WarehouseTableSchema = {
     [column: string]: DimensionType;
 };
 
+/**
+ * Sparse sidecar of timestamp domains, keyed like the catalog itself. It
+ * lives on the catalog under a reserved key next to the database keys, so it
+ * survives the `cached_warehouse` JSON round-trip unchanged and is inert to
+ * readers that only look up their own database names.
+ */
+export const WAREHOUSE_TIMESTAMP_DOMAINS_KEY = '__lightdashTimestampDomains';
+
+export type WarehouseCatalogTimestampDomains = {
+    [database: string]: {
+        [schema: string]: {
+            [table: string]: {
+                [column: string]: TimestampDomain;
+            };
+        };
+    };
+};
+
 export type WarehouseCatalog = {
     [database: string]: {
         [schema: string]: {
             [table: string]: WarehouseTableSchema;
         };
     };
+};
+
+export const getCatalogTimestampDomain = (
+    catalog: WarehouseCatalog,
+    database: string,
+    schema: string,
+    table: string,
+    column: string,
+): TimestampDomain | undefined =>
+    (
+        catalog as {
+            [WAREHOUSE_TIMESTAMP_DOMAINS_KEY]?: WarehouseCatalogTimestampDomains;
+        }
+    )[WAREHOUSE_TIMESTAMP_DOMAINS_KEY]?.[database]?.[schema]?.[table]?.[column];
+
+export const setCatalogTimestampDomain = (
+    catalog: WarehouseCatalog,
+    database: string,
+    schema: string,
+    table: string,
+    column: string,
+    timestampDomain: TimestampDomain | undefined,
+): void => {
+    if (timestampDomain === undefined) return;
+    const catalogWithDomains = catalog as {
+        [WAREHOUSE_TIMESTAMP_DOMAINS_KEY]?: WarehouseCatalogTimestampDomains;
+    };
+    const domains = catalogWithDomains[WAREHOUSE_TIMESTAMP_DOMAINS_KEY] ?? {};
+    catalogWithDomains[WAREHOUSE_TIMESTAMP_DOMAINS_KEY] = domains;
+    domains[database] = domains[database] ?? {};
+    domains[database][schema] = domains[database][schema] ?? {};
+    domains[database][schema][table] = domains[database][schema][table] ?? {};
+    domains[database][schema][table][column] = timestampDomain;
 };
 
 export type WarehouseTablesCatalog = {
@@ -104,7 +155,10 @@ export type WarehouseTables = {
 }[];
 
 export type WarehouseResults = {
-    fields: Record<string, { type: DimensionType }>;
+    fields: Record<
+        string,
+        { type: DimensionType; timestampDomain?: TimestampDomain }
+    >;
     rows: Record<string, AnyType>[];
 };
 
@@ -232,6 +286,7 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
     parseWarehouseCatalog(
         rows: Record<string, AnyType>[],
         mapFieldType: (type: string) => DimensionType,
+        mapTimestampDomain?: (type: string) => TimestampDomain | undefined,
     ): WarehouseCatalog;
 
     parseError(error: Error): Error;

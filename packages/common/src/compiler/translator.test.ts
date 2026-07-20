@@ -15,6 +15,7 @@ import {
     convertTable,
 } from './translator';
 import {
+    expectedModelWithTimestampDomain,
     expectedModelWithType,
     LIGHTDASH_TABLE_SQL_WHERE,
     LIGHTDASH_TABLE_WITH_ADDITIONAL_DIMENSIONS,
@@ -71,6 +72,9 @@ import {
     MODEL_WITH_SINGLE_PRIMARY_KEY,
     MODEL_WITH_SQL_FILTER,
     MODEL_WITH_SQL_WHERE,
+    MODEL_WITH_TIMESTAMP_DOMAIN,
+    MODEL_WITH_TIMESTAMP_DOMAIN_YAML_OVERRIDE,
+    MODEL_WITH_UNKNOWN_TIMESTAMP_DOMAIN,
     MODEL_WITH_WRONG_METRIC,
     MODEL_WITH_WRONG_METRICS,
     SPOTLIGHT_CONFIG_WITH_CATEGORIES_AND_HIDE,
@@ -79,6 +83,7 @@ import {
     warehouseSchemaWithEmptyStringDatabase,
     warehouseSchemaWithMissingColumn,
     warehouseSchemaWithMissingTable,
+    warehouseSchemaWithTimestampDomain,
     warehouseSchemaWithUpperCaseColumn,
 } from './translator.mock';
 
@@ -171,6 +176,82 @@ describe('attachTypesToModels', () => {
                 false,
             )[0],
         ).toEqual(expectedModelWithType);
+    });
+});
+
+describe('timestamp domain', () => {
+    const customGranularities = {
+        slt_week: {
+            label: 'SLT Week',
+            sql: "DATE_TRUNC('week', ${COLUMN})",
+        },
+    };
+
+    it('should attach timestamp_domain as a sibling of data_type', () => {
+        expect(
+            attachTypesToModels(
+                [model],
+                warehouseSchemaWithTimestampDomain,
+                false,
+            )[0],
+        ).toEqual(expectedModelWithTimestampDomain);
+    });
+
+    it('should not attach timestamp_domain for legacy catalog entries', () => {
+        expect(
+            attachTypesToModels([model], warehouseSchema, false)[0].columns
+                .myColumnName,
+        ).not.toHaveProperty('timestamp_domain');
+    });
+
+    it('should stamp timestampDomain on the dimension and its interval children', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            MODEL_WITH_TIMESTAMP_DOMAIN,
+            DEFAULT_SPOTLIGHT_CONFIG,
+            undefined,
+            undefined,
+            customGranularities,
+        );
+
+        expect(result.dimensions.user_created.timestampDomain).toEqual('naive');
+        expect(result.dimensions.user_created_raw.timestampDomain).toEqual(
+            'naive',
+        );
+        expect(result.dimensions.user_created_day.timestampDomain).toEqual(
+            'naive',
+        );
+        expect(result.dimensions.user_created_slt_week.timestampDomain).toEqual(
+            'naive',
+        );
+    });
+
+    it('should prefer the YAML timestamp_domain over the catalog', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            MODEL_WITH_TIMESTAMP_DOMAIN_YAML_OVERRIDE,
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(result.dimensions.user_created.timestampDomain).toEqual('aware');
+        expect(result.dimensions.user_created_day.timestampDomain).toEqual(
+            'aware',
+        );
+    });
+
+    it('should leave timestampDomain absent when unknown', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            MODEL_WITH_UNKNOWN_TIMESTAMP_DOMAIN,
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(result.dimensions.user_created).not.toHaveProperty(
+            'timestampDomain',
+        );
+        expect(result.dimensions.user_created_day).not.toHaveProperty(
+            'timestampDomain',
+        );
     });
 });
 

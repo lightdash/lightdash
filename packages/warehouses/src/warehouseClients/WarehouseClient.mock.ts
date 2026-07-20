@@ -1,4 +1,9 @@
-import { AnyType, DimensionType } from '@lightdash/common';
+import {
+    AnyType,
+    DimensionType,
+    setCatalogTimestampDomain,
+    type TimestampDomain,
+} from '@lightdash/common';
 import { WarehouseCatalog } from '../types';
 
 export const config: {
@@ -29,6 +34,27 @@ export const expectedWarehouseSchema: WarehouseCatalog = {
     },
 };
 
+const schemaWithTimestampDomain = (
+    timestampDomain: TimestampDomain,
+): WarehouseCatalog => {
+    const catalog = structuredClone(expectedWarehouseSchema);
+    setCatalogTimestampDomain(
+        catalog,
+        'myDatabase',
+        'mySchema',
+        'myTable',
+        'myTimestampColumn',
+        timestampDomain,
+    );
+    return catalog;
+};
+
+export const expectedWarehouseSchemaWithNaiveTimestamp =
+    schemaWithTimestampDomain('naive');
+
+export const expectedWarehouseSchemaWithAwareTimestamp =
+    schemaWithTimestampDomain('aware');
+
 export const expectedFields: Record<string, AnyType> = {
     myStringColumn: { type: DimensionType.STRING },
     myNumberColumn: { type: DimensionType.NUMBER },
@@ -37,6 +63,22 @@ export const expectedFields: Record<string, AnyType> = {
     myBooleanColumn: { type: DimensionType.BOOLEAN },
     myArrayColumn: { type: DimensionType.STRING },
     myObjectColumn: { type: DimensionType.STRING },
+};
+
+export const expectedFieldsWithNaiveTimestamp: Record<string, AnyType> = {
+    ...expectedFields,
+    myTimestampColumn: {
+        type: DimensionType.TIMESTAMP,
+        timestampDomain: 'naive',
+    },
+};
+
+export const expectedFieldsWithAwareTimestamp: Record<string, AnyType> = {
+    ...expectedFields,
+    myTimestampColumn: {
+        type: DimensionType.TIMESTAMP,
+        timestampDomain: 'aware',
+    },
 };
 
 export const expectedRow: Record<string, AnyType> = {
