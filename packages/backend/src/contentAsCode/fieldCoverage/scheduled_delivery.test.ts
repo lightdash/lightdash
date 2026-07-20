@@ -1,0 +1,29 @@
+import { describeContentAsCodeSchemaContract } from './schemaContractTestUtils';
+
+describeContentAsCodeSchemaContract({
+    resource: 'scheduled_delivery',
+    modelSchema: 'SchedulerAndTargets',
+    documentSchema: 'ScheduledDeliveryAsCode',
+    skippedModelFields: [
+        'appName',
+        'appUuid',
+        'createdAt',
+        'createdBy',
+        'createdByName',
+        'dashboardName',
+        'dashboardUuid',
+        'latestRun',
+        'notificationFrequency',
+        'projectName',
+        'projectSchedulerTimezone',
+        'projectUuid',
+        'savedChartName',
+        'savedChartUuid',
+        'savedSqlName',
+        'savedSqlUuid',
+        'schedulerUuid',
+        'thresholds',
+        'updatedAt',
+    ],
+    documentOnlyFields: ['contentType', 'downloadedAt', 'resource', 'version'],
+});
