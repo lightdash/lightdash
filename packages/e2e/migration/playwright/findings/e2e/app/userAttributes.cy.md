@@ -148,3 +148,24 @@ Run the targeted Playwright command once from a clean attribute state and once a
 ## Port history
 
 Not started.
+
+### 2026-07-18 — Playwright port
+
+- Target: `packages/e2e/playwright/app/userAttributes.spec.ts`.
+- Ported two independent `@mutating` browser contracts: `customer_id` missing/20/30 SQL-filter results and `is_admin` false/true/false visibility for `Customers.age`.
+- Cypress setup-only cases were folded into file-local exact-name API setup/UUID cleanup, not preserved as tests. There were no skipped tests to port.
+- UI create/update mutations assert 201 responses and canonical payloads (`groups: []`, `attributeDefaults: null`); query clicks assert the intentional 403 or successful 200 metric-query response. Field absence waits for the loaded tree and stable `Customer id` field before applying search.
+- The exact old-value pill scopes its structural remove button; no generated Mantine CSS selector remains. The external Headway widget is blocked file-locally because its incidental iframe can prevent page load completion.
+- Verification from repository root after a clean reset/reseed:
+  - `pnpm -F e2e typecheck:playwright` — passed.
+  - `pnpm -F e2e lint` — passed.
+  - `pnpm -F e2e format` — passed.
+  - Playwright discovery for the target — two Firefox tests discovered, plus auth setup.
+  - Firefox `customer_id` focused run, `--workers=1` — 2/2 passed including auth setup.
+  - Firefox `is_admin` focused run, `--workers=1` — 2/2 passed including auth setup.
+  - Full target Firefox run, `--workers=1` — 3/3 passed including auth setup.
+  - Full target Firefox run with `--repeat-each=2`, `--workers=1` — 5/5 passed including auth setup.
+  - Full Firefox `--grep @mutating --workers=1` lane — 3/3 passed including auth setup.
+  - Post-run API ledger check — no active `customer_id` or `is_admin` attributes remained.
+- Earlier interrupted attempts coincided with the documented infrastructure outage, cold Vite route compilation, and host Maintenance Sleep; they were discarded by the clean reset and are non-gating. Remaining risk: the fixed organization-wide names still require the serialized mutation lane.
+- Commit: pending signed commit.
