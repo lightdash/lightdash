@@ -8,15 +8,13 @@ preview:
 
 cli:
   - "packages/cli/**/*"
-  - "packages/e2e/cypress/cli/**/*"
   - "packages/common/**/*"
 
 frontend:
   - "packages/frontend/**/*"
-  - "packages/e2e/cypress/e2e/app/**/*"
   - "packages/e2e/playwright/**/*"
   - "packages/e2e/playwright.config.ts"
-  - "packages/e2e/tsconfig.playwright.json"
+  - "packages/e2e/tsconfig.json"
   - "packages/e2e/package.json"
   - "packages/common/**/*"
 

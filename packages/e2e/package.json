@@ -5,27 +5,20 @@
     "license": "MIT",
     "main": "index.js",
     "scripts": {
-        "cypress:open": "cypress open --e2e",
-        "cypress:open:native": "RUNTIME=native cypress open --e2e",
-        "cypress:run": "cypress run",
-        "playwright:open": "playwright test --ui",
-        "playwright:run": "playwright test",
+        "playwright:open": "TZ=${TZ:-UTC} playwright test --ui",
+        "playwright:run": "TZ=${TZ:-UTC} playwright test",
+        "playwright:list": "TZ=${TZ:-UTC} playwright test --list",
         "playwright:report": "playwright show-report",
-        "typecheck:playwright": "tsc --project tsconfig.playwright.json --noEmit",
+        "typecheck": "tsc --project tsconfig.json --noEmit",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
         "formatter": "oxfmt --ignore-path ./../../.gitignore",
-        "lint": "pnpm run linter ./cypress ./playwright ./playwright.config.ts",
-        "fix-lint": "pnpm run linter ./cypress ./playwright ./playwright.config.ts --fix",
-        "format": "pnpm run formatter ./cypress ./playwright ./playwright.config.ts --check",
-        "fix-format": "pnpm run formatter ./cypress ./playwright ./playwright.config.ts"
+        "lint": "pnpm run linter ./playwright ./playwright.config.ts",
+        "fix-lint": "pnpm run linter ./playwright ./playwright.config.ts --fix",
+        "format": "pnpm run formatter ./playwright ./playwright.config.ts ./tsconfig.json --check",
+        "fix-format": "pnpm run formatter ./playwright ./playwright.config.ts ./tsconfig.json"
     },
     "dependencies": {
-        "@lightdash/common": "workspace:*",
-        "@testing-library/cypress": "10.1.3",
-        "cypress": "15.18.1",
-        "cypress-split": "1.24.29",
-        "dayjs": "1.11.10",
-        "js-yaml": "4.3.0"
+        "@lightdash/common": "workspace:*"
     },
     "devDependencies": {
         "@playwright/test": "1.56.1",

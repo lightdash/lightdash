@@ -16,6 +16,7 @@ import {
     type Page,
 } from '@playwright/test';
 import { randomUUID } from 'crypto';
+import adminAuthenticationFile from '../auth';
 
 const COMPILE_JOB_TIMEOUT_MS = 180_000;
 const COMPILE_JOB_POLL_INTERVAL_MS = 500;
@@ -1077,6 +1078,7 @@ const cleanupCreatedProject = async (
                 `fresh admin login returned ${loginResponse.status()}`,
             );
         } else {
+            await adminRequest.storageState({ path: adminAuthenticationFile });
             let projectUuids: string[] = [];
             try {
                 projectUuids = await recoverExactProjectUuids(

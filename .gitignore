@@ -13,10 +13,6 @@ node_modules/
 # testing
 /coverage
 /packages/**/coverage
-/packages/e2e/cypress/screenshots/**/*
-/packages/e2e/cypress/videos/**/*
-/packages/e2e/cypress/downloads/**/*
-/packages/e2e/cypress/artifacts/**/*
 /packages/e2e/playwright/.auth/**/*
 /packages/e2e/playwright-report/**/*
 /packages/e2e/playwright-results/**/*

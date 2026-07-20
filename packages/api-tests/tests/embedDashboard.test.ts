@@ -14,7 +14,7 @@ import { uniqueName } from '../helpers/test-isolation';
 const EMBED_API_PREFIX = `/api/v1/embed/${SEED_PROJECT.project_uuid}`;
 
 // ---------------------------------------------------------------------------
-// Embed helper functions (local async equivalents of Cypress embedUtils)
+// Embed helper functions
 // ---------------------------------------------------------------------------
 
 async function getEmbedConfig(client: ApiClient) {
