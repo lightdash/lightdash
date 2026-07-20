@@ -1164,6 +1164,9 @@ importers:
       '@tanstack/react-virtual':
         specifier: 3.13.19
         version: 3.13.19(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@tiptap/extension-image':
+        specifier: 2.27.2
+        version: 2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))
       '@tiptap/extension-link':
         specifier: 2.27.2
         version: 2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)
@@ -1465,6 +1468,18 @@ importers:
       '@testing-library/user-event':
         specifier: 14.5.2
         version: 14.5.2(@testing-library/dom@10.4.0)
+      '@tiptap/core':
+        specifier: 2.27.2
+        version: 2.27.2(@tiptap/pm@2.27.2)
+      '@tiptap/extension-document':
+        specifier: 2.27.2
+        version: 2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))
+      '@tiptap/extension-paragraph':
+        specifier: 2.27.2
+        version: 2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))
+      '@tiptap/extension-text':
+        specifier: 2.27.2
+        version: 2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))
       '@types/canvas-confetti':
         specifier: 1.6.0
         version: 1.6.0
@@ -7020,6 +7035,11 @@ packages:
     peerDependencies:
       '@tiptap/core': ^2.7.0
       '@tiptap/pm': ^2.7.0
+
+  '@tiptap/extension-image@2.27.2':
+    resolution: {integrity: sha512-5zL/BY41FIt72azVrCrv3n+2YJ/JyO8wxCcA4Dk1eXIobcgVyIdo4rG39gCqIOiqziAsqnqoj12QHTBtHsJ6mQ==}
+    peerDependencies:
+      '@tiptap/core': ^2.7.0
 
   '@tiptap/extension-italic@2.27.2':
     resolution: {integrity: sha512-1OFsw2SZqfaqx5Fa5v90iNlPRcqyt+lVSjBwTDzuPxTPFY4Q0mL89mKgkq2gVHYNCiaRkXvFLDxaSvBWbmthgg==}
@@ -23861,6 +23881,10 @@ snapshots:
     dependencies:
       '@tiptap/core': 2.27.2(@tiptap/pm@2.27.2)
       '@tiptap/pm': 2.27.2
+
+  '@tiptap/extension-image@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))':
+    dependencies:
+      '@tiptap/core': 2.27.2(@tiptap/pm@2.27.2)
 
   '@tiptap/extension-italic@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))':
     dependencies:

@@ -32,6 +32,13 @@ export const serializeAnnouncementMarkdown = (
     editor.state.doc.forEach((paragraph) => {
         const parts: string[] = [];
         paragraph.forEach((child) => {
+            if (child.type.name === 'image') {
+                const attrs = child.attrs as { src?: string; alt?: string };
+                if (attrs.src) {
+                    parts.push(`![${attrs.alt ?? ''}](${attrs.src})`);
+                }
+                return;
+            }
             if (child.type.name === CONTENT_MENTION_NODE_TYPE) {
                 const attrs = child.attrs as {
                     contentType?: ContentType;

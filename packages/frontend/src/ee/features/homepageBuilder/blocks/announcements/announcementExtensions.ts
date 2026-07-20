@@ -1,3 +1,4 @@
+import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
 import StarterKit from '@tiptap/starter-kit';
 import { createContentMentionExtension } from '../../../aiCopilot/components/ChatElements/contentMentions';
@@ -12,6 +13,9 @@ export const createAnnouncementExtensions = (
         blockquote: false,
         codeBlock: false,
         horizontalRule: false,
+    }),
+    Image.configure({
+        HTMLAttributes: { class: 'announcement-image' },
     }),
     Placeholder.configure({
         placeholder:
