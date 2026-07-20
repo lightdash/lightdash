@@ -640,49 +640,49 @@ jobs:
     if: needs.files-changed.outputs.timezone == 'true'
     timeout-minutes: 30
     runs-on: depot-ubuntu-24.04-4
-    needs: [preview, files-changed, build-cypress-e2e-image]
+    needs: [preview, files-changed]
     container:
-      image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
-      options: --user 1001
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
     strategy:
       fail-fast: false
       matrix:
-        timezone: ["America/New_York", "Europe/Madrid", "Asia/Tokyo"]
+        timezone: ["UTC", "Europe/Madrid", "America/New_York", "Asia/Tokyo"]
     name: "E2E: Timezone (${{ matrix.timezone }})"
     env:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Setup Node, PNPM, and Cypress
-        uses: ./.github/workflows/_setup_node_pnpm_cypress
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+          cache-dependency-path: "pnpm-lock.yaml"
+      - name: Install packages
+        run: sfw pnpm install --frozen-lockfile --prefer-offline
       - name: Build packages/common module
         run: pnpm common-build:fast
-      - name: create-json
-        id: create-json
-        uses: jsdaniell/create-json@b8e77fa01397ca39cc4a6198cc29a3be5481afef # v1.2.3
-        with:
-          name: "credentials.json"
-          json: ${{ secrets.GCP_CREDENTIALS }}
-          dir: "./packages/e2e/cypress/fixtures/"
-      - name: Run Cypress
-        uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
-        with:
-          install: false
-          browser: firefox
-          working-directory: packages/e2e
-          spec: cypress/e2e/app/dates.cy.ts
-          config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,video=false"
+      - name: Typecheck Playwright tests
+        run: pnpm -F e2e typecheck:playwright
+      - name: Run Playwright dates test
+        run: |
+          pnpm -F e2e exec playwright test playwright/app/dates.spec.ts \
+            --project=firefox --workers=1
         env:
           TZ: ${{ matrix.timezone }}
-          CYPRESS_TZ: ${{ matrix.timezone }}
+          PLAYWRIGHT_BASE_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         if: failure()
         with:
-          name: cypress-screenshots-and-videos-timezone-${{ strategy.job-index }}
+          name: playwright-report-timezone-${{ strategy.job-index }}
           path: |
-            packages/e2e/cypress/screenshots
-            packages/e2e/cypress/videos
+            packages/e2e/playwright-report
+            packages/e2e/playwright-results
           if-no-files-found: ignore
 
   # CLI tests without dbt
