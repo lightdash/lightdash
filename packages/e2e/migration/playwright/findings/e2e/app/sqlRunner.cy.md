@@ -154,3 +154,33 @@ Only include files actually created by the approved triage; do not create placeh
 ## Port history
 
 Not started.
+
+### 2026-07-20 — Static port prepared
+
+- Target: `packages/e2e/playwright/app/sqlRunner.spec.ts`.
+- Behavior ported: the sole active `Should save a chart` workflow, tagged `@mutating`: open SQL Runner, parse and validate the catalog, select/run `customers`, save a uniquely named vertical-bar saved SQL chart, edit it to run `orders`, repair stale X/Y fields, save the new version, and preserve the exact final rendered labels `Customer id avg` and `Status`.
+- Skipped decisions: the four direct Cypress `it.skip` cases were not copied, activated, or represented as Playwright skips.
+- File-local safeguards: guarded JSON parsing for catalog/create/update responses; Monaco keyboard replacement; exact request-path/method synchronization; UUID/slug validation; and `try/finally` cleanup that deletes only the captured saved-SQL UUID and requires a GET of that exact UUID to return 404 (inactive).
+- Static verification (all final runs passed):
+  - `pnpm -F e2e typecheck:playwright` — exit 0 (`tsc --project tsconfig.playwright.json --noEmit`).
+  - `pnpm -F e2e exec eslint -c .eslintrc.js playwright/app/sqlRunner.spec.ts` — exit 0, no findings.
+  - `pnpm -F e2e exec oxfmt playwright/app/sqlRunner.spec.ts --check` — exit 0, `All matched files use the correct format.`
+  - Diff checks (`git diff --check`, changed-file ownership allowlist, and target forbidden-pattern scan) — exit 0; only the target and this finding are allowed, with no sleeps, skips, forced clicks, retries, timeout inflation, generated Mantine class selectors, or `any` matches.
+- Execution withheld: no Playwright browser, Cypress, or direct API mutation command was run because the sole mutation lease has not been granted.
+- Remaining risks: the isolated preview/warehouse catalog, accessible-space default, strict locators, Monaco focus/debounce boundary, asynchronous SQL/chart requests, exact generated SVG labels, and soft/permanent-delete 404 behavior remain unverified live. The mutation lease must serialize execution against Cypress and other mutating suites.
+- Commit: not created (execution/signing lease pending).
+
+### 2026-07-20 — Mutation-lease execution verified
+
+- Runtime fixes remained target-local: use the rendered `menuitem` role for SQL Runner navigation; assert result headers by exact text inside the results `thead` because the current table exposes headers as accessibility `cell` roles; assert the Monaco textbox's exact value (including the table picker's generated trailing space); focus Monaco through its visible `.view-line`, require the editor textbox to be focused, and replace the intentionally one-line SQL with `End` → `Shift+Home` → `Backspace` → text insertion; identify Mantine selects by placeholder plus `aria-haspopup="listbox"` and choose exact role-based portal options without generated classes.
+- Playwright execution gates (all final runs passed, serial Firefox):
+  - `pnpm -F e2e exec playwright test playwright/app/sqlRunner.spec.ts --project=firefox --workers=1` — 2 passed (setup + focused target).
+  - `pnpm -F e2e exec playwright test playwright/app/sqlRunner.spec.ts --project=firefox --workers=1 --repeat-each=3` — 4 passed (setup + three target iterations).
+  - `pnpm -F e2e exec playwright test --project=firefox --workers=1 --grep @mutating` — 2 passed (setup + explicit mutating lane).
+  - `pnpm -F e2e exec playwright test --project=firefox --workers=1` — 7 passed (full branch Firefox suite).
+- Playwright cleanup evidence: every creation reached the file-local exact-UUID `finally` cleanup without a cleanup error; each DELETE accepted only 200/404 and each exact UUID GET was required to be 404. Read-only DB audits after every final gate returned `active_count=0` for `Customers table SQL chart %`. Final-gate UUIDs were `f9a197f8-99d8-401f-b599-9bf6cf07c9bf`; repeat UUIDs `1fe97d58-bbc8-4d6a-9dd0-8bb9aec71239`, `a0e90252-9d71-4421-a332-592f55a4672e`, `6ced94c5-7d45-4549-a6a4-dec11dfd56fa`; grep UUID `3d74f668-9cd7-4129-8849-5c1cc3003246`; full-suite UUID `64ccd0a0-f1cb-4078-b212-f946c1dda6aa`. Exact API re-audit returned 404 for all six.
+- Stabilization cleanup evidence: failed focused attempts that had already created saved SQL also ran `finally` and left UUIDs `affb0865-32e5-4e2c-97b7-c0c63823784b`, `dde3c68d-5d1f-4fae-920b-301354d37fca`, `c7db379e-5766-4a43-bc31-c7507c33e31f`, `cd99a502-feb8-4814-898a-e095d40e232d`, `6e0dd63b-ac96-4d7d-aadf-8df4fa078a16`, `6618cd3c-b56f-49c0-b726-9c54ec4dcaed`, and `5d67f531-084c-4c3d-b7d1-1894143b2753` inactive. Exact API re-audit returned 404 for all seven. Earlier locator failures occurred before saved-SQL creation and DB audits remained at zero active rows.
+- Unchanged Cypress execution: `pnpm -F e2e exec cypress run --e2e --browser firefox --spec cypress/e2e/app/sqlRunner.cy.ts` — 1 passing active workflow, 4 pending source cases, 0 failures. The pre-run active UUID baseline for exact name `Customers table SQL chart` was empty. The sole post-baseline active delta was `b4ce5e2f-e955-496d-a520-8b9d47c2cda6`; exact UUID DELETE returned 200, exact UUID GET returned 404, and final DB audits returned `fixed_name_active=0` and `unique_name_active=0`. No baseline UUID, name, or slug cleanup was used.
+- Final static/scope verification passed: Playwright typecheck, targeted ESLint, target oxfmt check, `git diff --check`, two-path ownership allowlist, one-active-test/`@mutating` checks, and the forbidden-pattern scan.
+- Remaining risks: SQL query-history/result artifacts intentionally grow; soft-delete tombstones for the exact audited UUIDs remain inactive until the environment reset policy removes them. The four Cypress pending cases remain intentionally unported.
+- Proposed commit: `feat(e2e): port SQL Runner to Playwright` (not staged or created).
