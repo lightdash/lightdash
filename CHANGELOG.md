@@ -1,3 +1,11 @@
+## [0.3424.1](https://github.com/lightdash/lightdash/compare/0.3424.0...0.3424.1) (2026-07-20)
+
+
+### Bug Fixes
+
+* rebase MIN/MAX aggregates over naive timestamp columns to instants when data timezone is set ([#25806](https://github.com/lightdash/lightdash/issues/25806)) ([ec1b912](https://github.com/lightdash/lightdash/commit/ec1b912f72174305d7bb7f4fc0d33149739ca33d))
+* rebase RAW timestamp filter LHS and pin BigQuery literals to UTC when data timezone is set ([#25807](https://github.com/lightdash/lightdash/issues/25807)) ([a84cdc1](https://github.com/lightdash/lightdash/commit/a84cdc1fc40d9aa19eba6129c125729f6959cba0))
+
 # [0.3424.0](https://github.com/lightdash/lightdash/compare/0.3423.1...0.3424.0) (2026-07-20)
 
 
