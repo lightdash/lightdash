@@ -606,12 +606,16 @@ export class UserService extends BaseService {
                 );
             if (
                 remainingAdmins.length === 0 &&
-                admin.userUuid === userUuidToDelete
+                admin?.userUuid === userUuidToDelete
             ) {
                 throw new ForbiddenError(
                     'Organization must have at least one admin',
                 );
             }
+        } else if (userToDelete && user.userUuid !== userUuidToDelete) {
+            // There is no org to scope a permission check against, so only
+            // the account owner can remove it (e.g. "Cancel registration").
+            throw new ForbiddenError();
         }
 
         if (!userToDelete) {
