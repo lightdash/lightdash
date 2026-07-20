@@ -137,3 +137,60 @@ The package scripts backing these commands are defined at `packages/e2e/package.
 ## Port history
 
 Not started.
+
+### 2026-07-20 — Static port ready for execution lease
+
+- Target: `packages/e2e/playwright/app/dateZoom.spec.ts`.
+- Behavior ported: both active browser contracts. The `@mutating` suite creates run-unique chart/dashboard/control names through the authenticated request fixture, preserves chart UUID = tile UUID and keys the named control target by that tile UUID, polls the scoped ECharts SVG bar count for Default Month/Week/Year/None ordering and named Month/Week/reset behavior, and cleans up dashboard then chart by exact UUID in `finally`.
+- Skipped decisions: none; the source has no skipped tests, and both active tests were ported. Cypress remains unchanged.
+- Cleanup contract: each DELETE must return 200, then an authenticated GET by the same dashboard/chart UUID must return 404 (inactive). Nested `finally` cleanup still attempts chart deletion if dashboard deletion or its verification fails.
+- Static evidence:
+  - `pnpm -F e2e typecheck:playwright` — passed.
+  - `pnpm -F e2e run linter ./playwright/app/dateZoom.spec.ts` — passed.
+  - `pnpm -F e2e run formatter ./playwright/app/dateZoom.spec.ts --check` — initially found formatting differences; `pnpm -F e2e run formatter ./playwright/app/dateZoom.spec.ts` formatted only the target, and the repeated check passed.
+  - `git diff --check` plus an ownership/status check — passed before this history append with only the target spec untracked; final two-file ownership/diff checks are run immediately after the append.
+- Execution deliberately not run: no Playwright browser test, Cypress test, full destination suite, test discovery, or direct API mutation was executed because the sole mutation execution lease has not been granted.
+- Remaining risks for leased execution: seeded date cardinality must still satisfy strict `Day > Week > Month > Year`; Firefox must retain the default `#5470c6` SVG bar rendering; warehouse/query latency must fit the existing 10-second expect timeout; telemetry behavior remains unobserved; and cleanup 200/404 behavior is statically encoded but not yet exercised. A successful create whose response omits/corrupts its UUID cannot be cleaned because strict unknown parsing intentionally refuses an unusable identifier.
+- Commit: `<pending>`; nothing staged or committed.
+- Final diff evidence: `git diff --check`, the untracked-target whitespace check, and exact ownership/status assertions passed; status contains only this modified finding and the untracked target spec.
+
+### 2026-07-20 — Mutation lease execution verified
+
+- Lease: the sole mutation execution lease was explicitly granted. Commands used direct `pnpm --filter e2e exec ...`; Cypress and Playwright ran sequentially.
+- Runtime root fixes from focused evidence:
+  - The first focused run proved the chart-title UUID link was present but the minimal-dashboard-only wrapper excluded the normal dashboard grid. Bar scoping now starts from that exact title/UUID anchor and selects its nearest class-token-exact `react-grid-item` ancestor.
+  - The next run reached Week in both tests but exposed ECharts SVG replacement between the successful poll and a fresh count. A diagnostic run observed Default `Day=111`, `Month=25`, and named `Week=47`, preserving `111 > 47 > 25`; failures were `Month (day=111): observed 0, 25, captured 0` and `Named Week (month=25): observed 0, 47, captured 0`.
+  - `waitForBarCount` now requires two consecutive equal counts satisfying the complete predicate, stores that stable count inside `expect.poll`, and returns it after an explicit null check without a fresh post-poll count. Failure labels retain the relevant captured comparison counts.
+- Selection: `pnpm --filter e2e exec playwright test app/dateZoom.spec.ts --project=firefox --list` listed setup plus exactly the two active Date zoom tests (3 total).
+- Playwright execution gates:
+  - Focused: `pnpm --filter e2e exec playwright test app/dateZoom.spec.ts --project=firefox` — 3/3 passed in 14.2s.
+  - Repetition: `pnpm --filter e2e exec playwright test app/dateZoom.spec.ts --project=firefox --repeat-each=3` — 7/7 passed in 37.6s (setup plus both tests three times).
+  - Explicit lane: `pnpm --filter e2e exec playwright test --project=firefox --grep @mutating` — 3/3 passed in 13.4s.
+  - Full destination suite: `pnpm --filter e2e exec playwright test --project=firefox` — 8/8 passed in 42.7s.
+- Exact Playwright resource audit (dashboard UUIDs first, then chart UUIDs):
+  - Initial locator failure — dashboards `6500f4eb-e649-4a42-9b13-40378e2b533f`, `e7c5fb2d-2ba2-4175-adba-4086c30a9405`; charts `a1cfa299-73a4-4591-9837-5d77d607c317`, `f0110ceb-37ca-46ed-b752-aaefc2392236`.
+  - Post-locator transient failure — dashboards `9e8d4c23-fbbf-47fd-9cd9-c4189af502c1`, `d2f21e5d-e33e-40f7-9732-debd57303912`; charts `ca0f1baa-6b30-47b3-a8db-a96cd13c3504`, `41aec452-47d9-4652-9fec-4249de45f2bd`.
+  - Count diagnostic — dashboards `ce35d567-ed87-471d-8356-10377e5ae338`, `f9b96ef5-d173-48e1-8fa4-da46146163ad`; charts `52d499f1-450a-4197-b57c-9709c1c15672`, `0cae510a-c4df-4e1c-ae93-b2b1c6224a40`.
+  - Green focused — dashboards `ebb3dac7-dabb-4a97-9e95-0f578209dadd`, `8b582ca3-7c06-42de-a42b-7d0f93517c93`; charts `9570c324-41b5-4e49-9c69-4670514cfdc3`, `4f5cf5e6-6103-4d3f-b9fc-86a248659d25`.
+  - Repeat-each=3 — dashboards `58c7c82f-71ac-4a0e-9561-ae73fcc5e62a`, `4c668185-da8e-4c5d-8e20-b374118879e1`, `0f05a11e-51f6-428c-885a-7f3a474f7475`, `1c52d108-e5b0-46e7-b540-54af5aa17f5c`, `8c571f0e-c8bd-4290-863c-5c8830858d34`, `9d898451-47eb-422b-8ad7-4d13b0641b29`; charts `cfd984b8-a461-4905-917b-ab5b24489999`, `cd7ce3e2-555e-4c7d-ac18-51127b455508`, `7e3299e1-d0cf-4af5-b982-10433d49fa04`, `9ac60e1b-c086-4033-bd4b-2c6996e652ad`, `08ac20e2-3a0c-486b-a3ca-e3edb2c18bfe`, `7ee7a698-da84-40ab-8e7c-2fe1e47c0bb7`.
+  - Explicit `@mutating` lane — dashboards `8ad038ea-0dcc-44c7-b58f-597459e2b3d2`, `4fc6e7b5-4092-4ccf-8850-e5eaf37ff044`; charts `b0ecc42a-221b-474e-b113-1a76c8d349a9`, `04ec1124-3066-4c86-b8be-4a11d321e081`.
+  - Full Playwright suite — dashboards `b47418b3-5f59-4a03-bc23-2f04235b46d4`, `2a55790a-b0e0-4e40-8b75-e65c47a697e1`; charts `6112c30e-514f-48bb-bbf2-ecdaa8e4273b`, `e7ddad0a-9213-4c4d-8999-15ae9312dc45`.
+  - For every UUID above, the DB row had `deleted_at` set, authenticated GET by exact UUID returned 404 in dashboard-then-chart order, and its gate had zero active run-unique names. Final expected Playwright soft-delete totals are 18 dashboard and 18 chart tombstones; these are inactive audit records, not leaked active content.
+- Unchanged Cypress parity and delta cleanup:
+  - Immediately before Cypress, complete baseline sets contained 35 dashboard UUIDs and 117 chart UUIDs.
+  - `pnpm --filter e2e exec cypress run --spec cypress/e2e/app/dateZoom.cy.ts` — unchanged legacy source passed 2/2 in 10s (Electron, no retries used).
+  - Exact post-run set difference contained only dashboards `b8b6d487-b88c-4722-9556-90aad415d6b9` (`zoom test`) and `ce0e2199-8c8b-4e2a-adc0-28b36ee56969` (`control zoom test`), then charts `12b9c3d1-ac53-4116-81af-006931f710e1` (`Date zoom control chart`) and `bd7d5f7d-1314-4c64-bdc5-8432c3fb6d03` (`Date zoom default chart`).
+  - Only those four delta UUIDs were cleaned through the authenticated API, dashboards first then charts. Every DELETE returned 200 and immediate exact-UUID GET returned 404. DB verification shows `deleted_at` on all four and zero active delta/fixed-name leftovers.
+  - All 35 baseline dashboards and 117 baseline charts remain present; final sets equal baseline plus the two expected dashboard and two expected chart soft-delete tombstones. No baseline UUID was deleted or altered by cleanup.
+- Runtime invariants:
+  - Before/after fingerprints matched exactly: users `4|cb13d257f0a703561fd879b04a07dc8c`; projects `1|c4f9de6a5ee614c2970ea72f6b51c5f6`; personal access tokens `1|6e66f2dc91bf68ad45b9a00edf353061`; embedding config `1|831603ca0d60026e82e4663dfa7f052a`.
+  - `/api/v1/health` returned 200 before and after execution.
+  - Source/fixture hashes remained unchanged across legacy execution: Cypress source `50e08aba8c6e04f46e0c2391edcea23a99dfbd4552512059b1f00d0239899a8b`; Cypress commands `9fdf1af6eecd92dee6863780240ba49121c4f3bfa6fcbeebaa6e93b536071c4e`; Cypress config `8ce937d7b27c763fc6087e57686071cd9911164dd3ec0f50f4136a662f19afb6`; final Playwright target `7e095436e18837cff3dcf7570d5d8888bd9d66225b1de2cca9edaae5b9cc615b`; auth setup `ec824636434ddc8042fcabe9dfd968b57e9864a42583feaa845ffd35c6bd67f3`; Playwright config `439269ba5daf2ec00ddb6c65826b4d4fad3635bd529bd73a74c6be96743d0aca`.
+  - Process audit found no residual Cypress, Electron, Firefox, or Playwright process associated with this worktree.
+- Final static evidence using direct executables:
+  - `pnpm --filter e2e exec tsc --project tsconfig.playwright.json --noEmit` — passed.
+  - `pnpm --filter e2e exec eslint -c .eslintrc.js --ignore-path ./../../.gitignore ./playwright/app/dateZoom.spec.ts` — passed.
+  - `pnpm --filter e2e exec oxfmt --ignore-path ./../../.gitignore ./playwright/app/dateZoom.spec.ts --check` — passed.
+  - `git diff --check` — passed; ownership remained exactly this finding plus the target spec.
+- Remaining risk: soft-delete mode intentionally retains the 20 run-owned dashboard and 20 run-owned chart tombstones documented above; every one is inactive, and all active-name/UUID checks are clean. No live behavioral blocker remains.
+- Commit: `<pending>`; nothing staged, committed, or pushed.
