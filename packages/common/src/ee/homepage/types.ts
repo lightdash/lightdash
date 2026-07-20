@@ -358,4 +358,5 @@ export type ApiAnnouncementResponse = ApiSuccess<ProjectAnnouncement>;
 export type ApiAnnouncementCategoriesResponse = ApiSuccess<
     AnnouncementCategory[]
 >;
+export type ApiAnnouncementImageUploadResponse = ApiSuccess<{ url: string }>;
 export type ApiAnnouncementCategoryResponse = ApiSuccess<AnnouncementCategory>;

@@ -1,7 +1,9 @@
 import {
     assertRegisteredAccount,
+    ParameterError,
     type ApiAnnouncementCategoriesResponse,
     type ApiAnnouncementCategoryResponse,
+    type ApiAnnouncementImageUploadResponse,
     type ApiAnnouncementResponse,
     type ApiAnnouncementsResponse,
     type ApiErrorPayload,
@@ -185,5 +187,48 @@ export class ProjectAnnouncementsController extends BaseController {
                 body,
             ),
         };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/images')
+    @OperationId('uploadProjectAnnouncementImage')
+    async uploadImage(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiAnnouncementImageUploadResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        const mimeType = req.headers['content-type'];
+        if (!mimeType) {
+            throw new ParameterError('Content-Type header is required');
+        }
+
+        const contentLengthHeader = req.headers['content-length'];
+        if (!contentLengthHeader) {
+            throw new ParameterError('Content-Length header is required');
+        }
+
+        const contentLength = parseInt(contentLengthHeader, 10);
+        if (Number.isNaN(contentLength) || contentLength <= 0) {
+            throw new ParameterError(
+                'Content-Length must be a positive integer',
+            );
+        }
+
+        const result = await this.getHomepageService().uploadAnnouncementImage(
+            toSessionUser(req.account),
+            projectUuid,
+            mimeType,
+            req,
+            contentLength,
+        );
+
+        return { status: 'ok', results: result };
     }
 }
