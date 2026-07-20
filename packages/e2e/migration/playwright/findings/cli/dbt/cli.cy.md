@@ -126,3 +126,46 @@ CI verification must run the focused/full integration suite in both existing dbt
 ## Port history
 
 Not started.
+
+### 2026-07-20 — static implementation complete
+
+- Target: `packages/cli/integration/dbt-version/cli.integration.test.ts`.
+- Ported all nine active contracts in source order to the serial CLI Node runner: dbt run, legacy `--models`, direct/prefix/postfix selectors, combined select/exclude, generate-all, successful compile, and the exact partial-compile exit/error-count contract.
+- Kept `Should lightdash generate with --exclude` out because the Cypress case remains skipped and its product contract is unresolved.
+- Isolation: the suite copies dbt/project profiles into a fresh root, uses isolated `HOME`/cwd/target/log paths, validates and uses the lane-provided `jaffle_dbt_node_*` schema (with a validated local UUID fallback), drops only that schema, and removes only its generated root in teardown.
+- Static verification passed:
+  - `pnpm -F common build:fast`
+  - `pnpm -F warehouses build:fast`
+  - `pnpm -F cli build:fast`
+  - `pnpm -F @lightdash/cli typecheck:fast`
+  - `pnpm -F cli lint`
+  - `pnpm -F cli format`
+  - `pnpm -F @lightdash/cli run linter ./integration/dbt-version/cli.integration.test.ts`
+  - `pnpm -F @lightdash/cli exec oxfmt integration/dbt-version/cli.integration.test.ts --check`
+  - `packages/cli/node_modules/.bin/tsc6 --project packages/cli/tsconfig.eslint.json --noEmit`
+  - `git diff --check`
+  - `git diff --exit-code -- examples/full-jaffle-shop-demo examples/snowflake-template`
+- The initial `pnpm -F @lightdash/cli exec tsc --project tsconfig.eslint.json --noEmit` attempt selected the workspace TypeScript 7 RC and failed because the coordinator-owned config inherits `moduleResolution=node10`; the package's TypeScript 6 compiler passed the same integration typecheck. No shared config was changed.
+- Live dbt/Postgres execution, focused repeats, full lane execution, and dbt 1.10/1.11 matrix evidence remain pending the serialized execution lease; `contentAsCode` currently owns the sole mutation lease.
+- Remaining runtime risks: generated-model line parsing and schema teardown still need live confirmation against both matrix versions; analytics/version-health calls retain their existing bounded, swallowed-failure behavior.
+- Commit: pending signed commit (`chore(e2e): port dbt CLI tests`).
+
+### 2026-07-20 — execution complete
+
+- The first local setup attempt exposed the inherited Docker-only `PGHOST=db-dev` and unavailable host `psql`. Local gates were rerun with the explicit host PostgreSQL environment, and schema teardown now uses a temporary-project dbt macro instead of requiring a separate client binary.
+- Focused target passed with the exact version shims and distinct schemas:
+  - dbt 1.10 (`dbt1.10`, `DBT_VERSION=1.10`): 9/9 passed.
+  - dbt 1.11 (`dbt1.11`, `DBT_VERSION=1.11`): 9/9 passed.
+- Repeat gate passed serially three times per version with six distinct schemas: dbt 1.10 27/27; dbt 1.11 27/27.
+- Full `integration/dbt-version` lane passed serially for both versions with distinct schemas: dbt 1.10 9/9; dbt 1.11 9/9.
+- CLI unit suite passed: 31 files, 273 tests.
+- Final build, CLI source/integration lint, source/integration format, fast typecheck, and integration TypeScript 6 checks passed.
+- Cleanup evidence: `information_schema.schemata` returned no `jaffle_dbt_node_local_%` schemas; the OS temp root contained no `lightdash-cli-dbt-*` or dbt shim directories; tracked demo fixtures remained unchanged.
+- Legacy Cypress was not run, per execution-lease scope. No runtime risks remain from the approved port plan; CI dual-run remains the post-commit acceptance gate.
+- Commit: pending signed commit (`chore(e2e): port dbt CLI tests`).
+
+### 2026-07-20 — legacy Cypress parity
+
+- The first local Cypress attempt failed because this CLI spec assumes its CI lane has already seeded the selected schema; running it against a fresh unique schema left every raw relation absent.
+- After reproducing that lane prerequisite with dbt 1.10 `seed --full-refresh`, the unchanged Cypress spec passed 9/9 active tests with its one existing skipped `--exclude` case.
+- The unique Cypress schema was dropped after the run, and all generated demo-fixture changes were restored and verified clean.
