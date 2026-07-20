@@ -1076,11 +1076,19 @@ The space columns assume the user is also at least an interactive viewer at the 
 | View someone else's personal app          | ✓             | —                  | —            | —                                 |
 | Create a new app                          | ✓             | ✓                  | ✗            | n/a                               |
 | Iterate / cancel / update / move / delete | ✓             | ✓ (in their space) | ✗            | ✓ (own personal app)              |
+| Duplicate                                 | ✓             | ✓                  | ✗            | ✓                                 |
 | Pin to homepage                           | ✓             | ✓ (in their space) | ✗            | — (personal apps can't be pinned) |
 | Restore / permanently delete              | ✓             | ✗                  | ✗            | ✗                                 |
 
 The "App creator" column applies while an app is still personal (`space_uuid IS NULL`). Once moved into a space, the
 app's permissions follow the space — the creator no longer has special rights unless they also have a space role.
+
+**Duplicate is deliberately looser than the other mutations.** It doesn't modify the source app — it forks the latest
+ready version into a **new personal app owned by the caller** — so `duplicateApp` requires only `view` on the source
+plus project-wide `create:DataApp`, not `manage`. A project editor who can see an app shared project-wide (or sitting
+in a space where they're only a viewer) can fork it into their own space to iterate on. Both frontend surfaces that
+offer the action gate it the same way — `useCanCreateDataApp` in `AppHeaderActions`, and `canDuplicateDataApp` in
+`ResourceActionMenu` (the browse list), where it is the one action a user without manage rights can still see.
 
 ### Implementation
 

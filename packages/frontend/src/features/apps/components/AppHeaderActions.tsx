@@ -24,6 +24,7 @@ import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
 import { useProject } from '../../../hooks/useProject';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { AppSchedulersModal } from '../../scheduler/components/SchedulerModals';
+import { useCanCreateDataApp } from '../hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../hooks/useCanEditDataApp';
 import { useDuplicateApp } from '../hooks/useDuplicateApp';
 import {
@@ -62,7 +63,8 @@ type Props = {
  * the same actions; the only per-surface difference is `navItem`.
  *
  * Edit-actions are gated by `useCanEditDataApp`, because the viewer can be
- * opened by users without manage rights.
+ * opened by users without manage rights. Duplicate is the exception — it forks
+ * the app into a personal copy, so it only needs `useCanCreateDataApp`.
  */
 const AppHeaderActions: FC<Props> = ({
     projectUuid,
@@ -85,6 +87,10 @@ const AppHeaderActions: FC<Props> = ({
         spaceUuid: appSpaceUuid,
         createdByUserUuid: appCreatedByUserUuid,
     });
+
+    // Duplicating forks the app into the user's own personal app, so it only
+    // needs `create:DataApp` — not manage rights on this app.
+    const canDuplicate = useCanCreateDataApp(projectUuid);
 
     const scheduledDeliveriesFlag = useServerFeatureFlag(
         FeatureFlags.DataAppsScheduledDeliveries,
@@ -182,26 +188,30 @@ const AppHeaderActions: FC<Props> = ({
                             Schedule delivery
                         </Menu.Item>
                     )}
+                    {(canEdit || canDuplicate) && <Menu.Divider />}
+                    {canEdit && (
+                        <Menu.Item
+                            leftSection={
+                                <MantineIcon icon={IconEdit} size={14} />
+                            }
+                            onClick={() => setIsUpdateModalOpen(true)}
+                        >
+                            Rename
+                        </Menu.Item>
+                    )}
+                    {canDuplicate && (
+                        <Menu.Item
+                            leftSection={
+                                <MantineIcon icon={IconCopy} size={14} />
+                            }
+                            disabled={isDuplicating}
+                            onClick={handleDuplicate}
+                        >
+                            Duplicate
+                        </Menu.Item>
+                    )}
                     {canEdit && (
                         <>
-                            <Menu.Divider />
-                            <Menu.Item
-                                leftSection={
-                                    <MantineIcon icon={IconEdit} size={14} />
-                                }
-                                onClick={() => setIsUpdateModalOpen(true)}
-                            >
-                                Rename
-                            </Menu.Item>
-                            <Menu.Item
-                                leftSection={
-                                    <MantineIcon icon={IconCopy} size={14} />
-                                }
-                                disabled={isDuplicating}
-                                onClick={handleDuplicate}
-                            >
-                                Duplicate
-                            </Menu.Item>
                             <Menu.Item
                                 leftSection={
                                     <MantineIcon
