@@ -136,3 +136,24 @@ Use `pnpm -F backend test:snapshots:update` only when intentionally regenerating
 ## Port history
 
 Not started.
+
+### 2026-07-18 — Backend replacement
+
+- Target: `packages/backend/src/utils/QueryBuilder/metricQueryBuilderSnapshots/customDimensionQueries.test.ts` and its generated snapshot.
+- Replacement: added one QueryBuilder case selecting an additional `MAX` metric derived from an unselected SQL custom dimension. The assertions and snapshot prove the metric expression is inlined and the source dimension alias is absent.
+- Disposition: no skipped Cypress browser behavior was activated or ported. Exact warehouse results and legacy UI mechanics remain retired; the skipped source is reserved for orchestrator cleanup.
+- Verification:
+  - `pnpm formula:build` — passed prerequisite build.
+  - `pnpm -F backend test:snapshots:update` — passed; 11 files and 71 tests, one generated snapshot written and reviewed.
+  - `pnpm -F backend test src/utils/QueryBuilder/metricQueryBuilderSnapshots/customDimensionQueries.test.ts` — passed after infrastructure repair; 1 file and 7 tests.
+  - `pnpm -F backend lint` — passed with two pre-existing warnings in unrelated test files.
+  - `pnpm -F backend format` — passed.
+  - `pnpm common-build:fast && pnpm -F backend typecheck:fast` — Common build passed; Backend typecheck remains blocked by unrelated `User` shape errors in `sessionAccountMiddleware.ts` and `userRouter.ts`.
+- Remaining risk: the replacement test is green, but the required Backend typecheck gate needs the out-of-scope shared type/build mismatch resolved.
+- Commit: pending serialized signing lease.
+
+#### Typecheck follow-up
+
+- Root cause: stale generated `packages/backend/dist/.tsgo.tsbuildinfo`; no source change was required.
+- `pnpm -F backend typecheck:fast` — passed after the generated cache was removed.
+- Replacement disposition: ready for signing; the Backend replacement gate is fully green.
