@@ -94,6 +94,7 @@ export enum EventName {
     FORMULA_TABLE_CALCULATION_AI_GENERATE_CLICKED = 'formula_table_calculation_ai_generate.clicked',
     UPDATE_PROJECT_BUTTON_CLICKED = 'update_project_button.click',
     CREATE_PROJECT_BUTTON_CLICKED = 'create_project_button.click',
+    CREATE_PROJECT_FAILED = 'create_project.failed',
     REFRESH_DBT_CONNECTION_BUTTON_CLICKED = 'refresh_dbt_connection_button.click',
     UPDATE_PROJECT_TABLES_CONFIGURATION_BUTTON_CLICKED = 'update_project_tables_configuration.click',
     UPDATE_DASHBOARD_NAME_CLICKED = 'update_dashboard_name.click',

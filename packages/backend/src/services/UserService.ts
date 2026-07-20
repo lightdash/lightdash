@@ -393,6 +393,16 @@ export class UserService extends BaseService {
                     onboardingFlow,
                 },
             });
+            this.analytics.track({
+                userId: user.userUuid,
+                event: 'onboarding.step_completed',
+                properties: {
+                    step: 'verified',
+                    stepIndex: 2,
+                    onboardingFlow,
+                    organizationId: user.organizationUuid,
+                },
+            });
         }
     }
 
@@ -529,8 +539,30 @@ export class UserService extends BaseService {
                 organizationId: user.organizationUuid,
                 userConnectionType,
                 onboardingFlow,
+                isOrganizationCreator: false,
             },
         });
+        this.analytics.track({
+            event: 'user.logged_in',
+            userId: user.userUuid,
+            properties: {
+                loginProvider:
+                    userConnectionType === 'email_only'
+                        ? 'invite_link'
+                        : userConnectionType,
+            },
+        });
+        if (inviteLink.purpose === InviteLinkPurpose.Setup) {
+            this.analytics.track({
+                event: 'setup_invite.accepted',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: inviteLink.organizationUuid,
+                    invitePurpose: InviteLinkPurpose.Setup,
+                    onboardingFlow,
+                },
+            });
+        }
         if (activateUser && !isOpenIdUser(activateUser)) {
             await this.sendOneTimePasscodeToPrimaryEmail(
                 user,
@@ -1300,6 +1332,13 @@ export class UserService extends BaseService {
             openIdUser,
             await this.getOnboardingFlow(),
         );
+        this.analytics.track({
+            userId: user.userUuid,
+            event: 'user.logged_in',
+            properties: {
+                loginProvider: openIdUser.openId.issuerType,
+            },
+        });
         return this.userModel.findSessionUserByUUID(user.userUuid);
     }
 
@@ -1736,6 +1775,15 @@ export class UserService extends BaseService {
                 },
                 onboardingFlow,
             );
+            // The register endpoint calls req.login on the returned session
+            // user, so signup establishes the first (passwordless) session.
+            this.analytics.track({
+                event: 'user.logged_in',
+                userId: lightdashUser.userUuid,
+                properties: {
+                    loginProvider: 'email_otp',
+                },
+            });
         }
 
         return this.userModel.findSessionUserByUUID(lightdashUser.userUuid);
@@ -1793,6 +1841,17 @@ export class UserService extends BaseService {
                 organizationId: user.organizationUuid,
                 userConnectionType,
                 onboardingFlow,
+                isOrganizationCreator: true,
+            },
+        });
+        this.analytics.track({
+            event: 'onboarding.step_completed',
+            userId: user.userUuid,
+            properties: {
+                step: 'signup',
+                stepIndex: 1,
+                onboardingFlow,
+                organizationId: user.organizationUuid,
             },
         });
         if (isOpenIdUser(createUser)) {

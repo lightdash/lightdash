@@ -599,6 +599,15 @@ type CreateProjectButtonClickedEvent = {
     };
 };
 
+type CreateProjectFailedEvent = {
+    name: EventName.CREATE_PROJECT_FAILED;
+    properties: {
+        warehouse: WarehouseTypes;
+        errorType: string;
+        warehouseOnly?: boolean;
+    };
+};
+
 type SignupFormSubmittedEvent = {
     name: EventName.SIGNUP_FORM_SUBMITTED;
     properties: {
@@ -691,6 +700,7 @@ type CreateProjectColumnsDefinedButtonClickedEvent = {
 export type EventData =
     | GenericEvent
     | CreateProjectButtonClickedEvent
+    | CreateProjectFailedEvent
     | SignupFormSubmittedEvent
     | OtpResendClickedEvent
     | LoginFlowMethodSelectedEvent

@@ -22,6 +22,7 @@ import {
     type UserAccessControls,
     type UserAttributeValueMap,
 } from '@lightdash/common';
+import type { OnboardingFlow } from '../../analytics/LightdashAnalytics';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
 import type { TotalConfiguration } from '../../utils/QueryBuilder/QueryComposer';
 
@@ -210,6 +211,7 @@ export type RunAsyncWarehouseQueryArgs = {
     queryUuid: string;
     isRegisteredUser: boolean;
     isServiceAccount?: boolean;
+    onboardingFlow: OnboardingFlow;
     queryTags: RunQueryTags;
     fieldsMap: ItemsMap;
     cacheKey: string;

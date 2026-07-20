@@ -21,6 +21,8 @@ import {
 } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useActiveJob from '../providers/ActiveJob/useActiveJob';
+import useTracking from '../providers/Tracking/useTracking';
+import { EventName } from '../types/Events';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
@@ -123,9 +125,13 @@ export const useUpdateMutation = (uuid: string) => {
     );
 };
 
-export const useCreateMutation = (options?: { quietJobToast?: boolean }) => {
+export const useCreateMutation = (options?: {
+    quietJobToast?: boolean;
+    warehouseOnly?: boolean;
+}) => {
     const { setActiveJobId, setQuietActiveJobId } = useActiveJob();
     const { showToastApiError } = useToaster();
+    const { track } = useTracking();
     return useMutation<ApiJobStartedResults, ApiError, CreateProject>(
         (data) => createProject(data),
         {
@@ -138,7 +144,15 @@ export const useCreateMutation = (options?: { quietJobToast?: boolean }) => {
                     setActiveJobId(data.jobUuid);
                 }
             },
-            onError: ({ error }) => {
+            onError: ({ error }, data) => {
+                track({
+                    name: EventName.CREATE_PROJECT_FAILED,
+                    properties: {
+                        warehouse: data.warehouseConnection.type,
+                        errorType: error.name,
+                        warehouseOnly: options?.warehouseOnly,
+                    },
+                });
                 showToastApiError({
                     title: `Failed to create project`,
                     apiError: error,

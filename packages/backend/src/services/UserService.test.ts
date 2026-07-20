@@ -459,6 +459,7 @@ describe('UserService', () => {
                     organizationId: sessionUser.organizationUuid,
                     userConnectionType: 'email_only',
                     onboardingFlow: 'new',
+                    isOrganizationCreator: true,
                 },
             });
         });
@@ -572,6 +573,7 @@ describe('UserService', () => {
                     organizationId: memberUser.organizationUuid,
                     userConnectionType: 'email_only',
                     onboardingFlow: 'legacy',
+                    isOrganizationCreator: false,
                 },
             });
         });
@@ -748,6 +750,7 @@ describe('UserService', () => {
                 organizationId: sessionUser.organizationUuid,
                 userConnectionType: 'password',
                 onboardingFlow: 'legacy',
+                isOrganizationCreator: false,
             },
         });
     });

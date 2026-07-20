@@ -44,7 +44,10 @@ import {
 } from '@lightdash/common';
 import { groupBy } from 'lodash';
 import fetch from 'node-fetch';
-import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import {
+    LightdashAnalytics,
+    OnboardingFlow,
+} from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../../models/GroupsModel';
@@ -865,6 +868,9 @@ export class OrganizationService extends BaseService {
                 user,
                 featureFlagId: FeatureFlags.NewOnboarding,
             });
+        const onboardingFlow: OnboardingFlow = newOnboardingEnabled
+            ? 'new'
+            : 'legacy';
         this.analytics.track({
             event: 'organization.created',
             userId: user.userUuid,
@@ -875,7 +881,17 @@ export class OrganizationService extends BaseService {
                         : 'self-hosted',
                 organizationId: org.organizationUuid,
                 organizationName: org.name,
-                onboardingFlow: newOnboardingEnabled ? 'new' : 'legacy',
+                onboardingFlow,
+            },
+        });
+        this.analytics.track({
+            event: 'onboarding.step_completed',
+            userId: user.userUuid,
+            properties: {
+                step: 'org_created',
+                stepIndex: 3,
+                onboardingFlow,
+                organizationId: org.organizationUuid,
             },
         });
         await this.userModel.joinOrg(
