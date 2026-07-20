@@ -5,8 +5,9 @@ import StarterKit from '@tiptap/starter-kit';
 import { useRef, type ChangeEvent, type FC } from 'react';
 import { Markdown, type MarkdownStorage } from 'tiptap-markdown';
 import useToaster from '../../../../../hooks/toaster/useToaster';
-import { createSlashCommandItems } from './slashCommandItems';
+import { createMentionMarkdownExtension } from './contentMentionMarkdown';
 import { SlashCommand } from './SlashCommandExtension';
+import { createSlashCommandItems } from './slashCommandItems';
 import classes from './TiptapMarkdownEditor.module.css';
 
 const ACCEPTED_IMAGE_TYPES = [
@@ -21,12 +22,18 @@ type Props = {
     content: string;
     onChange: (markdown: string) => void;
     onImageUpload?: (file: File) => Promise<string>;
+    /**
+     * When set, enables `@`-mentions of charts/dashboards in this project,
+     * serialized to markdown links.
+     */
+    mentionProjectUuid?: string;
 };
 
 export const TiptapMarkdownEditor: FC<Props> = ({
     content,
     onChange,
     onImageUpload,
+    mentionProjectUuid,
 }) => {
     const { showToastError } = useToaster();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,6 +56,9 @@ export const TiptapMarkdownEditor: FC<Props> = ({
               })
             : SlashCommand,
         ...(onImageUpload ? [Image] : []),
+        ...(mentionProjectUuid
+            ? [createMentionMarkdownExtension(mentionProjectUuid)]
+            : []),
     ];
 
     const editor = useEditor({
@@ -85,7 +95,11 @@ export const TiptapMarkdownEditor: FC<Props> = ({
 
         try {
             const url = await onImageUpload(file);
-            editor?.chain().focus().setImage({ src: url, alt: file.name }).run();
+            editor
+                ?.chain()
+                .focus()
+                .setImage({ src: url, alt: file.name })
+                .run();
         } catch (error) {
             showToastError({
                 title: 'Failed to upload image',
@@ -96,10 +110,7 @@ export const TiptapMarkdownEditor: FC<Props> = ({
 
     return (
         <>
-            <EditorContent
-                editor={editor}
-                className={classes.editorContent}
-            />
+            <EditorContent editor={editor} className={classes.editorContent} />
             {onImageUpload && (
                 <input
                     ref={fileInputRef}

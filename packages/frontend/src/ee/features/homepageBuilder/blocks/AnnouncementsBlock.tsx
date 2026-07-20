@@ -1,8 +1,9 @@
 import { type ProjectAnnouncement } from '@lightdash/common';
 import {
     ActionIcon,
+    Button,
     Stack,
-    Textarea,
+    Text,
     TextInput,
     Tooltip,
 } from '@mantine-8/core';
@@ -10,6 +11,7 @@ import {
     IconPencil,
     IconPin,
     IconPinnedOff,
+    IconPlus,
     IconSpeakerphone,
     IconTrash,
 } from '@tabler/icons-react';
@@ -22,25 +24,15 @@ import {
     useCreateAnnouncement,
     useDeleteAnnouncement,
     useUpdateAnnouncement,
+    useUploadAnnouncementImage,
 } from '../hooks/useAnnouncements';
-import { AnnouncementComposer } from './announcements/AnnouncementComposer';
 import { AnnouncementContent } from './announcements/AnnouncementContent';
 import classes from './announcements/announcements.module.css';
 import { BlockHeader } from './BlockShell';
+import { TiptapMarkdownEditor } from './markdownEditor/TiptapMarkdownEditor';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 const FEED_PAGE_SIZE = 25;
-
-// The composer emits one markdown string; the first line is the title, the
-// rest is the body.
-const splitHeadline = (
-    markdown: string,
-): { title: string; body: string | null } => {
-    const [firstLine, ...rest] = markdown.split('\n');
-    const title = firstLine.replace(/^#+\s*/, '').trim();
-    const body = rest.join('\n').trim();
-    return { title, body: body.length > 0 ? body : null };
-};
 
 const Timestamp: FC<{ announcement: ProjectAnnouncement }> = ({
     announcement,
@@ -112,47 +104,77 @@ export const AnnouncementsBlockView: FC<BlockComponentProps> = ({
     );
 };
 
-const EditAnnouncementModal: FC<{
+const AnnouncementFormModal: FC<{
     projectUuid: string;
-    announcement: ProjectAnnouncement;
+    announcement: ProjectAnnouncement | null;
     onClose: () => void;
 }> = ({ projectUuid, announcement, onClose }) => {
-    const [title, setTitle] = useState(announcement.title);
-    const [body, setBody] = useState(announcement.body ?? '');
-    const { mutate: update, isLoading } = useUpdateAnnouncement(projectUuid);
+    const isEdit = announcement !== null;
+    const [title, setTitle] = useState(announcement?.title ?? '');
+    const [body, setBody] = useState(announcement?.body ?? '');
+    const { mutate: create, isLoading: creating } =
+        useCreateAnnouncement(projectUuid);
+    const { mutate: update, isLoading: updating } =
+        useUpdateAnnouncement(projectUuid);
+    const uploadImage = useUploadAnnouncementImage(projectUuid);
+    const isLoading = creating || updating;
+
     const handleSave = () => {
-        if (title.trim().length === 0) return;
-        update(
-            {
-                announcementUuid: announcement.announcementUuid,
-                title: title.trim(),
-                body: body.trim() || null,
-            },
-            { onSuccess: onClose },
-        );
+        const trimmedTitle = title.trim();
+        if (trimmedTitle.length === 0) return;
+        const bodyValue = body.trim() || null;
+        if (isEdit) {
+            update(
+                {
+                    announcementUuid: announcement.announcementUuid,
+                    title: trimmedTitle,
+                    body: bodyValue,
+                },
+                { onSuccess: onClose },
+            );
+        } else {
+            create(
+                { title: trimmedTitle, body: bodyValue },
+                { onSuccess: onClose },
+            );
+        }
     };
+
+    let confirmLabel = isEdit ? 'Save' : 'Publish';
+    if (isLoading) confirmLabel = 'Saving…';
+
     return (
         <MantineModal
             opened
             onClose={onClose}
-            title="Edit announcement"
-            size="md"
+            title={isEdit ? 'Edit announcement' : 'New announcement'}
+            size="lg"
             onConfirm={handleSave}
-            confirmLabel={isLoading ? 'Saving…' : 'Save'}
+            confirmLabel={confirmLabel}
         >
             <Stack gap="sm">
                 <TextInput
                     label="Title"
+                    placeholder="What's the update?"
                     value={title}
                     onChange={(e) => setTitle(e.currentTarget.value)}
+                    data-autofocus
                 />
-                <Textarea
-                    label="Body (markdown)"
-                    autosize
-                    minRows={3}
-                    value={body}
-                    onChange={(e) => setBody(e.currentTarget.value)}
-                />
+                <div>
+                    <Text size="sm" fw={500} mb={4}>
+                        Body
+                    </Text>
+                    <div className={classes.editorShell}>
+                        <TiptapMarkdownEditor
+                            content={announcement?.body ?? ''}
+                            onChange={setBody}
+                            onImageUpload={async (file) =>
+                                (await uploadImage.mutateAsync(file)).url
+                            }
+                            mentionProjectUuid={projectUuid}
+                        />
+                    </div>
+                </div>
             </Stack>
         </MantineModal>
     );
@@ -163,9 +185,9 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
     projectUuid,
     onChange: _onChange,
 }) => {
+    const [creating, setCreating] = useState(false);
     const [editing, setEditing] = useState<ProjectAnnouncement | null>(null);
     const announcements = useAnnouncementFeed(projectUuid);
-    const { mutate: create } = useCreateAnnouncement(projectUuid);
     const { mutate: update } = useUpdateAnnouncement(projectUuid);
     const { mutate: remove } = useDeleteAnnouncement(projectUuid);
     if (block.type !== 'announcements') return null;
@@ -218,19 +240,20 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
     return (
         <Stack gap="sm">
             <BlockHeader icon={IconSpeakerphone} title={block.config.title} />
-            <AnnouncementComposer
-                projectUuid={projectUuid}
-                onPost={(markdown) => {
-                    const { title, body } = splitHeadline(markdown);
-                    if (title.length === 0) return;
-                    create({ title, body });
-                }}
-            />
+            <Button
+                variant="light"
+                size="xs"
+                leftSection={<MantineIcon icon={IconPlus} />}
+                onClick={() => setCreating(true)}
+                style={{ alignSelf: 'flex-start' }}
+            >
+                New announcement
+            </Button>
             {announcements.length === 0 ? (
                 <div className={classes.emptyHint}>
-                    No announcements yet — share your first update above. The
-                    block stays hidden on the homepage until there is something
-                    to show.
+                    No announcements yet — share your first update. The block
+                    stays hidden on the homepage until there is something to
+                    show.
                 </div>
             ) : (
                 announcements.map((announcement) => (
@@ -242,8 +265,15 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
                     />
                 ))
             )}
+            {creating && (
+                <AnnouncementFormModal
+                    projectUuid={projectUuid}
+                    announcement={null}
+                    onClose={() => setCreating(false)}
+                />
+            )}
             {editing && (
-                <EditAnnouncementModal
+                <AnnouncementFormModal
                     projectUuid={projectUuid}
                     announcement={editing}
                     onClose={() => setEditing(null)}

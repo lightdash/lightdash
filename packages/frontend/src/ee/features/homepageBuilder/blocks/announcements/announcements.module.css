@@ -75,6 +75,17 @@
     padding: 10px 12px;
 }
 
+.editorShell {
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-radius: var(--mantine-radius-sm);
+    padding: 8px 10px;
+    min-height: 140px;
+}
+
+.editorShell:focus-within {
+    border-color: var(--mantine-color-blue-5);
+}
+
 .announcementImage {
     max-width: 100%;
     border-radius: var(--mantine-radius-md);
