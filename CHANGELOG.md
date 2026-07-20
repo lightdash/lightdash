@@ -1,3 +1,10 @@
+# [0.3421.0](https://github.com/lightdash/lightdash/compare/0.3420.3...0.3421.0) (2026-07-20)
+
+
+### Features
+
+* persist invalid AI tool-call attempts for debugging ([#25746](https://github.com/lightdash/lightdash/issues/25746)) ([e2e2ca5](https://github.com/lightdash/lightdash/commit/e2e2ca55e572549de5967814a42c1b4d8f6c00fb)), closes [#25724](https://github.com/lightdash/lightdash/issues/25724)
+
 ## [0.3420.3](https://github.com/lightdash/lightdash/compare/0.3420.2...0.3420.3) (2026-07-20)
 
 
