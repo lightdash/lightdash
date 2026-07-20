@@ -148,3 +148,27 @@ No install, migration, seed, browser run, or test command was executed during di
 ## Port history
 
 Not started.
+
+### 2026-07-17 — Playwright port implemented
+
+- Target: `packages/e2e/playwright/app/dates.spec.ts`.
+- Ported behavior: the sole active test runs the seeded `events` query, waits for the matching metric-query POST, and distinctly verifies normalized UTC filter text, client-local filter text, server-rendered UTC result data, and the UTC SQL literal. `TZ` is validated against the closed four-zone set and applied with file-local `timezoneId`.
+- Skipped decisions: all nine Cypress `it.skip` cases and the commented chart-tooltip TODO remain unported. The Cypress source is unchanged.
+- Verification:
+  - `pnpm -F common build` — passed (required to make the local `@lightdash/common` build available; the first Playwright typecheck otherwise reported the same missing-module error in every existing Playwright file).
+  - `pnpm -F e2e typecheck:playwright` — passed after the common build.
+  - `pnpm -F e2e lint` — passed.
+  - `pnpm -F e2e format` — passed after formatting the new target.
+  - `TZ=UTC PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 pnpm -F e2e exec playwright test playwright/app/dates.spec.ts --project=firefox --workers=1 --list` — passed; discovered auth setup plus exactly one dates test.
+  - Four-zone loop from the verification plan with `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000` — passed in `UTC`, `Europe/Madrid`, `America/New_York`, and `Asia/Tokyo` (2 tests per zone including auth setup).
+  - The same four-zone loop with `--repeat-each=3` — passed (4 tests per zone including auth setup; 16 total).
+  - Legacy parity via `pnpm -F e2e exec cypress run --browser firefox --config baseUrl=http://127.0.0.1:3000,video=false --spec cypress/e2e/app/dates.cy.ts` — passed in UTC and Europe/Madrid (1 active passing, 9 pending per zone).
+  - Full destination suite: `TZ=UTC PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 pnpm -F e2e exec playwright test --project=firefox --workers=1` — passed, 7/7 including auth setup.
+  - `git diff --check` — passed before the history append and will be rerun before signing.
+- Remaining risks: the preview server's UTC result formatting remains an external environment contract. The coordinated C3 four-zone CI rollout is intentionally outside this port; the explicit UTC smoke prerequisite is present in parent commit `0b0ccdf91a`.
+- Commit: pending signed commit (`COMMIT_HASH_PLACEHOLDER`).
+
+### 2026-07-17 — Coordinator review follow-up
+
+- Inferred `SupportedTimezone` from `keyof typeof localTimestampByTimezone`, removing the parallel hand-declared union and `Record` while retaining the strict switch parser and file-local browser timezone.
+- Post-review checks passed: `pnpm -F e2e typecheck:playwright`, `pnpm -F e2e lint`, `pnpm -F e2e format`, `git diff --check`, and the focused Firefox target in all four supported timezones with `--workers=1` (2/2 including auth setup in each zone).
