@@ -7398,7 +7398,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         };
 
         const sendFile: SendFileFn = (args) =>
-            wrapSentryTransaction('AiAgent.sendFile', args, () => {
+            wrapSentryTransaction('AiAgent.sendFile', args, async () => {
                 const isModernSlackImageUpload =
                     isSlackPrompt(prompt) &&
                     Boolean(options?.onStepProgress) &&
@@ -7407,10 +7407,26 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         /\.(png|jpe?g|gif|webp)$/i.test(args.filename));
 
                 if (isModernSlackImageUpload) {
-                    return this.uploadSlackAgentCardImage({
+                    const cardImageUrl = await this.uploadSlackAgentCardImage({
                         organizationUuid: args.organizationUuid,
                         image: args.file as Buffer,
                     });
+                    // Also upload to Slack so the card image renders on
+                    // instances that Slack's servers can't reach.
+                    const slackImage =
+                        await this.slackClient.tryUploadingImageToSlack({
+                            organizationUuid: args.organizationUuid,
+                            imageUrl: cardImageUrl,
+                            imageBuffer: args.file as Buffer,
+                            title: args.title,
+                        });
+                    return {
+                        url: cardImageUrl,
+                        slackFileId:
+                            slackImage?.source === 'slackFile'
+                                ? slackImage.fileId
+                                : null,
+                    };
                 }
 
                 //

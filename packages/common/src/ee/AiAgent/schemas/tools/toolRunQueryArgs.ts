@@ -322,6 +322,9 @@ export const toolRunQueryOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema.extend({
         chartImageUrl: z.string().nullish(),
+        // Slack file id for the same image, set when it was uploaded to
+        // Slack — lets blocks reference the image without a public URL
+        chartImageSlackFileId: z.string().nullish(),
     }),
 });
 

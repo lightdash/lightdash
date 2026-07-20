@@ -6732,6 +6732,12 @@ Table calculations perform row-by-row calculations on query results without coll
         "metadata": {
           "additionalProperties": false,
           "properties": {
+            "chartImageSlackFileId": {
+              "type": [
+                "string",
+                "null",
+              ],
+            },
             "chartImageUrl": {
               "type": [
                 "string",

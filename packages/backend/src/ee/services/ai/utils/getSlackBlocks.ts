@@ -452,7 +452,7 @@ const buildSlackCardBlock = ({
     subtitle,
     body,
     subtext,
-    heroImageUrl,
+    heroImage,
     actions,
 }: {
     blockId: string;
@@ -460,7 +460,7 @@ const buildSlackCardBlock = ({
     subtitle?: string;
     body?: string;
     subtext?: string;
-    heroImageUrl?: string;
+    heroImage?: { url: string; slackFileId: string | null };
     actions?: Array<{
         type: 'button';
         url?: string;
@@ -508,11 +508,15 @@ const buildSlackCardBlock = ({
                   },
               }
             : {}),
-        ...(heroImageUrl
+        ...(heroImage
             ? {
                   hero_image: {
                       type: 'image',
-                      image_url: heroImageUrl,
+                      // Slack-hosted files render without needing the
+                      // instance to be publicly reachable
+                      ...(heroImage.slackFileId
+                          ? { slack_file: { id: heroImage.slackFileId } }
+                          : { image_url: heroImage.url }),
                       alt_text: title,
                   },
               }
@@ -540,7 +544,7 @@ export async function getModernArtifactCardBlocks(
         return [];
     }
 
-    const chartImageUrls = (toolResults ?? [])
+    const chartImages = (toolResults ?? [])
         .filter(
             (result) =>
                 result.toolType === 'built-in' &&
@@ -549,12 +553,22 @@ export async function getModernArtifactCardBlocks(
                 ) &&
                 result.metadata?.status === 'success',
         )
-        .map(
-            (result) =>
-                (result.metadata as { chartImageUrl?: string | null })
-                    .chartImageUrl,
-        )
-        .filter((url): url is string => Boolean(url));
+        .map((result) => {
+            const metadata = result.metadata as {
+                chartImageUrl?: string | null;
+                chartImageSlackFileId?: string | null;
+            };
+            return metadata.chartImageUrl
+                ? {
+                      url: metadata.chartImageUrl,
+                      slackFileId: metadata.chartImageSlackFileId ?? null,
+                  }
+                : undefined;
+        })
+        .filter(
+            (image): image is { url: string; slackFileId: string | null } =>
+                image !== undefined,
+        );
     // The viz type lives in chartConfig.chartConfig.defaultVizType (line, bar,
     // ...); parseVizConfig flattens the unified generateVisualization shape to
     // "query_result" and can't tell a line from a bar, so read it directly and
@@ -722,10 +736,10 @@ export async function getModernArtifactCardBlocks(
                 // A single chart with several images is a retried render — show
                 // the latest. Multiple charts (one card per version) match their
                 // image positionally by version.
-                const chartImageUrl =
+                const chartImage =
                     chartArtifacts.length === 1
-                        ? chartImageUrls[chartImageUrls.length - 1]
-                        : chartImageUrls[
+                        ? chartImages[chartImages.length - 1]
+                        : chartImages[
                               chartArtifacts.findIndex(
                                   (chartArtifact) =>
                                       chartArtifact.versionUuid ===
@@ -737,7 +751,7 @@ export async function getModernArtifactCardBlocks(
                     blockId: `ai_agent_chart_card_${artifact.versionUuid}`,
                     title: getArtifactTitle(artifact),
                     subtitle: `${vizConfig.metricQuery.exploreName} chart`,
-                    heroImageUrl: chartImageUrl,
+                    heroImage: chartImage,
                     body:
                         artifact.description ||
                         `${metricCount} metric${
@@ -747,11 +761,11 @@ export async function getModernArtifactCardBlocks(
                         }.`,
                     subtext: 'Open in Lightdash to inspect, save, or refine.',
                     actions: [
-                        ...(chartImageUrl
+                        ...(chartImage
                             ? [
                                   {
                                       type: 'button' as const,
-                                      url: chartImageUrl,
+                                      url: chartImage.url,
                                       action_id: `actions.open_chart_image_button_click.${index}`,
                                       text: {
                                           type: 'plain_text' as const,

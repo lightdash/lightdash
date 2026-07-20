@@ -388,7 +388,18 @@ export type RunSavedChartQueryFn = (args: {
 
 export type GetSavedChartFn = (chartUuidOrSlug: string) => Promise<SavedChart>;
 
-export type SendFileFn = (args: PostSlackFile) => Promise<string | undefined>;
+// url always points at the Lightdash-served image (used for "Open image"
+// links); slackFileId is set when the image was also uploaded to Slack, so
+// blocks can reference it without needing the instance to be publicly
+// reachable.
+export type SentSlackFile = {
+    url: string;
+    slackFileId: string | null;
+};
+
+export type SendFileFn = (
+    args: PostSlackFile,
+) => Promise<SentSlackFile | undefined>;
 
 export type SendSlackBlocksFn = (args: {
     channelId: string;
