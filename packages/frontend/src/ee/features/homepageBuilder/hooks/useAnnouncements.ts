@@ -140,6 +140,24 @@ export const useDeleteAnnouncement = (projectUuid: string) => {
     });
 };
 
+export const useUploadAnnouncementImage = (projectUuid: string) => {
+    const { showToastApiError } = useToaster();
+    return useMutation<{ url: string }, ApiError, File>({
+        mutationFn: (file) =>
+            lightdashApi<{ url: string }>({
+                url: `/projects/${projectUuid}/announcements/images`,
+                method: 'POST',
+                headers: { 'Content-Type': file.type },
+                body: file,
+            }),
+        onError: ({ error }) =>
+            showToastApiError({
+                title: 'Failed to upload image',
+                apiError: error,
+            }),
+    });
+};
+
 export const useCreateAnnouncementCategory = (projectUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
