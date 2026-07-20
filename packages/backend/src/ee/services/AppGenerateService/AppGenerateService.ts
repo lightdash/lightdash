@@ -24,6 +24,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     formatPromptWithClarifications,
+    getEffectiveFieldAiHints,
     getErrorMessage,
     isDashboardChartTileType,
     isExploreError,
@@ -7019,10 +7020,10 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
      * Convert compiled explores into the dbt-style YAML that skill.md expects.
      * One model per explore, keyed by the explore name (the value passed to
      * `query()`), carrying real metric/dimension types, join relationships
-     * (`meta.joins`), and model-level parameters. Joined tables that aren't
-     * themselves a top-level explore (seeds, aliased joins) are inlined so
-     * their dot-notation fields stay discoverable. Hidden fields are skipped;
-     * descriptions are truncated to keep the prompt bounded.
+     * (`meta.joins`), AI hints, and model-level parameters. Joined tables that
+     * aren't themselves a top-level explore (seeds, aliased joins) are inlined
+     * so their dot-notation fields stay discoverable. Hidden fields are
+     * skipped; descriptions are truncated to keep the prompt bounded.
      */
     private static exploresToYaml(explores: Explore[]): {
         yaml: string;
@@ -7095,6 +7096,15 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                                 `          description: ${AppGenerateService.yamlQuote(truncate(m.description))}`,
                             );
                         }
+                        const aiHints = getEffectiveFieldAiHints(m, table);
+                        if (aiHints) {
+                            lines.push(`          ai_hints:`);
+                            for (const aiHint of aiHints) {
+                                lines.push(
+                                    `            - ${AppGenerateService.yamlQuote(aiHint)}`,
+                                );
+                            }
+                        }
                     }
                 }
                 if (joins.length > 0) {
@@ -7141,6 +7151,15 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                         lines.push(
                             `        description: ${AppGenerateService.yamlQuote(truncate(d.description))}`,
                         );
+                    }
+                    const aiHints = getEffectiveFieldAiHints(d, table);
+                    if (aiHints) {
+                        lines.push(`        ai_hints:`);
+                        for (const aiHint of aiHints) {
+                            lines.push(
+                                `          - ${AppGenerateService.yamlQuote(aiHint)}`,
+                            );
+                        }
                     }
                     lines.push(`        meta:`);
                     lines.push(`          dimension:`);

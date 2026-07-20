@@ -31,7 +31,7 @@ Available at `@/components/ui/<name>`:
 
 ## Semantic Layer (dbt models)
 
-The available data models are defined in dbt YAML files at **`/tmp/dbt-repo/models/`**. Read these to discover every model, dimension, metric, join, and parameter available to you. **Never guess field names** — use only what's in the YAML. (Parameters live in a `parameters:` block under `meta:` / `config.meta:`, or in `lightdash.config.yml` — see [Parameters](#parameters).)
+The available data models are defined in dbt YAML files at **`/tmp/dbt-repo/models/`**. Read these to discover every model, dimension, metric, join, and parameter available to you. **Never guess field names** — use only what's in the YAML. When a dimension or metric has `ai_hints`, follow that guidance when deciding which field best matches the user's intent; hints supplement names, labels, and descriptions. (Parameters live in a `parameters:` block under `meta:` / `config.meta:`, or in `lightdash.config.yml` — see [Parameters](#parameters).)
 
 ### Reading dbt YAML
 
@@ -45,8 +45,12 @@ models:
           metrics:              # model-level metrics
               order_count:
                   type: count
+                  ai_hints:
+                      - Use for questions about the number of orders
       columns:
           - name: status
+            ai_hints:
+                - Prefer this over legacy_status
             meta:
                 dimension:      # column = dimension
                     type: string

@@ -43,9 +43,10 @@ flowchart LR
    with `E2B_TEMPLATE_NAME` for development). The template contains a pre-configured React + Vite project with the
    Lightdash App SDK, plus a system prompt (`/app/skill.md`) that teaches Claude how to build data apps.
 
-3. **Catalog injection** — The project's dbt catalog (tables, dimensions, metrics) is fetched via `CatalogModel` and
-   written as YAML into the sandbox at `/tmp/dbt-repo/models/schema.yml`. This gives Claude full context on the
-   available data model.
+3. **Catalog injection** — The project's compiled explores (tables, dimensions, metrics, joins, parameters, and AI
+   hints) are fetched from the project cache and written as YAML into the sandbox at
+   `/tmp/dbt-repo/models/schema.yml`. This gives Claude full context on the available data model and the field-selection
+   guidance configured for other AI surfaces.
 
 4. **Code generation** — Claude Code runs inside the sandbox with scoped file access
    (`Read`, `Write`, `Edit`, `Glob`, `Grep`) and generates the React app under `/app/src/`. Stream events are parsed in
