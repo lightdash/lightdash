@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     DbtProjectType,
     type AgentSuggestion,
@@ -131,6 +132,14 @@ const DayOneAskInputInner: FC<Props> = ({
         isInitialLoading: isLoadingPreferences,
     } = useGetUserAgentPreferences(projectUuid);
     const canCreateThread = useCanCreateAiAgentThread(projectUuid ?? undefined);
+    const canManageProject =
+        user.data?.ability?.can(
+            'manage',
+            subject('Project', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid: projectUuid ?? undefined,
+            }),
+        ) ?? false;
     const routerEnabled = useAiRouterEnabledFromCache();
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
         useCreateAgentThreadMutation(projectUuid ?? '');
@@ -319,7 +328,9 @@ const DayOneAskInputInner: FC<Props> = ({
             />
             {!projectUuid && (
                 <Text size="xs" c="dimmed" ta="center" mt={10}>
-                    Connect your data to start asking questions
+                    {canManageProject
+                        ? 'Connect your data to start asking questions'
+                        : 'An organisation admin will need to connect to the data warehouse before you can ask questions'}
                 </Text>
             )}
             {!hideSuggestions && (canCreateThread || preview) && (
