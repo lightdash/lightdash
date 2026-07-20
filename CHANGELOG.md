@@ -1,3 +1,11 @@
+## [0.3420.1](https://github.com/lightdash/lightdash/compare/0.3420.0...0.3420.1) (2026-07-20)
+
+
+### Bug Fixes
+
+* invalid <p> nesting in Snowflake form input descriptions ([#25776](https://github.com/lightdash/lightdash/issues/25776)) ([fe5d521](https://github.com/lightdash/lightdash/commit/fe5d521482438977f3c86ec65d759ae72eebf38f)), closes [#25766](https://github.com/lightdash/lightdash/issues/25766)
+* rename Snowflake key-pair auth option from BigQuery service-account wording ([#25775](https://github.com/lightdash/lightdash/issues/25775)) ([54267e1](https://github.com/lightdash/lightdash/commit/54267e18924cbd02ee82473f28d98cc92c47536d)), closes [#25767](https://github.com/lightdash/lightdash/issues/25767)
+
 # [0.3420.0](https://github.com/lightdash/lightdash/compare/0.3419.0...0.3420.0) (2026-07-20)
 
 
