@@ -129,3 +129,27 @@ Then perform one controlled dual-run against the shared preview only after HOME/
 ## Port history
 
 Not started.
+
+### 2026-07-20 — CLI Node implementation (execution lease pending)
+
+- Target: `packages/cli/integration/backend-dbt/cli.integration.test.ts` under the coordinated Vitest `backend-dbt` lane.
+- Ported all four active contracts as three sequential lifecycles: unique-name deploy/create, combined preview start/stop, and validation completion that accepts business findings while rejecting `Validation failed`. No skipped tests existed to port.
+- Isolation: one file-owned PAT; fresh temporary HOME/cwd/copied dbt fixture/target per setup or lifecycle; validated run-owned `jaffle_cli_node_*` schema; direct dbt seed/run setup; schema teardown; UUID-first and exact unique-name fallback project cleanup; API fallback cleanup for preview; bounded child processes using the built CLI entry point.
+- Static verification passed: `pnpm -F @lightdash/common build:fast`; `pnpm -F @lightdash/warehouses build:fast`; `pnpm -F @lightdash/cli build:fast`; `pnpm -F @lightdash/cli typecheck:fast`; `pnpm -F @lightdash/cli lint`; `pnpm -F @lightdash/cli format`; `pnpm -F @lightdash/cli exec tsc6 --project tsconfig.eslint.json --noEmit`; targeted integration ESLint and oxfmt checks; `git diff --check`.
+- Live dbt/server execution, repeat runs, lane execution, dual-run, and post-run residue checks were intentionally deferred because another port owns the sole mutation lease.
+- Remaining risk: the live preview/Postgres environment must confirm dbt setup duration, CLI output contracts, API cleanup, PAT cleanup, schema teardown, and zero fixture changes.
+- Commit: pending signed commit after execution evidence and signing lease.
+
+### 2026-07-20 — Mutation-lease execution
+
+- Local CI prerequisite: the frozen workspace had neither `dbt` nor a Cypress binary/global `lightdash`. Created the owned temporary venv `/tmp/lightdash-cli-dbt-venv-playwright-port-cli-integration` and installed CI-equivalent `dbt-core~=1.9.0` / `dbt-postgres~=1.9.0` through `sfw`; resolved versions were dbt Core 1.9.10 and Postgres adapter 1.9.1. The venv was removed after execution.
+- Initial focused attempt with `jaffle_cli_node_focus_1784543022_15805` failed before mutation with `spawn dbt ENOENT`; immediate audit found zero matching schema, PAT, project, or temp root.
+- Focused target passed 3/3 in 68.57s with `jaffle_cli_node_focus_1784543116_27405`.
+- Three serial repeat runs passed 3/3 each: `jaffle_cli_node_repeat_1_1784543199_11379` (71.86s), `jaffle_cli_node_repeat_2_1784543271_23331` (69.96s), and `jaffle_cli_node_repeat_3_1784543341_31640` (70.86s).
+- Full `integration/backend-dbt` lane passed 3/3 in 70.64s with `jaffle_cli_node_lane_1784543426_15095`.
+- Every live run explicitly used `PGHOST=localhost PGPORT=5432 PGUSER=postgres PGPASSWORD=password PGDATABASE=postgres SITE_URL=http://127.0.0.1:8080` and its listed unique validated schema.
+- Legacy Cypress parity was deferred: `lightdash` was absent from PATH and `pnpm -F e2e exec cypress --version` reported `Command "cypress" not found`. Reproducing CI would require an additional global CLI install and Cypress binary install, while the unchanged spec uses shared fixture artifacts and discards four non-unique PAT UUIDs; exact owned cleanup could not be guaranteed without contaminating shared state.
+- Final residue audit: zero `jaffle_cli_node_*` schemas, zero `cli integration %` PATs, zero `e2e deploy %` / `e2e preview %` projects, zero `lightdash-cli-integration-*` roots, and zero matching CLI/dbt child processes. Seed admin count remained 1 and seed project count remained 1.
+- Tracked demo fixture hash remained `bc4d161e5ef9902ad5c9242cd8ef4e96852e42069de310bb4091c5fc268d681d`; `git diff --exit-code -- examples/full-jaffle-shop-demo examples/snowflake-template` passed.
+- Final static verification passed: common/warehouses/CLI fast builds; CLI fast typecheck; integration `tsc6` typecheck; package and target ESLint; package and target oxfmt; fixture diff/hash checks; `git diff --check`.
+- Commit: pending serialized signing lease.
