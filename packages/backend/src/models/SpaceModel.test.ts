@@ -672,6 +672,7 @@ describe('SpaceModel space access as code', () => {
                     roleUuid: 'group-role-uuid',
                 },
             ],
+            isActive: false,
             isInternal: true,
         });
         const beforeMutation = vi.fn(async () => {
@@ -766,6 +767,7 @@ describe('SpaceModel space access as code', () => {
             )
             .responseOnce({ parentSpaceUuid: null });
         mockAuthorizationSources({
+            isActive: false,
             isInternal: true,
             serviceAccountExists: false,
         });
