@@ -1,3 +1,10 @@
+## [0.3423.1](https://github.com/lightdash/lightdash/compare/0.3423.0...0.3423.1) (2026-07-20)
+
+
+### Bug Fixes
+
+* filter for time interval should override filter for date ([#25805](https://github.com/lightdash/lightdash/issues/25805)) ([4092b37](https://github.com/lightdash/lightdash/commit/4092b371cbc043e5a1cfc3f5464c41e5a129ef01))
+
 # [0.3423.0](https://github.com/lightdash/lightdash/compare/0.3422.2...0.3423.0) (2026-07-20)
 
 
