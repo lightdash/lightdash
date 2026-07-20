@@ -17,6 +17,8 @@ export type AsyncQueryNatsEnvelope<TPayload> = NatsTraceProperties & {
 export type AsyncQueryJobPayload = {
     queryUuid: string;
     queryTags?: RunQueryTags;
+    /** Compile-time session override (Databricks/Trino UTC pin). */
+    sessionTimezone?: string;
 };
 
 export type AsyncQueryJobMessage = AsyncQueryNatsEnvelope<AsyncQueryJobPayload>;

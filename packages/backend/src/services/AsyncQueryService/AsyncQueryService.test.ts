@@ -193,6 +193,7 @@ const createQueryComposerMock = ({
         getTimezone: () => timezone,
         getDisplayTimezone: () => displayTimezone,
         getUseTimezoneAwareDateTrunc: () => useTimezoneAwareDateTrunc,
+        getWarehouseSessionTimezone: () => undefined,
         getUserAccessControls: () => userAccessControls,
         getAvailableParameterDefinitions: () => availableParameterDefinitions,
     }) as unknown as QueryComposer;

@@ -107,6 +107,13 @@ export type CompiledQuery = {
     missingParameterReferences: Set<string>;
     usedParameters: ParametersValuesMap;
     compilationErrors: string[];
+    /**
+     * Session timezone this SQL was compiled against, when it must override
+     * the project data timezone (Databricks/Trino pinned to UTC once every
+     * referenced TIMESTAMP dimension has a known domain). Undefined means the
+     * executor keeps the legacy data-timezone session.
+     */
+    warehouseSessionTimezone: string | undefined;
 };
 
 export type BuildQueryProps = {
@@ -151,6 +158,11 @@ export type BuildQueryProps = {
     /** Timezone the column data is in — source for the timezone-aware wrap.
      *  Derived from warehouse credentials via `getColumnTimezone`. */
     columnTimezone?: string;
+    /** Raw project data timezone from the warehouse credentials. Differs from
+     *  `columnTimezone` only on Snowflake, whose compile-time wrap normalizes
+     *  dimension columns to UTC while bare columns (aggregate inputs) remain
+     *  in the data timezone. */
+    dataTimezone?: string;
     /** Rebase RAW timestamp filter columns to instants so predicates match the
      *  SELECT. Gated behind NaiveTimestampFilterRebase (the wrap defeats
      *  partition pruning). */
@@ -353,8 +365,27 @@ export class MetricQueryBuilder {
         return this.args.columnTimezone ?? 'UTC';
     }
 
+    /** Falls back to `columnTimezone`, which is equal on every warehouse
+     *  except Snowflake (see BuildQueryProps.dataTimezone). */
+    private get dataTimezone(): string {
+        return this.args.dataTimezone ?? this.columnTimezone;
+    }
+
     // Contains the metrics from the Explore and the custom metrics from the metric query
     private readonly availableMetrics: Record<string, CompiledMetric> = {};
+
+    /** Adapters whose result rendering depends on the session timezone, so the
+     *  explicit naive-rebase path only activates with the session pinned to
+     *  UTC — and pinning is only safe when the whole query is domain-known. */
+    private static readonly SESSION_PIN_ADAPTERS: ReadonlySet<SupportedDbtAdapter> =
+        new Set([
+            SupportedDbtAdapter.DATABRICKS,
+            SupportedDbtAdapter.SPARK,
+            SupportedDbtAdapter.TRINO,
+        ]);
+
+    /** Set to 'UTC' when this query's SQL assumes a pinned session. */
+    private warehouseSessionTimezone: string | undefined = undefined;
 
     constructor(private args: BuildQueryProps) {
         const { explore, compiledMetricQuery } = this.args;
@@ -458,6 +489,134 @@ export class MetricQueryBuilder {
                 }
             });
         }
+
+        // Per-query, all-or-nothing: on session-sensitive adapters the
+        // explicit conversion and the UTC session pin activate together, and
+        // only when every referenced TIMESTAMP dimension has a known domain.
+        // Otherwise domains are stripped so the whole query compiles the
+        // legacy session-based forms against the legacy session.
+        if (
+            MetricQueryBuilder.SESSION_PIN_ADAPTERS.has(
+                this.args.warehouseSqlBuilder.getAdapterType(),
+            ) &&
+            this.args.useTimezoneAwareDateTrunc &&
+            this.columnTimezone !== 'UTC'
+        ) {
+            if (this.allReferencedTimestampDimensionsHaveKnownDomain()) {
+                this.warehouseSessionTimezone = 'UTC';
+            } else {
+                this.exploreDimensions = MetricQueryBuilder.stripDomains(
+                    this.exploreDimensions,
+                );
+                this.exploreDimensionsWithoutAccess =
+                    MetricQueryBuilder.stripDomains(
+                        this.exploreDimensionsWithoutAccess,
+                    );
+                this.originalExploreDimensions =
+                    MetricQueryBuilder.stripDomains(
+                        this.originalExploreDimensions,
+                    );
+            }
+        }
+    }
+
+    private static stripDomains(
+        dimensions: Record<string, CompiledDimension>,
+    ): Record<string, CompiledDimension> {
+        return Object.fromEntries(
+            Object.entries(dimensions).map(([id, dimension]) =>
+                dimension.timestampDomain !== undefined
+                    ? [id, { ...dimension, timestampDomain: undefined }]
+                    : [id, dimension],
+            ),
+        );
+    }
+
+    /**
+     * Resolves a referenced dimension and reports whether it can take the
+     * explicit domain path: not TIMESTAMP-based → true (nothing to convert);
+     * TIMESTAMP-based → needs a known domain and no timezone-conversion
+     * opt-out (opted-out dims must keep their legacy session rendering).
+     */
+    private referencedDimensionHasKnownDomain(fieldId: string): boolean {
+        const dimension =
+            this.exploreDimensions[fieldId] ??
+            this.exploreDimensionsWithoutAccess[fieldId] ??
+            this.originalExploreDimensions[fieldId];
+        // Custom dimensions and table calculations are handled by the caller
+        if (!dimension) return true;
+        const baseDimensionId = dimension.timeIntervalBaseDimensionName
+            ? `${dimension.table}_${dimension.timeIntervalBaseDimensionName}`
+            : undefined;
+        const baseDimension = baseDimensionId
+            ? (this.originalExploreDimensions[baseDimensionId] ??
+              this.exploreDimensions[baseDimensionId])
+            : undefined;
+        const target = baseDimension ?? dimension;
+        if (target.type !== DimensionType.TIMESTAMP) return true;
+        if (dimension.skipTimezoneConversion || target.skipTimezoneConversion)
+            return false;
+        return (
+            (dimension.timestampDomain ?? target.timestampDomain) !== undefined
+        );
+    }
+
+    /**
+     * True when every TIMESTAMP dimension this query references (selected,
+     * dimension-filter targets, MIN/MAX metric bases, PoP time dimensions)
+     * resolves to a known timestamp domain. Custom SQL dimensions have no
+     * catalog domain, so they fail the check.
+     */
+    private allReferencedTimestampDimensionsHaveKnownDomain(): boolean {
+        const { compiledMetricQuery } = this.args;
+
+        if (
+            compiledMetricQuery.compiledCustomDimensions.some(
+                (customDimension) =>
+                    isCompiledCustomSqlDimension(customDimension) &&
+                    customDimension.dimensionType === DimensionType.TIMESTAMP,
+            )
+        ) {
+            return false;
+        }
+
+        const referencedDimensionIds = new Set<string>(
+            compiledMetricQuery.dimensions,
+        );
+        getFilterRulesFromGroup(compiledMetricQuery.filters.dimensions).forEach(
+            (rule) => referencedDimensionIds.add(rule.target.fieldId),
+        );
+
+        const referencedMetricIds = new Set<string>(
+            compiledMetricQuery.metrics,
+        );
+        getFilterRulesFromGroup(compiledMetricQuery.filters.metrics).forEach(
+            (rule) => referencedMetricIds.add(rule.target.fieldId),
+        );
+        for (const metricId of referencedMetricIds) {
+            const metric = this.availableMetrics[metricId];
+            if (
+                metric &&
+                (metric.type === MetricType.MIN ||
+                    metric.type === MetricType.MAX) &&
+                metric.baseDimensionType === DimensionType.TIMESTAMP
+            ) {
+                const baseDimension = this.resolveMinMaxBaseDimension(
+                    metricId,
+                    metric,
+                );
+                if (!baseDimension) return false;
+                referencedDimensionIds.add(getItemId(baseDimension));
+            }
+        }
+
+        this.popComparisonConfigs.forEach((cfg) =>
+            referencedDimensionIds.add(cfg.timeDimensionId),
+        );
+
+        return [...referencedDimensionIds].every((fieldId) =>
+            this.referencedDimensionHasKnownDomain(fieldId),
+        );
     }
 
     static buildCtesSQL(ctes: string[]) {
@@ -691,27 +850,41 @@ export class MetricQueryBuilder {
             return dimension.compiledSql;
         }
 
+        // Effective domain: the child dim's own value, falling back to the
+        // base dimension (mirrors skipTimezoneConversion resolution).
+        const timestampDomain =
+            dimension.timestampDomain ?? baseDimension.timestampDomain;
+
         // RAW passes the base column through untouched, so a naive column is
         // misparsed as UTC downstream — rebase it to a true instant via the
-        // session timezone (identity in value for aware columns).
+        // session timezone (identity in value for aware columns), or via the
+        // explicit data-timezone rebase when the column is known-naive.
         if (isRaw) {
             if (this.columnTimezone === 'UTC') {
                 return dimension.compiledSql;
             }
-            // Filter LHS rebases too, so predicates match the displayed
-            // instants. Flag-gated (the wrap defeats partition pruning); bare
-            // when the opt-out or adapter makes the wrap a no-op.
+            // Filter LHS: a known domain keeps the bare column (the literal
+            // side carries the conversion, so predicates stay sargable); the
+            // flag-gated session wrap remains only as the unknown-domain
+            // fallback.
             if (
                 !respectConvertTimezone &&
-                (!this.args.rebaseRawTimestampFilters ||
+                (timestampDomain !== undefined ||
+                    !this.args.rebaseRawTimestampFilters ||
                     baseDimension.skipTimezoneConversion ||
                     !naiveTimestampRebaseAdapters.has(adapterType))
             ) {
                 return dimension.compiledSql;
             }
-            return dateTruncTimezoneConversions[adapterType].castToInstant(
-                baseDimension.compiledSql,
-            );
+            const { castToInstant, castNaiveToInstant } =
+                dateTruncTimezoneConversions[adapterType];
+            if (timestampDomain === 'naive' && castNaiveToInstant) {
+                return castNaiveToInstant(
+                    baseDimension.compiledSql,
+                    this.columnTimezone,
+                );
+            }
+            return castToInstant(baseDimension.compiledSql);
         }
 
         if (isTruncatable) {
@@ -723,6 +896,7 @@ export class MetricQueryBuilder {
                 startOfWeek,
                 timezone,
                 this.columnTimezone,
+                timestampDomain,
                 // GLITCH-452: reached only when useTimezoneAwareDateTrunc is on,
                 // so day-or-coarser grains emit a real DATE (matches metadata).
                 true,
@@ -737,6 +911,7 @@ export class MetricQueryBuilder {
             startOfWeek,
             timezone,
             this.columnTimezone,
+            timestampDomain,
         );
     }
 
@@ -803,11 +978,37 @@ export class MetricQueryBuilder {
     }
 
     /**
+     * Resolve a custom metric's base dimension via its baseDimensionName —
+     * only a custom metric records the dimension it aggregates.
+     */
+    private getCustomMetricBaseDimension(
+        metricId: string,
+        metric: CompiledMetric,
+    ): CompiledDimension | undefined {
+        const additionalMetric =
+            this.args.compiledMetricQuery.additionalMetrics?.find(
+                (am) => getItemId(am) === metricId,
+            );
+        if (!additionalMetric?.baseDimensionName) return undefined;
+        const baseDimensionId = getItemId({
+            table: metric.table,
+            name: additionalMetric.baseDimensionName,
+        });
+        return (
+            this.originalExploreDimensions[baseDimensionId] ??
+            this.exploreDimensions[baseDimensionId]
+        );
+    }
+
+    /**
      * A MIN/MAX over a day-grain DATE dimension must aggregate the project-tz
      * wall-clock date, not the raw UTC trunc. Re-point the aggregate at the
      * dimension's timezone-aware compiledSql so the metric and its dimension
-     * agree on the calendar day. Plain DATE columns and TIMESTAMP/non-temporal
-     * bases are untouched; the substring swap is a safe no-op if it ever misses.
+     * agree on the calendar day. Plain DATE columns and non-temporal bases are
+     * untouched; the substring swap is a safe no-op if it ever misses.
+     * A MIN/MAX over a known-naive TIMESTAMP base instead wraps the aggregate
+     * output in the explicit instant rebase — min/max commute with the
+     * monotone conversion, so the result matches the dimension path.
      * Behind useTimezoneAwareDateTrunc.
      */
     private applyTimezoneAwareMetricSql(
@@ -823,17 +1024,30 @@ export class MetricQueryBuilder {
         }
         // A MIN/MAX over a naive TIMESTAMP column aggregates the bare wall
         // clock, which the wire stamps as UTC — rebase the aggregate output to
-        // a true instant (identity in value for aware columns).
+        // a true instant: explicitly from the data timezone when the base is
+        // known-naive, via the session cast (identity in value for aware
+        // columns) as the unknown-domain fallback.
         if (metric.baseDimensionType === DimensionType.TIMESTAMP) {
-            if (this.columnTimezone === 'UTC') return baseSql;
             const baseDimension = this.resolveMinMaxBaseDimension(
                 metricId,
                 metric,
             );
             if (baseDimension?.skipTimezoneConversion) return baseSql;
-            return dateTruncTimezoneConversions[adapterType].castToInstant(
-                baseSql,
-            );
+            const { castToInstant, castNaiveAggregateToInstant } =
+                dateTruncTimezoneConversions[adapterType];
+            // The aggregate reads the bare column, so a known-naive base
+            // rebases from the DATA timezone — on Snowflake that differs
+            // from columnTimezone (UTC), which only describes the
+            // compile-time-wrapped dimension SQL.
+            if (
+                baseDimension?.timestampDomain === 'naive' &&
+                castNaiveAggregateToInstant &&
+                this.dataTimezone !== 'UTC'
+            ) {
+                return castNaiveAggregateToInstant(baseSql, this.dataTimezone);
+            }
+            if (this.columnTimezone === 'UTC') return baseSql;
+            return castToInstant(baseSql);
         }
         // Only a calendar-DATE aggregation over a truncatable interval can drift:
         // a plain DATE column carries no interval, and a TIMESTAMP base is not
@@ -845,20 +1059,10 @@ export class MetricQueryBuilder {
         ) {
             return baseSql;
         }
-        // Resolve the base dimension via the custom metric's baseDimensionName —
-        // only a custom metric aggregates a derived interval dimension.
-        const additionalMetric =
-            this.args.compiledMetricQuery.additionalMetrics?.find(
-                (am) => getItemId(am) === metricId,
-            );
-        if (!additionalMetric?.baseDimensionName) return baseSql;
-        const baseDimensionId = getItemId({
-            table: metric.table,
-            name: additionalMetric.baseDimensionName,
-        });
-        const baseDimension =
-            this.originalExploreDimensions[baseDimensionId] ??
-            this.exploreDimensions[baseDimensionId];
+        const baseDimension = this.getCustomMetricBaseDimension(
+            metricId,
+            metric,
+        );
         if (!baseDimension?.compiledSql) return baseSql;
         const tzAwareDimensionSql = this.getTimezoneAwareDimensionSql(
             baseDimension,
@@ -4971,6 +5175,7 @@ export class MetricQueryBuilder {
             missingParameterReferences,
             usedParameters,
             compilationErrors: this.compilationErrors,
+            warehouseSessionTimezone: this.warehouseSessionTimezone,
         };
     }
 }

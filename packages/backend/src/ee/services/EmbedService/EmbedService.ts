@@ -1067,6 +1067,7 @@ export class EmbedService extends BaseService {
                 availableParameterDefinitions,
                 useTimezoneAwareDateTrunc,
                 columnTimezone: getColumnTimezone(warehouseClient.credentials),
+                dataTimezone: warehouseClient.credentials.dataTimezone,
             },
         ).compile();
 

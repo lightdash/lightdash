@@ -2354,6 +2354,7 @@ export class AsyncQueryService extends ProjectService {
         queryCreatedAt,
         displayTimezone,
         isPreviewProject,
+        sessionTimezone,
     }: RunAsyncPreAggregateQueryArgs) {
         try {
             const duckDbWarehouseClient =
@@ -2416,6 +2417,7 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns,
                 queryCreatedAt,
                 displayTimezone,
+                sessionTimezone,
             });
         }
     }
@@ -2424,6 +2426,7 @@ export class AsyncQueryService extends ProjectService {
         queryUuid: string,
         workerLabel: string,
         queryTagsOverride?: RunQueryTags,
+        sessionTimezone?: string,
     ): Promise<boolean> {
         const canRun = await this.prepareQueuedQueryForExecution(
             queryUuid,
@@ -2438,7 +2441,7 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             queryTagsOverride,
         );
-        await this.runAsyncWarehouseQuery(args);
+        await this.runAsyncWarehouseQuery({ ...args, sessionTimezone });
         return true;
     }
 
@@ -2446,6 +2449,7 @@ export class AsyncQueryService extends ProjectService {
         queryUuid: string,
         workerLabel: string,
         queryTagsOverride?: RunQueryTags,
+        sessionTimezone?: string,
     ): Promise<boolean> {
         const canRun = await this.prepareQueuedQueryForExecution(
             queryUuid,
@@ -2460,7 +2464,7 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             queryTagsOverride,
         );
-        await this.runAsyncPreAggregateQuery(args);
+        await this.runAsyncPreAggregateQuery({ ...args, sessionTimezone });
         return true;
     }
 
@@ -2546,6 +2550,7 @@ export class AsyncQueryService extends ProjectService {
         originalColumns,
         queryCreatedAt,
         displayTimezone,
+        sessionTimezone,
         warehouseClientOverride,
         warehouseCredentialsTypeOverride,
     }: RunAsyncWarehouseQueryArgs & {
@@ -2729,7 +2734,9 @@ export class AsyncQueryService extends ProjectService {
                         write: stream?.write,
                         pivotConfiguration,
                         itemsMap: fieldsMap,
-                        dataTimezone: resolvedDataTimezone,
+                        // The compiled session override wins; legacy queries
+                        // keep the project data timezone
+                        dataTimezone: sessionTimezone ?? resolvedDataTimezone,
                         displayTimezone,
                     }),
             );
@@ -3490,6 +3497,7 @@ export class AsyncQueryService extends ProjectService {
         userAttributeOverrides,
         materializationRole,
         columnTimezone,
+        dataTimezone,
         sessionTimezone,
         applyDateZoomToFilters,
         preloadedUserAccessControls,
@@ -3517,6 +3525,7 @@ export class AsyncQueryService extends ProjectService {
          */
         pivotDimensions?: string[];
         columnTimezone?: string;
+        dataTimezone?: string;
         sessionTimezone?: string | null;
         /**
          * Opt-in: rewrite WHERE filter LHS to use the zoom-grain dimension
@@ -3598,6 +3607,7 @@ export class AsyncQueryService extends ProjectService {
                 pivotDimensions: pivotDimensions ?? metricQuery.pivotDimensions,
                 useTimezoneAwareDateTrunc,
                 columnTimezone,
+                dataTimezone,
                 rebaseRawTimestampFilters,
                 applyDateZoomToFilters,
                 displayTimezone,
@@ -3732,6 +3742,11 @@ export class AsyncQueryService extends ProjectService {
                     const resolvedDataTimezone = isTimezoneSupportEnabled
                         ? warehouseCredentials.dataTimezone
                         : undefined;
+                    // Compile-time session override (Databricks/Trino UTC
+                    // pin); flips results without changing SQL, so it is part
+                    // of the cache key and rides the execution args.
+                    const compiledSessionTimezone =
+                        queryComposer.getWarehouseSessionTimezone();
 
                     // Generate cache key from project and query identifiers
                     // Include user UUID to prevent cache sharing between users when user-specific credentials are in use
@@ -3748,7 +3763,8 @@ export class AsyncQueryService extends ProjectService {
                                 warehouseCredentials.userWarehouseCredentialsUuid
                                     ? account.user.id
                                     : null,
-                            dataTimezone: resolvedDataTimezone,
+                            dataTimezone:
+                                compiledSessionTimezone ?? resolvedDataTimezone,
                         },
                     );
 
@@ -4061,6 +4077,7 @@ export class AsyncQueryService extends ProjectService {
                         originalColumns,
                         queryCreatedAt,
                         displayTimezone,
+                        sessionTimezone: compiledSessionTimezone,
                     };
 
                     if (executionPlan.target === 'pre_aggregate') {
@@ -4084,6 +4101,7 @@ export class AsyncQueryService extends ProjectService {
                             const natsPayload = {
                                 queryUuid: queryHistoryUuid,
                                 queryTags,
+                                sessionTimezone: compiledSessionTimezone,
                             };
 
                             const enqueueQuery = () => {
@@ -4447,6 +4465,7 @@ export class AsyncQueryService extends ProjectService {
             userAttributeOverrides,
             materializationRole,
             columnTimezone: getColumnTimezone(warehouseCredentials),
+            dataTimezone: warehouseCredentials.dataTimezone,
             preloadedUserAccessControls,
             preloadedProjectParameters: projectParameters,
             preloadedProjectTimezone: projectTimezone,
@@ -4669,6 +4688,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             userAttributeOverrides,
             columnTimezone: getColumnTimezone(warehouseCredentials),
+            dataTimezone: warehouseCredentials.dataTimezone,
         });
 
         const queryTagsWithUserAttributes =
@@ -4952,6 +4972,7 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
             pivotDimensions: savedChart.pivotConfig?.columns,
             columnTimezone: getColumnTimezone(warehouseCredentials),
+            dataTimezone: warehouseCredentials.dataTimezone,
             preloadedUserAccessControls,
         });
         const fieldsWithOverrides = queryComposer.getFields();
@@ -5398,6 +5419,7 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
             pivotDimensions: savedChart.pivotConfig?.columns,
             columnTimezone: getColumnTimezone(warehouseCredentials),
+            dataTimezone: warehouseCredentials.dataTimezone,
             sessionTimezone,
             preloadedUserAccessControls: userAccessControls,
             preloadedProjectParameters: projectParameters,
@@ -5747,6 +5769,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             columnTimezone: getColumnTimezone(warehouseCredentials),
+            dataTimezone: warehouseCredentials.dataTimezone,
             // PROD-880: rewrite WHERE LHS to zoom grain (safe here — filters are click-only)
             applyDateZoomToFilters: true,
             preloadedUserAccessControls,
@@ -6664,6 +6687,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             materializationRole: userAccessControls,
             columnTimezone: getColumnTimezone(warehouseCredentials),
+            dataTimezone: warehouseCredentials.dataTimezone,
         });
         const fields = queryComposer.getFields();
 

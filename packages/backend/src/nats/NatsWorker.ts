@@ -29,6 +29,7 @@ const asyncQueryTagsSchema = z
 const asyncQueryPayloadSchema: z.ZodType<AsyncQueryJobPayload> = z.object({
     queryUuid: z.string().min(1),
     queryTags: asyncQueryTagsSchema.optional(),
+    sessionTimezone: z.string().optional(),
 });
 
 const asyncQueryEnvelopeSchema = z.object({
@@ -162,33 +163,37 @@ export class NatsWorker {
               queryUuid: string,
               worker: string,
               queryTags?: AsyncQueryJobPayload['queryTags'],
+              sessionTimezone?: string,
           ) => Promise<boolean>)
         | null {
         if (subject === STREAM_CONFIGS.warehouse.subjects.query) {
-            return (queryUuid, worker, queryTags) =>
+            return (queryUuid, worker, queryTags, sessionTimezone) =>
                 this.asyncQueryService.runAsyncWarehouseQueryFromHistory(
                     queryUuid,
                     worker,
                     queryTags,
+                    sessionTimezone,
                 );
         }
 
         const preAgg = STREAM_CONFIGS['pre-aggregate'];
         if (preAgg && subject === preAgg.subjects.query) {
-            return (queryUuid, worker, queryTags) =>
+            return (queryUuid, worker, queryTags, sessionTimezone) =>
                 this.asyncQueryService.runAsyncPreAggregateQueryFromHistory(
                     queryUuid,
                     worker,
                     queryTags,
+                    sessionTimezone,
                 );
         }
 
         if (preAgg && subject === preAgg.subjects.materialization) {
-            return (queryUuid, worker, queryTags) =>
+            return (queryUuid, worker, queryTags, sessionTimezone) =>
                 this.asyncQueryService.runAsyncWarehouseQueryFromHistory(
                     queryUuid,
                     worker,
                     queryTags,
+                    sessionTimezone,
                 );
         }
 
@@ -202,6 +207,7 @@ export class NatsWorker {
             queryUuid: string,
             worker: string,
             queryTags?: AsyncQueryJobPayload['queryTags'],
+            sessionTimezone?: string,
         ) => Promise<boolean>,
     ): Promise<void> {
         const parsed = this.parseMessage(message);
@@ -254,6 +260,7 @@ export class NatsWorker {
                                         parsed.payload.queryUuid,
                                         workerLabel,
                                         parsed.payload.queryTags,
+                                        parsed.payload.sessionTimezone,
                                     );
                                 },
                             ),

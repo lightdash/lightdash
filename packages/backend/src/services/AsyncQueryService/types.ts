@@ -224,6 +224,9 @@ export type RunAsyncWarehouseQueryArgs = {
     query: string;
     queryCreatedAt: Date;
     displayTimezone: string | null;
+    /** Compile-time session override (Databricks/Trino UTC pin); when absent
+     *  the executor applies the legacy project data timezone. */
+    sessionTimezone?: string;
 };
 
 export type RunAsyncPreAggregateQueryArgs = Omit<
