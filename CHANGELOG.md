@@ -1,3 +1,11 @@
+## [0.3420.2](https://github.com/lightdash/lightdash/compare/0.3420.1...0.3420.2) (2026-07-20)
+
+
+### Bug Fixes
+
+* allow service accounts to apply space-as-code ([#25785](https://github.com/lightdash/lightdash/issues/25785)) ([c72e744](https://github.com/lightdash/lightdash/commit/c72e744264f25f1402d5bf6a2a52593a703fc091))
+* skip stored Databricks secret merge when serverHostName changes ([#25782](https://github.com/lightdash/lightdash/issues/25782)) ([2d6b606](https://github.com/lightdash/lightdash/commit/2d6b6061c37797aec6cf905c97c1f18d3428c192))
+
 ## [0.3420.1](https://github.com/lightdash/lightdash/compare/0.3420.0...0.3420.1) (2026-07-20)
 
 
