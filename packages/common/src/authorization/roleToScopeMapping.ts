@@ -112,6 +112,7 @@ const BASE_ROLE_SCOPES = {
         'delete:VirtualView',
         'manage:CustomSql',
         'manage:CustomFields',
+        'view:CompiledSql',
         'manage:CustomSqlTableCalculations',
         'manage:SqlRunner',
         'manage:Validation',

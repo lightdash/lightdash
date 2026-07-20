@@ -27,6 +27,7 @@ export type CaslSubjectNames =
     | 'AiDeepResearch'
     | 'Analytics'
     | 'ChangeCsvResults'
+    | 'CompiledSql'
     | 'CompileProject'
     | 'ContentAsCode'
     | 'ContentVerification'

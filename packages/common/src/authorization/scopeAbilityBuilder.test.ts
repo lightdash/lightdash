@@ -1807,6 +1807,37 @@ describe('scopeAbilityBuilder', () => {
                 ),
             ).toBe(true);
         });
+
+        it('should grant view:compiled_sql without custom field authoring', () => {
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(
+                {
+                    ...baseContext,
+                    scopes: ['view:CompiledSql'],
+                },
+                builder,
+            );
+            const ability = builder.build();
+
+            expect(
+                ability.can(
+                    'view',
+                    subject('CompiledSql', {
+                        organizationUuid: 'org-123',
+                        projectUuid: 'project-123',
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('CustomFields', {
+                        organizationUuid: 'org-123',
+                        projectUuid: 'project-123',
+                    }),
+                ),
+            ).toBe(false);
+        });
     });
 
     describe('project delete permissions', () => {

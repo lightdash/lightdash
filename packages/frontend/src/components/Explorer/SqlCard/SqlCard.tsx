@@ -34,7 +34,7 @@ import {
 } from '../../../features/explorer/store';
 import { useCompiledSql } from '../../../hooks/useCompiledSql';
 import { useProject } from '../../../hooks/useProject';
-import { useCannotAuthorCustomSql } from '../../../hooks/user/useCannotAuthorCustomSql';
+import { useCannotViewCompiledSql } from '../../../hooks/user/useCannotViewCompiledSql';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
@@ -64,7 +64,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
 
     const unsavedChartVersionTableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
-    const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
+    const cannotViewCompiledSql = useCannotViewCompiledSql(projectUuid);
 
     const toggleExpandedSection = useCallback(
         (section: ExplorerSection) => {
@@ -79,7 +79,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
         !!metricQuery.customDimensions?.some(isCustomSqlDimension) ||
         !!metricQuery.tableCalculations?.some(isSqlTableCalculation);
     const cannotViewSqlAuthoredFields =
-        hasSqlAuthoredFields && cannotAuthorCustomSql;
+        hasSqlAuthoredFields && cannotViewCompiledSql;
 
     const { data, isSuccess, isInitialLoading, error } = useCompiledSql({
         enabled: !!unsavedChartVersionTableName && !cannotViewSqlAuthoredFields,

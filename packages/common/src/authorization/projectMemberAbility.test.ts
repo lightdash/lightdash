@@ -916,6 +916,15 @@ describe('Project member permissions', () => {
                 ).toEqual(false);
             });
 
+            it('cannot view compiled SQL', () => {
+                expect(
+                    ability.can(
+                        'view',
+                        subject('CompiledSql', { projectUuid }),
+                    ),
+                ).toEqual(false);
+            });
+
             it('can use the SemanticViewer', () => {
                 expect(
                     ability.can(
@@ -1113,6 +1122,15 @@ describe('Project member permissions', () => {
                     ability.can(
                         'manage',
                         subject('SqlRunner', { projectUuid }),
+                    ),
+                ).toEqual(true);
+            });
+
+            it('can view compiled SQL', () => {
+                expect(
+                    ability.can(
+                        'view',
+                        subject('CompiledSql', { projectUuid }),
                     ),
                 ).toEqual(true);
             });
