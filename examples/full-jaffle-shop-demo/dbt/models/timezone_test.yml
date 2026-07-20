@@ -24,6 +24,11 @@ models:
       continuous monthly axis that crosses both DST transitions (Mar 10 spring
       forward, Nov 3 fall back). Used to exercise the cartesian category date
       axis snap for non-UTC DST timezones.
+    config:
+      # Delta gates TIMESTAMP_NTZ behind a table feature; non-Databricks
+      # adapters ignore tblproperties.
+      tblproperties:
+        delta.feature.timestampNtz: supported
     meta:
       group_label: timezones
     columns:
@@ -77,8 +82,13 @@ models:
             ]
       - name: event_timestamp_ntz
         description: >
-          Snowflake only. Same events as event_timestamp cast to TIMESTAMP_NTZ
-          (timezone info stripped). Use with dataTimezone to test NTZ handling.
+          Naive (timezone-less) variant of event_timestamp — the column under
+          test for data-timezone handling. Stores the same wall clocks with the
+          zone stripped, typed per warehouse via seeds.yml: timestamp
+          (Postgres/Redshift/DuckDB/Trino/Athena), DATETIME (BigQuery),
+          TIMESTAMP_NTZ (Snowflake, Databricks, Spark). ClickHouse has no naive
+          type, so there it stays an instant (DateTime64(3)) and data-timezone
+          rebasing does not apply. Use with dataTimezone to test naive handling.
         meta:
           dimension:
             type: timestamp
