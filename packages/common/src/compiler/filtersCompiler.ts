@@ -299,6 +299,7 @@ const renderDateOrTimestampFilterSql = ({
     baseDimensionSql,
     useTimezoneAwareDateTrunc,
     sourceTimezone,
+    instantLhs,
 }: {
     dimensionSql: string;
     filter: FilterRule<FilterOperator, unknown>;
@@ -310,6 +311,7 @@ const renderDateOrTimestampFilterSql = ({
     baseDimensionSql?: string;
     useTimezoneAwareDateTrunc?: boolean;
     sourceTimezone?: string;
+    instantLhs?: boolean;
 }): string => {
     // When startOfWeek is not explicitly configured, use the warehouse's default
     // to ensure JS-side week boundaries match the warehouse's DATE_TRUNC behavior.
@@ -348,6 +350,11 @@ const renderDateOrTimestampFilterSql = ({
                 }
             })();
             return toUTC(naive, timezone);
+        }
+        // The LHS is a rebased instant; BigQuery's offset-less literal would
+        // otherwise be parsed in the job-level time_zone — pin it to UTC.
+        if (instantLhs && adapterType === SupportedDbtAdapter.BIGQUERY) {
+            return `TIMESTAMP('${value}', 'UTC')`;
         }
         switch (adapterType) {
             case SupportedDbtAdapter.TRINO:
@@ -686,6 +693,7 @@ export const renderTimestampFilterSql = ({
     baseDimensionSql,
     useTimezoneAwareDateTrunc,
     sourceTimezone,
+    instantLhs,
 }: {
     dimensionSql: string;
     filter: FilterRule<FilterOperator, unknown>;
@@ -696,6 +704,7 @@ export const renderTimestampFilterSql = ({
     baseDimensionSql?: string;
     useTimezoneAwareDateTrunc?: boolean;
     sourceTimezone?: string;
+    instantLhs?: boolean;
 }): string =>
     renderDateOrTimestampFilterSql({
         dimensionSql,
@@ -708,6 +717,7 @@ export const renderTimestampFilterSql = ({
         baseDimensionSql,
         useTimezoneAwareDateTrunc,
         sourceTimezone,
+        instantLhs,
     });
 
 export const renderBooleanFilterSql = (
@@ -820,6 +830,7 @@ export const renderFilterRuleSql = (
     useTimezoneAwareDateTrunc?: boolean,
     baseTimeIntervalDimensionType?: DimensionType,
     sourceTimezone?: string,
+    instantLhs?: boolean,
 ): string => {
     if (filterRule.disabled) {
         return `1=1`; // When filter is disabled, we want to return all rows
@@ -890,6 +901,7 @@ export const renderFilterRuleSql = (
                         : formatTimestampAsUTC,
                 startOfWeek,
                 baseDimensionSql,
+                instantLhs,
             });
         }
         case DimensionType.BOOLEAN:
@@ -919,6 +931,7 @@ export const renderFilterRuleSqlFromField = (
     baseDimensionSql?: string,
     useTimezoneAwareDateTrunc?: boolean,
     sourceTimezone?: string,
+    instantLhs?: boolean,
 ): string => {
     const fieldType = isCompiledCustomSqlDimension(field)
         ? field.dimensionType
@@ -959,5 +972,6 @@ export const renderFilterRuleSqlFromField = (
         useTimezoneAwareDateTrunc,
         baseTimeIntervalDimensionType,
         sourceTimezone,
+        instantLhs,
     );
 };

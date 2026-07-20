@@ -6526,25 +6526,85 @@ describe('RAW time frame naive-column rebase', () => {
         expect(query).not.toContain('::timestamptz');
     });
 
-    test('RAW filter keeps the bare column (sargable) while the SELECT is rebased', () => {
+    // The filter LHS must be rebased like the SELECT — a bare predicate would
+    // compare the naive wall clock against the instant the SELECT displays.
+    // Flag-gated: the wrap defeats partition pruning.
+    const rawFilterQuery = (values: string[]): CompiledMetricQuery => ({
+        ...rawQuery,
+        filters: {
+            dimensions: {
+                id: 'root',
+                and: [
+                    {
+                        id: 'f1',
+                        target: { fieldId: 'events_occurred_at_raw' },
+                        operator: FilterOperator.GREATER_THAN,
+                        values,
+                    },
+                ],
+            },
+        },
+    });
+
+    test('RAW filter LHS is rebased to match the SELECT (Postgres)', () => {
         const { query } = buildQuery({
             explore: buildRawExplore(),
-            compiledMetricQuery: {
-                ...rawQuery,
-                filters: {
-                    dimensions: {
-                        id: 'root',
-                        and: [
-                            {
-                                id: 'f1',
-                                target: { fieldId: 'events_occurred_at_raw' },
-                                operator: FilterOperator.GREATER_THAN,
-                                values: ['2024-01-15 02:00:00'],
-                            },
-                        ],
-                    },
-                },
-            },
+            compiledMetricQuery: rawFilterQuery(['2024-01-15 02:00:00']),
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: 'Asia/Tokyo',
+            rebaseRawTimestampFilters: true,
+        });
+        expect(query).toContain(
+            `("events".occurred_at)::timestamptz AS "events_occurred_at_raw"`,
+        );
+        const whereClause = query.slice(query.indexOf('WHERE'));
+        // LHS is the rebased instant; the offset literal now compares correctly.
+        expect(whereClause).toContain(
+            `(("events".occurred_at)::timestamptz) >`,
+        );
+        expect(whereClause).toContain(`('2024-01-15 02:00:00+00:00')`);
+    });
+
+    test('RAW filter LHS is rebased and the literal pinned to UTC (BigQuery)', () => {
+        const { query } = buildQuery({
+            explore: buildRawExplore(SupportedDbtAdapter.BIGQUERY),
+            compiledMetricQuery: rawFilterQuery(['2024-01-15 02:00:00']),
+            warehouseSqlBuilder: bigqueryClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: 'Asia/Tokyo',
+            rebaseRawTimestampFilters: true,
+        });
+        const whereClause = query.slice(query.indexOf('WHERE'));
+        expect(whereClause).toContain(`(TIMESTAMP("events".occurred_at)) >`);
+        // Offset-less literal pinned to UTC so the job time_zone can't shift it.
+        expect(whereClause).toContain(
+            `TIMESTAMP('2024-01-15 02:00:00', 'UTC')`,
+        );
+    });
+
+    test('convert_timezone: false keeps the RAW filter bare (matches the bare SELECT)', () => {
+        const { query } = buildQuery({
+            explore: buildRawExplore(SupportedDbtAdapter.POSTGRES, true),
+            compiledMetricQuery: rawFilterQuery(['2024-01-15 02:00:00']),
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: 'Asia/Tokyo',
+            rebaseRawTimestampFilters: true,
+        });
+        expect(query).not.toContain('::timestamptz');
+    });
+
+    test('flag off keeps the RAW filter bare while the SELECT is rebased', () => {
+        const { query } = buildQuery({
+            explore: buildRawExplore(),
+            compiledMetricQuery: rawFilterQuery(['2024-01-15 02:00:00']),
             warehouseSqlBuilder: warehouseClientMock,
             intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             timezone: 'Asia/Tokyo',
@@ -6554,8 +6614,21 @@ describe('RAW time frame naive-column rebase', () => {
         expect(query).toContain(
             `("events".occurred_at)::timestamptz AS "events_occurred_at_raw"`,
         );
-        // The WHERE clause must keep the bare column for partition pruning.
         const whereClause = query.slice(query.indexOf('WHERE'));
         expect(whereClause).not.toContain('::timestamptz');
+        expect(whereClause).toContain(`('2024-01-15 02:00:00+00:00')`);
+    });
+
+    test('UTC column timezone keeps the RAW filter bare (byte-identical)', () => {
+        const { query } = buildQuery({
+            explore: buildRawExplore(),
+            compiledMetricQuery: rawFilterQuery(['2024-01-15 02:00:00']),
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(query).not.toContain('::timestamptz');
+        expect(query).toContain(`("events".occurred_at) >`);
     });
 });

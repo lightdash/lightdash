@@ -70,6 +70,7 @@ export type QueryComposerContext = {
     continueOnError?: boolean;
     useTimezoneAwareDateTrunc?: boolean;
     columnTimezone?: string;
+    rebaseRawTimestampFilters?: boolean;
     applyDateZoomToFilters?: boolean;
     /**
      * Flag-gated timezone echoed to clients and persisted with the query.
@@ -270,6 +271,7 @@ export class QueryComposer {
             continueOnError,
             useTimezoneAwareDateTrunc,
             columnTimezone,
+            rebaseRawTimestampFilters,
             applyDateZoomToFilters,
         } = this.context;
 
@@ -327,6 +329,7 @@ export class QueryComposer {
                     : undefined,
             useTimezoneAwareDateTrunc,
             columnTimezone,
+            rebaseRawTimestampFilters,
         });
 
         return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
