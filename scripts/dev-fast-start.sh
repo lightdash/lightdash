@@ -242,6 +242,24 @@ if [ "$EE_MODE" = true ] && ! grep -q "^LIGHTDASH_LICENSE_KEY=eyJ" .env.developm
     fail "ee-license" "EE requested but no LIGHTDASH_LICENSE_KEY in .env.development.local; run Step EE-1 (1Password) first"
 fi
 
+# The bare `--ee` fast path only applies the license + EE schema. The full AI/agent
+# experience — Copilot, default-agent (Aurora) auto-provisioning, and BigQuery Google-SSO —
+# comes from the `/docker-dev start ee` PROFILE, which additionally pulls ANTHROPIC_API_KEY
+# and the AUTH_GOOGLE_OAUTH2_* creds and sets AI_COPILOT_ENABLED. Without those a `--ee` run
+# still reports READY, so it silently ships half of EE. Warn (non-fatal) when that config is
+# absent so the gap is visible immediately instead of at feature-hit time. See scripts/dev-profiles.json.
+if [ "$EE_MODE" = true ]; then
+    _ee_missing=""
+    grep -q "^AI_COPILOT_ENABLED=true" .env.development.local 2>/dev/null || _ee_missing="${_ee_missing} AI_COPILOT_ENABLED"
+    grep -q "^ANTHROPIC_API_KEY=." .env.development.local 2>/dev/null || _ee_missing="${_ee_missing} ANTHROPIC_API_KEY"
+    grep -q "^AUTH_GOOGLE_OAUTH2_CLIENT_ID=." .env.development.local 2>/dev/null || _ee_missing="${_ee_missing} AUTH_GOOGLE_OAUTH2_CLIENT_ID"
+    if [ -n "$_ee_missing" ]; then
+        echo "WARN: EE license present but the AI profile config is incomplete (missing:${_ee_missing})."
+        echo "WARN: this bare --ee run brings up license + EE schema only; Copilot, agents (Aurora), and BigQuery Google-SSO stay OFF."
+        echo "WARN: for the full experience run '/docker-dev start ee' (or 'start newux' for the new onboarding UX) — it pulls the secrets and sets the flags. See scripts/dev-profiles.json."
+    fi
+fi
+
 # ---------------------------------------------------------------------------
 # The backend reads and writes S3 objects at localhost:9000 (S3_ENDPOINT). The
 # only thing that should be answering there is the MinIO container that
