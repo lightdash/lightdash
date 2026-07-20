@@ -119,6 +119,7 @@ export type DbAnnouncement = {
     title: string;
     body: string | null;
     category_uuid: string | null;
+    category: string | null;
     pinned: boolean;
     created_by_user_uuid: string | null;
     created_at: Date;
@@ -129,12 +130,17 @@ export type DbAnnouncementIn = Pick<
     DbAnnouncement,
     'project_uuid' | 'title' | 'body' | 'created_by_user_uuid'
 > &
-    Partial<Pick<DbAnnouncement, 'category_uuid'>>;
+    Partial<Pick<DbAnnouncement, 'category_uuid' | 'category'>>;
 
 export type DbAnnouncementUpdate = Partial<
     Pick<
         DbAnnouncement,
-        'title' | 'body' | 'category_uuid' | 'pinned' | 'updated_at'
+        | 'title'
+        | 'body'
+        | 'category_uuid'
+        | 'category'
+        | 'pinned'
+        | 'updated_at'
     >
 >;
 

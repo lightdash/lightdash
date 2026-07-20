@@ -479,6 +479,7 @@ describe('ProjectHomepageService', () => {
                 service.createAnnouncement(makeViewerUser(), PROJECT_UUID, {
                     title: 'Hello',
                     body: null,
+                    category: null,
                 }),
             ).rejects.toThrow(ForbiddenError);
         });
@@ -489,6 +490,7 @@ describe('ProjectHomepageService', () => {
                 service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
                     title: '   ',
                     body: null,
+                    category: null,
                 }),
             ).rejects.toThrow(ParameterError);
         });
@@ -499,6 +501,7 @@ describe('ProjectHomepageService', () => {
                 projectUuid: PROJECT_UUID,
                 title: 'Hello',
                 body: null,
+                category: null,
                 pinned: false,
                 createdByUserUuid: 'user-1',
                 authorName: 'Ana',

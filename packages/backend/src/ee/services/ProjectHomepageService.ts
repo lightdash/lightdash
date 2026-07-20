@@ -584,6 +584,7 @@ export class ProjectHomepageService extends BaseService {
             projectUuid,
             title: data.title.trim(),
             body: data.body,
+            category: data.category,
             createdByUserUuid: user.userUuid,
         });
     }

@@ -1,4 +1,5 @@
 import {
+    AnnouncementCategory,
     ConflictError,
     NotFoundError,
     ParameterError,
@@ -520,6 +521,7 @@ export class ProjectHomepageModel {
             projectUuid: row.project_uuid,
             title: row.title,
             body: row.body,
+            category: (row.category as AnnouncementCategory | null) ?? null,
             pinned: row.pinned,
             createdByUserUuid: row.created_by_user_uuid,
             authorName: row.author_name?.trim() || null,
@@ -584,6 +586,7 @@ export class ProjectHomepageModel {
         projectUuid: string;
         title: string;
         body: string | null;
+        category: AnnouncementCategory | null;
         createdByUserUuid: string;
     }): Promise<ProjectAnnouncement> {
         const [row] = await this.database(AnnouncementsTableName)
@@ -591,6 +594,7 @@ export class ProjectHomepageModel {
                 project_uuid: data.projectUuid,
                 title: data.title,
                 body: data.body,
+                category: data.category,
                 created_by_user_uuid: data.createdByUserUuid,
             })
             .returning('*');
@@ -620,6 +624,9 @@ export class ProjectHomepageModel {
                 .update({
                     ...(update.title !== undefined && { title: update.title }),
                     ...(update.body !== undefined && { body: update.body }),
+                    ...(update.category !== undefined && {
+                        category: update.category,
+                    }),
                     ...(update.pinned !== undefined && {
                         pinned: update.pinned,
                     }),
