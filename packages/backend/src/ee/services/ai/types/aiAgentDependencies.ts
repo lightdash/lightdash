@@ -419,6 +419,16 @@ export type StoreToolCallFn = (data: {
     parentToolCallId: string | null;
 }) => Promise<void>;
 
+// Persists tool-call attempts the AI SDK rejected before execution
+// (schema-invalid args, unparsable JSON) — debugging aid, not shown in UI.
+export type StoreToolCallErrorFn = (data: {
+    promptUuid: string;
+    toolCallId: string;
+    toolName: string;
+    errorMessage: string;
+    rawArgs: string | null;
+}) => Promise<void>;
+
 export type StoreToolResultsFn = (
     data: Array<{
         promptUuid: string;

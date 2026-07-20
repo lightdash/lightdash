@@ -201,6 +201,20 @@ export const normalizeToolOutput = (
     }
 };
 
+// Raw args of an invalid tool call: may be a parsed object or, when JSON
+// parsing itself failed, the raw string the model produced.
+const serializeRawToolArgs = (input: unknown): string | null => {
+    if (input === undefined) return null;
+    if (typeof input === 'string') return input;
+    try {
+        return JSON.stringify(input) ?? null;
+    } catch {
+        return String(input);
+    }
+};
+
+const QUERY_RETRY_CAP_TOOL_NAME = '__query_retry_cap';
+
 export const defaultAgentOptions = {
     toolChoice: 'auto' as const,
     stopWhen: stepCountIs(STEP_CAP),
@@ -235,6 +249,7 @@ const buildPrepareStep = ({
     logger: ReturnType<typeof createAiAgentLogger>;
 }) => {
     const forcedFirstStep = buildForcedFirstStep(args, tools);
+    let retryCapPersisted = false;
 
     return async ({
         stepNumber,
@@ -264,6 +279,25 @@ const buildPrepareStep = ({
                 'Prepare Step',
                 `Query retry cap tripped for prompt UUID: ${args.promptUuid}`,
             );
+            // Once per prompt: leave a debugging trail that the query tools
+            // were removed this turn (the cap stays tripped on later steps).
+            if (!retryCapPersisted) {
+                retryCapPersisted = true;
+                void dependencies
+                    .storeToolCallError({
+                        promptUuid: args.promptUuid,
+                        toolCallId: `${QUERY_RETRY_CAP_TOOL_NAME}-${args.promptUuid}`,
+                        toolName: QUERY_RETRY_CAP_TOOL_NAME,
+                        errorMessage: retryOverride.nudge,
+                        rawArgs: null,
+                    })
+                    .catch((error) => {
+                        Logger.error(
+                            '[AiAgent][Prepare Step] Failed to store query retry cap marker',
+                            error,
+                        );
+                    });
+            }
         }
 
         const steers = await dependencies.consumePromptSteers({
@@ -916,6 +950,39 @@ export const generateAgentResponse = async ({
                                     },
                                 });
 
+                                // Same handling as the streaming path: keep
+                                // invalid attempts out of ai_agent_tool_call
+                                // (replayed into UI/history) and persist them
+                                // in the error table instead.
+                                if (toolCall.invalid) {
+                                    Sentry.captureException(toolCall.error, {
+                                        tags: {
+                                            errorType: 'AiAgentToolCallInvalid',
+                                            'ai.model': modelName,
+                                        },
+                                    });
+                                    void dependencies
+                                        .storeToolCallError({
+                                            promptUuid: args.promptUuid,
+                                            toolCallId: toolCall.toolCallId,
+                                            toolName: toolCall.toolName,
+                                            errorMessage:
+                                                toolCall.error instanceof Error
+                                                    ? toolCall.error.message
+                                                    : String(toolCall.error),
+                                            rawArgs: serializeRawToolArgs(
+                                                toolCall.input,
+                                            ),
+                                        })
+                                        .catch((error) => {
+                                            Logger.error(
+                                                '[AiAgent][On Step Finish] Failed to store invalid tool call',
+                                                error,
+                                            );
+                                        });
+                                    return;
+                                }
+
                                 // in_progress is emitted at execute start by withEarlyToolProgress; re-emitting here double-sends it.
 
                                 await dependencies.storeToolCall({
@@ -1184,6 +1251,30 @@ export const streamAgentResponse = async ({
                                     'ai.model': modelName,
                                 },
                             });
+
+                            // Invalid calls are excluded from
+                            // ai_agent_tool_call (those rows are replayed into
+                            // UI/history), but persist them separately so the
+                            // thread doesn't silently lose failed attempts.
+                            void dependencies
+                                .storeToolCallError({
+                                    promptUuid: args.promptUuid,
+                                    toolCallId: event.chunk.toolCallId,
+                                    toolName: event.chunk.toolName,
+                                    errorMessage:
+                                        event.chunk.error instanceof Error
+                                            ? event.chunk.error.message
+                                            : String(event.chunk.error),
+                                    rawArgs: serializeRawToolArgs(
+                                        event.chunk.input,
+                                    ),
+                                })
+                                .catch((error) => {
+                                    Logger.error(
+                                        '[AiAgent][Chunk Tool Call] Failed to store invalid tool call',
+                                        error,
+                                    );
+                                });
                             break;
                         }
 

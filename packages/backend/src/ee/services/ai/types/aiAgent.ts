@@ -60,6 +60,7 @@ import {
     SendSlackBlocksFn,
     SetupPreviewDeployFn,
     StoreReasoningFn,
+    StoreToolCallErrorFn,
     StoreToolCallFn,
     StoreToolResultsFn,
     SyncDbtProjectFn,
@@ -217,6 +218,7 @@ export type AiAgentDependencies = {
     updatePrompt: UpdatePromptFn;
     updateProgress: UpdateProgressFn;
     storeToolCall: StoreToolCallFn;
+    storeToolCallError: StoreToolCallErrorFn;
     storeToolResults: StoreToolResultsFn;
     storeReasoning: StoreReasoningFn;
     isPromptInterrupted: IsPromptInterruptedFn;

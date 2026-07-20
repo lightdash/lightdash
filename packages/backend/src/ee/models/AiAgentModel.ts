@@ -104,6 +104,7 @@ import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
+    AiAgentToolCallErrorTableName,
     AiAgentToolCallTableName,
     AiAgentToolResultTableName,
     AiPromptContextEntityType,
@@ -334,6 +335,9 @@ const toAiPromptSteer = (row: AiPromptSteerRow): AiPromptSteer => ({
 });
 
 export class AiAgentModel {
+    // Cap stored raw args of invalid tool calls (they can be arbitrarily large)
+    private static readonly MAX_TOOL_CALL_ERROR_RAW_ARGS_LENGTH = 65536;
+
     private database: Knex;
 
     private lightdashConfig: LightdashConfig;
@@ -5963,6 +5967,30 @@ export class AiAgentModel {
             .returning('ai_agent_tool_call_uuid');
 
         return toolCall.ai_agent_tool_call_uuid;
+    }
+
+    // Debugging aid: tool-call attempts the AI SDK rejected before execution
+    // (schema-invalid args, unparsable JSON). Not replayed into UI/history.
+    async createToolCallError(data: {
+        promptUuid: string;
+        toolCallId: string;
+        toolName: string;
+        errorMessage: string;
+        rawArgs: string | null;
+    }): Promise<void> {
+        await this.database(AiAgentToolCallErrorTableName).insert({
+            ai_prompt_uuid: data.promptUuid,
+            tool_call_id: data.toolCallId,
+            tool_name: data.toolName,
+            error_message: data.errorMessage,
+            raw_args:
+                data.rawArgs !== null
+                    ? data.rawArgs.slice(
+                          0,
+                          AiAgentModel.MAX_TOOL_CALL_ERROR_RAW_ARGS_LENGTH,
+                      )
+                    : null,
+        });
     }
 
     // eslint-disable-next-line class-methods-use-this

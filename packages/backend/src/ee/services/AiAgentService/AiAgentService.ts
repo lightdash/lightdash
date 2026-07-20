@@ -293,6 +293,7 @@ import {
     SendFileFn,
     SendSlackBlocksFn,
     StoreReasoningFn,
+    StoreToolCallErrorFn,
     StoreToolCallFn,
     StoreToolResultsFn,
     UpdateProgressFn,
@@ -7474,6 +7475,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
         };
 
+        const storeToolCallError: StoreToolCallErrorFn = async (args) => {
+            await wrapSentryTransaction(
+                'AiAgent.storeToolCallError',
+                {
+                    promptUuid: args.promptUuid,
+                    toolCallId: args.toolCallId,
+                    toolName: args.toolName,
+                },
+                () => this.aiAgentModel.createToolCallError(args),
+            );
+        };
+
         const storeToolResults: StoreToolResultsFn = async (args) => {
             void wrapSentryTransaction(
                 'AiAgent.storeToolResults',
@@ -7936,6 +7949,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             sendSlackBlocks,
             updateSlackMessage,
             storeToolCall,
+            storeToolCallError,
             storeToolResults,
             storeReasoning,
             isPromptInterrupted: (promptUuid: string) =>
@@ -8125,6 +8139,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             sendSlackBlocks,
             updateSlackMessage,
             storeToolCall,
+            storeToolCallError,
             storeToolResults,
             storeReasoning,
             isPromptInterrupted,
@@ -8598,6 +8613,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             sendSlackBlocks,
             updateSlackMessage,
             storeToolCall,
+            storeToolCallError,
             storeToolResults,
             storeReasoning,
             isPromptInterrupted,
