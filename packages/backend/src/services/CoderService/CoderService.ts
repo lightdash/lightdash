@@ -1290,7 +1290,12 @@ export class CoderService extends BaseService {
                         project.organizationUuid,
                         { trx },
                     );
-                if (!reloadedUser.isActive) {
+                // Service-account users are always inactive by design;
+                // applySpaceAsCode rechecks the service_accounts row instead.
+                if (
+                    account.authentication.type !== 'service-account' &&
+                    !reloadedUser.isActive
+                ) {
                     throw new ForbiddenError(
                         'The authenticated user is no longer active',
                     );

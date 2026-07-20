@@ -301,7 +301,9 @@ export class SpaceModel {
         if (actor === undefined) {
             throw new ForbiddenError('The authenticated user no longer exists');
         }
-        if (!actor.isActive) {
+        // Service-account users are always inactive by design; their
+        // liveness is rechecked against the service_accounts row below.
+        if (serviceAccountUuid === null && !actor.isActive) {
             throw new ForbiddenError(
                 'The authenticated user is no longer active',
             );
