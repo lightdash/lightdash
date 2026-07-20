@@ -19,6 +19,7 @@ const ConnectManually: FC<ConnectManuallyProps> = ({
     return !hasDimensions ? (
         <ConnectManuallyStep1
             isCreatingFirstProject={isCreatingFirstProject}
+            selectedWarehouse={selectedWarehouse}
             onBack={onBack}
             onForward={() => {
                 setHasDimensions(true);

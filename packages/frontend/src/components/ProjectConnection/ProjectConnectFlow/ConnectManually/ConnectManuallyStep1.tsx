@@ -1,3 +1,4 @@
+import { type WarehouseTypes } from '@lightdash/common';
 import { Button, Stack, Text } from '@mantine-8/core';
 import { Tooltip } from '@mantine/core';
 import { Prism } from '@mantine/prism';
@@ -22,12 +23,14 @@ interface ConnectManuallyStep1Props {
     isCreatingFirstProject: boolean;
     onBack: () => void;
     onForward: () => void;
+    selectedWarehouse: WarehouseTypes;
 }
 
 const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
     isCreatingFirstProject,
     onBack,
     onForward,
+    selectedWarehouse,
 }) => {
     const { track } = useTracking();
 
@@ -88,7 +91,19 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
                             </Button>
                         </Tooltip>
 
-                        <Button onClick={onForward}>I’ve defined them!</Button>
+                        <Button
+                            onClick={() => {
+                                track({
+                                    name: EventName.CREATE_PROJECT_COLUMNS_DEFINED_BUTTON_CLICKED,
+                                    properties: {
+                                        warehouse: selectedWarehouse,
+                                    },
+                                });
+                                onForward();
+                            }}
+                        >
+                            I’ve defined them!
+                        </Button>
                     </Stack>
                 </Stack>
             </ProjectCreationCard>

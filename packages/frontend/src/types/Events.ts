@@ -187,7 +187,6 @@ export enum EventName {
 
     // Dashboard UI Version Toggle
     DASHBOARD_UI_VERSION_TOGGLED = 'dashboard_ui_version.toggled',
-
     SIGNUP_FORM_SUBMITTED = 'signup_form.submitted',
     OTP_RESEND_CLICKED = 'otp.resend_clicked',
     LOGIN_FLOW_METHOD_SELECTED = 'login_flow.method_selected',
@@ -203,4 +202,5 @@ export enum EventName {
     HOMEPAGE_RECOMMENDED_ACTION_IMPRESSION = 'homepage_recommended_action.impression',
     HOMEPAGE_RECOMMENDED_ACTION_RESTORED = 'homepage_recommended_action.restored',
     AGENT_SETUP_PROMPT_COPIED = 'agent_setup_prompt.copied',
+    CREATE_PROJECT_COLUMNS_DEFINED_BUTTON_CLICKED = 'create_project_columns_defined_button.click',
 }
