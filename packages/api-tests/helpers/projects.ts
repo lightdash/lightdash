@@ -1,5 +1,6 @@
 import { WarehouseTypes } from '@lightdash/common';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { expect } from 'vitest';
 import { ApiClient, Body } from './api-client';
@@ -203,6 +204,56 @@ async function waitForV1JobCompletion(
 }
 
 /**
+ * All test-created projects point at the same server-side dbt directory, so
+ * concurrent refreshes race on `dbt deps` and fail. This lock serializes
+ * refreshes across vitest forks and concurrent tests; mkdir is atomic on the
+ * shared runner filesystem. Stale locks (crashed fork) are stolen after 8 min.
+ */
+const REFRESH_LOCK_DIR = path.join(
+    os.tmpdir(),
+    'lightdash-api-tests-refresh.lock',
+);
+const REFRESH_LOCK_STALE_MS = 8 * 60 * 1000;
+
+async function acquireRefreshLock(): Promise<void> {
+    for (;;) {
+        try {
+            fs.mkdirSync(REFRESH_LOCK_DIR);
+            return;
+        } catch {
+            try {
+                const age = Date.now() - fs.statSync(REFRESH_LOCK_DIR).mtimeMs;
+                if (age > REFRESH_LOCK_STALE_MS) {
+                    fs.rmdirSync(REFRESH_LOCK_DIR);
+                }
+            } catch {
+                // released or stolen between checks; retry below
+            }
+            await new Promise<void>((r) => {
+                setTimeout(r, 500);
+            });
+        }
+    }
+}
+
+function releaseRefreshLock(): void {
+    try {
+        fs.rmdirSync(REFRESH_LOCK_DIR);
+    } catch {
+        // already stolen as stale
+    }
+}
+
+export async function withRefreshLock<T>(fn: () => Promise<T>): Promise<T> {
+    await acquireRefreshLock();
+    try {
+        return await fn();
+    } finally {
+        releaseRefreshLock();
+    }
+}
+
+/**
  * Create a project, run a full refresh, and return its UUID once compiled.
  * Throws if the refresh job fails so callers fail loudly instead of querying
  * an empty project.
@@ -218,13 +269,18 @@ export async function createAndRefreshProject(
         warehouseConnection,
     );
 
-    const refreshResp = await client.post<Body<{ jobUuid: string }>>(
-        `/api/v1/projects/${projectUuid}/refresh`,
-    );
-    expect(refreshResp.status).toBe(200);
+    const { outcome, jobUuid } = await withRefreshLock(async () => {
+        const refreshResp = await client.post<Body<{ jobUuid: string }>>(
+            `/api/v1/projects/${projectUuid}/refresh`,
+        );
+        expect(refreshResp.status).toBe(200);
 
-    const { jobUuid } = refreshResp.body.results;
-    const outcome = await waitForV1JobCompletion(client, jobUuid);
+        const id = refreshResp.body.results.jobUuid;
+        return {
+            outcome: await waitForV1JobCompletion(client, id),
+            jobUuid: id,
+        };
+    });
     if (outcome === 'ERROR') {
         const jobResp = await client.get<
             Body<{ steps: { stepError?: string }[] }>

@@ -11,6 +11,10 @@ import { TestResourceTracker, uniqueName } from '../../helpers/test-isolation';
 const v1 = '/api/v1';
 const v2 = '/api/v2';
 
+// Without an explicit spaceUuid the backend picks a default space, which can
+// belong to a concurrently-running test file that deletes it mid-test.
+let testSpaceUuid: string;
+
 async function createChartV1(
     client: ApiClient,
     projectUuid: string,
@@ -19,7 +23,7 @@ async function createChartV1(
     const body: CreateChartInSpace = {
         ...chartMock,
         name,
-        spaceUuid: undefined,
+        spaceUuid: testSpaceUuid,
         dashboardUuid: null,
     };
     const resp = await client.post<{ results: SavedChart }>(
@@ -37,6 +41,13 @@ describe('V2 Project Saved Chart endpoints', () => {
 
     beforeAll(async () => {
         admin = await login();
+        const spaceResp = await admin.post<{ results: { uuid: string } }>(
+            `${v1}/projects/${projectUuid}/spaces/`,
+            { name: uniqueName('V2 saved charts space') },
+        );
+        expect(spaceResp.status).toBe(200);
+        testSpaceUuid = spaceResp.body.results.uuid;
+        tracker.trackSpace(testSpaceUuid);
     });
 
     afterAll(async () => {

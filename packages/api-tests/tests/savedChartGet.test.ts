@@ -11,6 +11,7 @@ import { randomUUID } from 'crypto';
 import { Body } from '../helpers/api-client';
 import { login } from '../helpers/auth';
 import { chartMock } from '../helpers/mocks';
+import { withRefreshLock } from '../helpers/projects';
 import { uniqueName } from '../helpers/test-isolation';
 
 const apiUrl = '/api/v1';
@@ -94,15 +95,14 @@ async function createAndRefreshProject(
     // Track before refreshing so a failed compile cannot leak the project
     createdProjectUuids.push(secondProjectUuid);
 
-    const refreshResp = await client.post<Body<{ jobUuid: string }>>(
-        `/api/v1/projects/${secondProjectUuid}/refresh`,
-    );
-    expect(refreshResp.status).toBe(200);
+    const compiled = await withRefreshLock(async () => {
+        const refreshResp = await client.post<Body<{ jobUuid: string }>>(
+            `/api/v1/projects/${secondProjectUuid}/refresh`,
+        );
+        expect(refreshResp.status).toBe(200);
 
-    const compiled = await waitForV1JobCompletion(
-        client,
-        refreshResp.body.results.jobUuid,
-    );
+        return waitForV1JobCompletion(client, refreshResp.body.results.jobUuid);
+    });
     expect(compiled).toBe(true);
 
     return secondProjectUuid;

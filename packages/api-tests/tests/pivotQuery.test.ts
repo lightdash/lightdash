@@ -297,7 +297,9 @@ const pivotWarehouseEntries = getAvailableWarehouseConfigs({
     includePostgres: false,
 });
 
-describe('Pivot query API', () => {
+// Each warehouse block owns its project and only runs read-only queries, so
+// tests can run concurrently — this overlaps the slow per-warehouse refreshes.
+describe.concurrent('Pivot query API', () => {
     // Postgres: reuse the already-seeded project (no create/refresh needed).
     describe('postgres (seed project)', () => {
         let admin: ApiClient;
