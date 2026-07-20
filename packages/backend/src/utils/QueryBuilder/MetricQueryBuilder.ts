@@ -806,6 +806,20 @@ export class MetricQueryBuilder {
         if (metric.type !== MetricType.MIN && metric.type !== MetricType.MAX) {
             return baseSql;
         }
+        // A MIN/MAX over a naive TIMESTAMP column aggregates the bare wall
+        // clock, which the wire stamps as UTC — rebase the aggregate output to
+        // a true instant (identity in value for aware columns).
+        if (metric.baseDimensionType === DimensionType.TIMESTAMP) {
+            if (this.columnTimezone === 'UTC') return baseSql;
+            const baseDimension = this.resolveMinMaxBaseDimension(
+                metricId,
+                metric,
+            );
+            if (baseDimension?.skipTimezoneConversion) return baseSql;
+            return dateTruncTimezoneConversions[adapterType].castToInstant(
+                baseSql,
+            );
+        }
         // Only a calendar-DATE aggregation over a truncatable interval can drift:
         // a plain DATE column carries no interval, and a TIMESTAMP base is not
         // recast to a calendar date.
@@ -843,6 +857,31 @@ export class MetricQueryBuilder {
         return baseSql
             .split(baseDimension.compiledSql)
             .join(tzAwareDimensionSql);
+    }
+
+    /**
+     * Base dimension of a MIN/MAX metric: custom metrics carry
+     * baseDimensionName; YAML column metrics carry dimensionReference.
+     */
+    private resolveMinMaxBaseDimension(
+        metricId: string,
+        metric: CompiledMetric,
+    ): CompiledDimension | undefined {
+        const additionalMetric =
+            this.args.compiledMetricQuery.additionalMetrics?.find(
+                (am) => getItemId(am) === metricId,
+            );
+        const baseDimensionId = additionalMetric?.baseDimensionName
+            ? getItemId({
+                  table: metric.table,
+                  name: additionalMetric.baseDimensionName,
+              })
+            : metric.dimensionReference;
+        if (!baseDimensionId) return undefined;
+        return (
+            this.originalExploreDimensions[baseDimensionId] ??
+            this.exploreDimensions[baseDimensionId]
+        );
     }
 
     private buildDimensionsWhereClause(

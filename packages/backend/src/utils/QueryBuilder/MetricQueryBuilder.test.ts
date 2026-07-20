@@ -5497,8 +5497,9 @@ describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', 
         expect(query).not.toContain('AT TIME ZONE');
     });
 
-    // A MAX over a raw TIMESTAMP base is an instant, not a calendar date — it
-    // stays an un-cast MAX, shifted only at display time.
+    // A MAX over a raw TIMESTAMP base is an instant, not a calendar date — with
+    // the default UTC column timezone it stays an un-cast MAX, shifted only at
+    // display time. Non-UTC column timezones rebase it (tests below).
     const maxTsQuery: CompiledMetricQuery = {
         ...dayQuery,
         dimensions: [],
@@ -5541,6 +5542,91 @@ describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', 
         });
         expect(query).toContain(`MAX("events".occurred_at) AS "events_max_ts"`);
         expect(query).not.toMatch(/MAX\(CAST/);
+    });
+
+    // With a non-UTC column timezone the bare aggregate emits a naive wall
+    // clock that the wire stamps as UTC — the aggregate output is rebased.
+    test('MAX over a TIMESTAMP base + non-UTC column timezone rebases the aggregate (Postgres)', () => {
+        const { query } = buildQuery({
+            explore: buildDayExplore(),
+            compiledMetricQuery: maxTsQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: 'Asia/Tokyo',
+        });
+        expect(query).toContain(
+            `(MAX("events".occurred_at))::timestamptz AS "events_max_ts"`,
+        );
+    });
+
+    test('MAX over a TIMESTAMP base + non-UTC column timezone rebases the aggregate (BigQuery)', () => {
+        const { query } = buildQuery({
+            explore: buildDayExplore(
+                DimensionType.TIMESTAMP,
+                SupportedDbtAdapter.BIGQUERY,
+            ),
+            compiledMetricQuery: maxTsQuery,
+            warehouseSqlBuilder: bigqueryClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: 'Asia/Tokyo',
+        });
+        expect(query).toContain(
+            'TIMESTAMP(MAX("events".occurred_at)) AS `events_max_ts`',
+        );
+    });
+
+    test('a YAML MIN/MAX metric (dimensionReference) gets the same rebase', () => {
+        const explore = buildDayExplore();
+        explore.tables.events.metrics.max_ts_yaml = {
+            type: MetricType.MAX,
+            fieldType: FieldType.METRIC,
+            table: 'events',
+            tableLabel: 'events',
+            name: 'max_ts_yaml',
+            label: 'max_ts_yaml',
+            sql: '${TABLE}.occurred_at',
+            compiledSql: 'MAX("events".occurred_at)',
+            tablesReferences: ['events'],
+            hidden: false,
+            baseDimensionType: DimensionType.TIMESTAMP,
+            dimensionReference: 'events_occurred_at',
+        };
+        const { query } = buildQuery({
+            explore,
+            compiledMetricQuery: {
+                ...dayQuery,
+                dimensions: [],
+                metrics: ['events_max_ts_yaml'],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: 'Asia/Tokyo',
+        });
+        expect(query).toContain(
+            `(MAX("events".occurred_at))::timestamptz AS "events_max_ts_yaml"`,
+        );
+    });
+
+    test('convert_timezone: false on the base dim leaves the TIMESTAMP MAX un-cast', () => {
+        const explore = buildDayExplore();
+        explore.tables.events.dimensions.occurred_at.skipTimezoneConversion = true;
+        const { query } = buildQuery({
+            explore,
+            compiledMetricQuery: maxTsQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: 'Asia/Tokyo',
+        });
+        expect(query).toContain(`MAX("events".occurred_at) AS "events_max_ts"`);
+        expect(query).not.toContain('::timestamptz');
     });
 
     // A coarser grain (month) is just as truncatable as day — it takes the same
