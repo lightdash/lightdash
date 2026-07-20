@@ -8,7 +8,7 @@
 .column {
     flex: 1;
     width: 100%;
-    max-width: 1140px;
+    max-width: 880px;
     margin: 0 auto;
     padding: 56px var(--mantine-spacing-xxl) var(--mantine-spacing-xl);
     display: flex;
@@ -60,7 +60,7 @@
 .connectColumn {
     flex: 1;
     width: 100%;
-    max-width: 62rem;
+    max-width: 52rem;
     margin: 0 auto;
     padding: var(--mantine-spacing-xl) var(--mantine-spacing-sm);
 }

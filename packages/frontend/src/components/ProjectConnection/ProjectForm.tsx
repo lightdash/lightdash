@@ -53,7 +53,7 @@ export const ProjectForm: FC<Props> = ({
                 </SettingsGridCard>
             )}
 
-            <SettingsGridCard>
+            <SettingsGridCard p={warehouseOnly ? 'xl' : undefined}>
                 <div>
                     {warehouse && getWarehouseIcon(warehouse)}
                     <Flex align="center" gap={2}>
