@@ -1204,6 +1204,13 @@ const convertDashboardFilterRuleToFilterRule = (
 const getFieldIdWithoutTable = (fieldId: string, tableName: string) =>
     fieldId.replace(`${tableName}_`, '');
 
+const getBaseTimeDimensionName = (
+    timeDimension: Dimension,
+): string | undefined => {
+    if (timeDimension.isIntervalBase) return timeDimension.name;
+    return timeDimension.timeIntervalBaseDimensionName;
+};
+
 /**
  * Tracks time-based metric filters that need overriding via external map
  * @param metricQueryDimensionFilters - Existing dimension filters in the query
@@ -1232,7 +1239,11 @@ export const trackWhichTimeBasedMetricFiltersToOverride = (
             )
         ];
 
-    if (!baseDimension?.timeIntervalBaseDimensionName) {
+    const baseTimeDimensionName = baseDimension
+        ? getBaseTimeDimensionName(baseDimension)
+        : undefined;
+
+    if (!baseTimeDimensionName) {
         return { filter: dashboardFilterRule };
     }
 
@@ -1257,8 +1268,9 @@ export const trackWhichTimeBasedMetricFiltersToOverride = (
                             ?.dimensions[itemFieldId];
 
                     const isTimeOrDateDimension =
-                        itemDimension?.timeIntervalBaseDimensionName ===
-                        baseDimension.timeIntervalBaseDimensionName;
+                        itemDimension !== undefined &&
+                        getBaseTimeDimensionName(itemDimension) ===
+                            baseTimeDimensionName;
 
                     if (isTimeOrDateDimension) {
                         return [...acc, item.target.fieldId];
@@ -1277,8 +1289,7 @@ export const trackWhichTimeBasedMetricFiltersToOverride = (
         ? {
               filter: dashboardFilterRule,
               overrideData: {
-                  baseTimeDimensionName:
-                      baseDimension.timeIntervalBaseDimensionName,
+                  baseTimeDimensionName,
                   fieldsToChange,
               },
           }
@@ -1406,13 +1417,6 @@ export const isFilterRuleInQuery = (
     explore: Explore,
 ): undefined | boolean => {
     if (!dimensionsFilterGroup) return undefined;
-
-    const getBaseTimeDimensionName = (
-        timeDimension: Dimension,
-    ): string | undefined => {
-        if (timeDimension.isIntervalBase) return timeDimension.name;
-        return timeDimension.timeIntervalBaseDimensionName;
-    };
 
     const getDimensionFromExplore = (fieldId: string): Dimension | undefined =>
         Object.values(explore.tables)
