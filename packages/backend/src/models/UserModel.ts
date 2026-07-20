@@ -447,7 +447,12 @@ export class UserModel {
                 `No user found with email ${email} and password`,
             );
         }
-        const match = await bcrypt.compare(password, user.password_hash || '');
+        if (!user.password_hash) {
+            throw new NotFoundError(
+                `No User found with email ${email} and password`,
+            );
+        }
+        const match = await bcrypt.compare(password, user.password_hash);
         if (!match) {
             throw new NotFoundError(
                 `No User found with email ${email} and password`,

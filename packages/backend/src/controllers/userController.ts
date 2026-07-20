@@ -655,6 +655,7 @@ export class UserController extends BaseController {
     @Middlewares([
         // NOTE: We do NOT allow personal access tokens to be created with PAT authentication
         allowOauthAuthentication, // Allow creating PAT from OAuth tokens
+        isAuthenticated,
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')

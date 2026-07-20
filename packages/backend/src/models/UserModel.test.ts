@@ -3,11 +3,13 @@ import {
     LightdashMode,
     LightdashUser,
     MemberAbility,
+    NotFoundError,
     OrganizationMemberRole,
     projectMemberAbilities,
     ProjectMemberRole,
     ServiceAccountScope,
 } from '@lightdash/common';
+import bcrypt from 'bcrypt';
 import { type Knex } from 'knex';
 import { type LightdashConfig } from '../config/parseConfig';
 import { EmailTableName } from '../database/entities/emails';
@@ -395,5 +397,45 @@ describe('UserModel', () => {
             expect.anything(),
             trx,
         );
+    });
+
+    describe('getUserByPrimaryEmailAndPassword', () => {
+        const createThenableQuery = (rows: unknown[]) => {
+            const query: unknown = new Proxy(
+                {},
+                {
+                    get: (_target, prop) => {
+                        if (prop === 'then') {
+                            return (resolve: (value: unknown[]) => unknown) =>
+                                resolve(rows);
+                        }
+                        return () => query;
+                    },
+                },
+            );
+            return query;
+        };
+
+        it('fails authentication without comparing passwords when the user has no password hash', async () => {
+            const database = vi.fn(() =>
+                createThenableQuery([{ ...userDetails, password_hash: null }]),
+            ) as unknown as Knex;
+            const model = new UserModel({
+                database,
+                lightdashConfig,
+                featureFlagModel,
+            });
+            const compareSpy = vi.spyOn(bcrypt, 'compare');
+
+            await expect(
+                model.getUserByPrimaryEmailAndPassword(
+                    'passwordless@example.com',
+                    'password1!',
+                ),
+            ).rejects.toThrow(NotFoundError);
+
+            expect(compareSpy).not.toHaveBeenCalled();
+            compareSpy.mockRestore();
+        });
     });
 });
