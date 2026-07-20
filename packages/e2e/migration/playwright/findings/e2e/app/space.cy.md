@@ -142,3 +142,36 @@ Expected focused inventory is 10 passed and 2 skipped, unless owners explicitly 
 ## Port history
 
 Not started.
+
+### 2026-07-20 — static port implementation
+
+- Target: `packages/e2e/playwright/app/space.spec.ts`.
+- Ported exactly the 10 active browser contracts. The two direct Cypress `it.skip` cases were not copied or activated, per the port contract and owner disposition.
+- Added only the three approved `@mutating` tags: private-content authorization, space create/delete, and dashboard create/delete.
+- Added independent admin/editor/viewer/member contexts, exact seeded identity checks, separate private-flow cookie jars, strict local JSON/UUID parsing, bounded render-synchronized virtual-tree scrolling, exact dialog/tree/row locators, cancellation of unfinished dashboard dialogs, response/URL UUID capture, and fresh disposable admin API fallback cleanup with UUID-specific absence/404 verification.
+- Static verification after fixes:
+  - `pnpm -F e2e typecheck:playwright` — passed.
+  - `pnpm -F e2e linter ./playwright/app/space.spec.ts` — passed.
+  - `pnpm -F e2e formatter ./playwright/app/space.spec.ts --check` — passed.
+  - Scope/inventory checks — 10 tests, exactly 3 `@mutating`; forbidden-pattern scan clean; Cypress source unchanged; owned-path scope clean; `git diff --check` passed before this history append.
+- Iteration evidence: the first static pass exposed browser `Response` versus `APIResponse` typing, 17 ESLint findings, and formatting drift. These were fixed with a shared response protocol, recursive bounded scrolling, capture callbacks, destructuring, and oxfmt; the final static pass is green.
+- Runtime risk: no Playwright, Cypress, browser discovery, or API mutation command was run because the sole mutation lease has not been granted. Live selector semantics, onboarding-modal availability, response timing, and cleanup behavior remain execution-gated.
+- Commit: pending (not staged or committed by instruction).
+
+### 2026-07-20 — execution lease verification
+
+- Runtime repairs stayed within `packages/e2e/playwright/app/space.spec.ts`: dialogs are scoped by role plus exact rendered title because the live Mantine dialog has no accessible name; resource rows use exact rendered names because link accessible names include count metadata; admin tests establish fresh exact admin identities; Save Chart uses keyboard activation to avoid the ambient-AI hover side effect while preserving empty-name validation; the visible `All` segment is clicked instead of its hidden radio; and member setup follows the parsed `isSetupComplete` response while still API-logging in and validating the exact dynamic identity. In this environment, absent Rudder configuration intentionally makes new users setup-complete.
+- Playwright execution (`PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000`, Firefox, one worker, direct `pnpm -F e2e exec playwright test`):
+  - Focused `playwright/app/space.spec.ts` — 11 passed (setup + 10 active ports).
+  - `playwright/app/space.spec.ts --repeat-each=3` — 31 passed (setup + all 10 ports repeated three times).
+  - `playwright/app/space.spec.ts --grep @mutating` — 4 passed (setup + exactly 3 mutation-tagged tests).
+  - Full branch Firefox — 16 passed.
+- Unchanged Cypress parity command: `CYPRESS_BASE_URL=http://127.0.0.1:3000 pnpm -F e2e exec cypress run --spec cypress/e2e/app/space.cy.ts` — 12 tests: 9 passing, 2 pending direct skips, 1 failing after all 3 configured attempts. The sole failure is `Space > Another non-admin user cannot see private content` at source line 131: the unchanged source requires the `Select your role` onboarding control, while this no-Rudder environment creates invitees with `isSetupComplete: true`, so the modal is correctly absent. Cypress screenshots for all three attempts and command output establish the same root cause. Per supervisor disposition this is a documented legacy-parity failure, not a replacement blocker; Cypress remains unchanged and authoritative.
+- Exact Cypress retry cleanup:
+  - Attempt 1: space `f7043fb1-e72f-4677-93aa-63a1219c573e`, chart `2f532d1d-3d5b-4c3b-8209-86badf4da9ca`, dashboard `337fd6a0-6898-4c0c-afd5-fe45203a5c62`, user `76472367-182b-41ce-bd10-7c9d805bb307`, email `demo+member-1784559652822@lightdash.com`.
+  - Attempt 2: space `1cf04d99-f6c6-407e-8be3-39ed5fe67707`, chart `ea336094-7fd2-48ae-934a-6d07b9de4e4d`, dashboard `15c248a4-b89e-48c1-a516-8fbe48b5d029`, user `f563d213-9e59-49d2-9ebf-ae82f7eaae6f`, email `demo+member-1784559676895@lightdash.com`.
+  - Attempt 3: space `edce2251-80d8-4f37-b29b-174f727ebad9`, chart `d7b6f43b-0712-4f58-93f7-42c13f1ad85f`, dashboard `8884ca01-a898-4fc5-ad3d-c06001abbd4a`, user `301b52d3-7e93-47ea-ae32-41726145e81a`, email `demo+member-1784559701572@lightdash.com`.
+  - Each exact content UUID, project access, and user was deleted through the authenticated API; every exact content/user/access GET returned 404 afterward, and each exact email count is zero.
+- Final static verification passed: `pnpm -F e2e typecheck:playwright`; targeted ESLint; targeted oxfmt check.
+- Final resource audit: zero active `Private space/chart/dashboard`, `PW space/dashboard`, `TS`, or `TD` resources; zero `space-member-*`/`demo+member-*` users and project accesses; all four seed users remain active. The only run-owned rows are expected soft-delete tombstones (14 private spaces, 8 PW spaces, 1 Cypress TS space, 12 private charts, 12 private dashboards, 8 PW dashboards, 1 Cypress TD dashboard). All 56 exact run-owned resource UUIDs return 404.
+- Commit: pending (not staged or committed by instruction).
