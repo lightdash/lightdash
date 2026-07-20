@@ -1,3 +1,15 @@
+# [0.3427.0](https://github.com/lightdash/lightdash/compare/0.3426.0...0.3427.0) (2026-07-20)
+
+
+### Bug Fixes
+
+* **onboarding:** only show "Finish setting up" checklist to project admins ([#25832](https://github.com/lightdash/lightdash/issues/25832)) ([6e48393](https://github.com/lightdash/lightdash/commit/6e4839304f92a60865292972be2f2d87f1225088))
+
+
+### Features
+
+* **onboarding:** polish warehouse-connect UI ([#25828](https://github.com/lightdash/lightdash/issues/25828)) ([a7fed72](https://github.com/lightdash/lightdash/commit/a7fed72882a88045eecf807757ef70c127ae1d4f))
+
 # [0.3426.0](https://github.com/lightdash/lightdash/compare/0.3425.0...0.3426.0) (2026-07-20)
 
 
