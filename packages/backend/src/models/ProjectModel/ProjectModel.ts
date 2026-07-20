@@ -64,6 +64,7 @@ import NodeCache from 'node-cache';
 import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../../config/parseConfig';
+import { normalizeDatabricksHostLenient } from '../../controllers/authentication/strategies/databricksStrategy';
 import {
     DashboardsTableName,
     DashboardTabsTableName,
@@ -233,6 +234,16 @@ export class ProjectModel {
             (incompleteConfig.type === WarehouseTypes.ATHENA &&
                 incompleteConfig.authenticationType ===
                     AthenaAuthenticationType.IAM_ROLE)
+        ) {
+            return incompleteConfig;
+        }
+        // Databricks secrets are only valid for the host they were entered
+        // for, so a host change requires re-entering them instead of merging
+        if (
+            incompleteConfig.type === WarehouseTypes.DATABRICKS &&
+            completeConfig.type === WarehouseTypes.DATABRICKS &&
+            normalizeDatabricksHostLenient(incompleteConfig.serverHostName) !==
+                normalizeDatabricksHostLenient(completeConfig.serverHostName)
         ) {
             return incompleteConfig;
         }

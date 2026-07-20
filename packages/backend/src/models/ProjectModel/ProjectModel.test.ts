@@ -4,7 +4,9 @@ import {
     CompiledDimension,
     CompiledMetric,
     CreateAthenaCredentials,
+    CreateDatabricksCredentials,
     CreatePostgresCredentials,
+    DatabricksAuthenticationType,
     DimensionType,
     ExploreType,
     FieldType,
@@ -265,6 +267,60 @@ describe('ProjectModel', () => {
             expect(result.authenticationType).toEqual(
                 AthenaAuthenticationType.IAM_ROLE,
             );
+        });
+
+        test('should NOT merge Databricks secrets when serverHostName changes', async () => {
+            const completeDatabricksCredentials: CreateDatabricksCredentials = {
+                type: WarehouseTypes.DATABRICKS,
+                database: 'default',
+                serverHostName: 'adb-123.azuredatabricks.net',
+                httpPath: '/sql/1.0/warehouses/abc',
+                authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+                oauthClientId: 'client-id',
+                oauthClientSecret: 'client-secret',
+            };
+            const incompleteDatabricksCredentials: CreateDatabricksCredentials =
+                {
+                    ...completeDatabricksCredentials,
+                    serverHostName: 'other-host.example.com',
+                    oauthClientId: undefined,
+                    oauthClientSecret: undefined,
+                };
+
+            const result = ProjectModel.mergeMissingWarehouseSecrets(
+                incompleteDatabricksCredentials,
+                completeDatabricksCredentials,
+            );
+
+            expect(result.oauthClientId).toBeUndefined();
+            expect(result.oauthClientSecret).toBeUndefined();
+        });
+
+        test('should merge Databricks secrets when serverHostName is unchanged', async () => {
+            const completeDatabricksCredentials: CreateDatabricksCredentials = {
+                type: WarehouseTypes.DATABRICKS,
+                database: 'default',
+                serverHostName: 'adb-123.azuredatabricks.net',
+                httpPath: '/sql/1.0/warehouses/abc',
+                authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+                oauthClientId: 'client-id',
+                oauthClientSecret: 'client-secret',
+            };
+            const incompleteDatabricksCredentials: CreateDatabricksCredentials =
+                {
+                    ...completeDatabricksCredentials,
+                    serverHostName: 'https://ADB-123.AZUREDATABRICKS.NET/',
+                    oauthClientId: undefined,
+                    oauthClientSecret: undefined,
+                };
+
+            const result = ProjectModel.mergeMissingWarehouseSecrets(
+                incompleteDatabricksCredentials,
+                completeDatabricksCredentials,
+            );
+
+            expect(result.oauthClientId).toEqual('client-id');
+            expect(result.oauthClientSecret).toEqual('client-secret');
         });
     });
 
