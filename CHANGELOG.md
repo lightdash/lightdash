@@ -1,3 +1,10 @@
+## [0.3420.3](https://github.com/lightdash/lightdash/compare/0.3420.2...0.3420.3) (2026-07-20)
+
+
+### Bug Fixes
+
+* allow editors with create:ContentAsCode to pass CLI upload preflight ([#25585](https://github.com/lightdash/lightdash/issues/25585)) ([ac3d606](https://github.com/lightdash/lightdash/commit/ac3d6066688f2d60e582068e322cc147fd9e0644))
+
 ## [0.3420.2](https://github.com/lightdash/lightdash/compare/0.3420.1...0.3420.2) (2026-07-20)
 
 
