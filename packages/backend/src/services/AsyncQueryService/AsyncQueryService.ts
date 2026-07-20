@@ -2340,6 +2340,7 @@ export class AsyncQueryService extends ProjectService {
         organizationUuid,
         isRegisteredUser,
         isServiceAccount,
+        onboardingFlow,
         projectUuid,
         queryUuid,
         queryTags,
@@ -2364,6 +2365,7 @@ export class AsyncQueryService extends ProjectService {
                 isPreviewProject,
                 isRegisteredUser,
                 isServiceAccount,
+                onboardingFlow,
                 projectUuid,
                 queryUuid,
                 queryTags,
@@ -2402,6 +2404,7 @@ export class AsyncQueryService extends ProjectService {
                 isPreviewProject,
                 isRegisteredUser,
                 isServiceAccount,
+                onboardingFlow,
                 projectUuid,
                 queryUuid,
                 queryTags,
@@ -2531,6 +2534,7 @@ export class AsyncQueryService extends ProjectService {
         isPreviewProject,
         isRegisteredUser,
         isServiceAccount,
+        onboardingFlow,
         projectUuid,
         query,
         fieldsMap,
@@ -2778,6 +2782,7 @@ export class AsyncQueryService extends ProjectService {
                     isPreviewProject,
                     status: 'success',
                     context: queryTags.query_context,
+                    onboardingFlow,
                     exploreName: queryTags.explore_name ?? null,
                     chartId: queryTags.chart_uuid ?? null,
                     dashboardId: queryTags.dashboard_uuid ?? null,
@@ -2964,6 +2969,7 @@ export class AsyncQueryService extends ProjectService {
                     isPreviewProject,
                     status: 'error',
                     context: queryTags.query_context,
+                    onboardingFlow,
                     exploreName: queryTags.explore_name ?? null,
                     chartId: queryTags.chart_uuid ?? null,
                     dashboardId: queryTags.dashboard_uuid ?? null,
@@ -3076,6 +3082,10 @@ export class AsyncQueryService extends ProjectService {
             await this.deriveWarehouseCredentialsOverrides(query);
         const displayTimezone = query.metricQuery.timezone ?? null;
         const isPreviewProject = await this.isProjectPreview(query.projectUuid);
+        const onboardingFlow = await this.getOnboardingFlow({
+            userUuid: actor.userUuid,
+            organizationUuid: query.organizationUuid,
+        });
 
         return {
             projectUuid: query.projectUuid ?? '',
@@ -3085,6 +3095,7 @@ export class AsyncQueryService extends ProjectService {
             queryUuid: query.queryUuid,
             isRegisteredUser: actor.isRegisteredUser,
             isServiceAccount: actor.isServiceAccount,
+            onboardingFlow,
             queryTags,
             fieldsMap: query.fields,
             cacheKey: query.cacheKey,
@@ -3124,6 +3135,10 @@ export class AsyncQueryService extends ProjectService {
             await this.deriveWarehouseCredentialsOverrides(query);
         const displayTimezone = query.metricQuery.timezone ?? null;
         const isPreviewProject = await this.isProjectPreview(query.projectUuid);
+        const onboardingFlow = await this.getOnboardingFlow({
+            userUuid: actor.userUuid,
+            organizationUuid: query.organizationUuid,
+        });
 
         return {
             projectUuid: query.projectUuid ?? '',
@@ -3133,6 +3148,7 @@ export class AsyncQueryService extends ProjectService {
             queryUuid: query.queryUuid,
             isRegisteredUser: actor.isRegisteredUser,
             isServiceAccount: actor.isServiceAccount,
+            onboardingFlow,
             queryTags,
             fieldsMap: query.fields,
             cacheKey: query.cacheKey,
@@ -3676,6 +3692,10 @@ export class AsyncQueryService extends ProjectService {
                     });
                     span.setAttribute('generatedSql', query);
 
+                    const onboardingFlow = await this.getOnboardingFlow({
+                        userUuid: account.user.id,
+                        organizationUuid: account.organization.organizationUuid,
+                    });
                     const onboardingRecord =
                         await this.onboardingModel.getByOrganizationUuid(
                             account.organization.organizationUuid,
@@ -3688,6 +3708,16 @@ export class AsyncQueryService extends ProjectService {
                                 ranQueryAt: new Date(),
                             },
                         );
+                        this.analytics.trackAccount(account, {
+                            event: 'onboarding.step_completed',
+                            properties: {
+                                step: 'first_query',
+                                stepIndex: 5,
+                                onboardingFlow,
+                                organizationId:
+                                    account.organization.organizationUuid,
+                            },
+                        });
                     }
 
                     // Mirrors runAsyncWarehouseQuery's resolvedDataTimezone:
@@ -3764,6 +3794,7 @@ export class AsyncQueryService extends ProjectService {
                         organizationId: organizationUuid,
                         projectId: projectUuid,
                         context,
+                        onboardingFlow,
                         queryId: queryHistoryUuid,
                         warehouseType: warehouseCredentialsType,
                         ...ProjectService.getMetricQueryExecutionProperties({
@@ -3811,6 +3842,7 @@ export class AsyncQueryService extends ProjectService {
                                 isPreviewProject,
                                 status: outcome.status,
                                 context,
+                                onboardingFlow,
                                 exploreName: explore.name,
                                 chartId: chart?.uuid ?? null,
                                 dashboardId: queryTags.dashboard_uuid ?? null,
@@ -4017,6 +4049,7 @@ export class AsyncQueryService extends ProjectService {
                         isPreviewProject,
                         isRegisteredUser: account.isRegisteredUser(),
                         isServiceAccount: account.isServiceAccount(),
+                        onboardingFlow,
                         projectUuid,
                         query: executionPlan.warehouseQuery,
                         fieldsMap,

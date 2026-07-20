@@ -10,6 +10,7 @@ import {
     ContentType,
     DbtProjectType,
     getRequestMethod,
+    InviteLinkPurpose,
     LightdashInstallType,
     LightdashMode,
     LightdashPage,
@@ -108,7 +109,11 @@ type DbtCloudIntegration = BaseTrack & {
 type LoginEvent = BaseTrack & {
     event: 'user.logged_in';
     properties: {
-        loginProvider: 'password' | 'email_otp' | OpenIdIdentityIssuerType;
+        loginProvider:
+            | 'password'
+            | 'email_otp'
+            | 'invite_link'
+            | OpenIdIdentityIssuerType;
     };
 };
 
@@ -133,6 +138,7 @@ export type CreateUserEvent = BaseTrack & {
         | {
               context: 'registration' | 'accept_invite';
               onboardingFlow: OnboardingFlow;
+              isOrganizationCreator: boolean;
           }
         | { context: 'scim' }
     );
@@ -200,6 +206,31 @@ type OneTimePasscodeFailedEvent = BaseTrack & {
 function isUserVerifiedEvent(event: BaseTrack): event is VerifiedUserEvent {
     return event.event === 'user.verified';
 }
+
+type OnboardingStepCompletedEvent = BaseTrack & {
+    event: 'onboarding.step_completed';
+    properties: {
+        step:
+            | 'signup'
+            | 'verified'
+            | 'org_created'
+            | 'warehouse_connected'
+            | 'first_query';
+        stepIndex: number;
+        onboardingFlow: OnboardingFlow;
+        organizationId?: string;
+    };
+};
+
+type SetupInviteAcceptedEvent = BaseTrack & {
+    event: 'setup_invite.accepted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        invitePurpose: InviteLinkPurpose.Setup;
+        onboardingFlow: OnboardingFlow;
+    };
+};
 
 type UserWarehouseCredentialsEvent = BaseTrack & {
     event:
@@ -333,6 +364,7 @@ type QueryExecutionEvent = BaseTrack & {
         context: QueryExecutionContext;
         organizationId: string;
         projectId: string;
+        onboardingFlow: OnboardingFlow;
         executionSource?: QueryExecutionSource;
         cacheMetadata?: CacheMetadata;
     } & (
@@ -383,6 +415,7 @@ export type QueryCompletedEvent = BaseTrack & {
         isPreviewProject: boolean;
         status: 'success' | 'error';
         context: QueryExecutionContext;
+        onboardingFlow: OnboardingFlow;
         exploreName: string | null;
         chartId: string | null;
         dashboardId: string | null;
@@ -2590,6 +2623,8 @@ type TypedEvent =
     | VerifiedUserEvent
     | OneTimePasscodeSentEvent
     | OneTimePasscodeFailedEvent
+    | OnboardingStepCompletedEvent
+    | SetupInviteAcceptedEvent
     | UserJoinOrganizationEvent
     | QueryExecutionEvent
     | QueryReadyEvent

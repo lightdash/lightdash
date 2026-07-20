@@ -31,6 +31,7 @@ const queryCompletedEvent: QueryCompletedEvent = {
         isPreviewProject: false,
         status: 'success',
         context: QueryExecutionContext.EXPLORE,
+        onboardingFlow: 'legacy',
         exploreName: 'orders',
         chartId: 'chart-1',
         dashboardId: 'dashboard-1',

@@ -569,7 +569,7 @@ export class ProjectService extends BaseService {
         this.onProjectCreated = onProjectCreated;
     }
 
-    private async getOnboardingFlow(
+    protected async getOnboardingFlow(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
     ): Promise<OnboardingFlow> {
         const { enabled } = await this.featureFlagModel.get({
@@ -3618,6 +3618,18 @@ export class ProjectService extends BaseService {
                     onboardingFlow,
                 },
             });
+            if (context === 'project_create') {
+                this.analytics.track({
+                    event: 'onboarding.step_completed',
+                    userId: user.userUuid,
+                    properties: {
+                        step: 'warehouse_connected',
+                        stepIndex: 4,
+                        onboardingFlow,
+                        organizationId: user.organizationUuid,
+                    },
+                });
+            }
             return {
                 adapter,
                 sshTunnel,
@@ -5472,6 +5484,10 @@ export class ProjectService extends BaseService {
                         }),
                     );
 
+                    const onboardingFlow = await this.getOnboardingFlow({
+                        userUuid: account.user.id,
+                        organizationUuid: account.organization.organizationUuid,
+                    });
                     const onboardingRecord =
                         await this.onboardingModel.getByOrganizationUuid(
                             account.organization.organizationUuid,
@@ -5483,6 +5499,16 @@ export class ProjectService extends BaseService {
                                 ranQueryAt: new Date(),
                             },
                         );
+                        this.analytics.trackAccount(account, {
+                            event: 'onboarding.step_completed',
+                            properties: {
+                                step: 'first_query',
+                                stepIndex: 5,
+                                onboardingFlow,
+                                organizationId:
+                                    account.organization.organizationUuid,
+                            },
+                        });
                     }
 
                     this.analytics.trackAccount(account, {
@@ -5491,6 +5517,7 @@ export class ProjectService extends BaseService {
                             organizationId: organizationUuid,
                             projectId: projectUuid,
                             context,
+                            onboardingFlow,
                             ...ProjectService.getMetricQueryExecutionProperties(
                                 {
                                     metricQuery: metricQueryWithLimit,
@@ -5584,6 +5611,7 @@ export class ProjectService extends BaseService {
                 projectId: projectUuid,
                 context: QueryExecutionContext.SQL_RUNNER,
                 usingStreaming: false,
+                onboardingFlow: await this.getOnboardingFlow(user),
             },
         });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
@@ -5645,6 +5673,10 @@ export class ProjectService extends BaseService {
                 context: context as QueryExecutionContext,
                 sqlChartId: sqlChartUuid,
                 usingStreaming: true,
+                onboardingFlow: await this.getOnboardingFlow({
+                    userUuid,
+                    organizationUuid,
+                }),
             },
         });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
@@ -5733,6 +5765,10 @@ export class ProjectService extends BaseService {
                 context: context as QueryExecutionContext,
                 sqlChartId: sqlChartUuid,
                 usingStreaming: true,
+                onboardingFlow: await this.getOnboardingFlow({
+                    userUuid,
+                    organizationUuid,
+                }),
             },
         });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(

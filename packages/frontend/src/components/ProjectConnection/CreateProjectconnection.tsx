@@ -1,11 +1,13 @@
 import {
     isCreateProjectJob,
+    JobStatusType,
+    JobStepStatusType,
     ProjectType,
     WarehouseTypes,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
 import { Button } from '@mantine-8/core';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { useCreateMutation } from '../../hooks/useProject';
 import useActiveJob from '../../providers/ActiveJob/useActiveJob';
@@ -43,6 +45,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     const { activeJobIsRunning, activeJobId, activeJob } = useActiveJob();
     const { isLoading: isSaving, mutateAsync } = useCreateMutation({
         quietJobToast: warehouseOnly,
+        warehouseOnly,
     });
     const onProjectError = useOnProjectError();
 
@@ -124,6 +127,40 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             });
         }
     }, [activeJob, createProjectJobId, navigate, successRedirect]);
+
+    // The warehouse adapter test runs inside the async create job, so
+    // connection failures surface as the job's ERROR status, not via the
+    // create mutation's onError (which only covers sync API errors).
+    const trackedFailedJobRef = useRef<string | undefined>(undefined);
+    useEffect(() => {
+        if (
+            createProjectJobId &&
+            createProjectJobId === activeJob?.jobUuid &&
+            isCreateProjectJob(activeJob) &&
+            activeJob.jobStatus === JobStatusType.ERROR &&
+            trackedFailedJobRef.current !== createProjectJobId
+        ) {
+            trackedFailedJobRef.current = createProjectJobId;
+            const failedStep = activeJob.steps.find(
+                (step) => step.stepStatus === JobStepStatusType.ERROR,
+            );
+            track({
+                name: EventName.CREATE_PROJECT_FAILED,
+                properties: {
+                    warehouse: selectedWarehouse ?? form.values.warehouse.type,
+                    errorType: failedStep?.stepType ?? 'unknown',
+                    warehouseOnly,
+                },
+            });
+        }
+    }, [
+        activeJob,
+        createProjectJobId,
+        selectedWarehouse,
+        warehouseOnly,
+        track,
+        form.values.warehouse.type,
+    ]);
 
     const isSavingProject = useMemo<boolean>(
         () =>
