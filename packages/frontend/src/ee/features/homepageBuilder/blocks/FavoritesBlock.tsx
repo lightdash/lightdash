@@ -12,6 +12,7 @@ import {
 import { useState, type FC, type MouseEvent } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { getResourceUrl } from '../../../../components/common/ResourceView/resourceUtils';
 import { useFavoriteMutation } from '../../../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../../../hooks/favorites/useFavorites';
 import layout from '../homepageLayout.module.css';
@@ -26,19 +27,6 @@ const FAVORITE_ICONS: Partial<Record<ResourceViewItemType, Icon>> = {
     [ResourceViewItemType.DASHBOARD]: IconLayoutDashboard,
     [ResourceViewItemType.SPACE]: IconFolder,
     [ResourceViewItemType.DATA_APP]: IconTerminal2,
-};
-
-const favoriteUrl = (projectUuid: string, item: ResourceViewItem): string => {
-    switch (item.type) {
-        case ResourceViewItemType.DASHBOARD:
-            return `/projects/${projectUuid}/dashboards/${item.data.uuid}/view`;
-        case ResourceViewItemType.SPACE:
-            return `/projects/${projectUuid}/spaces/${item.data.uuid}`;
-        case ResourceViewItemType.DATA_APP:
-            return `/projects/${projectUuid}/apps/${item.data.uuid}`;
-        default:
-            return `/projects/${projectUuid}/saved/${item.data.uuid}`;
-    }
 };
 
 const FavoritePills: FC<{
@@ -86,7 +74,7 @@ const FavoritePills: FC<{
             {visible.map((item) => (
                 <Link
                     key={item.data.uuid}
-                    to={favoriteUrl(projectUuid, item)}
+                    to={getResourceUrl(projectUuid, item)}
                     className={classes.favPill}
                 >
                     <MantineIcon
