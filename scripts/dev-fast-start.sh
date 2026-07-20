@@ -182,6 +182,15 @@ if test -f .env.development.local; then
     reconcile_env HEADLESS_BROWSER_PORT 3001
     reconcile_env EMAIL_SMTP_HOST localhost
     reconcile_env EMAIL_SMTP_PORT 1025
+    # EMAIL_SMTP_SECURE=false is load-bearing: unset defaults `secure` to true in
+    # parseConfig, which sets nodemailer requireTLS -> forces STARTTLS against Mailpit
+    # (port 1025, no STARTTLS) -> transporter.verify() throws uncaughtException and the
+    # API crash-loops. A pre-existing minimal env file (HOST+PORT only) hits exactly this.
+    reconcile_env EMAIL_SMTP_SECURE false
+    reconcile_env EMAIL_SMTP_USE_AUTH false
+    reconcile_env EMAIL_SMTP_ALLOW_INVALID_CERT true
+    reconcile_env EMAIL_SMTP_SENDER_NAME Lightdash
+    reconcile_env EMAIL_SMTP_SENDER_EMAIL noreply@lightdash.local
     reconcile_env LDPAT ldpat_deadbeefdeadbeefdeadbeefdeadbeef
     reconcile_env DBT_DEMO_DIR "$(pwd)/examples/full-jaffle-shop-demo"
     # Default-on (append only, never overwrite): fresh-user signup testing needs
