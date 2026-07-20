@@ -24,6 +24,9 @@ type Props<T> = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     description?: ReactNode;
     confirmLabel?: string;
     createSpaceConfirmLabel?: string;
+    /** Extra content rendered below the space selector — e.g. per-content-type
+     *  move options. Hidden while the create-space form is open. */
+    footer?: ReactNode;
 };
 
 const ItemName = ({ name }: { name: string }) => {
@@ -59,6 +62,7 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
     description,
     confirmLabel = 'Confirm',
     createSpaceConfirmLabel = 'Create space & move',
+    footer,
 }: Props<T>) => {
     // Fetch spaces only when the modal is opened
     const { data: spaces = [], isLoading: isLoadingSpaces } = useSpaceSummaries(
@@ -226,6 +230,7 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
                             </Callout>
                         ) : null}
                     </SpaceSelector>
+                    {footer}
                 </>
             )}
         </MantineModal>

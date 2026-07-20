@@ -1,9 +1,4 @@
-import {
-    ContentType,
-    getAppDisplayName,
-    ResourceViewItemType,
-    type ApiAppSummary,
-} from '@lightdash/common';
+import { getAppDisplayName, type ApiAppSummary } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -40,8 +35,8 @@ import {
 } from 'react';
 import { Link } from 'react-router';
 import AppThumbnailHoverCard from '../../../features/apps/components/AppThumbnailHoverCard';
+import { MoveAppToSpaceModal as SharedMoveAppToSpaceModal } from '../../../features/apps/components/MoveAppToSpaceModal';
 import { useMyApps } from '../../../features/apps/hooks/useMyApps';
-import { useContentAction } from '../../../hooks/useContent';
 import {
     ContentTable,
     useContentTable,
@@ -50,7 +45,6 @@ import {
 import MantineIcon from '../../common/MantineIcon';
 import AppDeleteModal from '../../common/modal/AppDeleteModal';
 import AppUpdateModal from '../../common/modal/AppUpdateModal';
-import TransferItemsModal from '../../common/TransferItemsModal/TransferItemsModal';
 
 const hasReadyVersion = (app: ApiAppSummary) =>
     app.lastVersionStatus === 'ready' && !!app.lastVersionNumber;
@@ -60,47 +54,23 @@ const MoveAppToSpaceModal: FC<{
     onClose: () => void;
 }> = ({ app, onClose }) => {
     const queryClient = useQueryClient();
-    const { mutateAsync: contentAction, isLoading } = useContentAction(
-        app.projectUuid,
-    );
     return (
-        <TransferItemsModal
+        <SharedMoveAppToSpaceModal
             projectUuid={app.projectUuid}
             opened
             onClose={onClose}
-            items={[
-                {
-                    type: ResourceViewItemType.DATA_APP,
-                    data: {
-                        uuid: app.appUuid,
-                        name: app.name,
-                        description: app.description || undefined,
-                        spaceUuid: app.spaceUuid,
-                        createdByUserUuid: null,
-                        updatedAt: new Date(),
-                        updatedByUser: null,
-                        views: 0,
-                        firstViewedAt: null,
-                        latestVersionNumber: app.lastVersionNumber,
-                        latestVersionStatus: app.lastVersionStatus,
-                        pinnedListUuid: null,
-                        pinnedListOrder: null,
-                    },
-                },
-            ]}
-            isLoading={isLoading}
-            onConfirm={async (targetSpaceUuid) => {
-                if (!targetSpaceUuid) return;
-                await contentAction({
-                    action: { type: 'move', targetSpaceUuid },
-                    item: {
-                        uuid: app.appUuid,
-                        contentType: ContentType.DATA_APP,
-                    },
-                });
-                await queryClient.invalidateQueries({ queryKey: ['myApps'] });
-                onClose();
+            app={{
+                uuid: app.appUuid,
+                name: app.name,
+                description: app.description || undefined,
+                spaceUuid: app.spaceUuid,
+                createdByUserUuid: null,
+                latestVersionNumber: app.lastVersionNumber,
+                latestVersionStatus: app.lastVersionStatus,
             }}
+            onMoved={() =>
+                queryClient.invalidateQueries({ queryKey: ['myApps'] })
+            }
         />
     );
 };

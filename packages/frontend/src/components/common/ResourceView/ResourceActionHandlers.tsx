@@ -15,6 +15,7 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, type FC } from 'react';
 import { useParams } from 'react-router';
+import { MoveAppToSpaceModal } from '../../../features/apps/components/MoveAppToSpaceModal';
 import { useAppPinningMutation } from '../../../features/apps/hooks/useAppPinningMutation';
 import { DeleteSqlChartModal } from '../../../features/sqlRunner/components/DeleteSqlChartModal';
 import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningMutation';
@@ -371,6 +372,18 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
             }
 
         case ResourceViewItemAction.TRANSFER_TO_SPACE:
+            // Data apps get their own move modal, which adds the
+            // "Include app thumbnail" option.
+            if (action.item.type === ResourceViewItemType.DATA_APP) {
+                return (
+                    <MoveAppToSpaceModal
+                        projectUuid={projectUuid}
+                        opened
+                        onClose={handleReset}
+                        app={action.item.data}
+                    />
+                );
+            }
             return (
                 <TransferItemsModal
                     projectUuid={projectUuid}
