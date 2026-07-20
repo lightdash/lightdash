@@ -7,8 +7,9 @@ import {
     Title,
     Button,
     ActionIcon,
+    Menu,
 } from '@mantine-8/core';
-import { Menu, Tooltip } from '@mantine/core';
+import { Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconCirclesRelation,
@@ -222,7 +223,7 @@ export const HeaderView: FC = () => {
                                 <Menu.Dropdown>
                                     <Menu.Label>Manage</Menu.Label>
                                     <Menu.Item
-                                        icon={
+                                        leftSection={
                                             <MantineIcon
                                                 icon={IconLayoutGridAdd}
                                             />
@@ -247,7 +248,7 @@ export const HeaderView: FC = () => {
                                                 })}
                                             >
                                                 <Menu.Item
-                                                    icon={
+                                                    leftSection={
                                                         <MantineIcon
                                                             icon={
                                                                 IconCirclesRelation
@@ -273,7 +274,7 @@ export const HeaderView: FC = () => {
                                         >
                                             <div>
                                                 <Menu.Item
-                                                    icon={
+                                                    leftSection={
                                                         <MantineIcon
                                                             icon={
                                                                 IconDatabaseExport
@@ -296,7 +297,7 @@ export const HeaderView: FC = () => {
                                         </Tooltip>
                                     )}
                                     <Menu.Item
-                                        icon={
+                                        leftSection={
                                             <MantineIcon
                                                 icon={IconTrash}
                                                 color="red"

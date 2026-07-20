@@ -7,8 +7,9 @@ import {
     Button,
     ActionIcon,
     HoverCard,
+    Menu,
 } from '@mantine-8/core';
-import { Menu, Tooltip } from '@mantine/core';
+import { Tooltip } from '@mantine/core';
 import {
     IconArrowBack,
     IconDots,
@@ -265,7 +266,9 @@ export const HeaderEdit: FC = () => {
                                 <Menu.Label>Manage</Menu.Label>
                                 <Menu.Item
                                     disabled={!config || !sql}
-                                    icon={<MantineIcon icon={IconTrash} />}
+                                    leftSection={
+                                        <MantineIcon icon={IconTrash} />
+                                    }
                                     color="red"
                                     onClick={() =>
                                         dispatch(
