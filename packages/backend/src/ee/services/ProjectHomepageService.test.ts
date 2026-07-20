@@ -104,6 +104,8 @@ const makeService = ({
     projectHomepageModel = {},
     groupsModel = {},
     projectModel = {},
+    fileStorageClient = {},
+    persistentDownloadFileService = {},
 }: {
     flagEnabled?: boolean;
     projectHomepageModel?: Partial<
@@ -111,6 +113,12 @@ const makeService = ({
     >;
     groupsModel?: Partial<ProjectHomepageServiceArguments['groupsModel']>;
     projectModel?: Partial<ProjectHomepageServiceArguments['projectModel']>;
+    fileStorageClient?: Partial<
+        ProjectHomepageServiceArguments['fileStorageClient']
+    >;
+    persistentDownloadFileService?: Partial<
+        ProjectHomepageServiceArguments['persistentDownloadFileService']
+    >;
 } = {}) =>
     new ProjectHomepageService({
         featureFlagService: {
@@ -156,9 +164,21 @@ const makeService = ({
             getProjectMemberAccess: vi.fn().mockResolvedValue(undefined),
             ...projectModel,
         },
+        fileStorageClient: {
+            uploadImage: vi.fn(),
+            ...fileStorageClient,
+        } as ProjectHomepageServiceArguments['fileStorageClient'],
+        persistentDownloadFileService: {
+            createPersistentUrl: vi.fn(),
+            ...persistentDownloadFileService,
+        } as ProjectHomepageServiceArguments['persistentDownloadFileService'],
     });
 
 describe('ProjectHomepageService', () => {
+    it('accepts fileStorageClient and persistentDownloadFileService in its constructor', () => {
+        expect(() => makeService()).not.toThrow();
+    });
+
     it('getPublishedHomepage throws ForbiddenError when flag is disabled', async () => {
         const service = makeService({ flagEnabled: false });
 

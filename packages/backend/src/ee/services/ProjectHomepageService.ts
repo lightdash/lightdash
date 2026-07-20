@@ -27,10 +27,12 @@ import {
     type UpdateAnnouncementRequest,
     type UpdateProjectHomepageDraftRequest,
 } from '@lightdash/common';
+import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { type GroupsModel } from '../../models/GroupsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
+import { type PersistentDownloadFileService } from '../../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { secureFetch } from '../../utils/secureFetch/secureFetch';
 import { type ProjectHomepageModel } from '../models/ProjectHomepageModel';
 import {
@@ -78,6 +80,8 @@ export type ProjectHomepageServiceArguments = {
     featureFlagService: Pick<FeatureFlagService, 'get'>;
     groupsModel: Pick<GroupsModel, 'findUserGroups'>;
     projectModel: Pick<ProjectModel, 'getProjectMemberAccess'>;
+    fileStorageClient: FileStorageClient;
+    persistentDownloadFileService: PersistentDownloadFileService;
 };
 
 export class ProjectHomepageService extends BaseService {
@@ -89,12 +93,18 @@ export class ProjectHomepageService extends BaseService {
 
     private readonly projectModel: ProjectHomepageServiceArguments['projectModel'];
 
+    private readonly fileStorageClient: ProjectHomepageServiceArguments['fileStorageClient'];
+
+    private readonly persistentDownloadFileService: ProjectHomepageServiceArguments['persistentDownloadFileService'];
+
     constructor(args: ProjectHomepageServiceArguments) {
         super();
         this.projectHomepageModel = args.projectHomepageModel;
         this.featureFlagService = args.featureFlagService;
         this.groupsModel = args.groupsModel;
         this.projectModel = args.projectModel;
+        this.fileStorageClient = args.fileStorageClient;
+        this.persistentDownloadFileService = args.persistentDownloadFileService;
     }
 
     private async assertFlagEnabled(user: SessionUser): Promise<void> {
