@@ -14,6 +14,7 @@ import {
     Image,
     Loader,
     type ComboboxItem,
+    type OptionsFilter,
     Stack,
     Text,
     Select,
@@ -24,6 +25,7 @@ import { useDebouncedValue } from '@mantine/hooks';
 import { IconCheck, IconExclamationCircle } from '@tabler/icons-react';
 import {
     useEffect,
+    useMemo,
     useRef,
     useState,
     type ChangeEvent,
@@ -273,6 +275,7 @@ const BigQueryForm: FC<{
             BigqueryAuthenticationType.SSO;
     const {
         data: datasets,
+        isInitialLoading: isLoadingDatasets,
         refetch: refetchDatasets,
         error: datasetsError,
     } = useBigqueryDatasets(isAuthenticated && isSso, debouncedProject);
@@ -383,6 +386,36 @@ const BigQueryForm: FC<{
     const authenticationType: string =
         form.values.warehouse.authenticationType ?? defaultAuthenticationType;
     const locationField = form.getInputProps('warehouse.location');
+    const hasProjectValue =
+        typeof project.value === 'string' && project.value.length > 0;
+    const projectOptionsFilter = useMemo<OptionsFilter>(() => {
+        const friendlyNames = new Map(
+            gcpProjects?.map((p) => [
+                p.projectId,
+                (p.friendlyName ?? '').toLowerCase(),
+            ]) ?? [],
+        );
+        return ({ options, search }) => {
+            const items = options as ComboboxItem[];
+            const trimmed = search.trim().toLowerCase();
+            const isExistingValue = items.some((item) => item.value === search);
+            if (!trimmed || isExistingValue) {
+                return items;
+            }
+            return items.filter(
+                (item) =>
+                    item.value.toLowerCase().includes(trimmed) ||
+                    (friendlyNames.get(item.value) ?? '').includes(trimmed),
+            );
+        };
+    }, [gcpProjects]);
+    const isLocationLoading =
+        isSso &&
+        isAuthenticated &&
+        !locationField.value &&
+        (isLoadingProjectRecommendation ||
+            isLoadingDatasets ||
+            (hasProjectValue && !datasets && !datasetsError));
 
     const onChangeFactory =
         (onChange: (value: string | undefined) => void) =>
@@ -407,7 +440,7 @@ const BigQueryForm: FC<{
         <>
             <Stack mt={8}>
                 {
-                    <Group gap="sm">
+                    <Group gap="sm" align="flex-end">
                         <Select
                             allowDeselect={false}
                             name="warehouse.authenticationType"
@@ -441,7 +474,7 @@ const BigQueryForm: FC<{
                         />
                         {isAuthenticated && (
                             <Tooltip label="You are connected to BigQuery">
-                                <Group mt="40px">
+                                <Group mb={10}>
                                     <MantineIcon
                                         icon={IconCheck}
                                         color="green"
@@ -461,11 +494,12 @@ const BigQueryForm: FC<{
                 )}
                 {showWarehouseConfigFields && (
                     <>
-                        <Group gap="sm">
+                        <Group gap="sm" align="flex-end">
                             {isSso && isAuthenticated ? (
                                 <Autocomplete
                                     name="warehouse.project"
                                     label="Project"
+                                    filter={projectOptionsFilter}
                                     description={
                                         <p>
                                             <Anchor
@@ -593,7 +627,7 @@ const BigQueryForm: FC<{
                             )}
                             {hasDatasets && (
                                 <Tooltip label="You have access to this project">
-                                    <Group mt="50px">
+                                    <Group mb={10}>
                                         <MantineIcon
                                             icon={IconCheck}
                                             color="green"
@@ -623,7 +657,18 @@ const BigQueryForm: FC<{
                             }
                             {...locationField}
                             onChange={onChangeFactory(locationField.onChange)}
-                            disabled={disabled}
+                            placeholder={
+                                isLocationLoading
+                                    ? 'Detecting location...'
+                                    : undefined
+                            }
+                            disabled={disabled || isLocationLoading}
+                            rightSectionPointerEvents="none"
+                            rightSection={
+                                isLocationLoading ? (
+                                    <Loader size="xs" />
+                                ) : undefined
+                            }
                         />
 
                         {authenticationType ===
