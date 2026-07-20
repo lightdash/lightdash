@@ -52,17 +52,6 @@ const isGroupServiceDisabledError = (error: unknown): boolean =>
     error.statusCode === 403 &&
     error.message === 'Group service is not enabled';
 
-const getElapsedMilliseconds = (startedAt: number): number =>
-    Date.now() - startedAt;
-
-const measureAction = async <T>(
-    action: () => Promise<T>,
-): Promise<{ value: T; durationMs: number }> => {
-    const startedAt = Date.now();
-    const value = await action();
-    return { value, durationMs: getElapsedMilliseconds(startedAt) };
-};
-
 export const getOrganizationContentFolder = (customPath?: string): string =>
     getDownloadFolder(customPath);
 
@@ -91,64 +80,33 @@ export const downloadOrganizationContent = async ({
     const output = createContentAsCodeOutput({
         operation: 'download',
         scope: 'organization',
-        initialLabel: 'Custom roles',
     });
     try {
-        const { value: customRolesTotal, durationMs: customRolesDurationMs } =
-            await measureAction(() =>
+        const customRolesTotal = await output.runItem({
+            label: 'Custom roles',
+            action: () =>
                 downloadCustomRoles(organizationUuid, organizationContentPath),
-            );
-        output.completeItem(
-            {
-                label: 'Custom roles',
-                detail: `${customRolesTotal} downloaded`,
-                durationMs: customRolesDurationMs,
-            },
-            'Users',
-        );
-        const { value: usersTotal, durationMs: usersDurationMs } =
-            await measureAction(() =>
+            detail: (total) => `${total} downloaded`,
+        });
+        const usersTotal = await output.runItem({
+            label: 'Users',
+            action: () =>
                 downloadUsers(organizationUuid, organizationContentPath),
-            );
-        output.completeItem(
-            {
-                label: 'Users',
-                detail: `${usersTotal} downloaded`,
-                durationMs: usersDurationMs,
-            },
-            'Groups',
-        );
-        const groupsStartedAt = Date.now();
+            detail: (total) => `${total} downloaded`,
+        });
         let groupsTotal = 0;
-        let groupsDurationMs: number;
+        output.startItem('Groups');
         try {
             groupsTotal = await downloadGroups(
                 organizationUuid,
                 organizationContentPath,
             );
-            groupsDurationMs = getElapsedMilliseconds(groupsStartedAt);
-            output.completeItem(
-                {
-                    label: 'Groups',
-                    detail: `${groupsTotal} downloaded`,
-                    durationMs: groupsDurationMs,
-                },
-                null,
-            );
+            output.completeItem(`${groupsTotal} downloaded`);
         } catch (error) {
-            groupsDurationMs = getElapsedMilliseconds(groupsStartedAt);
             if (!isGroupServiceDisabledError(error)) {
                 throw error;
             }
-            output.completeItem(
-                {
-                    label: 'Groups',
-                    detail: 'service unavailable',
-                    durationMs: groupsDurationMs,
-                    variant: 'warning',
-                },
-                null,
-            );
+            output.completeItem('service unavailable', 'warning');
             GlobalState.debug(
                 '> Warning: groups were not downloaded because the group service is not enabled',
             );
@@ -220,13 +178,13 @@ export const uploadOrganizationContent = async ({
     const output = createContentAsCodeOutput({
         operation: 'upload',
         scope: 'organization',
-        initialLabel: 'Custom roles',
     });
     try {
-        const { value: summary, durationMs: customRolesDurationMs } =
-            await measureAction(() =>
-                uploadCustomRoles(organizationUuid, organizationContentPath),
-            );
+        output.startItem('Custom roles');
+        const summary = await uploadCustomRoles(
+            organizationUuid,
+            organizationContentPath,
+        );
         const summaryMessage = formatCustomRoleUploadSummary(summary);
         if (summary.failed > 0) {
             summary.failures.forEach(({ message }) =>
@@ -245,22 +203,13 @@ export const uploadOrganizationContent = async ({
                 `Processed custom roles: ${summaryMessage}`,
             );
         }
-        output.completeItem(
-            {
-                label: 'Custom roles',
-                detail: summaryMessage,
-                durationMs: customRolesDurationMs,
-            },
-            'Users',
+        output.completeItem(summaryMessage);
+        output.startItem('Users');
+        const userSummary = await uploadUsers(
+            organizationUuid,
+            organizationContentPath,
+            sendInvites,
         );
-        const { value: userSummary, durationMs: usersDurationMs } =
-            await measureAction(() =>
-                uploadUsers(
-                    organizationUuid,
-                    organizationContentPath,
-                    sendInvites,
-                ),
-            );
         const userSummaryMessage = formatUserUploadSummary(userSummary);
         if (userSummary.failed > 0) {
             userSummary.failures.forEach(({ message }) =>
@@ -279,18 +228,12 @@ export const uploadOrganizationContent = async ({
                 `Processed users: ${userSummaryMessage}`,
             );
         }
-        output.completeItem(
-            {
-                label: 'Users',
-                detail: userSummaryMessage,
-                durationMs: usersDurationMs,
-            },
-            'Groups',
+        output.completeItem(userSummaryMessage);
+        output.startItem('Groups');
+        const groupSummary = await uploadGroups(
+            organizationUuid,
+            organizationContentPath,
         );
-        const { value: groupSummary, durationMs: groupsDurationMs } =
-            await measureAction(() =>
-                uploadGroups(organizationUuid, organizationContentPath),
-            );
         const groupSummaryMessage = formatGroupUploadSummary(groupSummary);
         if (groupSummary.failed > 0) {
             groupSummary.failures.forEach(({ message }) =>
@@ -301,14 +244,7 @@ export const uploadOrganizationContent = async ({
                 `Processed groups: ${groupSummaryMessage}`,
             );
         }
-        output.completeItem(
-            {
-                label: 'Groups',
-                detail: groupSummaryMessage,
-                durationMs: groupsDurationMs,
-            },
-            null,
-        );
+        output.completeItem(groupSummaryMessage);
         const renderedSummary = output.complete(
             organizationContentPath,
             (Date.now() - start) / 1000,

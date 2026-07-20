@@ -5,6 +5,7 @@ import {
     formatContentAsCodeComplete,
     formatContentAsCodeFailure,
     formatContentAsCodeProgress,
+    logContentAsCodeDiscovery,
 } from './contentAsCodeOutput';
 
 describe('content as code terminal output', () => {
@@ -114,6 +115,7 @@ describe('content as code terminal output', () => {
             text: '',
             start: vi.fn(),
             succeed: vi.fn(),
+            warn: vi.fn(),
             stop: vi.fn(),
             fail: vi.fn(),
         };
@@ -125,22 +127,86 @@ describe('content as code terminal output', () => {
         const output = createContentAsCodeOutput({
             operation: 'download',
             scope: 'organization',
-            initialLabel: 'Custom roles',
         });
-        output.completeItem(
-            {
-                label: 'Custom roles',
-                detail: '34 downloaded',
-                durationMs: 85,
-            },
-            'Users',
-        );
+        output.startItem('Custom roles');
+        output.completeItem('34 downloaded');
+        output.startItem('Users');
 
         expect(spinner.succeed).not.toHaveBeenCalled();
         expect(spinner.text).toContain('└ ◐ Users · downloading…');
         expect(output.complete('/tmp/lightdash', 0.6)).toBe(true);
         expect(spinner.stop).toHaveBeenCalledOnce();
         expect(write).toHaveBeenCalledOnce();
+
+        Object.defineProperty(process.stderr, 'isTTY', {
+            configurable: true,
+            value: originalIsTTY,
+        });
+        vi.unstubAllEnvs();
+        vi.restoreAllMocks();
+    });
+
+    it('updates the active tree item with resource progress', () => {
+        const originalIsTTY = process.stderr.isTTY;
+        Object.defineProperty(process.stderr, 'isTTY', {
+            configurable: true,
+            value: true,
+        });
+        vi.stubEnv('CI', 'false');
+        vi.stubEnv('TERM', 'xterm');
+        vi.stubEnv('NO_UNICODE', 'false');
+        const spinner = {
+            text: '',
+            start: vi.fn(),
+            succeed: vi.fn(),
+            warn: vi.fn(),
+            stop: vi.fn(),
+            fail: vi.fn(),
+        };
+        vi.spyOn(GlobalState, 'startSpinner').mockReturnValue(spinner as never);
+
+        const output = createContentAsCodeOutput({
+            operation: 'download',
+            scope: 'project',
+        });
+        output.startItem('Charts');
+        output.updateActive('25 of 100 downloaded');
+
+        expect(spinner.text).toContain('└ ◐ Charts · 25 of 100 downloaded');
+
+        Object.defineProperty(process.stderr, 'isTTY', {
+            configurable: true,
+            value: originalIsTTY,
+        });
+        vi.unstubAllEnvs();
+        vi.restoreAllMocks();
+    });
+
+    it('hides routine discovery in tree mode unless verbose output is enabled', () => {
+        const originalIsTTY = process.stderr.isTTY;
+        Object.defineProperty(process.stderr, 'isTTY', {
+            configurable: true,
+            value: true,
+        });
+        vi.stubEnv('CI', 'false');
+        vi.stubEnv('TERM', 'xterm');
+        vi.stubEnv('NO_UNICODE', 'false');
+        const debug = vi
+            .spyOn(GlobalState, 'debug')
+            .mockImplementation(() => undefined);
+        const log = vi
+            .spyOn(GlobalState, 'log')
+            .mockImplementation(() => undefined);
+
+        logContentAsCodeDiscovery('Found 3 chart files');
+
+        expect(debug).toHaveBeenCalledWith('Found 3 chart files');
+        expect(log).not.toHaveBeenCalled();
+
+        vi.stubEnv('CI', 'true');
+        logContentAsCodeDiscovery('Found 3 chart files');
+
+        expect(log).toHaveBeenCalledWith('Found 3 chart files');
 
         Object.defineProperty(process.stderr, 'isTTY', {
             configurable: true,

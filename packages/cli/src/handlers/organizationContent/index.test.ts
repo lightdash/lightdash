@@ -39,6 +39,7 @@ describe('organization content download', () => {
     const spinner = {
         start: vi.fn(),
         succeed: vi.fn(),
+        warn: vi.fn(),
         stop: vi.fn(),
         fail: vi.fn(),
     };
@@ -74,7 +75,7 @@ describe('organization content download', () => {
             downloadOrganizationContent({ config }),
         ).resolves.toBeUndefined();
 
-        expect(spinner.stop).toHaveBeenCalledOnce();
+        expect(spinner.warn).toHaveBeenCalledOnce();
         expect(spinner.fail).not.toHaveBeenCalled();
         expect(GlobalState.debug).toHaveBeenCalledWith(
             '> Warning: groups were not downloaded because the group service is not enabled',
@@ -105,6 +106,7 @@ describe('organization content upload sequencing', () => {
     const spinner = {
         start: vi.fn(),
         succeed: vi.fn(),
+        warn: vi.fn(),
         stop: vi.fn(),
         fail: vi.fn(),
     };
