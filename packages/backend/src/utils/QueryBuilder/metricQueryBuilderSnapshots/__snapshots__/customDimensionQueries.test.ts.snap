@@ -1,5 +1,19 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`MetricQueryBuilder snapshot: custom dimension queries > inlines an additional metric derived from an unselected custom SQL dimension 1`] = `
+"SELECT
+  "table1".dim1 AS "table1_dim1",
+  MAX(("table1".dim1) / 10) AS "table1_discounted_amount_max_of_discounted_amount"
+FROM
+  "db"."schema"."table1" AS "table1"
+GROUP BY
+  1
+ORDER BY
+  "table1_discounted_amount_max_of_discounted_amount" DESC
+LIMIT
+  10"
+`;
+
 exports[`MetricQueryBuilder snapshot: custom dimension queries > matches snapshot for a binned custom dimension query 1`] = `
 "WITH  age_range_cte AS (
                     SELECT
