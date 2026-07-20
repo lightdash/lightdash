@@ -1,3 +1,10 @@
+## [0.3422.2](https://github.com/lightdash/lightdash/compare/0.3422.1...0.3422.2) (2026-07-20)
+
+
+### Bug Fixes
+
+* tighten UserService.delete checks for org-less accounts ([#25784](https://github.com/lightdash/lightdash/issues/25784)) ([15882f0](https://github.com/lightdash/lightdash/commit/15882f0f9fb7d47b4936b1573d10e74c27cb20e1))
+
 ## [0.3422.1](https://github.com/lightdash/lightdash/compare/0.3422.0...0.3422.1) (2026-07-20)
 
 
