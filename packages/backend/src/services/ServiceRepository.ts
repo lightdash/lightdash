@@ -1153,6 +1153,7 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
+                    projectService: this.getProjectService(),
                     savedChartModel: this.models.getSavedChartModel(),
                     validationModel: this.models.getValidationModel(),
                     dashboardModel: this.models.getDashboardModel(),

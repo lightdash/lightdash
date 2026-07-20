@@ -737,6 +737,29 @@ describe('ProjectService', () => {
             }),
         );
     });
+    test('should resolve credentials before connecting to the warehouse', async () => {
+        service.warehouseClients = {};
+
+        const { warehouseClient, sshTunnel } =
+            await service.getWarehouseConnection({
+                projectUuid,
+                userUuid: user.userUuid,
+                isRegisteredUser: true,
+            });
+
+        expect(
+            projectModel.getWarehouseCredentialsForProject,
+        ).toHaveBeenCalledWith(projectUuid);
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining(warehouseClientMock.credentials),
+        );
+        expect(warehouseClient.credentials).toEqual(
+            warehouseClientMock.credentials,
+        );
+        expect(sshTunnel).toBeDefined();
+    });
     test('should get project catalog', async () => {
         const results = await service.getCatalog(user, projectUuid);
 

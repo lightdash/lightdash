@@ -2420,6 +2420,7 @@ export default class SchedulerTask {
             const validationTargetsSet = new Set(payload.validationTargets);
             const errors = await this.validationService.generateValidation(
                 payload.projectUuid,
+                payload.userUuid,
                 payload.explores,
                 validationTargetsSet,
                 payload.onlyValidateExploresInArgs,
