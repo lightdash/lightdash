@@ -172,3 +172,30 @@ After focused execution, independently confirm cleanup: no resources with the ge
 ## Port history
 
 Not started.
+
+### 2026-07-20 — CLI Node/Vitest port implemented and verified
+
+- Target: `packages/cli/integration/no-dbt/content-as-code.integration.test.ts`.
+- Ported all seven active contracts: unfiltered chart/dashboard download, slug-filtered dashboard download with the exact five linked charts, regular-chart update, dashboard creation after slug change, SQL-chart creation, SQL-chart download by slug with `.sql.yml`, and SQL-chart update. No skipped Cypress behavior was ported because the source has no skipped tests.
+- The exact five-linked-chart assertion remains a product contract and checks the five known filenames; it was not weakened to a nonempty or incidental count assertion.
+- The built CLI runs through `process.execPath` with argument arrays, a 300-second process timeout, isolated `HOME` and cwd paths under a unique temporary root, explicit seed project selection, and no shell commands. Uploads are content-filtered so they do not reconcile shared spaces.
+- Every mutation uses UUID-first cleanup plus exact unique-name/description fallback. The suite creates at most one PAT, creates only UUID-backed unique test content, never updates seed content, and verifies the seed chart, dashboard, and space against pre-run snapshots after cleanup.
+- Static verification passed:
+  - `pnpm cli-build`
+  - `pnpm -F @lightdash/cli lint`
+  - `pnpm -F @lightdash/cli format`
+  - `pnpm -F @lightdash/cli typecheck`
+  - `pnpm -F @lightdash/cli typecheck:fast`
+  - `pnpm exec tsc6 --project packages/cli/tsconfig.eslint.json --noEmit`
+  - `pnpm -F @lightdash/cli run linter integration/no-dbt/content-as-code.integration.test.ts`
+  - `pnpm -F @lightdash/cli exec oxfmt integration/no-dbt/content-as-code.integration.test.ts --check`
+  - `pnpm -F @lightdash/cli exec vitest list --config vitest.integration.config.ts integration/no-dbt/content-as-code.integration.test.ts` discovered exactly seven tests.
+  - `git diff --check`
+- Live verification against `SITE_URL=http://127.0.0.1:3000` passed strictly serially:
+  - `pnpm -F @lightdash/cli test:integration -- integration/no-dbt/content-as-code.integration.test.ts` — 7/7 passed in 28.30s.
+  - Repeat 2 of the same focused command — 7/7 passed in 26.62s.
+  - Repeat 3 of the same focused command — 7/7 passed in 27.69s.
+  - `pnpm -F @lightdash/cli test:integration -- integration/no-dbt` — 7/7 passed in 27.07s.
+- Cleanup was independently checked after every run: zero `lightdash-content-as-code-*` temporary roots, zero PATs with the generated `content-as-code-cli-` prefix, and zero active chart/dashboard/SQL resources with the generated `CAC CLI` names. Stable seed hashes remained identical after every run: chart `d9cbf5d57fef4a84d06c3fe5aae6894142d44ef7b83ec1bb7d1402eb18dae7a0`, dashboard `e57e1356d703ac45a2f5f7c447a622eede313ceffbb244e09ab847bde2c8c31b`, and space `03554ba1c6f3942d055f6c84d249d04aa4e990d0b079ac26bf2e6f47377f9613`.
+- Legacy Cypress was intentionally not executed because it leaves shared residue, per the execution lease. Remaining product-level risks are the explicitly preserved five-linked-chart seed contract and awaited analytics attempts; child-process timeouts bound the latter.
+- Commit: pending signed commit.
