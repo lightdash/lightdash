@@ -1,5 +1,5 @@
 {
-    "$comment": "Instance capabilities for /docker-dev. The AI tier is just Core vs EE: all AI features (agents, writeback, reviews classifier) are bundled into the `ee` profile. GitHub and Slack are integrations (extra credentials / a tunnel), kept as their own toggles. EE requires `github` because AI writeback opens PRs through it, so an EE instance is turnkey for writeback. The start-time multi-select composes these; each pulls in its `requires` transitively, then the union of secrets/flags/env/orgSettings is applied, `reconcile` steps run, and `verify` checks confirm it. `secrets` are keys in scripts/dev-secrets.manifest.json. Addressable by name: `/docker-dev start ee` or `/docker-dev start ee,slack`; no profile = a plain Core instance.",
+    "$comment": "Instance capabilities for /docker-dev. The AI tier is just Core vs EE: all AI features (agents, writeback, reviews classifier) are bundled into the `ee` profile. GitHub and Slack are integrations (extra credentials / a tunnel), kept as their own toggles. EE requires `github` because AI writeback opens PRs through it, so an EE instance is turnkey for writeback. The start-time multi-select composes these; each pulls in its `requires` transitively, then the union of secrets/flags/env/orgSettings is applied, `reconcile` steps run, and `verify` checks confirm it. `secrets` are keys in scripts/dev-secrets.manifest.json. The `newux` profile composes `ee` and turns on the new onboarding + agentic-homepage UX (`new-onboarding`) on top of it. Addressable by name: `/docker-dev start ee`, `/docker-dev start ee,slack`, or `/docker-dev start newux`; no profile = a plain Core instance.",
     "profiles": {
         "github": {
             "label": "GitHub integration (dbt-over-GitHub)",
@@ -58,6 +58,17 @@
                 "SLACK_APP"
             ],
             "notes": "SLACK_APP is not yet in the secrets manifest \u2014 confirm the 1Password item name before enabling."
+        },
+        "newux": {
+            "label": "New onboarding UX (in-progress), on top of EE",
+            "description": "The new self-serve onboarding: email-only signup, full-page organization setup, and the dbt-less warehouse-connect flow with Snowflake/BigQuery SSO smart defaults, plus the agentic project homepage (Ask Aurora). Composes `ee` and adds the `new-onboarding` flag. Use to reproduce the real new-signup to agentic-homepage experience end to end.",
+            "requires": [
+                "ee"
+            ],
+            "flags": [
+                "new-onboarding"
+            ],
+            "notes": "Only `new-onboarding` is added here: `homepage-builder` is inherited from `ee`, and the `ai-copilot` flag does not need listing because `ee` sets AI_COPILOT_ENABLED=true, which resolves that flag on when AI_COPILOT_REQUIRES_FEATURE_FLAG is unset (see CommercialFeatureFlagModel.getAiCopilotFlag). The register page evaluates `new-onboarding` anonymously, so enabling it instance-wide via LIGHTDASH_ENABLE_FEATURE_FLAGS (what the profile does) is required for signup to switch."
         }
     },
     "snapshots": {
