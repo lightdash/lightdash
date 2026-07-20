@@ -494,7 +494,7 @@ const SnowflakeForm: FC<{
                                                     : 'Choose file...'
                                             }
                                             description={
-                                                <p>
+                                                <>
                                                     This is the .p8 private key
                                                     file. You can see{' '}
                                                     <Anchor
@@ -506,13 +506,14 @@ const SnowflakeForm: FC<{
                                                         how to create a key here
                                                     </Anchor>
                                                     .
-                                                </p>
+                                                </>
                                             }
                                             required={requireSecrets}
                                             accept=".p8"
                                             value={temporaryFile}
                                             onChange={(file) => {
                                                 if (!file) {
+                                                    setTemporaryFile(undefined);
                                                     form.setFieldValue(
                                                         'warehouse.privateKey',
                                                         null,
@@ -543,6 +544,13 @@ const SnowflakeForm: FC<{
                                                             null,
                                                         );
                                                     }
+                                                };
+                                                fileReader.onerror = () => {
+                                                    setTemporaryFile(undefined);
+                                                    form.setFieldValue(
+                                                        'warehouse.privateKey',
+                                                        null,
+                                                    );
                                                 };
                                                 fileReader.readAsText(file);
                                             }}
@@ -659,7 +667,7 @@ const SnowflakeForm: FC<{
                                             name="warehouse.clientSessionKeepAlive"
                                             label="Keep client session alive"
                                             description={
-                                                <p>
+                                                <>
                                                     This is intended to keep
                                                     Snowflake sessions alive
                                                     beyond the typical 4 hour
@@ -674,7 +682,7 @@ const SnowflakeForm: FC<{
                                                         dbt documentation
                                                     </Anchor>
                                                     .
-                                                </p>
+                                                </>
                                             }
                                             onLabel="Yes"
                                             offLabel="No"
@@ -694,7 +702,7 @@ const SnowflakeForm: FC<{
                                             )}
                                             label="Query tag"
                                             description={
-                                                <p>
+                                                <>
                                                     This is Snowflake query tags
                                                     parameter. You can see more
                                                     details in{' '}
@@ -707,7 +715,7 @@ const SnowflakeForm: FC<{
                                                         dbt documentation
                                                     </Anchor>
                                                     .
-                                                </p>
+                                                </>
                                             }
                                             disabled={disabled}
                                         />
@@ -716,7 +724,7 @@ const SnowflakeForm: FC<{
                                             name="warehouse.accessUrl"
                                             label="Snowflake URL override"
                                             description={
-                                                <p>
+                                                <>
                                                     Usually Lightdash would
                                                     connect to a default url:
                                                     account.snowflakecomputing.com.
@@ -724,7 +732,7 @@ const SnowflakeForm: FC<{
                                                     this (e.g. for the dbt
                                                     server) you can specify a
                                                     full custom URL here.
-                                                </p>
+                                                </>
                                             }
                                             disabled={disabled}
                                             {...form.getInputProps(
