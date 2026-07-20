@@ -82,9 +82,7 @@ const AnnouncementCard: FC<{
     </div>
 );
 
-const useAnnouncementFeed = (
-    projectUuid: string,
-): ProjectAnnouncement[] => {
+const useAnnouncementFeed = (projectUuid: string): ProjectAnnouncement[] => {
     const { data } = useAnnouncements(projectUuid, {
         page: 1,
         pageSize: FEED_PAGE_SIZE,
@@ -225,7 +223,7 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
                 onPost={(markdown) => {
                     const { title, body } = splitHeadline(markdown);
                     if (title.length === 0) return;
-                    create({ title, body, categoryUuid: null });
+                    create({ title, body });
                 }}
             />
             {announcements.length === 0 ? (

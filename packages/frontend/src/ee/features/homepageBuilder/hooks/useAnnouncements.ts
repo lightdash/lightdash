@@ -1,8 +1,6 @@
 import {
-    type AnnouncementCategory,
     type AnnouncementsPage,
     type ApiError,
-    type CreateAnnouncementCategoryRequest,
     type CreateAnnouncementRequest,
     type ProjectAnnouncement,
     type UpdateAnnouncementRequest,
@@ -12,12 +10,10 @@ import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 
 const ANNOUNCEMENTS_QUERY_KEY = 'project_announcements';
-const CATEGORIES_QUERY_KEY = 'project_announcement_categories';
 
 type ListOptions = {
     page?: number;
     pageSize?: number;
-    categoryUuid?: string;
 };
 
 const listAnnouncementsApi = async (
@@ -28,7 +24,6 @@ const listAnnouncementsApi = async (
         page: String(options.page ?? 1),
         pageSize: String(options.pageSize ?? 25),
     });
-    if (options.categoryUuid) params.set('categoryUuid', options.categoryUuid);
     return lightdashApi<AnnouncementsPage>({
         url: `/projects/${projectUuid}/announcements?${params.toString()}`,
         method: 'GET',
@@ -46,21 +41,9 @@ export const useAnnouncements = (
             projectUuid,
             options.page ?? 1,
             options.pageSize ?? 25,
-            options.categoryUuid ?? null,
         ],
         queryFn: () => listAnnouncementsApi(projectUuid, options),
         keepPreviousData: true,
-    });
-
-export const useAnnouncementCategories = (projectUuid: string) =>
-    useQuery<AnnouncementCategory[], ApiError>({
-        queryKey: [CATEGORIES_QUERY_KEY, projectUuid],
-        queryFn: () =>
-            lightdashApi<AnnouncementCategory[]>({
-                url: `/projects/${projectUuid}/announcements/categories`,
-                method: 'GET',
-                body: undefined,
-            }),
     });
 
 export const useCreateAnnouncement = (projectUuid: string) => {
@@ -153,30 +136,6 @@ export const useUploadAnnouncementImage = (projectUuid: string) => {
         onError: ({ error }) =>
             showToastApiError({
                 title: 'Failed to upload image',
-                apiError: error,
-            }),
-    });
-};
-
-export const useCreateAnnouncementCategory = (projectUuid: string) => {
-    const queryClient = useQueryClient();
-    const { showToastApiError } = useToaster();
-    return useMutation<
-        AnnouncementCategory,
-        ApiError,
-        CreateAnnouncementCategoryRequest
-    >({
-        mutationFn: (body) =>
-            lightdashApi<AnnouncementCategory>({
-                url: `/projects/${projectUuid}/announcements/categories`,
-                method: 'POST',
-                body: JSON.stringify(body),
-            }),
-        onSuccess: () =>
-            queryClient.invalidateQueries([CATEGORIES_QUERY_KEY, projectUuid]),
-        onError: ({ error }) =>
-            showToastApiError({
-                title: 'Failed to create category',
                 apiError: error,
             }),
     });

@@ -38,7 +38,7 @@ const makeBlock = (
                 },
             };
         case 'announcements':
-            return { id, type, config: { title: 't', categoryUuids: [] } };
+            return { id, type, config: { title: 't' } };
         case 'quick-actions':
             return {
                 id,

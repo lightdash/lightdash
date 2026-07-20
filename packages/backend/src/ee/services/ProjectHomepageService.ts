@@ -8,9 +8,7 @@ import {
     HOMEPAGE_MAX_BLOCKS_PER_ROW,
     NotFoundError,
     ParameterError,
-    type AnnouncementCategory,
     type AnnouncementsPage,
-    type CreateAnnouncementCategoryRequest,
     type CreateAnnouncementRequest,
     type CreateProjectHomepageRequest,
     type HomepageAssignment,
@@ -88,9 +86,6 @@ export type ProjectHomepageServiceArguments = {
         | 'createAnnouncement'
         | 'updateAnnouncement'
         | 'deleteAnnouncement'
-        | 'listCategories'
-        | 'getCategory'
-        | 'createCategory'
     >;
     featureFlagService: Pick<FeatureFlagService, 'get'>;
     groupsModel: Pick<GroupsModel, 'findUserGroups'>;
@@ -551,18 +546,6 @@ export class ProjectHomepageService extends BaseService {
         return announcement;
     }
 
-    private async assertOwnedCategory(
-        projectUuid: string,
-        categoryUuid: string | null | undefined,
-    ): Promise<void> {
-        if (categoryUuid === null || categoryUuid === undefined) return;
-        const category =
-            await this.projectHomepageModel.getCategory(categoryUuid);
-        if (!category || category.projectUuid !== projectUuid) {
-            throw new NotFoundError('Category not found');
-        }
-    }
-
     private static validateAnnouncementTitle(title: string): void {
         if (title.trim().length === 0) {
             throw new ParameterError('Announcement title cannot be empty');
@@ -572,7 +555,7 @@ export class ProjectHomepageService extends BaseService {
     async listAnnouncements(
         user: SessionUser,
         projectUuid: string,
-        options: { page: number; pageSize: number; categoryUuid?: string },
+        options: { page: number; pageSize: number },
     ): Promise<AnnouncementsPage> {
         await this.assertFlagEnabled(user);
         this.assertCanView(user, projectUuid);
@@ -597,12 +580,10 @@ export class ProjectHomepageService extends BaseService {
         await this.assertFlagEnabled(user);
         this.assertCanManage(user, projectUuid);
         ProjectHomepageService.validateAnnouncementTitle(data.title);
-        await this.assertOwnedCategory(projectUuid, data.categoryUuid);
         return this.projectHomepageModel.createAnnouncement({
             projectUuid,
             title: data.title.trim(),
             body: data.body,
-            categoryUuid: data.categoryUuid,
             createdByUserUuid: user.userUuid,
         });
     }
@@ -619,7 +600,6 @@ export class ProjectHomepageService extends BaseService {
         if (update.title !== undefined) {
             ProjectHomepageService.validateAnnouncementTitle(update.title);
         }
-        await this.assertOwnedCategory(projectUuid, update.categoryUuid);
         return this.projectHomepageModel.updateAnnouncement(announcementUuid, {
             ...update,
             ...(update.title !== undefined && { title: update.title.trim() }),
@@ -635,38 +615,6 @@ export class ProjectHomepageService extends BaseService {
         this.assertCanManage(user, projectUuid);
         await this.getOwnedAnnouncement(projectUuid, announcementUuid);
         await this.projectHomepageModel.deleteAnnouncement(announcementUuid);
-    }
-
-    async listAnnouncementCategories(
-        user: SessionUser,
-        projectUuid: string,
-    ): Promise<AnnouncementCategory[]> {
-        await this.assertFlagEnabled(user);
-        this.assertCanView(user, projectUuid);
-        return this.projectHomepageModel.listCategories(projectUuid);
-    }
-
-    async createAnnouncementCategory(
-        user: SessionUser,
-        projectUuid: string,
-        data: CreateAnnouncementCategoryRequest,
-    ): Promise<AnnouncementCategory> {
-        await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
-        const name = data.name.trim();
-        if (name.length === 0 || name.length > 40) {
-            throw new ParameterError(
-                'Category name must be 1-40 characters long',
-            );
-        }
-        if (!/^#[0-9a-fA-F]{6}$/.test(data.color)) {
-            throw new ParameterError('Category color must be #rrggbb');
-        }
-        return this.projectHomepageModel.createCategory({
-            projectUuid,
-            name,
-            color: data.color.toLowerCase(),
-        });
     }
 
     private static async bufferAnnouncementImageUpload(

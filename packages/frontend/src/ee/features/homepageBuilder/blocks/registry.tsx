@@ -122,7 +122,7 @@ export const blockLibrary: BlockDefinition[] = [
         create: () => ({
             id: uuidv4(),
             type: 'announcements',
-            config: { title: 'From the data team', categoryUuids: [] },
+            config: { title: 'From the data team' },
         }),
         View: AnnouncementsBlockView,
         Build: AnnouncementsBlockBuild,

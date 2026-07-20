@@ -127,8 +127,9 @@ export type DbAnnouncement = {
 
 export type DbAnnouncementIn = Pick<
     DbAnnouncement,
-    'project_uuid' | 'title' | 'body' | 'category_uuid' | 'created_by_user_uuid'
->;
+    'project_uuid' | 'title' | 'body' | 'created_by_user_uuid'
+> &
+    Partial<Pick<DbAnnouncement, 'category_uuid'>>;
 
 export type DbAnnouncementUpdate = Partial<
     Pick<

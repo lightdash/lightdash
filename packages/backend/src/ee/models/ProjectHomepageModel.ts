@@ -2,7 +2,6 @@ import {
     ConflictError,
     NotFoundError,
     ParameterError,
-    type AnnouncementCategory,
     type AnnouncementsPage,
     type HomepageAssignment,
     type HomepageAudience,
@@ -17,13 +16,11 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import {
-    AnnouncementCategoriesTableName,
     AnnouncementsTableName,
     HomepageAssignmentsTableName,
     HomepagePersonalOverridesTableName,
     HomepagesTableName,
     type DbAnnouncement,
-    type DbAnnouncementCategory,
     type DbProjectHomepage,
 } from '../database/entities/projectHomepages';
 
@@ -523,7 +520,6 @@ export class ProjectHomepageModel {
             projectUuid: row.project_uuid,
             title: row.title,
             body: row.body,
-            categoryUuid: row.category_uuid,
             pinned: row.pinned,
             createdByUserUuid: row.created_by_user_uuid,
             authorName: row.author_name?.trim() || null,
@@ -532,8 +528,8 @@ export class ProjectHomepageModel {
         };
     }
 
-    private announcementsQuery(projectUuid: string, categoryUuid?: string) {
-        const query = this.database(AnnouncementsTableName)
+    private announcementsQuery(projectUuid: string) {
+        return this.database(AnnouncementsTableName)
             .where(`${AnnouncementsTableName}.project_uuid`, projectUuid)
             .orderBy([
                 { column: 'pinned', order: 'desc' },
@@ -542,24 +538,15 @@ export class ProjectHomepageModel {
                     order: 'desc',
                 },
             ]);
-        if (categoryUuid) {
-            // Knex builders are thenables; void marks the in-place mutation
-            // as intentionally not awaited.
-            void query.where(
-                `${AnnouncementsTableName}.category_uuid`,
-                categoryUuid,
-            );
-        }
-        return query;
     }
 
     async listAnnouncements(
         projectUuid: string,
-        options: { page: number; pageSize: number; categoryUuid?: string },
+        options: { page: number; pageSize: number },
     ): Promise<AnnouncementsPage> {
         const offset = (options.page - 1) * options.pageSize;
         const [rows, countRow] = await Promise.all([
-            this.announcementsQuery(projectUuid, options.categoryUuid)
+            this.announcementsQuery(projectUuid)
                 .leftJoin(
                     'users',
                     'users.user_uuid',
@@ -575,14 +562,6 @@ export class ProjectHomepageModel {
                 .limit(options.pageSize),
             this.database(AnnouncementsTableName)
                 .where('project_uuid', projectUuid)
-                .modify((builder) => {
-                    if (options.categoryUuid) {
-                        void builder.where(
-                            'category_uuid',
-                            options.categoryUuid,
-                        );
-                    }
-                })
                 .count<{ count: string }>('* as count')
                 .first(),
         ]);
@@ -605,7 +584,6 @@ export class ProjectHomepageModel {
         projectUuid: string;
         title: string;
         body: string | null;
-        categoryUuid: string | null;
         createdByUserUuid: string;
     }): Promise<ProjectAnnouncement> {
         const [row] = await this.database(AnnouncementsTableName)
@@ -613,7 +591,6 @@ export class ProjectHomepageModel {
                 project_uuid: data.projectUuid,
                 title: data.title,
                 body: data.body,
-                category_uuid: data.categoryUuid,
                 created_by_user_uuid: data.createdByUserUuid,
             })
             .returning('*');
@@ -643,9 +620,6 @@ export class ProjectHomepageModel {
                 .update({
                     ...(update.title !== undefined && { title: update.title }),
                     ...(update.body !== undefined && { body: update.body }),
-                    ...(update.categoryUuid !== undefined && {
-                        category_uuid: update.categoryUuid,
-                    }),
                     ...(update.pinned !== undefined && {
                         pinned: update.pinned,
                     }),
@@ -661,60 +635,5 @@ export class ProjectHomepageModel {
             .where({ announcement_uuid: announcementUuid })
             .delete();
         if (deleted === 0) throw new NotFoundError('Announcement not found');
-    }
-
-    private static mapDbCategory(
-        row: DbAnnouncementCategory,
-    ): AnnouncementCategory {
-        return {
-            categoryUuid: row.category_uuid,
-            projectUuid: row.project_uuid,
-            name: row.name,
-            color: row.color,
-        };
-    }
-
-    async listCategories(projectUuid: string): Promise<AnnouncementCategory[]> {
-        const rows = await this.database(AnnouncementCategoriesTableName)
-            .where({ project_uuid: projectUuid })
-            .orderBy('created_at', 'asc');
-        return rows.map(ProjectHomepageModel.mapDbCategory);
-    }
-
-    async getCategory(
-        categoryUuid: string,
-    ): Promise<AnnouncementCategory | undefined> {
-        const row = await this.database(AnnouncementCategoriesTableName)
-            .where({ category_uuid: categoryUuid })
-            .first();
-        return row ? ProjectHomepageModel.mapDbCategory(row) : undefined;
-    }
-
-    async createCategory(data: {
-        projectUuid: string;
-        name: string;
-        color: string;
-    }): Promise<AnnouncementCategory> {
-        try {
-            const [row] = await this.database(AnnouncementCategoriesTableName)
-                .insert({
-                    project_uuid: data.projectUuid,
-                    name: data.name,
-                    color: data.color,
-                })
-                .returning('*');
-            return ProjectHomepageModel.mapDbCategory(row);
-        } catch (error) {
-            if (
-                error instanceof Error &&
-                'code' in error &&
-                error.code === '23505'
-            ) {
-                throw new ConflictError(
-                    'A category with this name already exists',
-                );
-            }
-            throw error;
-        }
     }
 }

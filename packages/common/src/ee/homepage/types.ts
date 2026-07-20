@@ -69,9 +69,8 @@ export type HomepageLinkMetadata = {
 export type HomepageAnnouncementsBlock = {
     id: string;
     type: 'announcements';
-    /** Feed reference — items live in `project_announcements`. Empty
-     * categoryUuids = all categories. */
-    config: { title: string; categoryUuids: string[] };
+    /** Feed reference — items live in `project_announcements`. */
+    config: { title: string };
 };
 
 export type HomepageQuickAction =
@@ -201,19 +200,6 @@ export const defaultHomepageConfig = (): HomepageConfig => ({
 // block into a markdown block so old configs still load, save and render — its
 // {name} token keeps personalizing via the markdown block's own interpolation.
 const migrateBlock = (block: HomepageBlock): HomepageBlock => {
-    // Announcements moved from config-embedded items to the
-    // project_announcements feed; legacy items are dropped (pre-release).
-    if (block.type === 'announcements') {
-        const legacyConfig = block.config as { categoryUuids?: unknown };
-        if (!Array.isArray(legacyConfig.categoryUuids)) {
-            return {
-                id: block.id,
-                type: 'announcements',
-                config: { title: block.config.title, categoryUuids: [] },
-            };
-        }
-        return block;
-    }
     if ((block.type as string) !== 'hero') return block;
     const legacyConfig = (block as { config: Record<string, unknown> }).config;
     const title =
@@ -309,19 +295,11 @@ export type ApiProjectHomepagesResponse = ApiSuccess<ProjectHomepage[]>;
 export type ApiProjectHomepageOrNullResponse =
     ApiSuccess<ProjectHomepage | null>;
 
-export type AnnouncementCategory = {
-    categoryUuid: string;
-    projectUuid: string;
-    name: string;
-    color: string;
-};
-
 export type ProjectAnnouncement = {
     announcementUuid: string;
     projectUuid: string;
     title: string;
     body: string | null;
-    categoryUuid: string | null;
     pinned: boolean;
     createdByUserUuid: string | null;
     authorName: string | null;
@@ -337,26 +315,15 @@ export type AnnouncementsPage = {
 export type CreateAnnouncementRequest = {
     title: string;
     body: string | null;
-    categoryUuid: string | null;
 };
 
 /** PATCH semantics: omitted fields are left unchanged */
 export type UpdateAnnouncementRequest = {
     title?: string;
     body?: string | null;
-    categoryUuid?: string | null;
     pinned?: boolean;
-};
-
-export type CreateAnnouncementCategoryRequest = {
-    name: string;
-    color: string;
 };
 
 export type ApiAnnouncementsResponse = ApiSuccess<AnnouncementsPage>;
 export type ApiAnnouncementResponse = ApiSuccess<ProjectAnnouncement>;
-export type ApiAnnouncementCategoriesResponse = ApiSuccess<
-    AnnouncementCategory[]
->;
 export type ApiAnnouncementImageUploadResponse = ApiSuccess<{ url: string }>;
-export type ApiAnnouncementCategoryResponse = ApiSuccess<AnnouncementCategory>;

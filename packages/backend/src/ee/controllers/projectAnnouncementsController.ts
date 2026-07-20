@@ -1,14 +1,11 @@
 import {
     assertRegisteredAccount,
     ParameterError,
-    type ApiAnnouncementCategoriesResponse,
-    type ApiAnnouncementCategoryResponse,
     type ApiAnnouncementImageUploadResponse,
     type ApiAnnouncementResponse,
     type ApiAnnouncementsResponse,
     type ApiErrorPayload,
     type ApiSuccessEmpty,
-    type CreateAnnouncementCategoryRequest,
     type CreateAnnouncementRequest,
     type UpdateAnnouncementRequest,
     type UUID,
@@ -56,7 +53,6 @@ export class ProjectAnnouncementsController extends BaseController {
         @Path() projectUuid: UUID,
         @Query() page: number = 1,
         @Query() pageSize: number = 25,
-        @Query() categoryUuid?: UUID,
     ): Promise<ApiAnnouncementsResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -65,7 +61,7 @@ export class ProjectAnnouncementsController extends BaseController {
             results: await this.getHomepageService().listAnnouncements(
                 toSessionUser(req.account),
                 projectUuid,
-                { page, pageSize, categoryUuid },
+                { page, pageSize },
             ),
         };
     }
@@ -143,50 +139,6 @@ export class ProjectAnnouncementsController extends BaseController {
         );
         this.setStatus(200);
         return { status: 'ok', results: undefined };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/categories')
-    @OperationId('listProjectAnnouncementCategories')
-    async listCategories(
-        @Request() req: express.Request,
-        @Path() projectUuid: UUID,
-    ): Promise<ApiAnnouncementCategoriesResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.getHomepageService().listAnnouncementCategories(
-                toSessionUser(req.account),
-                projectUuid,
-            ),
-        };
-    }
-
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('201', 'Created')
-    @Post('/categories')
-    @OperationId('createProjectAnnouncementCategory')
-    async createCategory(
-        @Request() req: express.Request,
-        @Path() projectUuid: UUID,
-        @Body() body: CreateAnnouncementCategoryRequest,
-    ): Promise<ApiAnnouncementCategoryResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(201);
-        return {
-            status: 'ok',
-            results: await this.getHomepageService().createAnnouncementCategory(
-                toSessionUser(req.account),
-                projectUuid,
-                body,
-            ),
-        };
     }
 
     @Middlewares([

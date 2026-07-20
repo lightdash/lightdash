@@ -152,9 +152,6 @@ const makeService = ({
             createAnnouncement: vi.fn(),
             updateAnnouncement: vi.fn(),
             deleteAnnouncement: vi.fn().mockResolvedValue(undefined),
-            listCategories: vi.fn().mockResolvedValue([]),
-            getCategory: vi.fn().mockResolvedValue(undefined),
-            createCategory: vi.fn(),
             ...projectHomepageModel,
         },
         groupsModel: {
@@ -482,7 +479,6 @@ describe('ProjectHomepageService', () => {
                 service.createAnnouncement(makeViewerUser(), PROJECT_UUID, {
                     title: 'Hello',
                     body: null,
-                    categoryUuid: null,
                 }),
             ).rejects.toThrow(ForbiddenError);
         });
@@ -493,29 +489,8 @@ describe('ProjectHomepageService', () => {
                 service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
                     title: '   ',
                     body: null,
-                    categoryUuid: null,
                 }),
             ).rejects.toThrow(ParameterError);
-        });
-
-        it('createAnnouncement rejects a category from another project', async () => {
-            const service = makeService({
-                projectHomepageModel: {
-                    getCategory: vi.fn().mockResolvedValue({
-                        categoryUuid: 'cat-1',
-                        projectUuid: 'other-project',
-                        name: 'Release',
-                        color: '#3b5bdb',
-                    }),
-                },
-            });
-            await expect(
-                service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
-                    title: 'Hello',
-                    body: null,
-                    categoryUuid: 'cat-1',
-                }),
-            ).rejects.toThrow(NotFoundError);
         });
 
         it('updateAnnouncement passes pinned through for an owned announcement', async () => {
@@ -524,7 +499,6 @@ describe('ProjectHomepageService', () => {
                 projectUuid: PROJECT_UUID,
                 title: 'Hello',
                 body: null,
-                categoryUuid: null,
                 pinned: false,
                 createdByUserUuid: 'user-1',
                 authorName: 'Ana',
@@ -569,17 +543,6 @@ describe('ProjectHomepageService', () => {
                     { pinned: true },
                 ),
             ).rejects.toThrow(NotFoundError);
-        });
-
-        it('createAnnouncementCategory validates the colour format', async () => {
-            const service = makeService();
-            await expect(
-                service.createAnnouncementCategory(
-                    makeAdminUser(),
-                    PROJECT_UUID,
-                    { name: 'Ops', color: 'red' },
-                ),
-            ).rejects.toThrow(ParameterError);
         });
 
         it('listAnnouncements allows a viewer and rejects bad pagination', async () => {
