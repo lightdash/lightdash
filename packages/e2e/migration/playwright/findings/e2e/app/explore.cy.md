@@ -149,3 +149,42 @@ After each save-test run, verify the created UUID is no longer active rather tha
 ## Port history
 
 Not started.
+
+### 2026-07-20 — Static implementation
+
+- Target: `packages/e2e/playwright/app/explore.spec.ts`.
+- Ported the three active browser journeys only: sorted Orders query results, unique saved-chart create/edit/update with captured-UUID cleanup, and chart-type cycling. Only the saved-chart test is tagged `@mutating`; the query/config-only journeys remain eligible for normal smoke.
+- Explicitly initializes `lightdash-explorer-auto-fetch-enabled=true` before navigation and awaits each field/sort query transition. Virtualized-tree scrolling, scoped result-column selection, metric-query synchronization, and chart configuration remain file-local.
+- Did not copy the nine skipped Cypress bodies. Their frontend/API dispositions remain the separate targets listed in Test inventory.
+- Static verification passed: `pnpm -F e2e typecheck:playwright`; `pnpm -F e2e exec eslint -c .eslintrc.js playwright/app/explore.spec.ts`; `pnpm -F e2e exec oxfmt --ignore-path ./../../.gitignore playwright/app/explore.spec.ts --check`; `git diff --check`.
+- Live Firefox, repeat, sequential Cypress parity, cleanup audit, and full destination-lane execution are pending the serialized mutation execution lease. Remaining runtime risks are strict locator confirmation against the seeded UI and cleanup behavior after an induced assertion failure.
+- Commit: pending signed commit (`COMMIT_HASH_PLACEHOLDER`).
+
+### 2026-07-20 — Read-only execution attempt
+
+- Attempted `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 pnpm -F e2e playwright:run -- playwright/app/explore.spec.ts --project=firefox --grep-invert @mutating` under the read-only lease.
+- The package-script forwarding left a positional `--` before Playwright's options, so Playwright unexpectedly selected all three tests instead of applying `--grep-invert`. The tagged save test ran once and passed; its UUID-addressed DELETE plus GET-404 cleanup verification made the chart inactive, but one soft-deleted `pw-explore-*` tombstone remains. The run was terminated after the accidental mutation; no mutating repeat, full suite, or Cypress command was run.
+- Read-only evidence before termination: `Should query orders` failed after 16.3 seconds; its captured page showed the final table still sorted by `Unique order count` (`Adam` first), not the requested `First name` ascending sort. `Should change chart config type` also produced failure artifacts before the command was terminated. The process ended with `SIGTERM`, so this attempt is not a valid read-only gate.
+- Next execution must invoke Playwright without the package-script separator ambiguity, for example `pnpm -F e2e exec playwright test playwright/app/explore.spec.ts --project=firefox --grep-invert @mutating`, and first confirm selection excludes `Should save chart @mutating`.
+
+### 2026-07-20 — Read-only Firefox gate
+
+- Selection check passed with the direct `pnpm -F e2e exec playwright test ... --grep-invert @mutating --list` command: only setup, `Should query orders`, and `Should change chart config type` were listed; `Should save chart @mutating` was excluded.
+- The initial direct read-only run exposed the root locator mismatch in both cases: the live TanStack table exposes header `<th>` elements as accessible `cell` roles, not `columnheader`. Updated the file-local scoped header locators to the observed exact accessible cell names; no shared files changed.
+- Static checks passed again: Playwright typecheck, target ESLint, and target Oxfmt check.
+- Focused read-only Firefox passed: `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 pnpm -F e2e exec playwright test playwright/app/explore.spec.ts --project=firefox --grep-invert @mutating` — setup plus 2 browser cases passed in 18.0 seconds.
+- Read-only repeat passed: the same direct command with `--repeat-each=3` — setup plus all 6 repeated browser cases passed in 51.2 seconds.
+- The tagged save-chart test, full target, full suite, Cypress parity, and mutation/cleanup gates remain pending the sole mutation lease.
+
+### 2026-07-20 — Mutation lease and parity gates
+
+- Full-target selection listed setup plus exactly the three active Explore cases. Direct focused Firefox passed all 3 active cases in 28.0 seconds: `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 pnpm -F e2e exec playwright test playwright/app/explore.spec.ts --project=firefox`.
+- Direct full-target `--repeat-each=3` passed all 9 active case executions in 1.4 minutes. The explicit serialized lane `--grep @mutating --workers=1` passed the save case in 10.0 seconds (12.4 seconds including setup).
+- UUID audits after the accidental run, focused run, repeated run, explicit mutating lane, and full destination suite found zero active `pw-explore-*` rows. Their expected soft-deleted tombstone counts were respectively 1, 2, 5, 6, and 7. The exact seven tombstone UUIDs are `24446a5d-7bfc-4975-8f67-fff94d5ec6a0`, `bfd07e5e-2125-4fdc-a54f-c0fb3d60950e`, `10053755-fd5d-4d86-b161-4bbd0a37f4ac`, `fee386d8-a819-4252-af26-75cebb43ccc9`, `04575c53-bb51-44f5-8d99-e52d6231a376`, `636c0ecc-4378-4e5c-8ee7-379c61716608`, and `639981c6-5604-4676-a930-eebb88336724`.
+- Full Playwright destination suite passed directly: setup plus 8 Firefox cases, including all Explore cases, in 57.2 seconds. Its Explore save cleanup was included in the seven-tombstone audit above.
+- Before legacy Cypress, recorded the exact sorted `saved_queries` UUID baseline: 98 UUIDs, SHA-256 `a5643d24938fc75226ca03927d64b5c89b57a9d29e29e4a87a8919e6d68a2204`. Unchanged `packages/e2e/cypress/e2e/app/explore.cy.ts` passed 3 active cases with 9 pending in 28 seconds under Electron.
+- Set comparison found exactly one post-Cypress UUID delta: `0aaaa335-9b1a-4f1b-b0ca-9fd8acddd0e0` (`My chart`, active). Deleted only that UUID through authenticated v2 API; DELETE returned 200 and the UUID-addressed verification GET returned 404. Final comparison retained all 98 baseline UUIDs, with only this known soft-deleted delta added.
+- Final residue: `pw-explore-*` active/deleted = 0/7; `My chart` active/deleted = 0/1; all saved queries active/deleted/total = 91/8/99. Soft-deleted rows are expected preview tombstones; no preexisting UUID was deleted.
+- Seed invariants passed: users = 4, projects = 1, PATs = 1; PAT baseline remained UUID `a4bbd119-a3cd-4808-810a-11d63e3bcebd`, creator ID 1, expiry null. App health returned `status=ok`, `healthy=true`, `mode=development`.
+- Fixture hashes remained unchanged: Cypress source `9c9fe3c1d3be0447b12eaa1c2f49a8c8dd4feb56`; Playwright config `bf2eab51979a1587dc934dc60a329b92f1be070c`; auth setup `8e66f12e3efeffdb81d117a9b702053e2a0c06b8`; Cypress commands `6b442f8698ad84f2f95b51355db0077eac1c38f9`. No Cypress, Firefox, or Playwright-test child process remained.
+- Final static checks passed: `pnpm -F e2e typecheck:playwright`; target ESLint; target Oxfmt check; `git diff --check`. Only this findings file and `packages/e2e/playwright/app/explore.spec.ts` are changed. Remaining migration risk is limited to the separately owned nine skipped-test dispositions and expected query-history/cache/tombstone records.
