@@ -761,7 +761,7 @@ const AppGenerate: FC = () => {
         number | null
     >(null);
     const { mutateAsync: uploadImage } = useAppImageUpload();
-    const { showToastError, showToastWarning } = useToaster();
+    const { showToastError, showToastSuccess, showToastWarning } = useToaster();
     const { mutateAsync: uploadThumbnail } = useAppThumbnailUpload();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { user } = useApp();
@@ -1521,6 +1521,33 @@ const AppGenerate: FC = () => {
         Array.from(e.dataTransfer.files)
             .filter((f) => f.type.startsWith('image/'))
             .forEach((file) => handleImageAttach(file));
+    };
+
+    // Header-menu "Capture thumbnail": saves the preview as the app thumbnail
+    // without attaching a screenshot to the next prompt.
+    const handleCaptureThumbnail = async () => {
+        const capture = previewRef.current?.captureScreenshot;
+        if (!capture || !projectUuid || !activeAppUuid) return;
+        setIsCapturingScreenshot(true);
+        try {
+            const file = await capture();
+            await uploadThumbnail({
+                projectUuid,
+                appUuid: activeAppUuid,
+                file,
+            });
+            void queryClient.invalidateQueries({
+                queryKey: ['app-thumbnail', projectUuid, activeAppUuid],
+            });
+            showToastSuccess({ title: 'Thumbnail updated' });
+        } catch (err) {
+            showToastError({
+                title: 'Failed to capture thumbnail',
+                subtitle: err instanceof Error ? err.message : 'Unknown error',
+            });
+        } finally {
+            setIsCapturingScreenshot(false);
+        }
     };
 
     const handleCaptureScreenshot = async () => {
@@ -3037,6 +3064,14 @@ const AppGenerate: FC = () => {
                                             }
                                             onRefresh={handleRefreshPreview}
                                             refreshDisabled={!previewApp}
+                                            captureThumbnail={{
+                                                onCapture: () =>
+                                                    void handleCaptureThumbnail(),
+                                                disabled:
+                                                    !previewApp ||
+                                                    !screenshotAvailable ||
+                                                    isCapturingScreenshot,
+                                            }}
                                             onViewNetwork={() =>
                                                 setNetworkPanelHidden(false)
                                             }

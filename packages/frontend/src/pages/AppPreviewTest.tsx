@@ -306,6 +306,7 @@ export default function AppPreviewTest() {
                         }
                         onRefresh={handleRefresh}
                         refreshDisabled={version === undefined}
+                        captureThumbnail={null}
                         onViewNetwork={() => setNetworkPanelHidden(false)}
                         onDeleted={() => {
                             void navigate(`/projects/${projectUuid}/home`);

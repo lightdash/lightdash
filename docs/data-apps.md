@@ -217,7 +217,10 @@ runs against the warehouse fresh. (This mirrors the sticky behaviour of the dash
 
 The builder's Screenshot button uses the iframe-side screenshot handler (`screenshotHandler.js`) to rasterize the current
 preview. In addition to attaching that PNG to the next prompt as a screenshot reference, the frontend immediately uploads
-it as the app thumbnail.
+it as the app thumbnail. The builder's header overflow menu also carries a **Capture thumbnail** action that runs the same
+capture but only saves the thumbnail — nothing is attached to the chat. It's disabled until the iframe announces
+screenshot capability, and hidden in the viewer (`AppPreviewTest`), which passes `captureThumbnail={null}` to
+`AppHeaderActions`.
 
 Storage is intentionally simple and app-scoped: the latest manual screenshot overwrites
 `apps/{appUuid}/thumbnail.png` in the app runtime S3 bucket. There is no DB row or per-version history; the object key is

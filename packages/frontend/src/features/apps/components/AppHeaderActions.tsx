@@ -6,6 +6,7 @@ import {
 import { ActionIcon, Menu, Tooltip } from '@mantine-8/core';
 import {
     IconArrowsUpDown,
+    IconCamera,
     IconCopy,
     IconDatabaseExport,
     IconDots,
@@ -54,6 +55,13 @@ type Props = {
      *  "Preview latest" in the builder, "Continue building" in the viewer.
      *  Rendered at the top of the menu; pass null to omit it. */
     navItem: ReactNode;
+    /** Builder-only action that captures the live preview and saves it as the
+     *  app thumbnail. Pass null on surfaces without a capture pipeline (the
+     *  viewer). Disabled until the iframe announces screenshot capability. */
+    captureThumbnail: {
+        onCapture: () => void;
+        disabled: boolean;
+    } | null;
 };
 
 /**
@@ -80,6 +88,7 @@ const AppHeaderActions: FC<Props> = ({
     onViewNetwork,
     onDeleted,
     navItem,
+    captureThumbnail,
 }) => {
     const navigate = useNavigate();
 
@@ -197,6 +206,17 @@ const AppHeaderActions: FC<Props> = ({
                             onClick={() => setIsUpdateModalOpen(true)}
                         >
                             Rename
+                        </Menu.Item>
+                    )}
+                    {canEdit && captureThumbnail && (
+                        <Menu.Item
+                            leftSection={
+                                <MantineIcon icon={IconCamera} size={14} />
+                            }
+                            disabled={captureThumbnail.disabled}
+                            onClick={captureThumbnail.onCapture}
+                        >
+                            Capture thumbnail
                         </Menu.Item>
                     )}
                     {canDuplicate && (
