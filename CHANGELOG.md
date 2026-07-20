@@ -1,3 +1,11 @@
+# [0.3424.0](https://github.com/lightdash/lightdash/compare/0.3423.1...0.3424.0) (2026-07-20)
+
+
+### Features
+
+* add capture thumbnail action to data app build mode ([#25810](https://github.com/lightdash/lightdash/issues/25810)) ([3d34f8d](https://github.com/lightdash/lightdash/commit/3d34f8d495f647be624cbc638b6d49bb42edc0d5))
+* option to include app thumbnail when moving a data app to a space ([#25811](https://github.com/lightdash/lightdash/issues/25811)) ([b580d2a](https://github.com/lightdash/lightdash/commit/b580d2a5a5a1f7a129f5d3e8f32b346210323783))
+
 ## [0.3423.1](https://github.com/lightdash/lightdash/compare/0.3423.0...0.3423.1) (2026-07-20)
 
 
