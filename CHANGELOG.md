@@ -1,3 +1,10 @@
+# [0.3428.0](https://github.com/lightdash/lightdash/compare/0.3427.0...0.3428.0) (2026-07-20)
+
+
+### Features
+
+* extend onboarding analytics — login coverage, ordered funnel steps, query flow attribution (SPK-569) ([#25829](https://github.com/lightdash/lightdash/issues/25829)) ([26c7f95](https://github.com/lightdash/lightdash/commit/26c7f9584f2bb69bd12611a7d0f233ba772b4723))
+
 # [0.3427.0](https://github.com/lightdash/lightdash/compare/0.3426.0...0.3427.0) (2026-07-20)
 
 
