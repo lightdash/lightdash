@@ -7,6 +7,7 @@ import {
     IconList,
     IconListNumbers,
     IconMinus,
+    IconPhoto,
     IconPilcrow,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
@@ -108,3 +109,23 @@ export const SLASH_COMMAND_ITEMS: SlashCommandItem[] = [
             editor.chain().focus().deleteRange(range).setHorizontalRule().run(),
     },
 ];
+
+export const createSlashCommandItems = (options?: {
+    onInsertImage?: () => void;
+}): SlashCommandItem[] => {
+    if (!options?.onInsertImage) return SLASH_COMMAND_ITEMS;
+    const { onInsertImage } = options;
+    return [
+        ...SLASH_COMMAND_ITEMS,
+        {
+            id: 'image',
+            label: 'Image',
+            description: 'Upload an image',
+            icon: IconPhoto,
+            run: (editor, range) => {
+                editor.chain().focus().deleteRange(range).run();
+                onInsertImage();
+            },
+        },
+    ];
+};

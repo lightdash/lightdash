@@ -10,8 +10,16 @@ import { renderSlashCommandItem } from './SlashCommandMenuItem';
 
 const slashCommandPluginKey = new PluginKey('homepageMarkdownSlashCommand');
 
-export const SlashCommand = Extension.create({
+export interface SlashCommandOptions {
+    items: SlashCommandItem[];
+}
+
+export const SlashCommand = Extension.create<SlashCommandOptions>({
     name: 'slashCommand',
+
+    addOptions() {
+        return { items: SLASH_COMMAND_ITEMS };
+    },
 
     addProseMirrorPlugins() {
         return [
@@ -21,7 +29,7 @@ export const SlashCommand = Extension.create({
                 startOfLine: false,
                 pluginKey: slashCommandPluginKey,
                 ...generateSuggestion<SlashCommandItem>({
-                    items: SLASH_COMMAND_ITEMS,
+                    items: this.options.items,
                     command: ({ editor, range, props }) => {
                         const item = props as SlashCommandItem;
                         item.run(editor, range);
