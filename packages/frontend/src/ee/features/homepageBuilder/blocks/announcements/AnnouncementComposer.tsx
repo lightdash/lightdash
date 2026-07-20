@@ -1,7 +1,7 @@
 import { ActionIcon } from '@mantine-8/core';
-import { IconPhoto, IconSend } from '@tabler/icons-react';
+import { IconSend } from '@tabler/icons-react';
 import { EditorContent, useEditor } from '@tiptap/react';
-import { useCallback, type FC } from 'react';
+import { useCallback, useRef, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useUploadAnnouncementImage } from '../../hooks/useAnnouncements';
@@ -25,9 +25,13 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export const AnnouncementComposer: FC<Props> = ({ projectUuid, onPost }) => {
     const { showToastError } = useToaster();
     const uploadImageMutation = useUploadAnnouncementImage(projectUuid);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const editor = useEditor({
-        extensions: createAnnouncementExtensions(() => projectUuid),
+        extensions: createAnnouncementExtensions(
+            () => projectUuid,
+            () => fileInputRef.current?.click(),
+        ),
     });
 
     const insertImage = useCallback(
@@ -103,31 +107,21 @@ export const AnnouncementComposer: FC<Props> = ({ projectUuid, onPost }) => {
             onDrop={handleDrop}
             onDragOver={(event) => event.preventDefault()}
         >
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                aria-label="Insert image"
+                hidden
+                onChange={handleFileSelect}
+            />
             <EditorContent editor={editor} className={classes.editorContent} />
-            <label className={classes.imageButton}>
-                <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/gif,image/webp"
-                    aria-label="Insert image"
-                    hidden
-                    onChange={handleFileSelect}
-                />
-                <ActionIcon
-                    component="span"
-                    variant="subtle"
-                    size="lg"
-                    color="ldGray.6"
-                    loading={uploadImageMutation.isLoading}
-                    disabled={uploadImageMutation.isLoading}
-                >
-                    <MantineIcon icon={IconPhoto} />
-                </ActionIcon>
-            </label>
             <ActionIcon
                 variant="subtle"
                 size="lg"
                 color="ldGray.6"
                 aria-label="Post announcement"
+                loading={uploadImageMutation.isLoading}
                 onClick={handlePost}
             >
                 <MantineIcon icon={IconSend} />
