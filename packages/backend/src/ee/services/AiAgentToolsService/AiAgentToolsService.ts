@@ -6,6 +6,7 @@ import {
     CatalogFilter,
     CatalogType,
     ContentType,
+    DimensionType,
     Explore,
     FeatureFlags,
     filterExploreByTags,
@@ -2120,7 +2121,7 @@ export class AiAgentToolsService extends BaseService {
                 const query = args.query ?? '';
                 const isEmptyQuery = query.trim() === '';
 
-                // Serve curated filter_autocomplete values before the warehouse guard.
+                // Serve values known from field metadata before the warehouse guard.
                 const curatedResult = await this.getStaticFieldValues(
                     context,
                     args,
@@ -2129,7 +2130,7 @@ export class AiAgentToolsService extends BaseService {
                 if (curatedResult) {
                     Logger.info(
                         `[ai-field-values] served ${curatedResult.results.length} ` +
-                            `curated values source=${context.source} ` +
+                            `static values source=${context.source} ` +
                             `table=${args.table} fieldId=${args.fieldId}`,
                     );
                     return context.source === 'mcp'
@@ -2211,17 +2212,12 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    /**
-     * Serve a dimension's curated `filter_autocomplete` values without touching
-     * the warehouse, mirroring the Explore filter UI (`useFieldValues`). Returns
-     * undefined when the field isn't curated (or can't be resolved) so the
-     * caller falls back to the warehouse lookup.
-     */
+    /** Serve values known from field metadata without querying the warehouse. */
     private async getStaticFieldValues(
         context: AiAgentToolsRuntimeContext,
         args: Parameters<SearchFieldValuesFn>[0],
         query: string,
-    ): Promise<FieldValueSearchResult<string> | undefined> {
+    ): Promise<FieldValueSearchResult<string | boolean> | undefined> {
         let explore: Explore;
         try {
             explore = await this.getExploreForRuntime(context, {
@@ -2236,20 +2232,28 @@ export class AiAgentToolsService extends BaseService {
         const field = findFieldByIdInExplore(explore, args.fieldId);
         if (!field || !isDimension(field)) return undefined;
         if (
-            !shouldUseStaticFilterAutocomplete(field.filterAutocomplete, query)
+            shouldUseStaticFilterAutocomplete(field.filterAutocomplete, query)
         ) {
-            return undefined;
+            const results = filterStaticFilterAutocompleteValues(
+                field.filterAutocomplete?.values ?? [],
+                query,
+            ).slice(0, 100);
+            return {
+                search: query,
+                results,
+                cached: false,
+                refreshedAt: new Date(),
+            };
         }
-        const results = filterStaticFilterAutocompleteValues(
-            field.filterAutocomplete?.values ?? [],
-            query,
-        ).slice(0, 100);
-        return {
-            search: query,
-            results,
-            cached: false,
-            refreshedAt: new Date(),
-        };
+        if (field.type === DimensionType.BOOLEAN) {
+            return {
+                search: query,
+                results: [true, false],
+                cached: false,
+                refreshedAt: new Date(),
+            };
+        }
+        return undefined;
     }
 
     private listKnowledgeDocuments(

@@ -1,7 +1,9 @@
 import {
     Account,
     CatalogType,
+    DimensionType,
     Explore,
+    FieldType,
     FilterOperator,
     ForbiddenError,
     JobStatusType,
@@ -196,6 +198,116 @@ function makeRuntimeContext(
 }
 
 describe('AiAgentToolsService', () => {
+    it.each(['', 'tru', 'FALSE', 'unknown'])(
+        'returns the boolean domain for query "%s"',
+        async (query) => {
+            const searchFieldUniqueValues = vi.fn();
+            const service = makeService({
+                explores: {
+                    orders: makeExplore({
+                        name: 'orders',
+                        dimensions: {
+                            is_completed: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.BOOLEAN,
+                                name: 'is_completed',
+                                table: 'orders',
+                            },
+                        },
+                    }),
+                },
+                searchFieldUniqueValues,
+            });
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.searchFieldValues({
+                    table: 'orders',
+                    fieldId: 'orders_is_completed',
+                    query,
+                }),
+            ).resolves.toEqual([true, false]);
+            expect(searchFieldUniqueValues).not.toHaveBeenCalled();
+        },
+    );
+
+    it('preserves curated boolean values and labels', async () => {
+        const searchFieldUniqueValues = vi.fn();
+        const service = makeService({
+            explores: {
+                orders: makeExplore({
+                    name: 'orders',
+                    dimensions: {
+                        is_completed: {
+                            fieldType: FieldType.DIMENSION,
+                            type: DimensionType.BOOLEAN,
+                            name: 'is_completed',
+                            table: 'orders',
+                            filterAutocomplete: {
+                                fetchFromWarehouse: false,
+                                values: [{ value: 'true', label: 'Yes' }],
+                            },
+                        },
+                    },
+                }),
+            },
+            searchFieldUniqueValues,
+        });
+        const runtime = service.createRuntime(makeRuntimeContext());
+
+        await expect(
+            runtime.searchFieldValues({
+                table: 'orders',
+                fieldId: 'orders_is_completed',
+                query: 'yes',
+            }),
+        ).resolves.toEqual(['true']);
+        expect(searchFieldUniqueValues).not.toHaveBeenCalled();
+    });
+
+    it('returns the boolean domain without applying warehouse filters', async () => {
+        const searchFieldUniqueValues = vi.fn();
+        const service = makeService({
+            explores: {
+                orders: makeExplore({
+                    name: 'orders',
+                    dimensions: {
+                        is_completed: {
+                            fieldType: FieldType.DIMENSION,
+                            type: DimensionType.BOOLEAN,
+                            name: 'is_completed',
+                            table: 'orders',
+                        },
+                    },
+                }),
+            },
+            searchFieldUniqueValues,
+        });
+        const runtime = service.createRuntime(makeRuntimeContext());
+
+        await expect(
+            runtime.searchFieldValues({
+                table: 'orders',
+                fieldId: 'orders_is_completed',
+                query: '',
+                filters: {
+                    dimensions: {
+                        id: 'filters',
+                        and: [
+                            {
+                                id: 'is-completed-filter',
+                                target: { fieldId: 'orders_is_completed' },
+                                operator: FilterOperator.EQUALS,
+                                values: [true],
+                            },
+                        ],
+                    },
+                },
+            }),
+        ).resolves.toEqual([true, false]);
+        expect(searchFieldUniqueValues).not.toHaveBeenCalled();
+    });
+
     it('filters explores by tags and merged user attribute overrides', async () => {
         const service = makeService({
             userAttributes: { access_level: ['1'] },
