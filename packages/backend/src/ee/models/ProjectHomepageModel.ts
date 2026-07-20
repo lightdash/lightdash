@@ -663,14 +663,6 @@ export class ProjectHomepageModel {
         if (deleted === 0) throw new NotFoundError('Announcement not found');
     }
 
-    private static readonly STARTER_CATEGORIES: Array<
-        Pick<AnnouncementCategory, 'name' | 'color'>
-    > = [
-        { name: 'Release', color: '#3b5bdb' },
-        { name: 'Incident', color: '#c92a2a' },
-        { name: 'Data change', color: '#2b8a3e' },
-    ];
-
     private static mapDbCategory(
         row: DbAnnouncementCategory,
     ): AnnouncementCategory {
@@ -683,27 +675,10 @@ export class ProjectHomepageModel {
     }
 
     async listCategories(projectUuid: string): Promise<AnnouncementCategory[]> {
-        const existing = await this.database(AnnouncementCategoriesTableName)
+        const rows = await this.database(AnnouncementCategoriesTableName)
             .where({ project_uuid: projectUuid })
             .orderBy('created_at', 'asc');
-        if (existing.length > 0) {
-            return existing.map(ProjectHomepageModel.mapDbCategory);
-        }
-        // Lazy starter set; tolerate a concurrent seeder via onConflict.
-        await this.database(AnnouncementCategoriesTableName)
-            .insert(
-                ProjectHomepageModel.STARTER_CATEGORIES.map((category) => ({
-                    project_uuid: projectUuid,
-                    name: category.name,
-                    color: category.color,
-                })),
-            )
-            .onConflict(['project_uuid', 'name'])
-            .ignore();
-        const seeded = await this.database(AnnouncementCategoriesTableName)
-            .where({ project_uuid: projectUuid })
-            .orderBy('created_at', 'asc');
-        return seeded.map(ProjectHomepageModel.mapDbCategory);
+        return rows.map(ProjectHomepageModel.mapDbCategory);
     }
 
     async getCategory(
