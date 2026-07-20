@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     DbtProjectType,
     DbtProjectTypeLabels,
@@ -89,17 +90,29 @@ const useActionStatuses = (
 };
 
 export const useRecommendedActions = (projectUuid: string | null) => {
+    const { user } = useApp();
     const statuses = useActionStatuses(projectUuid);
     const [skippedActions, setSkippedActions] = useState<
         HomepageRecommendedActionKey[]
     >(() => readSkippedActions(projectUuid));
 
+    const canManageProject =
+        user.data?.ability?.can(
+            'manage',
+            subject('Project', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid: projectUuid ?? undefined,
+            }),
+        ) ?? false;
+
     const visibleActions = RECOMMENDED_ACTION_KEYS.filter(
         (key) => statuses[key].isVisible,
     );
-    const hasPendingActions = visibleActions.some(
-        (key) => !statuses[key].isComplete && !skippedActions.includes(key),
-    );
+    const hasPendingActions =
+        canManageProject &&
+        visibleActions.some(
+            (key) => !statuses[key].isComplete && !skippedActions.includes(key),
+        );
 
     return {
         statuses,
