@@ -261,6 +261,16 @@ export const exploreWithoutMetric: Explore = {
     },
 };
 
+export const exploreWithFieldError: Explore = {
+    ...explore,
+    warnings: [
+        {
+            type: InlineErrorType.FIELD_ERROR,
+            message: 'Warehouse rejected ${TABLE}.missing_column',
+        },
+    ],
+};
+
 export const exploreWithJoin: Explore = {
     targetDatabase: SupportedDbtAdapter.POSTGRES,
     name: 'joined_explore',

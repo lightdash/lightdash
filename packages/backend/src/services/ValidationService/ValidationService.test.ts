@@ -28,6 +28,7 @@ import {
     dashboardForValidation,
     explore,
     exploreError,
+    exploreWithFieldError,
     exploreWithJoin,
     exploreWithoutDimension,
     exploreWithoutMetric,
@@ -55,6 +56,7 @@ const projectModel = {
     })),
     get: vi.fn(async () => project),
     getSummary: vi.fn(async () => project),
+    getWithSensitiveFields: vi.fn(async () => project),
     getTablesConfiguration: vi.fn(async () => tableConfiguration),
 };
 const validationModel = {
@@ -204,6 +206,19 @@ describe('validation', () => {
             "The chart 'Test chart' is broken on this dashboard.",
         ];
         expect(errors.map((error) => error.error)).toEqual(expectedErrors);
+    });
+
+    it('Should validate project with field errors', async () => {
+        (
+            projectModel.findExploresFromCache as import('vitest').Mock
+        ).mockImplementationOnce(async () => [exploreWithFieldError]);
+
+        const errors =
+            await validationService.generateValidation('projectUuid');
+
+        expect(errors.map((error) => error.error)).toEqual([
+            'Warehouse rejected ${TABLE}.missing_column',
+        ]);
     });
 
     it('Should validate project with table errors', async () => {

@@ -32,6 +32,7 @@ import {
     getParsedReference,
     getPopComparisonConfigKey,
     getSqlForTruncatedDate,
+    getTableColumnReferences,
     hashPopComparisonConfigKeyToSuffix,
     hasPivotFunctions,
     hasRowFunctions,
@@ -60,6 +61,7 @@ import {
     QueryWarning,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
+    replaceTableColumnReferences,
     resolveTimestampFilterContext,
     snakeCaseName,
     SortField,
@@ -2534,21 +2536,23 @@ export class MetricQueryBuilder {
                 // Map raw column names to dimension aliases in the CTE
                 const columnToDimAlias = new Map<string, string>();
                 for (const [dimName, dim] of Object.entries(table.dimensions)) {
-                    const match = dim.sql.match(/^\$\{TABLE\}\.(\w+)$/);
-                    if (match) {
-                        const columnName = match[1];
+                    const [columnReference] = getTableColumnReferences(dim.sql);
+                    if (
+                        columnReference !== undefined &&
+                        dim.sql === `\${TABLE}.${columnReference}`
+                    ) {
                         const dimId = getItemId({
                             table: metric.table,
                             name: dimName,
                         });
-                        columnToDimAlias.set(columnName, dimId);
+                        columnToDimAlias.set(columnReference, dimId);
                     }
                 }
 
-                processedSql = processedSql.replace(
-                    /\$\{TABLE\}\.(\w+)/g,
-                    (fullMatch, columnName) => {
-                        const dimAlias = columnToDimAlias.get(columnName);
+                processedSql = replaceTableColumnReferences(
+                    processedSql,
+                    (fullMatch, columnReference) => {
+                        const dimAlias = columnToDimAlias.get(columnReference);
                         if (dimAlias) {
                             return `${cteName}.${fieldQuoteChar}${dimAlias}${fieldQuoteChar}`;
                         }

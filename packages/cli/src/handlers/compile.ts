@@ -16,10 +16,15 @@ import {
     LightdashProjectConfig,
     ParseError,
     preAggregatePostProcessor,
+    QueryExecutionContext,
     translateMetricFlowMetrics,
     WarehouseCatalog,
+    type WarehouseClient,
 } from '@lightdash/common';
-import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import {
+    validateWarehouseColumnReferences,
+    warehouseSqlBuilderFromType,
+} from '@lightdash/warehouses';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
@@ -49,6 +54,7 @@ export type CompileHandlerOptions = DbtCompileOptions & {
     startOfWeek?: number;
     warehouseCredentials?: boolean;
     disableTimestampConversion?: boolean;
+    validateWarehouseColumns?: boolean;
 };
 
 const getExploresFromLightdashYmlProject = async (
@@ -378,7 +384,11 @@ export const compile = async (options: CompileHandlerOptions) => {
 
         // Skipping assumes yml has the field types.
         let catalog: WarehouseCatalog = {};
-        if (!options.skipWarehouseCatalog) {
+        let validationWarehouseClient: WarehouseClient | null = null;
+        if (
+            !options.skipWarehouseCatalog ||
+            options.validateWarehouseColumns === true
+        ) {
             const { warehouseClient } = await getWarehouseClient({
                 isDbtCloudCLI: dbtVersionResult.success
                     ? dbtVersionResult.version.isDbtCloudCLI
@@ -388,8 +398,11 @@ export const compile = async (options: CompileHandlerOptions) => {
                 target: options.target,
                 startOfWeek: options.startOfWeek,
             });
+            validationWarehouseClient = warehouseClient;
+        }
+        if (!options.skipWarehouseCatalog && validationWarehouseClient) {
             GlobalState.debug('> Fetching warehouse catalog');
-            catalog = await warehouseClient.getCatalog(
+            catalog = await validationWarehouseClient.getCatalog(
                 getSchemaStructureFromDbtModels(validModels),
             );
         } else {
@@ -450,9 +463,20 @@ export const compile = async (options: CompileHandlerOptions) => {
                 postProcessors: [preAggregatePostProcessor],
             },
         );
+        const validatedExplores =
+            options.validateWarehouseColumns === true &&
+            validationWarehouseClient
+                ? await validateWarehouseColumnReferences({
+                      explores: validExplores,
+                      client: validationWarehouseClient,
+                      tags: {
+                          query_context: QueryExecutionContext.CLI,
+                      },
+                  })
+                : validExplores;
         console.error('');
 
-        explores = [...validExplores, ...failedExplores];
+        explores = [...validatedExplores, ...failedExplores];
         dbtMetrics = manifest.metrics;
     }
 

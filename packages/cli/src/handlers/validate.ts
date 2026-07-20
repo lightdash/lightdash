@@ -197,7 +197,12 @@ export const validateHandler = async (
             };
         }
 
-        const explores = await compile(options);
+        const explores = await compile({
+            ...options,
+            validateWarehouseColumns:
+                validationTargets.length === 0 ||
+                validationTargets.includes(ValidationTarget.TABLES),
+        });
         GlobalState.debug(`> Compiled ${explores.length} explores`);
 
         const validationJob = await requestValidation(

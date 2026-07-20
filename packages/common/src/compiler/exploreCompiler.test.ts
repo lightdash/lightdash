@@ -11,6 +11,7 @@ import { FilterOperator, UnitOfTime } from '../types/filter';
 import { TimeFrames } from '../types/timeFrames';
 import {
     ExploreCompiler,
+    getTableColumnReferences,
     parseAllReferences,
     sqlAggregationWrapsReferences,
     sqlContainsAggregation,
@@ -619,6 +620,23 @@ describe('Parse dimension reference', () => {
         expect(parseAllReferences('${TABLE}', 'table')).toStrictEqual([
             { refName: 'TABLE', refTable: 'table' },
         ]);
+    });
+    test('should parse TABLE column references', () => {
+        expect(
+            getTableColumnReferences(
+                'SUM(${TABLE}.amount) + ${TABLE}."Order Total" + ${TABLE}.`tax``rate` + ${TABLE}.`escaped\\`name` + ${TABLE}.amount',
+            ),
+        ).toStrictEqual([
+            'amount',
+            '"Order Total"',
+            '`tax``rate`',
+            '`escaped\\`name`',
+        ]);
+        expect(
+            getTableColumnReferences(
+                '${TABLE}.address.city + ${amount} + ${orders.shipping_cost}',
+            ),
+        ).toStrictEqual(['address']);
     });
     test('should not parse lightdash attribute', () => {
         expect(

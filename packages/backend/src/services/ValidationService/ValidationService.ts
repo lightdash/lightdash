@@ -30,6 +30,7 @@ import {
     KnexPaginatedData,
     NotFoundError,
     OrganizationMemberRole,
+    QueryExecutionContext,
     RequestMethod,
     SessionUser,
     TableCalculation,
@@ -40,6 +41,10 @@ import {
     ValidationSourceType,
     ValidationTarget,
 } from '@lightdash/common';
+import {
+    SshTunnel,
+    validateWarehouseColumnReferences,
+} from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -67,6 +72,41 @@ type ValidationServiceArguments = {
 };
 
 export class ValidationService extends BaseService {
+    private async validateWarehouseColumns(
+        projectUuid: string,
+        explores: (Explore | ExploreError)[],
+    ): Promise<(Explore | ExploreError)[]> {
+        const project =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+        if (project.warehouseConnection === undefined) return explores;
+
+        const sshTunnel = new SshTunnel(project.warehouseConnection);
+        try {
+            const credentials = await sshTunnel.connect();
+            const client =
+                this.projectModel.getWarehouseClientFromCredentials(
+                    credentials,
+                );
+            return await validateWarehouseColumnReferences({
+                explores,
+                client,
+                tags: {
+                    organization_uuid: project.organizationUuid,
+                    project_uuid: projectUuid,
+                    query_context: QueryExecutionContext.API,
+                },
+            });
+        } catch (error) {
+            this.logger.warn(
+                `Unable to validate warehouse column references for project ${projectUuid}`,
+                { error },
+            );
+            return explores;
+        } finally {
+            await sshTunnel.disconnect();
+        }
+    }
+
     private static buildExploreFields(
         compiledExplores: (Explore | ExploreError)[],
     ): Record<string, { dimensionIds: string[]; metricIds: string[] }> {
@@ -340,7 +380,21 @@ export class ValidationService extends BaseService {
                         }));
                     return [...acc, ...exploreErrors];
                 }
-                return acc;
+
+                const fieldErrors = (explore.warnings ?? [])
+                    .filter(
+                        (warning) =>
+                            warning.type === InlineErrorType.FIELD_ERROR,
+                    )
+                    .map((warning) => ({
+                        name: explore.name,
+                        error: warning.message,
+                        errorType: ValidationErrorType.Model,
+                        modelName: explore.name,
+                        projectUuid,
+                        source: ValidationSourceType.Table,
+                    }));
+                return [...acc, ...fieldErrors];
             },
             [],
         );
@@ -977,6 +1031,17 @@ export class ValidationService extends BaseService {
                 ),
             );
         }
+
+        const validatesTables =
+            !hasValidationTargets ||
+            validationTargets.has(ValidationTarget.TABLES);
+        if (compiledExplores === undefined && validatesTables) {
+            explores = await this.validateWarehouseColumns(
+                projectUuid,
+                explores,
+            );
+        }
+
         // Check for undefined dimensions/metrics before processing
         explores?.forEach((explore) => {
             if (!isExploreError(explore) && explore?.tables !== undefined) {
