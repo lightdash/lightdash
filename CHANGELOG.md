@@ -1,3 +1,16 @@
+# [0.3423.0](https://github.com/lightdash/lightdash/compare/0.3422.2...0.3423.0) (2026-07-20)
+
+
+### Bug Fixes
+
+* validate default time dimensions ([#25801](https://github.com/lightdash/lightdash/issues/25801)) ([421173b](https://github.com/lightdash/lightdash/commit/421173baa075f5525beb73b00847cb6aa0f6eb26)), closes [#25793](https://github.com/lightdash/lightdash/issues/25793)
+
+
+### Features
+
+* add project content as code tree output ([#25802](https://github.com/lightdash/lightdash/issues/25802)) ([4a5e2ea](https://github.com/lightdash/lightdash/commit/4a5e2eae9c43b0047eae5fb83547780bb2486549))
+* **data-apps:** bump claude code to `2.1.215` ([#25804](https://github.com/lightdash/lightdash/issues/25804)) ([fb5cb5a](https://github.com/lightdash/lightdash/commit/fb5cb5ad74db15f9584ccfa28db2dd17626ab671))
+
 ## [0.3422.2](https://github.com/lightdash/lightdash/compare/0.3422.1...0.3422.2) (2026-07-20)
 
 
