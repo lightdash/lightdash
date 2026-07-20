@@ -140,3 +140,54 @@ Verify teardown through authenticated GET `/api/v1/org/projects`: none of the ru
 ## Port history
 
 Not started.
+
+### 2026-07-20 — static Playwright port
+
+- Target: `packages/e2e/playwright/app/createProjects.spec.ts`.
+- Ported exactly the three active PostgreSQL, BigQuery, and Snowflake create-project contracts. The six direct Cypress skips and commented percentile/custom-dimension checks were not copied or activated; Cypress is unchanged.
+- Added file-level `@mutating`, serial/no-retry execution, run-UUID project names, create-job UUID capture, a finite 180-second exact-job poll, table-configuration PATCH synchronization, quote escaping, and 22 keyed interval assertions per warehouse.
+- Cleanup uses a newly authenticated admin request context, hard-deletes captured UUIDs, verifies UUID GET/list absence, and uses the exact run-unique name only when creation was attempted but the job UUID was not captured. Trace, video, and screenshots are off for the credential-bearing file.
+- BigQuery requires `GCP_CREDENTIALS_PATH`. Snowflake authentication is an exhaustive password/private-key union: `SNOWFLAKE_PASSWORD` wins; otherwise `SNOWFLAKE_PRIVATE_KEY_PATH` is required and `SNOWFLAKE_PRIVATE_KEY_PASSPHRASE` is optional. The implementation uploads files through the UI and contains no key/credential contents or local path literals.
+- Static verification passed:
+  - `pnpm -F e2e typecheck:playwright`
+  - `pnpm -F e2e linter ./playwright/app/createProjects.spec.ts`
+  - `pnpm -F e2e formatter ./playwright/app/createProjects.spec.ts --check`
+  - scope scan: Cypress has no diff; target and this append-only finding are the only intended changed paths
+  - inventory scan: exactly 3 test declarations; inherited `@mutating`; serial mode; retries 0; no skip/wait/force/timeout override calls
+  - contract scans: 22 interval keys; keyed `Object.entries` assertions; exact POST/job/PATCH/cleanup routes present
+  - unsafe/secret scans: no unsafe cast/assertion, `any`, non-null assertion, `Object.values`, broad locator index, embedded credential/key material, fixture path, or local absolute path
+- Runtime was intentionally not executed: no browser, API, warehouse, or database mutation command ran without the sole mutation lease.
+- Runtime risks: the focused spec still needs the orchestrator's sole `mutating-preview-isolation` execution lease, the serialized lane prerequisite, UTC plus warehouse environment/file provisioning, and live validation of strict form/home locators and external warehouse timestamp/week semantics. Cleanup audits any same-name duplicate left after UUID capture instead of deleting an uncaptured UUID.
+- Commit: not created (staging/commit/push are prohibited for this task).
+- Status: `READY_FOR_EXECUTION_LEASE`.
+
+### 2026-07-20 — static review amendments
+
+- Removed Playwright `serial` suite mode: the existing one-worker, `fullyParallel: false`, isolated `@mutating` lane serializes execution without causing later warehouses to be skipped after a sibling failure. The three warehouse tests remain independent and test retries remain disabled.
+- Added a 300-second per-test budget: 180 seconds for compile polling plus 120 seconds for navigation, warehouse query postconditions, and fresh-admin cleanup. This overrides Playwright's insufficient 30-second default without changing the finite compile bound.
+- Tightened the home heading locator to the rendered accessible name `^Welcome, David! ⚡️$`.
+- Re-ran Playwright typecheck, target ESLint, oxfmt check, and an independent-test inventory scan; all passed. Runtime remains blocked pending the sole execution lease.
+
+### 2026-07-20 — local-dbt prerequisite adaptation
+
+- The first leased PostgreSQL attempts exposed that local-dbt API creation supports `dbtConnection.project_dir`, while the rendered form omits it and the backend fallback is `/usr/app/dbt`; the documented host `DBT_PROJECT_DIR` was therefore not reaching create jobs. The terminal job diagnostics correctly reported `TESTING_ADAPTOR: dbt project directory not found: /dbt`.
+- Per user decision, added a target-local exact POST route for `/api/v1/org/projects/precompiled`. It requires non-empty `DBT_PROJECT_DIR`, reads the intercepted body only as text, parses it as `unknown` in `try/catch`, validates the top-level object plus local-dbt connection discriminator, and forwards a copied dbt connection with `project_dir`. The secret-bearing body is never logged, attached, or persisted; the real UI submission and response/job synchronization are unchanged.
+- Runtime discovery also tightened current accessible locators: warehouse cards include duplicated icon text, the manual method includes its description, Mantine form controls expose textbox roles, and the duplicate advanced buttons are scoped to the Warehouse connection card. PostgreSQL SSL is selected through deterministic keyboard interaction and asserted as `disable`; there are still no force clicks or broad indices.
+- Every failed attempt stopped before a project survived cleanup. Read-only database audit after the lease was released: exactly 1 seed project, 0 `Playwright Jaffle *` projects, and 0 jobs tied to owned project UUIDs. One null-project terminal error job remains as diagnostic history and owns no project UUID.
+- Post-adaptation static gates passed: `pnpm -F e2e typecheck:playwright`, target ESLint, oxfmt check, exact-route/body-validation scan, unsafe/embedded-secret/artifact scan, unchanged-Cypress check, and two-path scope check. No browser/API/warehouse mutation command ran after the lease was released.
+- Status: `READY_FOR_EXECUTION_LEASE`.
+
+### 2026-07-20 — runtime verification
+
+- After the runtime prerequisite supplied `dbt1.11` on the serving backend PATH, each focused warehouse passed with one worker: PostgreSQL 2/2 including setup, BigQuery 2/2, and private-key Snowflake 2/2. The local-dbt route enrichment was proven by real compile/deploy completion; no intercepted body was logged or persisted.
+- A first combined run exposed stale-session polling: each fresh page submitted successfully, but the separate Playwright `request` fixture retained the setup SID and returned 401 while the warehouse job continued. One-time name recovery raced those jobs, allowing BigQuery `7a7de372-42b4-4d88-b251-3968d91427a1` and Snowflake `25faba01-07b5-4419-b6f8-515ec6eb7c5d` to appear later. Both were hard-deleted through the authenticated public API by those exact UUIDs; each exact GET returned 404 and the organization list returned only the seed project before further execution.
+- Fixed the root cause file-locally: every test clears cookies, logs in through `page.context().request`, validates `GET /api/v1/user`, and uses that same context request client for exact-job polling and query postconditions. The ledger now captures `jobUuid` immediately; fresh-admin cleanup boundedly waits up to the existing 120-second cleanup budget for that exact job, uses its exact project UUID on DONE, and only then falls back to the run-unique exact name for ERROR/missing-job recovery.
+- Final runtime gates passed:
+  - focused target together: 4/4 (`setup` plus PostgreSQL, BigQuery, Snowflake), one Firefox worker
+  - full branch Firefox: 9/9, one worker
+  - every successful test's afterEach hard-delete returned an accepted exact-UUID status, exact project GET returned 404, and final organization-list name/UUID checks passed
+- Final independent database audit: exactly 1 project and it is seed UUID `3675b69e-8324-4110-bdca-059031aa8da3`; 0 `Playwright Jaffle *` projects; 0 orphan project jobs; 0 Playwright-named organization warehouse credentials. Null-project terminal error jobs from prerequisite discovery remain diagnostic history but are not tied to any created project UUID.
+- Cypress dual-run was not attempted: unchanged Cypress hardcodes Snowflake password authentication, while the granted runtime intentionally supplied only `SNOWFLAKE_PRIVATE_KEY_PATH`. This is a credential-contract mismatch, not a parity failure.
+- Final static gates passed: Playwright typecheck, target ESLint, oxfmt check, 3-test/22-key/session/cleanup inventory, unsafe/embedded-secret/no-log/artifact scans, unchanged Cypress source, two-path scope, and append-only finding history. Both credential files remained regular mode-0600 files; the test only uploaded them and never logged or directly read key contents. Trace, video, and screenshots stayed off.
+- Commit: not created; nothing was staged or pushed.
+- Status: `READY_FOR_SIGNING`.
