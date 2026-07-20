@@ -1,3 +1,17 @@
+# [0.3425.0](https://github.com/lightdash/lightdash/compare/0.3424.1...0.3425.0) (2026-07-20)
+
+
+### Bug Fixes
+
+* **data-apps:** honor data-screenshot-bounds for delivery screenshot height ([#24814](https://github.com/lightdash/lightdash/issues/24814)) ([bb8f3e6](https://github.com/lightdash/lightdash/commit/bb8f3e6c801f3df0343f5ae47011ba89022ea4bb))
+* return 401 instead of 500 for unauthenticated create-token and passwordless login ([#25821](https://github.com/lightdash/lightdash/issues/25821)) ([17ff854](https://github.com/lightdash/lightdash/commit/17ff85499b8b7e68328faaf4d6fbdc1c61836826))
+
+
+### Features
+
+* **dev:** add newux docker-dev profile + warn on partial --ee ([#25794](https://github.com/lightdash/lightdash/issues/25794)) ([5120303](https://github.com/lightdash/lightdash/commit/512030368391a49f8c6a86635b2a64c96da6ea9d))
+* include ai hints in data app schema ([#25822](https://github.com/lightdash/lightdash/issues/25822)) ([0cd9382](https://github.com/lightdash/lightdash/commit/0cd9382ce36b3774708289cd1ab34e6eaf89999c))
+
 ## [0.3424.1](https://github.com/lightdash/lightdash/compare/0.3424.0...0.3424.1) (2026-07-20)
 
 
