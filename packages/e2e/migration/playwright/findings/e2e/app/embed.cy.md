@@ -130,3 +130,49 @@ During focused verification, confirm all 3 Playwright tests execute and all 4 Cy
 ## Port history
 
 Not started.
+
+### 2026-07-20 — static-only implementation
+
+- Target: `packages/e2e/playwright/app/embed.spec.ts`.
+- Ported only the 3 active contracts: direct embedded-dashboard interactivity, forwarding `timezone=America/Los_Angeles`, and omitting `timezone` when the URL override is absent.
+- Left all 4 dormant Cypress bodies out of Playwright. Their existing triage remains unchanged: embedded Explore needs explicit reinstatement; filter URL sync, filter override/reset, and date-zoom URL sync belong in frontend unit coverage.
+- Kept API/config/JWT parsing file-local and boundary-safe (`JSON.parse` is caught and retained as `unknown`), resolves exactly one `Jaffle dashboard` in the seed project, aborts Loom locally, clears only browser-context cookies, and matches tile requests by exact `POST` method and pathname before inspecting the serialized JSON body.
+- Static evidence:
+  - `pnpm -F e2e typecheck:playwright` — PASS. The initial run reported TS2550 for ES2022-only `Object.hasOwn`; the final implementation uses an ES2020-compatible own-property helper and passes.
+  - `pnpm -F e2e exec eslint -c .eslintrc.js --ignore-path ../../.gitignore playwright/app/embed.spec.ts` — PASS with no output.
+  - `pnpm -F e2e exec oxfmt --ignore-path ../../.gitignore playwright/app/embed.spec.ts --check` — PASS (`All matched files use the correct format`). The initial check found formatting differences in the new target; formatting was limited to that owned file before the passing check.
+  - Static inventory grep — `active_tests=3`; no skips, retries, sleeps, forced actions, timeout changes, unsafe casts/assertions, `any`, or non-null assertions found.
+  - Pre-history diff checks — `git diff --check` PASS; `git diff --no-index --check /dev/null packages/e2e/playwright/app/embed.spec.ts` PASS; status contained only `?? packages/e2e/playwright/app/embed.spec.ts`.
+- Live Playwright/Cypress execution was intentionally not run, and no request capable of mutating embed config was executed; both await the sole mutation execution lease.
+- Remaining risks: runtime hover/menu strictness is not yet exercised; the target environment must have the seed embedding config/commercial feature and working Jaffle query execution; `seed-project-embed-config` still requires exclusive execution because the PATCH is persistent and intentionally mirrors Cypress without teardown.
+- Commit: pending (no staging or commit performed).
+
+### 2026-07-20 — static review correction
+
+- Wrapped the local Loom route and all 3 active tests in `test.describe('Embedded dashboard', { tag: '@mutating' }, ...)`, so every test that PATCHes `seed-project-embed-config` is discoverable in the mutating lane.
+- Static evidence after the correction:
+  - `pnpm -F e2e typecheck:playwright` — PASS.
+  - `pnpm -F e2e exec eslint -c .eslintrc.js --ignore-path ../../.gitignore playwright/app/embed.spec.ts` — PASS with no output.
+  - `pnpm -F e2e exec oxfmt --ignore-path ../../.gitignore playwright/app/embed.spec.ts --check` — PASS (`All matched files use the correct format`).
+- Live Playwright/Cypress execution and embed-config mutation remain deferred until the sole mutation execution lease is granted.
+- Remaining risks are unchanged: runtime hover/menu behavior and the target embedding/Jaffle environment still need leased live verification; exclusive ownership of `seed-project-embed-config` remains required.
+
+### 2026-07-20 — leased mutation execution
+
+- Pre-mutation authenticated `GET /api/v1/embed/3675b69e-8324-4110-bdca-059031aa8da3/config` baseline was exactly `{"allowAllApps":false,"allowAllCharts":false,"allowAllDashboards":false,"appUuids":[],"chartUuids":[],"dashboardUuids":["90f6a3a8-ff27-4fee-beef-82de048ce08d"]}`, SHA-256 `c7ed9e6c533e7056548c0e294ced7e015fdfb87d871930ef31e2ba18f2c27160`. All six fields are accepted by authenticated `PATCH /api/v1/embed/{projectUuid}/config`, so exact restoration was safe and available.
+- Baseline resource evidence: projects count `1`, SHA-256 `1ea9ff9d9a866a4ebaf4ca3fba5b2c9129b03b07ba37447dd8d9301781ec04e2`; users count `3`, SHA-256 `5570148fdd1a6b816ca79e8b3026492bca9bb6f19397b23e9228593bdbd6b40e`; PATs count `1`, SHA-256 `efc3649cec414a9e2253eeca923368089066e8d85e5df4477910c5fe4edc6b4d`. Backend health and frontend root both returned HTTP `200`.
+- Selection: `pnpm -F e2e exec playwright test playwright/app/embed.spec.ts --project=firefox --list` — PASS; listed the setup dependency and exactly 3 Firefox target tests.
+- The first focused run reached all three target setups and PATCHed the same baseline payload, then all 3 browser assertions failed because the backend minted `https://irakli.lightdash.dev` URLs and the unavailable tunnel returned Cloudflare 1033. This was a runtime `SITE_URL` prerequisite, not a test timeout; no retry/timeout workaround was added. A later immediate rerun executed no tests or mutations because the pre-existing clean build had temporarily removed `@lightdash/common/dist/cjs/index.js` and stopped port 3000. After the coordinator restored Vite and set `SITE_URL=http://127.0.0.1:3000`, an authenticated pre-focused GET re-confirmed the exact baseline hash.
+- Successful browser gates, run sequentially with direct `pnpm exec` commands:
+  - `pnpm -F e2e exec playwright test playwright/app/embed.spec.ts --project=firefox` — PASS, `4 passed` (`1` setup + all `3` target tests).
+  - `pnpm -F e2e exec playwright test playwright/app/embed.spec.ts --project=firefox --repeat-each=3` — PASS, `10 passed` (`1` setup + `9` target executions).
+  - `pnpm -F e2e exec playwright test --project=firefox --grep @mutating` — PASS, `4 passed` (`1` setup + exactly `3` tagged target tests).
+  - `pnpm -F e2e exec playwright test --project=firefox` — PASS, full suite `9 passed`.
+  - `pnpm -F e2e exec cypress run --spec cypress/e2e/app/embed.cy.ts` — PASS, unchanged legacy source reported exactly `3 passing`, `4 pending`, `0 failing`.
+- Post-gate authenticated config remained byte-canonically equal to the baseline fields/hash, so no restore PATCH was necessary. A final authenticated GET returned the same fields and SHA-256 `c7ed9e6c533e7056548c0e294ced7e015fdfb87d871930ef31e2ba18f2c27160`.
+- Projects, users, and PATs retained their exact baseline counts and full canonical API-result hashes. Backend health and frontend root remained HTTP `200`; no unexpected API resources were created.
+- Source/fixture integrity: Cypress source `dc9fe7c1566089cc5e64eb6c52803e2d4e6440d60e19b696510f605d05b48198`, Playwright target `055dc03fddcc0b32509d60b4623b043558506cb984ccdcf52f428a544a08dfdd`, Cypress fixture `ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356`, auth setup `ec824636434ddc8042fcabe9dfd968b57e9864a42583feaa845ffd35c6bd67f3`, and Playwright config `439269ba5daf2ec00ddb6c65826b4d4fad3635bd529bd73a74c6be96743d0aca` all matched their pre-execution SHA-256 values.
+- Residue: zero Firefox/Cypress/Electron/Playwright child processes remained. The only ignored runtime files found were expected Playwright state: `playwright-results/.last-run.json` and `playwright/.auth/admin.json`. Worktree status contained only this finding and the new target; Cypress source diff was empty.
+- Final static evidence: `pnpm -F e2e typecheck:playwright` PASS; targeted ESLint PASS with no output; targeted oxfmt check PASS; `git diff --check` and the new-file `git diff --no-index --check` PASS.
+- Remaining risk: `seed-project-embed-config` is still persistent shared state, so future live execution must retain the `@mutating` serialization/lease. The required embedding feature, local `SITE_URL`, and seeded Jaffle query runtime remain environment prerequisites.
+- Commit: pending (no staging or commit performed).
