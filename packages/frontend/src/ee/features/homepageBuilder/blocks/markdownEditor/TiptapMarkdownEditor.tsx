@@ -1,14 +1,17 @@
+import { type ContentType } from '@lightdash/common';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import { EditorContent, useEditor, type Extensions } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useRef, type ChangeEvent, type FC } from 'react';
+import { useNavigate } from 'react-router';
 import { Markdown, type MarkdownStorage } from 'tiptap-markdown';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import {
     createMentionMarkdownExtension,
     hydrateContentMentions,
+    mentionUrl,
 } from './contentMentionMarkdown';
 import { SlashCommand } from './SlashCommandExtension';
 import { createSlashCommandItems } from './slashCommandItems';
@@ -43,6 +46,7 @@ export const TiptapMarkdownEditor: FC<Props> = ({
     editable = true,
 }) => {
     const { showToastError } = useToaster();
+    const navigate = useNavigate();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const extensions: Extensions = [
@@ -84,6 +88,40 @@ export const TiptapMarkdownEditor: FC<Props> = ({
         },
     });
 
+    // Read mode: mention chips are React node views that swallow ProseMirror's
+    // own click handling, so navigate from a DOM-level click via posAtDOM.
+    const handleMentionClick = (event: React.MouseEvent<HTMLDivElement>) => {
+        if (editable || !mentionProjectUuid || !editor) return;
+        const chip = (event.target as HTMLElement).closest(
+            '.node-contentMention',
+        );
+        if (!chip) return;
+        const pos = editor.view.posAtDOM(chip, 0);
+        if (pos < 0) return;
+        const found: { contentType: ContentType; uuid: string }[] = [];
+        editor.state.doc.nodesBetween(
+            Math.max(0, pos - 1),
+            Math.min(editor.state.doc.content.size, pos + 1),
+            (node) => {
+                if (node.type.name !== 'contentMention') return;
+                const contentType = node.attrs
+                    .contentType as ContentType | null;
+                const uuid = node.attrs.uuid as string | null;
+                if (contentType && uuid) found.push({ contentType, uuid });
+            },
+        );
+        const [mention] = found;
+        if (mention) {
+            void navigate(
+                mentionUrl(
+                    mentionProjectUuid,
+                    mention.contentType,
+                    mention.uuid,
+                ),
+            );
+        }
+    };
+
     const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         e.target.value = '';
@@ -122,7 +160,12 @@ export const TiptapMarkdownEditor: FC<Props> = ({
 
     return (
         <>
-            <EditorContent editor={editor} className={classes.editorContent} />
+            <div role="presentation" onClick={handleMentionClick}>
+                <EditorContent
+                    editor={editor}
+                    className={classes.editorContent}
+                />
+            </div>
             {onImageUpload && (
                 <input
                     ref={fileInputRef}

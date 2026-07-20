@@ -13,7 +13,7 @@ type MarkdownSerializeState = { write: (text: string) => void };
 const mentionHrefPattern =
     /^\/projects\/[^/]+\/(dashboards|saved)\/([^/]+)\/view$/;
 
-const mentionUrl = (
+export const mentionUrl = (
     projectUuid: string,
     contentType: ContentType,
     uuid: string,

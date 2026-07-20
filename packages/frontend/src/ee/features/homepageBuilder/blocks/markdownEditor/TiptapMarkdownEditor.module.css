@@ -95,6 +95,12 @@
 }
 
 .editorContent
+    :global(.ProseMirror:not([contenteditable='true']))
+    :global(.node-contentMention) {
+    cursor: pointer;
+}
+
+.editorContent
     :global(.ProseMirror)
     :global(.is-editor-empty:first-child::before) {
     content: attr(data-placeholder);
