@@ -60,8 +60,15 @@ const buildService = (overrides?: {
     const featureFlagService = {
         get: vi.fn().mockResolvedValue({ enabled: true }),
     };
+    const projectModel = {
+        getSummary: vi.fn().mockResolvedValue({
+            organizationUuid: ORGANIZATION_UUID,
+            name: 'Project',
+        }),
+    };
     const service = new AiAgentService({
         aiAgentModel,
+        projectModel,
         featureFlagService,
         analytics: { track: vi.fn() },
         lightdashConfig: { ai: { copilot: {} } },
