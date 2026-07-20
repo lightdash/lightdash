@@ -9,7 +9,12 @@ import {
     type CreateProject,
 } from '@lightdash/common';
 import { ApiClient, Body } from '../helpers/api-client';
-import { anotherLogin, login, loginWithPermissions } from '../helpers/auth';
+import {
+    anotherLogin,
+    login,
+    loginAsEditor,
+    loginWithPermissions,
+} from '../helpers/auth';
 
 const apiUrl = '/api/v1';
 
@@ -210,6 +215,18 @@ describe('Lightdash API organization permission tests', () => {
             { failOnStatusCode: false },
         );
         expect(resp.status).toBe(403);
+    });
+});
+
+describe('Lightdash API project access for a seeded organization editor', () => {
+    it('Should get the seed project without an explicit project grant', async () => {
+        const editor = await loginAsEditor();
+        const resp = await editor.get(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}`,
+            { failOnStatusCode: false },
+        );
+
+        expect(resp.status).toBe(200);
     });
 });
 
