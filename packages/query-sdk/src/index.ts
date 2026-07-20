@@ -93,3 +93,7 @@ export type {
     DataAppVizContextMessage,
     VizContextRequestMessage,
 } from './vizContext';
+
+// Shareable URL state (seeded from and written back to the host page URL)
+export { useUrlState } from './urlState';
+export type { SdkUrlStateChangeMessage, UrlStateMap } from './urlState';

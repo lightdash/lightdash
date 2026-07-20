@@ -214,6 +214,56 @@ boolean to `true` on the first refresh and forwards it through `AppIframePreview
 so the initial page load can still serve cached results fast; once you've asked for a refresh, every subsequent query
 runs against the warehouse fresh. (This mirrors the sticky behaviour of the dashboard tile below.)
 
+### Shareable URL state
+
+A data app's own interactive controls (period selectors, tabs, global filters) can round-trip their state through the
+**host page's URL**, so the address bar is always a shareable link to the current view: a colleague opening the link
+lands on the app with the same in-app state applied. Tracked in
+[PROD-8151](https://linear.app/lightdash/issue/PROD-8151).
+
+State is a single keyed map — each control owns a key with a JSON-serializable value, ≤ 4 KB serialized for the whole
+map — carried in one `?state=` query param on the host page. Two directions, no backend involvement:
+
+- **Seed (URL → app).** The validated `?state=` param is appended to the iframe hash
+  (`#transport=postMessage&projectUuid=…&state=<encoded>`). The SDK reads it synchronously at boot, so the app's
+  initial render and queries already use the seeded state — no flash of default state, no handshake race. The
+  appended value is re-latched **only when the iframe `src` changes for other reasons** (manual refresh, a new build
+  version, a token refetch), so reloads keep the current view without state changes reloading the app on every click.
+- **Write-back (app → URL).** The SDK's `useUrlState(key, default)` hook posts a `lightdash:sdk:url-state-change`
+  message to the parent immediately — the host must always hold the latest state so reloads can re-seed it.
+  `useAppSdkBridge` validates the payload (plain object, under the size cap; rejections log a console warning) and
+  the host updates in memory at once, debouncing only the `history.replaceState` URL write.
+
+State is **tagged with the app it came from**: when the builder switches preview apps, the previous app's state
+neither seeds the new app nor lingers in the page URL.
+
+The pre-installed template filter context (`lib/filters.tsx`, `useGlobalFilters`) stores its filters in
+`useUrlState('globalFilters')`, so **global filter selections are shareable with no effort from the generation agent**.
+Seeded values come from a user-editable URL and are treated as untrusted: the SDK drops non-object garbage at the map
+level, the filter provider sanitizes each filter's shape so malformed entries can't fail every query for an explore,
+and the skill instructs generated apps to validate individual values before use.
+
+Host opt-in is a single `urlStateSync` flag on `AppIframePreview`, which owns both halves internally via the
+`useAppUrlStateSync` hook — a host can't accidentally wire write-back without seeding or vice versa:
+
+| Host | URL state | Notes |
+| --- | --- | --- |
+| `AppPreviewTest` (`/view` routes) | ✓ | Primary share surface |
+| `AppGenerate` (builder) | ✓ | Authors can test shareable links |
+| `EmbedApp` (full-page embed) | ✓ | The embed page's own URL carries `?state=` |
+| Dashboard tiles, `MinimalApp`, viz renderer | ✗ | Tiles need per-tile key namespacing (multiple apps share one URL) — out of scope for now |
+
+Compatibility: old bundles never read the hash param or post the message — hosts' changes are inert for them. New
+bundles in non-opted hosts get in-memory state only (the change message is ignored). Existing apps pick up the
+auto-persisted global filters only after an iteration in a **fresh** sandbox with the current template *and* only if
+their restored source's `lib/filters.tsx` is updated — template files live in the app's own `src/` tree and are
+restored as-is from the source tarball.
+
+Key files: `packages/query-sdk/src/urlState.ts` (SDK side),
+`packages/frontend/src/features/apps/hooks/useAppUrlStateSync.ts` (host side),
+`sandboxes/data-apps/template/src/lib/filters.tsx` (global-filter persistence). Keep the "Shareable URL state" section
+of `sandboxes/data-apps/template/skill.md` in sync with this one.
+
 ### Manual app thumbnails
 
 The builder's Screenshot button uses the iframe-side screenshot handler (`screenshotHandler.js`) to rasterize the current

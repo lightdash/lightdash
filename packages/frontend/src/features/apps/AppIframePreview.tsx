@@ -7,6 +7,7 @@ import {
     useCallback,
     useEffect,
     useImperativeHandle,
+    useMemo,
     useRef,
 } from 'react';
 import {
@@ -15,6 +16,7 @@ import {
     type ExternalRequestEvent,
     type QueryEvent,
 } from './hooks/useAppSdkBridge';
+import { useAppUrlStateSync } from './hooks/useAppUrlStateSync';
 import { useIframeScreenshot } from './hooks/useIframeScreenshot';
 
 export type AppIframePreviewHandle = {
@@ -91,6 +93,10 @@ type Props = {
     // Render context for data app vizs: the field mapping + host rows, pushed
     // into the iframe over the SDK bridge. Undefined for ordinary data apps.
     dataAppVizContext?: DataAppVizContext;
+    // Round-trip the app's `useUrlState` controls through the page's `?state=`
+    // param. Leave unset where the page URL isn't the app's share surface
+    // (dashboard tiles, screenshots).
+    urlStateSync?: boolean;
 };
 
 /**
@@ -139,10 +145,22 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onIframeLoad,
             capabilities,
             dataAppVizContext,
+            urlStateSync,
         },
         ref,
     ) => {
         const iframeRef = useRef<HTMLIFrameElement>(null);
+        const { applySeed, handleUrlStateChange } = useAppUrlStateSync({
+            appUuid,
+            enabled: urlStateSync === true,
+        });
+        // Memoized on `src`: the seed is re-latched exactly when the iframe
+        // would reload anyway (refresh counter, version bump, token refetch),
+        // never on state changes alone — that would reload per filter click.
+        const effectiveSrc = useMemo(
+            () => (urlStateSync ? applySeed(src) : src),
+            [urlStateSync, applySeed, src],
+        );
         // Memoized so the bridge's message listener doesn't re-attach on every
         // parent render — AppGenerate re-renders on every keystroke (editor's
         // `onUpdate` → `setIsPromptEmpty`) and we don't want to thrash listeners.
@@ -178,6 +196,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onLineageSelected,
             onExternalRequestEvent,
             dataAppVizContext,
+            onUrlStateChange: urlStateSync ? handleUrlStateChange : undefined,
         });
         const { captureScreenshot } = useIframeScreenshot(iframeRef);
 
@@ -253,7 +272,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         return (
             <iframe
                 ref={iframeRef}
-                src={src}
+                src={effectiveSrc}
                 style={{ width: '100%', height: '100%', border: 'none' }}
                 title="App preview"
                 sandbox="allow-scripts allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"

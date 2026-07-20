@@ -146,6 +146,10 @@ function isAllowedRoute(method: string, path: string): boolean {
     );
 }
 
+// Keep in sync with MAX_URL_STATE_CHARS in packages/query-sdk/src/urlState.ts.
+// Caps what an app can push into the host page's URL / browser history.
+const MAX_URL_STATE_CHARS = 4096;
+
 const isMetricQueryPost = (method: string, path: string): boolean =>
     method.toUpperCase() === 'POST' &&
     /^\/api\/v2\/projects\/[^/]+\/query\/metric-query$/.test(path);
@@ -237,6 +241,9 @@ export type UseAppSdkBridgeParams = {
     // When set, the host pushes this render context into the iframe over the
     // existing bridge — on load and on every change. Only set for data app vizs.
     dataAppVizContext?: DataAppVizContext;
+    // When set, `lightdash:sdk:url-state-change` messages from the iframe SDK
+    // are validated and forwarded. Left undefined, they're ignored.
+    onUrlStateChange?: (state: Record<string, unknown>) => void;
 };
 
 export function useAppSdkBridge({
@@ -255,6 +262,7 @@ export function useAppSdkBridge({
     onLineageSelected,
     onExternalRequestEvent,
     dataAppVizContext,
+    onUrlStateChange,
 }: UseAppSdkBridgeParams) {
     // Embed mode adapts the bridge's outgoing fetches in two ways:
     //   - Attaches the embed JWT header in lieu of session cookies
@@ -337,6 +345,36 @@ export function useAppSdkBridge({
 
             if (data?.type === 'lightdash:lineage:available') {
                 onLineageAvailable?.();
+                return;
+            }
+
+            if (data?.type === 'lightdash:sdk:url-state-change') {
+                if (!onUrlStateChange) return;
+                const state: unknown = data.state;
+                // Untrusted app payload: accept only a plain object under the
+                // size cap, and warn — a silent drop looks like a broken URL.
+                const reject = (reason: string) =>
+                    console.warn(
+                        `[lightdash] Ignoring app URL state update: ${reason}`,
+                    );
+                if (
+                    typeof state !== 'object' ||
+                    state === null ||
+                    Array.isArray(state)
+                ) {
+                    reject('not a plain object');
+                    return;
+                }
+                try {
+                    if (JSON.stringify(state).length > MAX_URL_STATE_CHARS) {
+                        reject(`over ${MAX_URL_STATE_CHARS} chars serialized`);
+                        return;
+                    }
+                } catch {
+                    reject('not JSON-serializable');
+                    return;
+                }
+                onUrlStateChange(state as Record<string, unknown>);
                 return;
             }
 
@@ -851,6 +889,7 @@ export function useAppSdkBridge({
             onLineageSelected,
             onExternalRequestEvent,
             pushDataAppVizContext,
+            onUrlStateChange,
             health.data,
             user.data,
         ],

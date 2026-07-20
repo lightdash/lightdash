@@ -1032,6 +1032,33 @@ const client = useLightdashClient();
 const user = await client.auth.getUser();
 ```
 
+### Shareable URL state
+
+The host page keeps a `?state=` query param in sync with the app's view state, so the
+browser's address bar is always a shareable link — a colleague who opens the link lands
+on the same view. **Use `useUrlState` instead of `useState` for every user-facing view
+control**: period/date-range selectors, active tab, segment pickers, sort toggles.
+
+```tsx
+import { useUrlState } from '@lightdash/query-sdk';
+
+const [period, setPeriod] = useUrlState('period', 'last_month');
+```
+
+- Drop-in `useState` shape (functional updates work). Values must be JSON-serializable.
+- Each control owns a stable string key; all keys share one map, so keep the total
+  small (≤ 4 KB serialized — oversized state stays in memory but stops persisting).
+- **Global filters are persisted automatically** — `useGlobalFilters()` already stores
+  its filters in URL state. Never wire filter state through `useUrlState` yourself.
+- **Treat the seeded value as untrusted.** It comes from a user-editable URL: validate
+  it before use and fall back to the default when it's not what you expect
+  (e.g. `PERIODS.includes(period) ? period : 'last_month'`).
+- Do NOT build "copy link" / "share" buttons — the host page owns the URL; sharing is
+  just copying the address bar.
+- Ephemeral UI state (open dropdowns, hover, modal visibility, in-progress form input)
+  stays in plain `useState` — only state that defines *which view* the user is looking
+  at belongs in the URL.
+
 ### External APIs
 
 When an app needs data from an external HTTP API (Stripe, a CRM, a weather
@@ -1181,6 +1208,8 @@ Use `<Loader2 className="animate-spin" />` from `lucide-react`, not skeletons. G
 **Filters never cross-apply between explores.** Different explores have different field sets — a `status` dimension on `marketing_touchpoints` doesn't exist on `orders` or `regional_sales`. Sending `{ field: 'status' }` into a query against the wrong explore produces a `FieldReferenceError` (the SDK qualifies it to `<wrong_explore>_status`, which doesn't exist). The `explore` tag on every filter is what prevents this.
 
 > **Limitation by design:** A field that legitimately exists on multiple explores (e.g. `region` joined into both `orders` and `regional_sales`) won't cross-filter under this rule. That's the safe default. If the user explicitly asks for cross-explore linking on a shared dimension, you can call `addFilter` once per explore — but never broadcast a filter to all explores blindly.
+
+Global filters are automatically persisted to the host page URL (see [Shareable URL state](#shareable-url-state)) — filter selections survive reloads and shared links with no extra wiring.
 
 The filter context is pre-installed and wraps your app at the root. Import the hook from `@/lib/filters` — never reimplement it:
 
