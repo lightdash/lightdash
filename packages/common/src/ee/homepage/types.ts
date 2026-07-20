@@ -295,11 +295,50 @@ export type ApiProjectHomepagesResponse = ApiSuccess<ProjectHomepage[]>;
 export type ApiProjectHomepageOrNullResponse =
     ApiSuccess<ProjectHomepage | null>;
 
+/**
+ * Curated announcement categories a data team uses to signal intent to
+ * business users. Fixed set (not user-managed) — each maps to a label + colour
+ * in `ANNOUNCEMENT_CATEGORY_META`.
+ */
+export enum AnnouncementCategory {
+    LAUNCH = 'launch',
+    METRIC_CHANGE = 'metric_change',
+    DASHBOARD_UPDATE = 'dashboard_update',
+    DATA_QUALITY = 'data_quality',
+    MAINTENANCE = 'maintenance',
+    INSIGHT = 'insight',
+}
+
+export const ANNOUNCEMENT_CATEGORY_META: Record<
+    AnnouncementCategory,
+    { label: string; color: string }
+> = {
+    [AnnouncementCategory.LAUNCH]: { label: 'Launch', color: 'indigo' },
+    [AnnouncementCategory.METRIC_CHANGE]: {
+        label: 'Metric change',
+        color: 'orange',
+    },
+    [AnnouncementCategory.DASHBOARD_UPDATE]: {
+        label: 'Dashboard update',
+        color: 'grape',
+    },
+    [AnnouncementCategory.DATA_QUALITY]: {
+        label: 'Data quality',
+        color: 'red',
+    },
+    [AnnouncementCategory.MAINTENANCE]: {
+        label: 'Maintenance',
+        color: 'gray',
+    },
+    [AnnouncementCategory.INSIGHT]: { label: 'Insight', color: 'teal' },
+};
+
 export type ProjectAnnouncement = {
     announcementUuid: string;
     projectUuid: string;
     title: string;
     body: string | null;
+    category: AnnouncementCategory | null;
     pinned: boolean;
     createdByUserUuid: string | null;
     authorName: string | null;
@@ -315,12 +354,14 @@ export type AnnouncementsPage = {
 export type CreateAnnouncementRequest = {
     title: string;
     body: string | null;
+    category: AnnouncementCategory | null;
 };
 
 /** PATCH semantics: omitted fields are left unchanged */
 export type UpdateAnnouncementRequest = {
     title?: string;
     body?: string | null;
+    category?: AnnouncementCategory | null;
     pinned?: boolean;
 };
 
