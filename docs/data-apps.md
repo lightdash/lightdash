@@ -224,8 +224,13 @@ screenshot capability, and hidden in the viewer (`AppPreviewTest`), which passes
 
 Storage is intentionally simple and app-scoped: the latest manual screenshot overwrites
 `apps/{appUuid}/thumbnail.png` in the app runtime S3 bucket. There is no DB row or per-version history; the object key is
-the metadata convention. The backend exposes a signed-url endpoint for that optional object, and the My Apps settings
-table lazy-loads it on name hover to show a preview when a thumbnail exists.
+the metadata convention. The backend exposes signed-url (`GET`) and idempotent delete (`DELETE`) endpoints for that
+optional object, and the My Apps settings table lazy-loads it on name hover to show a preview when a thumbnail exists.
+
+Because the key is app-scoped, the thumbnail automatically travels with the app when it moves between spaces. The move
+flow (`MoveAppToSpaceModal`, shared by the app header menu, space chip, My Apps list, and browse table) therefore offers
+an **Include app thumbnail** checkbox — shown only when a thumbnail exists, on by default. Unchecking it deletes the
+thumbnail after a successful move, so a stale or sensitive screenshot isn't shared with the space.
 
 ### Refreshing a data app inside a dashboard
 
