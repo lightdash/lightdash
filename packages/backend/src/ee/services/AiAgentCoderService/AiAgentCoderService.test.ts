@@ -84,11 +84,32 @@ const agentAsCode: AgentAsCode = {
     modelConfig: null,
 };
 
-const buildService = ({ existing = [agentRow] } = {}) => {
+const existingEvaluation = {
+    agentUuid: 'agent-uuid',
+    evalUuid: 'eval-uuid',
+    title: 'Core regression suite',
+    prompts: [
+        {
+            prompt: 'What was revenue last month?',
+            expectedResponse: 'Uses the certified revenue metric.',
+        },
+    ],
+};
+
+const buildService = ({
+    existing = [agentRow],
+    evaluations = [],
+}: {
+    existing?: (typeof agentRow)[];
+    evaluations?: (typeof existingEvaluation)[];
+} = {}) => {
     const aiAgentModel = {
         findAgentsForCode: vi.fn(async () => existing),
+        findAgentEvalsForCode: vi.fn(async () => evaluations),
         updateAgent: vi.fn(async () => undefined),
-        createAgent: vi.fn(async () => undefined),
+        createAgent: vi.fn(async () => ({ uuid: 'created-agent-uuid' })),
+        createEval: vi.fn(async () => undefined),
+        updateEval: vi.fn(async () => undefined),
     };
     const service = new AiAgentCoderService({
         aiAgentModel: aiAgentModel as never,
@@ -115,6 +136,7 @@ describe('AiAgentCoderService', () => {
         expect(result.agents).toEqual([
             {
                 ...agentAsCode,
+                evaluations: [],
                 updatedAt: agentRow.updatedAt,
             },
         ]);
@@ -125,6 +147,26 @@ describe('AiAgentCoderService', () => {
             slugs: ['revenue-agent'],
             agentUuids: undefined,
         });
+    });
+
+    it('exports evaluation definitions without runtime history', async () => {
+        const { service, aiAgentModel } = buildService({
+            evaluations: [existingEvaluation],
+        });
+
+        const result = await service.downloadAgents(user, projectUuid, [
+            'revenue-agent',
+        ]);
+
+        expect(result.agents[0].evaluations).toEqual([
+            {
+                title: existingEvaluation.title,
+                prompts: existingEvaluation.prompts,
+            },
+        ]);
+        expect(aiAgentModel.findAgentEvalsForCode).toHaveBeenCalledWith([
+            'agent-uuid',
+        ]);
     });
 
     it('looks up UUID-shaped identifiers as both slugs and UUIDs', async () => {
@@ -155,6 +197,134 @@ describe('AiAgentCoderService', () => {
             deleted: [],
         });
         expect(aiAgentModel.updateAgent).not.toHaveBeenCalled();
+    });
+
+    it('upserts declared evaluations by title without deleting undeclared suites', async () => {
+        const unrelatedEvaluation = {
+            ...existingEvaluation,
+            evalUuid: 'unrelated-eval-uuid',
+            title: 'UI-managed suite',
+        };
+        const { service, aiAgentModel } = buildService({
+            evaluations: [existingEvaluation, unrelatedEvaluation],
+        });
+        const updatedPrompts = [
+            {
+                prompt: 'What was revenue this quarter?',
+                expectedResponse: 'Uses the certified revenue metric.',
+            },
+        ];
+        const newPrompts = [
+            {
+                prompt: 'Which region grew fastest?',
+                expectedResponse: null,
+            },
+        ];
+
+        const result = await service.upsertAgents(user, projectUuid, [
+            {
+                ...agentAsCode,
+                evaluations: [
+                    {
+                        title: existingEvaluation.title,
+                        prompts: updatedPrompts,
+                    },
+                    {
+                        title: 'Regional regression suite',
+                        prompts: newPrompts,
+                    },
+                ],
+            },
+        ]);
+
+        expect(result.updated).toEqual(['revenue-agent']);
+        expect(aiAgentModel.updateAgent).not.toHaveBeenCalled();
+        expect(aiAgentModel.updateEval).toHaveBeenCalledWith('eval-uuid', {
+            title: existingEvaluation.title,
+            prompts: updatedPrompts,
+        });
+        expect(aiAgentModel.createEval).toHaveBeenCalledWith(
+            'agent-uuid',
+            {
+                title: 'Regional regression suite',
+                prompts: newPrompts,
+            },
+            'user-uuid',
+        );
+        expect(aiAgentModel.updateEval).not.toHaveBeenCalledWith(
+            'unrelated-eval-uuid',
+            expect.anything(),
+        );
+    });
+
+    it('preserves evaluations when the optional field is omitted', async () => {
+        const { service, aiAgentModel } = buildService({
+            evaluations: [existingEvaluation],
+        });
+
+        const result = await service.upsertAgents(user, projectUuid, [
+            agentAsCode,
+        ]);
+
+        expect(result.unchanged).toEqual(['revenue-agent']);
+        expect(aiAgentModel.createEval).not.toHaveBeenCalled();
+        expect(aiAgentModel.updateEval).not.toHaveBeenCalled();
+    });
+
+    it('does not update an unchanged declared evaluation', async () => {
+        const prompts = [
+            ...existingEvaluation.prompts,
+            {
+                prompt: 'Which region grew fastest?',
+                expectedResponse: 'Compares regional growth rates.',
+            },
+        ];
+        const { service, aiAgentModel } = buildService({
+            evaluations: [{ ...existingEvaluation, prompts }],
+        });
+
+        const result = await service.upsertAgents(user, projectUuid, [
+            {
+                ...agentAsCode,
+                evaluations: [
+                    {
+                        title: existingEvaluation.title,
+                        prompts: [...prompts].reverse(),
+                    },
+                ],
+            },
+        ]);
+
+        expect(result.unchanged).toEqual(['revenue-agent']);
+        expect(aiAgentModel.createEval).not.toHaveBeenCalled();
+        expect(aiAgentModel.updateEval).not.toHaveBeenCalled();
+    });
+
+    it('rejects duplicate evaluation titles before changing an agent', async () => {
+        const { service, aiAgentModel } = buildService();
+
+        await expect(
+            service.upsertAgents(user, projectUuid, [
+                {
+                    ...agentAsCode,
+                    evaluations: [
+                        {
+                            title: 'Duplicate suite',
+                            prompts: [],
+                        },
+                        {
+                            title: 'Duplicate suite',
+                            prompts: [],
+                        },
+                    ],
+                },
+            ]),
+        ).rejects.toThrow(
+            "Duplicate evaluation titles for AI agent 'revenue-agent': Duplicate suite",
+        );
+        expect(aiAgentModel.updateAgent).not.toHaveBeenCalled();
+        expect(aiAgentModel.createEval).not.toHaveBeenCalled();
+        expect(aiAgentModel.updateEval).not.toHaveBeenCalled();
     });
 
     it('updates the managed project configuration without touching access or integrations', async () => {
@@ -226,7 +396,16 @@ describe('AiAgentCoderService', () => {
         const { service, aiAgentModel } = buildService({ existing: [] });
 
         const result = await service.upsertAgents(user, projectUuid, [
-            { ...agentAsCode, agentVersion: 1 },
+            {
+                ...agentAsCode,
+                agentVersion: 1,
+                evaluations: [
+                    {
+                        title: 'Core regression suite',
+                        prompts: existingEvaluation.prompts,
+                    },
+                ],
+            },
         ]);
 
         expect(result.created).toEqual(['revenue-agent']);
@@ -242,6 +421,14 @@ describe('AiAgentCoderService', () => {
                 mcpServerUuids: [],
                 version: 1,
             }),
+        );
+        expect(aiAgentModel.createEval).toHaveBeenCalledWith(
+            'created-agent-uuid',
+            {
+                title: 'Core regression suite',
+                prompts: existingEvaluation.prompts,
+            },
+            'user-uuid',
         );
     });
 

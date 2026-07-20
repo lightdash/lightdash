@@ -5,6 +5,7 @@ import {
     ForbiddenError,
     ParameterError,
     type AgentAsCode,
+    type AgentAsCodeEvaluation,
     type AgentAsCodeUpsertChanges,
     type SessionUser,
 } from '@lightdash/common';
@@ -23,7 +24,38 @@ type AgentForCode = Awaited<
     ReturnType<AiAgentModel['findAgentsForCode']>
 >[number];
 
-const toAgentAsCode = (agent: AgentForCode): AgentAsCode => ({
+type EvaluationForCode = Awaited<
+    ReturnType<AiAgentModel['findAgentEvalsForCode']>
+>[number];
+
+const normalizeEvaluation = (
+    evaluation: AgentAsCodeEvaluation,
+): AgentAsCodeEvaluation => ({
+    title: evaluation.title,
+    prompts: [...evaluation.prompts].sort(
+        (left, right) =>
+            left.prompt.localeCompare(right.prompt) ||
+            (left.expectedResponse ?? '').localeCompare(
+                right.expectedResponse ?? '',
+            ),
+    ),
+});
+
+const groupEvaluationsByAgentUuid = (
+    evaluations: EvaluationForCode[],
+): Map<string, EvaluationForCode[]> =>
+    evaluations.reduce<Map<string, EvaluationForCode[]>>((grouped, item) => {
+        grouped.set(item.agentUuid, [
+            ...(grouped.get(item.agentUuid) ?? []),
+            item,
+        ]);
+        return grouped;
+    }, new Map());
+
+const toAgentAsCode = (
+    agent: AgentForCode,
+    evaluations: EvaluationForCode[],
+): AgentAsCode => ({
     contentType: ContentAsCodeType.AI_AGENT,
     version: AGENT_AS_CODE_VERSION,
     agentVersion: agent.agentVersion,
@@ -38,6 +70,9 @@ const toAgentAsCode = (agent: AgentForCode): AgentAsCode => ({
     enableContentTools: agent.enableContentTools,
     enableUserContext: agent.enableUserContext,
     modelConfig: agent.modelConfig,
+    evaluations: [...evaluations]
+        .sort((left, right) => left.title.localeCompare(right.title))
+        .map(normalizeEvaluation),
     updatedAt: agent.updatedAt,
 });
 
@@ -170,9 +205,18 @@ export class AiAgentCoderService extends BaseService {
             offset,
             pageSize: this.lightdashConfig.contentAsCode.maxDownloads,
         });
+        const evaluations = await this.aiAgentModel.findAgentEvalsForCode(
+            page.page.map(({ uuid }) => uuid),
+        );
+        const evaluationsByAgentUuid = groupEvaluationsByAgentUuid(evaluations);
 
         return {
-            agents: page.page.map(toAgentAsCode),
+            agents: page.page.map((agent) =>
+                toAgentAsCode(
+                    agent,
+                    evaluationsByAgentUuid.get(agent.uuid) ?? [],
+                ),
+            ),
             missingIds,
             total: page.total,
             offset: page.offset,
@@ -222,6 +266,32 @@ export class AiAgentCoderService extends BaseService {
                     `AI agent '${agent.slug}' must enable data access before enabling content tools`,
                 );
             }
+            const duplicateEvaluationTitles = (agent.evaluations ?? [])
+                .map(({ title }) => title)
+                .filter(
+                    (title, index, titles) => titles.indexOf(title) !== index,
+                );
+            if (duplicateEvaluationTitles.length > 0) {
+                throw new ParameterError(
+                    `Duplicate evaluation titles for AI agent '${agent.slug}': ${[
+                        ...new Set(duplicateEvaluationTitles),
+                    ].join(', ')}`,
+                );
+            }
+            agent.evaluations?.forEach((evaluation) => {
+                if (evaluation.title.trim().length === 0) {
+                    throw new ParameterError(
+                        `AI agent '${agent.slug}' has an evaluation with an empty title`,
+                    );
+                }
+                evaluation.prompts.forEach(({ prompt }) => {
+                    if (prompt.trim().length === 0) {
+                        throw new ParameterError(
+                            `Evaluation '${evaluation.title}' for AI agent '${agent.slug}' has an empty prompt`,
+                        );
+                    }
+                });
+            });
         });
 
         const existingAgents = await this.aiAgentModel.findAgentsForCode({
@@ -232,6 +302,45 @@ export class AiAgentCoderService extends BaseService {
         const existingBySlug = new Map(
             existingAgents.map((agent) => [agent.slug, agent]),
         );
+        const existingEvaluations =
+            await this.aiAgentModel.findAgentEvalsForCode(
+                existingAgents
+                    .filter((existing) =>
+                        agents.some(
+                            (agent) =>
+                                agent.slug === existing.slug &&
+                                agent.evaluations !== undefined,
+                        ),
+                    )
+                    .map(({ uuid }) => uuid),
+            );
+        const existingEvaluationsByAgentUuid =
+            groupEvaluationsByAgentUuid(existingEvaluations);
+
+        agents.forEach((agent) => {
+            const existing = existingBySlug.get(agent.slug);
+            if (!existing || agent.evaluations === undefined) return;
+
+            const declaredTitles = new Set(
+                agent.evaluations.map(({ title }) => title),
+            );
+            const ambiguousTitles = [
+                ...(existingEvaluationsByAgentUuid.get(existing.uuid) ?? [])
+                    .filter(({ title }) => declaredTitles.has(title))
+                    .reduce<Map<string, number>>(
+                        (counts, { title }) =>
+                            counts.set(title, (counts.get(title) ?? 0) + 1),
+                        new Map(),
+                    ),
+            ]
+                .filter(([, count]) => count > 1)
+                .map(([title]) => title);
+            if (ambiguousTitles.length > 0) {
+                throw new ParameterError(
+                    `AI agent '${agent.slug}' has multiple existing evaluations titled: ${ambiguousTitles.join(', ')}`,
+                );
+            }
+        });
         const changes: AgentAsCodeUpsertChanges = {
             created: [],
             updated: [],
@@ -241,18 +350,19 @@ export class AiAgentCoderService extends BaseService {
 
         for (const agent of agents) {
             const existing = existingBySlug.get(agent.slug);
+            let agentUuid: string;
+            let agentChanged = false;
             if (existing) {
+                agentUuid = existing.uuid;
                 const imageUrlChanged = existing.imageUrl !== agent.imageUrl;
                 const isUnchanged =
                     !force &&
                     isEqual(
-                        getComparableAgent(toAgentAsCode(existing)),
+                        getComparableAgent(toAgentAsCode(existing, [])),
                         getComparableAgent(agent),
                     );
 
-                if (isUnchanged) {
-                    changes.unchanged.push(agent.slug);
-                } else {
+                if (!isUnchanged) {
                     // eslint-disable-next-line no-await-in-loop
                     await this.aiAgentModel.updateAgent({
                         agentUuid: existing.uuid,
@@ -275,11 +385,11 @@ export class AiAgentCoderService extends BaseService {
                         enableUserContext: agent.enableUserContext,
                         modelConfig: agent.modelConfig,
                     });
-                    changes.updated.push(agent.slug);
+                    agentChanged = true;
                 }
             } else {
                 // eslint-disable-next-line no-await-in-loop
-                await this.aiAgentModel.createAgent({
+                const createdAgent = await this.aiAgentModel.createAgent({
                     slug: agent.slug,
                     organizationUuid,
                     projectUuid,
@@ -301,7 +411,53 @@ export class AiAgentCoderService extends BaseService {
                     adminOnly: false,
                     version: agent.agentVersion,
                 });
+                agentUuid = createdAgent.uuid;
+                agentChanged = true;
+            }
+
+            if (agent.evaluations !== undefined) {
+                const evaluationsByTitle = new Map(
+                    (existingEvaluationsByAgentUuid.get(agentUuid) ?? []).map(
+                        (evaluation) => [evaluation.title, evaluation],
+                    ),
+                );
+
+                for (const declaredEvaluation of agent.evaluations) {
+                    const evaluation = normalizeEvaluation(declaredEvaluation);
+                    const existingEvaluation = evaluationsByTitle.get(
+                        evaluation.title,
+                    );
+                    if (!existingEvaluation) {
+                        // eslint-disable-next-line no-await-in-loop
+                        await this.aiAgentModel.createEval(
+                            agentUuid,
+                            evaluation,
+                            user.userUuid,
+                        );
+                        agentChanged = true;
+                    } else if (
+                        force ||
+                        !isEqual(
+                            normalizeEvaluation(existingEvaluation),
+                            evaluation,
+                        )
+                    ) {
+                        // eslint-disable-next-line no-await-in-loop
+                        await this.aiAgentModel.updateEval(
+                            existingEvaluation.evalUuid,
+                            evaluation,
+                        );
+                        agentChanged = true;
+                    }
+                }
+            }
+
+            if (!existing) {
                 changes.created.push(agent.slug);
+            } else if (agentChanged) {
+                changes.updated.push(agent.slug);
+            } else {
+                changes.unchanged.push(agent.slug);
             }
         }
 

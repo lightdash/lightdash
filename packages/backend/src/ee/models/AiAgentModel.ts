@@ -76,6 +76,7 @@ import {
     UpdateSlackResponseTs,
     UpdateWebAppResponse,
     type AgentAsCode,
+    type AgentAsCodeEvaluation,
     type AiAgent,
     type AiAgentIntegration,
     type AiChartRuntimeOverrides,
@@ -5137,6 +5138,81 @@ export class AiAgentModel {
             .limit(40);
 
         return rows;
+    }
+
+    async findAgentEvalsForCode(agentUuids: string[]): Promise<
+        Array<
+            AgentAsCodeEvaluation & {
+                agentUuid: string;
+                evalUuid: string;
+            }
+        >
+    > {
+        if (agentUuids.length === 0) return [];
+
+        const rows = await this.database
+            .from(AiEvalTableName)
+            .leftJoin(
+                AiEvalPromptTableName,
+                `${AiEvalTableName}.ai_eval_uuid`,
+                `${AiEvalPromptTableName}.ai_eval_uuid`,
+            )
+            .leftJoin(
+                AiPromptTableName,
+                `${AiEvalPromptTableName}.ai_prompt_uuid`,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+            )
+            .whereIn(`${AiEvalTableName}.agent_uuid`, agentUuids)
+            .select<
+                Array<{
+                    agent_uuid: string;
+                    ai_eval_uuid: string;
+                    ai_eval_prompt_uuid: string | null;
+                    title: string;
+                    prompt: string | null;
+                    expected_response: string | null;
+                }>
+            >(
+                `${AiEvalTableName}.agent_uuid`,
+                `${AiEvalTableName}.ai_eval_uuid`,
+                `${AiEvalPromptTableName}.ai_eval_prompt_uuid`,
+                `${AiEvalTableName}.title`,
+                this.database.raw(
+                    `COALESCE(${AiEvalPromptTableName}.prompt, ${AiPromptTableName}.prompt) as prompt`,
+                ),
+                `${AiEvalPromptTableName}.expected_response`,
+            )
+            .orderBy(`${AiEvalTableName}.agent_uuid`, 'asc')
+            .orderBy(`${AiEvalTableName}.title`, 'asc')
+            .orderBy(`${AiEvalTableName}.created_at`, 'asc')
+            .orderBy(`${AiEvalPromptTableName}.created_at`, 'asc');
+
+        const evaluationsByUuid = new Map<
+            string,
+            AgentAsCodeEvaluation & {
+                agentUuid: string;
+                evalUuid: string;
+            }
+        >();
+
+        rows.forEach((row) => {
+            const evaluation = evaluationsByUuid.get(row.ai_eval_uuid) ?? {
+                agentUuid: row.agent_uuid,
+                evalUuid: row.ai_eval_uuid,
+                title: row.title,
+                prompts: [],
+            };
+
+            if (row.ai_eval_prompt_uuid && row.prompt) {
+                evaluation.prompts.push({
+                    prompt: row.prompt,
+                    expectedResponse: row.expected_response,
+                });
+            }
+            evaluationsByUuid.set(row.ai_eval_uuid, evaluation);
+        });
+
+        return [...evaluationsByUuid.values()];
     }
 
     async updateSlackResponseTs(data: UpdateSlackResponseTs) {

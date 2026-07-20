@@ -388,6 +388,37 @@ describe('readAiAgentFiles', () => {
             'Invalid contentType in AI agent file',
         );
     });
+
+    it('reads evaluation suites nested in an AI agent file', async () => {
+        await fs.writeFile(
+            path.join(tmpDir, 'ai-agents', 'revenue-agent.yml'),
+            [
+                'contentType: ai_agent',
+                'version: 1',
+                'slug: revenue-agent',
+                'evaluations:',
+                '  - title: Core regression suite',
+                '    prompts:',
+                '      - prompt: What was revenue last month?',
+                '        expectedResponse: Uses the certified revenue metric.',
+                '',
+            ].join('\n'),
+        );
+
+        const agents = await readAiAgentFiles(tmpDir);
+
+        expect(agents[0].evaluations).toEqual([
+            {
+                title: 'Core regression suite',
+                prompts: [
+                    {
+                        prompt: 'What was revenue last month?',
+                        expectedResponse: 'Uses the certified revenue metric.',
+                    },
+                ],
+            },
+        ]);
+    });
 });
 
 describe('shouldDownloadAiAgents', () => {
