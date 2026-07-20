@@ -119,3 +119,45 @@ After the focused run, verify through the API or isolated DB that no active dash
 ## Port history
 
 Not started.
+
+### 2026-07-20 — static port implemented; execution lease pending
+
+- Target: `packages/e2e/playwright/app/savedDashboards.spec.ts`.
+- Behavior ported: one `@mutating` admin lifecycle opens the dashboard list through Browse, proves at least one seeded `Jaffle dashboard` row is visible, creates a run-unique dashboard through the UI, captures and validates its UUID from the `POST` response, asserts the exact edit route/title, renames it through the UI, deletes it through the UI, and proves the renamed row disappears. Every UI mutation is paired with its exact method/path response. A local `finally` cleanup always targets the captured UUID and accepts only deleted/already-absent responses; cleanup failures do not replace the primary test failure.
+- Skipped decision: the Cypress-only skipped display case was not copied or skipped. Its seeded-dashboard assertion is folded into the atomic lifecycle with duplicate-tolerant `.first()` only where discovery proved duplicate seed rows can exist.
+- Static evidence from repository root:
+  - `pnpm -F e2e typecheck:playwright` — passed twice, including after formatting.
+  - `pnpm -F e2e exec eslint -c .eslintrc.js playwright/app/savedDashboards.spec.ts` — passed twice with no findings.
+  - `pnpm -F e2e exec oxfmt playwright/app/savedDashboards.spec.ts --check` — initially reported formatting differences; `pnpm -F e2e exec oxfmt playwright/app/savedDashboards.spec.ts` applied them; the final check passed.
+  - `git diff --check` — passed.
+  - `git status --short`, `git diff --name-only`, and `git ls-files --others --exclude-standard` — showed only the new target before this append.
+  - `git diff --exit-code -- packages/e2e/cypress/e2e/app/savedDashboards.cy.ts` — passed; Cypress source unchanged.
+- Live Playwright/Cypress execution: deliberately not run; awaiting the sole mutation execution lease.
+- Remaining risks: browser locator/response behavior is statically checked but unexecuted; a create that commits while its response is lost or malformed cannot provide the UUID needed for exact cleanup; soft-delete environments can retain a tombstone until the isolated lane resets.
+- Commit: pending execution verification and signing lease.
+
+### 2026-07-20 — static review cleanup strengthening
+
+- Strengthened the file-local exact-UUID cleanup: after accepting only `200`/`404` from `DELETE /api/v2/projects/{projectUuid}/dashboards/{dashboardUuid}`, it now `GET`s that same UUID endpoint and requires `404` as evidence that the dashboard is inactive.
+- Static evidence: `pnpm -F e2e typecheck:playwright`, targeted ESLint, oxfmt check, `git diff --check`, owned-path diff validation, and the Cypress-source unchanged check all passed.
+- Live Playwright/Cypress execution remains intentionally deferred until the sole mutation execution lease is granted.
+- Remaining risks: if creation commits before a valid create response yields its UUID, exact cleanup is impossible; inactive soft-deleted dashboards can still retain tombstones until lane reset.
+
+### 2026-07-20 — mutation lease execution complete
+
+- Live discovery found Mantine's modal `dialog` elements are not accessibly named even though their visible titles are present. The first focused run failed before mutation waiting for named `Create Dashboard` (`1 passed, 1 failed`), and its audit remained `0` active / `0` tombstones. The file-local root fix now selects the strict dialog containing each exact visible title; no timeout, retry, or app/helper change was added.
+- Playwright gates, all direct commands with one Firefox worker:
+  - `pnpm -F e2e exec playwright test playwright/app/savedDashboards.spec.ts --project=firefox --list` — passed; selected admin setup plus the single dashboard lifecycle.
+  - Focused rerun — `2 passed`; exact UUID `3dd98b4e-352d-477d-b25a-64fe35e785e8`, `0` active / `1` expected tombstone.
+  - Focused `--repeat-each=3` — `4 passed`; added exact UUIDs `3e4bb113-d9e1-4470-818f-d92f5144c8ce`, `58465657-11d1-472e-a768-1ba3c6c3364b`, and `2fc22d4d-0d8b-47e1-a420-b2bb56e4ae5f`; cumulative `0` active / `4` tombstones.
+  - `pnpm -F e2e exec playwright test --project=firefox --workers=1 --grep @mutating` — `2 passed`; added `a0c121b6-630a-4cbb-8596-49c64f50cd97`; cumulative `0` active / `5` tombstones.
+  - `pnpm -F e2e exec playwright test --project=firefox --workers=1` — `7 passed`; added `13cd36ee-3c0f-44db-a1fc-487c3b91c31f`; cumulative `0` active / `6` tombstones.
+- Independent authenticated GETs returned `404` for all six exact Playwright UUIDs. Database audits after every gate found no active Playwright dashboard. Health reports soft delete enabled with two-day retention, so one inactive tombstone per successful lifecycle is expected and was not purged.
+- Legacy sequential parity baseline contained 16 exact dashboard UUIDs (`10` active / `6` Playwright tombstones): `0859089e-7c1c-4fd2-b44a-29f4a0c7f4e8`, `13cd36ee-3c0f-44db-a1fc-487c3b91c31f`, `256b2e7d-409a-440e-869b-48261aee9d9b`, `2fc22d4d-0d8b-47e1-a420-b2bb56e4ae5f`, `33fcccaa-b82c-4d55-b197-a53e790b6458`, `37954392-e8c7-42d4-89f5-924e9727009c`, `3cfcc6e0-468d-4900-9b7c-dc76f5ad2d07`, `3dd98b4e-352d-477d-b25a-64fe35e785e8`, `3e4bb113-d9e1-4470-818f-d92f5144c8ce`, `4f34f5a2-93df-4e5b-a6f1-b6167b19a8ba`, `58465657-11d1-472e-a768-1ba3c6c3364b`, `6bbdc165-9fbb-4fdc-9d11-1013519ec61b`, `8542a1ed-ba86-4e1f-8604-33a38e274189`, `90f6a3a8-ff27-4fee-beef-82de048ce08d`, `a0c121b6-630a-4cbb-8596-49c64f50cd97`, and `fd6db48e-da6d-43bb-8924-f17c010fcba4`.
+- `pnpm -F e2e exec cypress run --spec cypress/e2e/app/savedDashboards.cy.ts` ran unchanged and exposed the source's documented ordering/retry flaw: `4` tests, `1` passing, `2` failing, `1` pending. Create left the sole post-baseline delta `0ace2687-b0a2-4953-a938-236492edd3e8` active as `Untitled dashboard`; update could not reliably target its row, then delete could not find the expected renamed row.
+- Legacy cleanup touched only delta UUID `0ace2687-b0a2-4953-a938-236492edd3e8`: authenticated exact-UUID DELETE returned `200`, exact-UUID GET returned `404`, and the database showed it inactive. All 16 baseline dashboard rows retained their prior `10` active / `6` tombstone status; final totals were `17` rows / `10` active / `7` tombstones. No baseline dashboard or pre-existing Explore tombstone was deleted.
+- Environment integrity: users/projects/PATs remained `4 / 1 / 1`; `/api/v1/health` returned `200`, `status: ok`, and `healthy: true`; no saved-dashboard Playwright/Cypress/browser child process remained.
+- Source/fixture hashes and diffs: Cypress source `59e59b74f7daeaf0fce1486d0688f8fe311c1b584ab750e706cbb75c2f57fc1f`, dashboard seed `934fbcb81ccd9d19a990263b80b9aba8c0e31e97e59cb500ab8a0c27122a43ea`, and auth setup `ec824636434ddc8042fcabe9dfd968b57e9864a42583feaa845ffd35c6bd67f3` remained unchanged; final target hash is `e7e0ef89b9cbd242c59079782757fe54e72bcbd922dde3407cbd48d74738dc15`.
+- Final static verification passed: Playwright typecheck, targeted ESLint, target oxfmt check, `git diff --check`, owned-path validation, and source/fixture diff checks. Worktree changes remain limited to the target and this append-only finding.
+- Remaining risks: the unchanged Cypress source cannot provide reliable sequential parity under retries, as this run reconfirmed. Soft-delete tombstones remain intentionally inactive until retention/lane reset. Exact cleanup still depends on receiving the create UUID.
+- Commit: pending serialized signing lease.
