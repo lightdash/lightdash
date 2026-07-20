@@ -48,8 +48,8 @@ const Timestamp: FC<{ announcement: ProjectAnnouncement }> = ({
     const timeAgo = useTimeAgo(new Date(announcement.createdAt));
     return (
         <>
-            {announcement.authorName ? `${announcement.authorName} · ` : ''}
             {timeAgo}
+            {announcement.authorName ? ` by ${announcement.authorName}` : ''}
         </>
     );
 };
