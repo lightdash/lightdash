@@ -14,6 +14,16 @@ export enum FeatureFlags {
     EnableTimezoneSupport = 'enable-timezone-support',
 
     /**
+     * Rebase RAW timestamp filter columns to instants when a data timezone is
+     * set, so sub-day filters return the rows the SELECT displays. Wrapping
+     * the filter column defeats partition pruning/index scans on BigQuery and
+     * Postgres-family warehouses, so this is off by default — enable per-org
+     * for data-timezone users who need filter correctness. Temporary: goes
+     * away once filters convert the literal into the column's domain instead.
+     */
+    NaiveTimestampFilterRebase = 'naive-timestamp-filter-rebase',
+
+    /**
      * Enable scheduler task that replaces custom metrics after project compile
      */
     ReplaceCustomMetricsOnCompile = 'replace-custom-metrics-on-compile',

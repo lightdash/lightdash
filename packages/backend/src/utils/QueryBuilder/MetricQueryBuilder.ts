@@ -50,6 +50,7 @@ import {
     lightdashVariablePattern,
     MetricFilterRule,
     MetricType,
+    naiveTimestampRebaseAdapters,
     parseAllReferences,
     parseTableCalculationFunctions,
     PivotConfiguration,
@@ -150,6 +151,10 @@ export type BuildQueryProps = {
     /** Timezone the column data is in — source for the timezone-aware wrap.
      *  Derived from warehouse credentials via `getColumnTimezone`. */
     columnTimezone?: string;
+    /** Rebase RAW timestamp filter columns to instants so predicates match the
+     *  SELECT. Gated behind NaiveTimestampFilterRebase (the wrap defeats
+     *  partition pruning). */
+    rebaseRawTimestampFilters?: boolean;
 };
 
 /**
@@ -688,10 +693,20 @@ export class MetricQueryBuilder {
 
         // RAW passes the base column through untouched, so a naive column is
         // misparsed as UTC downstream — rebase it to a true instant via the
-        // session timezone (identity in value for aware columns). SELECT only:
-        // filters keep the bare column so raw predicates stay sargable.
+        // session timezone (identity in value for aware columns).
         if (isRaw) {
-            if (!respectConvertTimezone || this.columnTimezone === 'UTC') {
+            if (this.columnTimezone === 'UTC') {
+                return dimension.compiledSql;
+            }
+            // Filter LHS rebases too, so predicates match the displayed
+            // instants. Flag-gated (the wrap defeats partition pruning); bare
+            // when the opt-out or adapter makes the wrap a no-op.
+            if (
+                !respectConvertTimezone &&
+                (!this.args.rebaseRawTimestampFilters ||
+                    baseDimension.skipTimezoneConversion ||
+                    !naiveTimestampRebaseAdapters.has(adapterType))
+            ) {
                 return dimension.compiledSql;
             }
             return dateTruncTimezoneConversions[adapterType].castToInstant(
@@ -1753,6 +1768,13 @@ export class MetricQueryBuilder {
               }
             : field;
 
+        // A rebased RAW filter LHS is an instant — tag the literal to match.
+        // Decided here, where the wrap happened, so the two cannot diverge.
+        const rawFilterLhsIsInstant =
+            isDimension(field) &&
+            field.timeInterval === TimeFrames.RAW &&
+            filterField.compiledSql !== field.compiledSql;
+
         // For period-to-date filters on truncated dimensions, resolve the
         // base (raw) dimension SQL so EXTRACT operates on the actual date
         let baseDimensionSql: string | undefined;
@@ -1792,6 +1814,7 @@ export class MetricQueryBuilder {
                 baseDimensionSql,
                 this.args.useTimezoneAwareDateTrunc,
                 this.columnTimezone,
+                rawFilterLhsIsInstant,
             );
         });
 
