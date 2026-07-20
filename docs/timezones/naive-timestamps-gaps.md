@@ -37,7 +37,7 @@ Which types are naive, which are aware, and which one a modeler is likely to hav
 
 Two consequences worth internalizing:
 
-> **ClickHouse has no naive columns.** `DateTime` stores an epoch instant; its zone is display metadata. None of the gaps below apply to it, and any "when in doubt, treat as naive" fallback rule would be actively wrong there. (`dataTimezone` on ClickHouse does something different: it rebases *parsed literals* via `session_timezone`, not stored values.)
+> **ClickHouse has no naive columns — but it is not exempt from Gap 1(b).** `DateTime` stores an epoch instant; its zone is display metadata, and any "when in doubt, treat as naive" fallback rule would be actively wrong there. `dataTimezone` on ClickHouse cannot rebase stored values; what it does is parse Lightdash's *bare filter literals* in the data timezone via `session_timezone`, while displayed values stay pinned UTC instants (`toTimeZone(x, 'UTC')`). The two sides diverge, so setting a data timezone breaks raw-frame filters without changing anything visible — see Gap 1(b). Verified live 2026-07-20.
 
 > **Databricks/Spark are aware by default.** Their bare `TIMESTAMP` is an instant — that is why its `castToInstant` is identity (a session rebase would double-shift it, see `timeFrames.ts:154`). Only opt-in `TIMESTAMP_NTZ` columns are naive there. Trino/Athena are the mirror image: their *common* type is the naive one.
 
@@ -93,7 +93,7 @@ Filter boundaries are computed in Node as UTC instants. The SELECT side rebases 
 
 The same filter on Postgres matches correctly — its literal carries `+00:00` and the wrapped LHS compares instants — so this half is specific to the bare-literal warehouses.
 
-**(b) Raw-frame filters compare wall clocks in different zones — on every warehouse with a naive column.** Raw WHERE clauses keep the bare column (deliberate — wrapping it defeats partition pruning), and nothing on the literal path converts the value into the column's zone. Filtering the raw frame to a one-hour window around the row's true instant (`between 2024-01-14 16:30 and 17:30 UTC`) should match the row; it returns **0 rows on both Postgres and BigQuery**:
+**(b) Raw-frame filters compare wall clocks in different zones — on every warehouse with a naive column, and on ClickHouse without one.** Raw WHERE clauses keep the bare column (deliberate — wrapping it defeats partition pruning), and nothing on the literal path converts the value into the column's zone. Filtering the raw frame to a one-hour window around the row's true instant (`between 2024-01-14 16:30 and 17:30 UTC`) should match the row; it returns **0 rows on both Postgres and BigQuery**:
 
 ```sql
 -- Postgres:  created_at >= '2024-01-14 16:30:00+00:00'
@@ -105,6 +105,8 @@ The same filter on Postgres matches correctly — its literal carries `+00:00` a
 ```
 
 Note the session does **not** save this case: comparing a naive column against a string literal coerces the literal to the naive type, discarding the offset before the session could matter. The filter misses the rows the user picked, and matches rows offset by the data timezone instead.
+
+**ClickHouse hits the same symptom from the opposite side** — no naive column required. Its values are instants and the SELECT pins them to UTC (`toTimeZone(x, 'UTC')`), but its bare filter literals are parsed by `session_timezone` (= `dataTimezone`). Verified live with `dataTimezone: Asia/Tokyo`, display UTC, on `timezone_test`: the displayed raw value is `2024-01-15T02:00Z`, filtering `inBetween [01:30Z, 02:30Z]` returns **0 rows**, and the window that matches is `[10:30Z, 11:30Z]` — the literal `'2024-01-15 10:30:00'` read as a Tokyo wall clock is `01:30Z`. Display never moves, filters silently shift: setting a data timezone on ClickHouse only breaks things. The literal-side fix (`gap-naive-filter-domain`'s typed-literal strategy, here `toDateTime64('...', 3, 'UTC')`) makes the setting fully inert on ClickHouse.
 
 **(c) Even when bucketed filters are correct, they full-scan partitioned tables.** Filter parity is achieved by reusing the timezone-wrapped expression as the WHERE LHS — visible in (a)'s compiled SQL — so the partition column is hidden inside a function call and the warehouse cannot prune. Measured on a partitioned BigQuery table: a bare-column predicate processes 176 bytes; the same predicate with the wrapped column processes 32,080 bytes (the full table). This half affects aware and naive columns alike — it is a cost of the wrap-the-column strategy itself, and the same literal-side rewrite that fixes (a) and (b) removes it (half-open ranges on the bare column, see constraint 2).
 
@@ -205,4 +207,5 @@ The adjacent per-column zone declaration (mixed-zone models, e.g. a PT column ne
 | `getColumnTimezone` | `packages/common/src/types/projects.ts` |
 | Filter literal rendering | `packages/common/src/compiler/filtersCompiler.ts` |
 | BigQuery per-job `time_zone` | `packages/warehouses/src/warehouseClients/BigqueryWarehouseClient.ts` |
+| ClickHouse `session_timezone` | `packages/warehouses/src/warehouseClients/ClickhouseWarehouseClient.ts` |
 | Regression tests (raw vs truncated, data-timezone matrix) | `packages/api-tests/tests/dataTimezone.test.ts` |
