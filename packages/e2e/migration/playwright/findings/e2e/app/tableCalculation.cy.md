@@ -125,3 +125,20 @@ The API test requires the already-running Lightdash backend plus seeded project/
 ## Port history
 
 Not started.
+
+### 2026-07-20 — C3 replacement implemented
+
+- Target: `packages/backend/src/tableCalculationTemplateQueryCompiler.test.ts` and `packages/api-tests/tests/tableCalculations.test.ts`; no Playwright target was created.
+- Behavior replaced: added direct `RANK_IN_COLUMN` ascending SQL compilation coverage and two read-only seeded-project metric queries covering a named typed string calculation with `startsWith` and a named typed number calculation with `greaterThan`.
+- Replacement disposition: retire all four skipped Cypress cases without activating their browser bodies. Existing backend coverage remains authoritative for running totals; positional menus, Ace/Monaco interaction, icon CSS, exact seed matrices, and debounce timing are intentionally retired.
+- Verification:
+  - `pnpm -F backend exec vitest run --config vitest.config.ts src/tableCalculationTemplateQueryCompiler.test.ts --reporter=verbose` — passed, 30 tests.
+  - `SITE_URL=http://127.0.0.1:3000 pnpm -F api-tests exec vitest run --config vitest.config.ts tests/tableCalculations.test.ts` — passed, 2 tests.
+  - `pnpm -F backend typecheck:fast` — passed.
+  - `NODE_OPTIONS=--max-old-space-size=8192 pnpm -F backend lint` — passed with 2 pre-existing warnings. The default heap limit aborted package-wide lint before diagnostics; the focused touched-file lint also passed.
+  - `pnpm -F backend format` — passed.
+  - `pnpm -F api-tests lint` — passed with 5 pre-existing warnings.
+  - `pnpm -F api-tests typecheck` — passed.
+  - `pnpm -F api-tests format` — passed.
+- Remaining risks: none identified for the stable replacement contract. The API assertion accepts numeric raw values serialized as either JSON numbers or warehouse numeric strings while requiring the declared result column to be numeric.
+- Commit: pending serialized signing lease.
