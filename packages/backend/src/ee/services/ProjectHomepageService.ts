@@ -614,9 +614,26 @@ export class ProjectHomepageService extends BaseService {
         );
     }
 
+    // The first inline image, absolute-ized, for a Slack `image` block — the
+    // `markdown` block can't render inline images, so the image is appended as
+    // its own block instead of being lost.
+    private announcementSlackImage(
+        body: string,
+    ): { imageUrl: string; altText: string } | null {
+        const match = body.match(/!\[([^\]]*)\]\(([^)\s]+)\)/);
+        if (!match) return null;
+        const [, alt, url] = match;
+        const absolute = url.startsWith('/')
+            ? `${this.lightdashConfig.siteUrl}${url}`
+            : url;
+        if (!/^https?:\/\//.test(absolute)) return null;
+        return { imageUrl: absolute, altText: alt || 'Announcement image' };
+    }
+
     // The stored body is standard markdown; Slack's `markdown` block renders it
     // natively (links, bold, lists), so we only need to make relative URLs
-    // absolute and drop inline images (not rendered by the markdown block).
+    // absolute and drop inline images (the first one is re-attached as a
+    // dedicated image block, see `announcementSlackImage`).
     private announcementSlackMarkdown(body: string): string {
         const { siteUrl } = this.lightdashConfig;
         return body
@@ -639,6 +656,9 @@ export class ProjectHomepageService extends BaseService {
         const markdown = announcement.body
             ? this.announcementSlackMarkdown(announcement.body)
             : '';
+        const image = announcement.body
+            ? this.announcementSlackImage(announcement.body)
+            : null;
         const blocks: (KnownBlock | SlackMarkdownBlock)[] = [
             {
                 type: 'header',
@@ -650,6 +670,15 @@ export class ProjectHomepageService extends BaseService {
             },
             ...(markdown
                 ? [{ type: 'markdown' as const, text: markdown }]
+                : []),
+            ...(image
+                ? [
+                      {
+                          type: 'image' as const,
+                          image_url: image.imageUrl,
+                          alt_text: image.altText,
+                      },
+                  ]
                 : []),
             {
                 type: 'context',
