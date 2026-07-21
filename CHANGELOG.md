@@ -1,3 +1,10 @@
+## [0.3436.2](https://github.com/lightdash/lightdash/compare/0.3436.1...0.3436.2) (2026-07-21)
+
+
+### Bug Fixes
+
+* **charts:** format 100% stacked bar tooltip count with field format ([#25878](https://github.com/lightdash/lightdash/issues/25878)) ([02c6c7a](https://github.com/lightdash/lightdash/commit/02c6c7af896c1909d48718f5921741a011f3d6eb)), closes [/linear.app/lightdash/issue/PROD-8987/charts-100percent-stacked-bar-chart-tooltip-ignores-field-formatting#agent-session-1215b747](https://github.com//linear.app/lightdash/issue/PROD-8987/charts-100percent-stacked-bar-chart-tooltip-ignores-field-formatting/issues/agent-session-1215b747) [/linear.app/lightdash/issue/PROD-8987/charts-100percent-stacked-bar-chart-tooltip-ignores-field-formatting#agent-session-1215b747](https://github.com//linear.app/lightdash/issue/PROD-8987/charts-100percent-stacked-bar-chart-tooltip-ignores-field-formatting/issues/agent-session-1215b747)
+
 ## [0.3436.1](https://github.com/lightdash/lightdash/compare/0.3436.0...0.3436.1) (2026-07-21)
 
 
