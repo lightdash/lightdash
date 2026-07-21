@@ -2,7 +2,7 @@ import { Text } from '@mantine-8/core';
 import { type FC } from 'react';
 import { AiMarkdown } from '../../../../components/common/AiMarkdown/AiMarkdown';
 import useApp from '../../../../providers/App/useApp';
-import { useUploadAnnouncementImage } from '../hooks/useAnnouncements';
+import { useUploadHomepageImage } from '../hooks/useAnnouncements';
 import classes from './MarkdownBlock.module.css';
 import { TiptapMarkdownEditor } from './markdownEditor/TiptapMarkdownEditor';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
@@ -27,7 +27,7 @@ export const MarkdownBlockBuild: FC<BuildComponentProps> = ({
     projectUuid,
     onChange,
 }) => {
-    const uploadImage = useUploadAnnouncementImage(projectUuid);
+    const uploadImage = useUploadHomepageImage(projectUuid);
     if (block.type !== 'markdown') return null;
     return (
         <div className={classes.editorWrap}>

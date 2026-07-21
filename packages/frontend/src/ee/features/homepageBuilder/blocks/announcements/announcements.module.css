@@ -106,13 +106,15 @@
     margin-top: 6px;
 }
 
+/* The 120px cap is the single source of truth for "is this body long?" —
+   the TSX decides by measuring scrollHeight against clientHeight. */
 .clamped {
     max-height: 120px;
     overflow: hidden;
     position: relative;
 }
 
-.clamped::after {
+.clampFade::after {
     content: '';
     position: absolute;
     left: 0;
@@ -340,16 +342,15 @@
     }
 }
 
-.announcementImage {
-    max-width: 100%;
-    border-radius: var(--mantine-radius-md);
-    cursor: zoom-in;
-    display: block;
-    margin-top: 8px;
+.newAnnouncementButton {
+    align-self: flex-start;
 }
 
-.lightboxImage {
-    max-width: 100%;
-    max-height: 80vh;
-    display: block;
+.feedError {
+    font-size: 12.5px;
+    color: light-dark(var(--mantine-color-red-7), var(--mantine-color-red-4));
+    border: 1px solid
+        light-dark(var(--mantine-color-red-2), var(--mantine-color-red-9));
+    border-radius: var(--mantine-radius-md);
+    padding: 12px 14px;
 }

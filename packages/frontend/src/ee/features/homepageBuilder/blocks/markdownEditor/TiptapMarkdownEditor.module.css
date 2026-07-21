@@ -188,3 +188,18 @@
         animation: none;
     }
 }
+
+:global(body.tiptap-lightbox-scroll-lock) {
+    overflow: hidden;
+}
+
+/* Read-mode chips and images are keyboard-reachable — show where focus is. */
+[data-readonly] .editorContent :global(.ProseMirror) :global(img:focus-visible),
+[data-readonly]
+    .editorContent
+    :global(.ProseMirror)
+    :global(.node-contentMention:focus-visible) {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: 2px;
+    border-radius: var(--mantine-radius-sm);
+}

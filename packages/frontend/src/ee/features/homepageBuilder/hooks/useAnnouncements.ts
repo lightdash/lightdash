@@ -9,7 +9,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 
-const ANNOUNCEMENTS_QUERY_KEY = 'project_announcements';
+export const ANNOUNCEMENTS_QUERY_KEY = 'project_announcements';
 
 type ListOptions = {
     page?: number;
@@ -146,3 +146,9 @@ export const useUploadAnnouncementImage = (projectUuid: string) => {
             }),
     });
 };
+
+/**
+ * Same endpoint, neutral name — homepage blocks other than announcements
+ * upload their images here too.
+ */
+export const useUploadHomepageImage = useUploadAnnouncementImage;

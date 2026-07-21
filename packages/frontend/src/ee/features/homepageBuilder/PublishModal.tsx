@@ -26,11 +26,13 @@ import {
     IconWorldCheck,
 } from '@tabler/icons-react';
 import { useRef, useState, type FC } from 'react';
+import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { MiniPill } from './blocks/BlockShell';
 import blockClasses from './blocks/blockStyles.module.css';
+import { useAnnouncements } from './hooks/useAnnouncements';
 import {
     useHomepageAssignments,
     useUpdateGroupPriorities,
@@ -117,6 +119,7 @@ type BodyProps = Props & {
 const PublishModalBody: FC<BodyProps> = ({
     opened,
     onClose,
+    projectUuid,
     homepageUuid,
     homepageName,
     isPublishing,
@@ -126,6 +129,19 @@ const PublishModalBody: FC<BodyProps> = ({
     assignments,
     reorderGroups,
 }) => {
+    // Publishing the homepage also flips every draft announcement live.
+    const { data: announcementsPage } = useAnnouncements(projectUuid, {
+        page: 1,
+        pageSize: 100,
+        includeUnpublished: true,
+    });
+    const draftAnnouncements = (announcementsPage?.items ?? []).filter(
+        (announcement) => !announcement.published,
+    );
+    const queuedSlackCount = draftAnnouncements.filter(
+        (announcement) => announcement.pendingSlackChannelId !== null,
+    ).length;
+
     const ownAssignments = assignments.filter(
         (assignment) => assignment.homepageUuid === homepageUuid,
     );
@@ -455,6 +471,20 @@ const PublishModalBody: FC<BodyProps> = ({
                             personal choice wins over both.
                         </Text>
                     </>
+                )}
+
+                {draftAnnouncements.length > 0 && (
+                    <Callout variant="warning">
+                        <Text size="sm">
+                            Publishing will also make{' '}
+                            {draftAnnouncements.length} draft announcement
+                            {draftAnnouncements.length === 1 ? '' : 's'} live
+                            {queuedSlackCount > 0
+                                ? ' and send queued Slack notifications'
+                                : ''}
+                            .
+                        </Text>
+                    </Callout>
                 )}
 
                 <Group gap={7} p="10px 12px" className={classes.resolvesBar}>

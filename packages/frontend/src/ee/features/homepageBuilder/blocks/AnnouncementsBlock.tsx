@@ -1,4 +1,5 @@
 import {
+    ANNOUNCEMENT_BODY_MAX_LENGTH,
     ANNOUNCEMENT_CATEGORY_META,
     AnnouncementCategory,
     type ProjectAnnouncement,
@@ -9,6 +10,7 @@ import {
     Divider,
     Group,
     Select,
+    Skeleton,
     Stack,
     Text,
     TextInput,
@@ -52,7 +54,6 @@ import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 const FEED_PAGE_SIZE = 25;
 const RECENT_LIMIT = 3;
-const CLAMP_MAX_PX = 120;
 
 const NOOP = () => {};
 
@@ -89,30 +90,40 @@ const ClampedBody: FC<{ projectUuid: string; body: string }> = ({
 }) => {
     const [expanded, setExpanded] = useState(false);
     const [overflowing, setOverflowing] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
+    const clampRef = useRef<HTMLDivElement>(null);
+    const contentRef = useRef<HTMLDivElement>(null);
 
+    // The clamp height lives in CSS; overflow is whatever the clamped box
+    // couldn't fit. Measured against the inner content, which is what grows.
     useEffect(() => {
-        const el = ref.current;
-        if (!el) return undefined;
+        const clampEl = clampRef.current;
+        const contentEl = contentRef.current;
+        if (!clampEl || !contentEl || expanded) return undefined;
         const measure = () =>
-            setOverflowing(el.scrollHeight > CLAMP_MAX_PX + 8);
+            setOverflowing(clampEl.scrollHeight > clampEl.clientHeight);
         measure();
         const observer = new ResizeObserver(measure);
-        observer.observe(el);
+        observer.observe(contentEl);
         return () => observer.disconnect();
-    }, [body]);
+    }, [body, expanded]);
 
-    const clamped = !expanded && overflowing;
+    const clampClass = expanded
+        ? undefined
+        : overflowing
+          ? `${classes.clamped} ${classes.clampFade}`
+          : classes.clamped;
     return (
         <div className={classes.cardBody}>
-            <div ref={ref} className={clamped ? classes.clamped : undefined}>
-                <TiptapMarkdownEditor
-                    key={body}
-                    content={body}
-                    editable={false}
-                    mentionProjectUuid={projectUuid}
-                    onChange={NOOP}
-                />
+            <div ref={clampRef} className={clampClass}>
+                <div ref={contentRef}>
+                    <TiptapMarkdownEditor
+                        key={body}
+                        content={body}
+                        editable={false}
+                        mentionProjectUuid={projectUuid}
+                        onChange={NOOP}
+                    />
+                </div>
             </div>
             {overflowing && (
                 <button
@@ -177,6 +188,12 @@ const EarlierSection: FC<{
 }> = ({ projectUuid, items, renderActions }) => {
     const [open, setOpen] = useState(false);
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
+    const toggleRow = (uuid: string) =>
+        setExpanded((prev) => {
+            const next = new Set(prev);
+            if (!next.delete(uuid)) next.add(uuid);
+            return next;
+        });
     if (items.length === 0) return null;
     return (
         <div>
@@ -190,7 +207,7 @@ const EarlierSection: FC<{
                     size="sm"
                 />
                 {open
-                    ? 'Hide earlier announcements'
+                    ? 'Show fewer'
                     : `Show ${items.length} earlier announcement${
                           items.length === 1 ? '' : 's'
                       }`}
@@ -199,23 +216,29 @@ const EarlierSection: FC<{
                 <div className={classes.earlierList}>
                     {items.map((announcement) =>
                         expanded.has(announcement.announcementUuid) ? (
-                            <AnnouncementCard
-                                key={announcement.announcementUuid}
-                                projectUuid={projectUuid}
-                                announcement={announcement}
-                                actions={renderActions?.(announcement)}
-                            />
+                            <div key={announcement.announcementUuid}>
+                                <AnnouncementCard
+                                    projectUuid={projectUuid}
+                                    announcement={announcement}
+                                    actions={renderActions?.(announcement)}
+                                />
+                                <button
+                                    type="button"
+                                    className={classes.earlierToggle}
+                                    onClick={() =>
+                                        toggleRow(announcement.announcementUuid)
+                                    }
+                                >
+                                    Show less
+                                </button>
+                            </div>
                         ) : (
                             <button
                                 key={announcement.announcementUuid}
                                 type="button"
                                 className={classes.earlierRow}
                                 onClick={() =>
-                                    setExpanded((prev) =>
-                                        new Set(prev).add(
-                                            announcement.announcementUuid,
-                                        ),
-                                    )
+                                    toggleRow(announcement.announcementUuid)
                                 }
                             >
                                 <span className={classes.earlierRowTitle}>
@@ -300,23 +323,38 @@ const AnnouncementFeed: FC<{
 const useAnnouncementFeed = (
     projectUuid: string,
     includeUnpublished = false,
-): ProjectAnnouncement[] => {
-    const { data } = useAnnouncements(projectUuid, {
+) => {
+    const { data, isInitialLoading, isError } = useAnnouncements(projectUuid, {
         page: 1,
         pageSize: FEED_PAGE_SIZE,
         includeUnpublished,
     });
-    return useMemo(() => data?.items ?? [], [data]);
+    const announcements = useMemo(() => data?.items ?? [], [data]);
+    return { announcements, isLoading: isInitialLoading, isError };
 };
+
+const FeedSkeleton: FC = () => (
+    <Stack gap="xs">
+        <Skeleton h={92} radius="md" />
+        <Skeleton h={92} radius="md" />
+    </Stack>
+);
+
+const FeedError: FC = () => (
+    <div className={classes.feedError}>
+        Couldn’t load announcements. Try refreshing the page.
+    </div>
+);
 
 export const AnnouncementsBlockView: FC<BlockComponentProps> = ({
     block,
     projectUuid,
 }) => {
-    const announcements = useAnnouncementFeed(projectUuid);
-    if (block.type !== 'announcements' || announcements.length === 0) {
-        return null;
-    }
+    const { announcements, isLoading, isError } =
+        useAnnouncementFeed(projectUuid);
+    if (block.type !== 'announcements') return null;
+    // Read mode stays invisible until there is something real to show.
+    if (isLoading || isError || announcements.length === 0) return null;
     return (
         <Stack gap="sm">
             <BlockHeader icon={IconSpeakerphone} title={block.config.title} />
@@ -335,22 +373,28 @@ const AnnouncementFormModal: FC<{
     onClose: () => void;
 }> = ({ projectUuid, announcement, slackInstalled, onClose }) => {
     const isEdit = announcement !== null;
+    // Slack can only be retargeted while the announcement is still a draft.
+    const slackEditable = slackInstalled && !announcement?.published;
+    const initialSlackChannelId = announcement?.pendingSlackChannelId ?? null;
     const [title, setTitle] = useState(announcement?.title ?? '');
     const [body, setBody] = useState(announcement?.body ?? '');
     const [category, setCategory] = useState<AnnouncementCategory | null>(
         announcement?.category ?? null,
     );
-    const [slackChannelId, setSlackChannelId] = useState<string | null>(null);
+    const [slackChannelId, setSlackChannelId] = useState<string | null>(
+        initialSlackChannelId,
+    );
     const { mutate: create, isLoading: creating } =
         useCreateAnnouncement(projectUuid);
     const { mutate: update, isLoading: updating } =
         useUpdateAnnouncement(projectUuid);
     const uploadImage = useUploadAnnouncementImage(projectUuid);
     const isLoading = creating || updating;
+    const bodyTooLong = body.trim().length > ANNOUNCEMENT_BODY_MAX_LENGTH;
 
     const handleSave = () => {
         const trimmedTitle = title.trim();
-        if (trimmedTitle.length === 0) return;
+        if (trimmedTitle.length === 0 || bodyTooLong) return;
         const bodyValue = body.trim() || null;
         if (isEdit) {
             update(
@@ -359,6 +403,11 @@ const AnnouncementFormModal: FC<{
                     title: trimmedTitle,
                     body: bodyValue,
                     category,
+                    // Omitted when untouched — PATCH leaves it unchanged.
+                    ...(slackEditable &&
+                    slackChannelId !== initialSlackChannelId
+                        ? { slackChannelId }
+                        : {}),
                 },
                 { onSuccess: onClose },
             );
@@ -375,9 +424,9 @@ const AnnouncementFormModal: FC<{
         }
     };
 
-    let saveLabel = 'Publish';
+    let saveLabel = 'Create draft';
     if (isEdit) saveLabel = 'Save';
-    else if (slackChannelId) saveLabel = 'Publish & notify';
+    else if (slackChannelId) saveLabel = 'Create draft & queue Slack';
 
     return (
         <MantineModal
@@ -388,7 +437,7 @@ const AnnouncementFormModal: FC<{
             size="lg"
             onConfirm={handleSave}
             confirmLabel={saveLabel}
-            confirmDisabled={title.trim().length === 0}
+            confirmDisabled={title.trim().length === 0 || bodyTooLong}
             confirmLoading={isLoading}
         >
             <Stack gap="md">
@@ -426,7 +475,7 @@ const AnnouncementFormModal: FC<{
                             setCategory(value as AnnouncementCategory | null)
                         }
                     />
-                    {!isEdit && slackInstalled && (
+                    {slackEditable && (
                         <SlackChannelSelect
                             label="Notify Slack"
                             placeholder="No notification"
@@ -437,13 +486,21 @@ const AnnouncementFormModal: FC<{
                         />
                     )}
                 </Group>
-                {!isEdit && (
+                {bodyTooLong && (
+                    <Text size="xs" c="red">
+                        Body is {body.trim().length.toLocaleString()} characters
+                        — trim it to{' '}
+                        {ANNOUNCEMENT_BODY_MAX_LENGTH.toLocaleString()} or
+                        fewer.
+                    </Text>
+                )}
+                {!announcement?.published && (
                     <Text size="xs" c="dimmed">
-                        This announcement
+                        Saved as a draft. It
                         {slackChannelId
                             ? ' and its Slack notification'
                             : ''}{' '}
-                        goes out when you publish the homepage.
+                        goes live when you publish the homepage.
                     </Text>
                 )}
             </Stack>
@@ -458,13 +515,18 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
 }) => {
     const [creating, setCreating] = useState(false);
     const [editing, setEditing] = useState<ProjectAnnouncement | null>(null);
+    const [deleting, setDeleting] = useState<ProjectAnnouncement | null>(null);
     // Build mode shows drafts too (they stay hidden on the live homepage).
-    const announcements = useAnnouncementFeed(projectUuid, true);
+    const { announcements, isLoading, isError } = useAnnouncementFeed(
+        projectUuid,
+        true,
+    );
     // Warmed here so the Slack picker is ready the instant the modal opens.
     const { data: slack } = useGetSlack();
     const slackInstalled = !!slack?.organizationUuid;
     const { mutate: update } = useUpdateAnnouncement(projectUuid);
-    const { mutate: remove } = useDeleteAnnouncement(projectUuid);
+    const { mutate: remove, isLoading: removing } =
+        useDeleteAnnouncement(projectUuid);
     if (block.type !== 'announcements') return null;
 
     const itemActions = (announcement: ProjectAnnouncement) => (
@@ -504,7 +566,7 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
                     color="red"
                     size="sm"
                     aria-label="Delete announcement"
-                    onClick={() => remove(announcement.announcementUuid)}
+                    onClick={() => setDeleting(announcement)}
                 >
                     <MantineIcon icon={IconTrash} />
                 </ActionIcon>
@@ -520,11 +582,15 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
                 size="xs"
                 leftSection={<MantineIcon icon={IconPlus} />}
                 onClick={() => setCreating(true)}
-                style={{ alignSelf: 'flex-start' }}
+                className={classes.newAnnouncementButton}
             >
                 New announcement
             </Button>
-            {announcements.length === 0 ? (
+            {isLoading ? (
+                <FeedSkeleton />
+            ) : isError ? (
+                <FeedError />
+            ) : announcements.length === 0 ? (
                 <div className={classes.emptyHint}>
                     No announcements yet — share your first update. The block
                     stays hidden on the homepage until there is something to
@@ -546,6 +612,23 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
                         setCreating(false);
                         setEditing(null);
                     }}
+                />
+            )}
+            {deleting !== null && (
+                <MantineModal
+                    opened
+                    onClose={() => !removing && setDeleting(null)}
+                    title="Delete announcement"
+                    variant="delete"
+                    resourceType="announcement"
+                    resourceLabel={deleting.title}
+                    cancelDisabled={removing}
+                    confirmLoading={removing}
+                    onConfirm={() =>
+                        remove(deleting.announcementUuid, {
+                            onSuccess: () => setDeleting(null),
+                        })
+                    }
                 />
             )}
         </Stack>
