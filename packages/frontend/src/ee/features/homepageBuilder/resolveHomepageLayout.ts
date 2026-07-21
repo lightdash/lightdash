@@ -82,7 +82,9 @@ const isLeadingHero = (blocks: HomepageBlock[]): boolean =>
     blocks.length === 1 && LEADING_HERO_TYPES.includes(blocks[0].type);
 
 // Blocks whose config makes them provably render nothing (their Views return
-// null). The layout reasons about what will actually paint: an invisible block
+// null). Config is persisted data that crosses code versions in both
+// directions during rolling deploys — reads tolerate missing fields rather
+// than trusting the current schema. The layout reasons about what will actually paint: an invisible block
 // must not demote the hero, leave a phantom row gap, or hold a ghost column.
 const isConfigEmptyBlock = (block: HomepageBlock): boolean => {
     switch (block.type) {
@@ -90,11 +92,11 @@ const isConfigEmptyBlock = (block: HomepageBlock): boolean => {
         case 'collection':
         case 'resources':
         case 'metrics':
-            return block.config.items.length === 0;
+            return (block.config.items?.length ?? 0) === 0;
         case 'quick-actions':
-            return block.config.actions.length === 0;
+            return (block.config.actions?.length ?? 0) === 0;
         case 'markdown':
-            return block.config.content.trim() === '';
+            return (block.config.content ?? '').trim() === '';
         // Visibility depends on runtime data (viewer, AI availability), not
         // config — always treat as visible.
         case 'ask-ai-hero':
@@ -120,7 +122,7 @@ const toVisibleRows = (rows: HomepageConfig['rows']): HomepageConfig['rows'] =>
 // the row with — so weight follows actual item count, not just block type.
 const columnWeightFor = (block: HomepageBlock): number => {
     if (block.type === 'collection') {
-        return block.config.items.length >= 3 ? 2 : 1;
+        return (block.config.items?.length ?? 0) >= 3 ? 2 : 1;
     }
     return traitFor(block.type).columnWeight;
 };
@@ -133,9 +135,9 @@ const clampUnits = (count: number, max: 1 | 2 | 3 | 4): 1 | 2 | 3 | 4 => {
 const hugUnitsFor = (block: HomepageBlock): ResolvedColumn['hugUnits'] => {
     switch (block.type) {
         case 'metrics':
-            return clampUnits(block.config.items.length, 4);
+            return clampUnits(block.config.items?.length ?? 0, 4);
         case 'collection':
-            return clampUnits(block.config.items.length, 3);
+            return clampUnits(block.config.items?.length ?? 0, 3);
         // Resources render as a self-sizing list/media grid — natural width.
         case 'resources':
         case 'announcements':
@@ -156,7 +158,7 @@ const gridItemCountFor = (block: HomepageBlock): number => {
         case 'metrics':
         case 'collection':
         case 'resources':
-            return block.config.items.length;
+            return block.config.items?.length ?? 0;
         default:
             return 0;
     }
