@@ -8,11 +8,9 @@ type UploadImage = ProjectHomepageService['uploadAnnouncementImage'];
 
 describe('ProjectAnnouncementsController — uploadImage', () => {
     const buildController = (
-        uploadAnnouncementImage: UploadImage = vi
-            .fn()
-            .mockResolvedValue({
-                url: 'https://app.lightdash.com/api/v1/file/abc',
-            }),
+        uploadAnnouncementImage: UploadImage = vi.fn().mockResolvedValue({
+            url: 'https://app.lightdash.com/api/v1/file/abc',
+        }),
     ) => {
         const service: Pick<ProjectHomepageService, 'uploadAnnouncementImage'> =
             { uploadAnnouncementImage };
