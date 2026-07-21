@@ -510,7 +510,7 @@ jobs:
           ARTIFACT_URL: ${{ steps.playwright_artifacts.outputs.artifact-url }}
         run: |
           video_count=0
-          if [[ -d packages/e2e/playwright-results ]]; then
+          if [ -d packages/e2e/playwright-results ]; then
             video_count="$(find packages/e2e/playwright-results -type f -name 'video.webm' | wc -l | tr -d ' ')"
           fi
           {
@@ -603,7 +603,7 @@ jobs:
           ARTIFACT_URL: ${{ steps.playwright_artifacts.outputs.artifact-url }}
         run: |
           video_count=0
-          if [[ -d packages/e2e/playwright-results ]]; then
+          if [ -d packages/e2e/playwright-results ]; then
             video_count="$(find packages/e2e/playwright-results -type f -name 'video.webm' | wc -l | tr -d ' ')"
           fi
           {
@@ -649,7 +649,7 @@ jobs:
         run: |
           exit_code=0
           for timezone in UTC Europe/Madrid America/New_York Asia/Tokyo; do
-            output_name="${timezone//\//-}"
+            output_name="$(printf '%s' "${timezone}" | tr '/' '-')"
             echo "::group::Timezone: ${timezone}"
             if ! TZ="${timezone}" \
               PLAYWRIGHT_HTML_OUTPUT_DIR="playwright-report/${output_name}" \
@@ -680,7 +680,7 @@ jobs:
           ARTIFACT_URL: ${{ steps.playwright_artifacts.outputs.artifact-url }}
         run: |
           video_count=0
-          if [[ -d packages/e2e/playwright-results ]]; then
+          if [ -d packages/e2e/playwright-results ]; then
             video_count="$(find packages/e2e/playwright-results -type f -name 'video.webm' | wc -l | tr -d ' ')"
           fi
           {
