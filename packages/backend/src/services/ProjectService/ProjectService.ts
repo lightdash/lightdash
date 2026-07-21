@@ -1856,31 +1856,6 @@ export class ProjectService extends BaseService {
         });
     }
 
-    async getWarehouseConnection({
-        projectUuid,
-        userUuid,
-        isRegisteredUser,
-        isServiceAccount = false,
-        overrides,
-    }: {
-        projectUuid: string;
-        userUuid: string;
-        isRegisteredUser: boolean;
-        isServiceAccount?: boolean;
-        overrides?: {
-            snowflakeVirtualWarehouse?: string;
-            databricksCompute?: string;
-        };
-    }) {
-        const credentials = await this.getWarehouseCredentials({
-            projectUuid,
-            userId: userUuid,
-            isRegisteredUser,
-            isServiceAccount,
-        });
-        return this._getWarehouseClient(projectUuid, credentials, overrides);
-    }
-
     async _getWarehouseClient(
         projectUuid: string,
         credentials: CreateWarehouseCredentials,

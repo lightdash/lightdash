@@ -30,7 +30,6 @@ import {
     KnexPaginatedData,
     NotFoundError,
     OrganizationMemberRole,
-    QueryExecutionContext,
     RequestMethod,
     SessionUser,
     TableCalculation,
@@ -41,7 +40,6 @@ import {
     ValidationSourceType,
     ValidationTarget,
 } from '@lightdash/common';
-import { validateWarehouseColumnReferences } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -53,7 +51,6 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
-import type { ProjectService } from '../ProjectService/ProjectService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 
 type ValidationServiceArguments = {
@@ -61,7 +58,6 @@ type ValidationServiceArguments = {
     analytics: LightdashAnalytics;
     validationModel: ValidationModel;
     projectModel: ProjectModel;
-    projectService: Pick<ProjectService, 'getWarehouseConnection'>;
     savedChartModel: SavedChartModel;
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
@@ -71,43 +67,6 @@ type ValidationServiceArguments = {
 };
 
 export class ValidationService extends BaseService {
-    private async validateWarehouseColumns(
-        projectUuid: string,
-        userUuid: string,
-        explores: (Explore | ExploreError)[],
-    ): Promise<(Explore | ExploreError)[]> {
-        try {
-            const { organizationUuid } =
-                await this.projectModel.getSummary(projectUuid);
-            const { warehouseClient, sshTunnel } =
-                await this.projectService.getWarehouseConnection({
-                    projectUuid,
-                    userUuid,
-                    isRegisteredUser: true,
-                });
-            try {
-                return await validateWarehouseColumnReferences({
-                    explores,
-                    client: warehouseClient,
-                    tags: {
-                        organization_uuid: organizationUuid,
-                        project_uuid: projectUuid,
-                        query_context: QueryExecutionContext.API,
-                        user_uuid: userUuid,
-                    },
-                });
-            } finally {
-                await sshTunnel.disconnect();
-            }
-        } catch (error) {
-            this.logger.warn(
-                `Unable to validate warehouse column references for project ${projectUuid}`,
-                { error },
-            );
-            return explores;
-        }
-    }
-
     private static buildExploreFields(
         compiledExplores: (Explore | ExploreError)[],
     ): Record<string, { dimensionIds: string[]; metricIds: string[] }> {
@@ -209,8 +168,6 @@ export class ValidationService extends BaseService {
 
     projectModel: ProjectModel;
 
-    projectService: Pick<ProjectService, 'getWarehouseConnection'>;
-
     savedChartModel: SavedChartModel;
 
     dashboardModel: DashboardModel;
@@ -228,7 +185,6 @@ export class ValidationService extends BaseService {
         analytics,
         validationModel,
         projectModel,
-        projectService,
         savedChartModel,
         dashboardModel,
         spaceModel,
@@ -240,7 +196,6 @@ export class ValidationService extends BaseService {
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.projectModel = projectModel;
-        this.projectService = projectService;
         this.savedChartModel = savedChartModel;
         this.validationModel = validationModel;
         this.dashboardModel = dashboardModel;
@@ -986,7 +941,6 @@ export class ValidationService extends BaseService {
 
     async generateValidation(
         projectUuid: string,
-        userUuid: string,
         compiledExplores?: (Explore | ExploreError)[],
         validationTargets?: Set<ValidationTarget>,
         onlyValidateExploresInArgs?: boolean,
@@ -1038,18 +992,6 @@ export class ValidationService extends BaseService {
                 ),
             );
         }
-
-        const validatesTables =
-            !hasValidationTargets ||
-            validationTargets.has(ValidationTarget.TABLES);
-        if (compiledExplores === undefined && validatesTables) {
-            explores = await this.validateWarehouseColumns(
-                projectUuid,
-                userUuid,
-                explores,
-            );
-        }
-
         // Check for undefined dimensions/metrics before processing
         explores?.forEach((explore) => {
             if (!isExploreError(explore) && explore?.tables !== undefined) {

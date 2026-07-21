@@ -10,6 +10,7 @@ import {
     ValidationTarget,
     WindowFunctionType,
 } from '@lightdash/common';
+import { validateWarehouseColumnReferences } from '@lightdash/warehouses';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -18,7 +19,6 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
-import type { ProjectService } from '../ProjectService/ProjectService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { ValidationService } from './ValidationService';
 import {
@@ -41,6 +41,15 @@ import {
     user,
 } from './ValidationService.mock';
 
+vi.mock('@lightdash/warehouses', async (importOriginal) => {
+    const original =
+        await importOriginal<typeof import('@lightdash/warehouses')>();
+    return {
+        ...original,
+        validateWarehouseColumnReferences: vi.fn(),
+    };
+});
+
 const savedChartModel = {
     findChartsForValidation: vi.fn(async () => [chartForValidation]),
     get: vi.fn(async () => ({
@@ -54,6 +63,7 @@ const projectModel = {
     findExploresFromCache: vi.fn(async () => ({
         [explore.name]: explore,
     })),
+    findVirtualViewsFromCache: vi.fn(async () => ({})),
     getExploreFromCache: vi.fn(async () => explore),
     getAllExploresFromCache: vi.fn(async () => ({
         [explore.name]: explore,
@@ -61,17 +71,6 @@ const projectModel = {
     get: vi.fn(async () => project),
     getSummary: vi.fn(async () => project),
     getTablesConfiguration: vi.fn(async () => tableConfiguration),
-};
-const disconnectWarehouse = vi.fn(async () => {});
-const projectService = {
-    getWarehouseConnection: vi.fn(async () => ({
-        warehouseClient: {
-            getFieldQuoteChar: () => '"',
-            runQuery: vi.fn(async () => ({ fields: {}, rows: [] })),
-        },
-        sshTunnel: { disconnect: disconnectWarehouse },
-        tunnelConnectMs: null,
-    })),
 };
 const validationModel = {
     delete: vi.fn(async () => {}),
@@ -101,7 +100,6 @@ describe('validation', () => {
         analytics: analyticsMock,
         validationModel: validationModel as unknown as ValidationModel,
         projectModel: projectModel as unknown as ProjectModel,
-        projectService: projectService as unknown as ProjectService,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         dashboardModel: dashboardModel as unknown as DashboardModel,
         lightdashConfig: config,
@@ -161,27 +159,16 @@ describe('validation', () => {
 
     it('Should validate project without errors', async () => {
         expect(
-            await validationService.generateValidation(
-                'projectUuid',
-                'userUuid',
-            ),
+            await validationService.generateValidation('projectUuid'),
         ).toEqual([]);
-        expect(projectService.getWarehouseConnection).toHaveBeenCalledWith({
-            projectUuid: 'projectUuid',
-            userUuid: 'userUuid',
-            isRegisteredUser: true,
-        });
-        expect(disconnectWarehouse).toHaveBeenCalledOnce();
     });
     it('Should validate project with dimension errors', async () => {
         (
             projectModel.findExploresFromCache as import('vitest').Mock
         ).mockImplementationOnce(async () => [exploreWithoutDimension]);
 
-        const errors = await validationService.generateValidation(
-            'projectUuid',
-            'userUuid',
-        );
+        const errors =
+            await validationService.generateValidation('projectUuid');
 
         expect({ ...errors[0], createdAt: undefined }).toEqual({
             createdAt: undefined,
@@ -211,10 +198,8 @@ describe('validation', () => {
             projectModel.findExploresFromCache as import('vitest').Mock
         ).mockImplementationOnce(async () => [exploreWithoutMetric]);
 
-        const errors = await validationService.generateValidation(
-            'projectUuid',
-            'userUuid',
-        );
+        const errors =
+            await validationService.generateValidation('projectUuid');
 
         expect({ ...errors[0], createdAt: undefined }).toEqual({
             createdAt: undefined,
@@ -236,14 +221,10 @@ describe('validation', () => {
         expect(errors.map((error) => error.error)).toEqual(expectedErrors);
     });
 
-    it('Should promote warehouse column warnings to table errors', async () => {
-        (
-            projectModel.findExploresFromCache as import('vitest').Mock
-        ).mockImplementationOnce(async () => [exploreWithWarehouseColumnError]);
-
+    it('Should promote CLI warehouse column warnings to table errors without probing the warehouse', async () => {
         const errors = await validationService.generateValidation(
             'projectUuid',
-            'userUuid',
+            [exploreWithWarehouseColumnError],
         );
 
         expect({ ...errors[0], createdAt: undefined }).toEqual({
@@ -258,6 +239,7 @@ describe('validation', () => {
         expect(errors.map((error) => error.error)).toEqual([
             'Warehouse rejected ${TABLE}.missing_column',
         ]);
+        expect(validateWarehouseColumnReferences).not.toHaveBeenCalled();
     });
 
     it('Should ignore explore warnings that are not warehouse column errors', async () => {
@@ -265,10 +247,8 @@ describe('validation', () => {
             projectModel.findExploresFromCache as import('vitest').Mock
         ).mockImplementationOnce(async () => [exploreWithNonWarehouseWarnings]);
 
-        const errors = await validationService.generateValidation(
-            'projectUuid',
-            'userUuid',
-        );
+        const errors =
+            await validationService.generateValidation('projectUuid');
 
         expect(errors).toEqual([]);
     });
@@ -278,10 +258,8 @@ describe('validation', () => {
             projectModel.findExploresFromCache as import('vitest').Mock
         ).mockImplementationOnce(async () => [exploreError]);
 
-        const errors = await validationService.generateValidation(
-            'projectUuid',
-            'userUuid',
-        );
+        const errors =
+            await validationService.generateValidation('projectUuid');
 
         const tableErrors = errors.filter((ve) => ve.source === 'table');
 
@@ -313,10 +291,8 @@ describe('validation', () => {
                 value: ['another_explore'],
             },
         }));
-        const errors = await validationService.generateValidation(
-            'projectUuid',
-            'userUuid',
-        );
+        const errors =
+            await validationService.generateValidation('projectUuid');
         const tableErrors = errors.filter((ve) => ve.source === 'table');
 
         expect(tableErrors.length).toEqual(0);
@@ -342,10 +318,8 @@ describe('validation', () => {
                 value: ['joined_explore'],
             },
         }));
-        const errors = await validationService.generateValidation(
-            'projectUuid',
-            'userUuid',
-        );
+        const errors =
+            await validationService.generateValidation('projectUuid');
         const tableErrors = errors.filter((ve) => ve.source === 'table');
 
         expect(tableErrors.length).toEqual(1);
@@ -375,7 +349,6 @@ describe('validation', () => {
 
         const errors = await validationService.generateValidation(
             'projectUuid',
-            'userUuid',
             undefined,
             new Set([ValidationTarget.TABLES]),
         );
@@ -397,7 +370,6 @@ describe('validation', () => {
 
         const errors = await validationService.generateValidation(
             'projectUuid',
-            'userUuid',
             undefined,
             new Set([ValidationTarget.CHARTS]),
         );
@@ -420,7 +392,6 @@ describe('validation', () => {
 
         const errors = await validationService.generateValidation(
             'projectUuid',
-            'userUuid',
             undefined,
             new Set([ValidationTarget.DASHBOARDS]),
         );
@@ -463,7 +434,6 @@ describe('validation', () => {
 
         const errors = await validationService.generateValidation(
             'projectUuid',
-            'userUuid',
             undefined,
             new Set([ValidationTarget.DASHBOARDS]),
         );
@@ -502,7 +472,6 @@ describe('validation', () => {
 
         const errors = await validationService.generateValidation(
             'projectUuid',
-            'userUuid',
             undefined,
             new Set([ValidationTarget.DASHBOARDS]),
         );
@@ -555,7 +524,6 @@ describe('validation', () => {
 
         const errors = await validationService.generateValidation(
             'projectUuid',
-            'userUuid',
             undefined,
             new Set([ValidationTarget.DASHBOARDS]),
         );
@@ -597,7 +565,6 @@ describe('validation', () => {
 
         const errors = await validationService.generateValidation(
             'projectUuid',
-            'userUuid',
             undefined,
             new Set([ValidationTarget.DASHBOARDS]),
         );
@@ -638,7 +605,6 @@ describe('validation', () => {
 
         const errors = await validationService.generateValidation(
             'projectUuid',
-            'userUuid',
             undefined,
             new Set([ValidationTarget.DASHBOARDS]),
         );
@@ -683,7 +649,6 @@ describe('validation', () => {
 
         const errors = await validationService.generateValidation(
             'projectUuid',
-            'userUuid',
             undefined,
             new Set([ValidationTarget.DASHBOARDS]),
         );
@@ -703,7 +668,6 @@ describe('validation', () => {
 
         const errors = await validationService.generateValidation(
             'projectUuid',
-            'userUuid',
             undefined,
             new Set([ValidationTarget.TABLES, ValidationTarget.CHARTS]),
         );
@@ -730,10 +694,8 @@ describe('validation', () => {
             chartForValidationWithJoinedField,
         ]);
 
-        const errors = await validationService.generateValidation(
-            'projectUuid',
-            'userUuid',
-        );
+        const errors =
+            await validationService.generateValidation('projectUuid');
 
         expect(errors.length).toEqual(0);
     });
@@ -751,7 +713,6 @@ describe('validation', () => {
 
         const errors = await validationService.generateValidation(
             'projectUuid',
-            'userUuid',
             undefined,
             new Set([ValidationTarget.CHARTS]),
         );
@@ -772,7 +733,6 @@ describe('validation', () => {
 
         const errors = await validationService.generateValidation(
             'projectUuid',
-            'userUuid',
             undefined,
             new Set([ValidationTarget.CHARTS]),
         );
@@ -804,7 +764,6 @@ describe('validation', () => {
 
         const errors = await validationService.generateValidation(
             'projectUuid',
-            'userUuid',
             undefined,
             new Set([ValidationTarget.CHARTS]),
         );

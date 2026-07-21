@@ -83,6 +83,7 @@ type ValidateHandlerOptions = CompileHandlerOptions & {
     verbose: boolean;
     preview: boolean;
     only: ValidationTarget[];
+    validateWarehouseColumns: boolean;
     showChartConfigurationWarnings: boolean;
     includeSpaces?: string[];
     excludeSpaces?: string[];
@@ -173,6 +174,7 @@ export const validateHandler = async (
             projectId: projectUuid,
             isPreview,
             validationTargets,
+            validateWarehouseColumns: options.validateWarehouseColumns,
             includedSpacesCount: options.includeSpaces?.length ?? 0,
             excludedSpacesCount: options.excludeSpaces?.length ?? 0,
         },
@@ -197,11 +199,13 @@ export const validateHandler = async (
             };
         }
 
+        const includesTableValidation =
+            validationTargets.length === 0 ||
+            validationTargets.includes(ValidationTarget.TABLES);
         const explores = await compile({
             ...options,
             validateWarehouseColumns:
-                validationTargets.length === 0 ||
-                validationTargets.includes(ValidationTarget.TABLES),
+                options.validateWarehouseColumns && includesTableValidation,
         });
         GlobalState.debug(`> Compiled ${explores.length} explores`);
 
@@ -257,6 +261,7 @@ export const validateHandler = async (
                 projectId: projectUuid,
                 isPreview,
                 validationTargets,
+                validateWarehouseColumns: options.validateWarehouseColumns,
                 includedSpacesCount: options.includeSpaces?.length ?? 0,
                 excludedSpacesCount: options.excludeSpaces?.length ?? 0,
                 durationMs: Date.now() - startTime,

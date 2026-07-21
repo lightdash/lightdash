@@ -370,6 +370,7 @@ type CliValidateStarted = BaseTrack & {
         projectId: string;
         isPreview: boolean;
         validationTargets: string[];
+        validateWarehouseColumns: boolean;
         includedSpacesCount: number;
         excludedSpacesCount: number;
     };
@@ -382,6 +383,7 @@ type CliValidateCompleted = BaseTrack & {
         projectId: string;
         isPreview: boolean;
         validationTargets: string[];
+        validateWarehouseColumns: boolean;
         includedSpacesCount: number;
         excludedSpacesCount: number;
         durationMs: number;
