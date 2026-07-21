@@ -1100,10 +1100,12 @@ Lightdash-specific constraints that apply on top of `frontend-design`'s directio
 
 Scheduled deliveries (Slack/email) render the app inside a tall **1400×4000** iframe and screenshot from the top down to the deepest visible element. If the app stretches to fill that height — via viewport-relative heights or full-bleed decorative backgrounds — the delivered image is mostly empty space around a small island of content.
 
-**Mark the content extent with `data-screenshot-bounds`.** Put the attribute on your top-level themed wrapper — the same element that carries the background and bottom gutter (`pb-8`) from the rule above. The delivery pipeline uses that element's bottom edge as the image height and crops anything below it. Without the attribute it falls back to a best-effort measurement that the patterns below easily inflate, so set it.
+
+**Mark the content extent with `data-screenshot-bounds`.** Put the attribute on your top-level themed wrapper — the same element that carries the background and bottom gutter from the rule above. The delivery pipeline uses that element's bottom edge as the image height and crops anything below it. Without the attribute it falls back to a best-effort measurement that the patterns below easily inflate, so set it.
 
 ```tsx
 <div data-screenshot-bounds className="dark bg-background p-8 pb-12">
+
   <Header />
   <ChartGrid />
   <Footer />
