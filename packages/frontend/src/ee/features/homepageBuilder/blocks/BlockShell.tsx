@@ -24,7 +24,7 @@ export const BlockHeader: FC<PropsWithChildren<BlockHeaderProps>> = ({
     iconColor,
     title,
     pill,
-    mb = 12,
+    mb = 10,
     centered = false,
     children,
 }) => (

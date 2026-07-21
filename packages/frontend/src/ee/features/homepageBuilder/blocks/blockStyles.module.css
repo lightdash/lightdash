@@ -29,7 +29,66 @@
     cursor: pointer;
 }
 
+/* Card height scale. Every card is one unit or two, so cards of different
+ * types tessellate: two collection cards stack to exactly one resource card.
+ * The unit is the metric card's natural height — it has the most content
+ * (label, value, sparkline, comparison), so it sets the floor. Shorter cards
+ * grow into it rather than the metric card shrinking and crushing its chart. */
+.cardUnit1 {
+    min-height: var(--card-unit);
+}
+
+/* Content tile: a compact horizontal row at the half-unit floor. When its
+ * elastic grid hands it more height (container query on the cell), it turns
+ * into a vertical card and reveals the extra meta line — richer, not airier. */
+.contentTile {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+}
+
+.tileBody {
+    flex: 1;
+    min-width: 0;
+}
+
+.tileExtra {
+    display: none;
+    font-size: 11.5px;
+    color: var(--mantine-color-ldGray-6);
+    margin-top: 8px;
+}
+
+@container (min-height: 112px) {
+    .contentTile {
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: space-between;
+    }
+
+    .contentTile .tileActions {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+
+    .tileExtra {
+        display: block;
+    }
+}
+
+/* Half a unit: two of these plus the 10px grid gap equal one unit card.
+ * A floor, not a fixed height — elastic grids stretch tiles to close the
+ * gap to a taller sibling column. */
+.cardUnitHalf {
+    min-height: calc((var(--card-unit) - 10px) / 2);
+}
+
 .hoverCard {
+    --card-unit: 140px;
+
     border: 1px solid var(--mantine-color-ldGray-2);
     border-radius: 10px;
     background: light-dark(#fff, var(--mantine-color-dark-6));
@@ -177,14 +236,6 @@ a .hoverCard:hover,
     color: var(--mantine-color-ldGray-7);
 }
 
-.starAccent {
-    color: light-dark(#de7f0b, #e08a20);
-}
-
-.violetAccent {
-    color: #7262ff;
-}
-
 .rowName {
     font-size: 13.5px;
     font-weight: 500;
@@ -232,11 +283,25 @@ a .hoverCard:hover,
     margin-bottom: 8px;
 }
 
+/* KPI cards stack top-down with their comparison line pinned to the bottom.
+ * A metric without a time dimension has no sparkline, so without this its
+ * content stops mid-card and the tile reads as empty next to a fuller
+ * neighbour — the grid already stretches every card to the row's height. */
+.kpiCard {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.kpiFoot {
+    margin-top: auto;
+}
+
 .kpiLabel {
     font-size: 12px;
     color: var(--mantine-color-ldGray-6);
     font-weight: 500;
-    margin-bottom: 5px;
+    margin-bottom: 4px;
 }
 
 .kpiValue {
@@ -246,7 +311,10 @@ a .hoverCard:hover,
     margin-bottom: 2px;
 }
 
+/* The delta keeps its size; only the caption beside it gives way. */
 .kpiDelta {
+    flex-shrink: 0;
+
     font-size: 12px;
     font-weight: 500;
 }
@@ -282,7 +350,7 @@ a .hoverCard:hover,
 .addContentTile {
     border: 1px dashed var(--mantine-color-ldGray-3);
     border-radius: 10px;
-    min-height: 108px;
+    min-height: calc((var(--card-unit, 140px) - 10px) / 2);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -301,28 +369,6 @@ a .hoverCard:hover,
     border-color: var(--mantine-color-ldGray-5);
     color: var(--mantine-color-ldGray-7);
     background: light-dark(#fff, var(--mantine-color-dark-6));
-}
-
-.rankBadge {
-    width: 18px;
-    height: 18px;
-    border-radius: 5px;
-    background: var(--mantine-color-foreground-0, var(--mantine-color-dark-9));
-    color: #fff;
-    font-size: 11px;
-    font-weight: 600;
-    display: grid;
-    place-items: center;
-    flex-shrink: 0;
-}
-
-.presetChip {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--mantine-color-ldGray-6);
-    background: var(--mantine-color-ldGray-1);
-    border-radius: 5px;
-    padding: 2px 7px;
 }
 
 .quickActionChip {
@@ -349,56 +395,18 @@ a .hoverCard:hover,
     border-color: var(--mantine-color-ldGray-3);
 }
 
-/* Collection card grid: three-up like SimpleGrid, but a partial row centres
- * instead of leaving dead columns on the right. */
-.hugGrid {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 12px;
-}
-
-/* Single-cell grid so the child (an inline <a> card) is blockified and
- * stretched exactly like a SimpleGrid cell would. */
-.hugGridItem {
-    flex: 0 1 calc((100% - 24px) / 3);
-    min-width: 0;
-    display: grid;
-}
-
-/* Sparse collections split the width across the cards they actually have
- * instead of reserving three phantom tracks. */
-.hugGrid[data-per-row='1'] > .hugGridItem {
-    flex-basis: 100%;
-}
-
-.hugGrid[data-per-row='2'] > .hugGridItem {
-    flex-basis: calc((100% - 12px) / 2);
-}
-
-/* The blockifying grid gives its single child (the card) a fresh min-width:
- * auto default of its own, sized to the untruncated title's natural width —
- * so a long title (e.g. via Text truncate's white-space: nowrap) overflows
- * the narrow cell instead of shrinking into it. */
-.hugGridItem > * {
-    min-width: 0;
-}
-
-@media (max-width: 47.99em) {
-    .hugGridItem {
-        flex-basis: 100%;
-    }
-}
-
 /* --- Resource cards ---------------------------------------------------- */
 
-.mediaGrid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-    gap: 10px;
-}
-
 .mediaCard {
+    --card-unit: 140px;
+
+    position: relative;
+
+    /* Fixed to the unit rather than floored by it: the band below absorbs
+     * whatever the body doesn't use, so a one-line and a two-line description
+     * still produce the same card height. */
+    height: var(--card-unit);
+
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -418,13 +426,18 @@ a .hoverCard:hover,
     color: inherit;
 }
 
+/* The band takes the card's spare height instead of an aspect ratio, so the
+ * image stays a calm strip at any column width and the card stays one unit.
+ * object-fit keeps it framed as the box changes shape. */
 .resThumb {
     position: relative;
     width: 100%;
-    aspect-ratio: 16 / 9;
+    flex: 1;
+    /* Floor, not zero: the band absorbs slack but must always frame the
+     * floating icon with margin rather than being flush with it. */
+    min-height: 56px;
     overflow: hidden;
     background: var(--mantine-color-ldGray-1);
-    border-bottom: 1px solid var(--mantine-color-ldGray-2);
 }
 
 .resThumb img {
@@ -440,76 +453,97 @@ a .hoverCard:hover,
     transform: scale(1.03);
 }
 
-.resThumbFallback {
-    display: grid;
-    place-items: center;
-    color: var(--mantine-color-ldGray-6);
-}
-
-/* App-store style tile: blurred colour backdrop + crisp floating favicon */
+/* Quiet duotone tile: a muted per-kind wash with a small bare favicon —
+ * no blurred backdrop, no floating chip. */
 .resThumbTile {
     position: relative;
     width: 100%;
-    aspect-ratio: 16 / 9;
+    flex: 1;
+    min-height: 56px;
     overflow: hidden;
     display: grid;
     place-items: center;
-    background: var(--mantine-color-ldGray-1);
-    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+    background: linear-gradient(
+        135deg,
+        light-dark(#eef0f4, #23262e),
+        light-dark(#e3e6ee, #1c1f26)
+    );
+    color: var(--mantine-color-ldGray-6);
 }
 
-.resThumbBackdrop {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    filter: blur(18px) saturate(1.25);
-    transform: scale(1.35);
-    animation: resFadeIn 0.2s ease-out;
-}
-
-.resFaviconFloat,
-.resGlyphFloat {
-    position: relative;
-    z-index: 1;
-    width: 46px;
-    height: 46px;
-    border-radius: 12px;
+.resFavTile {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
     object-fit: contain;
-    background: light-dark(#fff, var(--mantine-color-dark-5));
-    box-shadow:
-        0 3px 14px rgba(0, 0, 0, 0.22),
-        0 0 0 1px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
     animation: resFadeIn 0.2s ease-out;
 }
 
-.resFaviconFloat {
-    padding: 8px;
-}
-
-.resGlyphFloat {
+.resGlyphTile {
     display: grid;
     place-items: center;
-    color: var(--mantine-color-ldGray-7);
+    opacity: 0.75;
+}
+
+.resThumbDoc {
+    background: linear-gradient(
+        135deg,
+        light-dark(#e8f0ea, #222e27),
+        light-dark(#dbe8df, #1a251f)
+    );
+    color: light-dark(#4c7a5c, #8fbf9f);
+}
+
+.resThumbLink {
+    background: linear-gradient(
+        135deg,
+        light-dark(#eaedf8, #252a3b),
+        light-dark(#dfe3f2, #1e2231)
+    );
+    color: light-dark(#5a68a8, #9ba8dd);
+}
+
+.resThumbVideo {
+    background: linear-gradient(
+        135deg,
+        light-dark(#efeaf8, #2b2539),
+        light-dark(#e5def2, #231e2f)
+    );
+    color: light-dark(#7a5aa8, #b19bdd);
 }
 
 .resThumbClaude {
-    background: light-dark(#f8ede8, #3a2a22);
+    background: linear-gradient(
+        135deg,
+        light-dark(#f7ede5, #362a21),
+        light-dark(#f1e2d3, #2c221b)
+    );
     color: light-dark(#c15f3c, #e0916f);
 }
 
 .resThumbYoutube {
-    background: light-dark(#fdecec, #3a2323);
-    color: light-dark(#c0392b, #e07a6f);
+    background: linear-gradient(
+        135deg,
+        light-dark(#f8eae8, #362525),
+        light-dark(#f2dedb, #2c1f1f)
+    );
+    color: light-dark(#b0453a, #dd8a80);
 }
 
-.resFavicon {
-    width: 30px;
-    height: 30px;
-    border-radius: 7px;
-    object-fit: contain;
-    animation: resFadeIn 0.2s ease-out;
+/* External-link affordance: quiet corner mark, revealed on hover. */
+.resExternal {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 1;
+    color: light-dark(rgba(0, 0, 0, 0.35), rgba(255, 255, 255, 0.45));
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.mediaCard:hover .resExternal {
+    opacity: 1;
 }
 
 .mediaBody {
@@ -519,26 +553,15 @@ a .hoverCard:hover,
     padding: 9px 11px 11px;
 }
 
-.mediaKind {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 10.5px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--mantine-color-ldGray-5);
-}
-
-.mediaExternal {
-    margin-left: auto;
-    color: var(--mantine-color-ldGray-4);
-}
-
 .mediaTitle {
     font-size: 13.5px;
     font-weight: 600;
     line-height: 1.3;
+    /* One line always: a wrapped title eats the image band above it, since
+     * the band absorbs whatever the body leaves. */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -550,7 +573,10 @@ a .hoverCard:hover,
     line-height: 1.4;
     color: var(--mantine-color-ldGray-6);
     display: -webkit-box;
+    /* Two lines, but a *fixed* two-line box either way — the band absorbs
+     * the card's slack, so a variable body would make it wobble. */
     -webkit-line-clamp: 2;
+    height: 2.8em;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -563,10 +589,12 @@ a .hoverCard:hover,
 .rowThumb {
     width: 34px;
     height: 34px;
-    border-radius: 7px;
+    border-radius: 10px;
     overflow: hidden;
     flex-shrink: 0;
-    border: 1px solid var(--mantine-color-ldGray-2);
+    /* Inset ring instead of a hard border — softer against the favicon. */
+    box-shadow: inset 0 0 0 1px
+        light-dark(rgba(0, 0, 0, 0.06), rgba(255, 255, 255, 0.08));
     background: var(--mantine-color-ldGray-1);
 }
 
@@ -648,9 +676,6 @@ a .hoverCard:hover,
         transform: none;
     }
     .resThumb img,
-    .resFavicon {
-        animation: none;
-    }
     .skeletonBlock,
     .skeletonLine {
         animation: none;

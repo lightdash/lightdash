@@ -177,8 +177,10 @@
     overflow-y: auto;
 }
 
+/* Same content width as the published page (tierFull 1160) so the canvas
+ * shows real proportions instead of a compressed approximation. */
 .canvasInner {
-    max-width: 960px;
+    max-width: 1224px;
     margin: 0 auto;
     padding: 32px 32px 120px;
 }

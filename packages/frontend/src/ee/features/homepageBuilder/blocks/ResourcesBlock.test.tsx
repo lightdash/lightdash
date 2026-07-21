@@ -34,6 +34,7 @@ describe('ResourcesBlockView', () => {
     it('renders a card with title, description and a link to the resource', () => {
         wrap(
             <ResourcesBlockView
+                itemSpan={null}
                 projectUuid="p1"
                 block={block({ layout: 'card', items: [claudeItem] })}
             />,
@@ -49,6 +50,7 @@ describe('ResourcesBlockView', () => {
     it('renders a compact row in list layout', () => {
         wrap(
             <ResourcesBlockView
+                itemSpan={null}
                 projectUuid="p1"
                 block={block({ layout: 'list', items: [claudeItem] })}
             />,
@@ -63,6 +65,7 @@ describe('ResourcesBlockView', () => {
     it('renders nothing when there are no items', () => {
         wrap(
             <ResourcesBlockView
+                itemSpan={null}
                 projectUuid="p1"
                 block={block({ items: [] })}
             />,
@@ -85,6 +88,7 @@ describe('ResourcesBlockBuild smart paste', () => {
         const onChange = vi.fn();
         wrap(
             <ResourcesBlockBuild
+                itemSpan={null}
                 projectUuid="p1"
                 onChange={onChange}
                 block={block({ layout: 'card', items: [] })}
@@ -123,6 +127,7 @@ describe('ResourcesBlockBuild smart paste', () => {
         const onChange = vi.fn();
         wrap(
             <ResourcesBlockBuild
+                itemSpan={null}
                 projectUuid="p1"
                 onChange={onChange}
                 block={block({ layout: 'card', items: [] })}
