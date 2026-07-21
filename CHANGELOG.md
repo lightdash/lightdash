@@ -1,3 +1,10 @@
+# [0.3441.0](https://github.com/lightdash/lightdash/compare/0.3440.0...0.3441.0) (2026-07-21)
+
+
+### Features
+
+* **homepage:** polish announcements block on the feed API ([#25741](https://github.com/lightdash/lightdash/issues/25741)) ([8214e37](https://github.com/lightdash/lightdash/commit/8214e37bcddbbb9c92bba17e76f8e08da2c9e5ff))
+
 # [0.3440.0](https://github.com/lightdash/lightdash/compare/0.3439.0...0.3440.0) (2026-07-21)
 
 

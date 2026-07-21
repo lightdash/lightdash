@@ -9604,38 +9604,17 @@
                 "required": ["config", "type", "id"],
                 "type": "object"
             },
-            "HomepageAnnouncementItem": {
-                "properties": {
-                    "author": {
-                        "type": "string"
-                    },
-                    "date": {
-                        "type": "string"
-                    },
-                    "text": {
-                        "type": "string",
-                        "description": "Markdown —"
-                    }
-                },
-                "required": ["author", "date", "text"],
-                "type": "object"
-            },
             "HomepageAnnouncementsBlock": {
                 "properties": {
                     "config": {
                         "properties": {
-                            "items": {
-                                "items": {
-                                    "$ref": "#/components/schemas/HomepageAnnouncementItem"
-                                },
-                                "type": "array"
-                            },
                             "title": {
                                 "type": "string"
                             }
                         },
-                        "required": ["items", "title"],
-                        "type": "object"
+                        "required": ["title"],
+                        "type": "object",
+                        "description": "Feed reference — items live in `project_announcements`."
                     },
                     "type": {
                         "type": "string",
@@ -10457,6 +10436,11 @@
                 "required": ["allowPersonal", "audience"],
                 "type": "object"
             },
+            "AnnouncementCategory": {
+                "description": "Curated announcement categories a data team uses to signal intent to\nbusiness users. Fixed set (not user-managed) — each maps to a label + colour\nin `ANNOUNCEMENT_CATEGORY_META`.",
+                "enum": ["launch", "update", "heads_up"],
+                "type": "string"
+            },
             "ProjectAnnouncement": {
                 "properties": {
                     "updatedAt": {
@@ -10475,11 +10459,23 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "pendingSlackChannelId": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Slack channel the announcement will notify when it publishes. Always\nnull once published (consumed) — only drafts carry a value, and drafts\nare only visible to users who can manage announcements."
+                    },
+                    "published": {
+                        "type": "boolean"
+                    },
                     "pinned": {
                         "type": "boolean"
                     },
-                    "categoryUuid": {
-                        "type": "string",
+                    "category": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AnnouncementCategory"
+                            }
+                        ],
                         "nullable": true
                     },
                     "body": {
@@ -10501,8 +10497,10 @@
                     "createdAt",
                     "authorName",
                     "createdByUserUuid",
+                    "pendingSlackChannelId",
+                    "published",
                     "pinned",
-                    "categoryUuid",
+                    "category",
                     "body",
                     "title",
                     "projectUuid",
@@ -10562,8 +10560,17 @@
             },
             "CreateAnnouncementRequest": {
                 "properties": {
-                    "categoryUuid": {
+                    "slackChannelId": {
                         "type": "string",
+                        "nullable": true,
+                        "description": "Transient (not persisted): when set, publishing posts a notification to\nthis Slack channel. Requires the org to have Slack installed."
+                    },
+                    "category": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AnnouncementCategory"
+                            }
+                        ],
                         "nullable": true
                     },
                     "body": {
@@ -10574,16 +10581,25 @@
                         "type": "string"
                     }
                 },
-                "required": ["categoryUuid", "body", "title"],
+                "required": ["category", "body", "title"],
                 "type": "object"
             },
             "UpdateAnnouncementRequest": {
                 "properties": {
+                    "slackChannelId": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Only drafts: set to retarget the Slack notification, null to cancel it"
+                    },
                     "pinned": {
                         "type": "boolean"
                     },
-                    "categoryUuid": {
-                        "type": "string",
+                    "category": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AnnouncementCategory"
+                            }
+                        ],
                         "nullable": true
                     },
                     "body": {
@@ -10597,31 +10613,16 @@
                 "type": "object",
                 "description": "PATCH semantics: omitted fields are left unchanged"
             },
-            "AnnouncementCategory": {
-                "properties": {
-                    "color": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "categoryUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["color", "name", "projectUuid", "categoryUuid"],
-                "type": "object"
-            },
-            "ApiSuccess_AnnouncementCategory-Array_": {
+            "ApiSuccess__url-string__": {
                 "properties": {
                     "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/AnnouncementCategory"
+                        "properties": {
+                            "url": {
+                                "type": "string"
+                            }
                         },
-                        "type": "array"
+                        "required": ["url"],
+                        "type": "object"
                     },
                     "status": {
                         "type": "string",
@@ -10632,37 +10633,8 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ApiAnnouncementCategoriesResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_AnnouncementCategory-Array_"
-            },
-            "ApiSuccess_AnnouncementCategory_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/AnnouncementCategory"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiAnnouncementCategoryResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_AnnouncementCategory_"
-            },
-            "CreateAnnouncementCategoryRequest": {
-                "properties": {
-                    "color": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    }
-                },
-                "required": ["color", "name"],
-                "type": "object"
+            "ApiAnnouncementImageUploadResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__url-string__"
             },
             "ManagedAgentScheduleOption": {
                 "enum": [
@@ -49076,7 +49048,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3440.0",
+        "version": "0.3441.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -53728,10 +53700,10 @@
                     },
                     {
                         "in": "query",
-                        "name": "categoryUuid",
+                        "name": "includeUnpublished",
                         "required": false,
                         "schema": {
-                            "$ref": "#/components/schemas/UUID"
+                            "type": "boolean"
                         }
                     }
                 ]
@@ -53886,16 +53858,16 @@
                 ]
             }
         },
-        "/api/v1/projects/{projectUuid}/announcements/categories": {
-            "get": {
-                "operationId": "listProjectAnnouncementCategories",
+        "/api/v1/projects/{projectUuid}/announcements/images": {
+            "post": {
+                "operationId": "uploadProjectAnnouncementImage",
                 "responses": {
                     "200": {
                         "description": "Success",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiAnnouncementCategoriesResponse"
+                                    "$ref": "#/components/schemas/ApiAnnouncementImageUploadResponse"
                                 }
                             }
                         }
@@ -53923,53 +53895,6 @@
                         }
                     }
                 ]
-            },
-            "post": {
-                "operationId": "createProjectAnnouncementCategory",
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAnnouncementCategoryResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "tags": ["Homepage"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/CreateAnnouncementCategoryRequest"
-                            }
-                        }
-                    }
-                }
             }
         },
         "/api/v1/databricks/sso/is-authenticated": {

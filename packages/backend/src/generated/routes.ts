@@ -8985,19 +8985,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    HomepageAnnouncementItem: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                author: { dataType: 'string', required: true },
-                date: { dataType: 'string', required: true },
-                text: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     HomepageAnnouncementsBlock: {
         dataType: 'refAlias',
         type: {
@@ -9006,14 +8993,6 @@ const models: TsoaRoute.Models = {
                 config: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        items: {
-                            dataType: 'array',
-                            array: {
-                                dataType: 'refAlias',
-                                ref: 'HomepageAnnouncementItem',
-                            },
-                            required: true,
-                        },
                         title: { dataType: 'string', required: true },
                     },
                     required: true,
@@ -9832,6 +9811,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AnnouncementCategory: {
+        dataType: 'refEnum',
+        enums: ['launch', 'update', 'heads_up'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ProjectAnnouncement: {
         dataType: 'refAlias',
         type: {
@@ -9855,11 +9839,20 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                pinned: { dataType: 'boolean', required: true },
-                categoryUuid: {
+                pendingSlackChannelId: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                published: { dataType: 'boolean', required: true },
+                pinned: { dataType: 'boolean', required: true },
+                category: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AnnouncementCategory' },
                         { dataType: 'enum', enums: [null] },
                     ],
                     required: true,
@@ -9935,10 +9928,17 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                categoryUuid: {
+                slackChannelId: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                category: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AnnouncementCategory' },
                         { dataType: 'enum', enums: [null] },
                     ],
                     required: true,
@@ -9962,11 +9962,18 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                pinned: { dataType: 'boolean' },
-                categoryUuid: {
+                slackChannelId: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                pinned: { dataType: 'boolean' },
+                category: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AnnouncementCategory' },
                         { dataType: 'enum', enums: [null] },
                     ],
                 },
@@ -9983,30 +9990,15 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AnnouncementCategory: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                color: { dataType: 'string', required: true },
-                name: { dataType: 'string', required: true },
-                projectUuid: { dataType: 'string', required: true },
-                categoryUuid: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiSuccess_AnnouncementCategory-Array_': {
+    'ApiSuccess__url-string__': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 results: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'AnnouncementCategory',
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        url: { dataType: 'string', required: true },
                     },
                     required: true,
                 },
@@ -10016,38 +10008,9 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiAnnouncementCategoriesResponse: {
+    ApiAnnouncementImageUploadResponse: {
         dataType: 'refAlias',
-        type: { ref: 'ApiSuccess_AnnouncementCategory-Array_', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiSuccess_AnnouncementCategory_: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: { ref: 'AnnouncementCategory', required: true },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiAnnouncementCategoryResponse: {
-        dataType: 'refAlias',
-        type: { ref: 'ApiSuccess_AnnouncementCategory_', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CreateAnnouncementCategoryRequest: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                color: { dataType: 'string', required: true },
-                name: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
+        type: { ref: 'ApiSuccess__url-string__', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ManagedAgentScheduleOption: {
@@ -54851,7 +54814,11 @@ export function RegisterRoutes(app: Router) {
             name: 'pageSize',
             dataType: 'double',
         },
-        categoryUuid: { in: 'query', name: 'categoryUuid', ref: 'UUID' },
+        includeUnpublished: {
+            in: 'query',
+            name: 'includeUnpublished',
+            dataType: 'boolean',
+        },
     };
     app.get(
         '/api/v1/projects/:projectUuid/announcements',
@@ -55109,7 +55076,7 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsProjectAnnouncementsController_listCategories: Record<
+    const argsProjectAnnouncementsController_uploadImage: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -55121,14 +55088,14 @@ export function RegisterRoutes(app: Router) {
             ref: 'UUID',
         },
     };
-    app.get(
-        '/api/v1/projects/:projectUuid/announcements/categories',
+    app.post(
+        '/api/v1/projects/:projectUuid/announcements/images',
         ...fetchMiddlewares<RequestHandler>(ProjectAnnouncementsController),
         ...fetchMiddlewares<RequestHandler>(
-            ProjectAnnouncementsController.prototype.listCategories,
+            ProjectAnnouncementsController.prototype.uploadImage,
         ),
 
-        async function ProjectAnnouncementsController_listCategories(
+        async function ProjectAnnouncementsController_uploadImage(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -55138,7 +55105,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsProjectAnnouncementsController_listCategories,
+                    args: argsProjectAnnouncementsController_uploadImage,
                     request,
                     response,
                 });
@@ -55157,79 +55124,12 @@ export function RegisterRoutes(app: Router) {
                 }
 
                 await templateService.apiHandler({
-                    methodName: 'listCategories',
+                    methodName: 'uploadImage',
                     controller,
                     response,
                     next,
                     validatedArgs,
                     successStatus: 200,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsProjectAnnouncementsController_createCategory: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        projectUuid: {
-            in: 'path',
-            name: 'projectUuid',
-            required: true,
-            ref: 'UUID',
-        },
-        body: {
-            in: 'body',
-            name: 'body',
-            required: true,
-            ref: 'CreateAnnouncementCategoryRequest',
-        },
-    };
-    app.post(
-        '/api/v1/projects/:projectUuid/announcements/categories',
-        ...fetchMiddlewares<RequestHandler>(ProjectAnnouncementsController),
-        ...fetchMiddlewares<RequestHandler>(
-            ProjectAnnouncementsController.prototype.createCategory,
-        ),
-
-        async function ProjectAnnouncementsController_createCategory(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsProjectAnnouncementsController_createCategory,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<ProjectAnnouncementsController>(
-                        ProjectAnnouncementsController,
-                    );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'createCategory',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: 201,
                 });
             } catch (err) {
                 return next(err);
