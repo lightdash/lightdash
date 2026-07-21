@@ -310,8 +310,9 @@ optional object, and the My Apps settings table lazy-loads it on name hover to s
 
 Because the key is app-scoped, the thumbnail automatically travels with the app when it moves between spaces. The move
 flow (`MoveAppToSpaceModal`, shared by the app header menu, space chip, My Apps list, and browse table) therefore offers
-an **Include app thumbnail** checkbox — shown only when a thumbnail exists, on by default. Unchecking it deletes the
-thumbnail after a successful move, so a stale or sensitive screenshot isn't shared with the space.
+an **Include app thumbnail** checkbox in the modal footer — always visible, on by default, and disabled (with an
+explanatory tooltip) when the app has no thumbnail to include. Unchecking it deletes the thumbnail after a successful
+move, so a stale or sensitive screenshot isn't shared with the space.
 
 ### Refreshing a data app inside a dashboard
 

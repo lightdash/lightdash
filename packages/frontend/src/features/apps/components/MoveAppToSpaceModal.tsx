@@ -58,14 +58,12 @@ export const MoveAppToSpaceModal: FC<Props> = ({
     const { mutateAsync: contentAction, isLoading: isMovingToSpace } =
         useContentAction(projectUuid);
 
-    // The checkbox is only offered when the app actually has a thumbnail —
-    // a 404 here just means there's nothing to include.
-    const { data: thumbnail } = useAppThumbnailUrl(
-        projectUuid,
-        app.uuid,
-        opened,
-    );
-    const hasThumbnail = !!thumbnail;
+    // The checkbox always renders but is only enabled when the app actually
+    // has a thumbnail — a 404 here just means there's nothing to include.
+    // The error guard matters because react-query keeps stale data when a
+    // refetch fails.
+    const thumbnailQuery = useAppThumbnailUrl(projectUuid, app.uuid, opened);
+    const hasThumbnail = !thumbnailQuery.isError && !!thumbnailQuery.data;
     const [includeThumbnail, setIncludeThumbnail] = useState(true);
     const { mutateAsync: deleteThumbnail } = useAppThumbnailDelete();
 
@@ -96,23 +94,30 @@ export const MoveAppToSpaceModal: FC<Props> = ({
             ]}
             isLoading={isMovingToSpace}
             footer={
-                hasThumbnail ? (
-                    <Tooltip
-                        label="Uncheck to remove the app's current thumbnail when it moves."
-                        withArrow
-                        position="top"
-                    >
-                        <Box>
-                            <Checkbox
-                                checked={includeThumbnail}
-                                onChange={(e) =>
-                                    setIncludeThumbnail(e.currentTarget.checked)
-                                }
-                                label="Include app thumbnail"
-                            />
-                        </Box>
-                    </Tooltip>
-                ) : null
+                <Tooltip
+                    label={
+                        hasThumbnail || thumbnailQuery.isLoading
+                            ? "Uncheck to remove the app's current thumbnail when it moves."
+                            : 'This app has no thumbnail to include — capture one from the builder.'
+                    }
+                    withArrow
+                    position="top"
+                >
+                    <Box>
+                        <Checkbox
+                            checked={
+                                hasThumbnail
+                                    ? includeThumbnail
+                                    : thumbnailQuery.isLoading
+                            }
+                            disabled={!hasThumbnail}
+                            onChange={(e) =>
+                                setIncludeThumbnail(e.currentTarget.checked)
+                            }
+                            label="Include app thumbnail"
+                        />
+                    </Box>
+                </Tooltip>
             }
             onConfirm={async (targetSpaceUuid) => {
                 if (!targetSpaceUuid) return;
@@ -126,7 +131,11 @@ export const MoveAppToSpaceModal: FC<Props> = ({
                             projectUuid,
                             appUuid: app.uuid,
                         });
-                        void queryClient.invalidateQueries({
+                        // Reset (not invalidate): a refetch of the deleted
+                        // thumbnail 404s and react-query would keep the stale
+                        // signed URL as data, leaving consumers rendering a
+                        // broken image.
+                        void queryClient.resetQueries({
                             queryKey: ['app-thumbnail', projectUuid, app.uuid],
                         });
                     } catch (err) {
