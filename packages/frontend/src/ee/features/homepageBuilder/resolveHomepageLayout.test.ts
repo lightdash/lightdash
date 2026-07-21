@@ -707,3 +707,37 @@ describe('row fit — hug is only for card grids', () => {
         expect(rows[0].fit).toBe('hug');
     });
 });
+
+describe('page grid — exact-fit densening', () => {
+    it('puts 4 resources on one row instead of stranding an orphan', () => {
+        const { rows } = resolveHomepageLayout(
+            makeConfig([[resourcesWithItems('r', 4)]]),
+        );
+        expect(rows[0].columns[0].itemSpan).toBe(3);
+    });
+
+    it('keeps 5 items at the declared span — 3+2, no exact fit', () => {
+        const { rows } = resolveHomepageLayout(
+            makeConfig([[resourcesWithItems('r', 5)]]),
+        );
+        expect(rows[0].columns[0].itemSpan).toBe(4);
+    });
+
+    it('keeps 7 items at the declared span — no exact fit one step denser', () => {
+        const { rows } = resolveHomepageLayout(
+            makeConfig([[collectionWithItems('c', 7)]]),
+        );
+        expect(rows[0].columns[0].itemSpan).toBe(4);
+    });
+
+    it('never densifies inside a shared column', () => {
+        const { rows } = resolveHomepageLayout(
+            makeConfig([
+                [resourcesWithItems('r', 3), collectionWithItems('c', 3)],
+            ]),
+        );
+        // 3 items 2-up in a half column would orphan, but 3-up there is too
+        // narrow — the orphan stretches instead
+        expect(rows[0].columns[0].itemSpan).toBe(6);
+    });
+});

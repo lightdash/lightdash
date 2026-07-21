@@ -162,16 +162,29 @@ const gridItemCountFor = (block: HomepageBlock): number => {
     }
 };
 
+const SPAN_STEPS = [3, 4, 6, 12];
+
 // A block whose items don't fill one row stretches them across it rather than
-// leaving trailing empty tracks — a lone KPI beside a full collection should
-// span its column, not sit as a sliver with half the row blank. Blocks that do
-// fill a row keep their declared span so their cards stay on the shared
-// tracks. Sparse stretching only ever widens, never narrows.
-const stretchSparse = (declaredSpan: number, itemCount: number): number => {
+// leaving trailing empty tracks. Blocks that fill a row keep their declared
+// span so their cards stay on the shared tracks — with one exception: when a
+// full-width block would strand a single orphan and going one step denser
+// fits every item on one lattice (4 items at 3-up -> 4-up), it takes the
+// exact fit. 5 stays 3+2 and 7 stays 3+3+1; only an exact fit earns it.
+const fitSpan = (
+    declaredSpan: number,
+    itemCount: number,
+    isShared: boolean,
+): number => {
     if (itemCount === 0) return declaredSpan;
     const perRow = Math.floor(GRID_COLUMNS / declaredSpan);
-    if (itemCount >= perRow) return declaredSpan;
-    return Math.floor(GRID_COLUMNS / itemCount);
+    if (itemCount < perRow) return Math.floor(GRID_COLUMNS / itemCount);
+    if (!isShared && itemCount % perRow === 1) {
+        const denser = SPAN_STEPS[SPAN_STEPS.indexOf(declaredSpan) - 1];
+        if (denser && itemCount % Math.floor(GRID_COLUMNS / denser) === 0) {
+            return denser;
+        }
+    }
+    return declaredSpan;
 };
 
 // A block sharing a row gets its `narrow` span regardless of the row's tier
@@ -189,7 +202,7 @@ const itemSpanFor = (
         if (isShared) return itemSpan.narrow;
         return widthTier === 'full' ? itemSpan.full : itemSpan.content;
     })();
-    return stretchSparse(declared, gridItemCountFor(block));
+    return fitSpan(declared, gridItemCountFor(block), isShared);
 };
 
 // Re-derives every column's span from the row's final tier. Called after width

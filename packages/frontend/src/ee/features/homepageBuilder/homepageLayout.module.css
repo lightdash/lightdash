@@ -213,47 +213,12 @@
     flex: 2 1 0;
 }
 
-/* Hug rows: the cluster sizes to its content and centres as one unit — no
- * grow, so sparse combos stop smearing full-bleed. Card-grid blocks carry a
- * resolver-assigned intrinsic basis in card units (their internals are
- * container-relative and have no natural width); list/text blocks hug their
- * own content. Dense clusters exceed the row and shrink back to fill it. */
-.row[data-fit='hug'] {
-    /* One hug unit is one canonical card: the width a metrics tile takes at
-     * full page width ((1000 - 3 gaps) / 4). Sizing units to the real card
-     * width means a column asking for one card actually gets a readable one. */
-    --hug-unit: 242px;
-    --hug-gap: 10px;
-
-    justify-content: center;
-}
-
+/* Multi-column rows split into equal halves, so the column boundary sits at
+ * the same x in every row — collection | metrics and collection | resources
+ * share their split. Column widths come from the page, not from item counts:
+ * shared-row cards are span-6, landing 2-up at the same width the full rows
+ * use. (data-hug-units is still stamped for the editor; sizing ignores it.) */
 .row[data-fit='hug'] .col {
-    flex: 0 1 auto;
-    max-width: max-content;
+    flex: 1 1 0;
     min-width: 0;
-}
-
-/* Card-grid columns may grow past their basis but never shrink below one
- * card. Without the floor, a column asking for a single card gets squeezed by
- * a busier neighbour until its card truncates to nothing. */
-.row[data-fit='hug'] .col[data-hug-units] {
-    max-width: none;
-    min-width: var(--hug-unit);
-}
-
-.row[data-fit='hug'] .col[data-hug-units='1'] {
-    flex-basis: var(--hug-unit);
-}
-
-.row[data-fit='hug'] .col[data-hug-units='2'] {
-    flex-basis: calc(var(--hug-unit) * 2 + var(--hug-gap));
-}
-
-.row[data-fit='hug'] .col[data-hug-units='3'] {
-    flex-basis: calc(var(--hug-unit) * 3 + var(--hug-gap) * 2);
-}
-
-.row[data-fit='hug'] .col[data-hug-units='4'] {
-    flex-basis: calc(var(--hug-unit) * 4 + var(--hug-gap) * 3);
 }
