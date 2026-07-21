@@ -159,6 +159,15 @@
     min-width: 0;
 }
 
+/* EXPERIMENT: an item alone on its final row stretches across it instead of
+ * holding its track — the lone card reads as a footer row, not a leftover.
+ * (last child that lands first on a row: perRow = 12 / span) */
+.pageGrid[data-span='3'] > .pageGridItem:nth-child(4n + 1):last-child,
+.pageGrid[data-span='4'] > .pageGridItem:nth-child(3n + 1):last-child,
+.pageGrid[data-span='6'] > .pageGridItem:nth-child(2n + 1):last-child {
+    grid-column: 1 / -1;
+}
+
 /* Below the two-column breakpoint the 12-track grid stops earning its keep —
  * every card goes full width rather than becoming an unreadable sliver.
  * Matches the [data-span] selectors' specificity so it actually wins. */
