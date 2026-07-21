@@ -60,7 +60,7 @@ const MetricSparkline: FC<Props> = ({ points, change }) => {
             option={option}
             notMerge
             opts={{ renderer: 'svg' }}
-            style={{ height: 40, width: '100%' }}
+            style={{ height: 30, width: '100%' }}
         />
     );
 };

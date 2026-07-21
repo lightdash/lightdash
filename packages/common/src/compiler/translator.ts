@@ -1378,23 +1378,27 @@ export const attachTypesToModels = (
                 ? db === database
                 : db.toLowerCase() === database.toLowerCase(),
         );
+        // Explicit undefined checks: a matched key can be the empty string
+        // (ClickHouse table_catalog), which is falsy but a real match.
         const schemaMatch =
-            databaseMatch &&
-            Object.keys(warehouseCatalog[databaseMatch]).find((s) =>
-                caseSensitiveMatching
-                    ? s === schema
-                    : s.toLowerCase() === schema.toLowerCase(),
-            );
+            databaseMatch !== undefined
+                ? Object.keys(warehouseCatalog[databaseMatch]).find((s) =>
+                      caseSensitiveMatching
+                          ? s === schema
+                          : s.toLowerCase() === schema.toLowerCase(),
+                  )
+                : undefined;
         const tableMatch =
-            databaseMatch &&
-            schemaMatch &&
-            Object.keys(warehouseCatalog[databaseMatch][schemaMatch]).find(
-                (t) =>
-                    caseSensitiveMatching
-                        ? t === name
-                        : t.toLowerCase() === name.toLowerCase(),
-            );
-        if (!tableMatch && throwOnMissingCatalogEntry) {
+            databaseMatch !== undefined && schemaMatch !== undefined
+                ? Object.keys(
+                      warehouseCatalog[databaseMatch][schemaMatch],
+                  ).find((t) =>
+                      caseSensitiveMatching
+                          ? t === name
+                          : t.toLowerCase() === name.toLowerCase(),
+                  )
+                : undefined;
+        if (tableMatch === undefined && throwOnMissingCatalogEntry) {
             throw new MissingCatalogEntryError(
                 `Model "${name}" was expected in your target warehouse at "${database}.${schema}.${name}". Does the table exist in your target data warehouse?`,
                 {},
@@ -1413,33 +1417,41 @@ export const attachTypesToModels = (
                 : db.toLowerCase() === database.toLowerCase(),
         );
         const schemaMatch =
-            databaseMatch &&
-            Object.keys(warehouseCatalog[databaseMatch]).find((s) =>
-                caseSensitiveMatching
-                    ? s === schema
-                    : s.toLowerCase() === schema.toLowerCase(),
-            );
+            databaseMatch !== undefined
+                ? Object.keys(warehouseCatalog[databaseMatch]).find((s) =>
+                      caseSensitiveMatching
+                          ? s === schema
+                          : s.toLowerCase() === schema.toLowerCase(),
+                  )
+                : undefined;
         const tableMatch =
-            databaseMatch &&
-            schemaMatch &&
-            Object.keys(warehouseCatalog[databaseMatch][schemaMatch]).find(
-                (t) =>
-                    caseSensitiveMatching
-                        ? t === tableName
-                        : t.toLowerCase() === tableName.toLowerCase(),
-            );
+            databaseMatch !== undefined && schemaMatch !== undefined
+                ? Object.keys(
+                      warehouseCatalog[databaseMatch][schemaMatch],
+                  ).find((t) =>
+                      caseSensitiveMatching
+                          ? t === tableName
+                          : t.toLowerCase() === tableName.toLowerCase(),
+                  )
+                : undefined;
         const columnMatch =
-            databaseMatch &&
-            schemaMatch &&
-            tableMatch &&
-            Object.keys(
-                warehouseCatalog[databaseMatch][schemaMatch][tableMatch],
-            ).find((c) =>
-                caseSensitiveMatching
-                    ? c === columnName
-                    : c.toLowerCase() === columnName.toLowerCase(),
-            );
-        if (databaseMatch && schemaMatch && tableMatch && columnMatch) {
+            databaseMatch !== undefined &&
+            schemaMatch !== undefined &&
+            tableMatch !== undefined
+                ? Object.keys(
+                      warehouseCatalog[databaseMatch][schemaMatch][tableMatch],
+                  ).find((c) =>
+                      caseSensitiveMatching
+                          ? c === columnName
+                          : c.toLowerCase() === columnName.toLowerCase(),
+                  )
+                : undefined;
+        if (
+            databaseMatch !== undefined &&
+            schemaMatch !== undefined &&
+            tableMatch !== undefined &&
+            columnMatch !== undefined
+        ) {
             return warehouseCatalog[databaseMatch][schemaMatch][tableMatch][
                 columnMatch
             ];

@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ChartKind,
+    getParameterReferences,
     isVizCartesianChartConfig,
     isVizPieChartConfig,
     isVizTableConfig,
@@ -105,6 +106,9 @@ const SqlChartTile: FC<Props> = ({
         (c) => c.updateSqlChartTilesMetadata,
     );
     const parameters = useDashboardContext((c) => c.parameterValues);
+    const addParameterReferences = useDashboardContext(
+        (c) => c.addParameterReferences,
+    );
     const markTileScreenshotReady = useDashboardTileStatusContext(
         (c) => c.markTileScreenshotReady,
     );
@@ -163,6 +167,18 @@ const SqlChartTile: FC<Props> = ({
             animation: false,
         };
     }, [chartResultsData?.chartSpec]);
+
+    // Report the parameters this chart's SQL needs so the dashboard renders
+    // controls for them. Derived from the SQL rather than the query response,
+    // so the controls appear before the first (otherwise failing) run.
+    const parameterReferences = useMemo(
+        () => getParameterReferences(chartData?.sql),
+        [chartData?.sql],
+    );
+
+    useEffect(() => {
+        addParameterReferences(tile.uuid, parameterReferences);
+    }, [addParameterReferences, tile.uuid, parameterReferences]);
 
     // Update SQL chart columns in the dashboard context
     useEffect(() => {

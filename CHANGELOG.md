@@ -1,3 +1,63 @@
+# [0.3435.0](https://github.com/lightdash/lightdash/compare/0.3434.0...0.3435.0) (2026-07-21)
+
+
+### Bug Fixes
+
+* attach catalog types for empty-string db and Snowflake case ([#25817](https://github.com/lightdash/lightdash/issues/25817)) ([2fa49db](https://github.com/lightdash/lightdash/commit/2fa49dbb6aa58e94687e8d544629e183ae1197e2))
+* portal data-app action menu so animated ancestors can't displace it ([#25873](https://github.com/lightdash/lightdash/issues/25873)) ([4655819](https://github.com/lightdash/lightdash/commit/46558193cc8730e394bcdbfc18fd2cf4c90ca618))
+* stop shadcn init clobbering tailwind config in sandbox image ([#25869](https://github.com/lightdash/lightdash/issues/25869)) ([bf8286d](https://github.com/lightdash/lightdash/commit/bf8286df42698da4ea06a9393ad2999ca0c2885b))
+
+
+### Features
+
+* add managed onboarding lifecycle and sandbox executor ([#25860](https://github.com/lightdash/lightdash/issues/25860)) ([ed632f2](https://github.com/lightdash/lightdash/commit/ed632f26217972279ab9faf8738456e181417c15))
+
+# [0.3434.0](https://github.com/lightdash/lightdash/compare/0.3433.0...0.3434.0) (2026-07-21)
+
+
+### Features
+
+* restructure data-app skill for progressive disclosure ([#25863](https://github.com/lightdash/lightdash/issues/25863)) ([08afba5](https://github.com/lightdash/lightdash/commit/08afba5036dde128eafe8ba8e1470867ef7548ef))
+
+# [0.3433.0](https://github.com/lightdash/lightdash/compare/0.3432.0...0.3433.0) (2026-07-21)
+
+
+### Features
+
+* **data-apps:** guide generated apps to size content for delivery screenshots ([#24815](https://github.com/lightdash/lightdash/issues/24815)) ([2b685ee](https://github.com/lightdash/lightdash/commit/2b685ee53c33a1a0ca4dc94e88d2fcab43e06db6))
+
+# [0.3432.0](https://github.com/lightdash/lightdash/compare/0.3431.0...0.3432.0) (2026-07-21)
+
+
+### Features
+
+* add data-app skill benchmark harness ([#25862](https://github.com/lightdash/lightdash/issues/25862)) ([dc4d394](https://github.com/lightdash/lightdash/commit/dc4d3946e4cd43fb1ec726e99fd01960549fc906))
+* view AI agents as code ([#25851](https://github.com/lightdash/lightdash/issues/25851)) ([b3c0e92](https://github.com/lightdash/lightdash/commit/b3c0e9258c25f6d6c4c50f9218227405def1a244))
+* view dashboards as code ([#25850](https://github.com/lightdash/lightdash/issues/25850)) ([6f8bab8](https://github.com/lightdash/lightdash/commit/6f8bab8247a05bb84a9caf58d46cd855362010ca))
+* view scheduled deliveries as code ([#25846](https://github.com/lightdash/lightdash/issues/25846)) ([04c7c0a](https://github.com/lightdash/lightdash/commit/04c7c0a389199d3257e2f795b5b08bcecfcd88e6))
+* view virtual views as code ([#25857](https://github.com/lightdash/lightdash/issues/25857)) ([0b2efa3](https://github.com/lightdash/lightdash/commit/0b2efa32d96dadab5317feddf61652ab6d62a79e))
+
+# [0.3431.0](https://github.com/lightdash/lightdash/compare/0.3430.1...0.3431.0) (2026-07-21)
+
+
+### Features
+
+* view charts as code from chart actions ([#25839](https://github.com/lightdash/lightdash/issues/25839)) ([f145ba4](https://github.com/lightdash/lightdash/commit/f145ba454ee873e51ab10c2ac6ab5f4b8cf2a428))
+
+## [0.3430.1](https://github.com/lightdash/lightdash/compare/0.3430.0...0.3430.1) (2026-07-21)
+
+
+### Bug Fixes
+
+* **dashboards:** register SQL chart tile parameters on the dashboard ([#25853](https://github.com/lightdash/lightdash/issues/25853)) ([d77f3ce](https://github.com/lightdash/lightdash/commit/d77f3ce548d0b5e7f80b10615fe626acd7875956)), closes [#25847](https://github.com/lightdash/lightdash/issues/25847)
+
+# [0.3430.0](https://github.com/lightdash/lightdash/compare/0.3429.1...0.3430.0) (2026-07-21)
+
+
+### Features
+
+* add managed onboarding sandbox ([#25844](https://github.com/lightdash/lightdash/issues/25844)) ([12d35da](https://github.com/lightdash/lightdash/commit/12d35da03b9cdb4d81e8f637a29fd4c5f3689390))
+
 ## [0.3429.1](https://github.com/lightdash/lightdash/compare/0.3429.0...0.3429.1) (2026-07-21)
 
 

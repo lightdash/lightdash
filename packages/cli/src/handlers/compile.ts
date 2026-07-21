@@ -397,7 +397,14 @@ export const compile = async (options: CompileHandlerOptions) => {
         }
 
         const validModelsWithTypes = applyMetricFlowMetrics(
-            attachTypesToModels(validModels, catalog, false),
+            attachTypesToModels(
+                validModels,
+                catalog,
+                false,
+                // Snowflake catalogs report uppercase identifiers; match the
+                // server-side adapter rule (dbtBaseProjectAdapter).
+                adapterType !== 'snowflake',
+            ),
             manifest,
         );
 

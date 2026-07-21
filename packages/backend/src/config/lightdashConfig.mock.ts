@@ -399,6 +399,7 @@ export const lightdashConfigMock: LightdashConfig = {
         sandboxProvider: 'e2b',
         sandboxDockerImage: 'lightdash-sandbox:local',
         sandboxAiWritebackDockerImage: 'lightdash-ai-writeback:local',
+        sandboxAgentOnboardingDockerImage: 'lightdash-agent-onboarding:local',
         sandboxIdleTimeoutMs: 30 * 60 * 1000,
         sandboxSnapshotRetentionMs: 7 * 24 * 60 * 60 * 1000,
         lambdaMicroVm: {
@@ -425,6 +426,8 @@ export const lightdashConfigMock: LightdashConfig = {
         azureSandboxesDataAppDiskImage: null,
         azureSandboxesAiWritebackGroup: null,
         azureSandboxesAiWritebackDiskImage: null,
+        e2bAgentOnboardingTemplateName: 'lightdash-agent-onboarding',
+        e2bAgentOnboardingTemplateTag: 'test',
         e2bCodingAgentTemplateName: 'lightdash-ai-coding-agent',
         e2bCodingAgentTemplateTag: '',
         otel: {

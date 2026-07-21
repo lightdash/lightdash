@@ -724,15 +724,22 @@ export const renderBooleanFilterSql = (
     dimensionSql: string,
     filter: FilterRule<FilterOperator, unknown>,
 ): string => {
+    const firstValue: unknown = filter.values?.[0];
+    // No value selected: compile to a no-op instead of silently filtering `= false`
+    const hasValue =
+        firstValue !== undefined && firstValue !== null && firstValue !== '';
+
     switch (filter.operator) {
         case 'equals':
-            return `(${dimensionSql}) = ${convertToBooleanValue(
-                filter.values?.[0],
-            )}`;
+            return hasValue
+                ? `(${dimensionSql}) = ${convertToBooleanValue(firstValue)}`
+                : 'true';
         case 'notEquals':
-            return `((${dimensionSql}) != ${convertToBooleanValue(
-                filter.values?.[0],
-            )} OR (${dimensionSql}) IS NULL)`;
+            return hasValue
+                ? `((${dimensionSql}) != ${convertToBooleanValue(
+                      firstValue,
+                  )} OR (${dimensionSql}) IS NULL)`
+                : 'true';
         case 'isNull':
             return `(${dimensionSql}) IS NULL`;
         case 'notNull':

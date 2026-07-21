@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { Box, Paper, Text } from '@mantine-8/core';
 import { type FC, type ReactNode } from 'react';
-import { type BlockWidthTier } from './blockLayout';
+import { TIER_CLASS } from './blockLayout';
 import { getBlockDefinition } from './blocks/registry';
 import { type BlockPresentation } from './blocks/types';
 import layout from './homepageLayout.module.css';
@@ -16,20 +16,14 @@ import {
 
 const PERSONAL_BLOCK_TYPES: HomepageBlock['type'][] = ['favorites', 'recent'];
 
-const TIER_CLASS: Record<BlockWidthTier, string> = {
-    reading: layout.tierReading,
-    composer: layout.tierComposer,
-    content: layout.tierContent,
-    full: layout.tierFull,
-};
-
 // Unknown block types render nothing so newer configs degrade gracefully
 const BlockRenderer: FC<{
     block: HomepageBlock;
     projectUuid: string;
     personalPlaceholders: boolean;
     presentation?: BlockPresentation;
-}> = ({ block, projectUuid, personalPlaceholders, presentation }) => {
+    itemSpan: number | null;
+}> = ({ block, projectUuid, personalPlaceholders, presentation, itemSpan }) => {
     const definition = getBlockDefinition(block.type);
     if (!definition) return null;
     if (personalPlaceholders && PERSONAL_BLOCK_TYPES.includes(block.type)) {
@@ -53,6 +47,7 @@ const BlockRenderer: FC<{
             block={block}
             projectUuid={projectUuid}
             presentation={presentation}
+            itemSpan={itemSpan}
         />
     );
 };
@@ -66,6 +61,7 @@ const RowRenderer: FC<{
         className={`${layout.row} ${TIER_CLASS[row.widthTier]}`}
         data-gap={row.gap}
         data-role={row.role}
+        data-align={row.align}
         data-fit={row.fit}
     >
         {row.columns.map((column) => (
@@ -79,6 +75,7 @@ const RowRenderer: FC<{
                     block={column.block}
                     projectUuid={projectUuid}
                     personalPlaceholders={personalPlaceholders}
+                    itemSpan={column.itemSpan}
                 />
             </Box>
         ))}
@@ -129,6 +126,7 @@ export const PublishedHomepage: FC<Props> = ({
                             projectUuid={projectUuid}
                             personalPlaceholders={personalPlaceholders}
                             presentation="hero"
+                            itemSpan={hero.row.columns[0].itemSpan}
                         />
                     </div>
                 </div>

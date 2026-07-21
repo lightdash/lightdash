@@ -8,7 +8,7 @@
 
     display: flex;
     flex-direction: column;
-    padding: 32px 24px 64px;
+    padding: 24px 24px 48px;
 }
 
 .heroSection {
@@ -42,7 +42,7 @@
     align-items: center;
     gap: 12px;
     width: 100%;
-    max-width: 1160px;
+    max-width: 1000px;
     min-height: var(--homepage-favbar-height);
     margin: 0 auto;
     overflow-x: auto;
@@ -84,7 +84,7 @@
 
 .secondary {
     width: 100%;
-    max-width: 1160px;
+    max-width: 1000px;
     margin: 0 auto;
 }
 
@@ -93,18 +93,22 @@
  * permutation renders balanced. */
 .row {
     display: flex;
-    gap: 14px;
+    gap: 12px;
     align-items: stretch;
     width: 100%;
     margin-inline: auto;
 }
 
+.row[data-align='start'] {
+    margin-inline: 0 auto;
+}
+
 .row[data-gap='grouped'] {
-    margin-top: 18px;
+    margin-top: 14px;
 }
 
 .row[data-gap='section'] {
-    margin-top: 40px;
+    margin-top: 30px;
 }
 
 /* A lone leading text block opens the page: give it breathing room on top of
@@ -113,8 +117,68 @@
     padding-top: 24px;
 }
 
+/* The page grid: one 12-column track system every card-grid block subscribes
+ * to via a resolver-assigned span. Blocks no longer pick their own card width,
+ * so their edges land on shared tracks instead of drifting apart. Items are
+ * left-aligned, so a remainder row starts on the same track as a full one. */
+.pageGrid {
+    --page-grid-gap: 10px;
+
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--page-grid-gap);
+    width: 100%;
+}
+
+.pageGridItem {
+    min-width: 0;
+    /* Blockifies inline <a> cards so they keep their box, and stretches them
+     * to the cell exactly as a grid cell child would. */
+    display: grid;
+}
+
+/* Span is enumerated rather than passed as an inline custom property, matching
+ * the data-hug-units pattern below and keeping styling out of the TSX. */
+.pageGrid[data-span='3'] > .pageGridItem {
+    grid-column: span 3;
+}
+
+.pageGrid[data-span='4'] > .pageGridItem {
+    grid-column: span 4;
+}
+
+.pageGrid[data-span='6'] > .pageGridItem {
+    grid-column: span 6;
+}
+
+.pageGrid[data-span='12'] > .pageGridItem {
+    grid-column: span 12;
+}
+
+.pageGridItem > * {
+    min-width: 0;
+}
+
+/* EXPERIMENT: an item alone on its final row stretches across it instead of
+ * holding its track — the lone card reads as a footer row, not a leftover.
+ * (last child that lands first on a row: perRow = 12 / span) */
+.pageGrid[data-span='3'] > .pageGridItem:nth-child(4n + 1):last-child,
+.pageGrid[data-span='4'] > .pageGridItem:nth-child(3n + 1):last-child,
+.pageGrid[data-span='6'] > .pageGridItem:nth-child(2n + 1):last-child {
+    grid-column: 1 / -1;
+}
+
+/* Below the two-column breakpoint the 12-track grid stops earning its keep —
+ * every card goes full width rather than becoming an unreadable sliver.
+ * Matches the [data-span] selectors' specificity so it actually wins. */
+@media (max-width: 47.99em) {
+    .pageGrid[data-span] > .pageGridItem {
+        grid-column: 1 / -1;
+    }
+}
+
 .tierReading {
-    max-width: 680px;
+    max-width: 640px;
 }
 
 .tierComposer {
@@ -122,66 +186,61 @@
 }
 
 .tierContent {
-    max-width: 960px;
+    max-width: 860px;
 }
 
 .tierFull {
-    max-width: 1160px;
+    max-width: 1000px;
 }
 
 .col {
     flex: 1 1 0;
     min-width: 0;
-    /* In multi-column rows the shorter column centres vertically instead of
-     * hugging the top edge next to a taller neighbour. Single-block rows are
-     * unaffected (column height equals content height). */
+    /* Columns start at the top so neighbouring blocks' headers sit on one
+     * line. Centring the shorter column reads as a misalignment once blocks
+     * carry headers — a ragged bottom edge is much cheaper than headers at
+     * two different heights. */
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
 }
 
 .col > * {
     width: 100%;
+    /* The block fills its column; non-elastic grids leave the slack at the
+     * bottom exactly as before, elastic ones distribute it across rows. */
+    flex: 1 0 auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.pageGrid[data-elastic] {
+    flex: 1;
+    /* With size containment below, a row's height can't come from its
+     * content — the floor is what stops an unstretched grid collapsing. */
+    grid-auto-rows: minmax(var(--elastic-floor, 65px), 1fr);
+}
+
+.pageGrid[data-floor='unit'] {
+    --elastic-floor: 140px;
+}
+
+/* Elastic cells are size containers, so a tile can adapt its layout to the
+ * height it actually received (see contentTile's container query). */
+.pageGrid[data-elastic] > .pageGridItem {
+    container-type: size;
 }
 
 .col[data-weight='2'] {
     flex: 2 1 0;
 }
 
-/* Hug rows: the cluster sizes to its content and centres as one unit — no
- * grow, so sparse combos stop smearing full-bleed. Card-grid blocks carry a
- * resolver-assigned intrinsic basis in card units (their internals are
- * container-relative and have no natural width); list/text blocks hug their
- * own content. Dense clusters exceed the row and shrink back to fill it. */
-.row[data-fit='hug'] {
-    --hug-unit: 236px;
-    --hug-gap: 12px;
-
-    justify-content: center;
-}
-
+/* Multi-column rows split into equal halves, so the column boundary sits at
+ * the same x in every row — collection | metrics and collection | resources
+ * share their split. Column widths come from the page, not from item counts:
+ * shared-row cards are span-6, landing 2-up at the same width the full rows
+ * use. (data-hug-units is still stamped for the editor; sizing ignores it.) */
 .row[data-fit='hug'] .col {
-    flex: 0 1 auto;
-    max-width: max-content;
+    flex: 1 1 0;
     min-width: 0;
-}
-
-.row[data-fit='hug'] .col[data-hug-units] {
-    max-width: none;
-}
-
-.row[data-fit='hug'] .col[data-hug-units='1'] {
-    flex-basis: var(--hug-unit);
-}
-
-.row[data-fit='hug'] .col[data-hug-units='2'] {
-    flex-basis: calc(var(--hug-unit) * 2 + var(--hug-gap));
-}
-
-.row[data-fit='hug'] .col[data-hug-units='3'] {
-    flex-basis: calc(var(--hug-unit) * 3 + var(--hug-gap) * 2);
-}
-
-.row[data-fit='hug'] .col[data-hug-units='4'] {
-    flex-basis: calc(var(--hug-unit) * 4 + var(--hug-gap) * 3);
 }
