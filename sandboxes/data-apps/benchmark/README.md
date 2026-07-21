@@ -36,6 +36,20 @@ benchmark leans on two better ones:
    toolExec, plus tokens and turns. Compare medians per bucket, paired by
    prompt: an intervention should move *its* bucket.
 
+3. **Render gate + gallery** (`renderGate.ts`, `mockHost.ts`, `harness.js`,
+   `gallery.ts`) — every built app is loaded in headless Chromium under a
+   mock Lightdash host that answers the SDK's postMessage protocol with
+   deterministic rows synthesized from the fixture catalog (seeded by query
+   content, so identical queries get identical data across variants). This
+   yields three runtime rules folded into the rubric — `renders-clean` (no
+   uncaught errors, no ErrorBoundary/fatal fallback, non-empty root),
+   `made-metric-queries`, and `queries-valid-fields` (every issued query
+   references real catalog fields on a real explore) — plus a full-height
+   screenshot per run and a blinded side-by-side gallery
+   (`runs/<ts>/gallery.html`) for human quality ranking: vote per row, then
+   "Reveal variants" to see the per-variant win tally. Requires Chromium
+   once: `npx playwright install chromium`.
+
 ## Usage
 
 From `sandboxes/data-apps/` (needs `E2B_API_KEY` + `ANTHROPIC_API_KEY` in
@@ -54,15 +68,45 @@ pnpm bench \
 # Quick iteration on a subset
 pnpm bench --variant candidate=lukas-dev-template:latest \
     --prompts pdf-report,sheets-export --reps 2
+
+# Reasoning-effort comparison: prod default vs lowered effort, same template
+pnpm bench \
+    --variant prod=lightdash-data-app \
+    --variant medium=lightdash-data-app,effort=medium \
+    --variant low=lightdash-data-app,effort=low \
+    --reps 3
 ```
 
-Flags: `--variant name=templateRef` (repeatable; first is the baseline for
-paired deltas), `--reps` (default 3), `--prompts id,id`, `--concurrency`
-(default 8), `--model` (default sonnet), `--out`.
+Flags: `--variant name=templateRef[,effort=<level>][,env.KEY=VAL]`
+(repeatable; first is the baseline for paired deltas), `--reps` (default 3),
+`--prompts id,id`, `--concurrency` (default 8), `--model` (default sonnet),
+`--out`.
+
+Variant options beyond the template ref:
+
+- `effort=low|medium|high|xhigh|max` — passed as `--effort` to the Claude
+  CLI. Omitted = no flag, which is exactly what production runs (the model's
+  default; `high` for Sonnet 5). Values are validated locally because the
+  CLI warns-and-ignores bad values, which would silently benchmark the
+  default.
+- `env.KEY=VAL` — extra env for the sandbox (e.g.
+  `env.CLAUDE_CODE_EFFORT_LEVEL=low`, which is equivalent to the flag and
+  overrides it). Note `MAX_THINKING_TOKENS` is a no-op on adaptive-reasoning
+  models (Sonnet 5+) — use effort levels there.
 
 Results land in `benchmark/runs/<timestamp>/`: `raw/*.jsonl` (timestamped
-stream events per run), `src/<cell>/` (generated sources), `results.json`,
-`summary.txt` (also printed).
+stream events per run), `src/<cell>/` (generated sources), `dist/<cell>/`
+(built assets), `render/<cell>.json` (render-gate diagnostics incl. every
+issued query), `screenshots/<cell>.png`, `gallery.html`, `config.json`,
+`results.json`, `summary.txt` (also printed).
+
+The render gate and gallery run automatically at the end of `pnpm bench`;
+to re-run them on an existing run dir (e.g. after tweaking the harness):
+
+```bash
+pnpm bench:render runs/<timestamp>/   # re-render + refresh gallery
+pnpm bench:gallery runs/<timestamp>/  # regenerate gallery.html only
+```
 
 ## Fixtures
 
@@ -82,6 +126,14 @@ stream events per run), `src/<cell>/` (generated sources), `results.json`,
 
 - A rule at 5/5 across the suite is working; a rule flipping between runs is
   a skill-wording problem — fix the skill, not the stats.
+- For effort comparisons, hold the template constant and read the `think`
+  bucket for the speed win and the rule pass rates for the quality cost —
+  `build-passes`, `renders-clean`, `queries-valid-fields`,
+  `axes-have-tick-formatters`, and `no-oversized-files` are the ones that
+  degrade first when the model under-thinks. The objective rules only catch
+  breakage; the subjective half (skimpier layouts, worse chart choices) is
+  what `gallery.html` is for — vote blind, then reveal. Each run's
+  `config.json` records the exact variant specs.
 - Treat wall-clock deltas under ~20% at n≤5 as noise. Bucket medians
   (thinking vs toolInput) are more stable and attribute the change to a
   mechanism.
