@@ -1,0 +1,17 @@
+/* Invisible-but-rendered host for the thumbnail-capture iframe. Kept inside
+ * the viewport (not display:none / offscreen) so the app still renders,
+ * animation frames run, and IntersectionObserver-driven content loads —
+ * html-to-image captures whatever the live DOM shows. Opacity lives on this
+ * container in the outer document, so it never leaks into the iframe's own
+ * computed styles (which would rasterize as a blank image). */
+.offscreenPreview {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 1280px;
+    height: 800px;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    z-index: -1;
+}

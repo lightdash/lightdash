@@ -1,12 +1,14 @@
 import { FeatureFlags, isAppVersionInProgress } from '@lightdash/common';
 import { Box, Loader, Menu, Stack, Text } from '@mantine-8/core';
 import { IconAppsOff, IconCode } from '@tabler/icons-react';
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import MantineIcon from '../components/common/MantineIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
-import AppIframePreview from '../features/apps/AppIframePreview';
+import AppIframePreview, {
+    type AppIframePreviewHandle,
+} from '../features/apps/AppIframePreview';
 import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
@@ -142,6 +144,19 @@ export default function AppPreviewTest() {
 
     const previewOrigin = usePreviewOrigin();
 
+    // Live-preview capture for the move modal's thumbnail checkbox — same
+    // handshake pattern as the builder. Older templates never announce, so
+    // the modal falls back to a default-state render for them.
+    const previewRef = useRef<AppIframePreviewHandle>(null);
+    const [screenshotAvailable, setScreenshotAvailable] = useState(false);
+    const capturePreviewScreenshot = useCallback(async () => {
+        const capture = previewRef.current?.captureScreenshot;
+        if (!capture) {
+            throw new Error('Screenshot capture is not available');
+        }
+        return capture();
+    }, []);
+
     if (dataAppsFlag.isLoading) {
         return null;
     }
@@ -229,11 +244,13 @@ export default function AppPreviewTest() {
         body = (
             <>
                 <AppIframePreview
+                    ref={previewRef}
                     src={previewUrl}
                     expectedPreviewOrigin={previewOrigin}
                     projectUuid={projectUuid}
                     appUuid={appUuid}
                     identityKey={`${appUuid}:${version}`}
+                    onScreenshotAvailabilityChange={setScreenshotAvailable}
                     invalidateCache={invalidateCache}
                     onQueryEvent={handleQueryEvent}
                     onExternalRequestEvent={handleExternalRequestEvent}
@@ -280,6 +297,11 @@ export default function AppPreviewTest() {
                     <AppSpaceChip
                         projectUuid={projectUuid}
                         spaceName={appSpaceName}
+                        capturePreviewScreenshot={
+                            screenshotAvailable
+                                ? capturePreviewScreenshot
+                                : null
+                        }
                         app={{
                             uuid: appUuid,
                             name: appName,
@@ -308,6 +330,11 @@ export default function AppPreviewTest() {
                         onRefresh={handleRefresh}
                         refreshDisabled={version === undefined}
                         captureThumbnail={null}
+                        capturePreviewScreenshot={
+                            screenshotAvailable
+                                ? capturePreviewScreenshot
+                                : null
+                        }
                         onViewNetwork={() => setNetworkPanelHidden(false)}
                         onDeleted={() => {
                             void navigate(`/projects/${projectUuid}/home`);

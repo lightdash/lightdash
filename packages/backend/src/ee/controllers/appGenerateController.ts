@@ -685,27 +685,6 @@ export class AppGenerateController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Delete('/{appUuid}/thumbnail')
-    @OperationId('deleteAppThumbnail')
-    async deleteAppThumbnail(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Path() appUuid: string,
-    ): Promise<ApiSuccessEmpty> {
-        assertRegisteredAccount(req.account);
-        await this.getAppGenerateService().deleteThumbnail(
-            toSessionUser(req.account),
-            projectUuid,
-            appUuid,
-        );
-        return {
-            status: 'ok',
-            results: undefined,
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
     @Get('/{appUuid}/thumbnail')
     @OperationId('getAppThumbnailUrl')
     async getAppThumbnailUrl(

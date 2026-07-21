@@ -62,6 +62,11 @@ type Props = {
         onCapture: () => void;
         disabled: boolean;
     } | null;
+    /** Raw capture from this surface's live preview iframe, forwarded to the
+     *  move modal so its thumbnail checkbox screenshots what the user is
+     *  looking at. Null when the iframe hasn't announced screenshot
+     *  capability — the modal then falls back to a default-state render. */
+    capturePreviewScreenshot: (() => Promise<File>) | null;
 };
 
 /**
@@ -89,6 +94,7 @@ const AppHeaderActions: FC<Props> = ({
     onDeleted,
     navItem,
     captureThumbnail,
+    capturePreviewScreenshot,
 }) => {
     const navigate = useNavigate();
 
@@ -293,6 +299,7 @@ const AppHeaderActions: FC<Props> = ({
                     projectUuid={projectUuid}
                     opened
                     onClose={() => setIsMoveToSpaceOpen(false)}
+                    capturePreviewScreenshot={capturePreviewScreenshot}
                     app={{
                         uuid: appUuid,
                         name: appName,

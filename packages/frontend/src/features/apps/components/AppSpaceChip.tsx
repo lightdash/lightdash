@@ -14,6 +14,10 @@ type Props = {
     projectUuid: string;
     app: DataAppMoveTarget;
     spaceName: string | null;
+    /** Raw capture from the page's live preview iframe, forwarded to the
+     *  move modal so its thumbnail checkbox screenshots what the user is
+     *  looking at. Null when capture isn't available. */
+    capturePreviewScreenshot: (() => Promise<File>) | null;
 };
 
 const MAX_CHIP_WIDTH_PX = 180;
@@ -24,7 +28,12 @@ const MAX_CHIP_WIDTH_PX = 180;
  * editors "Add to space" and shows read-only viewers a quiet "Personal" label.
  * Shared by the builder and the viewer via {@link AppHeader}.
  */
-const AppSpaceChip: FC<Props> = ({ projectUuid, app, spaceName }) => {
+const AppSpaceChip: FC<Props> = ({
+    projectUuid,
+    app,
+    spaceName,
+    capturePreviewScreenshot,
+}) => {
     const canEdit = useCanEditDataApp(projectUuid, {
         spaceUuid: app.spaceUuid,
         createdByUserUuid: app.createdByUserUuid,
@@ -110,6 +119,7 @@ const AppSpaceChip: FC<Props> = ({ projectUuid, app, spaceName }) => {
                     app={app}
                     opened
                     onClose={() => setMoveModalOpen(false)}
+                    capturePreviewScreenshot={capturePreviewScreenshot}
                 />
             )}
         </>
