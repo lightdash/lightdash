@@ -1,3 +1,16 @@
+# [0.3437.0](https://github.com/lightdash/lightdash/compare/0.3436.2...0.3437.0) (2026-07-21)
+
+
+### Bug Fixes
+
+* **homepage:** resolver tolerates configs from other code versions ([#25883](https://github.com/lightdash/lightdash/issues/25883)) ([d601772](https://github.com/lightdash/lightdash/commit/d6017720095bd0d7883ecd9cd933d88dade2150d))
+
+
+### Features
+
+* benchmark effort variants, runtime render gate, and blinded gallery ([#25881](https://github.com/lightdash/lightdash/issues/25881)) ([329a157](https://github.com/lightdash/lightdash/commit/329a157d0b3e967ac264a8422a255b37cdb4d05d))
+* **homepage:** project announcements backend — tables, CRUD, categories, pin ([#25740](https://github.com/lightdash/lightdash/issues/25740)) ([53ee499](https://github.com/lightdash/lightdash/commit/53ee49910d5646dce731dd481abaa95a302802a6))
+
 ## [0.3436.2](https://github.com/lightdash/lightdash/compare/0.3436.1...0.3436.2) (2026-07-21)
 
 
