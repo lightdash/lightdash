@@ -25,7 +25,7 @@ export default defineConfig({
         trace: 'on-first-retry',
         video: {
             mode: process.env.CI ? 'on' : 'retain-on-failure',
-            size: { width: 1280, height: 720 },
+            size: { width: 1600, height: 900 },
         },
     },
     projects: [
