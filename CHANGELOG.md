@@ -1,3 +1,10 @@
+## [0.3430.1](https://github.com/lightdash/lightdash/compare/0.3430.0...0.3430.1) (2026-07-21)
+
+
+### Bug Fixes
+
+* **dashboards:** register SQL chart tile parameters on the dashboard ([#25853](https://github.com/lightdash/lightdash/issues/25853)) ([d77f3ce](https://github.com/lightdash/lightdash/commit/d77f3ce548d0b5e7f80b10615fe626acd7875956)), closes [#25847](https://github.com/lightdash/lightdash/issues/25847)
+
 # [0.3430.0](https://github.com/lightdash/lightdash/compare/0.3429.1...0.3430.0) (2026-07-21)
 
 
