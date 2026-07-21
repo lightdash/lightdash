@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import { FeatureFlags, type AiAgentModelConfig } from '@lightdash/common';
 import {
     Anchor,
@@ -31,6 +32,7 @@ import {
     IconAdjustmentsAlt,
     IconAlertTriangle,
     IconBook2,
+    IconCode,
     IconInfoCircle,
     IconLock,
     IconPlug,
@@ -61,6 +63,7 @@ import {
 import { useAiOrganizationSettings } from '../hooks/useAiOrganizationSettings';
 import { useDeleteAiAgentMutation } from '../hooks/useProjectAiAgents';
 import { useGetAgentExploreAccessSummary } from '../hooks/useUserAgentPreferences';
+import AiAgentAsCodeModal from './AiAgentAsCodeModal';
 import { AiAgentKnowledgeFilesSection } from './AiAgentKnowledgeFilesSection';
 import { AiAgentMcpServersInput } from './AiAgentMcpServersInput';
 import { InstructionsGuidelines } from './InstructionsSupport';
@@ -150,6 +153,15 @@ export const AiAgentFormSetup = ({
 
     const { user } = useApp();
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [isAsCodeModalOpen, asCodeModalHandlers] = useDisclosure(false);
+
+    const canViewContentAsCode = !!user.data?.ability.can(
+        'view',
+        subject('ContentAsCode', {
+            organizationUuid: user.data.organizationUuid,
+            projectUuid,
+        }),
+    );
 
     const handleDeleteClick = useCallback(() => {
         setDeleteModalOpen(true);
@@ -1075,6 +1087,48 @@ export const AiAgentFormSetup = ({
                         </Stack>
                     </Paper>
 
+                    {mode === 'edit' && agentUuid && canViewContentAsCode && (
+                        <Paper p="xl">
+                            <Group align="center" gap="xs" mb="md">
+                                <Paper p="xxs" withBorder radius="sm">
+                                    <MantineIcon icon={IconCode} size="md" />
+                                </Paper>
+                                <Title order={5} c="ldGray.9" fw={700}>
+                                    Content as code
+                                </Title>
+                            </Group>
+                            <Group
+                                gap="xs"
+                                align="center"
+                                justify="space-between"
+                            >
+                                <Box>
+                                    <Title
+                                        order={6}
+                                        c="ldGray.7"
+                                        size="sm"
+                                        fw={500}
+                                    >
+                                        View as code
+                                    </Title>
+                                    <Text c="dimmed" size="xs">
+                                        View this agent's configuration as code
+                                        to manage it through content-as-code.
+                                    </Text>
+                                </Box>
+                                <Button
+                                    variant="default"
+                                    onClick={asCodeModalHandlers.open}
+                                    leftSection={
+                                        <MantineIcon icon={IconCode} />
+                                    }
+                                >
+                                    View as code
+                                </Button>
+                            </Group>
+                        </Paper>
+                    )}
+
                     {mode === 'edit' && (
                         <Paper p="xl" withBorder>
                             <Group align="center" gap="xs" mb="md">
@@ -1131,6 +1185,14 @@ export const AiAgentFormSetup = ({
                 description="This action cannot be undone."
                 onConfirm={handleDelete}
             />
+            {agentUuid && (
+                <AiAgentAsCodeModal
+                    opened={isAsCodeModalOpen}
+                    onClose={asCodeModalHandlers.close}
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                />
+            )}
         </>
     );
 };
