@@ -12,6 +12,12 @@ export async function up(knex: Knex): Promise<void> {
             .defaultTo(knex.fn.now());
         table.text('pending_slack_channel_id').nullable();
     });
+    // The default only exists to backfill existing rows as published; new rows
+    // must state whether they are a draft.
+    await knex.raw(
+        `ALTER TABLE ?? ALTER COLUMN published_at DROP DEFAULT`,
+        ANNOUNCEMENTS_TABLE,
+    );
 }
 
 export async function down(knex: Knex): Promise<void> {

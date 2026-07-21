@@ -112,14 +112,9 @@ export type DbAnnouncement = {
 
 export type DbAnnouncementIn = Pick<
     DbAnnouncement,
-    'project_uuid' | 'title' | 'body' | 'created_by_user_uuid'
+    'project_uuid' | 'title' | 'body' | 'created_by_user_uuid' | 'published_at'
 > &
-    Partial<
-        Pick<
-            DbAnnouncement,
-            'category' | 'published_at' | 'pending_slack_channel_id'
-        >
-    >;
+    Partial<Pick<DbAnnouncement, 'category' | 'pending_slack_channel_id'>>;
 
 export type DbAnnouncementUpdate = Partial<
     Pick<

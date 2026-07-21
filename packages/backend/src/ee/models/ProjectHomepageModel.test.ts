@@ -5,7 +5,10 @@ import {
 } from '@lightdash/common';
 import knex, { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
-import { HomepagesTableName } from '../database/entities/projectHomepages';
+import {
+    AnnouncementsTableName,
+    HomepagesTableName,
+} from '../database/entities/projectHomepages';
 import { ProjectHomepageModel } from './ProjectHomepageModel';
 
 // Covers only behavior beyond a thin Knex wrapper: NotFoundError
@@ -164,6 +167,72 @@ describe('ProjectHomepageModel', () => {
             expect(insertQuery.bindings).toContainEqual('group-a');
             expect(insertQuery.bindings).toContainEqual('group-b');
             expect(result.isDefault).toBe(false);
+        });
+    });
+
+    describe('publishProjectDraftAnnouncements', () => {
+        const makeDbAnnouncement = (
+            overrides: Partial<Record<string, unknown>> = {},
+        ) => ({
+            announcement_uuid: 'ann-1',
+            project_uuid: PROJECT_UUID,
+            title: 'Launch',
+            body: null,
+            category: null,
+            pinned: false,
+            created_by_user_uuid: null,
+            created_at: new Date('2026-01-01T00:00:00Z'),
+            updated_at: new Date('2026-01-01T00:00:00Z'),
+            published_at: new Date('2026-01-03T00:00:00Z'),
+            pending_slack_channel_id: null,
+            ...overrides,
+        });
+
+        it('locks the drafts and only publishes rows still unpublished', async () => {
+            tracker.on.select(AnnouncementsTableName).responseOnce([
+                {
+                    announcement_uuid: 'ann-1',
+                    pending_slack_channel_id: 'C1',
+                },
+            ]);
+            tracker.on
+                .update(AnnouncementsTableName)
+                .responseOnce([makeDbAnnouncement()]);
+
+            const result =
+                await model.publishProjectDraftAnnouncements(PROJECT_UUID);
+
+            const selectQuery = tracker.history.select[0];
+            expect(selectQuery.sql.toLowerCase()).toContain(
+                'for update skip locked',
+            );
+            const updateQuery = tracker.history.update[0];
+            expect(updateQuery.sql.toLowerCase()).toContain(
+                'published_at" is null',
+            );
+            expect(result).toEqual([
+                {
+                    announcement: expect.objectContaining({
+                        announcementUuid: 'ann-1',
+                        published: true,
+                    }),
+                    slackChannelId: 'C1',
+                },
+            ]);
+        });
+
+        it('returns nothing when another publisher already claimed the drafts', async () => {
+            tracker.on.select(AnnouncementsTableName).responseOnce([
+                {
+                    announcement_uuid: 'ann-1',
+                    pending_slack_channel_id: 'C1',
+                },
+            ]);
+            tracker.on.update(AnnouncementsTableName).responseOnce([]);
+
+            await expect(
+                model.publishProjectDraftAnnouncements(PROJECT_UUID),
+            ).resolves.toEqual([]);
         });
     });
 

@@ -525,6 +525,7 @@ export class ProjectHomepageModel {
             pinned: row.pinned,
             published:
                 row.published_at !== null && row.published_at !== undefined,
+            pendingSlackChannelId: row.pending_slack_channel_id ?? null,
             createdByUserUuid: row.created_by_user_uuid,
             authorName: row.author_name?.trim() || null,
             createdAt: row.created_at,
@@ -626,9 +627,14 @@ export class ProjectHomepageModel {
         Array<{ announcement: ProjectAnnouncement; slackChannelId: string }>
     > {
         return this.database.transaction(async (trx) => {
+            // Lock the drafts (skipping any a concurrent publisher already
+            // holds) so the same draft can't be published — and Slack-notified
+            // — twice.
             const drafts = await trx(AnnouncementsTableName)
                 .where({ project_uuid: projectUuid })
                 .whereNull('published_at')
+                .forUpdate()
+                .skipLocked()
                 .select('announcement_uuid', 'pending_slack_channel_id');
             if (drafts.length === 0) return [];
 
@@ -637,6 +643,7 @@ export class ProjectHomepageModel {
             );
             const rows = await trx(AnnouncementsTableName)
                 .whereIn('announcement_uuid', announcementUuids)
+                .whereNull('published_at')
                 .update({
                     published_at: new Date(),
                     pending_slack_channel_id: null,
@@ -686,7 +693,7 @@ export class ProjectHomepageModel {
                         project_uuid: existing.project_uuid,
                         pinned: true,
                     })
-                    .update({ pinned: false });
+                    .update({ pinned: false, updated_at: new Date() });
             }
             const [row] = await trx(AnnouncementsTableName)
                 .where({ announcement_uuid: announcementUuid })
@@ -698,6 +705,9 @@ export class ProjectHomepageModel {
                     }),
                     ...(update.pinned !== undefined && {
                         pinned: update.pinned,
+                    }),
+                    ...(update.slackChannelId !== undefined && {
+                        pending_slack_channel_id: update.slackChannelId,
                     }),
                     updated_at: new Date(),
                 })

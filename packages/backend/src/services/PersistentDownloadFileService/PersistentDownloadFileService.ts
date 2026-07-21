@@ -1,5 +1,6 @@
 import {
     NotFoundError,
+    ParameterError,
     S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS,
 } from '@lightdash/common';
 import { nanoid } from 'nanoid';
@@ -91,6 +92,25 @@ export class PersistentDownloadFileService extends BaseService {
         );
 
         return url;
+    }
+
+    /**
+     * Deletes the stored object and its persistent-URL row. The caller must
+     * pass the S3 key prefix it owns so a link can never delete a file
+     * belonging to another feature.
+     */
+    async deleteFileWithKeyPrefix(
+        fileNanoid: string,
+        s3KeyPrefix: string,
+    ): Promise<void> {
+        const file = await this.persistentDownloadFileModel.get(fileNanoid);
+        if (!file.s3_key.startsWith(s3KeyPrefix)) {
+            throw new ParameterError(
+                `File ${fileNanoid} is not stored under ${s3KeyPrefix}`,
+            );
+        }
+        await this.fileStorageClient.deleteFile(file.s3_key);
+        await this.persistentDownloadFileModel.delete(fileNanoid);
     }
 
     private async getValidFile(fileNanoid: string) {

@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    ANNOUNCEMENT_BODY_MAX_LENGTH,
     assertUnreachable,
     CommercialFeatureFlags,
     defaultHomepageConfig,
@@ -35,6 +36,7 @@ import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type GroupsModel } from '../../models/GroupsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { type SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type PersistentDownloadFileService } from '../../services/PersistentDownloadFileService/PersistentDownloadFileService';
@@ -47,6 +49,9 @@ import {
 } from './homepageLinkMetadata';
 
 const ANNOUNCEMENT_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+// The byte cap doesn't bound decoded size: a few KB of PNG can declare
+// 30000x30000 and allocate gigabytes once decoded.
+const ANNOUNCEMENT_IMAGE_MAX_PIXELS = 25_000_000;
 const ANNOUNCEMENT_IMAGE_MAX_DIMENSION_PX = 2000;
 const ANNOUNCEMENT_IMAGE_PERSISTENT_URL_EXPIRY_SECONDS =
     10 * 365 * 24 * 60 * 60;
@@ -68,6 +73,91 @@ const LINK_PREVIEW_USER_AGENT =
 // Slack's `markdown` block renders standard markdown natively. Not yet in the
 // pinned @slack/types, but it structurally satisfies the SDK's base Block type.
 type SlackMarkdownBlock = { type: 'markdown'; text: string };
+
+type ImageDimensions = { width: number; height: number };
+
+const readPngDimensions = (buffer: Buffer): ImageDimensions | null => {
+    if (buffer.length < 24) return null;
+    if (buffer.readUInt32BE(0) !== 0x89504e47) return null;
+    if (buffer.toString('ascii', 12, 16) !== 'IHDR') return null;
+    return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+};
+
+const readGifDimensions = (buffer: Buffer): ImageDimensions | null => {
+    if (buffer.length < 10) return null;
+    if (buffer.toString('ascii', 0, 4) !== 'GIF8') return null;
+    return { width: buffer.readUInt16LE(6), height: buffer.readUInt16LE(8) };
+};
+
+/* eslint-disable no-bitwise -- WebP packs dimensions into header bit fields */
+const readWebpDimensions = (buffer: Buffer): ImageDimensions | null => {
+    if (buffer.length < 30) return null;
+    if (
+        buffer.toString('ascii', 0, 4) !== 'RIFF' ||
+        buffer.toString('ascii', 8, 12) !== 'WEBP'
+    ) {
+        return null;
+    }
+    switch (buffer.toString('ascii', 12, 16)) {
+        case 'VP8X':
+            return {
+                width: buffer.readUIntLE(24, 3) + 1,
+                height: buffer.readUIntLE(27, 3) + 1,
+            };
+        case 'VP8 ':
+            return {
+                width: buffer.readUInt16LE(26) & 0x3fff,
+                height: buffer.readUInt16LE(28) & 0x3fff,
+            };
+        case 'VP8L': {
+            const bits = buffer.readUInt32LE(21);
+            return {
+                width: (bits & 0x3fff) + 1,
+                height: ((bits >> 14) & 0x3fff) + 1,
+            };
+        }
+        default:
+            return null;
+    }
+};
+/* eslint-enable no-bitwise */
+
+const readJpegDimensions = (buffer: Buffer): ImageDimensions | null => {
+    if (buffer.length < 4 || buffer.readUInt16BE(0) !== 0xffd8) return null;
+    let offset = 2;
+    while (offset + 9 < buffer.length) {
+        if (buffer[offset] !== 0xff) return null;
+        const marker = buffer[offset + 1];
+        // Standalone markers carry no length field
+        if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd9)) {
+            offset += 2;
+        } else {
+            const isStartOfFrame =
+                marker >= 0xc0 &&
+                marker <= 0xcf &&
+                marker !== 0xc4 &&
+                marker !== 0xc8 &&
+                marker !== 0xcc;
+            if (isStartOfFrame) {
+                return {
+                    height: buffer.readUInt16BE(offset + 5),
+                    width: buffer.readUInt16BE(offset + 7),
+                };
+            }
+            offset += 2 + buffer.readUInt16BE(offset + 2);
+        }
+    }
+    return null;
+};
+
+const announcementImageS3Prefix = (projectUuid: string) =>
+    `announcements/${projectUuid}/`;
+
+const readImageDimensions = (buffer: Buffer): ImageDimensions | null =>
+    readPngDimensions(buffer) ??
+    readGifDimensions(buffer) ??
+    readWebpDimensions(buffer) ??
+    readJpegDimensions(buffer);
 
 export type ProjectHomepageServiceArguments = {
     projectHomepageModel: Pick<
@@ -101,6 +191,10 @@ export type ProjectHomepageServiceArguments = {
     fileStorageClient: FileStorageClient;
     persistentDownloadFileService: PersistentDownloadFileService;
     slackClient: Pick<SlackClient, 'postMessage'>;
+    slackAuthenticationModel: Pick<
+        SlackAuthenticationModel,
+        'getInstallationFromOrganizationUuid'
+    >;
     lightdashConfig: Pick<LightdashConfig, 'siteUrl'>;
 };
 
@@ -119,6 +213,8 @@ export class ProjectHomepageService extends BaseService {
 
     private readonly slackClient: ProjectHomepageServiceArguments['slackClient'];
 
+    private readonly slackAuthenticationModel: ProjectHomepageServiceArguments['slackAuthenticationModel'];
+
     private readonly lightdashConfig: ProjectHomepageServiceArguments['lightdashConfig'];
 
     constructor(args: ProjectHomepageServiceArguments) {
@@ -130,6 +226,7 @@ export class ProjectHomepageService extends BaseService {
         this.fileStorageClient = args.fileStorageClient;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
         this.slackClient = args.slackClient;
+        this.slackAuthenticationModel = args.slackAuthenticationModel;
         this.lightdashConfig = args.lightdashConfig;
     }
 
@@ -586,6 +683,26 @@ export class ProjectHomepageService extends BaseService {
         }
     }
 
+    private static validateAnnouncementBody(body: string | null): void {
+        if (body !== null && body.length > ANNOUNCEMENT_BODY_MAX_LENGTH) {
+            throw new ParameterError(
+                `Announcement body is too long: ${body.length} characters. Maximum: ${ANNOUNCEMENT_BODY_MAX_LENGTH}`,
+            );
+        }
+    }
+
+    private async assertSlackInstalled(organizationUuid: string) {
+        const installation =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                organizationUuid,
+            );
+        if (!installation) {
+            throw new ParameterError(
+                'Slack is not connected for this organization',
+            );
+        }
+    }
+
     async listAnnouncements(
         user: SessionUser,
         projectUuid: string,
@@ -690,19 +807,40 @@ export class ProjectHomepageService extends BaseService {
                 ],
             },
         ];
+        const text = `📢 New announcement: ${announcement.title}`;
         try {
             await this.slackClient.postMessage({
                 organizationUuid,
                 channel: channelId,
-                text: `📢 New announcement: ${announcement.title}`,
+                text,
                 blocks,
             });
         } catch (error) {
-            this.logger.error(
-                `Failed to post announcement to Slack channel ${channelId}: ${getErrorMessage(
-                    error,
-                )}`,
-            );
+            // Slack rejects the whole message when it can't fetch the image
+            // URL (common when the instance isn't reachable from Slack), so
+            // retry without it rather than losing the announcement.
+            if (!image) {
+                this.logger.error(
+                    `Failed to post announcement to Slack channel ${channelId}: ${getErrorMessage(
+                        error,
+                    )}`,
+                );
+                return;
+            }
+            try {
+                await this.slackClient.postMessage({
+                    organizationUuid,
+                    channel: channelId,
+                    text,
+                    blocks: blocks.filter((block) => block.type !== 'image'),
+                });
+            } catch (retryError) {
+                this.logger.error(
+                    `Failed to post announcement to Slack channel ${channelId}: ${getErrorMessage(
+                        retryError,
+                    )}`,
+                );
+            }
         }
     }
 
@@ -714,6 +852,11 @@ export class ProjectHomepageService extends BaseService {
         await this.assertFlagEnabled(user);
         this.assertCanManage(user, projectUuid);
         ProjectHomepageService.validateAnnouncementTitle(data.title);
+        ProjectHomepageService.validateAnnouncementBody(data.body);
+        if (data.slackChannelId) {
+            if (!user.organizationUuid) throw new ForbiddenError();
+            await this.assertSlackInstalled(user.organizationUuid);
+        }
         // Created as a draft — it stays invisible on the live homepage and its
         // Slack notification (if any) is deferred until the homepage is
         // published, see `publishHomepage`.
@@ -735,14 +878,63 @@ export class ProjectHomepageService extends BaseService {
     ): Promise<ProjectAnnouncement> {
         await this.assertFlagEnabled(user);
         this.assertCanManage(user, projectUuid);
-        await this.getOwnedAnnouncement(projectUuid, announcementUuid);
+        const announcement = await this.getOwnedAnnouncement(
+            projectUuid,
+            announcementUuid,
+        );
         if (update.title !== undefined) {
             ProjectHomepageService.validateAnnouncementTitle(update.title);
+        }
+        if (update.body !== undefined) {
+            ProjectHomepageService.validateAnnouncementBody(update.body);
+        }
+        if (update.slackChannelId !== undefined) {
+            // The notification fires on publish, so a published announcement
+            // has nothing left to retarget.
+            if (announcement.published) {
+                throw new ParameterError(
+                    'Cannot change the Slack channel of a published announcement',
+                );
+            }
+            if (update.slackChannelId !== null) {
+                if (!user.organizationUuid) throw new ForbiddenError();
+                await this.assertSlackInstalled(user.organizationUuid);
+            }
         }
         return this.projectHomepageModel.updateAnnouncement(announcementUuid, {
             ...update,
             ...(update.title !== undefined && { title: update.title.trim() }),
         });
+    }
+
+    // Best-effort: uploaded images are only reachable through the body, so
+    // they become orphans once the announcement is gone. Only files stored
+    // under this project's announcement prefix are touched.
+    private async deleteAnnouncementImages(
+        projectUuid: string,
+        body: string | null,
+    ): Promise<void> {
+        if (!body) return;
+        const fileNanoids = Array.from(
+            body.matchAll(/\/api\/v1\/file\/([A-Za-z0-9_-]+)/g),
+            (match) => match[1],
+        );
+        await Promise.all(
+            fileNanoids.map(async (fileNanoid) => {
+                try {
+                    await this.persistentDownloadFileService.deleteFileWithKeyPrefix(
+                        fileNanoid,
+                        announcementImageS3Prefix(projectUuid),
+                    );
+                } catch (error) {
+                    this.logger.error(
+                        `Failed to delete announcement image ${fileNanoid}: ${getErrorMessage(
+                            error,
+                        )}`,
+                    );
+                }
+            }),
+        );
     }
 
     async deleteAnnouncement(
@@ -752,8 +944,12 @@ export class ProjectHomepageService extends BaseService {
     ): Promise<void> {
         await this.assertFlagEnabled(user);
         this.assertCanManage(user, projectUuid);
-        await this.getOwnedAnnouncement(projectUuid, announcementUuid);
+        const announcement = await this.getOwnedAnnouncement(
+            projectUuid,
+            announcementUuid,
+        );
         await this.projectHomepageModel.deleteAnnouncement(announcementUuid);
+        await this.deleteAnnouncementImages(projectUuid, announcement.body);
     }
 
     private static async bufferAnnouncementImageUpload(
@@ -788,6 +984,18 @@ export class ProjectHomepageService extends BaseService {
     private static async normalizeAnnouncementImage(
         upload: Buffer,
     ): Promise<Buffer> {
+        const dimensions = readImageDimensions(upload);
+        if (!dimensions) {
+            throw new ParameterError('Invalid image: unreadable header');
+        }
+        if (
+            dimensions.width * dimensions.height >
+            ANNOUNCEMENT_IMAGE_MAX_PIXELS
+        ) {
+            throw new ParameterError(
+                `Image too large: ${dimensions.width}x${dimensions.height} pixels. Maximum: ${ANNOUNCEMENT_IMAGE_MAX_PIXELS} pixels`,
+            );
+        }
         let image;
         try {
             image = await loadImage(upload);
@@ -841,7 +1049,9 @@ export class ProjectHomepageService extends BaseService {
                 bufferedUpload,
             );
 
-        const storageId = `announcements/${projectUuid}/${randomUUID()}`;
+        const storageId = `${announcementImageS3Prefix(
+            projectUuid,
+        )}${randomUUID()}`;
         const s3Key = `${storageId}.png`;
 
         await this.fileStorageClient.uploadImage(normalizedImage, storageId);

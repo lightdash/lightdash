@@ -148,6 +148,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     persistentDownloadFileService:
                         repository.getPersistentDownloadFileService(),
                     slackClient: clients.getSlackClient(),
+                    slackAuthenticationModel:
+                        models.getSlackAuthenticationModel(),
                     lightdashConfig: context.lightdashConfig,
                 }),
             aiDeepResearchService: ({

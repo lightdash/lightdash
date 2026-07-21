@@ -326,6 +326,12 @@ export type ProjectAnnouncement = {
     category: AnnouncementCategory | null;
     pinned: boolean;
     published: boolean;
+    /**
+     * Slack channel the announcement will notify when it publishes. Always
+     * null once published (consumed) — only drafts carry a value, and drafts
+     * are only visible to users who can manage announcements.
+     */
+    pendingSlackChannelId: string | null;
     createdByUserUuid: string | null;
     authorName: string | null;
     createdAt: Date;
@@ -354,7 +360,12 @@ export type UpdateAnnouncementRequest = {
     body?: string | null;
     category?: AnnouncementCategory | null;
     pinned?: boolean;
+    /** Only drafts: set to retarget the Slack notification, null to cancel it */
+    slackChannelId?: string | null;
 };
+
+/** Slack's markdown block rejects ~12k chars; cap bodies well under it */
+export const ANNOUNCEMENT_BODY_MAX_LENGTH = 8000;
 
 export type ApiAnnouncementsResponse = ApiSuccess<AnnouncementsPage>;
 export type ApiAnnouncementResponse = ApiSuccess<ProjectAnnouncement>;
