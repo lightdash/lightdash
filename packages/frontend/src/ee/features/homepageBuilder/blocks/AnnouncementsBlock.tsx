@@ -6,15 +6,12 @@ import {
 import {
     ActionIcon,
     Button,
-    Drawer,
-    Group,
     Select,
     Stack,
     Text,
     TextInput,
     Tooltip,
 } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconChevronDown,
     IconChevronRight,
@@ -35,10 +32,10 @@ import {
 } from 'react';
 import { CategoryBadge } from '../../../../components/common/CategoryBadge/CategoryBadge';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import MantineModal from '../../../../components/common/MantineModal';
 import { SlackChannelSelect } from '../../../../components/common/SlackChannelSelect';
 import { useGetSlack } from '../../../../hooks/slack/useSlack';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
-import useApp from '../../../../providers/App/useApp';
 import {
     useAnnouncements,
     useCreateAnnouncement,
@@ -282,19 +279,17 @@ export const AnnouncementsBlockView: FC<BlockComponentProps> = ({
     );
 };
 
-const AnnouncementDrawer: FC<{
+const AnnouncementFormModal: FC<{
     projectUuid: string;
     announcement: ProjectAnnouncement | null;
     onClose: () => void;
 }> = ({ projectUuid, announcement, onClose }) => {
     const isEdit = announcement !== null;
-    const { user } = useApp();
     const [title, setTitle] = useState(announcement?.title ?? '');
     const [body, setBody] = useState(announcement?.body ?? '');
     const [category, setCategory] = useState<AnnouncementCategory | null>(
         announcement?.category ?? null,
     );
-    const [debouncedBody] = useDebouncedValue(body, 350);
     const [slackChannelId, setSlackChannelId] = useState<string | null>(null);
     const { data: slack } = useGetSlack();
     const slackInstalled = !!slack?.organizationUuid;
@@ -332,101 +327,65 @@ const AnnouncementDrawer: FC<{
         }
     };
 
-    const authorName = user.data
-        ? `${user.data.firstName} ${user.data.lastName}`.trim()
-        : null;
-    const previewAnnouncement: ProjectAnnouncement = {
-        announcementUuid: 'preview',
-        projectUuid,
-        title: title.trim() || 'Untitled announcement',
-        body: debouncedBody.trim() || null,
-        category,
-        pinned: false,
-        createdByUserUuid: null,
-        authorName,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-    };
-
     let saveLabel = 'Publish';
     if (isEdit) saveLabel = 'Save';
     else if (slackChannelId) saveLabel = 'Publish & notify';
 
     return (
-        <Drawer
+        <MantineModal
             opened
             onClose={onClose}
-            position="right"
-            size="xl"
             title={isEdit ? 'Edit announcement' : 'New announcement'}
+            icon={IconSpeakerphone}
+            size="lg"
+            onConfirm={handleSave}
+            confirmLabel={saveLabel}
+            confirmDisabled={title.trim().length === 0}
+            confirmLoading={isLoading}
         >
-            <div className={classes.drawerLayout}>
-                <div className={classes.drawerForm}>
-                    <TextInput
-                        label="Title"
-                        placeholder="What's the update?"
-                        value={title}
-                        onChange={(e) => setTitle(e.currentTarget.value)}
-                        data-autofocus
-                    />
-                    <Select
-                        label="Category"
-                        placeholder="Pick a category"
-                        clearable
-                        data={CATEGORY_OPTIONS}
-                        value={category}
-                        onChange={(value) =>
-                            setCategory(value as AnnouncementCategory | null)
-                        }
-                    />
-                    <div>
-                        <Text size="sm" fw={500} mb={4}>
-                            Body
-                        </Text>
-                        <div className={classes.editorShell}>
-                            <TiptapMarkdownEditor
-                                content={announcement?.body ?? ''}
-                                onChange={setBody}
-                                onImageUpload={async (file) =>
-                                    (await uploadImage.mutateAsync(file)).url
-                                }
-                                mentionProjectUuid={projectUuid}
-                            />
-                        </div>
-                    </div>
-                    {!isEdit && slackInstalled && (
-                        <SlackChannelSelect
-                            label="Notify a Slack channel (optional)"
-                            placeholder="No Slack notification"
-                            value={slackChannelId}
-                            onChange={setSlackChannelId}
-                        />
-                    )}
-                </div>
-                <div className={classes.drawerPreview}>
-                    <Text size="xs" fw={600} c="dimmed" tt="uppercase" mb="xs">
-                        Preview
+            <Stack gap="md">
+                <TextInput
+                    label="Title"
+                    placeholder="What's the update?"
+                    value={title}
+                    onChange={(e) => setTitle(e.currentTarget.value)}
+                    data-autofocus
+                />
+                <Select
+                    label="Category"
+                    placeholder="Pick a category"
+                    clearable
+                    data={CATEGORY_OPTIONS}
+                    value={category}
+                    onChange={(value) =>
+                        setCategory(value as AnnouncementCategory | null)
+                    }
+                />
+                <div>
+                    <Text size="sm" fw={500} mb={4}>
+                        Body
                     </Text>
-                    <AnnouncementCard
-                        key={`${previewAnnouncement.title}|${category ?? ''}|${debouncedBody}`}
-                        projectUuid={projectUuid}
-                        announcement={previewAnnouncement}
-                    />
+                    <div className={classes.editorShell}>
+                        <TiptapMarkdownEditor
+                            content={announcement?.body ?? ''}
+                            onChange={setBody}
+                            onImageUpload={async (file) =>
+                                (await uploadImage.mutateAsync(file)).url
+                            }
+                            mentionProjectUuid={projectUuid}
+                        />
+                    </div>
                 </div>
-            </div>
-            <Group justify="flex-end" mt="lg">
-                <Button variant="default" onClick={onClose}>
-                    Cancel
-                </Button>
-                <Button
-                    onClick={handleSave}
-                    loading={isLoading}
-                    disabled={title.trim().length === 0}
-                >
-                    {saveLabel}
-                </Button>
-            </Group>
-        </Drawer>
+                {!isEdit && slackInstalled && (
+                    <SlackChannelSelect
+                        label="Notify a Slack channel (optional)"
+                        placeholder="No Slack notification"
+                        value={slackChannelId}
+                        onChange={setSlackChannelId}
+                    />
+                )}
+            </Stack>
+        </MantineModal>
     );
 };
 
@@ -491,7 +450,7 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
         <Stack gap="sm">
             <BlockHeader icon={IconSpeakerphone} title={block.config.title} />
             <Button
-                variant="light"
+                variant="default"
                 size="xs"
                 leftSection={<MantineIcon icon={IconPlus} />}
                 onClick={() => setCreating(true)}
@@ -513,7 +472,7 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
                 />
             )}
             {(creating || editing !== null) && (
-                <AnnouncementDrawer
+                <AnnouncementFormModal
                     projectUuid={projectUuid}
                     announcement={editing}
                     onClose={() => {
