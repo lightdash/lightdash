@@ -628,17 +628,17 @@ export function createStack100TooltipFormatter(
                     typeof originalValue !== 'number'
                         ? '0'
                         : itemsMap
-                        ? getFormattedValue(
-                              originalValue,
-                              dimensionName,
-                              itemsMap,
-                              undefined,
-                              pivotValuesColumnsMap,
-                              parameters,
-                              timezone,
-                              displayTimezone,
-                          )
-                        : originalValue.toLocaleString();
+                          ? getFormattedValue(
+                                originalValue,
+                                dimensionName,
+                                itemsMap,
+                                undefined,
+                                pivotValuesColumnsMap,
+                                parameters,
+                                timezone,
+                                displayTimezone,
+                            )
+                          : originalValue.toLocaleString();
 
                 const colorIndicator = formatColorIndicator(
                     extractColor(marker),

@@ -393,4 +393,52 @@ describe('createStack100TooltipFormatter', () => {
 
         expect(html).toContain('46.9% (1,125.25)');
     });
+
+    test('resolves a pivoted count via pivotValuesColumnsMap.referenceField', () => {
+        const pivotColumn = 'orders_total_order_amount_any_web';
+        const pivotValuesColumnsMap = {
+            [pivotColumn]: {
+                referenceField: 'orders_total_order_amount',
+                pivotColumnName: pivotColumn,
+                aggregation: VizAggregationOptions.ANY,
+                pivotValues: [
+                    {
+                        referenceField: 'orders_source',
+                        value: 'web',
+                        formatted: 'web',
+                    },
+                ],
+            },
+        };
+
+        const originalValues = new Map([
+            ['completed', new Map([[pivotColumn, 1125.25]])],
+        ]);
+
+        const pivotedParams = [
+            {
+                seriesName: 'web',
+                marker: '',
+                data: {
+                    orders_status: 'completed',
+                    [pivotColumn]: 46.9,
+                },
+            },
+        ];
+
+        const formatter = createStack100TooltipFormatter(
+            originalValues,
+            () => pivotColumn,
+            'orders_status',
+            itemsMap,
+            undefined,
+            undefined,
+            undefined,
+            pivotValuesColumnsMap,
+        );
+
+        const html = formatter(pivotedParams);
+
+        expect(html).toContain('46.9% ($1,125.25)');
+    });
 });
