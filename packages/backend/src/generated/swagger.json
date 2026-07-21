@@ -27894,6 +27894,249 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "AgentOnboardingRunStatus": {
+                "type": "string",
+                "enum": [
+                    "queued",
+                    "running",
+                    "failed",
+                    "completed",
+                    "cancelled"
+                ]
+            },
+            "AgentOnboardingStage": {
+                "type": "string",
+                "enum": [
+                    "preparing_project",
+                    "exploring_warehouse",
+                    "deploying_semantic_layer",
+                    "building_dashboard",
+                    "verifying",
+                    "handoff"
+                ]
+            },
+            "AgentOnboardingRunEvent": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "stage": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentOnboardingStage"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "eventType": {
+                        "type": "string",
+                        "enum": ["stage", "step", "log"]
+                    }
+                },
+                "required": ["createdAt", "stage", "message", "eventType"],
+                "type": "object"
+            },
+            "AgentOnboardingHandoff": {
+                "properties": {
+                    "dashboardUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "summary": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["dashboardUrl", "summary"],
+                "type": "object"
+            },
+            "AgentOnboardingUsage": {
+                "properties": {
+                    "numTurns": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "outputTokens": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "inputTokens": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "costUsd": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "numTurns",
+                    "outputTokens",
+                    "inputTokens",
+                    "costUsd"
+                ],
+                "type": "object"
+            },
+            "AgentOnboardingFile": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string"
+                    },
+                    "sizeBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "required": ["updatedAt", "sizeBytes", "path"],
+                "type": "object"
+            },
+            "AgentOnboardingRun": {
+                "properties": {
+                    "completedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "startedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "errorMessage": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "files": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentOnboardingFile"
+                        },
+                        "type": "array"
+                    },
+                    "usage": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentOnboardingUsage"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "handoff": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentOnboardingHandoff"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "events": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentOnboardingRunEvent"
+                        },
+                        "type": "array"
+                    },
+                    "stage": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentOnboardingStage"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/AgentOnboardingRunStatus"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "agentOnboardingRunUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "completedAt",
+                    "startedAt",
+                    "updatedAt",
+                    "createdAt",
+                    "errorMessage",
+                    "files",
+                    "usage",
+                    "handoff",
+                    "events",
+                    "stage",
+                    "status",
+                    "projectUuid",
+                    "agentOnboardingRunUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AgentOnboardingRun_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AgentOnboardingRun"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAgentOnboardingRunResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AgentOnboardingRun_"
+            },
+            "AgentOnboardingFileContent": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AgentOnboardingFile"
+                    },
+                    {
+                        "properties": {
+                            "encoding": {
+                                "type": "string",
+                                "enum": ["utf8", "base64"]
+                            },
+                            "content": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["encoding", "content"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_AgentOnboardingFileContent_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AgentOnboardingFileContent"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAgentOnboardingFileResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AgentOnboardingFileContent_"
+            },
             "Role": {
                 "properties": {
                     "updatedAt": {
@@ -28649,8 +28892,8 @@
                     "running",
                     "failed",
                     "completed",
-                    "partially_completed",
-                    "cancelled"
+                    "cancelled",
+                    "partially_completed"
                 ]
             },
             "AiDeepResearchChartConfig": {
@@ -36058,6 +36301,7 @@
                     "appBuildFromSource",
                     "aiWritebackPipeline",
                     "aiDeepResearch",
+                    "agentOnboardingRun",
                     "aiAgentEditDbtProjectPipeline",
                     "sweepStaleAppLocks",
                     "sweepStaleAiWritebackRuns",
@@ -48821,7 +49065,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3437.0",
+        "version": "0.3438.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -59634,6 +59878,198 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/ee/projects/{projectUuid}/agent-onboarding": {
+            "post": {
+                "operationId": "createAgentOnboardingRun",
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAgentOnboardingRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Start a server-side agent onboarding run for a prepared project.\nReturns the existing run when one is already active for the project.",
+                "summary": "Start agent onboarding run",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/ee/projects/{projectUuid}/agent-onboarding/{agentOnboardingRunUuid}": {
+            "get": {
+                "operationId": "getAgentOnboardingRun",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAgentOnboardingRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the durable state and progress events of an agent onboarding run.",
+                "summary": "Get agent onboarding run",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentOnboardingRunUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/ee/projects/{projectUuid}/agent-onboarding/{agentOnboardingRunUuid}/file": {
+            "get": {
+                "operationId": "getAgentOnboardingFile",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAgentOnboardingFileResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Read the latest persisted contents of a generated onboarding file.",
+                "summary": "Get onboarding run file",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentOnboardingRunUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/ee/projects/{projectUuid}/agent-onboarding/{agentOnboardingRunUuid}/cancel": {
+            "post": {
+                "operationId": "cancelAgentOnboardingRun",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAgentOnboardingRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Request cancellation of an agent onboarding run.",
+                "summary": "Cancel agent onboarding run",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentOnboardingRunUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v2/orgs/{orgUuid}/roles": {

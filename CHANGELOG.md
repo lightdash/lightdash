@@ -1,3 +1,16 @@
+# [0.3438.0](https://github.com/lightdash/lightdash/compare/0.3437.0...0.3438.0) (2026-07-21)
+
+
+### Bug Fixes
+
+* keep include-thumbnail checkbox visible in move-to-space modal ([#25876](https://github.com/lightdash/lightdash/issues/25876)) ([f5fe55b](https://github.com/lightdash/lightdash/commit/f5fe55bdedc7c4d391512b0583905f4ef2655505))
+
+
+### Features
+
+* **data-apps:** enrich generation telemetry ([#25887](https://github.com/lightdash/lightdash/issues/25887)) ([1b97639](https://github.com/lightdash/lightdash/commit/1b97639c58423f7655f56b6cf3556b556fc393d0))
+* make agent onboarding runs durable ([#25889](https://github.com/lightdash/lightdash/issues/25889)) ([3b2fcef](https://github.com/lightdash/lightdash/commit/3b2fcef5756ccf90144a15a65de7073148e6b748))
+
 # [0.3437.0](https://github.com/lightdash/lightdash/compare/0.3436.2...0.3437.0) (2026-07-21)
 
 
