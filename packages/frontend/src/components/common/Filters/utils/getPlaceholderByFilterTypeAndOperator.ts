@@ -127,7 +127,7 @@ export const getPlaceholderByFilterTypeAndOperator = ({
             switch (operator) {
                 case FilterOperator.EQUALS:
                 case FilterOperator.NOT_EQUALS:
-                    return 'False';
+                    return 'Select value';
                 case FilterOperator.NULL:
                 case FilterOperator.NOT_NULL:
                     return '';
