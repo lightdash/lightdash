@@ -79,6 +79,7 @@ export class AgentOnboardingRunModel {
                 ),
             )
             .merge({
+                // Force RETURNING on conflict without changing lifecycle time.
                 updated_at: this.database.raw('??.??', [
                     AgentOnboardingRunsTableName,
                     'updated_at',

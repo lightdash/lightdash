@@ -1,4 +1,6 @@
+import { subject } from '@casl/ability';
 import {
+    ForbiddenError,
     getConnectionDefaults,
     getErrorMessage,
     MissingConfigError,
@@ -467,6 +469,25 @@ export class OnboardingAgentService extends BaseService {
                     run.organization_uuid,
                 ),
             );
+            const ability = this.createAuditedAbility(account);
+            if (
+                ability.cannot(
+                    'manage',
+                    subject('Project', {
+                        organizationUuid: run.organization_uuid,
+                        projectUuid: run.project_uuid,
+                    }),
+                ) ||
+                ability.cannot(
+                    'create',
+                    subject('PersonalAccessToken', {
+                        organizationUuid: run.organization_uuid,
+                        metadata: { userUuid: run.created_by_user_uuid },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             pat =
                 await this.personalAccessTokenService.createPersonalAccessToken(
                     account,
