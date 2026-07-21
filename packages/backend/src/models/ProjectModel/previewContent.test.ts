@@ -26,15 +26,26 @@ describe('omitProjectUuid', () => {
 });
 
 describe('replaceProjectUuid', () => {
-    it('sets destination ownership without mutating the source row', () => {
-        const row = {
-            dashboard_uuid: 'dashboard-uuid',
-            project_uuid: 'source-project-uuid',
-        };
+    it.each([
+        {
+            row: {
+                saved_query_uuid: 'chart-uuid',
+                project_uuid: 'source-project-uuid',
+            },
+        },
+        {
+            row: {
+                dashboard_uuid: 'dashboard-uuid',
+                project_uuid: 'source-project-uuid',
+            },
+        },
+    ])(
+        'sets destination ownership without mutating the source row',
+        ({ row }) => {
+            const result = replaceProjectUuid(row, 'destination-project-uuid');
 
-        const result = replaceProjectUuid(row, 'destination-project-uuid');
-
-        expect(result.project_uuid).toBe('destination-project-uuid');
-        expect(row.project_uuid).toBe('source-project-uuid');
-    });
+            expect(result.project_uuid).toBe('destination-project-uuid');
+            expect(row.project_uuid).toBe('source-project-uuid');
+        },
+    );
 });

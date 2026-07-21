@@ -96,7 +96,6 @@ import { traceSpan } from '../tracing/tracing';
 import { wrapSentryTransaction } from '../utils';
 import { acquireProjectSlugLock, generateUniqueSlug } from '../utils/SlugUtils';
 import { ContentVerificationModel } from './ContentVerificationModel';
-import { SpaceModel } from './SpaceModel';
 
 type DbSavedChartDetails = {
     project_uuid: string;
@@ -487,11 +486,30 @@ export const createSavedChart = async (
                 getChartKind(chartConfig.type, chartConfig.config) ||
                 ChartKind.VERTICAL_BAR,
             last_version_updated_by_user_uuid: userUuid,
+            project_uuid: projectUuid,
             slug: forceSlug
                 ? slug
                 : await generateUniqueSlug(trx, SavedChartsTableName, slug),
         };
         if (dashboardUuid) {
+            const dashboard = await trx(DashboardsTableName)
+                .innerJoin(
+                    SpaceTableName,
+                    `${SpaceTableName}.space_id`,
+                    `${DashboardsTableName}.space_id`,
+                )
+                .innerJoin(
+                    ProjectTableName,
+                    `${ProjectTableName}.project_id`,
+                    `${SpaceTableName}.project_id`,
+                )
+                .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+                .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                .select(`${DashboardsTableName}.dashboard_uuid`)
+                .first();
+            if (!dashboard) {
+                throw new NotFoundError('Dashboard not found');
+            }
             chart = {
                 ...baseChart,
                 dashboard_uuid: dashboardUuid,
@@ -501,14 +519,23 @@ export const createSavedChart = async (
             if (!spaceUuid) {
                 throw new NotFoundError('No space specified for chart');
             }
-            const space = await SpaceModel.getSpaceIdAndName(trx, spaceUuid);
-            if (space === undefined)
-                throw Error(`Missing space with uuid ${spaceUuid}`);
-            const { spaceId } = space;
+            const space = await trx(SpaceTableName)
+                .innerJoin(
+                    ProjectTableName,
+                    `${ProjectTableName}.project_id`,
+                    `${SpaceTableName}.project_id`,
+                )
+                .where(`${SpaceTableName}.space_uuid`, spaceUuid)
+                .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                .select(`${SpaceTableName}.space_id`)
+                .first();
+            if (!space) {
+                throw new NotFoundError('Space not found');
+            }
             chart = {
                 ...baseChart,
                 dashboard_uuid: null,
-                space_id: spaceId,
+                space_id: space.space_id,
             };
         }
         const [newSavedChart] = await trx(SavedChartsTableName)
@@ -790,16 +817,55 @@ export class SavedChartModel {
         savedChartUuid: string,
         data: UpdateSavedChart,
     ): Promise<SavedChartDAO> {
+        const savedChart = await this.database(SavedChartsTableName)
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+            )
+            .joinRaw(
+                `INNER JOIN ${SpaceTableName} ON ${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id)`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .select(`${ProjectTableName}.project_uuid`)
+            .where(`${SavedChartsTableName}.saved_query_uuid`, savedChartUuid)
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .first();
+        if (!savedChart) {
+            throw new NotFoundError('Saved chart not found');
+        }
+
+        let targetSpaceId: number | undefined;
+        if (data.spaceUuid !== undefined) {
+            const space = await this.database(SpaceTableName)
+                .innerJoin(
+                    ProjectTableName,
+                    `${ProjectTableName}.project_id`,
+                    `${SpaceTableName}.project_id`,
+                )
+                .select(`${SpaceTableName}.space_id`)
+                .where(`${SpaceTableName}.space_uuid`, data.spaceUuid)
+                .where(
+                    `${ProjectTableName}.project_uuid`,
+                    savedChart.project_uuid,
+                )
+                .first();
+            if (!space) {
+                throw new NotFoundError('Space not found');
+            }
+            targetSpaceId = space.space_id;
+        }
+
         await this.database(SavedChartsTableName)
             .update({
                 name: data.name,
                 description: data.description,
-                space_id: (
-                    await SpaceModel.getSpaceIdAndName(
-                        this.database,
-                        data.spaceUuid,
-                    )
-                )?.spaceId,
+                project_uuid: savedChart.project_uuid,
+                space_id: targetSpaceId,
                 dashboard_uuid: data.spaceUuid ? null : undefined, // remove dashboard_uuid when moving chart to space
                 color_palette_uuid: data.colorPaletteUuid,
             })
@@ -833,6 +899,7 @@ export class SavedChartModel {
                     .update({
                         name: savedChart.name,
                         description: savedChart.description,
+                        project_uuid: projectUuid,
                         space_id: space.space_id,
                     })
                     .where('saved_query_uuid', savedChart.uuid)
@@ -2440,9 +2507,36 @@ export class SavedChartModel {
             throw new NotFoundError('Space not found');
         }
 
+        const savedChart = await tx(SavedChartsTableName)
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+            )
+            .joinRaw(
+                `INNER JOIN ${SpaceTableName} AS current_space ON current_space.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id)`,
+            )
+            .innerJoin(
+                `${ProjectTableName} AS current_project`,
+                'current_project.project_id',
+                'current_space.project_id',
+            )
+            .select(`${SavedChartsTableName}.saved_query_uuid`)
+            .where(`${SavedChartsTableName}.saved_query_uuid`, savedChartUuid)
+            .where('current_project.project_uuid', projectUuid)
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .first();
+        if (!savedChart) {
+            throw new NotFoundError('Saved chart not found');
+        }
+
         const updateCount = await tx(SavedChartsTableName)
             // if we move a chart from a dashboard to a space, we need to set the dashboard_uuid to null
-            .update({ space_id: space.space_id, dashboard_uuid: null })
+            .update({
+                project_uuid: projectUuid,
+                space_id: space.space_id,
+                dashboard_uuid: null,
+            })
             .where('saved_query_uuid', savedChartUuid)
             .whereNull('deleted_at');
 
