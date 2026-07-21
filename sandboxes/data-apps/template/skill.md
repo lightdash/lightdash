@@ -869,6 +869,7 @@ Use the `DropdownMenu` component. The menu opens on click; each option triggers 
 
 ```tsx
 import { useState, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { query, useLightdash, drillDown } from '@lightdash/query-sdk';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useGlobalFilters } from '@/lib/filters';
@@ -912,7 +913,12 @@ function RevenueChart() {
             </BarChart>
             </div>
 
-            {menuState && (
+            {/* Portal the menu to document.body: any animated/transformed
+                ancestor (fade-in cards, slide-in sections) becomes the
+                containing block for position:fixed, which would displace the
+                menu far from the click. The portal makes the trigger truly
+                viewport-relative no matter how the surrounding card is styled. */}
+            {menuState && createPortal(
                 <DropdownMenu open onOpenChange={() => setMenuState(null)}>
                     <DropdownMenuTrigger asChild>
                         <div style={{ position: 'fixed', left: menuState.x, top: menuState.y, width: 1, height: 1 }} />
@@ -963,7 +969,8 @@ function RevenueChart() {
                             Drill into revenue
                         </DropdownMenuItem>
                     </DropdownMenuContent>
-                </DropdownMenu>
+                </DropdownMenu>,
+                document.body,
             )}
 
             {drillState && (
@@ -1143,4 +1150,5 @@ The action-menu example above shows typical `drillDown()` usage. For the full AP
 | Building drill query inside render | Infinite re-fetching | Build in onClick handler, store in state |
 | Drilling by a dimension already in the source query | Pointless — same grouping | Pick a different, more granular dimension |
 | Using `e.chartX`/`e.chartY` for menu position | Chart-relative coords — menu appears at wrong position | Recharts `onClick` has no native event; capture `clientX`/`clientY` from a wrapper `<div onPointerDown>` via `useRef` — pointerdown fires before onClick so the ref is ready (see action menu example) |
+| Action menu opens far below/right of the click | An animated/transformed ancestor (fade-in card, slide-in section) is the containing block for the `position: fixed` trigger — "fixed" coords resolve inside the card, not the viewport | `createPortal(<DropdownMenu …>, document.body)` around the menu block, exactly as in the action-menu example — never render the fixed trigger inside the component tree |
 | Combining a direction word with a contradictory sign in narrative copy (`down +12%`, `up -4%`) | Sign and verb disagree → reads as a self-contradiction, looks like a platform bug | Pick one convention per report and stick to it: either signed deltas with no direction word (`+12%`, `−4%`), or direction word with unsigned magnitude (`up 12%`, `down 4%`). Never mix. |
