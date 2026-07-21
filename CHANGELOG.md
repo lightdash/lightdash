@@ -1,3 +1,10 @@
+# [0.3442.0](https://github.com/lightdash/lightdash/compare/0.3441.2...0.3442.0) (2026-07-21)
+
+
+### Features
+
+* **totals:** compute warehouse totals under metric and table-calc filters ([#25859](https://github.com/lightdash/lightdash/issues/25859)) ([2e82537](https://github.com/lightdash/lightdash/commit/2e82537eae03a4b6e175d6e0d2db9fb9ec9c00d5))
+
 ## [0.3441.2](https://github.com/lightdash/lightdash/compare/0.3441.1...0.3441.2) (2026-07-21)
 
 

@@ -9604,38 +9604,17 @@
                 "required": ["config", "type", "id"],
                 "type": "object"
             },
-            "HomepageAnnouncementItem": {
-                "properties": {
-                    "author": {
-                        "type": "string"
-                    },
-                    "date": {
-                        "type": "string"
-                    },
-                    "text": {
-                        "type": "string",
-                        "description": "Markdown —"
-                    }
-                },
-                "required": ["author", "date", "text"],
-                "type": "object"
-            },
             "HomepageAnnouncementsBlock": {
                 "properties": {
                     "config": {
                         "properties": {
-                            "items": {
-                                "items": {
-                                    "$ref": "#/components/schemas/HomepageAnnouncementItem"
-                                },
-                                "type": "array"
-                            },
                             "title": {
                                 "type": "string"
                             }
                         },
-                        "required": ["items", "title"],
-                        "type": "object"
+                        "required": ["title"],
+                        "type": "object",
+                        "description": "Feed reference — items live in `project_announcements`."
                     },
                     "type": {
                         "type": "string",
@@ -10456,6 +10435,206 @@
                 },
                 "required": ["allowPersonal", "audience"],
                 "type": "object"
+            },
+            "AnnouncementCategory": {
+                "description": "Curated announcement categories a data team uses to signal intent to\nbusiness users. Fixed set (not user-managed) — each maps to a label + colour\nin `ANNOUNCEMENT_CATEGORY_META`.",
+                "enum": ["launch", "update", "heads_up"],
+                "type": "string"
+            },
+            "ProjectAnnouncement": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "authorName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pendingSlackChannelId": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Slack channel the announcement will notify when it publishes. Always\nnull once published (consumed) — only drafts carry a value, and drafts\nare only visible to users who can manage announcements."
+                    },
+                    "published": {
+                        "type": "boolean"
+                    },
+                    "pinned": {
+                        "type": "boolean"
+                    },
+                    "category": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AnnouncementCategory"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "body": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "announcementUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "createdAt",
+                    "authorName",
+                    "createdByUserUuid",
+                    "pendingSlackChannelId",
+                    "published",
+                    "pinned",
+                    "category",
+                    "body",
+                    "title",
+                    "projectUuid",
+                    "announcementUuid"
+                ],
+                "type": "object"
+            },
+            "AnnouncementsPage": {
+                "properties": {
+                    "totalCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "items": {
+                        "items": {
+                            "$ref": "#/components/schemas/ProjectAnnouncement"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["totalCount", "items"],
+                "type": "object"
+            },
+            "ApiSuccess_AnnouncementsPage_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AnnouncementsPage"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAnnouncementsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AnnouncementsPage_"
+            },
+            "ApiSuccess_ProjectAnnouncement_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ProjectAnnouncement"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAnnouncementResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_ProjectAnnouncement_"
+            },
+            "CreateAnnouncementRequest": {
+                "properties": {
+                    "slackChannelId": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Transient (not persisted): when set, publishing posts a notification to\nthis Slack channel. Requires the org to have Slack installed."
+                    },
+                    "category": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AnnouncementCategory"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "body": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "required": ["category", "body", "title"],
+                "type": "object"
+            },
+            "UpdateAnnouncementRequest": {
+                "properties": {
+                    "slackChannelId": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Only drafts: set to retarget the Slack notification, null to cancel it"
+                    },
+                    "pinned": {
+                        "type": "boolean"
+                    },
+                    "category": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AnnouncementCategory"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "body": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "description": "PATCH semantics: omitted fields are left unchanged"
+            },
+            "ApiSuccess__url-string__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "url": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["url"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAnnouncementImageUploadResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__url-string__"
             },
             "ManagedAgentScheduleOption": {
                 "enum": [
@@ -12210,6 +12389,11 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
+            "TimestampDomain": {
+                "type": "string",
+                "enum": ["aware", "naive"],
+                "description": "Whether a TIMESTAMP column stores an instant ('aware') or a bare wall clock\n('naive'). Absent means unknown — never assume 'aware' for a missing value."
+            },
             "FilterAutocompleteValue": {
                 "properties": {
                     "label": {
@@ -12438,6 +12622,9 @@
                     },
                     "skipTimezoneConversion": {
                         "type": "boolean"
+                    },
+                    "timestampDomain": {
+                        "$ref": "#/components/schemas/TimestampDomain"
                     },
                     "colors": {
                         "$ref": "#/components/schemas/Record_string.string_"
@@ -13377,6 +13564,9 @@
                     },
                     "skipTimezoneConversion": {
                         "type": "boolean"
+                    },
+                    "timestampDomain": {
+                        "$ref": "#/components/schemas/TimestampDomain"
                     },
                     "colors": {
                         "$ref": "#/components/schemas/Record_string.string_"
@@ -27687,6 +27877,249 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "AgentOnboardingRunStatus": {
+                "type": "string",
+                "enum": [
+                    "queued",
+                    "running",
+                    "failed",
+                    "completed",
+                    "cancelled"
+                ]
+            },
+            "AgentOnboardingStage": {
+                "type": "string",
+                "enum": [
+                    "preparing_project",
+                    "exploring_warehouse",
+                    "deploying_semantic_layer",
+                    "building_dashboard",
+                    "verifying",
+                    "handoff"
+                ]
+            },
+            "AgentOnboardingRunEvent": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "stage": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentOnboardingStage"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "eventType": {
+                        "type": "string",
+                        "enum": ["stage", "step", "log"]
+                    }
+                },
+                "required": ["createdAt", "stage", "message", "eventType"],
+                "type": "object"
+            },
+            "AgentOnboardingHandoff": {
+                "properties": {
+                    "dashboardUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "summary": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["dashboardUrl", "summary"],
+                "type": "object"
+            },
+            "AgentOnboardingUsage": {
+                "properties": {
+                    "numTurns": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "outputTokens": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "inputTokens": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "costUsd": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "numTurns",
+                    "outputTokens",
+                    "inputTokens",
+                    "costUsd"
+                ],
+                "type": "object"
+            },
+            "AgentOnboardingFile": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string"
+                    },
+                    "sizeBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "required": ["updatedAt", "sizeBytes", "path"],
+                "type": "object"
+            },
+            "AgentOnboardingRun": {
+                "properties": {
+                    "completedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "startedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "errorMessage": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "files": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentOnboardingFile"
+                        },
+                        "type": "array"
+                    },
+                    "usage": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentOnboardingUsage"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "handoff": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentOnboardingHandoff"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "events": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentOnboardingRunEvent"
+                        },
+                        "type": "array"
+                    },
+                    "stage": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentOnboardingStage"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/AgentOnboardingRunStatus"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "agentOnboardingRunUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "completedAt",
+                    "startedAt",
+                    "updatedAt",
+                    "createdAt",
+                    "errorMessage",
+                    "files",
+                    "usage",
+                    "handoff",
+                    "events",
+                    "stage",
+                    "status",
+                    "projectUuid",
+                    "agentOnboardingRunUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AgentOnboardingRun_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AgentOnboardingRun"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAgentOnboardingRunResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AgentOnboardingRun_"
+            },
+            "AgentOnboardingFileContent": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AgentOnboardingFile"
+                    },
+                    {
+                        "properties": {
+                            "encoding": {
+                                "type": "string",
+                                "enum": ["utf8", "base64"]
+                            },
+                            "content": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["encoding", "content"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_AgentOnboardingFileContent_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AgentOnboardingFileContent"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAgentOnboardingFileResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AgentOnboardingFileContent_"
+            },
             "Role": {
                 "properties": {
                     "updatedAt": {
@@ -28442,8 +28875,8 @@
                     "running",
                     "failed",
                     "completed",
-                    "partially_completed",
-                    "cancelled"
+                    "cancelled",
+                    "partially_completed"
                 ]
             },
             "AiDeepResearchChartConfig": {
@@ -35851,6 +36284,7 @@
                     "appBuildFromSource",
                     "aiWritebackPipeline",
                     "aiDeepResearch",
+                    "agentOnboardingRun",
                     "aiAgentEditDbtProjectPipeline",
                     "sweepStaleAppLocks",
                     "sweepStaleAiWritebackRuns",
@@ -48614,7 +49048,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3431.0",
+        "version": "0.3442.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -53206,6 +53640,261 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/announcements": {
+            "get": {
+                "operationId": "listProjectAnnouncements",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAnnouncementsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "default": 1,
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "default": 25,
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "includeUnpublished",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "createProjectAnnouncement",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAnnouncementResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateAnnouncementRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/announcements/{announcementUuid}": {
+            "patch": {
+                "operationId": "updateProjectAnnouncement",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAnnouncementResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "announcementUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateAnnouncementRequest"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "deleteProjectAnnouncement",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "announcementUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/announcements/images": {
+            "post": {
+                "operationId": "uploadProjectAnnouncementImage",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAnnouncementImageUploadResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/databricks/sso/is-authenticated": {
@@ -59125,6 +59814,198 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/ee/projects/{projectUuid}/agent-onboarding": {
+            "post": {
+                "operationId": "createAgentOnboardingRun",
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAgentOnboardingRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Start a server-side agent onboarding run for a prepared project.\nReturns the existing run when one is already active for the project.",
+                "summary": "Start agent onboarding run",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/ee/projects/{projectUuid}/agent-onboarding/{agentOnboardingRunUuid}": {
+            "get": {
+                "operationId": "getAgentOnboardingRun",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAgentOnboardingRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the durable state and progress events of an agent onboarding run.",
+                "summary": "Get agent onboarding run",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentOnboardingRunUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/ee/projects/{projectUuid}/agent-onboarding/{agentOnboardingRunUuid}/file": {
+            "get": {
+                "operationId": "getAgentOnboardingFile",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAgentOnboardingFileResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Read the latest persisted contents of a generated onboarding file.",
+                "summary": "Get onboarding run file",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentOnboardingRunUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/ee/projects/{projectUuid}/agent-onboarding/{agentOnboardingRunUuid}/cancel": {
+            "post": {
+                "operationId": "cancelAgentOnboardingRun",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAgentOnboardingRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Request cancellation of an agent onboarding run.",
+                "summary": "Cancel agent onboarding run",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentOnboardingRunUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v2/orgs/{orgUuid}/roles": {
