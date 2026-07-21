@@ -131,17 +131,28 @@ const AnnouncementCard: FC<{
     announcement: ProjectAnnouncement;
     actions?: ReactNode;
 }> = ({ projectUuid, announcement, actions }) => (
-    <div className={classes.card}>
-        {(announcement.pinned || announcement.category) && (
+    <div
+        className={
+            announcement.published
+                ? classes.card
+                : `${classes.card} ${classes.cardDraft}`
+        }
+    >
+        {(announcement.pinned ||
+            announcement.category ||
+            !announcement.published) && (
             <div className={classes.cardHeader}>
-                {announcement.pinned ? (
-                    <span className={classes.pinnedTag}>
-                        <MantineIcon icon={IconPin} size="sm" />
-                        Pinned
-                    </span>
-                ) : (
-                    <span />
-                )}
+                <span className={classes.headerTags}>
+                    {!announcement.published && (
+                        <span className={classes.draftTag}>Draft</span>
+                    )}
+                    {announcement.pinned && (
+                        <span className={classes.pinnedTag}>
+                            <MantineIcon icon={IconPin} size="sm" />
+                            Pinned
+                        </span>
+                    )}
+                </span>
                 {announcement.category && (
                     <AnnouncementCategoryBadge
                         category={announcement.category}
@@ -287,10 +298,14 @@ const AnnouncementFeed: FC<{
     );
 };
 
-const useAnnouncementFeed = (projectUuid: string): ProjectAnnouncement[] => {
+const useAnnouncementFeed = (
+    projectUuid: string,
+    includeUnpublished = false,
+): ProjectAnnouncement[] => {
     const { data } = useAnnouncements(projectUuid, {
         page: 1,
         pageSize: FEED_PAGE_SIZE,
+        includeUnpublished,
     });
     return useMemo(() => data?.items ?? [], [data]);
 };
@@ -444,7 +459,8 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
 }) => {
     const [creating, setCreating] = useState(false);
     const [editing, setEditing] = useState<ProjectAnnouncement | null>(null);
-    const announcements = useAnnouncementFeed(projectUuid);
+    // Build mode shows drafts too (they stay hidden on the live homepage).
+    const announcements = useAnnouncementFeed(projectUuid, true);
     // Warmed here so the Slack picker is ready the instant the modal opens.
     const { data: slack } = useGetSlack();
     const slackInstalled = !!slack?.organizationUuid;

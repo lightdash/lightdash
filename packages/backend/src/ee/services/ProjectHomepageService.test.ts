@@ -753,7 +753,7 @@ describe('ProjectHomepageService', () => {
                 ).rejects.toThrow(ParameterError);
             });
 
-            it('uploads the normalized image and returns a persistent URL', async () => {
+            it('uploads the normalized image and returns a site-relative URL', async () => {
                 const uploadImage = vi
                     .fn()
                     .mockResolvedValue('https://s3/presigned');
@@ -790,7 +790,7 @@ describe('ProjectHomepageService', () => {
                     }),
                 );
                 expect(result).toEqual({
-                    url: 'https://app.lightdash.com/api/v1/file/abc123',
+                    url: '/api/v1/file/abc123',
                 });
             });
         });

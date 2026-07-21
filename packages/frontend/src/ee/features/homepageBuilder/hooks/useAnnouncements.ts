@@ -14,6 +14,8 @@ const ANNOUNCEMENTS_QUERY_KEY = 'project_announcements';
 type ListOptions = {
     page?: number;
     pageSize?: number;
+    /** Include unpublished (draft) announcements — build mode only. */
+    includeUnpublished?: boolean;
 };
 
 const listAnnouncementsApi = async (
@@ -24,6 +26,9 @@ const listAnnouncementsApi = async (
         page: String(options.page ?? 1),
         pageSize: String(options.pageSize ?? 25),
     });
+    if (options.includeUnpublished) {
+        params.set('includeUnpublished', 'true');
+    }
     return lightdashApi<AnnouncementsPage>({
         url: `/projects/${projectUuid}/announcements?${params.toString()}`,
         method: 'GET',
@@ -41,6 +46,7 @@ export const useAnnouncements = (
             projectUuid,
             options.page ?? 1,
             options.pageSize ?? 25,
+            options.includeUnpublished ?? false,
         ],
         queryFn: () => listAnnouncementsApi(projectUuid, options),
         keepPreviousData: true,
