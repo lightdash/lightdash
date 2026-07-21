@@ -64,7 +64,7 @@ const AnnouncementCategoryBadge: FC<{ category: AnnouncementCategory }> = ({
 }) => {
     const meta = ANNOUNCEMENT_CATEGORY_META[category];
     return (
-        <CategoryBadge label={meta.label} color={meta.color} variant="token" />
+        <CategoryBadge label={meta.label} color={meta.color} variant="dot" />
     );
 };
 

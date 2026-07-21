@@ -37,20 +37,12 @@
 .pinnedTag {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
-    border-radius: var(--mantine-radius-sm);
-    background: light-dark(
-        var(--mantine-color-ldGray-1),
-        var(--mantine-color-dark-5)
-    );
-    font-size: 10.5px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    gap: 3px;
+    font-size: 11px;
+    font-weight: 500;
     color: light-dark(
-        var(--mantine-color-ldDark-6),
-        var(--mantine-color-ldGray-4)
+        var(--mantine-color-ldGray-5),
+        var(--mantine-color-ldGray-5)
     );
 }
 
