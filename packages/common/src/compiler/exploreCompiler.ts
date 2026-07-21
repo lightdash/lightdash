@@ -67,8 +67,10 @@ import {
 export const lightdashVariablePattern =
     /\$\{((?!(lightdash|ld)\.)[a-zA-Z0-9_.-]+)\}/g;
 
+// unquoted identifiers keep the legacy \w+ semantics — `$` must not match, or the
+// pattern swallows the start of an adjacent ${ref}; identifiers with `$` need quoting
 const lightdashTableColumnReferencePattern =
-    /\$\{TABLE\}\.((?:"(?:""|[^"])+")|(?:`(?:\\.|``|[^`\\])+`)|(?:[a-zA-Z_][a-zA-Z0-9_$]*))/g;
+    /\$\{TABLE\}\.((?:"(?:""|[^"])+")|(?:`(?:\\.|``|[^`\\])+`)|\w+)/g;
 
 type Reference = {
     refTable: string;

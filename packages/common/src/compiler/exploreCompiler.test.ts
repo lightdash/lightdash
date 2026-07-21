@@ -13,6 +13,7 @@ import {
     ExploreCompiler,
     getTableColumnReferences,
     parseAllReferences,
+    replaceTableColumnReferences,
     sqlAggregationWrapsReferences,
     sqlContainsAggregation,
     type UncompiledExplore,
@@ -637,6 +638,29 @@ describe('Parse dimension reference', () => {
                 '${TABLE}.address.city + ${amount} + ${orders.shipping_cost}',
             ),
         ).toStrictEqual(['address']);
+    });
+    test('should not swallow adjacent references when parsing unquoted TABLE column references', () => {
+        expect(getTableColumnReferences('${TABLE}.a${amount}')).toStrictEqual([
+            'a',
+        ]);
+        expect(
+            replaceTableColumnReferences(
+                '${TABLE}.a${amount} + ${TABLE}.tax',
+                (fullMatch, columnReference) => `[${columnReference}]`,
+            ),
+        ).toStrictEqual('[a]${amount} + [tax]');
+    });
+    test('should parse unquoted TABLE column references with legacy \\w+ semantics', () => {
+        expect(
+            getTableColumnReferences('${TABLE}.payment_count_30d'),
+        ).toStrictEqual(['payment_count_30d']);
+        expect(getTableColumnReferences('${TABLE}.2024_revenue')).toStrictEqual(
+            ['2024_revenue'],
+        );
+        expect(getTableColumnReferences('${TABLE}.a$b')).toStrictEqual(['a']);
+        expect(getTableColumnReferences('${TABLE}."a$b"')).toStrictEqual([
+            '"a$b"',
+        ]);
     });
     test('should not parse lightdash attribute', () => {
         expect(
