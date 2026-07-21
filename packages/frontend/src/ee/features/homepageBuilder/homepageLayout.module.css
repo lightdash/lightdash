@@ -207,6 +207,28 @@
 
 .col > * {
     width: 100%;
+    /* The block fills its column; non-elastic grids leave the slack at the
+     * bottom exactly as before, elastic ones distribute it across rows. */
+    flex: 1 0 auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.pageGrid[data-elastic] {
+    flex: 1;
+    /* With size containment below, a row's height can't come from its
+     * content — the floor is what stops an unstretched grid collapsing. */
+    grid-auto-rows: minmax(var(--elastic-floor, 65px), 1fr);
+}
+
+.pageGrid[data-floor='unit'] {
+    --elastic-floor: 140px;
+}
+
+/* Elastic cells are size containers, so a tile can adapt its layout to the
+ * height it actually received (see contentTile's container query). */
+.pageGrid[data-elastic] > .pageGridItem {
+    container-type: size;
 }
 
 .col[data-weight='2'] {

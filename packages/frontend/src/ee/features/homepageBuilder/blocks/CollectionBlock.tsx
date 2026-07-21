@@ -341,7 +341,7 @@ export const CollectionBlockView: FC<BlockComponentProps> = ({
         <Stack gap={0}>
             <BlockHeader icon={IconLayoutGrid} title={block.config.title} />
             {isInitialLoading ? (
-                <PageGrid itemSpan={itemSpan ?? null}>
+                <PageGrid itemSpan={itemSpan ?? null} elastic>
                     {uuids.slice(0, 3).map((uuid) => (
                         <PageGridItem key={uuid}>
                             <Skeleton h={108} radius="md" />
@@ -349,7 +349,7 @@ export const CollectionBlockView: FC<BlockComponentProps> = ({
                     ))}
                 </PageGrid>
             ) : (
-                <PageGrid itemSpan={itemSpan ?? null}>
+                <PageGrid itemSpan={itemSpan ?? null} elastic>
                     {(contents ?? []).map((content) => (
                         <PageGridItem key={content.uuid}>
                             <ContentCard
@@ -489,7 +489,7 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
                     items={(contents ?? []).map((content) => content.uuid)}
                     strategy={rectSortingStrategy}
                 >
-                    <PageGrid itemSpan={itemSpan ?? null}>
+                    <PageGrid itemSpan={itemSpan ?? null} elastic>
                         {(contents ?? []).map((content) => (
                             <SortableTile
                                 key={content.uuid}

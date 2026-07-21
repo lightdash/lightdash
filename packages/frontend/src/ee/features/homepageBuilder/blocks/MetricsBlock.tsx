@@ -274,7 +274,7 @@ export const MetricsBlockView: FC<BlockComponentProps> = ({
     return (
         <Stack gap={0}>
             <BlockHeader icon={IconChartDots} title={block.config.title} />
-            <PageGrid itemSpan={itemSpan ?? null}>
+            <PageGrid itemSpan={itemSpan ?? null} elastic floor="unit">
                 {block.config.items.map((metricRef) => (
                     <PageGridItem
                         key={`${metricRef.tableName}-${metricRef.metricName}`}

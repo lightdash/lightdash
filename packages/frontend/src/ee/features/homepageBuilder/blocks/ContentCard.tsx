@@ -15,6 +15,7 @@ import { type FC, type PropsWithChildren } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { ResourceIcon } from '../../../../components/common/ResourceIcon';
+import { useTimeAgo } from '../../../../hooks/useTimeAgo';
 import classes from './blockStyles.module.css';
 
 const contentUrl = (projectUuid: string, content: SummaryContent): string => {
@@ -44,6 +45,26 @@ const VerifiedBadge: FC<{ content: SummaryContent }> = ({ content }) =>
             </Box>
         </Tooltip>
     ) : null;
+
+const TileUpdated: FC<{ date: Date | string }> = ({ date }) => {
+    const timeAgo = useTimeAgo(date);
+    return <span>updated {timeAgo}</span>;
+};
+
+const TileExtra: FC<{ content: SummaryContent }> = ({ content }) => {
+    const spaceName =
+        'space' in content && content.space ? content.space.name : null;
+    if (!spaceName && !content.lastUpdatedAt) return null;
+    return (
+        <div className={classes.tileExtra}>
+            {spaceName ? `in ${spaceName}` : null}
+            {spaceName && content.lastUpdatedAt ? ' · ' : null}
+            {content.lastUpdatedAt ? (
+                <TileUpdated date={content.lastUpdatedAt} />
+            ) : null}
+        </div>
+    );
+};
 
 const KindAndViews: FC<{ content: SummaryContent }> = ({ content }) => (
     <Group gap={5} wrap="nowrap" className={classes.rowMeta}>
@@ -130,25 +151,26 @@ export const ContentCard: FC<Props> = ({
         return (
             <MaybeLink
                 to={to}
-                className={`${cardClass} ${classes.cardUnitHalf}`}
+                className={`${cardClass} ${classes.cardUnitHalf} ${classes.contentTile}`}
             >
-                <Group gap={10} wrap="nowrap" align="center" p={12} h="100%">
-                    <ResourceIcon item={contentToResourceViewItem(content)} />
-                    <Box flex={1} miw={0}>
-                        <Group gap={5} wrap="nowrap">
-                            <Text size="sm" fw={600} truncate>
-                                {content.name}
-                            </Text>
-                            <VerifiedBadge content={content} />
-                        </Group>
-                        <KindAndViews content={content} />
-                    </Box>
+                <ResourceIcon item={contentToResourceViewItem(content)} />
+                <div className={classes.tileBody}>
+                    <Group gap={5} wrap="nowrap">
+                        <Text size="sm" fw={600} truncate>
+                            {content.name}
+                        </Text>
+                        <VerifiedBadge content={content} />
+                    </Group>
+                    <KindAndViews content={content} />
+                    <TileExtra content={content} />
+                </div>
+                <div className={classes.tileActions}>
                     <CardActions
                         content={content}
                         onRemove={onRemove}
                         star={star}
                     />
-                </Group>
+                </div>
             </MaybeLink>
         );
     }

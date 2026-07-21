@@ -38,9 +38,52 @@
     min-height: var(--card-unit);
 }
 
-/* Half a unit: two of these plus the 10px grid gap equal one unit card. */
+/* Content tile: a compact horizontal row at the half-unit floor. When its
+ * elastic grid hands it more height (container query on the cell), it turns
+ * into a vertical card and reveals the extra meta line — richer, not airier. */
+.contentTile {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+}
+
+.tileBody {
+    flex: 1;
+    min-width: 0;
+}
+
+.tileExtra {
+    display: none;
+    font-size: 11.5px;
+    color: var(--mantine-color-ldGray-6);
+    margin-top: 8px;
+}
+
+@container (min-height: 112px) {
+    .contentTile {
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: space-between;
+    }
+
+    .contentTile .tileActions {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+
+    .tileExtra {
+        display: block;
+    }
+}
+
+/* Half a unit: two of these plus the 10px grid gap equal one unit card.
+ * A floor, not a fixed height — elastic grids stretch tiles to close the
+ * gap to a taller sibling column. */
 .cardUnitHalf {
-    height: calc((var(--card-unit) - 10px) / 2);
+    min-height: calc((var(--card-unit) - 10px) / 2);
 }
 
 .hoverCard {
