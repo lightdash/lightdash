@@ -98,6 +98,12 @@ export type WarehouseCatalogTimestampDomains = {
     };
 };
 
+/**
+ * WARNING: a catalog may carry the reserved `WAREHOUSE_TIMESTAMP_DOMAINS_KEY`
+ * sidecar alongside the database keys (its value is NOT a database entry).
+ * Never enumerate `Object.keys(catalog)` as database names without excluding
+ * it — look entries up by name, or use the sidecar accessors below.
+ */
 export type WarehouseCatalog = {
     [database: string]: {
         [schema: string]: {
