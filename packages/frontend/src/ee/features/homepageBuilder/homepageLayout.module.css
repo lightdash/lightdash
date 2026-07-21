@@ -205,7 +205,10 @@
  * container-relative and have no natural width); list/text blocks hug their
  * own content. Dense clusters exceed the row and shrink back to fill it. */
 .row[data-fit='hug'] {
-    --hug-unit: 236px;
+    /* One hug unit is one canonical card: the width a metrics tile takes at
+     * full page width ((1160 - 3 gaps) / 4). Sizing units to the real card
+     * width means a column asking for one card actually gets a readable one. */
+    --hug-unit: 281px;
     --hug-gap: 12px;
 
     justify-content: center;
@@ -217,8 +220,12 @@
     min-width: 0;
 }
 
+/* Card-grid columns may grow past their basis but never shrink below one
+ * card. Without the floor, a column asking for a single card gets squeezed by
+ * a busier neighbour until its card truncates to nothing. */
 .row[data-fit='hug'] .col[data-hug-units] {
     max-width: none;
+    min-width: var(--hug-unit);
 }
 
 .row[data-fit='hug'] .col[data-hug-units='1'] {
