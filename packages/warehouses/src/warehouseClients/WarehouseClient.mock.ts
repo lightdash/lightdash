@@ -65,22 +65,6 @@ export const expectedFields: Record<string, AnyType> = {
     myObjectColumn: { type: DimensionType.STRING },
 };
 
-export const expectedFieldsWithNaiveTimestamp: Record<string, AnyType> = {
-    ...expectedFields,
-    myTimestampColumn: {
-        type: DimensionType.TIMESTAMP,
-        timestampDomain: 'naive',
-    },
-};
-
-export const expectedFieldsWithAwareTimestamp: Record<string, AnyType> = {
-    ...expectedFields,
-    myTimestampColumn: {
-        type: DimensionType.TIMESTAMP,
-        timestampDomain: 'aware',
-    },
-};
-
 export const expectedRow: Record<string, AnyType> = {
     myStringColumn: 'string value',
     myNumberColumn: 100,

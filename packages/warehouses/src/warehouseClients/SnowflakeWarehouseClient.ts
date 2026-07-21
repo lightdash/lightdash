@@ -1311,17 +1311,15 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         // There is a bug/mistype in snowflake-sdk since this method can return undefined
         const columns = stmt.getColumns() as Column[] | undefined;
         return columns
-            ? columns.reduce((acc, column) => {
-                  const rawType = column.getType().toUpperCase();
-                  const timestampDomain = getSnowflakeTimestampDomain(rawType);
-                  return {
+            ? columns.reduce(
+                  (acc, column) => ({
                       ...acc,
                       [column.getName()]: {
-                          type: mapFieldType(rawType),
-                          ...(timestampDomain ? { timestampDomain } : {}),
+                          type: mapFieldType(column.getType().toUpperCase()),
                       },
-                  };
-              }, {})
+                  }),
+                  {},
+              )
             : {};
     }
 

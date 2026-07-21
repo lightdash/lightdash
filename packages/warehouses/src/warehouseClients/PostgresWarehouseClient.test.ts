@@ -13,7 +13,7 @@ import {
 } from './PostgresWarehouseClient.mock';
 import {
     config,
-    expectedFieldsWithNaiveTimestamp,
+    expectedFields,
     expectedRow,
     expectedWarehouseSchemaWithNaiveTimestamp,
 } from './WarehouseClient.mock';
@@ -61,7 +61,7 @@ describe('PostgresWarehouseClient', () => {
     it('expect query rows', async () => {
         const warehouse = new PostgresWarehouseClient(credentials);
         const results = await warehouse.runQuery('fake sql');
-        expect(results.fields).toEqual(expectedFieldsWithNaiveTimestamp);
+        expect(results.fields).toEqual(expectedFields);
         expect(results.rows[0]).toEqual(expectedRow);
     });
     it('expect schema with postgres types mapped to dimension types', async () => {

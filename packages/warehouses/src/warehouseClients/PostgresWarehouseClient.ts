@@ -176,19 +176,6 @@ const convertDataTypeIdToDimensionType = (
     }
 };
 
-export const convertDataTypeIdToTimestampDomain = (
-    dataTypeId: number,
-): TimestampDomain | undefined => {
-    switch (dataTypeId) {
-        case builtins.TIMESTAMP:
-            return 'naive';
-        case builtins.TIMESTAMPTZ:
-            return 'aware';
-        default:
-            return undefined;
-    }
-};
-
 export class PostgresSqlBuilder extends WarehouseBaseSqlBuilder {
     type = WarehouseTypes.POSTGRES;
 
@@ -261,17 +248,10 @@ export class PostgresClient<
         fields: QueryResult<AnyType>['fields'],
     ): WarehouseResults['fields'] {
         return Object.fromEntries(
-            fields.map(({ name, dataTypeID }) => {
-                const timestampDomain =
-                    convertDataTypeIdToTimestampDomain(dataTypeID);
-                return [
-                    name,
-                    {
-                        type: convertDataTypeIdToDimensionType(dataTypeID),
-                        ...(timestampDomain ? { timestampDomain } : {}),
-                    },
-                ];
-            }),
+            fields.map(({ name, dataTypeID }) => [
+                name,
+                { type: convertDataTypeIdToDimensionType(dataTypeID) },
+            ]),
         );
     }
 

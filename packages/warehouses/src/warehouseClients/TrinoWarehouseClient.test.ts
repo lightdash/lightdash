@@ -23,11 +23,10 @@ vi.mock('trino-client', () => ({
 }));
 
 describe('TrinoWarehouseClient', () => {
-    const lowerCaseFields = Object.keys(
-        warehouseClient.expectedFieldsWithNaiveTimestamp,
-    ).reduce<Record<string, AnyType>>((acc, key) => {
-        acc[key.toLowerCase()] =
-            warehouseClient.expectedFieldsWithNaiveTimestamp[key];
+    const lowerCaseFields = Object.keys(warehouseClient.expectedFields).reduce<
+        Record<string, AnyType>
+    >((acc, key) => {
+        acc[key.toLowerCase()] = warehouseClient.expectedFields[key];
         return acc;
     }, {});
     const lowerCaseRow = Object.keys(warehouseClient.expectedRow).reduce<

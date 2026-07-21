@@ -357,18 +357,17 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                 type: string;
                 typeSignature: { rawType: string };
             }[] = queryResult.value.columns ?? [];
-            const fields = schema.reduce((acc, column) => {
-                const rawType =
-                    column.typeSignature.rawType ?? TrinoTypes.VARCHAR;
-                const timestampDomain = getTrinoTimestampDomain(rawType);
-                return {
+            const fields = schema.reduce(
+                (acc, column) => ({
                     ...acc,
                     [normalizeColumnName(column.name)]: {
-                        type: convertDataTypeToDimensionType(rawType),
-                        ...(timestampDomain ? { timestampDomain } : {}),
+                        type: convertDataTypeToDimensionType(
+                            column.typeSignature.rawType ?? TrinoTypes.VARCHAR,
+                        ),
                     },
-                };
-            }, {});
+                }),
+                {},
+            );
 
             // stream initial data, if available
             if (queryResult.value.data) {

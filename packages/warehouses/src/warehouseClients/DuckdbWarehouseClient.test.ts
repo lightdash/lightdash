@@ -229,10 +229,7 @@ describe('DuckdbWarehouseClient', () => {
         expect(result.fields).toEqual({
             customer_name: { type: DimensionType.STRING },
             order_count: { type: DimensionType.NUMBER },
-            last_order_at: {
-                type: DimensionType.TIMESTAMP,
-                timestampDomain: 'naive',
-            },
+            last_order_at: { type: DimensionType.TIMESTAMP },
         });
     });
 

@@ -142,24 +142,6 @@ export type DuckdbWarehouseClientOptions = {
     onQueryProfile?: (profile: DuckdbQueryProfileMetrics) => void;
 };
 
-// DuckDB follows Postgres semantics: bare TIMESTAMP (any precision) is naive,
-// TIMESTAMP WITH TIME ZONE is aware
-export const getTimestampDomainFromTypeId = (
-    typeId: number,
-): TimestampDomain | undefined => {
-    switch (typeId) {
-        case DuckDBTypeId.TIMESTAMP:
-        case DuckDBTypeId.TIMESTAMP_S:
-        case DuckDBTypeId.TIMESTAMP_MS:
-        case DuckDBTypeId.TIMESTAMP_NS:
-            return 'naive';
-        case DuckDBTypeId.TIMESTAMP_TZ:
-            return 'aware';
-        default:
-            return undefined;
-    }
-};
-
 export const mapFieldTypeFromTypeId = (typeId: number): DimensionType => {
     switch (typeId) {
         case DuckDBTypeId.DATE:
@@ -1451,11 +1433,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const columnNames = result.columnNames();
         const fields: WarehouseResults['fields'] = {};
         for (let i = 0; i < result.columnCount; i += 1) {
-            const typeId = result.columnTypeId(i);
-            const timestampDomain = getTimestampDomainFromTypeId(typeId);
             fields[columnNames[i]] = {
-                type: mapFieldTypeFromTypeId(typeId),
-                ...(timestampDomain ? { timestampDomain } : {}),
+                type: mapFieldTypeFromTypeId(result.columnTypeId(i)),
             };
         }
         return fields;

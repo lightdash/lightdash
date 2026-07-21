@@ -325,12 +325,10 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                     } else if (Object.keys(fields).length === 0) {
                         // handle second row with column types
                         columnNames.forEach((c, index) => {
-                            const rawType = String(row[index]);
-                            const timestampDomain =
-                                getClickhouseTimestampDomain(rawType);
                             fields[c] = {
-                                type: convertDataTypeToDimensionType(rawType),
-                                ...(timestampDomain ? { timestampDomain } : {}),
+                                type: convertDataTypeToDimensionType(
+                                    String(row[index]),
+                                ),
                             };
                         });
                         // eslint-disable-next-line no-await-in-loop

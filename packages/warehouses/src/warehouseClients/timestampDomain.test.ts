@@ -1,16 +1,9 @@
-import { DuckDBTypeId } from '@duckdb/node-api';
 import { getAthenaTimestampDomain } from './AthenaWarehouseClient';
 import { getBigqueryTimestampDomain } from './BigqueryWarehouseClient';
 import { getClickhouseTimestampDomain } from './ClickhouseWarehouseClient';
 import { getDatabricksTimestampDomain } from './DatabricksWarehouseClient';
-import {
-    getDuckdbTimestampDomainFromString,
-    getTimestampDomainFromTypeId,
-} from './DuckdbWarehouseClient';
-import {
-    convertDataTypeIdToTimestampDomain,
-    getPostgresTimestampDomain,
-} from './PostgresWarehouseClient';
+import { getDuckdbTimestampDomainFromString } from './DuckdbWarehouseClient';
+import { getPostgresTimestampDomain } from './PostgresWarehouseClient';
 import { getSnowflakeTimestampDomain } from './SnowflakeWarehouseClient';
 import { getTrinoTimestampDomain } from './TrinoWarehouseClient';
 
@@ -31,11 +24,6 @@ describe('postgres timestamp domain', () => {
         expect(getPostgresTimestampDomain('integer')).toBeUndefined();
         expect(getPostgresTimestampDomain('date')).toBeUndefined();
         expect(getPostgresTimestampDomain('time')).toBeUndefined();
-    });
-    it('classifies result-field OIDs', () => {
-        expect(convertDataTypeIdToTimestampDomain(1114)).toEqual('naive');
-        expect(convertDataTypeIdToTimestampDomain(1184)).toEqual('aware');
-        expect(convertDataTypeIdToTimestampDomain(23)).toBeUndefined();
     });
 });
 
@@ -128,20 +116,6 @@ describe('athena timestamp domain', () => {
 });
 
 describe('duckdb timestamp domain', () => {
-    it('classifies type ids', () => {
-        expect(getTimestampDomainFromTypeId(DuckDBTypeId.TIMESTAMP)).toEqual(
-            'naive',
-        );
-        expect(getTimestampDomainFromTypeId(DuckDBTypeId.TIMESTAMP_S)).toEqual(
-            'naive',
-        );
-        expect(getTimestampDomainFromTypeId(DuckDBTypeId.TIMESTAMP_TZ)).toEqual(
-            'aware',
-        );
-        expect(
-            getTimestampDomainFromTypeId(DuckDBTypeId.INTEGER),
-        ).toBeUndefined();
-    });
     it('classifies type name strings', () => {
         expect(getDuckdbTimestampDomainFromString('TIMESTAMP')).toEqual(
             'naive',

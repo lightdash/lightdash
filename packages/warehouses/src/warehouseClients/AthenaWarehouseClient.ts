@@ -477,16 +477,10 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
                     fields = columnInfo.reduce<WarehouseResults['fields']>(
                         (acc, col) => {
                             if (col.Name) {
-                                const rawType = col.Type || 'varchar';
-                                const timestampDomain =
-                                    getAthenaTimestampDomain(rawType);
                                 acc[normalizeColumnName(col.Name)] = {
                                     type: convertDataTypeToDimensionType(
-                                        rawType,
+                                        col.Type || 'varchar',
                                     ),
-                                    ...(timestampDomain
-                                        ? { timestampDomain }
-                                        : {}),
                                 };
                             }
                             return acc;

@@ -335,13 +335,9 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             WarehouseResults['fields']
         >((acc, field) => {
             if (field.name) {
-                const timestampDomain = getBigqueryTimestampDomain(field.type);
                 return {
                     ...acc,
-                    [field.name]: {
-                        type: mapFieldType(field.type),
-                        ...(timestampDomain ? { timestampDomain } : {}),
-                    },
+                    [field.name]: { type: mapFieldType(field.type) },
                 };
             }
             return acc;

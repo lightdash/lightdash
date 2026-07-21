@@ -185,10 +185,7 @@ export type WarehouseTables = {
 }[];
 
 export type WarehouseResults = {
-    fields: Record<
-        string,
-        { type: DimensionType; timestampDomain?: TimestampDomain }
-    >;
+    fields: Record<string, { type: DimensionType }>;
     rows: Record<string, AnyType>[];
 };
 
