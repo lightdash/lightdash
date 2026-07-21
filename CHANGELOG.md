@@ -1,3 +1,10 @@
+# [0.3433.0](https://github.com/lightdash/lightdash/compare/0.3432.0...0.3433.0) (2026-07-21)
+
+
+### Features
+
+* **data-apps:** guide generated apps to size content for delivery screenshots ([#24815](https://github.com/lightdash/lightdash/issues/24815)) ([2b685ee](https://github.com/lightdash/lightdash/commit/2b685ee53c33a1a0ca4dc94e88d2fcab43e06db6))
+
 # [0.3432.0](https://github.com/lightdash/lightdash/compare/0.3431.0...0.3432.0) (2026-07-21)
 
 
