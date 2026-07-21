@@ -20,6 +20,7 @@ import { Block, KnownBlock } from '@slack/bolt';
 import { partition } from 'lodash';
 import { z } from 'zod';
 import type { SlackStreamChunk } from '../../../../clients/Slack/SlackClient';
+import type { SentSlackFile } from '../types/aiAgentDependencies';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
 
 const SLACK_SECTION_TEXT_LIMIT = 3000;
@@ -460,7 +461,7 @@ const buildSlackCardBlock = ({
     subtitle?: string;
     body?: string;
     subtext?: string;
-    heroImage?: { url: string; slackFileId: string | null };
+    heroImage?: SentSlackFile;
     actions?: Array<{
         type: 'button';
         url?: string;
@@ -565,10 +566,7 @@ export async function getModernArtifactCardBlocks(
                   }
                 : undefined;
         })
-        .filter(
-            (image): image is { url: string; slackFileId: string | null } =>
-                image !== undefined,
-        );
+        .filter((image): image is SentSlackFile => image !== undefined);
     // The viz type lives in chartConfig.chartConfig.defaultVizType (line, bar,
     // ...); parseVizConfig flattens the unified generateVisualization shape to
     // "query_result" and can't tell a line from a bar, so read it directly and

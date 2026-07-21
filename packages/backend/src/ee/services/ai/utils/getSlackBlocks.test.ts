@@ -324,6 +324,95 @@ describe('Slack AI agent blocks', () => {
         ]);
     });
 
+    it('references Slack-hosted files in card hero images and keeps the URL for the Open image button', async () => {
+        const blocks = await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async () => 'https://lightdash.example.com/share/chart',
+            async () => ({}) as never,
+            'agent-1',
+            [
+                {
+                    artifactUuid: 'artifact-1',
+                    threadUuid: 'thread-1',
+                    promptUuid: 'prompt-1',
+                    artifactType: 'chart',
+                    savedQueryUuid: null,
+                    savedDashboardUuid: null,
+                    createdAt: new Date(),
+                    versionNumber: 1,
+                    versionUuid: 'version-1',
+                    title: 'Orders Over Time',
+                    description: null,
+                    dashboardConfig: null,
+                    versionCreatedAt: new Date(),
+                    verifiedByUserUuid: null,
+                    verifiedAt: null,
+                    chartConfig: {
+                        title: 'Orders Over Time',
+                        description: 'Orders by month',
+                        queryConfig: {
+                            exploreName: 'orders',
+                            dimensions: ['orders_order_date_month'],
+                            metrics: ['orders_unique_order_count'],
+                            sorts: [],
+                            limit: 500,
+                            customMetrics: [],
+                            tableCalculations: [],
+                            filters: null,
+                        },
+                        chartConfig: null,
+                    },
+                },
+            ],
+            [
+                {
+                    uuid: 'result-1',
+                    promptUuid: 'prompt-1',
+                    toolCallId: 'call-1',
+                    toolType: 'built-in',
+                    toolName: 'generateVisualization',
+                    result: 'ok',
+                    createdAt: new Date(),
+                    metadata: {
+                        status: 'success',
+                        chartImageUrl:
+                            'https://lightdash.example.com/api/v1/slack/card-image/abc',
+                        chartImageSlackFileId: 'F12345',
+                    } as never,
+                },
+            ],
+        );
+
+        expect(blocks).toMatchObject([
+            {
+                type: 'card',
+                hero_image: {
+                    slack_file: { id: 'F12345' },
+                },
+                actions: [
+                    {
+                        text: { text: 'Open image' },
+                        url: 'https://lightdash.example.com/api/v1/slack/card-image/abc',
+                    },
+                    {
+                        text: { text: 'Explore in Lightdash' },
+                        url: 'https://lightdash.example.com/share/chart',
+                    },
+                ],
+            },
+        ]);
+        const card = blocks[0] as unknown as {
+            hero_image: Record<string, unknown>;
+        };
+        expect(card.hero_image).not.toHaveProperty('image_url');
+    });
+
     it('uses the latest visualization attempt image when a single artifact was retried', async () => {
         const artifact = {
             artifactUuid: 'artifact-1',
