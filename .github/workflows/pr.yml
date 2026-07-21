@@ -516,7 +516,7 @@ jobs:
           {
             echo "## Playwright artifacts"
             echo
-            echo "Captured **${video_count}** videos at 1280x720."
+            echo "Captured **${video_count}** videos at 1600x900."
             echo
             echo "[Download videos, traces, screenshots, and HTML report](${ARTIFACT_URL})"
             echo
@@ -609,7 +609,7 @@ jobs:
           {
             echo "## Playwright mutating artifacts"
             echo
-            echo "Captured **${video_count}** videos at 1280x720."
+            echo "Captured **${video_count}** videos at 1600x900."
             echo
             echo "[Download videos, traces, screenshots, and HTML report](${ARTIFACT_URL})"
             echo
@@ -686,7 +686,7 @@ jobs:
           {
             echo "## Playwright timezone artifacts"
             echo
-            echo "Captured **${video_count}** videos at 1280x720."
+            echo "Captured **${video_count}** videos at 1600x900."
             echo
             echo "[Download videos, traces, screenshots, and HTML report](${ARTIFACT_URL})"
             echo
