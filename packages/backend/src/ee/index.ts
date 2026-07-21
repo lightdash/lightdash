@@ -214,7 +214,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                 }),
-            onboardingAgentService: ({ context, models, repository }) =>
+            onboardingAgentService: ({
+                context,
+                models,
+                repository,
+                clients,
+            }) =>
                 new OnboardingAgentService({
                     lightdashConfig: context.lightdashConfig,
                     agentOnboardingRunModel:
@@ -226,6 +231,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getPersonalAccessTokenService(),
                     promptService: repository.getPromptService(),
                     userService: repository.getUserService(),
+                    schedulerClient:
+                        clients.getSchedulerClient() as CommercialSchedulerClient,
                 }),
             previewDeploySetupService: ({ context, models }) =>
                 new PreviewDeploySetupService({
@@ -1017,6 +1024,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getAiWritebackService<AiWritebackService>(),
                 aiDeepResearchService:
                     context.serviceRepository.getAiDeepResearchService<AiDeepResearchService>(),
+                onboardingAgentService:
+                    context.serviceRepository.getOnboardingAgentService<OnboardingAgentService>(),
                 catalogService: context.serviceRepository.getCatalogService(),
                 encryptionUtil: context.utils.getEncryptionUtil(),
                 msTeamsClient: context.clients.getMsTeamsClient(),

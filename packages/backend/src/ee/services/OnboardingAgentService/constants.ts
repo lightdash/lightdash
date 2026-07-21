@@ -18,6 +18,7 @@ export const RUN_TIMEOUT_MS = 45 * 60 * 1000;
 export const SANDBOX_TIMEOUT_MS = 60 * 60 * 1000;
 export const PAT_EXPIRY_GRACE_MS = 15 * 60 * 1000;
 export const CANCELLATION_POLL_INTERVAL_MS = 10 * 1000;
+export const FILE_SYNC_INTERVAL_MS = 2 * 1000;
 
 export const ALLOWED_TOOLS = [
     `Read(${WORKDIR}/**)`,
