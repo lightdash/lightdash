@@ -206,10 +206,13 @@ const convertDimension = (
     if (type === DimensionType.TIMESTAMP && !disableTimestampConversion) {
         sql = convertTimezone(sql, 'UTC', 'UTC', targetWarehouse);
     }
-    // YAML declaration wins over the warehouse catalog; computed on the base
+    // YAML declaration wins over the warehouse catalog. The catalog describes
+    // the physical column, so its domain is dropped when custom SQL replaces
+    // the column — the expression may change the domain. Computed on the base
     // type so interval children inherit it like skipTimezoneConversion does.
     const rawTimestampDomain =
-        meta.dimension?.timestamp_domain ?? column.timestamp_domain;
+        meta.dimension?.timestamp_domain ??
+        (meta.dimension?.sql ? undefined : column.timestamp_domain);
     const timestampDomain: TimestampDomain | undefined =
         type === DimensionType.TIMESTAMP &&
         isTimestampDomain(rawTimestampDomain)

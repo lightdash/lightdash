@@ -1333,6 +1333,69 @@ export const MODEL_WITH_UNKNOWN_TIMESTAMP_DOMAIN: DbtModelNode & {
     },
 };
 
+export const MODEL_WITH_TIMESTAMP_DOMAIN_CUSTOM_SQL: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_created: {
+            name: 'user_created',
+            data_type: DimensionType.TIMESTAMP,
+            timestamp_domain: 'naive',
+            meta: {
+                dimension: {
+                    sql: "${TABLE}.user_created AT TIME ZONE 'UTC'",
+                    time_intervals: ['RAW', 'DAY'],
+                },
+            },
+        },
+    },
+};
+
+export const MODEL_WITH_TIMESTAMP_DOMAIN_CUSTOM_SQL_ANNOTATED: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_created: {
+            name: 'user_created',
+            data_type: DimensionType.TIMESTAMP,
+            timestamp_domain: 'naive',
+            meta: {
+                dimension: {
+                    sql: 'COALESCE(${TABLE}.user_created, ${TABLE}.fallback_at)',
+                    timestamp_domain: 'naive',
+                    time_intervals: ['RAW', 'DAY'],
+                },
+            },
+        },
+    },
+};
+
+export const MODEL_WITH_TIMESTAMP_DOMAIN_ADDITIONAL_DIMENSION: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_created: {
+            name: 'user_created',
+            data_type: DimensionType.TIMESTAMP,
+            timestamp_domain: 'naive',
+            meta: {
+                dimension: {
+                    time_intervals: ['RAW'],
+                },
+                additional_dimensions: {
+                    user_created_shifted: {
+                        type: DimensionType.TIMESTAMP,
+                        sql: "${TABLE}.user_created + INTERVAL '1 day'",
+                    },
+                },
+            },
+        },
+    },
+};
+
 export const LIGHTDASH_TABLE_SQL_WHERE: Omit<Table, 'lineageGraph'> = {
     ...BASE_LIGHTDASH_TABLE,
     sqlWhere: '${payment_method} IS NOT NULL',

@@ -73,6 +73,9 @@ import {
     MODEL_WITH_SQL_FILTER,
     MODEL_WITH_SQL_WHERE,
     MODEL_WITH_TIMESTAMP_DOMAIN,
+    MODEL_WITH_TIMESTAMP_DOMAIN_ADDITIONAL_DIMENSION,
+    MODEL_WITH_TIMESTAMP_DOMAIN_CUSTOM_SQL,
+    MODEL_WITH_TIMESTAMP_DOMAIN_CUSTOM_SQL_ANNOTATED,
     MODEL_WITH_TIMESTAMP_DOMAIN_YAML_OVERRIDE,
     MODEL_WITH_UNKNOWN_TIMESTAMP_DOMAIN,
     MODEL_WITH_WRONG_METRIC,
@@ -250,6 +253,47 @@ describe('timestamp domain', () => {
             'timestampDomain',
         );
         expect(result.dimensions.user_created_day).not.toHaveProperty(
+            'timestampDomain',
+        );
+    });
+
+    it('should not stamp the catalog domain on a custom SQL dimension', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            MODEL_WITH_TIMESTAMP_DOMAIN_CUSTOM_SQL,
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(result.dimensions.user_created).not.toHaveProperty(
+            'timestampDomain',
+        );
+        expect(result.dimensions.user_created_day).not.toHaveProperty(
+            'timestampDomain',
+        );
+    });
+
+    it('should honour the YAML timestamp_domain on a custom SQL dimension', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            MODEL_WITH_TIMESTAMP_DOMAIN_CUSTOM_SQL_ANNOTATED,
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(result.dimensions.user_created.timestampDomain).toEqual('naive');
+        expect(result.dimensions.user_created_day.timestampDomain).toEqual(
+            'naive',
+        );
+    });
+
+    it('should not stamp the catalog domain on additional dimensions', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            MODEL_WITH_TIMESTAMP_DOMAIN_ADDITIONAL_DIMENSION,
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(result.dimensions.user_created.timestampDomain).toEqual('naive');
+        expect(result.dimensions.user_created_shifted).not.toHaveProperty(
             'timestampDomain',
         );
     });
