@@ -1,5 +1,7 @@
+import { subject } from '@casl/ability';
 import { type AiAgent } from '@lightdash/common';
 import { Box, Group, Loader, Stack, Text, TextInput } from '@mantine-8/core';
+import { useDisclosure } from '@mantine-8/hooks';
 import { IconShare2 } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import {
@@ -15,6 +17,7 @@ import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { AgentSelector } from '../../features/aiCopilot/components/AgentSelector';
+import AiAgentAsCodeModal from '../../features/aiCopilot/components/AiAgentAsCodeModal';
 import { AgentPageHeader } from '../../features/aiCopilot/components/AiAgentPageLayout/AgentPageHeader';
 import { AgentSidebar } from '../../features/aiCopilot/components/AiAgentPageLayout/AgentSidebar';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
@@ -76,6 +79,17 @@ const AgentPage = () => {
         useCreateAgentThreadShareMutation();
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [shareUrl, setShareUrl] = useState<string | null>(null);
+    const [isAgentAsCodeModalOpen, agentAsCodeModalHandlers] = useDisclosure();
+
+    const canViewContentAsCode =
+        agent &&
+        user.data?.ability.can(
+            'view',
+            subject('ContentAsCode', {
+                organizationUuid: agent.organizationUuid,
+                projectUuid: agent.projectUuid,
+            }),
+        );
 
     const handleMinimize = useCallback(
         (targetUrl?: string, options?: NavigateFromAgentChatOptions) => {
@@ -235,6 +249,11 @@ const AgentPage = () => {
                         }
                         isSharing={isCreatingShare}
                         onMinimize={() => handleMinimize()}
+                        onViewAsCode={
+                            canViewContentAsCode
+                                ? agentAsCodeModalHandlers.open
+                                : undefined
+                        }
                         settingsHref={
                             canManageAgents
                                 ? `/projects/${projectUuid}/ai-agents/${agent.uuid}/edit`
@@ -244,6 +263,12 @@ const AgentPage = () => {
                 ) : undefined
             }
         >
+            <AiAgentAsCodeModal
+                opened={isAgentAsCodeModalOpen}
+                onClose={agentAsCodeModalHandlers.close}
+                projectUuid={agent.projectUuid}
+                agentUuid={agent.uuid}
+            />
             <MantineModal
                 opened={isShareModalOpen}
                 onClose={closeShareModal}

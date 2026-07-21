@@ -4,4 +4,16 @@
 
 .action {
     height: rem(32px);
+    border-color: var(--mantine-color-ldGray-2);
+    box-shadow: var(--mantine-shadow-subtle);
+    color: var(--mantine-color-ldGray-9);
+    font-size: var(--mantine-font-size-xs);
+}
+
+.actionIcon {
+    width: rem(32px);
+}
+
+.flippedIcon {
+    transform: scaleX(-1);
 }
