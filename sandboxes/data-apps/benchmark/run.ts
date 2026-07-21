@@ -25,6 +25,8 @@ import {
     type PromptSpec,
     type RuleResults,
 } from './assertions.ts';
+import { writeGallery } from './gallery.ts';
+import { renderRun } from './renderGate.ts';
 import { analyzeStream, type StreamAnalysis } from './stream.ts';
 
 const BENCH_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -47,14 +49,71 @@ function loadDotEnv() {
     }
 }
 
+const EFFORT_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+type EffortLevel = (typeof EFFORT_LEVELS)[number];
+
+type VariantSpec = {
+    name: string;
+    templateRef: string;
+    // null = no --effort flag, i.e. the CLI default the production pipeline runs with.
+    effort: EffortLevel | null;
+    envs: Record<string, string>;
+};
+
 type Config = {
-    variants: { name: string; templateRef: string }[];
+    variants: VariantSpec[];
     reps: number;
     promptIds: string[] | null;
     concurrency: number;
     model: string;
     outDir: string;
 };
+
+// The CLI warns-and-ignores unknown --effort values, which would silently run
+// a whole variant at default effort — validate up front instead.
+function parseVariant(value: string): VariantSpec {
+    const eq = value.indexOf('=');
+    if (eq === -1)
+        throw new Error(
+            '--variant expects name=templateRef[,effort=<level>][,env.KEY=VAL]',
+        );
+    const [templateRef, ...options] = value.slice(eq + 1).split(',');
+    const variant: VariantSpec = {
+        name: value.slice(0, eq),
+        templateRef,
+        effort: null,
+        envs: {},
+    };
+    for (const option of options) {
+        const optEq = option.indexOf('=');
+        if (optEq === -1)
+            throw new Error(`--variant option "${option}" expects key=value`);
+        const key = option.slice(0, optEq);
+        const optValue = option.slice(optEq + 1);
+        if (key === 'effort') {
+            if (!EFFORT_LEVELS.includes(optValue as EffortLevel))
+                throw new Error(
+                    `Invalid effort "${optValue}" (expected ${EFFORT_LEVELS.join('|')})`,
+                );
+            variant.effort = optValue as EffortLevel;
+        } else if (key.startsWith('env.') && key.length > 4) {
+            variant.envs[key.slice(4)] = optValue;
+        } else {
+            throw new Error(
+                `Unknown --variant option "${key}" (expected effort or env.KEY)`,
+            );
+        }
+    }
+    return variant;
+}
+
+function describeVariant(variant: VariantSpec): string {
+    const parts = [variant.templateRef];
+    if (variant.effort) parts.push(`effort=${variant.effort}`);
+    for (const [key, value] of Object.entries(variant.envs))
+        parts.push(`${key}=${value}`);
+    return parts.join(', ');
+}
 
 function parseArgs(argv: string[]): Config {
     const config: Config = {
@@ -73,16 +132,9 @@ function parseArgs(argv: string[]): Config {
         const [flag, value] = [argv[i], argv[i + 1]];
         if (value === undefined) throw new Error(`Missing value for ${flag}`);
         switch (flag) {
-            case '--variant': {
-                const eq = value.indexOf('=');
-                if (eq === -1)
-                    throw new Error('--variant expects name=templateRef');
-                config.variants.push({
-                    name: value.slice(0, eq),
-                    templateRef: value.slice(eq + 1),
-                });
+            case '--variant':
+                config.variants.push(parseVariant(value));
                 break;
-            }
             case '--reps':
                 config.reps = Number(value);
                 break;
@@ -107,6 +159,8 @@ function parseArgs(argv: string[]): Config {
             name: 'default',
             templateRef:
                 process.env.E2B_TEMPLATE_NAME || 'lightdash-data-app',
+            effort: null,
+            envs: {},
         });
     }
     return config;
@@ -129,7 +183,7 @@ type RunResult = {
 
 async function runOne(
     config: Config,
-    variant: { name: string; templateRef: string },
+    variant: VariantSpec,
     spec: PromptSpec,
     rep: number,
 ): Promise<RunResult> {
@@ -149,7 +203,10 @@ async function runOne(
     try {
         sandbox = await Sandbox.create(variant.templateRef, {
             timeoutMs: 30 * 60 * 1000,
-            envs: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY! },
+            envs: {
+                ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY!,
+                ...variant.envs,
+            },
         });
 
         // Fixture catalog + prompt (+ per-prompt extra files).
@@ -199,6 +256,7 @@ async function runOne(
             const generate = await sandbox.commands.run(
                 `cat /tmp/prompt.txt | claude -p ` +
                     `--model ${config.model} ` +
+                    (variant.effort ? `--effort ${variant.effort} ` : '') +
                     `--verbose --output-format stream-json --include-partial-messages ` +
                     `--allowedTools "${ALLOWED_TOOLS}" ` +
                     `--append-system-prompt-file /app/skill.md`,
@@ -236,6 +294,23 @@ async function runOne(
             buildPasses = false;
         }
         result.rules['build-passes'] = buildPasses;
+
+        // Download the built assets for the local render gate.
+        if (buildPasses) {
+            await sandbox.commands.run('tar -cf /tmp/dist.tar -C /app/dist .', {
+                timeoutMs: 30_000,
+            });
+            const distBytes = await sandbox.files.read('/tmp/dist.tar', {
+                format: 'bytes',
+            });
+            const distDir = path.join(config.outDir, 'dist', cell);
+            fs.mkdirSync(distDir, { recursive: true });
+            fs.writeFileSync(
+                path.join(distDir, 'dist.tar'),
+                Buffer.from(distBytes),
+            );
+            execSync('tar -xf dist.tar && rm dist.tar', { cwd: distDir });
+        }
 
         // Download the generated source for the mechanical gates.
         await sandbox.commands.run('tar -cf /tmp/src.tar -C /app src', {
@@ -286,7 +361,7 @@ function summarize(results: RunResult[], config: Config): string {
     const failed = results.filter((r) => r.error !== null);
 
     for (const variant of config.variants) {
-        lines.push(`\n=== ${variant.name} (${variant.templateRef}) ===`);
+        lines.push(`\n=== ${variant.name} (${describeVariant(variant)}) ===`);
         const rows = ok.filter((r) => r.variant === variant.name);
 
         lines.push(
@@ -427,6 +502,10 @@ async function main() {
     );
     console.log(`Output: ${config.outDir}\n`);
     fs.mkdirSync(config.outDir, { recursive: true });
+    fs.writeFileSync(
+        path.join(config.outDir, 'config.json'),
+        JSON.stringify(config, null, 2),
+    );
 
     // Simple concurrency pool.
     const results: RunResult[] = [];
@@ -454,6 +533,28 @@ async function main() {
     );
     await Promise.all(workers);
 
+    // Render gate: run every built app under the local mock host and fold
+    // the runtime rules (renders-clean, query validity) into the rubric.
+    console.log('\nRendering built apps through the mock host…');
+    try {
+        const rendered = await renderRun(config.outDir, {
+            concurrency: Math.min(4, config.concurrency),
+        });
+        for (const result of results) {
+            const render =
+                rendered[
+                    `${result.variant}__${result.promptId}__r${result.rep}`
+                ];
+            if (render) Object.assign(result.rules, render.rules);
+        }
+    } catch (err) {
+        console.error(
+            `Render gate failed (rules skipped): ${
+                err instanceof Error ? err.message : String(err)
+            }`,
+        );
+    }
+
     fs.writeFileSync(
         path.join(config.outDir, 'results.json'),
         JSON.stringify(results, null, 2),
@@ -461,6 +562,7 @@ async function main() {
     const summary = summarize(results, config);
     fs.writeFileSync(path.join(config.outDir, 'summary.txt'), summary);
     console.log(summary);
+    console.log(`\nGallery: ${writeGallery(config.outDir)}`);
 }
 
 await main();
