@@ -1,3 +1,10 @@
+# [0.3429.0](https://github.com/lightdash/lightdash/compare/0.3428.0...0.3429.0) (2026-07-21)
+
+
+### Features
+
+* seed data app in-app state from shareable URLs (PROD-8151) ([#25790](https://github.com/lightdash/lightdash/issues/25790)) ([38222f9](https://github.com/lightdash/lightdash/commit/38222f9cdb65b43645e81b8e164ee80ae4d9e3ea))
+
 # [0.3428.0](https://github.com/lightdash/lightdash/compare/0.3427.0...0.3428.0) (2026-07-20)
 
 
