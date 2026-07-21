@@ -19,6 +19,21 @@ type SlugTables =
 const CONTENT_AS_CODE_SLUG_LOCK_NAMESPACE = 2;
 const SPACE_ACCESS_LOCK_NAMESPACE = 3;
 
+const MAX_GENERATED_SAVED_CHART_SLUG_LENGTH = 255;
+
+const getSavedChartSlugCandidate = (
+    baseSlug: string,
+    increment: number,
+): string => {
+    if (increment === 0) return baseSlug;
+
+    const suffix = `-${increment}`;
+    return `${baseSlug.slice(
+        0,
+        MAX_GENERATED_SAVED_CHART_SLUG_LENGTH - suffix.length,
+    )}${suffix}`;
+};
+
 /**
  * Take a transaction-scoped Postgres advisory lock keyed on (projectUuid, slug).
  *
@@ -107,36 +122,23 @@ export const generateUniqueSlugScopedToProject = async (
     const baseSlug = generateSlug(name);
     let matchingSlugs: string[];
     switch (tableName) {
-        case SavedChartsTableName:
-            // NOTE: no `deleted_at IS NULL` filter here because
-            // we need to check for soft deleted charts as well
-            matchingSlugs = await trx(SavedChartsTableName)
-                .leftJoin(
-                    DashboardsTableName,
-                    `${DashboardsTableName}.dashboard_uuid`,
-                    `${SavedChartsTableName}.dashboard_uuid`,
-                )
-                .innerJoin(SpaceTableName, function spaceJoin() {
-                    this.on(
-                        `${SpaceTableName}.space_id`,
-                        '=',
-                        `${DashboardsTableName}.space_id`,
-                    ).orOn(
-                        `${SpaceTableName}.space_id`,
-                        '=',
-                        `${SavedChartsTableName}.space_id`,
-                    );
-                })
-                .innerJoin(
-                    ProjectTableName,
-                    `${SpaceTableName}.project_id`,
-                    `${ProjectTableName}.project_id`,
-                )
-                .where(`${ProjectTableName}.project_uuid`, projectUuid)
-                .select(`${SavedChartsTableName}.slug`)
-                .where(`${SavedChartsTableName}.slug`, 'like', `${baseSlug}%`)
-                .pluck(`${SavedChartsTableName}.slug`);
-            break;
+        case SavedChartsTableName: {
+            let increment = 0;
+            for (;;) {
+                const candidate = getSavedChartSlugCandidate(
+                    baseSlug,
+                    increment,
+                );
+                // eslint-disable-next-line no-await-in-loop
+                const existing = await trx(SavedChartsTableName)
+                    .select(`${SavedChartsTableName}.saved_query_id`)
+                    .where(`${SavedChartsTableName}.project_uuid`, projectUuid)
+                    .where(`${SavedChartsTableName}.slug`, candidate)
+                    .first();
+                if (!existing) return candidate;
+                increment += 1;
+            }
+        }
         case DashboardsTableName:
             matchingSlugs = await trx(DashboardsTableName)
                 .innerJoin(

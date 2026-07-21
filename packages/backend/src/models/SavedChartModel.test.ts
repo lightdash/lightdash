@@ -1,12 +1,20 @@
 import { AnyType } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
+import { DatabaseError } from 'pg';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SpaceTableName } from '../database/entities/spaces';
 import { createSavedChart, SavedChartModel } from './SavedChartModel';
 import { chartSummary } from './SavedChartModel.mock';
+
+const projectSlugUniqueViolation = (): DatabaseError => {
+    const error = new DatabaseError('duplicate chart slug', 0, 'error');
+    error.code = '23505';
+    error.constraint = 'saved_queries_project_uuid_slug_unique';
+    return error;
+};
 
 describe('createSavedChart', () => {
     const database = knex({ client: MockClient, dialect: 'pg' });
@@ -34,6 +42,7 @@ describe('createSavedChart', () => {
     });
 
     beforeEach(() => {
+        tracker.on.select('pg_advisory_xact_lock').response({});
         vi.spyOn(database, 'transaction').mockImplementation(((
             callback: AnyType,
         ) => callback(database)) as AnyType);
@@ -122,6 +131,226 @@ describe('createSavedChart', () => {
         expect(chartInsert?.sql).toContain('"project_uuid"');
         expect(chartInsert?.bindings).toContain(projectUuid);
         expect(chartInsert?.bindings).toContain(dashboardUuid);
+    });
+
+    test('generates a unique slug within the project', async () => {
+        const projectUuid = '22222222-2222-4222-8222-222222222222';
+        const spaceUuid = '33333333-3333-4333-8333-333333333333';
+
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ slug: 'orders' }]);
+        tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on.select(SpaceTableName).responseOnce([{ space_id: 7 }]);
+        tracker.on
+            .insert(SavedChartsTableName)
+            .responseOnce([
+                { saved_query_id: 11, saved_query_uuid: 'chart-uuid' },
+            ]);
+        tracker.on
+            .insert('saved_queries_versions')
+            .responseOnce([{ saved_queries_version_id: 13 }]);
+
+        await createSavedChart(
+            database,
+            projectUuid,
+            '11111111-1111-4111-8111-111111111111',
+            {
+                ...chartInput,
+                spaceUuid,
+                dashboardUuid: null,
+            },
+        );
+
+        const slugQuery = tracker.history.select.find((query) =>
+            query.sql.includes(`from "${SavedChartsTableName}"`),
+        );
+        expect(slugQuery?.sql).toContain(
+            `"${SavedChartsTableName}"."project_uuid"`,
+        );
+        expect(slugQuery?.bindings).toContain(projectUuid);
+
+        const chartInsert = tracker.history.insert.find((query) =>
+            query.sql.includes(`into "${SavedChartsTableName}"`),
+        );
+        expect(chartInsert?.bindings).toContain('orders-1');
+    });
+
+    test('returns an active chart that already has a forced slug', async () => {
+        tracker.on.select(SavedChartsTableName).responseOnce([
+            {
+                saved_query_uuid: 'existing-chart-uuid',
+                deleted_at: null,
+            },
+        ]);
+
+        const result = await createSavedChart(
+            database,
+            '22222222-2222-4222-8222-222222222222',
+            '11111111-1111-4111-8111-111111111111',
+            {
+                ...chartInput,
+                spaceUuid: '33333333-3333-4333-8333-333333333333',
+                dashboardUuid: null,
+                forceSlug: true,
+            },
+        );
+
+        expect(result).toBe('existing-chart-uuid');
+        expect(tracker.history.insert).toHaveLength(0);
+    });
+
+    test('rejects a forced slug owned by a deleted chart', async () => {
+        tracker.on.select(SavedChartsTableName).responseOnce([
+            {
+                saved_query_uuid: 'deleted-chart-uuid',
+                deleted_at: new Date(),
+            },
+        ]);
+
+        await expect(
+            createSavedChart(
+                database,
+                '22222222-2222-4222-8222-222222222222',
+                '11111111-1111-4111-8111-111111111111',
+                {
+                    ...chartInput,
+                    spaceUuid: '33333333-3333-4333-8333-333333333333',
+                    dashboardUuid: null,
+                    forceSlug: true,
+                },
+            ),
+        ).rejects.toThrow(
+            'Chart slug "orders" is already used by a deleted chart',
+        );
+        expect(tracker.history.insert).toHaveLength(0);
+    });
+
+    test('preserves a long forced slug', async () => {
+        tracker.on.select(SavedChartsTableName).responseOnce([
+            {
+                saved_query_uuid: 'existing-chart-uuid',
+                deleted_at: null,
+            },
+        ]);
+
+        const result = await createSavedChart(
+            database,
+            '22222222-2222-4222-8222-222222222222',
+            '11111111-1111-4111-8111-111111111111',
+            {
+                ...chartInput,
+                slug: '🌠'.repeat(300),
+                spaceUuid: '33333333-3333-4333-8333-333333333333',
+                dashboardUuid: null,
+                forceSlug: true,
+            },
+        );
+
+        expect(result).toBe('existing-chart-uuid');
+    });
+
+    test('retries a normal create after the database detects a slug race', async () => {
+        const projectUuid = '22222222-2222-4222-8222-222222222222';
+        const spaceUuid = '33333333-3333-4333-8333-333333333333';
+
+        tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ saved_query_id: 10 }]);
+        tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on.select(SpaceTableName).responseOnce([{ space_id: 7 }]);
+        tracker.on.select(SpaceTableName).responseOnce([{ space_id: 7 }]);
+        tracker.on
+            .insert(SavedChartsTableName)
+            .simulateErrorOnce(projectSlugUniqueViolation());
+        tracker.on
+            .insert(SavedChartsTableName)
+            .responseOnce([
+                { saved_query_id: 11, saved_query_uuid: 'chart-uuid' },
+            ]);
+        tracker.on
+            .insert('saved_queries_versions')
+            .responseOnce([{ saved_queries_version_id: 13 }]);
+
+        const result = await createSavedChart(
+            database,
+            projectUuid,
+            '11111111-1111-4111-8111-111111111111',
+            {
+                ...chartInput,
+                spaceUuid,
+                dashboardUuid: null,
+            },
+        );
+
+        expect(result).toBe('chart-uuid');
+        const successfulInsert = tracker.history.insert.at(-2);
+        expect(successfulInsert?.bindings).toContain('orders-1');
+    });
+
+    test('resolves a forced-slug race to the chart committed by the other writer', async () => {
+        tracker.on.select(SavedChartsTableName).responseOnce([]);
+        tracker.on.select(SpaceTableName).responseOnce([{ space_id: 7 }]);
+        tracker.on.select(SavedChartsTableName).responseOnce([
+            {
+                saved_query_uuid: 'racing-chart-uuid',
+                deleted_at: null,
+            },
+        ]);
+        tracker.on
+            .insert(SavedChartsTableName)
+            .simulateErrorOnce(projectSlugUniqueViolation());
+
+        const result = await createSavedChart(
+            database,
+            '22222222-2222-4222-8222-222222222222',
+            '11111111-1111-4111-8111-111111111111',
+            {
+                ...chartInput,
+                spaceUuid: '33333333-3333-4333-8333-333333333333',
+                dashboardUuid: null,
+                forceSlug: true,
+            },
+        );
+
+        expect(result).toBe('racing-chart-uuid');
+        expect(tracker.history.insert).toHaveLength(1);
+    });
+
+    test('reconciles a forced slug after the final retry loses a race', async () => {
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+            tracker.on.select(SavedChartsTableName).responseOnce([]);
+            tracker.on.select(SpaceTableName).responseOnce([{ space_id: 7 }]);
+            tracker.on
+                .insert(SavedChartsTableName)
+                .simulateErrorOnce(projectSlugUniqueViolation());
+            tracker.on.select(SavedChartsTableName).responseOnce(
+                attempt === 2
+                    ? [
+                          {
+                              saved_query_uuid: 'final-racing-chart-uuid',
+                              deleted_at: null,
+                          },
+                      ]
+                    : [],
+            );
+        }
+
+        const result = await createSavedChart(
+            database,
+            '22222222-2222-4222-8222-222222222222',
+            '11111111-1111-4111-8111-111111111111',
+            {
+                ...chartInput,
+                spaceUuid: '33333333-3333-4333-8333-333333333333',
+                dashboardUuid: null,
+                forceSlug: true,
+            },
+        );
+
+        expect(result).toBe('final-racing-chart-uuid');
+        expect(tracker.history.insert).toHaveLength(3);
     });
 });
 
@@ -238,6 +467,13 @@ describe('updateMultiple', () => {
         ).rejects.toThrow('Saved query not found');
 
         const [updateQuery] = tracker.history.update;
+        expect(updateQuery.sql).toContain(
+            `"${SavedChartsTableName}"."project_uuid"`,
+        );
+        expect(updateQuery.sql).toContain(
+            `"${SavedChartsTableName}"."space_id" is not null`,
+        );
+        expect(updateQuery.sql).not.toContain(' in (select ');
         expect(updateQuery.bindings).toContain(chartUuid);
         expect(updateQuery.bindings).toContain(projectUuid);
     });
@@ -273,6 +509,11 @@ describe('update', () => {
         await model.update(chartUuid, { name: 'Renamed chart' });
 
         expect(tracker.history.select).toHaveLength(1);
+        const [projectQuery] = tracker.history.select;
+        expect(projectQuery.sql).toContain(
+            `"${SavedChartsTableName}"."project_uuid"`,
+        );
+        expect(projectQuery.sql).not.toContain('join "projects"');
         const [updateQuery] = tracker.history.update;
         expect(updateQuery.sql).toContain('"project_uuid"');
         expect(updateQuery.sql).not.toContain('"space_id"');
@@ -347,6 +588,10 @@ describe('moveToSpace', () => {
         const sourceChartQuery = tracker.history.select.find((query) =>
             query.sql.includes(`from "${SavedChartsTableName}"`),
         );
+        expect(sourceChartQuery?.sql).toContain(
+            `"${SavedChartsTableName}"."project_uuid"`,
+        );
+        expect(sourceChartQuery?.sql).not.toContain('current_project');
         expect(sourceChartQuery?.bindings).toContain(chartUuid);
         expect(sourceChartQuery?.bindings).toContain(projectUuid);
 
