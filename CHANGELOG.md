@@ -1,3 +1,10 @@
+## [0.3441.1](https://github.com/lightdash/lightdash/compare/0.3441.0...0.3441.1) (2026-07-21)
+
+
+### Bug Fixes
+
+* **ai-agent:** surface warehouse errors instead of going silent in Slack ([#25867](https://github.com/lightdash/lightdash/issues/25867)) ([57930a7](https://github.com/lightdash/lightdash/commit/57930a751f459a5e5f41d232863d81ec90fe27fc)), closes [/linear.app/lightdash/issue/ZAP-594/slack-ai-agent-goes-silent-when-generation-fails-after-repeated#agent-session-9167662](https://github.com//linear.app/lightdash/issue/ZAP-594/slack-ai-agent-goes-silent-when-generation-fails-after-repeated/issues/agent-session-9167662) [/linear.app/lightdash/issue/ZAP-594/slack-ai-agent-goes-silent-when-generation-fails-after-repeated#agent-session-9167662](https://github.com//linear.app/lightdash/issue/ZAP-594/slack-ai-agent-goes-silent-when-generation-fails-after-repeated/issues/agent-session-9167662)
+
 # [0.3441.0](https://github.com/lightdash/lightdash/compare/0.3440.0...0.3441.0) (2026-07-21)
 
 
