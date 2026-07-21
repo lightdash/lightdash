@@ -35,6 +35,8 @@ import {
 } from 'react';
 import { CategoryBadge } from '../../../../components/common/CategoryBadge/CategoryBadge';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { SlackChannelSelect } from '../../../../components/common/SlackChannelSelect';
+import { useGetSlack } from '../../../../hooks/slack/useSlack';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
 import useApp from '../../../../providers/App/useApp';
 import {
@@ -293,6 +295,9 @@ const AnnouncementDrawer: FC<{
         announcement?.category ?? null,
     );
     const [debouncedBody] = useDebouncedValue(body, 350);
+    const [slackChannelId, setSlackChannelId] = useState<string | null>(null);
+    const { data: slack } = useGetSlack();
+    const slackInstalled = !!slack?.organizationUuid;
     const { mutate: create, isLoading: creating } =
         useCreateAnnouncement(projectUuid);
     const { mutate: update, isLoading: updating } =
@@ -316,7 +321,12 @@ const AnnouncementDrawer: FC<{
             );
         } else {
             create(
-                { title: trimmedTitle, body: bodyValue, category },
+                {
+                    title: trimmedTitle,
+                    body: bodyValue,
+                    category,
+                    slackChannelId,
+                },
                 { onSuccess: onClose },
             );
         }
@@ -337,6 +347,10 @@ const AnnouncementDrawer: FC<{
         createdAt: new Date(),
         updatedAt: new Date(),
     };
+
+    let saveLabel = 'Publish';
+    if (isEdit) saveLabel = 'Save';
+    else if (slackChannelId) saveLabel = 'Publish & notify';
 
     return (
         <Drawer
@@ -380,6 +394,14 @@ const AnnouncementDrawer: FC<{
                             />
                         </div>
                     </div>
+                    {!isEdit && slackInstalled && (
+                        <SlackChannelSelect
+                            label="Notify a Slack channel (optional)"
+                            placeholder="No Slack notification"
+                            value={slackChannelId}
+                            onChange={setSlackChannelId}
+                        />
+                    )}
                 </div>
                 <div className={classes.drawerPreview}>
                     <Text size="xs" fw={600} c="dimmed" tt="uppercase" mb="xs">
@@ -401,7 +423,7 @@ const AnnouncementDrawer: FC<{
                     loading={isLoading}
                     disabled={title.trim().length === 0}
                 >
-                    {isEdit ? 'Save' : 'Publish'}
+                    {saveLabel}
                 </Button>
             </Group>
         </Drawer>
