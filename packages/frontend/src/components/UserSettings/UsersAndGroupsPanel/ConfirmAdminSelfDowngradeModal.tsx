@@ -21,7 +21,7 @@ const ConfirmAdminSelfDowngradeModal: FC<
         size="md"
         description="You cannot undo this action. Another admin will have to manage your role for you."
         onConfirm={onConfirm}
-        confirmLabel="Change role"
+        confirmLabel="Downgrade role"
         confirmLoading={loading}
     />
 );
