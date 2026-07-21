@@ -1,3 +1,10 @@
+## [0.3429.1](https://github.com/lightdash/lightdash/compare/0.3429.0...0.3429.1) (2026-07-21)
+
+
+### Bug Fixes
+
+* dashboard filters dropped on SQL chart tiles by TSOA validation ([#25841](https://github.com/lightdash/lightdash/issues/25841)) ([ee7d6db](https://github.com/lightdash/lightdash/commit/ee7d6dbb294f7a28884c705a8d5c900220907d0a))
+
 # [0.3429.0](https://github.com/lightdash/lightdash/compare/0.3428.0...0.3429.0) (2026-07-21)
 
 

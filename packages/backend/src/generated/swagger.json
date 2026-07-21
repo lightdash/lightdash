@@ -4229,10 +4229,24 @@
                 "required": ["tableName", "fieldId"],
                 "type": "object"
             },
-            "Record_string.DashboardTileTarget_": {
+            "DashboardTileTarget": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardFieldTarget"
+                    },
+                    {
+                        "type": "boolean",
+                        "enum": [false]
+                    }
+                ]
+            },
+            "DashboardTileTargets": {
                 "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DashboardTileTarget"
+                },
                 "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
+                "description": "Deliberately an index-signature literal, not `Record<string, ...>`. When\nTSOA first resolves `Record<string, DashboardTileTarget>` inside a mapped\ntype (e.g. `Omit<DashboardFilterRule, 'id'>` in content-as-code types), it\ncaches an EMPTY model under the shared `Record_string.DashboardTileTarget_`\nname, and request validation then strips every tileTargets entry from\nbodies — silently breaking dashboard filters on SQL chart tiles. The\nindex-signature form resolves correctly in every context."
             },
             "Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__": {
                 "properties": {
@@ -4272,7 +4286,7 @@
                         "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule."
                     },
                     "tileTargets": {
-                        "$ref": "#/components/schemas/Record_string.DashboardTileTarget_"
+                        "$ref": "#/components/schemas/DashboardTileTargets"
                     },
                     "singleValue": {
                         "type": "boolean"
@@ -4368,7 +4382,7 @@
                                 "type": "string"
                             },
                             "tileTargets": {
-                                "$ref": "#/components/schemas/Record_string.DashboardTileTarget_"
+                                "$ref": "#/components/schemas/DashboardTileTargets"
                             }
                         },
                         "type": "object"
@@ -48600,7 +48614,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3429.0",
+        "version": "0.3429.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

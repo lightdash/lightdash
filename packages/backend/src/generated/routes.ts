@@ -3963,11 +3963,24 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.DashboardTileTarget_': {
+    DashboardTileTarget: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'DashboardFieldTarget' },
+                { dataType: 'enum', enums: [false] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardTileTargets: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {},
+            additionalProperties: { ref: 'DashboardTileTarget' },
             validators: {},
         },
     },
@@ -4026,7 +4039,7 @@ const models: TsoaRoute.Models = {
                 tileTargets: {
                     dataType: 'union',
                     subSchemas: [
-                        { ref: 'Record_string.DashboardTileTarget_' },
+                        { ref: 'DashboardTileTargets' },
                         { dataType: 'undefined' },
                     ],
                 },
@@ -4108,9 +4121,7 @@ const models: TsoaRoute.Models = {
                             ],
                             required: true,
                         },
-                        tileTargets: {
-                            ref: 'Record_string.DashboardTileTarget_',
-                        },
+                        tileTargets: { ref: 'DashboardTileTargets' },
                     },
                 },
             ],
