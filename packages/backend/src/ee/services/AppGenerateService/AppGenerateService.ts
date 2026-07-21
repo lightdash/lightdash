@@ -46,6 +46,7 @@ import {
     type AppDashboardReference,
     type AppExternalConnectionReference,
     type AppGeneratePipelineJobPayload,
+    type AppPreviewTokenResults,
     type AppVersionChartResource,
     type AppVersionDependencies,
     type AppVersionDependencyEntry,
@@ -124,6 +125,10 @@ import {
     getOtelTraceHeaders,
     runWithOtelSpanContext,
 } from '../../../tracing/tracing';
+import {
+    DATA_APP_PREVIEW_TOKEN_TTL_SECONDS,
+    mintDataAppPreviewToken,
+} from '../../authentication/dataAppPreviewToken';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
@@ -7554,6 +7559,47 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         })();
 
         return { semanticLayer, parameters, promptHistory, theme };
+    }
+
+    /**
+     * Exchanges the caller's credential for a short-lived token whose
+     * authority is capped at the data-app SDK routes for this project.
+     * `lightdash apps preview` holds it in its loopback proxy instead of the
+     * durable PAT and re-exchanges before expiry. Minting requires the same
+     * view permission previewing an app does; a preview token itself can
+     * never mint (the mint route is not an SDK route).
+     */
+    async mintPreviewApiToken(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<AppPreviewTokenResults> {
+        await this.assertDataAppsEnabled(user);
+        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
+        this.assertDataAppAbility(
+            user,
+            'view',
+            organizationUuid,
+            projectUuid,
+            'Insufficient permissions to preview data apps in this project',
+        );
+        const { token, expiresAt } = mintDataAppPreviewToken(
+            this.lightdashConfig.lightdashSecret,
+            {
+                userUuid: user.userUuid,
+                organizationUuid,
+                projectUuid,
+            },
+        );
+        this.analytics.track({
+            event: 'data_app.preview_token_minted',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                expiresInSeconds: DATA_APP_PREVIEW_TOKEN_TTL_SECONDS,
+            },
+        });
+        return { token, expiresAt: expiresAt.toISOString() };
     }
 
     async importAppCode(

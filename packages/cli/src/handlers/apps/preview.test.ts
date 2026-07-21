@@ -7,6 +7,7 @@ import {
     assertNodeModulesPresent,
     assertScaffoldingSupportsPreviewProxy,
     buildPreviewChildEnv,
+    exchangeForPreviewToken,
     PREVIEW_API_KEY_SENTINEL,
     projectNotFoundMessage,
     resolvePreviewTarget,
@@ -79,6 +80,71 @@ describe('assertScaffoldingSupportsPreviewProxy', () => {
         await expect(
             assertScaffoldingSupportsPreviewProxy(dir),
         ).rejects.toThrow(/Re-download the app/);
+    });
+});
+
+describe('exchangeForPreviewToken', () => {
+    const args = {
+        serverUrl: 'http://localhost:3000',
+        apiKey: 'ldpat_abc',
+        projectUuid: 'proj-uuid-1',
+    };
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it('POSTs the mint endpoint with the credential and returns the token', async () => {
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                status: 'ok',
+                results: {
+                    token: 'ldappprev_jwt',
+                    expiresAt: '2026-07-13T00:10:00.000Z',
+                },
+            }),
+        });
+        vi.stubGlobal('fetch', fetchMock);
+
+        const result = await exchangeForPreviewToken(args);
+        expect(result).toEqual({
+            token: 'ldappprev_jwt',
+            expiresAt: '2026-07-13T00:10:00.000Z',
+        });
+        const [url, init] = fetchMock.mock.calls[0];
+        expect(String(url)).toBe(
+            'http://localhost:3000/api/v1/ee/projects/proj-uuid-1/apps/preview-token',
+        );
+        expect(init.method).toBe('POST');
+        expect(init.headers.Authorization).toBe('ApiKey ldpat_abc');
+    });
+
+    it('returns null when the server lacks the endpoint (older version)', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockResolvedValue({ ok: false, status: 404 }),
+        );
+        expect(await exchangeForPreviewToken(args)).toBeNull();
+    });
+
+    it('returns null on network errors', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockRejectedValue(new Error('ECONNREFUSED')),
+        );
+        expect(await exchangeForPreviewToken(args)).toBeNull();
+    });
+
+    it('returns null on a malformed response body', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockResolvedValue({
+                ok: true,
+                json: async () => ({ status: 'ok' }),
+            }),
+        );
+        expect(await exchangeForPreviewToken(args)).toBeNull();
     });
 });
 

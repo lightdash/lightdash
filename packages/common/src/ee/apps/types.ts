@@ -263,6 +263,17 @@ export type ApiAppImageUrlResponse = ApiSuccess<{
     imageUrl: string;
 }>;
 
+// Short-lived, project-scoped token minted for `lightdash apps preview`.
+// Only valid on the data-app SDK routes (see sdkBridgeRoutes.ts).
+export type AppPreviewTokenResults = {
+    token: string;
+    // ISO timestamp; the CLI refreshes ahead of this by re-exchanging its
+    // durable credential.
+    expiresAt: string;
+};
+
+export type ApiAppPreviewTokenResponse = ApiSuccess<AppPreviewTokenResults>;
+
 export type ApiAppThumbnailUrlResponse = ApiSuccess<{
     thumbnailUrl: string;
 }>;
