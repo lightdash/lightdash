@@ -45,6 +45,21 @@ describe('getSlackInvalidBlockIndices', () => {
             getSlackInvalidBlockIndices({ data: { error: 'invalid_blocks' } }),
         ).toEqual([]);
     });
+
+    it('ignores [WARN] messages — warnings are non-fatal and did not cause the rejection', () => {
+        const error = {
+            data: {
+                error: 'invalid_blocks',
+                response_metadata: {
+                    messages: [
+                        '[WARN] text object is deprecated [json-pointer:/blocks/0/text]',
+                        '[ERROR] downloading image failed [json-pointer:/blocks/3/image_url]',
+                    ],
+                },
+            },
+        };
+        expect(getSlackInvalidBlockIndices(error)).toEqual([3]);
+    });
 });
 
 describe('isUnrecoverableSlackError', () => {

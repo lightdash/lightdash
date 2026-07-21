@@ -129,6 +129,8 @@ const DOWNLOAD_UNAVAILABLE_MESSAGE =
     'Download link unavailable for this delivery (the URL was too long or invalid). Open in Lightdash to download.';
 const PREVIEW_UNAVAILABLE_MESSAGE =
     'Chart preview unavailable (the image URL was too long or invalid). Open in Lightdash to view.';
+const PREVIEW_REJECTED_MESSAGE =
+    'Chart preview unavailable. Open in Lightdash to view.';
 
 const buildChartImageBlock = (
     image: SlackChartImage | undefined,
@@ -167,9 +169,7 @@ export const replaceImageBlocksWithNotice = <T extends { type?: string }>(
     const rejected = new Set(indices);
     return blocks.map((block, index) =>
         rejected.has(index)
-            ? unavailableSection(
-                  'Chart preview unavailable. Open in Lightdash to view.',
-              )
+            ? unavailableSection(PREVIEW_REJECTED_MESSAGE)
             : block,
     );
 };

@@ -1536,6 +1536,11 @@ export class SlackClient {
             if (buffer === undefined) {
                 if (!imageUrl) return undefined;
                 const response = await fetch(imageUrl);
+                if (!response.ok) {
+                    throw new SlackFileUploadError(
+                        `Failed to fetch image for Slack upload (status ${response.status})`,
+                    );
+                }
                 buffer = Buffer.from(await response.arrayBuffer());
             }
             const { id } = await this.uploadFile({
