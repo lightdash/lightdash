@@ -1,0 +1,106 @@
+name: Refresh Golden DB Snapshot
+
+# Builds a migrated+seeded Postgres PVC in the persistent `golden-db` Okteto
+# namespace and publishes CSI VolumeSnapshots (`golden-db-latest` +
+# `golden-db-<sha>`) that PR previews clone from. See SPK-297.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "packages/backend/src/database/migrations/**"
+      - "packages/backend/src/database/seeds/**"
+      - "packages/backend/src/ee/database/migrations/**"
+      - "packages/backend/src/ee/database/seeds/**"
+      - "examples/full-jaffle-shop-demo/**"
+      - "docker/docker-compose.golden-db.yml"
+      - "docker/docker-compose.preview.yml"
+      - "okteto.golden-db.yaml"
+      - "dockerfile-prs"
+      - ".github/workflows/refresh-golden-db.yml"
+      - "scripts/snapshot-golden-db.sh"
+
+concurrency:
+  group: refresh-golden-db
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  refresh-golden-db:
+    name: Refresh golden DB snapshot
+    runs-on: depot-ubuntu-24.04-4
+    timeout-minutes: 45
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Context
+        uses: okteto/context@5212ce5ebf9d3584bafd33f4a295a8521fc5abe7 # latest
+        with:
+          url: ${{ secrets.OKTETO_CONTEXT }}
+          token: ${{ secrets.OKTETO_TOKEN }}
+
+      - name: Ensure golden-db namespace
+        run: |
+          set -euo pipefail
+          okteto namespace list 2>/dev/null | grep -qE '(^|[[:space:]])golden-db([[:space:]]|$)' \
+            || okteto namespace create golden-db
+          okteto namespace use golden-db
+          okteto kubeconfig >/dev/null
+
+      - name: Deploy golden DB stack
+        run: |
+          set -euo pipefail
+          export PGPASSWORD="${PGPASSWORD:-lightdash-preview-golden}"
+          okteto deploy -f okteto.golden-db.yaml --wait --timeout 25m
+        env:
+          PGPASSWORD: lightdash-preview-golden
+
+      - name: Wait for demo seed
+        run: |
+          set -euo pipefail
+          okteto namespace use golden-db
+          okteto kubeconfig >/dev/null
+
+          echo "Waiting for demo@lightdash.com in db-preview..."
+          for _ in $(seq 1 180); do
+            DB_POD="$(kubectl get pods --no-headers 2>/dev/null | awk '/db-preview/ {print $1; exit}')"
+            if [[ -n "$DB_POD" ]]; then
+              if kubectl exec "$DB_POD" -- \
+                psql -U postgres -d postgres -tAc \
+                "SELECT 1 FROM emails WHERE email='demo@lightdash.com'" 2>/dev/null \
+                | grep -q 1; then
+                echo "OK: demo user present on $DB_POD"
+                exit 0
+              fi
+            fi
+            sleep 5
+          done
+          echo "Timed out waiting for seed" >&2
+          kubectl get pods -o wide >&2 || true
+          APP_POD="$(kubectl get pods --no-headers 2>/dev/null | awk '/lightdash-preview/ {print $1; exit}')"
+          [[ -n "$APP_POD" ]] && kubectl logs "$APP_POD" --tail=120 >&2 || true
+          exit 1
+
+      - name: Snapshot golden DB volume
+        run: |
+          set -euo pipefail
+          chmod +x scripts/snapshot-golden-db.sh
+          ./scripts/snapshot-golden-db.sh "${GITHUB_SHA::12}"
+
+      - name: Scale down golden stack (keep namespace + snapshots)
+        if: always()
+        run: |
+          set -euo pipefail
+          okteto namespace use golden-db || exit 0
+          okteto kubeconfig >/dev/null || exit 0
+          # Free compute; VolumeSnapshots remain in the namespace for previews to clone.
+          kubectl scale deployment --all --replicas=0 2>/dev/null || true
+          kubectl scale statefulset --all --replicas=0 2>/dev/null || true

@@ -1,6 +1,48 @@
 deploy:
   commands:
-    - name: Generating postgres password...
-      command: echo "PGPASSWORD=$(openssl rand -hex 16)" >> "$OKTETO_ENV"
+    - name: Configuring preview database...
+      command: |
+        set -euo pipefail
+
+        # Stable password must match the golden DB snapshot so restored volumes
+        # accept connections (Postgres ignores POSTGRES_PASSWORD when PGDATA exists).
+        # Preview envs are ephemeral — this is not a production secret.
+        # Override via Okteto admin var PGPASSWORD if needed (must match golden).
+        echo "PGPASSWORD=${PGPASSWORD:-lightdash-preview-golden}" >> "$OKTETO_ENV"
+
+        GOLDEN_NS="${GOLDEN_DB_NAMESPACE:-golden-db}"
+        GOLDEN_SNAP="${GOLDEN_DB_SNAPSHOT:-golden-db-latest}"
+
+        if kubectl get volumesnapshot "$GOLDEN_SNAP" -n "$GOLDEN_NS" >/dev/null 2>&1; then
+          READY="$(kubectl get volumesnapshot "$GOLDEN_SNAP" -n "$GOLDEN_NS" \
+            -o jsonpath='{.status.readyToUse}' 2>/dev/null || echo false)"
+          if [ "$READY" = "true" ]; then
+            echo "Using golden DB snapshot ${GOLDEN_NS}/${GOLDEN_SNAP}"
+            echo "USE_GOLDEN_DB=true" >> "$OKTETO_ENV"
+            echo "GOLDEN_DB_NAMESPACE=${GOLDEN_NS}" >> "$OKTETO_ENV"
+            echo "GOLDEN_DB_SNAPSHOT=${GOLDEN_SNAP}" >> "$OKTETO_ENV"
+          else
+            echo "Golden snapshot ${GOLDEN_NS}/${GOLDEN_SNAP} not ready — full migrate+seed fallback"
+            echo "USE_GOLDEN_DB=false" >> "$OKTETO_ENV"
+          fi
+        else
+          echo "No golden DB snapshot at ${GOLDEN_NS}/${GOLDEN_SNAP} — full migrate+seed fallback"
+          echo "USE_GOLDEN_DB=false" >> "$OKTETO_ENV"
+        fi
+
     - name: Deploying compose...
-      command: okteto deploy -f docker/docker-compose.preview.yml
+      command: |
+        set -euo pipefail
+
+        if [ "${USE_GOLDEN_DB:-false}" = "true" ]; then
+          python3 scripts/merge-preview-golden-compose.py \
+            --output /tmp/docker-compose.preview.with-golden.yml \
+            --snapshot "${GOLDEN_DB_SNAPSHOT:-golden-db-latest}" \
+            --namespace "${GOLDEN_DB_NAMESPACE:-golden-db}"
+          if ! okteto deploy -f /tmp/docker-compose.preview.with-golden.yml; then
+            echo "Golden restore deploy failed — retrying without snapshot" >&2
+            okteto deploy -f docker/docker-compose.preview.yml
+          fi
+        else
+          okteto deploy -f docker/docker-compose.preview.yml
+        fi

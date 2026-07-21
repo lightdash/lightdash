@@ -1,0 +1,17 @@
+# Persistent namespace that owns the golden-db VolumeSnapshot(s).
+# Previews clone from golden-db/golden-db-latest via Okteto PVC annotations.
+deploy:
+  commands:
+    - name: Configuring golden DB password...
+      command: |
+        set -euo pipefail
+        echo "PGPASSWORD=${PGPASSWORD:-lightdash-preview-golden}" >> "$OKTETO_ENV"
+    - name: Resetting previous golden stack (keep VolumeSnapshots)...
+      command: |
+        set -euo pipefail
+        # Destroy the previous compose deploy so the next deploy gets a blank PVC.
+        # VolumeSnapshots created by scripts/snapshot-golden-db.sh are not part of
+        # the compose stack and remain in this namespace for previews to clone.
+        okteto destroy -f docker/docker-compose.golden-db.yml --wait || true
+    - name: Deploying golden DB stack...
+      command: okteto deploy -f docker/docker-compose.golden-db.yml

@@ -5,6 +5,11 @@ preview:
   - "packages/**/*"
   - "docker/**/*"
   - "okteto.preview.yaml"
+  - "okteto.golden-db.yaml"
+  - "examples/full-jaffle-shop-demo/renderDeployHook.sh"
+  - "scripts/merge-preview-golden-compose.py"
+  - "scripts/snapshot-golden-db.sh"
+  - "dockerfile-prs"
 
 cli:
   - "packages/cli/**/*"

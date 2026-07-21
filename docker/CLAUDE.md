@@ -48,6 +48,12 @@ services:
 -   `lightdash-dev` starts with `sleep infinity` for manual setup (migrations, builds)
 -   Environment variables are deduplicated using YAML anchors (`x-lightdash-*`)
 
+**Preview / golden DB** (`docker-compose.preview.yml`, `docker-compose.golden-db.yml`):
+
+-   `db-preview` mounts a `postgres_data` PVC so PGDATA can be snapshotted
+-   PR previews optionally restore from `golden-db/golden-db-latest` (SPK-297)
+-   See `scripts/CLAUDE.md` for the golden snapshot refresh flow
+
 **Port Allocation**:
 
 -   8080: Backend API

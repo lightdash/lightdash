@@ -1,0 +1,8 @@
+# Overlay for preview deploys that restore db-preview from the golden VolumeSnapshot.
+# Merged on top of docker-compose.preview.yml when golden-db-latest is ready
+# (see okteto.preview.yaml). Okteto translates volume labels → PVC annotations.
+volumes:
+    postgres_data:
+        labels:
+            dev.okteto.com/from-snapshot-name: golden-db-latest
+            dev.okteto.com/from-snapshot-namespace: golden-db

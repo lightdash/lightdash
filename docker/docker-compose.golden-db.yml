@@ -1,0 +1,81 @@
+# Lightweight stack that materialises a migrated+seeded Postgres volume for
+# CSI VolumeSnapshots consumed by PR previews (SPK-297).
+#
+# Deployed into the persistent `golden-db` Okteto namespace by
+# .github/workflows/refresh-golden-db.yml. FORCE_FULL_DB_SETUP bypasses the
+# seed guard so every refresh recomputes from scratch on a fresh PVC.
+volumes:
+    postgres_data:
+
+services:
+    db-preview:
+        image: pgvector/pgvector:pg18
+        restart: always
+        environment:
+            - POSTGRES_PASSWORD=${PGPASSWORD:-lightdash-preview-golden}
+        ports:
+            - '5432'
+        volumes:
+            - postgres_data:/var/lib/postgresql
+
+    # Minimal headless-browser so the pr-runner healthcheck / depends_on still work.
+    # Not used while building the golden DB.
+    headless-browser:
+        build:
+            dockerfile: Dockerfile.headless-browser
+        restart: always
+        ports:
+            - '3000'
+
+    lightdash-preview:
+        build:
+            target: pr-runner
+            context: ..
+            dockerfile: dockerfile-prs
+        depends_on:
+            - db-preview
+            - headless-browser
+        healthcheck:
+            interval: 10s
+            timeout: 5s
+            retries: 30
+            start_period: 60s
+            http:
+                path: /api/v1/health
+                port: 8080
+        environment:
+            NODE_ENV: production
+            IS_PULL_REQUEST: true
+            LIGHTDASH_MODE: pr
+            DBT_DEMO_DIR: /usr/app
+            INTERNAL_LIGHTDASH_HOST: http://lightdash-preview:8080
+            SITE_URL: ${SITE_URL:-https://golden-db.lightdash.okteto.dev}
+            PGMAXCONNECTIONS: 30
+            SECURE_COOKIES: true
+            TRUST_PROXY: true
+            LIGHTDASH_SECRET: not very secret
+            GROUPS_ENABLED: true
+            EXTENDED_USAGE_ANALYTICS: true
+            PGHOST: db-preview
+            PGPORT: 5432
+            PGDATABASE: postgres
+            PGPASSWORD: ${PGPASSWORD:-lightdash-preview-golden}
+            PGUSER: postgres
+            HEADLESS_BROWSER_PORT: 3000
+            HEADLESS_BROWSER_HOST: headless-browser
+            # Force a full migrate+seed even if the PVC was reused.
+            FORCE_FULL_DB_SETUP: "true"
+            SCHEDULER_ENABLED: "false"
+            ALLOW_MULTIPLE_ORGS: true
+            LIGHTDASH_LOG_LEVEL: info
+            LIGHTDASH_LOG_FORMAT: json
+            LIGHTDASH_LICENSE_KEY: ${LIGHTDASH_LICENSE_KEY}
+            S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+            S3_SECRET_KEY: ${S3_SECRET_KEY}
+            S3_ENDPOINT: ${S3_ENDPOINT}
+            S3_REGION: ${S3_REGION}
+            S3_BUCKET: ${S3_BUCKET}
+        ports:
+            - '8080:8080'
+        command: ['pnpm', 'start']
+        entrypoint: ['/usr/bin/renderDeployHook.sh']

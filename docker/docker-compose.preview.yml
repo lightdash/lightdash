@@ -1,5 +1,8 @@
 volumes:
     node_modules:
+    # Persists PGDATA so previews can boot from a CSI VolumeSnapshot of the
+    # golden DB (see docker/docker-compose.preview.golden.yml + SPK-297).
+    postgres_data:
 
 # Okteto specific
 endpoints:
@@ -15,6 +18,9 @@ services:
             - POSTGRES_PASSWORD=${PGPASSWORD}
         ports:
             - '5432'
+        volumes:
+            # Match local/dev compose: Postgres 18 image expects the parent dir.
+            - postgres_data:/var/lib/postgresql
 
     headless-browser:
         build:

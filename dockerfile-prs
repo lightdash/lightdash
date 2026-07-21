@@ -412,6 +412,12 @@ CMD ["node", "dist/index.js"]
 
 FROM prod AS pr-runner
 
+# psql/pg_isready used by renderDeployHook.sh seed guard (golden DB / PVC reuse)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-client \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy demo dbt project for E2E testing
 COPY ./examples/full-jaffle-shop-demo/renderDeployHook.sh /usr/bin/renderDeployHook.sh
 COPY ./examples/full-jaffle-shop-demo/dbt /usr/app/dbt
