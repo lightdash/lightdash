@@ -495,13 +495,14 @@ jobs:
           HOME: /root
           PLAYWRIGHT_BASE_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
-        if: failure()
+        if: ${{ !cancelled() }}
         with:
           name: playwright-report
           path: |
             packages/e2e/playwright-report
             packages/e2e/playwright-results
           if-no-files-found: ignore
+          retention-days: 7
 
   # API and CLI tests can share preview state with mutating browser tests.
   playwright-mutating:
@@ -568,13 +569,14 @@ jobs:
           DBT_PROJECT_DIR: /usr/app/dbt
           GCP_CREDENTIALS_PATH: ${{ github.workspace }}/packages/e2e/playwright/fixtures/credentials.json
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
-        if: failure()
+        if: ${{ !cancelled() }}
         with:
           name: playwright-mutating-report
           path: |
             packages/e2e/playwright-report
             packages/e2e/playwright-results
           if-no-files-found: ignore
+          retention-days: 7
 
   timezone-tests:
     if: needs.files-changed.outputs.timezone == 'true'
@@ -618,13 +620,14 @@ jobs:
           TZ: ${{ matrix.timezone }}
           PLAYWRIGHT_BASE_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
-        if: failure()
+        if: ${{ !cancelled() }}
         with:
           name: playwright-report-timezone-${{ strategy.job-index }}
           path: |
             packages/e2e/playwright-report
             packages/e2e/playwright-results
           if-no-files-found: ignore
+          retention-days: 7
 
   # CLI tests without dbt
   cli-tests-without-dbt:
