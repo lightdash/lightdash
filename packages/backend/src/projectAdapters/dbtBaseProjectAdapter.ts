@@ -1,6 +1,7 @@
 import {
     AnyType,
     attachTypesToModels,
+    catalogHasTimestampDomains,
     convertExplores,
     DbtManifestVersion,
     DbtModelNode,
@@ -8,6 +9,7 @@ import {
     DbtRawModelNode,
     DbtRpcGetManifestResults,
     DEFAULT_SPOTLIGHT_CONFIG,
+    ensureCatalogTimestampDomainsKey,
     Explore,
     ExploreError,
     friendlyName,
@@ -267,6 +269,19 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     {},
                 );
             }
+            // A cache written before timestamp domains existed would otherwise
+            // be reused forever (only missing entries trigger a refetch),
+            // leaving every column unclassified — refetch it once.
+            if (
+                !catalogHasTimestampDomains(
+                    this.cachedWarehouse.warehouseCatalog,
+                )
+            ) {
+                throw new MissingCatalogEntryError(
+                    `Cached warehouse catalog predates timestamp domains`,
+                    {},
+                );
+            }
             Logger.info(`Attach types to ${validModels.length} models`);
             const lazyTypedModels = attachTypesToModels(
                 validModels,
@@ -307,6 +322,10 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
                 const warehouseCatalog =
                     await this.warehouseClient.getCatalog(modelCatalog);
+                // Clients only create the sidecar when they classify a column;
+                // stamp it (possibly empty) so the staleness check above can't
+                // refetch again on domain-less warehouses.
+                ensureCatalogTimestampDomainsKey(warehouseCatalog);
                 await this.cachedWarehouse?.onWarehouseCatalogChange(
                     warehouseCatalog,
                 );

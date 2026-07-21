@@ -139,6 +139,30 @@ export const setCatalogTimestampDomain = (
     domains[database][schema][table][column] = timestampDomain;
 };
 
+/**
+ * True when the catalog was produced by domain-aware code: the sidecar key is
+ * present, even if empty. A missing key means a pre-domain cache that should
+ * be refetched once so timestamp columns get classified.
+ */
+export const catalogHasTimestampDomains = (
+    catalog: WarehouseCatalog,
+): boolean => WAREHOUSE_TIMESTAMP_DOMAINS_KEY in catalog;
+
+/**
+ * Stamps the (possibly empty) sidecar onto a freshly fetched catalog so
+ * `catalogHasTimestampDomains` can tell it apart from a pre-domain cache —
+ * clients only create the key when they classify at least one column.
+ */
+export const ensureCatalogTimestampDomainsKey = (
+    catalog: WarehouseCatalog,
+): void => {
+    const catalogWithDomains = catalog as {
+        [WAREHOUSE_TIMESTAMP_DOMAINS_KEY]?: WarehouseCatalogTimestampDomains;
+    };
+    catalogWithDomains[WAREHOUSE_TIMESTAMP_DOMAINS_KEY] =
+        catalogWithDomains[WAREHOUSE_TIMESTAMP_DOMAINS_KEY] ?? {};
+};
+
 export type WarehouseTablesCatalog = {
     [database: string]: {
         [schema: string]: {
