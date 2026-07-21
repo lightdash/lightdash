@@ -781,7 +781,11 @@ describe('tolerates configs from other code versions', () => {
         ) as HomepageConfig;
         expect(() => resolveHomepageLayout(foreign)).not.toThrow();
         const { rows } = resolveHomepageLayout(foreign);
-        // field-less blocks read as empty and drop out instead of crashing
-        expect(rows).toEqual([]);
+        // field-less config-driven blocks read as empty and drop out instead
+        // of crashing; announcements is feed-driven so its row survives
+        expect(rows).toHaveLength(1);
+        expect(rows[0].columns.map((column) => column.block.type)).toEqual([
+            'announcements',
+        ]);
     });
 });
