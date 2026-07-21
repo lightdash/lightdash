@@ -623,11 +623,7 @@ jobs:
     needs: [preview, files-changed]
     container:
       image: mcr.microsoft.com/playwright:v1.56.1-noble
-    strategy:
-      fail-fast: false
-      matrix:
-        timezone: ["UTC", "Europe/Madrid", "America/New_York", "Asia/Tokyo"]
-    name: "E2E: Timezone (${{ matrix.timezone }})"
+    name: "E2E: Timezones"
     env:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
@@ -649,19 +645,30 @@ jobs:
         run: pnpm common-build:fast
       - name: Typecheck Playwright tests
         run: pnpm -F e2e typecheck
-      - name: Run Playwright dates test
+      - name: Run Playwright dates tests sequentially
         run: |
-          pnpm -F e2e exec playwright test playwright/app/dates.spec.ts \
-            --project=firefox --workers=1
+          exit_code=0
+          for timezone in UTC Europe/Madrid America/New_York Asia/Tokyo; do
+            output_name="${timezone//\//-}"
+            echo "::group::Timezone: ${timezone}"
+            if ! TZ="${timezone}" \
+              PLAYWRIGHT_HTML_OUTPUT_DIR="playwright-report/${output_name}" \
+              pnpm -F e2e exec playwright test playwright/app/dates.spec.ts \
+                --project=firefox --workers=1 \
+                --output="playwright-results/${output_name}"; then
+              exit_code=1
+            fi
+            echo "::endgroup::"
+          done
+          exit "${exit_code}"
         env:
           HOME: /root
-          TZ: ${{ matrix.timezone }}
           PLAYWRIGHT_BASE_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         id: playwright_artifacts
         if: ${{ !cancelled() }}
         with:
-          name: playwright-report-timezone-${{ strategy.job-index }}
+          name: playwright-report-timezones
           path: |
             packages/e2e/playwright-report
             packages/e2e/playwright-results
@@ -677,7 +684,7 @@ jobs:
             video_count="$(find packages/e2e/playwright-results -type f -name 'video.webm' | wc -l | tr -d ' ')"
           fi
           {
-            echo "## Playwright timezone artifacts (${{ matrix.timezone }})"
+            echo "## Playwright timezone artifacts"
             echo
             echo "Captured **${video_count}** videos at 1280x720."
             echo
