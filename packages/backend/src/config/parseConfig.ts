@@ -1691,6 +1691,8 @@ export type AppRuntimeConfig = {
      * `lightdash-ai-writeback:local`).
      */
     sandboxAiWritebackDockerImage: string;
+    /** OCI image used by managed project onboarding with the Docker provider. */
+    sandboxAgentOnboardingDockerImage: string;
     /**
      * How long a *running* sandbox can be idle before the backend suspends it.
      * Feeds the native-pause provider's own idle policy (Lambda MicroVMs'
@@ -1766,6 +1768,9 @@ export type AppRuntimeConfig = {
     /** Disk image the AI writeback pipeline launches (decoupled from the data-app
      * image). Required only when `azure-sandboxes`. */
     azureSandboxesAiWritebackDiskImage: string | null;
+    /** E2B template used by managed project onboarding. */
+    e2bAgentOnboardingTemplateName: string;
+    e2bAgentOnboardingTemplateTag: string;
     /**
      * Lean template name+tag for the general-purpose coding agent (`editRepo`):
      * git + Claude CLI + the generic skill only — no dbt venvs, no compile
@@ -2147,6 +2152,9 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         sandboxAiWritebackDockerImage:
             process.env.SANDBOX_AI_WRITEBACK_DOCKER_IMAGE ||
             'lightdash-ai-writeback:local',
+        sandboxAgentOnboardingDockerImage:
+            process.env.SANDBOX_AGENT_ONBOARDING_DOCKER_IMAGE ||
+            'lightdash-agent-onboarding:local',
         sandboxIdleTimeoutMs,
         sandboxSnapshotRetentionMs,
         lambdaMicroVm: {
@@ -2191,6 +2199,12 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             process.env.AZURE_SANDBOXES_AI_WRITEBACK_GROUP || null,
         azureSandboxesAiWritebackDiskImage:
             process.env.AZURE_SANDBOXES_AI_WRITEBACK_DISK_IMAGE || null,
+        e2bAgentOnboardingTemplateName:
+            process.env.E2B_AGENT_ONBOARDING_TEMPLATE_NAME ||
+            'lightdash-agent-onboarding',
+        e2bAgentOnboardingTemplateTag:
+            process.env.E2B_AGENT_ONBOARDING_TEMPLATE_TAG ??
+            (VERSION as string),
         // The lean coding-agent image (sandboxes/ai-coding-agent), published per
         // release by the post-release workflow at the running version's tag —
         // same pattern as the other templates. Operators can override the

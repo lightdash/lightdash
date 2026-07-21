@@ -1,8 +1,71 @@
 import { SupportedDbtAdapter } from '../types/dbt';
-import { WarehouseTypes } from '../types/projects';
+import {
+    DuckdbConnectionType,
+    WarehouseTypes,
+    type WarehouseCredentials,
+} from '../types/projects';
 import type { WarehouseSqlBuilder } from '../types/warehouse';
 import { VizAggregationOptions } from '../visualizations/types';
 import assertUnreachable from './assertUnreachable';
+
+export type ConnectionDefaults = {
+    database: string | undefined;
+    schema: string | undefined;
+};
+
+const nonEmpty = (value: string | undefined): string | undefined =>
+    value || undefined;
+
+export const getConnectionDefaults = (
+    credentials: WarehouseCredentials,
+): ConnectionDefaults => {
+    switch (credentials.type) {
+        case WarehouseTypes.POSTGRES:
+        case WarehouseTypes.REDSHIFT:
+        case WarehouseTypes.TRINO:
+            return {
+                database: nonEmpty(credentials.dbname),
+                schema: nonEmpty(credentials.schema),
+            };
+        case WarehouseTypes.SNOWFLAKE:
+        case WarehouseTypes.ATHENA:
+            return {
+                database: nonEmpty(credentials.database),
+                schema: nonEmpty(credentials.schema),
+            };
+        case WarehouseTypes.BIGQUERY:
+            return {
+                database: nonEmpty(credentials.project),
+                schema: nonEmpty(credentials.dataset),
+            };
+        case WarehouseTypes.DATABRICKS:
+            return {
+                database: nonEmpty(credentials.catalog),
+                schema: nonEmpty(credentials.database),
+            };
+        case WarehouseTypes.CLICKHOUSE:
+            return {
+                database: undefined,
+                schema: nonEmpty(credentials.schema),
+            };
+        case WarehouseTypes.DUCKDB:
+            if (credentials.connectionType === DuckdbConnectionType.DUCKLAKE) {
+                return {
+                    database: nonEmpty(credentials.catalogAlias) ?? 'ducklake',
+                    schema: nonEmpty(credentials.schema),
+                };
+            }
+            return {
+                database: nonEmpty(credentials.database),
+                schema: nonEmpty(credentials.schema),
+            };
+        default:
+            return assertUnreachable(
+                credentials,
+                'Unknown warehouse type when getting connection defaults',
+            );
+    }
+};
 
 // `NULL = NULL` is NULL in standard SQL, which silently drops rows in JOINs.
 export const defaultNullSafeEqualSql = (left: string, right: string): string =>
