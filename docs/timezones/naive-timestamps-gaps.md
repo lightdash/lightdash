@@ -22,7 +22,7 @@ A timestamp column is one of two things:
 
 Lightdash collapses both into a single `DimensionType.TIMESTAMP` — the compiler cannot tell them apart. That collapse is the root of every gap in this document.
 
-## Per-warehouse domain inventory
+## Naive and aware types per warehouse
 
 Which types are naive, which are aware, and which one a modeler is likely to have:
 
@@ -106,6 +106,14 @@ The same filter on Postgres matches correctly — its literal carries `+00:00` a
 
 Note the session does **not** save this case: comparing a naive column against a string literal coerces the literal to the naive type, discarding the offset before the session could matter. The filter misses the rows the user picked, and matches rows offset by the data timezone instead.
 
+**What (b) looks like in the UI** — Postgres, `dataTimezone: Asia/Tokyo`, UTC display, raw frame of a naive column. The display side is correct post-#25649: event 1 renders as its true instant, `2024-01-14, 17:00 (+00:00)`:
+
+![Raw naive timestamps rebased correctly in the results table](images/gap-naive-filter-domain-rows.png)
+
+Filtering the same column to a one-hour window around that visible value returns nothing — the UTC literal is coerced to the column's naive type and compared against the stored Tokyo wall clock `2024-01-15 02:00`:
+
+![The same window as a filter matches zero rows](images/gap-naive-filter-domain-no-results.png)
+
 **ClickHouse hits the same symptom from the opposite side** — no naive column required. Its values are instants and the SELECT pins them to UTC (`toTimeZone(x, 'UTC')`), but its bare filter literals are parsed by `session_timezone` (= `dataTimezone`). Verified live with `dataTimezone: Asia/Tokyo`, display UTC, on `timezone_test`: the displayed raw value is `2024-01-15T02:00Z`, filtering `inBetween [01:30Z, 02:30Z]` returns **0 rows**, and the window that matches is `[10:30Z, 11:30Z]` — the literal `'2024-01-15 10:30:00'` read as a Tokyo wall clock is `01:30Z`. Display never moves, filters silently shift: setting a data timezone on ClickHouse only breaks things. The literal-side fix (`gap-naive-filter-domain`'s typed-literal strategy, here `toDateTime64('...', 3, 'UTC')`) makes the setting fully inert on ClickHouse.
 
 **(c) Even when bucketed filters are correct, they full-scan partitioned tables.** Filter parity is achieved by reusing the timezone-wrapped expression as the WHERE LHS — visible in (a)'s compiled SQL — so the partition column is hidden inside a function call and the warehouse cannot prune. Measured on a partitioned BigQuery table: a bare-column predicate processes 176 bytes; the same predicate with the wrapped column processes 32,080 bytes (the full table). This half affects aware and naive columns alike — it is a cost of the wrap-the-column strategy itself, and the same literal-side rewrite that fixes (a) and (b) removes it (half-open ranges on the bare column, see constraint 2).
@@ -125,15 +133,21 @@ raw:   2024-01-15T02:00Z   (should be 2024-01-14T17:00Z — wall clock read as U
 hour:  2024-01-15T02:00Z   day: 2024-01-15   (same misreading, consistently)
 ```
 
-Display, grouping, and filters all treat the stored wall clock as UTC — the #25614 symptom, unfixed here.
+Display, grouping, and filters all treat the stored wall clock as UTC — the #25614 symptom, unfixed here. In the UI (same data and `dataTimezone: Asia/Tokyo` as the Gap 1 screenshots, where Postgres shows event 1 at `17:00`), Trino shows the stored wall clock stamped UTC:
 
-**Databricks (instant `timestamp` — its default type): the session wrap corrupts the *aware* column instead.** Databricks' bare `timestamp` stores an instant (see the inventory), and at display ≠ data timezone the session-based truncation wrap double-shifts it. Storing the instant `2024-01-15 02:00 UTC` with `dataTimezone: Asia/Tokyo`, UTC display:
+![Trino raw naive timestamps ignore the data timezone](images/gap-naive-no-session-rebase-trino.png)
+
+**Databricks (instant `timestamp` — its default type): the session wrap corrupts the *aware* column instead.** Databricks' bare `timestamp` stores an instant (see [the per-warehouse type table](#naive-and-aware-types-per-warehouse)), and at display ≠ data timezone the session-based truncation wrap double-shifts it. Storing the instant `2024-01-15 02:00 UTC` with `dataTimezone: Asia/Tokyo`, UTC display:
 
 ```
 raw:   2024-01-15T02:00Z   (correct — the column genuinely stores this instant)
 hour:  2024-01-14T17:00Z   (wrong — the wrap re-interpreted the instant via the Tokyo session)
 → the raw value falls outside its own hour bucket
 ```
+
+In the UI, the raw instant and its own hour bucket disagree on every row — raw `2024-01-15, 02:00` falls outside hour `2024-01-14, 17:00`:
+
+![Databricks aware column double-shifted in truncated frames](images/gap-naive-no-session-rebase-databricks.png)
 
 At display == data timezone the equal-zones skip drops the wrap and the two agree again. A true Databricks `TIMESTAMP_NTZ` column stays unrebased like Trino's naive `timestamp` (identity `castToInstant` — by code inspection, not yet reproduced live).
 
@@ -176,7 +190,11 @@ returned:  2024-01-15T02:00:00.000Z, renders "2024-01-15, 02:00 (+00:00)"
 expected:  2024-01-14T17:00:00Z, rendering "2024-01-14, 17:00 (+00:00)"
 ```
 
-That is the stored wall clock stamped as UTC — on the very warehouses where the *dimension* path is fixed, so the metric and its own column disagree inside one query. (This is closable without touching freeform metric SQL: MIN/MAX commute with a monotonic conversion, so the aggregate *output* can be wrapped.)
+That is the stored wall clock stamped as UTC — on the very warehouses where the *dimension* path is fixed, so the metric and its own column disagree inside one query. In the UI (Postgres, grouped by the raw dimension so each row's MAX is its own value — the two columns should be identical):
+
+![MAX over a naive column disagrees with its own dimension by the data-timezone offset](images/gap-naive-minmax.png)
+
+(This is closable without touching freeform metric SQL: MIN/MAX commute with a monotonic conversion, so the aggregate *output* can be wrapped.)
 
 **Files:** `packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts` (metric SQL path)
 
@@ -189,7 +207,7 @@ Any fix should stay inside the model the existing work has converged on. The pri
 1. **Make the domain explicit.** Every TIMESTAMP dimension is either *aware* or *naive-in-Z*, where Z = per-column declaration ?? `dataTimezone` ?? UTC. The knowledge comes from the modeler first and the warehouse catalog second (the dbt manifest `data_type` already flows through compilation; the naive/aware bit just isn't captured). Once the domain is known, every gap above has a well-typed fix — and Gap 3 becomes inexpressible.
 2. **Convert filter literals into the column's domain — never wrap the column in WHERE.** A naive comparison happens in the column's wall clock (literal converted from the UTC instant, monotonic, so predicates are preserved); an aware comparison uses an offset-bearing instant literal. This is the pruning-safe direction, already validated in miniature by #25649 keeping raw WHERE bare, and it removes the full-scan cost measured in Gap 1(c).
 3. **Convert with explicit source zones; demote the session to a fallback.** The session-identity trick has hit its ceiling (Gap 2 is unreachable by it). Explicit source-zone conversion works on every adapter; the session timezone remains only for warehouse functions that genuinely need it (`CURRENT_TIMESTAMP` in user SQL), as an enumerated list.
-4. **Unknown domain degrades to the warehouse's default domain** (see the inventory: naive-in-`dataTimezone` where naive is the default/common type, aware on ClickHouse and Databricks/Spark). Degradation must equal today's behavior — no new failure modes for columns we can't classify.
+4. **Unknown domain degrades to the warehouse's default domain** (see [the per-warehouse type table](#naive-and-aware-types-per-warehouse): naive-in-`dataTimezone` where naive is the default/common type, aware on ClickHouse and Databricks/Spark). Degradation must equal today's behavior — no new failure modes for columns we can't classify.
 5. **Short-circuits are domain-scoped.** Skipping a conversion because "target equals source" is only valid when it is provably identity *for that column's domain* — the assumption that broke sub-day frames pre-#25649 and still breaks Gap 3(b).
 6. **Accept the DST fold.** Naive storage loses one wall-clock hour per year: equality on a folded wall clock matches both instants. This is inherent to the type under any strategy — document it, don't fight it.
 
