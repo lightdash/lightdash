@@ -3,12 +3,37 @@ import {
     useCallback,
     useContext,
     useMemo,
-    useState,
     type ReactNode,
 } from 'react';
-import type { Filter } from '@lightdash/query-sdk';
+import { useUrlState, type Filter } from '@lightdash/query-sdk';
 
 export type ScopedFilter = Filter & { explore: string };
+
+// Global filters live in URL state so the host page's address bar is always a
+// shareable link to the current filtered view. The seeded value comes from a
+// user-editable URL — sanitize before trusting its shape, or malformed
+// entries flow into every metric query for the explore and fail the run.
+const isScalar = (v: unknown): v is string | number | boolean =>
+    typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean';
+
+const sanitizeFilters = (value: unknown): ScopedFilter[] =>
+    Array.isArray(value)
+        ? value.filter((f): f is ScopedFilter => {
+              if (!f || typeof f !== 'object') return false;
+              const { explore, field, operator, value: filterValue } =
+                  f as ScopedFilter;
+              return (
+                  typeof explore === 'string' &&
+                  typeof field === 'string' &&
+                  typeof operator === 'string' &&
+                  operator.length > 0 &&
+                  (filterValue === undefined ||
+                      isScalar(filterValue) ||
+                      (Array.isArray(filterValue) &&
+                          filterValue.every(isScalar)))
+              );
+          })
+        : [];
 
 type FilterContextValue = {
     addFilter: (filter: ScopedFilter) => void;
@@ -26,22 +51,35 @@ const sameTarget = (a: ScopedFilter, b: ScopedFilter) =>
     JSON.stringify(a.value) === JSON.stringify(b.value);
 
 export function FilterProvider({ children }: { children: ReactNode }) {
-    const [filters, setFilters] = useState<ScopedFilter[]>([]);
+    const [rawFilters, setFilters] = useUrlState<ScopedFilter[]>(
+        'globalFilters',
+        [],
+    );
+    const filters = useMemo(() => sanitizeFilters(rawFilters), [rawFilters]);
 
-    const addFilter = useCallback((filter: ScopedFilter) => {
-        setFilters((prev) => {
-            const exists = prev.some((f) => sameTarget(f, filter));
-            return exists
-                ? prev.filter((f) => !sameTarget(f, filter))
-                : [...prev, filter];
-        });
-    }, []);
+    const addFilter = useCallback(
+        (filter: ScopedFilter) => {
+            setFilters((prev) => {
+                const current = sanitizeFilters(prev);
+                const exists = current.some((f) => sameTarget(f, filter));
+                return exists
+                    ? current.filter((f) => !sameTarget(f, filter))
+                    : [...current, filter];
+            });
+        },
+        [setFilters],
+    );
 
-    const removeFilter = useCallback((filter: ScopedFilter) => {
-        setFilters((prev) => prev.filter((f) => !sameTarget(f, filter)));
-    }, []);
+    const removeFilter = useCallback(
+        (filter: ScopedFilter) => {
+            setFilters((prev) =>
+                sanitizeFilters(prev).filter((f) => !sameTarget(f, filter)),
+            );
+        },
+        [setFilters],
+    );
 
-    const clearFilters = useCallback(() => setFilters([]), []);
+    const clearFilters = useCallback(() => setFilters([]), [setFilters]);
 
     const filtersFor = useCallback(
         (explore: string): Filter[] =>

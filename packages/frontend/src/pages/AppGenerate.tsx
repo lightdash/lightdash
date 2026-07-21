@@ -291,6 +291,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 onLineageCancelled={onLineageCancelled}
                 capabilities={{ gsheetExport: true }}
                 dataAppVizContext={dataAppVizContext}
+                urlStateSync
             />
         );
     },

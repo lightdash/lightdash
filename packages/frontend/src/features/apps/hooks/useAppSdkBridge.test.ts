@@ -466,6 +466,73 @@ describe('lineage message routing', () => {
     });
 });
 
+describe('url-state-change routing', () => {
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllMocks();
+    });
+
+    function renderUrlStateBridge(onUrlStateChange?: Mock) {
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                onUrlStateChange,
+            }),
+        );
+    }
+
+    it('forwards a valid state map to onUrlStateChange', () => {
+        const onUrlStateChange = vi.fn();
+        renderUrlStateBridge(onUrlStateChange);
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:url-state-change',
+            state: { period: 'last_month', globalFilters: [] },
+        });
+
+        expect(onUrlStateChange).toHaveBeenCalledWith({
+            period: 'last_month',
+            globalFilters: [],
+        });
+    });
+
+    it('drops non-object state payloads', () => {
+        const onUrlStateChange = vi.fn();
+        renderUrlStateBridge(onUrlStateChange);
+
+        for (const state of [null, undefined, 'str', 42, ['a']]) {
+            dispatchFetchMessage({
+                type: 'lightdash:sdk:url-state-change',
+                state,
+            });
+        }
+
+        expect(onUrlStateChange).not.toHaveBeenCalled();
+    });
+
+    it('drops state maps over the serialized size cap', () => {
+        const onUrlStateChange = vi.fn();
+        renderUrlStateBridge(onUrlStateChange);
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:url-state-change',
+            state: { big: 'x'.repeat(5000) },
+        });
+
+        expect(onUrlStateChange).not.toHaveBeenCalled();
+    });
+});
+
 describe('chart-query routing', () => {
     beforeEach(() => {
         vi.stubGlobal('fetch', vi.fn());

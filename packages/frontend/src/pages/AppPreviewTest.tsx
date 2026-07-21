@@ -237,6 +237,7 @@ export default function AppPreviewTest() {
                     invalidateCache={invalidateCache}
                     onQueryEvent={handleQueryEvent}
                     onExternalRequestEvent={handleExternalRequestEvent}
+                    urlStateSync
                     capabilities={{ gsheetExport: true }}
                     lineageEnabled={lineageEnabled}
                     onLineageAvailabilityChange={setLineageAvailable}
