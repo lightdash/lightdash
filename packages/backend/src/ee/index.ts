@@ -132,7 +132,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
 
     return {
         serviceProviders: {
-            projectHomepageService: ({ models, repository, clients }) =>
+            projectHomepageService: ({
+                models,
+                repository,
+                clients,
+                context,
+            }) =>
                 new ProjectHomepageService({
                     projectHomepageModel:
                         models.getProjectHomepageModel<ProjectHomepageModel>(),
@@ -142,6 +147,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     fileStorageClient: clients.getFileStorageClient(),
                     persistentDownloadFileService:
                         repository.getPersistentDownloadFileService(),
+                    slackClient: clients.getSlackClient(),
+                    lightdashConfig: context.lightdashConfig,
                 }),
             aiDeepResearchService: ({
                 models,

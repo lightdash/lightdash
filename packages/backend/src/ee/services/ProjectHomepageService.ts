@@ -26,10 +26,13 @@ import {
     type UpdateAnnouncementRequest,
     type UpdateProjectHomepageDraftRequest,
 } from '@lightdash/common';
+import { type KnownBlock } from '@slack/web-api';
 import { createCanvas, loadImage } from 'canvas';
 import { randomUUID } from 'crypto';
 import { type Readable } from 'stream';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
+import { type SlackClient } from '../../clients/Slack/SlackClient';
+import { type LightdashConfig } from '../../config/parseConfig';
 import { type GroupsModel } from '../../models/GroupsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../services/BaseService';
@@ -92,6 +95,8 @@ export type ProjectHomepageServiceArguments = {
     projectModel: Pick<ProjectModel, 'getProjectMemberAccess'>;
     fileStorageClient: FileStorageClient;
     persistentDownloadFileService: PersistentDownloadFileService;
+    slackClient: Pick<SlackClient, 'postMessage'>;
+    lightdashConfig: Pick<LightdashConfig, 'siteUrl'>;
 };
 
 export class ProjectHomepageService extends BaseService {
@@ -107,6 +112,10 @@ export class ProjectHomepageService extends BaseService {
 
     private readonly persistentDownloadFileService: ProjectHomepageServiceArguments['persistentDownloadFileService'];
 
+    private readonly slackClient: ProjectHomepageServiceArguments['slackClient'];
+
+    private readonly lightdashConfig: ProjectHomepageServiceArguments['lightdashConfig'];
+
     constructor(args: ProjectHomepageServiceArguments) {
         super();
         this.projectHomepageModel = args.projectHomepageModel;
@@ -115,6 +124,8 @@ export class ProjectHomepageService extends BaseService {
         this.projectModel = args.projectModel;
         this.fileStorageClient = args.fileStorageClient;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
+        this.slackClient = args.slackClient;
+        this.lightdashConfig = args.lightdashConfig;
     }
 
     private async assertFlagEnabled(user: SessionUser): Promise<void> {
@@ -572,6 +583,69 @@ export class ProjectHomepageService extends BaseService {
         );
     }
 
+    private static announcementExcerpt(body: string): string {
+        const text = body
+            .replace(/!\[[^\]]*\]\([^)]*\)/g, '') // strip images
+            .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1') // links → label
+            .replace(/[#>*_`~]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+        return text.length > 240 ? `${text.slice(0, 240)}…` : text;
+    }
+
+    private async notifyAnnouncementToSlack(
+        organizationUuid: string,
+        projectUuid: string,
+        announcement: ProjectAnnouncement,
+        channelId: string,
+    ): Promise<void> {
+        const link = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/home`;
+        const excerpt = announcement.body
+            ? ProjectHomepageService.announcementExcerpt(announcement.body)
+            : '';
+        const blocks: KnownBlock[] = [
+            {
+                type: 'header',
+                text: {
+                    type: 'plain_text',
+                    text: announcement.title.slice(0, 150),
+                    emoji: true,
+                },
+            },
+            ...(excerpt
+                ? [
+                      {
+                          type: 'section' as const,
+                          text: { type: 'mrkdwn' as const, text: excerpt },
+                      },
+                  ]
+                : []),
+            {
+                type: 'context',
+                elements: [
+                    {
+                        type: 'mrkdwn',
+                        text: `<${link}|View on the homepage>`,
+                    },
+                ],
+            },
+        ];
+        try {
+            await this.slackClient.postMessage({
+                organizationUuid,
+                channel: channelId,
+                text: `📢 New announcement: ${announcement.title}`,
+                blocks,
+            });
+        } catch (error) {
+            this.logger.error(
+                `Failed to post announcement to Slack channel ${channelId}: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+        }
+    }
+
     async createAnnouncement(
         user: SessionUser,
         projectUuid: string,
@@ -580,13 +654,24 @@ export class ProjectHomepageService extends BaseService {
         await this.assertFlagEnabled(user);
         this.assertCanManage(user, projectUuid);
         ProjectHomepageService.validateAnnouncementTitle(data.title);
-        return this.projectHomepageModel.createAnnouncement({
-            projectUuid,
-            title: data.title.trim(),
-            body: data.body,
-            category: data.category,
-            createdByUserUuid: user.userUuid,
-        });
+        const announcement = await this.projectHomepageModel.createAnnouncement(
+            {
+                projectUuid,
+                title: data.title.trim(),
+                body: data.body,
+                category: data.category,
+                createdByUserUuid: user.userUuid,
+            },
+        );
+        if (data.slackChannelId && user.organizationUuid) {
+            await this.notifyAnnouncementToSlack(
+                user.organizationUuid,
+                projectUuid,
+                announcement,
+                data.slackChannelId,
+            );
+        }
+        return announcement;
     }
 
     async updateAnnouncement(

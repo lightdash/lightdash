@@ -355,6 +355,11 @@ export type CreateAnnouncementRequest = {
     title: string;
     body: string | null;
     category: AnnouncementCategory | null;
+    /**
+     * Transient (not persisted): when set, publishing posts a notification to
+     * this Slack channel. Requires the org to have Slack installed.
+     */
+    slackChannelId?: string | null;
 };
 
 /** PATCH semantics: omitted fields are left unchanged */

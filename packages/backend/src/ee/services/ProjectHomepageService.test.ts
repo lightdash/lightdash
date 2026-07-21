@@ -107,6 +107,7 @@ const makeService = ({
     projectModel = {},
     fileStorageClient = {},
     persistentDownloadFileService = {},
+    slackClient = {},
 }: {
     flagEnabled?: boolean;
     projectHomepageModel?: Partial<
@@ -120,6 +121,7 @@ const makeService = ({
     persistentDownloadFileService?: Partial<
         ProjectHomepageServiceArguments['persistentDownloadFileService']
     >;
+    slackClient?: Partial<ProjectHomepageServiceArguments['slackClient']>;
 } = {}) =>
     new ProjectHomepageService({
         featureFlagService: {
@@ -170,6 +172,13 @@ const makeService = ({
             createPersistentUrl: vi.fn(),
             ...persistentDownloadFileService,
         } as ProjectHomepageServiceArguments['persistentDownloadFileService'],
+        slackClient: {
+            postMessage: vi.fn().mockResolvedValue(undefined),
+            ...slackClient,
+        } as ProjectHomepageServiceArguments['slackClient'],
+        lightdashConfig: {
+            siteUrl: 'http://localhost:3000',
+        } as ProjectHomepageServiceArguments['lightdashConfig'],
     });
 
 describe('ProjectHomepageService', () => {
@@ -493,6 +502,83 @@ describe('ProjectHomepageService', () => {
                     category: null,
                 }),
             ).rejects.toThrow(ParameterError);
+        });
+
+        const madeAnnouncement = {
+            announcementUuid: 'ann-9',
+            projectUuid: PROJECT_UUID,
+            title: 'Launch',
+            body: null,
+            category: null,
+            pinned: false,
+            createdByUserUuid: 'user-1',
+            authorName: 'Ana',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+
+        it('createAnnouncement does not notify Slack when no channel is given', async () => {
+            const postMessage = vi.fn().mockResolvedValue(undefined);
+            const service = makeService({
+                projectHomepageModel: {
+                    createAnnouncement: vi
+                        .fn()
+                        .mockResolvedValue(madeAnnouncement),
+                },
+                slackClient: { postMessage },
+            });
+            await service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
+                title: 'Launch',
+                body: null,
+                category: null,
+            });
+            expect(postMessage).not.toHaveBeenCalled();
+        });
+
+        it('createAnnouncement notifies the chosen Slack channel', async () => {
+            const postMessage = vi.fn().mockResolvedValue(undefined);
+            const service = makeService({
+                projectHomepageModel: {
+                    createAnnouncement: vi
+                        .fn()
+                        .mockResolvedValue(madeAnnouncement),
+                },
+                slackClient: { postMessage },
+            });
+            await service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
+                title: 'Launch',
+                body: null,
+                category: null,
+                slackChannelId: 'C123',
+            });
+            expect(postMessage).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    channel: 'C123',
+                    text: expect.stringContaining('Launch'),
+                }),
+            );
+        });
+
+        it('createAnnouncement still succeeds when Slack posting fails', async () => {
+            const postMessage = vi
+                .fn()
+                .mockRejectedValue(new Error('slack down'));
+            const service = makeService({
+                projectHomepageModel: {
+                    createAnnouncement: vi
+                        .fn()
+                        .mockResolvedValue(madeAnnouncement),
+                },
+                slackClient: { postMessage },
+            });
+            await expect(
+                service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
+                    title: 'Launch',
+                    body: null,
+                    category: null,
+                    slackChannelId: 'C123',
+                }),
+            ).resolves.toEqual(madeAnnouncement);
         });
 
         it('updateAnnouncement passes pinned through for an owned announcement', async () => {
