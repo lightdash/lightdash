@@ -36,7 +36,7 @@ controllers -> services -> models -> database
 
 ## Development Guidelines
 
-When building a new endpoint see `packages/backend/src/generated/routes.ts` and `packages/backend/src/generated/swagger.json`, ensure that you make changes to the controller, service, model, but also update types in `packages/common`. Remind the user to call `pnpm generate-api` to rebuild tsoa.
+When building a new endpoint, ensure that the controller, service, model, and relevant types in `packages/common` are updated. PR CI regenerates `packages/backend/src/generated/routes.ts` and `packages/backend/src/generated/swagger.json` for validation, and the release workflow commits those generated artifacts. Do not ask PR authors to commit them; suggest `pnpm generate-api` only for local validation or to refresh stale local routes.
 
 ### Testing
 
