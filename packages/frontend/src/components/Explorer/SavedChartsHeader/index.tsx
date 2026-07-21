@@ -26,6 +26,7 @@ import {
     IconCircleCheck,
     IconCircleCheckFilled,
     IconCirclesRelation,
+    IconCode,
     IconCopy,
     IconDatabaseExport,
     IconDots,
@@ -52,6 +53,7 @@ import {
 } from 'react';
 import { useBlocker, useLocation, useNavigate, useParams } from 'react-router';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import ChartAsCodeModal from '../../../features/contentAsCode/components/ChartAsCodeModal';
 import {
     explorerActions,
     selectHasUnsavedChanges,
@@ -191,6 +193,7 @@ const SavedChartsHeader: FC = () => {
         useDisclosure();
     const [isTransferToSpaceModalOpen, transferToSpaceModalHandlers] =
         useDisclosure();
+    const [isChartAsCodeModalOpen, chartAsCodeModalHandlers] = useDisclosure();
 
     const { user, health } = useApp();
     const { mutateAsync: contentAction, isLoading: isContentActionLoading } =
@@ -320,6 +323,16 @@ const SavedChartsHeader: FC = () => {
         user.data?.ability?.can(
             'manage',
             subject('SavedChart', { ...savedChart }),
+        );
+
+    const userCanViewContentAsCode =
+        project &&
+        user.data?.ability.can(
+            'view',
+            subject('ContentAsCode', {
+                organizationUuid: project.organizationUuid,
+                projectUuid: project.projectUuid,
+            }),
         );
 
     const userCanPromoteChart =
@@ -563,7 +576,8 @@ const SavedChartsHeader: FC = () => {
                 </div>
                 {(userCanManageChart ||
                     userCanCreateDeliveriesAndAlerts ||
-                    userCanManageExplore) && (
+                    userCanManageExplore ||
+                    userCanViewContentAsCode) && (
                     <Group gap="xs">
                         {userCanManageExplore && !isEditMode && (
                             <ExploreFromHereButton />
@@ -832,6 +846,23 @@ const SavedChartsHeader: FC = () => {
                                         </Menu.Item>
                                     )}
 
+                                {userCanViewContentAsCode && savedChart && (
+                                    <>
+                                        <Menu.Divider />
+                                        <Menu.Label>Content as code</Menu.Label>
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon icon={IconCode} />
+                                            }
+                                            onClick={
+                                                chartAsCodeModalHandlers.open
+                                            }
+                                        >
+                                            View as code
+                                        </Menu.Item>
+                                    </>
+                                )}
+
                                 <Menu.Divider />
                                 <Menu.Label>Integrations</Menu.Label>
                                 {userCanCreateDeliveriesAndAlerts && (
@@ -912,6 +943,7 @@ const SavedChartsHeader: FC = () => {
                             <Menu.Target>
                                 <ActionIcon
                                     variant="default"
+                                    aria-label="Chart actions"
                                     disabled={!unsavedChartVersion.tableName}
                                 >
                                     <MantineIcon icon={IconDots} />
@@ -1075,6 +1107,16 @@ const SavedChartsHeader: FC = () => {
                         hasUnsavedChanges={hasUnsavedChanges && isEditMode}
                     />
                 )}
+
+            {savedChart && projectUuid && (
+                <ChartAsCodeModal
+                    opened={isChartAsCodeModalOpen}
+                    onClose={chartAsCodeModalHandlers.close}
+                    projectUuid={projectUuid}
+                    chartUuid={savedChart.uuid}
+                    hasUnsavedChanges={hasUnsavedChanges && isEditMode}
+                />
+            )}
         </TrackSection>
     );
 };
