@@ -42,34 +42,21 @@ describe('classifyQueryResult', () => {
         ).toBe('warehouse-slow');
     });
 
-    it('classifies an invalid custom metric as fixable', () => {
+    it('does not bucket warehouse-specific errors — any non-timeout failure is other', () => {
+        // Permission / scan-limit / bad-SQL errors are all treated the same;
+        // we never match warehouse-specific prose.
         expect(
             classifyQueryResult({
                 type: 'error-text',
-                value: 'Error running query. Invalid custom metric: unknown field foo',
+                value: 'Error running query. Access Denied: User does not have permission to query table',
             }),
-        ).toBe('fixable');
-    });
-
-    it('classifies a BigQuery Access Denied as non-retryable', () => {
-        expect(
-            classifyQueryResult({
-                type: 'error-text',
-                value: 'Error running query. Access Denied: Table my-project:dataset.table: User does not have permission to query table',
-            }),
-        ).toBe('non-retryable');
-    });
-
-    it('classifies a bytesBilledLimitExceeded as non-retryable', () => {
+        ).toBe('other');
         expect(
             classifyQueryResult({
                 type: 'error-text',
                 value: 'Error running query. Query exceeded limit for bytesBilledLimitExceeded',
             }),
-        ).toBe('non-retryable');
-    });
-
-    it('classifies an unknown error as other', () => {
+        ).toBe('other');
         expect(
             classifyQueryResult({
                 type: 'error-text',
@@ -81,19 +68,10 @@ describe('classifyQueryResult', () => {
 
 describe('shouldCapQueryRetries', () => {
     it('does not cap below the thresholds', () => {
-        expect(shouldCapQueryRetries(['ok', 'fixable']).capped).toBe(false);
+        expect(shouldCapQueryRetries(['ok', 'other']).capped).toBe(false);
         expect(shouldCapQueryRetries(['warehouse-slow', 'ok']).capped).toBe(
             false,
         );
-        expect(shouldCapQueryRetries(['non-retryable', 'ok']).capped).toBe(
-            false,
-        );
-    });
-
-    it('caps after two non-retryable errors', () => {
-        expect(
-            shouldCapQueryRetries(['non-retryable', 'non-retryable']).capped,
-        ).toBe(true);
     });
 
     it('caps after two warehouse-slow errors', () => {
@@ -103,14 +81,14 @@ describe('shouldCapQueryRetries', () => {
     });
 
     it('caps after three errors of any kind', () => {
-        expect(
-            shouldCapQueryRetries(['fixable', 'other', 'fixable']).capped,
-        ).toBe(true);
+        expect(shouldCapQueryRetries(['other', 'other', 'other']).capped).toBe(
+            true,
+        );
     });
 
     it('does not count successful (ok) calls toward the cap', () => {
         expect(
-            shouldCapQueryRetries(['ok', 'ok', 'ok', 'ok', 'fixable']).capped,
+            shouldCapQueryRetries(['ok', 'ok', 'ok', 'ok', 'other']).capped,
         ).toBe(false);
     });
 });
@@ -133,7 +111,7 @@ describe('collectQueryResultClasses', () => {
         ];
         expect(collectQueryResultClasses(messages, QUERY_TOOL_NAMES)).toEqual([
             'warehouse-slow',
-            'fixable',
+            'other',
         ]);
     });
 
@@ -145,7 +123,7 @@ describe('collectQueryResultClasses', () => {
             }),
         ];
         expect(collectQueryResultClasses(messages, QUERY_TOOL_NAMES)).toEqual([
-            'non-retryable',
+            'other',
         ]);
     });
 
@@ -194,12 +172,13 @@ describe('buildQueryRetryStepOverride', () => {
         expect(override?.nudge.toLowerCase()).toContain('do not');
     });
 
-    it('surfaces the warehouse error and instructs the agent to report it', () => {
+    it('surfaces the warehouse error and instructs the agent to relay it', () => {
         const err = {
             type: 'error-text',
             value: 'Error running SQL query. Access Denied: User does not have permission to query table my-project:dataset.orders\n\nTry again if you believe the error can be resolved.',
         };
         const messages: ModelMessage[] = [
+            toolResultMessage('runSql', err),
             toolResultMessage('runSql', err),
             toolResultMessage('runSql', err),
         ];
@@ -210,6 +189,8 @@ describe('buildQueryRetryStepOverride', () => {
             'Access Denied: User does not have permission to query table',
         );
         expect(override?.nudge).not.toContain('Try again if you believe');
-        expect(override?.nudge.toLowerCase()).toContain('report this error');
+        expect(override?.nudge.toLowerCase()).toContain(
+            'relay this warehouse error',
+        );
     });
 });

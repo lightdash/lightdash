@@ -15,12 +15,7 @@ export const QUERY_TOOL_NAMES: ReadonlySet<string> = new Set([
     'runSql',
 ]);
 
-export type QueryResultClass =
-    | 'ok'
-    | 'warehouse-slow'
-    | 'fixable'
-    | 'non-retryable'
-    | 'other';
+export type QueryResultClass = 'ok' | 'warehouse-slow' | 'other';
 
 // A tool result as it appears in the model messages (see toModelOutput):
 // success → { type: 'text' }, error → { type: 'error-text' }.
@@ -28,29 +23,23 @@ type ToolResultOutput = { type: string; value: string };
 
 const WAREHOUSE_SLOW =
     /timed out|timeout|polling|connection (terminated|lost)|econnreset/i;
-// Errors where re-running the identical query cannot help: the warehouse
-// rejected it for permissions or a hard scan/quota limit, not a transient or
-// fixable reason. e.g. BigQuery `Access Denied` on a table the service account
-// can't read, or `bytesBilledLimitExceeded` when the scan exceeds the
-// connection's "Maximum bytes per run".
-const NON_RETRYABLE =
-    /access denied|permission denied|not authorized|does not have permission|bytesbilledlimitexceeded|bytes billed|maximum bytes|scan(ned)? limit|quota exceeded|exceeded quota|billing tier/i;
-const FIXABLE =
-    /invalid|unknown|not found|custom metric|dimension|filter|axis|chart ?config/i;
 
 /**
  * Classify a single query-tool result. Only `error-text` outputs count as
  * failures; a successful result is `ok` and never contributes to the cap.
- * Non-retryable (permissions / scan limits) is checked before the others
- * because retrying those is always futile.
+ * We deliberately do NOT try to bucket errors by warehouse-specific meaning
+ * (permissions, scan limits, bad SQL, ...) — that would mean matching each
+ * warehouse's error prose, which is brittle and only ever covers whichever
+ * warehouse we hard-coded. Any repeated failure is treated the same, and the
+ * actual warehouse message is relayed to the user (see buildQueryRetryStepOverride).
+ * The one exception is warehouse-slow (timeouts), which trips sooner because
+ * re-running a heavy scan that already timed out is especially wasteful.
  */
 export const classifyQueryResult = (
     output: ToolResultOutput,
 ): QueryResultClass => {
     if (output.type !== 'error-text') return 'ok';
-    if (NON_RETRYABLE.test(output.value)) return 'non-retryable';
     if (WAREHOUSE_SLOW.test(output.value)) return 'warehouse-slow';
-    if (FIXABLE.test(output.value)) return 'fixable';
     return 'other';
 };
 
@@ -58,23 +47,14 @@ export const classifyQueryResult = (
  * Decide whether to stop the agent re-issuing query tools this turn. Trips on
  * repeated *failures* only, so legitimate multi-chart turns (several successful
  * queries) are never capped.
- *  - ≥2 non-retryable: the warehouse rejected the query (permissions / scan
- *    limit); re-running it never helps and only burns steps + context.
  *  - ≥2 warehouse-slow: re-running a heavy scan that already timed out won't help.
  *  - ≥3 errors total: the model is looping instead of converging.
  */
 export const shouldCapQueryRetries = (
     classes: QueryResultClass[],
 ): { capped: boolean; reason: string } => {
-    const nonRetryable = classes.filter((c) => c === 'non-retryable').length;
     const warehouseSlow = classes.filter((c) => c === 'warehouse-slow').length;
     const errors = classes.filter((c) => c !== 'ok').length;
-    if (nonRetryable >= 2) {
-        return {
-            capped: true,
-            reason: 'the warehouse rejected the query (permissions or a query-size limit)',
-        };
-    }
     if (warehouseSlow >= 2) {
         return {
             capped: true,
@@ -181,7 +161,7 @@ export const buildQueryRetryStepOverride = (
         ...(snippet
             ? [
                   `The warehouse reported: "${snippet}".`,
-                  'Report this error to the user so they can fix it (for example, table permissions or the connection’s "Maximum bytes per run" limit),',
+                  'Relay this warehouse error to the user in your reply so they can address it (for example a permissions or query-size-limit issue on their side),',
                   'then answer with whatever information you already have.',
               ]
             : [
