@@ -5558,7 +5558,7 @@ describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', 
             columnTimezone: 'Asia/Tokyo',
         });
         expect(query).toContain(
-            `(MAX("events".occurred_at))::timestamptz AS "events_max_ts"`,
+            `MAX(("events".occurred_at)::timestamptz) AS "events_max_ts"`,
         );
     });
 
@@ -5576,7 +5576,7 @@ describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', 
             columnTimezone: 'Asia/Tokyo',
         });
         expect(query).toContain(
-            'TIMESTAMP(MAX("events".occurred_at)) AS `events_max_ts`',
+            'MAX(TIMESTAMP("events".occurred_at)) AS `events_max_ts`',
         );
     });
 
@@ -5610,7 +5610,7 @@ describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', 
             columnTimezone: 'Asia/Tokyo',
         });
         expect(query).toContain(
-            `(MAX("events".occurred_at))::timestamptz AS "events_max_ts_yaml"`,
+            `MAX(("events".occurred_at)::timestamptz) AS "events_max_ts_yaml"`,
         );
     });
 
@@ -6988,10 +6988,40 @@ describe('Naive timestamp domain — explicit, session-independent conversion', 
         ],
     };
 
-    test('MIN/MAX over a known-naive TIMESTAMP base wraps the aggregate output (Postgres)', () => {
+    test('MIN/MAX over a known-naive TIMESTAMP base converts the aggregate operand (Postgres)', () => {
         const { query } = buildQuery({
             explore: buildNaiveExplore(SupportedDbtAdapter.POSTGRES, 'naive'),
             compiledMetricQuery: maxNaiveQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: 'Asia/Tokyo',
+        });
+        expect(query).toContain(
+            `MAX((("events".occurred_at) AT TIME ZONE 'Asia/Tokyo')) AS "events_max_ts"`,
+        );
+    });
+
+    test('MIN/MAX with metric filters keeps the output wrap (operand may repeat in predicates)', () => {
+        const filteredMaxQuery: CompiledMetricQuery = {
+            ...maxNaiveQuery,
+            compiledAdditionalMetrics:
+                maxNaiveQuery.compiledAdditionalMetrics?.map((metric) => ({
+                    ...metric,
+                    filters: [
+                        {
+                            id: 'f1',
+                            target: { fieldRef: 'events.occurred_at' },
+                            operator: FilterOperator.NOT_NULL,
+                            values: [],
+                        },
+                    ],
+                })),
+        };
+        const { query } = buildQuery({
+            explore: buildNaiveExplore(SupportedDbtAdapter.POSTGRES, 'naive'),
+            compiledMetricQuery: filteredMaxQuery,
             warehouseSqlBuilder: warehouseClientMock,
             intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             timezone: 'Asia/Tokyo',
@@ -7024,7 +7054,7 @@ describe('Naive timestamp domain — explicit, session-independent conversion', 
         });
         [unknown.query, aware.query].forEach((query) => {
             expect(query).toContain(
-                `(MAX("events".occurred_at))::timestamptz AS "events_max_ts"`,
+                `MAX(("events".occurred_at)::timestamptz) AS "events_max_ts"`,
             );
             expect(query).not.toContain(`AT TIME ZONE 'Asia/Tokyo'`);
         });
@@ -7049,7 +7079,7 @@ describe('Naive timestamp domain — explicit, session-independent conversion', 
             dataTimezone: 'Asia/Tokyo',
         });
         expect(query).toContain(
-            `CONVERT_TIMEZONE('Asia/Tokyo', 'UTC', MAX("events".occurred_at)) AS "events_max_ts"`,
+            `MAX(CONVERT_TIMEZONE('Asia/Tokyo', 'UTC', "events".occurred_at)) AS "events_max_ts"`,
         );
     });
 

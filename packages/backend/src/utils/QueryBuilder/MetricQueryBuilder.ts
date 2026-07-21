@@ -1006,9 +1006,9 @@ export class MetricQueryBuilder {
      * dimension's timezone-aware compiledSql so the metric and its dimension
      * agree on the calendar day. Plain DATE columns and non-temporal bases are
      * untouched; the substring swap is a safe no-op if it ever misses.
-     * A MIN/MAX over a known-naive TIMESTAMP base instead wraps the aggregate
-     * output in the explicit instant rebase — min/max commute with the
-     * monotone conversion, so the result matches the dimension path.
+     * A MIN/MAX over a TIMESTAMP base converts the aggregate operand to an
+     * instant — inside the aggregate, because the wall-clock→instant map is
+     * not monotone across DST gaps.
      * Behind useTimezoneAwareDateTrunc.
      */
     private applyTimezoneAwareMetricSql(
@@ -1023,10 +1023,11 @@ export class MetricQueryBuilder {
             return baseSql;
         }
         // A MIN/MAX over a naive TIMESTAMP column aggregates the bare wall
-        // clock, which the wire stamps as UTC — rebase the aggregate output to
-        // a true instant: explicitly from the data timezone when the base is
-        // known-naive, via the session cast (identity in value for aware
-        // columns) as the unknown-domain fallback.
+        // clock, which the wire stamps as UTC — rebase to a true instant:
+        // explicitly from the data timezone when the base is known-naive (on
+        // Snowflake that differs from columnTimezone, which only describes the
+        // compile-time-wrapped dimension SQL), via the session cast (identity
+        // in value for aware columns) as the unknown-domain fallback.
         if (metric.baseDimensionType === DimensionType.TIMESTAMP) {
             const baseDimension = this.resolveMinMaxBaseDimension(
                 metricId,
@@ -1035,19 +1036,34 @@ export class MetricQueryBuilder {
             if (baseDimension?.skipTimezoneConversion) return baseSql;
             const { castToInstant, castNaiveAggregateToInstant } =
                 dateTruncTimezoneConversions[adapterType];
-            // The aggregate reads the bare column, so a known-naive base
-            // rebases from the DATA timezone — on Snowflake that differs
-            // from columnTimezone (UTC), which only describes the
-            // compile-time-wrapped dimension SQL.
-            if (
+            const explicitRebase =
                 baseDimension?.timestampDomain === 'naive' &&
-                castNaiveAggregateToInstant &&
-                this.dataTimezone !== 'UTC'
-            ) {
-                return castNaiveAggregateToInstant(baseSql, this.dataTimezone);
+                castNaiveAggregateToInstant !== null &&
+                this.dataTimezone !== 'UTC';
+            if (!explicitRebase && this.columnTimezone === 'UTC') {
+                return baseSql;
             }
-            if (this.columnTimezone === 'UTC') return baseSql;
-            return castToInstant(baseSql);
+            const convert = explicitRebase
+                ? (sql: string) =>
+                      castNaiveAggregateToInstant!(sql, this.dataTimezone)
+                : castToInstant;
+            // Convert the operand, not the aggregate output: wall clock →
+            // instant is not monotone across DST gaps, so the two placements
+            // can disagree. Falls back to the output wrap when the operand
+            // isn't found, or when metric filters may repeat the column
+            // reference inside compiled predicates.
+            const operand = this.resolveMinMaxOperand(
+                metric,
+                baseDimension,
+                baseSql,
+            );
+            if (operand && !metric.filters?.length) {
+                return baseSql.replace(
+                    MetricQueryBuilder.sqlReferenceBoundary(operand),
+                    () => convert(operand),
+                );
+            }
+            return convert(baseSql);
         }
         // Only a calendar-DATE aggregation over a truncatable interval can drift:
         // a plain DATE column carries no interval, and a TIMESTAMP base is not
@@ -1101,6 +1117,39 @@ export class MetricQueryBuilder {
             this.originalExploreDimensions[baseDimensionId] ??
             this.exploreDimensions[baseDimensionId]
         );
+    }
+
+    /**
+     * The column expression a MIN/MAX metric aggregates, as it appears inside
+     * the compiled metric SQL. The dimension's compiledSql matches everywhere
+     * except wrap-enabled Snowflake, where the metric aggregates the bare
+     * column while the dimension SQL is compile-time wrapped — the bare
+     * reference is reconstructed from the table and dimension name.
+     */
+    private resolveMinMaxOperand(
+        metric: CompiledMetric,
+        baseDimension: CompiledDimension | undefined,
+        baseSql: string,
+    ): string | undefined {
+        if (!baseDimension) return undefined;
+        const q = this.args.warehouseSqlBuilder.getFieldQuoteChar();
+        return [
+            baseDimension.compiledSql,
+            `${q}${metric.table}${q}.${baseDimension.name}`,
+        ].find(
+            (candidate) =>
+                candidate !== undefined &&
+                MetricQueryBuilder.sqlReferenceBoundary(candidate).test(
+                    baseSql,
+                ),
+        );
+    }
+
+    /** Boundary-safe matcher for a column reference inside compiled SQL, so a
+     *  reference never matches a longer identifier it prefixes. */
+    private static sqlReferenceBoundary(reference: string): RegExp {
+        const escaped = reference.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return new RegExp(`${escaped}(?![A-Za-z0-9_])`, 'g');
     }
 
     private buildDimensionsWhereClause(
