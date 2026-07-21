@@ -1,5 +1,7 @@
-import { ActionIcon, Box, Button, Group, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Box, Button, Group, Menu, Tooltip } from '@mantine-8/core';
 import {
+    IconCode,
+    IconDots,
     IconSettings,
     IconShare2,
     IconWindowMinimize,
@@ -13,6 +15,7 @@ type Props = {
     leftSection?: ReactNode;
     onMinimize?: () => void;
     onShare?: () => void;
+    onViewAsCode?: () => void;
     isSharing?: boolean;
     settingsHref?: string;
 };
@@ -21,6 +24,7 @@ export const AgentPageHeader: FC<Props> = ({
     leftSection,
     onMinimize,
     onShare,
+    onViewAsCode,
     isSharing,
     settingsHref,
 }) => (
@@ -35,13 +39,6 @@ export const AgentPageHeader: FC<Props> = ({
                         onClick={onShare}
                         loading={isSharing}
                         aria-label="Share thread"
-                        styles={(theme) => ({
-                            root: {
-                                borderColor: theme.colors.ldGray[2],
-                                boxShadow: `var(--mantine-shadow-subtle)`,
-                                color: theme.colors.ldGray[9],
-                            },
-                        })}
                     >
                         <MantineIcon icon={IconShare2} size={14} stroke={1.8} />
                     </ActionIcon>
@@ -57,17 +54,9 @@ export const AgentPageHeader: FC<Props> = ({
                             icon={IconWindowMinimize}
                             size={14}
                             stroke={1.8}
-                            style={{ transform: 'scaleX(-1)' }}
+                            className={styles.flippedIcon}
                         />
                     }
-                    styles={(theme) => ({
-                        root: {
-                            borderColor: theme.colors.ldGray[2],
-                            boxShadow: `var(--mantine-shadow-subtle)`,
-                            color: theme.colors.ldGray[9],
-                            fontSize: theme.fontSizes.xs,
-                        },
-                    })}
                 >
                     Minimize
                 </Button>
@@ -85,17 +74,33 @@ export const AgentPageHeader: FC<Props> = ({
                             stroke={1.8}
                         />
                     }
-                    styles={(theme) => ({
-                        root: {
-                            borderColor: theme.colors.ldGray[2],
-                            boxShadow: `var(--mantine-shadow-subtle)`,
-                            color: theme.colors.ldGray[9],
-                            fontSize: theme.fontSizes.xs,
-                        },
-                    })}
                 >
                     Settings
                 </Button>
+            )}
+            {onViewAsCode && (
+                <Menu position="bottom-end" withArrow withinPortal shadow="md">
+                    <Menu.Target>
+                        <ActionIcon
+                            variant="default"
+                            size="md"
+                            radius="md"
+                            className={`${styles.action} ${styles.actionIcon}`}
+                            aria-label="More actions"
+                        >
+                            <MantineIcon icon={IconDots} />
+                        </ActionIcon>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        <Menu.Label>Content as code</Menu.Label>
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconCode} />}
+                            onClick={onViewAsCode}
+                        >
+                            View as code
+                        </Menu.Item>
+                    </Menu.Dropdown>
+                </Menu>
             )}
         </Group>
     </Group>
