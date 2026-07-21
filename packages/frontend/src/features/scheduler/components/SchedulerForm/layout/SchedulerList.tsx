@@ -23,6 +23,7 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine-8/core';
+import { useDisclosure } from '@mantine-8/hooks';
 import {
     IconBell,
     IconBrandGoogle,
@@ -31,6 +32,7 @@ import {
     IconCalendarClock,
     IconCalendarTime,
     IconClock,
+    IconCode,
     IconHistory,
     IconMail,
     IconPencil,
@@ -65,6 +67,7 @@ import { useGetSlackChannelName } from '../../../../../hooks/slack/useGetSlackCh
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
 import { useProject } from '../../../../../hooks/useProject';
 import useApp from '../../../../../providers/App/useApp';
+import ScheduledDeliveryAsCodeModal from '../../../../contentAsCode/components/ScheduledDeliveryAsCodeModal';
 import { useSendNowSchedulerByUuid } from '../../../hooks/useScheduler';
 import { useSchedulerAiAugmentation } from '../../../hooks/useSchedulerAiAugmentation';
 import { useSchedulersEnabledUpdateMutation } from '../../../hooks/useSchedulersUpdateMutation';
@@ -138,6 +141,7 @@ const SchedulerDetail: FC<{
 
     const [isConfirmSendNowOpen, setIsConfirmSendNowOpen] = useState(false);
     const [isConfirmPauseOpen, setIsConfirmPauseOpen] = useState(false);
+    const [isAsCodeOpen, asCodeModalHandlers] = useDisclosure(false);
 
     const canManage = useMemo(
         () =>
@@ -161,6 +165,36 @@ const SchedulerDetail: FC<{
                 }),
             ),
         [user.data, activeProjectUuid],
+    );
+    const canViewAsCode = useMemo(
+        () =>
+            !isThresholdAlert &&
+            Boolean(scheduler.slug) &&
+            Boolean(
+                activeProjectUuid &&
+                project &&
+                user.data?.ability.can(
+                    'view',
+                    subject('ContentAsCode', {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid: activeProjectUuid,
+                    }),
+                ) &&
+                user.data.ability.can(
+                    'manage',
+                    subject('ScheduledDeliveries', {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid: activeProjectUuid,
+                    }),
+                ),
+            ),
+        [
+            activeProjectUuid,
+            isThresholdAlert,
+            project,
+            scheduler.slug,
+            user.data,
+        ],
     );
 
     const frequency =
@@ -450,6 +484,15 @@ const SchedulerDetail: FC<{
                         <span />
                     )}
                     <Group gap="sm">
+                        {canViewAsCode && (
+                            <Button
+                                variant="default"
+                                leftSection={<MantineIcon icon={IconCode} />}
+                                onClick={asCodeModalHandlers.open}
+                            >
+                                View as code
+                            </Button>
+                        )}
                         {canManage && (
                             <Button
                                 variant="default"
@@ -468,6 +511,15 @@ const SchedulerDetail: FC<{
                         </Button>
                     </Group>
                 </div>
+            )}
+
+            {activeProjectUuid && isAsCodeOpen && (
+                <ScheduledDeliveryAsCodeModal
+                    opened={isAsCodeOpen}
+                    onClose={asCodeModalHandlers.close}
+                    projectUuid={activeProjectUuid}
+                    deliverySlug={scheduler.slug}
+                />
             )}
 
             <ConfirmSendNowModal
