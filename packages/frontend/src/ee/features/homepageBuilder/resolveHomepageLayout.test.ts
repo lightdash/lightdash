@@ -319,15 +319,8 @@ describe('resolveHomepageLayout', () => {
             const { rows } = resolveHomepageLayout(config, {
                 surface: 'build',
             });
-            expect(rows.map((r) => r.id)).toEqual([
-                'row-0',
-                'row-1',
-                'row-2',
-            ]);
-            expect(rows[1].columns.map((c) => c.block.id)).toEqual([
-                'r',
-                'f',
-            ]);
+            expect(rows.map((r) => r.id)).toEqual(['row-0', 'row-1', 'row-2']);
+            expect(rows[1].columns.map((c) => c.block.id)).toEqual(['r', 'f']);
         });
 
         it('never hoists a hero — the ask-ai row stays in flow at composer width', () => {
@@ -358,9 +351,9 @@ describe('resolveHomepageLayout', () => {
             expect(build.rows.map((r) => r.widthTier)).toEqual(
                 view.rows.map((r) => r.widthTier),
             );
-            expect(
-                build.rows[0].columns.map((c) => c.hugUnits),
-            ).toEqual(view.rows[0].columns.map((c) => c.hugUnits));
+            expect(build.rows[0].columns.map((c) => c.hugUnits)).toEqual(
+                view.rows[0].columns.map((c) => c.hugUnits),
+            );
         });
     });
 
@@ -451,5 +444,64 @@ describe('resolveHomepageLayout', () => {
                 'body',
             ]);
         });
+    });
+});
+
+describe('page grid — item spans', () => {
+    it("gives a full-width row the block type's full span", () => {
+        const { rows } = resolveHomepageLayout(
+            makeConfig([[collectionWithItems('c', 6)]]),
+        );
+        expect(rows[0].widthTier).toBe('full');
+        expect(rows[0].columns[0].itemSpan).toBe(4);
+    });
+
+    it('uses the content span when the row stays at content width', () => {
+        // resources alone, no full row on the page, so no width smoothing
+        const { rows } = resolveHomepageLayout(
+            makeConfig([[block('r', 'resources')]]),
+        );
+        expect(rows[0].widthTier).toBe('content');
+        expect(rows[0].columns[0].itemSpan).toBe(4);
+    });
+
+    it("follows the smoothed tier, not the block's declared tier", () => {
+        // metrics forces the page wide, so the resources row is promoted
+        // content -> full and must take its *full* span with it
+        const { rows } = resolveHomepageLayout(
+            makeConfig([[block('m', 'metrics')], [block('r', 'resources')]]),
+        );
+        expect(rows[1].widthTier).toBe('full');
+        expect(rows[1].columns[0].itemSpan).toBe(4);
+    });
+
+    it('narrows the span when a block shares a row', () => {
+        const { rows } = resolveHomepageLayout(
+            makeConfig([[block('m', 'metrics'), block('r', 'resources')]]),
+        );
+        const [metrics, resources] = rows[0].columns;
+        expect(metrics.itemSpan).toBe(6);
+        // content cards land at the same ~281px width as metrics tiles
+        expect(resources.itemSpan).toBe(6);
+    });
+
+    it('gives list and prose blocks no span', () => {
+        const { rows } = resolveHomepageLayout(
+            makeConfig([[block('f', 'favorites')], [block('t', 'markdown')]]),
+        );
+        expect(rows[0].columns[0].itemSpan).toBeNull();
+        expect(rows[1].columns[0].itemSpan).toBeNull();
+    });
+
+    it('keeps metrics denser than content cards at the same width', () => {
+        const { rows } = resolveHomepageLayout(
+            makeConfig([
+                [block('m', 'metrics')],
+                [collectionWithItems('c', 6)],
+            ]),
+        );
+        // 3 columns per tile => 4-up; 4 columns per card => 3-up
+        expect(rows[0].columns[0].itemSpan).toBe(3);
+        expect(rows[1].columns[0].itemSpan).toBe(4);
     });
 });

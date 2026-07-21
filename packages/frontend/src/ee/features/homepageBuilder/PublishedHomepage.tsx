@@ -22,7 +22,8 @@ const BlockRenderer: FC<{
     projectUuid: string;
     personalPlaceholders: boolean;
     presentation?: BlockPresentation;
-}> = ({ block, projectUuid, personalPlaceholders, presentation }) => {
+    itemSpan?: number | null;
+}> = ({ block, projectUuid, personalPlaceholders, presentation, itemSpan }) => {
     const definition = getBlockDefinition(block.type);
     if (!definition) return null;
     if (personalPlaceholders && PERSONAL_BLOCK_TYPES.includes(block.type)) {
@@ -46,6 +47,7 @@ const BlockRenderer: FC<{
             block={block}
             projectUuid={projectUuid}
             presentation={presentation}
+            itemSpan={itemSpan}
         />
     );
 };
@@ -72,6 +74,7 @@ const RowRenderer: FC<{
                     block={column.block}
                     projectUuid={projectUuid}
                     personalPlaceholders={personalPlaceholders}
+                    itemSpan={column.itemSpan}
                 />
             </Box>
         ))}

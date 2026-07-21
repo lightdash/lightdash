@@ -113,6 +113,56 @@
     padding-top: 24px;
 }
 
+/* The page grid: one 12-column track system every card-grid block subscribes
+ * to via a resolver-assigned span. Blocks no longer pick their own card width,
+ * so their edges land on shared tracks instead of drifting apart. Items are
+ * left-aligned, so a remainder row starts on the same track as a full one. */
+.pageGrid {
+    --page-grid-gap: 12px;
+
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--page-grid-gap);
+    width: 100%;
+}
+
+.pageGridItem {
+    min-width: 0;
+    /* Blockifies inline <a> cards so they keep their box, and stretches them
+     * to the cell exactly as a grid cell child would. */
+    display: grid;
+}
+
+/* Span is enumerated rather than passed as an inline custom property, matching
+ * the data-hug-units pattern below and keeping styling out of the TSX. */
+.pageGrid[data-span='3'] > .pageGridItem {
+    grid-column: span 3;
+}
+
+.pageGrid[data-span='4'] > .pageGridItem {
+    grid-column: span 4;
+}
+
+.pageGrid[data-span='6'] > .pageGridItem {
+    grid-column: span 6;
+}
+
+.pageGrid[data-span='12'] > .pageGridItem {
+    grid-column: span 12;
+}
+
+.pageGridItem > * {
+    min-width: 0;
+}
+
+/* Below the two-column breakpoint the 12-track grid stops earning its keep —
+ * every card goes full width rather than becoming an unreadable sliver. */
+@media (max-width: 47.99em) {
+    .pageGridItem {
+        grid-column: 1 / -1;
+    }
+}
+
 .tierReading {
     max-width: 680px;
 }
@@ -132,12 +182,13 @@
 .col {
     flex: 1 1 0;
     min-width: 0;
-    /* In multi-column rows the shorter column centres vertically instead of
-     * hugging the top edge next to a taller neighbour. Single-block rows are
-     * unaffected (column height equals content height). */
+    /* Columns start at the top so neighbouring blocks' headers sit on one
+     * line. Centring the shorter column reads as a misalignment once blocks
+     * carry headers — a ragged bottom edge is much cheaper than headers at
+     * two different heights. */
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
 }
 
 .col > * {

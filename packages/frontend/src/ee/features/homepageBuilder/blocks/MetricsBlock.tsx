@@ -16,7 +16,6 @@ import {
     Card,
     Group,
     Loader,
-    SimpleGrid,
     Skeleton,
     Stack,
     Text,
@@ -40,6 +39,7 @@ import { calculateComparisonValue } from '../../../../hooks/useBigNumberConfig';
 import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
 import MetricSparkline from './MetricSparkline';
+import { PageGrid, PageGridItem } from './PageGrid';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 const KPI_TIME_FRAME = TimeFrames.MONTH;
@@ -263,31 +263,26 @@ const MetricsPickerModal: FC<{
 export const MetricsBlockView: FC<BlockComponentProps> = ({
     block,
     projectUuid,
+    itemSpan,
 }) => {
     if (block.type !== 'metrics' || block.config.items.length === 0) {
         return null;
     }
-    const itemCount = block.config.items.length;
     return (
         <Stack gap={0}>
             <BlockHeader icon={IconChartDots} title={block.config.title} />
-            {/* Tracks match the item count so sparse rows leave no phantom columns */}
-            <SimpleGrid
-                cols={{
-                    base: 1,
-                    sm: Math.min(itemCount, 2),
-                    md: Math.min(itemCount, 4),
-                }}
-                spacing={12}
-            >
+            <PageGrid itemSpan={itemSpan ?? null}>
                 {block.config.items.map((metricRef) => (
-                    <MetricKpiCard
+                    <PageGridItem
                         key={`${metricRef.tableName}-${metricRef.metricName}`}
-                        metricRef={metricRef}
-                        projectUuid={projectUuid}
-                    />
+                    >
+                        <MetricKpiCard
+                            metricRef={metricRef}
+                            projectUuid={projectUuid}
+                        />
+                    </PageGridItem>
                 ))}
-            </SimpleGrid>
+            </PageGrid>
         </Stack>
     );
 };
@@ -296,6 +291,7 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
     block,
     projectUuid,
     onChange,
+    itemSpan,
 }) => {
     const [isPickerOpen, setIsPickerOpen] = useState(false);
     if (block.type !== 'metrics') return null;
@@ -319,7 +315,7 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
                     })
                 }
             />
-            <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="sm">
+            <PageGrid itemSpan={itemSpan ?? null}>
                 {block.config.items.map((metricRef) => (
                     <Card
                         key={`${metricRef.tableName}-${metricRef.metricName}`}
@@ -361,7 +357,7 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
                         </Group>
                     </Card>
                 ))}
-            </SimpleGrid>
+            </PageGrid>
             <Button
                 variant="default"
                 size="xs"

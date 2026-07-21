@@ -44,10 +44,12 @@ import { useInfiniteContent } from '../../../../hooks/useContent';
 import { useProject } from '../../../../hooks/useProject';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
 import { reorderCollectionItems } from '../configOps';
+import layoutClasses from '../homepageLayout.module.css';
 import { useCollectionContent } from '../hooks/useCollectionContent';
 import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
 import { ContentCard } from './ContentCard';
+import { PageGrid, PageGridItem } from './PageGrid';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 const toFavoriteType = (content: SummaryContent) =>
@@ -315,6 +317,7 @@ const CollectionPickerModal: FC<{
 };
 
 export const CollectionBlockView: FC<BlockComponentProps> = ({
+    itemSpan,
     block,
     projectUuid,
 }) => {
@@ -334,31 +337,21 @@ export const CollectionBlockView: FC<BlockComponentProps> = ({
     const favoriteUuids = new Set(
         (favorites ?? []).map((item) => item.data.uuid),
     );
-    // A partial row centres its cards, so centre the header with them — the
-    // whole block reads as one unit instead of a left-anchored orphan title.
-    const cardCount = (contents ?? uuids).length;
     return (
         <Stack gap={0}>
-            <BlockHeader
-                icon={IconLayoutGrid}
-                title={block.config.title}
-                centered={cardCount > 0 && cardCount < 3}
-            />
+            <BlockHeader icon={IconLayoutGrid} title={block.config.title} />
             {isInitialLoading ? (
-                <div className={classes.hugGrid}>
+                <PageGrid itemSpan={itemSpan ?? null}>
                     {uuids.slice(0, 3).map((uuid) => (
-                        <div key={uuid} className={classes.hugGridItem}>
+                        <PageGridItem key={uuid}>
                             <Skeleton h={108} radius="md" />
-                        </div>
+                        </PageGridItem>
                     ))}
-                </div>
+                </PageGrid>
             ) : (
-                <div
-                    className={classes.hugGrid}
-                    data-per-row={Math.min(cardCount, 3)}
-                >
+                <PageGrid itemSpan={itemSpan ?? null}>
                     {(contents ?? []).map((content) => (
-                        <div key={content.uuid} className={classes.hugGridItem}>
+                        <PageGridItem key={content.uuid}>
                             <ContentCard
                                 content={content}
                                 projectUuid={projectUuid}
@@ -373,9 +366,9 @@ export const CollectionBlockView: FC<BlockComponentProps> = ({
                                         }),
                                 }}
                             />
-                        </div>
+                        </PageGridItem>
                     ))}
-                </div>
+                </PageGrid>
             )}
         </Stack>
     );
@@ -399,7 +392,7 @@ const SortableTile: FC<{
     return (
         <div
             ref={setNodeRef}
-            className={`${classes.sortableTile} ${classes.hugGridItem}`}
+            className={`${classes.sortableTile} ${layoutClasses.pageGridItem}`}
             data-dragging={isDragging}
             style={{
                 transform: CSS.Translate.toString(transform),
@@ -419,6 +412,7 @@ const SortableTile: FC<{
 };
 
 export const CollectionBlockBuild: FC<BuildComponentProps> = ({
+    itemSpan,
     block,
     projectUuid,
     onChange,
@@ -495,7 +489,7 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
                     items={(contents ?? []).map((content) => content.uuid)}
                     strategy={rectSortingStrategy}
                 >
-                    <div className={classes.hugGrid}>
+                    <PageGrid itemSpan={itemSpan ?? null}>
                         {(contents ?? []).map((content) => (
                             <SortableTile
                                 key={content.uuid}
@@ -515,7 +509,7 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
                                 }
                             />
                         ))}
-                        <div className={classes.hugGridItem}>
+                        <PageGridItem>
                             <button
                                 type="button"
                                 className={classes.addContentTile}
@@ -524,8 +518,8 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
                                 <MantineIcon icon={IconPlus} size={14} />
                                 Add content
                             </button>
-                        </div>
-                    </div>
+                        </PageGridItem>
+                    </PageGrid>
                 </SortableContext>
             </DndContext>
             {block.config.items.length === 0 && importablePins.length > 0 && (

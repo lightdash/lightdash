@@ -36,6 +36,7 @@ import {
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { BlockHeader, IconSquare, MiniPill } from './BlockShell';
 import classes from './blockStyles.module.css';
+import { PageGrid, PageGridItem } from './PageGrid';
 import {
     faviconUrl,
     hostnameOf,
@@ -214,7 +215,10 @@ const ResourceRow: FC<{ item: HomepageResourceItem }> = ({ item }) => {
     );
 };
 
-export const ResourcesBlockView: FC<BlockComponentProps> = ({ block }) => {
+export const ResourcesBlockView: FC<BlockComponentProps> = ({
+    block,
+    itemSpan,
+}) => {
     if (block.type !== 'resources' || block.config.items.length === 0) {
         return null;
     }
@@ -223,11 +227,13 @@ export const ResourcesBlockView: FC<BlockComponentProps> = ({ block }) => {
         <Stack gap={0}>
             <BlockHeader icon={IconBook} title={block.config.title} />
             {layout === 'card' ? (
-                <div className={classes.mediaGrid}>
+                <PageGrid itemSpan={itemSpan ?? null}>
                     {block.config.items.map((item, i) => (
-                        <ResourceCard key={`${item.url}-${i}`} item={item} />
+                        <PageGridItem key={`${item.url}-${i}`}>
+                            <ResourceCard item={item} />
+                        </PageGridItem>
                     ))}
-                </div>
+                </PageGrid>
             ) : (
                 <div className={classes.listCard}>
                     {block.config.items.map((item, i) => (
@@ -381,6 +387,7 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
     block,
     projectUuid,
     onChange,
+    itemSpan,
 }) => {
     const [pasteValue, setPasteValue] = useState('');
     const [batch, setBatch] = useState<BatchEntry[]>([]);
@@ -503,22 +510,27 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
             </Group>
 
             {layout === 'card' ? (
-                <div className={classes.mediaGrid}>
+                <PageGrid itemSpan={itemSpan ?? null}>
                     {items.map((item, i) => (
-                        <BuildCard
-                            key={`${item.url}-${i}`}
-                            item={item}
-                            onPatch={(patch) => patchItem(i, patch)}
-                            onRemove={() => removeItem(i)}
-                        />
+                        <PageGridItem key={`${item.url}-${i}`}>
+                            <BuildCard
+                                item={item}
+                                onPatch={(patch) => patchItem(i, patch)}
+                                onRemove={() => removeItem(i)}
+                            />
+                        </PageGridItem>
                     ))}
                     {resolvedBatch.map((e) => (
-                        <ResourceCard key={e.key} item={e.item} />
+                        <PageGridItem key={e.key}>
+                            <ResourceCard item={e.item} />
+                        </PageGridItem>
                     ))}
                     {Array.from({ length: pendingCount }).map((_, i) => (
-                        <SkeletonCard key={`sk-${i}`} />
+                        <PageGridItem key={`sk-${i}`}>
+                            <SkeletonCard />
+                        </PageGridItem>
                     ))}
-                </div>
+                </PageGrid>
             ) : (
                 <div className={classes.listCard}>
                     {items.map((item, i) => (

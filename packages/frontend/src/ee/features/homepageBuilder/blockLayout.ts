@@ -9,6 +9,19 @@ export type BlockWidthTier = 'reading' | 'composer' | 'content' | 'full';
 // tucks under what precedes it; a `section` block starts a new section.
 export type BlockRhythm = 'section' | 'grouped';
 
+// The page is one 12-column grid (the track count lives in
+// homepageLayout.module.css). A card-grid block declares how many of those
+// columns a single item spans, so every block's card edges land on shared
+// tracks instead of each block inventing its own width.
+export type BlockItemSpan = {
+    // Item span when the block owns a full-width row.
+    full: number;
+    // Item span at the narrower `content` tier.
+    content: number;
+    // Item span when the block shares a row with another block.
+    narrow: number;
+};
+
 export type BlockLayoutTrait = {
     widthTier: BlockWidthTier;
     // Relative flex weight when this block shares a row with others.
@@ -16,6 +29,8 @@ export type BlockLayoutTrait = {
     rhythm: BlockRhythm;
     // Full-row blocks can never share a row (enforced by configOps guards).
     fullRowOnly: boolean;
+    // null for blocks that render as a list or prose rather than a card grid.
+    itemSpan: BlockItemSpan | null;
 };
 
 // Declarative per-type layout. A resolver composes these for whatever
@@ -27,54 +42,63 @@ const blockLayoutTraits: Record<HomepageBlock['type'], BlockLayoutTrait> = {
         columnWeight: 2,
         rhythm: 'section',
         fullRowOnly: true,
+        itemSpan: null,
     },
     'quick-actions': {
         widthTier: 'content',
         columnWeight: 1,
         rhythm: 'grouped',
         fullRowOnly: false,
+        itemSpan: null,
     },
     metrics: {
         widthTier: 'full',
         columnWeight: 2,
         rhythm: 'section',
         fullRowOnly: false,
+        itemSpan: { full: 3, content: 4, narrow: 6 },
     },
     collection: {
         widthTier: 'full',
         columnWeight: 2,
         rhythm: 'section',
         fullRowOnly: false,
+        itemSpan: { full: 4, content: 4, narrow: 6 },
     },
     resources: {
         widthTier: 'content',
         columnWeight: 1,
         rhythm: 'grouped',
         fullRowOnly: false,
+        itemSpan: { full: 4, content: 4, narrow: 6 },
     },
     announcements: {
         widthTier: 'reading',
         columnWeight: 1,
         rhythm: 'section',
         fullRowOnly: false,
+        itemSpan: null,
     },
     favorites: {
         widthTier: 'content',
         columnWeight: 1,
         rhythm: 'grouped',
         fullRowOnly: false,
+        itemSpan: null,
     },
     recent: {
         widthTier: 'content',
         columnWeight: 1,
         rhythm: 'grouped',
         fullRowOnly: false,
+        itemSpan: null,
     },
     markdown: {
         widthTier: 'reading',
         columnWeight: 1,
         rhythm: 'grouped',
         fullRowOnly: false,
+        itemSpan: null,
     },
 };
 

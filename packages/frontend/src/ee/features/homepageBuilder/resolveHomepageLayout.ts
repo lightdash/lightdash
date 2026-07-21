@@ -29,6 +29,11 @@ export type RowRole = 'intro' | 'body';
 export type ResolvedColumn = {
     block: HomepageBlock;
     weight: number;
+    // How many of the page's 12 grid columns one of this block's items spans.
+    // null for blocks that render as a list or prose rather than a card grid.
+    // Derived from the row's *final* width tier, so a row promoted by width
+    // smoothing takes the wider span with it.
+    itemSpan: number | null;
     // Intrinsic width in card units for hug rows. Card-grid blocks are
     // container-relative (SimpleGrid / percentage tracks), so they have no
     // natural width — this assigns one from their item count. null = the
@@ -135,16 +140,54 @@ const hugUnitsFor = (block: HomepageBlock): ResolvedColumn['hugUnits'] => {
     }
 };
 
+// A block sharing a row gets its `narrow` span regardless of the row's tier
+// (multi-column rows are always full width, but each column is a fraction of
+// it). A block owning its row follows the row's tier — `content` and the two
+// focal tiers keep the tighter span; only `full` widens.
+const itemSpanFor = (
+    block: HomepageBlock,
+    widthTier: BlockWidthTier,
+    isShared: boolean,
+): number | null => {
+    const { itemSpan } = traitFor(block.type);
+    if (itemSpan === null) return null;
+    if (isShared) return itemSpan.narrow;
+    return widthTier === 'full' ? itemSpan.full : itemSpan.content;
+};
+
+// Re-derives every column's span from the row's final tier. Called after width
+// smoothing so a promoted row's cards widen with it instead of keeping the
+// span its original tier implied.
+const applyItemSpans = (rows: ResolvedRow[]): ResolvedRow[] =>
+    rows.map((row) => ({
+        ...row,
+        columns: row.columns.map((column) => ({
+            ...column,
+            itemSpan: itemSpanFor(
+                column.block,
+                row.widthTier,
+                row.columns.length > 1,
+            ),
+        })),
+    }));
+
 const resolveRow = (
     row: HomepageConfig['rows'][number],
     isFirst: boolean,
 ): ResolvedRow => {
+    const single = row.blocks.length === 1;
     const columns: ResolvedColumn[] = row.blocks.map((block) => ({
         block,
         weight: columnWeightFor(block),
         hugUnits: hugUnitsFor(block),
+        // Provisional — applyItemSpans re-derives this once the row's final
+        // tier is known.
+        itemSpan: itemSpanFor(
+            block,
+            single ? traitFor(block.type).widthTier : 'full',
+            !single,
+        ),
     }));
-    const single = row.blocks.length === 1;
     const widthTier: BlockWidthTier = single
         ? traitFor(row.blocks[0].type).widthTier
         : 'full';
@@ -220,7 +263,7 @@ export const resolveHomepageLayout = (
         ? visibleRows.slice(composerIdx + 1)
         : visibleRows;
     const resolved = bodyRows.map((row, index) => resolveRow(row, index === 0));
-    const smoothed = smoothWidthTiers(resolved);
+    const smoothed = applyItemSpans(smoothWidthTiers(resolved));
     const rows = hasLeadingHero ? smoothed : applyIntroRole(smoothed);
     // A hero keeps the whole viewport only when it's alone; with body rows it
     // yields so the first row peeks above the fold.
