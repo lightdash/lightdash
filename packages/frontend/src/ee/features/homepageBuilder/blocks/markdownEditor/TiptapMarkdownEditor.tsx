@@ -4,7 +4,8 @@ import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import { EditorContent, useEditor, type Extensions } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { useRef, type ChangeEvent, type FC } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type FC } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
 import { Markdown, type MarkdownStorage } from 'tiptap-markdown';
 import useToaster from '../../../../../hooks/toaster/useToaster';
@@ -16,6 +17,40 @@ import {
 import { SlashCommand } from './SlashCommandExtension';
 import { createSlashCommandItems } from './slashCommandItems';
 import classes from './TiptapMarkdownEditor.module.css';
+
+// Read-mode image lightbox: dimmed blurred backdrop, image scaled to fit,
+// alt text as caption. Esc or any click closes.
+const ImageLightbox: FC<{ src: string; alt: string; onClose: () => void }> = ({
+    src,
+    alt,
+    onClose,
+}) => {
+    useEffect(() => {
+        const onKey = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose]);
+    return createPortal(
+        <div
+            className={classes.lightbox}
+            role="dialog"
+            aria-modal="true"
+            aria-label={alt || 'Image preview'}
+        >
+            <button
+                type="button"
+                className={classes.lightboxClose}
+                onClick={onClose}
+                aria-label="Close image preview"
+            />
+            <img className={classes.lightboxImage} src={src} alt={alt} />
+            {alt ? <div className={classes.lightboxCaption}>{alt}</div> : null}
+        </div>,
+        document.body,
+    );
+};
 
 const ACCEPTED_IMAGE_TYPES = [
     'image/png',
@@ -48,6 +83,10 @@ export const TiptapMarkdownEditor: FC<Props> = ({
     const { showToastError } = useToaster();
     const navigate = useNavigate();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [lightbox, setLightbox] = useState<{
+        src: string;
+        alt: string;
+    } | null>(null);
 
     const extensions: Extensions = [
         StarterKit,
@@ -160,12 +199,32 @@ export const TiptapMarkdownEditor: FC<Props> = ({
 
     return (
         <>
-            <div role="presentation" onClick={handleMentionClick}>
+            <div
+                role="presentation"
+                onClick={(event) => {
+                    if (!editable && event.target instanceof HTMLImageElement) {
+                        setLightbox({
+                            src: event.target.src,
+                            alt: event.target.alt,
+                        });
+                        return;
+                    }
+                    handleMentionClick(event);
+                }}
+                data-readonly={!editable || undefined}
+            >
                 <EditorContent
                     editor={editor}
                     className={classes.editorContent}
                 />
             </div>
+            {lightbox && (
+                <ImageLightbox
+                    src={lightbox.src}
+                    alt={lightbox.alt}
+                    onClose={() => setLightbox(null)}
+                />
+            )}
             {onImageUpload && (
                 <input
                     ref={fileInputRef}
