@@ -76,6 +76,11 @@ const KIND_OPTIONS = (Object.keys(KIND_META) as HomepageResourceKind[]).map(
 const kindMeta = (kind: HomepageResourceKind) =>
     KIND_META[kind] ?? KIND_META.link;
 
+// Google's favicon service never 404s: sites with no favicon get its default
+// globe, served at 16px however large we ask. Detect it by size and fall back
+// to our own kind glyph instead of showing the blurry globe.
+const isDefaultFavicon = (img: HTMLImageElement) => img.naturalWidth < 32;
+
 // --- Thumbnails -------------------------------------------------------------
 
 const CardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
@@ -110,6 +115,10 @@ const CardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
                     alt={item.title}
                     loading="lazy"
                     onError={() => setFaviconFailed(true)}
+                    onLoad={(e) => {
+                        if (isDefaultFavicon(e.currentTarget))
+                            setFaviconFailed(true);
+                    }}
                 />
             ) : (
                 <div className={classes.resGlyphTile}>
@@ -146,6 +155,10 @@ const RowThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
                     alt=""
                     loading="lazy"
                     onError={() => setFaviconFailed(true)}
+                    onLoad={(e) => {
+                        if (isDefaultFavicon(e.currentTarget))
+                            setFaviconFailed(true);
+                    }}
                 />
             </div>
         );

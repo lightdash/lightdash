@@ -125,32 +125,30 @@ export const ContentCard: FC<Props> = ({
     const cardClass = `${classes.hoverCard}${to ? ` ${classes.clickable}` : ''}`;
 
     if (variant === 'tile') {
+        // Horizontal at half a card unit: two content tiles stack to exactly
+        // one unit card, so mixed rows keep sharing horizontal edges.
         return (
-            <MaybeLink to={to} className={`${cardClass} ${classes.cardUnit1}`}>
-                <Box p={12} h="100%">
-                    <Group
-                        justify="space-between"
-                        align="flex-start"
-                        mb={10}
-                        wrap="nowrap"
-                    >
-                        <ResourceIcon
-                            item={contentToResourceViewItem(content)}
-                        />
-                        <CardActions
-                            content={content}
-                            onRemove={onRemove}
-                            star={star}
-                        />
-                    </Group>
-                    <Group gap={5} wrap="nowrap" mb={2}>
-                        <Text size="sm" fw={600} truncate>
-                            {content.name}
-                        </Text>
-                        <VerifiedBadge content={content} />
-                    </Group>
-                    <KindAndViews content={content} />
-                </Box>
+            <MaybeLink
+                to={to}
+                className={`${cardClass} ${classes.cardUnitHalf}`}
+            >
+                <Group gap={10} wrap="nowrap" align="center" p={12} h="100%">
+                    <ResourceIcon item={contentToResourceViewItem(content)} />
+                    <Box flex={1} miw={0}>
+                        <Group gap={5} wrap="nowrap">
+                            <Text size="sm" fw={600} truncate>
+                                {content.name}
+                            </Text>
+                            <VerifiedBadge content={content} />
+                        </Group>
+                        <KindAndViews content={content} />
+                    </Box>
+                    <CardActions
+                        content={content}
+                        onRemove={onRemove}
+                        star={star}
+                    />
+                </Group>
             </MaybeLink>
         );
     }
