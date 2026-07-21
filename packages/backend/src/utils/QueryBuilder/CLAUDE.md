@@ -98,6 +98,16 @@ rather than add another embed:
   (PROD-7570 — the subtotal response covers exactly the rendered grain groups,
   so its inherited row limit can never truncate one; subtotal *values* stay
   full-group aggregates).
+- **`aggregations`** — aggregates source-row columns at the totals grain in a
+  `source_aggregations` CTE (grain columns prefixed `sa_` to avoid alias
+  collisions), forces the post-agg CTE path, and LEFT JOINs (CROSS JOIN at the
+  grand grain) the results onto the final select. Used for table calcs with
+  `totalMode: 'sum_of_rows'` (PROD-8594): their totals are SUMs of row-level
+  values, which also gives correct totals to calcs that can't be re-applied to
+  a collapsed row (window functions, templates). The `'formula'` default keeps
+  the existing re-apply behavior; `'none'` opts the calc out of totals entirely
+  (dropped from the collapsed query, never aggregated). Persisted per-calc in
+  `saved_queries_version_table_calculations.total_mode`.
 
 **SqlQueryComposer** — the facade for SQL charts (`extends QueryComposer`). SQL charts run user-written SQL rather than compiling a metric query, so this builds everything from raw inputs — the virtual view (`createVirtualView`) from the discovered columns, the wrapping `SqlQueryBuilder` (reference map + dialect config off the warehouse client), a mock `MetricQuery` metadata carrier, and (on the dashboard path) the applied dashboard filters/sorts — then overrides `computeCompiled()` to shape the wrapped user SQL into a `CompiledQuery`. Because `getSql()` is inherited, a request/config `pivotConfiguration` flows through the same seam as metric queries. Used by `AsyncQueryService.prepareSqlChartAsyncQueryArgs` for all three SQL execute paths (raw SQL runner, saved SQL chart, dashboard SQL chart).
 

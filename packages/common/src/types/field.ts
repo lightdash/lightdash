@@ -511,6 +511,15 @@ export type TableCalculationTemplate =
           frame?: FrameClause;
       };
 
+export enum TableCalculationTotalMode {
+    /** Apply the calculation to the aggregated totals row (default) — right for ratios */
+    FORMULA = 'formula',
+    /** Sum the calculation's row-level values — right for row-level transformations */
+    SUM_OF_ROWS = 'sum_of_rows',
+    /** Show no total for this calculation */
+    NONE = 'none',
+}
+
 export type TableCalculationBase = {
     /** Display order index */
     index?: number;
@@ -522,6 +531,8 @@ export type TableCalculationBase = {
     format?: CustomFormat;
     /** Data type of the calculation result */
     type?: TableCalculationType;
+    /** How column totals are computed for this calculation */
+    totalMode?: TableCalculationTotalMode;
 };
 
 export type SqlTableCalculation = TableCalculationBase & {

@@ -1,6 +1,7 @@
 import {
     NotSupportedError,
     SortByDirection,
+    TableCalculationTotalMode,
     VizAggregationOptions,
     VizIndexType,
     type MetricQuery,
@@ -358,7 +359,7 @@ describe('TotalQueryBuilder: grandTotal', () => {
         expect(result.additionalMetrics).toEqual([]);
     });
 
-    it('returns no sourceQuery when the source has no metric/table-calc filters', () => {
+    it('returns no sourceQuery when the source has no metric/table-calc filters or sum-of-rows calcs', () => {
         const result = new TotalQueryBuilder({
             metricQuery: baseMetricQuery,
             pivotConfiguration: null,
@@ -1037,5 +1038,92 @@ describe('TotalQueryBuilder: visible groups (PROD-7570)', () => {
             }).compileQuery();
             expect(result.sourceQuery).toBeUndefined();
         });
+    });
+});
+
+describe('TotalQueryBuilder: sum-of-rows table calculations (PROD-8594)', () => {
+    const sumModeCalc = {
+        name: 'revenue_plus_two',
+        displayName: 'Revenue plus two',
+        sql: '${orders.total_revenue} + 2',
+        totalMode: TableCalculationTotalMode.SUM_OF_ROWS,
+    };
+    const formulaModeCalc = {
+        name: 'revenue_ratio',
+        displayName: 'Revenue ratio',
+        sql: '${orders.total_revenue} / ${orders.total_revenue}',
+    };
+    const noneModeCalc = {
+        name: 'revenue_no_total',
+        displayName: 'Revenue no total',
+        sql: '${orders.total_revenue} + 1',
+        totalMode: TableCalculationTotalMode.NONE,
+    };
+    const sourceMetricQuery: MetricQuery = {
+        ...baseMetricQuery,
+        tableCalculations: [sumModeCalc, formulaModeCalc, noneModeCalc],
+    };
+
+    it('emits the source query and excludes sum and none calcs from the collapsed query', () => {
+        const result = new TotalQueryBuilder({
+            metricQuery: sourceMetricQuery,
+            pivotConfiguration: null,
+            kind: 'grandTotal',
+        }).compileQuery();
+
+        expect(result.sourceQuery).toEqual({
+            metricQuery: sourceMetricQuery,
+            pivotConfiguration: undefined,
+        });
+        // Sum-mode calcs are not re-applied to the collapsed totals row and
+        // none-mode calcs are dropped entirely; formula-mode calcs keep the
+        // existing behavior.
+        expect(
+            result.metricQuery.tableCalculations.map((calc) => calc.name),
+        ).toEqual(['revenue_ratio']);
+    });
+
+    it('does not emit a source query for none-mode calcs alone', () => {
+        const result = new TotalQueryBuilder({
+            metricQuery: {
+                ...baseMetricQuery,
+                tableCalculations: [noneModeCalc],
+            },
+            pivotConfiguration: null,
+            kind: 'grandTotal',
+        }).compileQuery();
+
+        expect(result.sourceQuery).toBeUndefined();
+        expect(result.metricQuery.tableCalculations).toEqual([]);
+    });
+
+    it('keeps sum-of-rows but drops none calc references in the pivoted values columns', () => {
+        const result = new TotalQueryBuilder({
+            metricQuery: sourceMetricQuery,
+            pivotConfiguration: {
+                ...pivotConfiguration,
+                valuesColumns: [
+                    {
+                        reference: 'orders_total_revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'revenue_plus_two',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'revenue_no_total',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+            },
+            kind: 'columnTotal',
+        }).compileQuery();
+
+        expect(
+            result.pivotConfiguration?.valuesColumns.map(
+                (col) => col.reference,
+            ),
+        ).toEqual(['orders_total_revenue', 'revenue_plus_two']);
     });
 });

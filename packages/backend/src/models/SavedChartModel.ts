@@ -306,6 +306,7 @@ const createSavedChartVersion = async (
                 formula: isFormulaTableCalculation(tableCalculation)
                     ? tableCalculation.formula
                     : undefined,
+                total_mode: tableCalculation.totalMode,
             })),
         );
         await createSavedChartVersionCustomDimensions(
@@ -1501,6 +1502,7 @@ export class SavedChartModel {
                         'type',
                         'template',
                         'formula',
+                        'total_mode',
                     ])
                     .where('saved_queries_version_id', savedQueriesVersionId);
 
@@ -1655,6 +1657,9 @@ export class SavedChartModel {
                                         tableCalculation.template || undefined,
                                     formula:
                                         tableCalculation.formula || undefined,
+                                    totalMode:
+                                        tableCalculation.total_mode ||
+                                        undefined,
                                 }) as TableCalculation,
                         ),
                         additionalMetrics,

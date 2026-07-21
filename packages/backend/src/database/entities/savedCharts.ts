@@ -15,6 +15,7 @@ import {
     MetricType,
     PivotSortAnchor,
     TableCalculationTemplate,
+    TableCalculationTotalMode,
     TableCalculationType,
     TimezoneSetting,
 } from '@lightdash/common';
@@ -190,6 +191,7 @@ export type DbSavedChartTableCalculation = {
     type?: TableCalculationType;
     template?: TableCalculationTemplate;
     formula?: string;
+    total_mode?: TableCalculationTotalMode;
 };
 
 export type DbSavedChartTableCalculationInsert = Omit<

@@ -4,6 +4,8 @@ import {
     MetricQuery,
     PivotConfiguration,
     SortByDirection,
+    TableCalculationTotalMode,
+    TableCalculationType,
     VizAggregationOptions,
     VizIndexType,
 } from '@lightdash/common';
@@ -227,6 +229,38 @@ describe('QueryComposer', () => {
                     expect(sql).toMatchSnapshot();
                 },
             );
+
+            it('sums sum-of-rows table calcs over the shared filtered-groups CTE', () => {
+                const composer = new QueryComposer(
+                    {
+                        metricQuery: {
+                            ...METRIC_FILTERED_TOTALS_SOURCE,
+                            tableCalculations: [
+                                {
+                                    name: 'metric_plus_two',
+                                    displayName: 'Metric plus two',
+                                    sql: '${table1.metric1} + 2',
+                                    type: TableCalculationType.NUMBER,
+                                    totalMode:
+                                        TableCalculationTotalMode.SUM_OF_ROWS,
+                                },
+                            ],
+                        },
+                        pivotConfiguration: undefined,
+                        totalConfiguration: {
+                            kind: 'grandTotal',
+                            subtotalDimensions: undefined,
+                        },
+                    },
+                    CONTEXT,
+                );
+
+                const sql = composer.getSql({ columnLimit: 100 });
+                expect(sql).toContain('source_aggregations');
+                // Restriction and aggregations share one source embed.
+                expect(sql.match(/source_rows AS \(/g)).toHaveLength(1);
+                expect(sql).toMatchSnapshot();
+            });
         });
     });
 });

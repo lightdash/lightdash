@@ -9,6 +9,7 @@ import {
     lightdashVariablePattern,
     NotSupportedError,
     parseTableCalculationFunctions,
+    TableCalculationTotalMode,
     type MetricQuery,
     type PivotConfiguration,
     type TableCalculation,
@@ -18,7 +19,11 @@ import {
     extractColumnRefs,
     parse as parseFormula,
 } from '@lightdash/formula';
-import { hasBlockingTotalFilters, type TotalQueryKind } from './utils';
+import {
+    getSumOfRowsTableCalculations,
+    hasBlockingTotalFilters,
+    type TotalQueryKind,
+} from './utils';
 
 export type { TotalQueryKind } from './utils';
 
@@ -81,12 +86,20 @@ const getTotalableReferences = (calc: TableCalculation): string[] | null => {
 // A table calc can be totaled when it depends only on aggregated metrics:
 // applying its formula to the collapsed totals row reproduces the correct
 // total. Calcs that reference dimensions, dropped PoP metrics, sibling table
-// calcs, or use window functions are excluded (their total stays blank).
+// calcs, or use window functions are excluded (their total stays blank), as
+// are 'sum_of_rows' calcs (aggregated over the embedded source rows instead)
+// and 'none' calcs (totals disabled by the user).
 const getTotalableTableCalculations = (
     metricQuery: MetricQuery,
     keptMetricIds: Set<string>,
 ): TableCalculation[] =>
     metricQuery.tableCalculations.filter((calc) => {
+        if (
+            calc.totalMode === TableCalculationTotalMode.SUM_OF_ROWS ||
+            calc.totalMode === TableCalculationTotalMode.NONE
+        ) {
+            return false;
+        }
         const references = getTotalableReferences(calc);
         return (
             references !== null &&
@@ -98,15 +111,18 @@ const getTotalableTableCalculations = (
 // Drop value columns that reference fields not present in the totals query:
 // PoP metrics and non-totalable table calcs are stripped from the metric query,
 // but the pivot still lists them. Keeping them makes PivotQueryBuilder aggregate
-// a column that was never selected, failing the whole totals SQL.
+// a column that was never selected, failing the whole totals SQL. Sum-of-rows
+// calcs stay: their columns are joined into the flat totals SQL.
 const filterTotalsValuesColumns = (
     valuesColumns: PivotConfiguration['valuesColumns'],
     keptMetricIds: Set<string>,
     totalableCalcs: TableCalculation[],
+    sumOfRowsCalcs: TableCalculation[],
 ): PivotConfiguration['valuesColumns'] => {
     const allowed = new Set<string>([
         ...keptMetricIds,
         ...totalableCalcs.map((calc) => calc.name),
+        ...sumOfRowsCalcs.map((calc) => calc.name),
     ]);
     return valuesColumns.filter((col) => allowed.has(col.reference));
 };
@@ -144,7 +160,7 @@ export type TotalQueryBuilderArgs = {
  * The source query the totals SQL embeds (once) to compute on top of the
  * original results. `MetricQueryBuilder` derives HOW from the totals
  * configuration and the two queries themselves (filter restrictions,
- * visible-page pinning).
+ * visible-page pinning, sum-of-rows aggregations).
  */
 export type TotalQuerySourceQuery = {
     // Source query verbatim; the builder embeds it without ORDER BY / LIMIT
@@ -159,7 +175,7 @@ export type TotalQueryResult = {
     metricQuery: MetricQuery;
     pivotConfiguration: PivotConfiguration | undefined;
     // Set only when the totals SQL must compute on top of the source query's
-    // results (blocking filters, subtotal page pinning).
+    // results (blocking filters, subtotal page pinning, sum-of-rows calcs).
     sourceQuery?: TotalQuerySourceQuery;
 };
 
@@ -207,7 +223,9 @@ export class TotalQueryBuilder {
             // source groups that pass them.
             hasBlockingTotalFilters(metricQuery) ||
             // Subtotals pin to the grain groups on the visible page.
-            kind === 'columnSubtotal';
+            kind === 'columnSubtotal' ||
+            // Sum-of-rows calcs aggregate over the source rows.
+            getSumOfRowsTableCalculations(metricQuery).length > 0;
         if (!needsSourceQuery) {
             return undefined;
         }
@@ -308,6 +326,7 @@ export class TotalQueryBuilder {
                 pivotConfiguration.valuesColumns,
                 keptMetricIds,
                 totalableCalcs,
+                getSumOfRowsTableCalculations(metricQuery),
             ),
         };
 
@@ -457,6 +476,7 @@ export class TotalQueryBuilder {
                 pivotConfiguration.valuesColumns,
                 keptMetricIds,
                 totalableCalcs,
+                getSumOfRowsTableCalculations(metricQuery),
             ),
         };
 
