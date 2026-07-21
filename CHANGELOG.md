@@ -1,3 +1,10 @@
+# [0.3439.0](https://github.com/lightdash/lightdash/compare/0.3438.0...0.3439.0) (2026-07-21)
+
+
+### Features
+
+* **mcp:** surface project type and expiresAt in list_projects ([#25882](https://github.com/lightdash/lightdash/issues/25882)) ([c3a22f0](https://github.com/lightdash/lightdash/commit/c3a22f0dc2904a624e24c27e1eb55cca7b4248e8)), closes [/linear.app/lightdash/issue/PROD-8974/mcp-list-projects-should-surface-project-type-defaultpreview-to-help#agent-session-07adc05](https://github.com//linear.app/lightdash/issue/PROD-8974/mcp-list-projects-should-surface-project-type-defaultpreview-to-help/issues/agent-session-07adc05)
+
 # [0.3438.0](https://github.com/lightdash/lightdash/compare/0.3437.0...0.3438.0) (2026-07-21)
 
 
