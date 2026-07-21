@@ -47,7 +47,11 @@ import {
     SANDBOX_TIMEOUT_MS,
     WORKDIR,
 } from './constants';
-import { classifyOnboardingStage, sanitizeOnboardingMessage } from './utils';
+import {
+    buildManagedOnboardingPrompt,
+    classifyOnboardingStage,
+    sanitizeOnboardingMessage,
+} from './utils';
 
 type Dependencies = {
     lightdashConfig: LightdashConfig;
@@ -177,31 +181,11 @@ export class OnboardingAgentService extends BaseService {
         const basePrompt =
             await this.promptService.getPrompt('project-onboarding');
         const siteUrl = this.lightdashConfig.siteUrl.replace(/\/+$/, '');
-        const preamble = [
-            '# Lightdash cloud onboarding run',
-            '',
-            'You are running inside a managed sandbox on Lightdash Cloud, completing project setup on behalf of a user.',
-            '',
-            '## Context',
-            `- Lightdash instance URL: ${siteUrl}`,
-            `- Warehouse type: ${args.warehouseType}`,
-            `- Prepared project UUID: ${args.projectUuid}`,
-            ...(args.database
-                ? [`- Configured database: ${args.database}`]
-                : []),
-            ...(args.schema ? [`- Configured schema: ${args.schema}`] : []),
-            '',
-            '## Managed environment',
-            '- The Lightdash CLI and skills are preinstalled. Skip local setup.',
-            `- Run every \`lightdash <args>\` command as \`${CLI_WRAPPER_PATH} <args>\`.`,
-            '- Authentication is already configured. Do not run `lightdash login` or inspect environment variables.',
-            `- Verify the selected project with \`${CLI_WRAPPER_PATH} config get-project\` and confirm it matches the prepared project UUID.`,
-            `- Create all working files under ${WORKDIR} and build a pure Lightdash semantic layer from the warehouse catalog.`,
-            '',
-            '---',
-            '',
-        ].join('\n');
-        return preamble + basePrompt;
+        return buildManagedOnboardingPrompt({
+            ...args,
+            basePrompt,
+            siteUrl,
+        });
     }
 
     private startCancellationPoll(

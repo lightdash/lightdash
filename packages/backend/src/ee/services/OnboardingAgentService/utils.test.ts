@@ -1,6 +1,42 @@
 import { describe, expect, it } from 'vitest';
 import { ALLOWED_TOOLS, CLI_WRAPPER_SCRIPT } from './constants';
-import { classifyOnboardingStage, sanitizeOnboardingMessage } from './utils';
+import {
+    buildManagedOnboardingPrompt,
+    classifyOnboardingStage,
+    sanitizeOnboardingMessage,
+} from './utils';
+
+describe('buildManagedOnboardingPrompt', () => {
+    it('replaces only section 1 and resumes at semantic-layer discovery', () => {
+        const prompt = buildManagedOnboardingPrompt({
+            basePrompt:
+                '# Complete Lightdash project setup\n\n## 1. Bootstrap\n\n## 2. Discover, author, and deploy the semantic layer',
+            siteUrl: 'https://example.lightdash.cloud',
+            projectUuid: 'project-uuid',
+            warehouseType: 'snowflake',
+            database: 'analytics',
+            schema: 'public',
+        });
+
+        expect(prompt).toContain('these replace section 1');
+        expect(prompt).toContain('Skip section 1 entirely');
+        expect(prompt).toContain('Do NOT run `lightdash login`');
+        expect(prompt).toContain(
+            '`/tmp/ld config get-project` and confirm it matches the prepared project UUID, then continue from section 2',
+        );
+        expect(prompt).toContain(
+            '## 2. Discover, author, and deploy the semantic layer',
+        );
+        expect(prompt.indexOf('`/tmp/ld config get-project`')).toBeLessThan(
+            prompt.indexOf(
+                '## 2. Discover, author, and deploy the semantic layer',
+            ),
+        );
+        expect(prompt).not.toMatch(/skip(?:ping)? (?:section )?2/i);
+        expect(prompt).not.toMatch(/skip[^\n]*semantic/i);
+        expect(prompt).not.toMatch(/six[- ]gate|six gates|first six/i);
+    });
+});
 
 describe('classifyOnboardingStage', () => {
     it.each([
