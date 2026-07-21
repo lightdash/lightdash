@@ -84,7 +84,7 @@ the resource returned by the backend.
 
 1. The CLI discovers and parses the relevant YAML files.
 2. The CLI sends each portable document to the resource's backend `POST
-   .../code/{resource}` endpoint.
+.../code/{resource}` endpoint.
 3. The backend authenticates and authorizes the request.
 4. The backend validates the portable document and its domain invariants.
 5. The backend resolves the existing resource using the documented portable
@@ -455,7 +455,11 @@ Use this sequence when adding a new resource:
    normal YAML document.
 6. Keep organization resources under `lightdash/<resource>/` and project
    resources within the existing project content layout.
-7. Add parser, filename, adapter, backend-domain, and round-trip tests, including
+7. Add a schema coverage contract under
+   `packages/backend/src/contentAsCode/fieldCoverage/`. Name the test after the
+   resource key so the registry test can verify that every registered resource
+   is covered.
+8. Add parser, filename, adapter, backend-domain, and round-trip tests, including
    partial failures and dependency skipping where applicable.
 
 ## Evolving an existing resource
@@ -471,6 +475,57 @@ the new meaning is incompatible with existing files, increment the resource
 version and add an explicit normalizer or migration path. Never spread an
 entire persistence model into a portable document: UUIDs, ownership, secrets,
 and instance-specific state must remain excluded.
+
+### Schema coverage guardrail
+
+Every registered single-document resource has a field coverage contract in
+`packages/backend/src/contentAsCode/fieldCoverage/`. These unit tests compare
+the top-level fields in the generated OpenAPI schema for the domain model with
+the fields in its portable content-as-code document. A model field cannot be
+silently added without making one of these decisions:
+
+- Add the field to the portable document and its adapters.
+- Add the field to `skippedModelFields` when excluding it is intentional.
+- Add a document-only field to `documentOnlyFields` when it has no direct model
+  equivalent, such as `version` or `contentType`.
+
+The lists are exact contracts rather than permanent allowlists. A test also
+fails when an entry becomes stale because the model and document now share the
+field. `registry.test.ts` ensures that adding a resource to
+`CONTENT_AS_CODE_VERSIONS` also requires adding a matching coverage test.
+
+When a model changes, regenerate the OpenAPI schema before running a focused
+contract test. CI does this through `build:fast`, but focused local test runs do
+not:
+
+```bash
+pnpm generate-api:backend:fast
+pnpm -F backend exec vitest run \
+  src/contentAsCode/fieldCoverage/chart.test.ts \
+  --config vitest.config.ts
+```
+
+An unclassified chart field fails with an actionable error:
+
+```text
+[content-as-code:chart] SavedChartDAO has new fields not covered by ChartAsCode:
+  - newField
+
+Add them to ChartAsCode and its adapters, or intentionally add them to
+skippedModelFields in chart.test.ts.
+```
+
+Run every coverage contract with:
+
+```bash
+pnpm -F backend exec vitest run \
+  src/contentAsCode/fieldCoverage \
+  --config vitest.config.ts
+```
+
+This is a schema coverage contract, not a replacement for behavior tests. It
+catches unclassified top-level fields; resource adapters and round-trip tests
+must still prove that portable fields download, compare, and upload correctly.
 
 Charts, dashboards, and spaces do not yet have universal database-enforced
 project-scoped slug uniqueness. Application-level locking protects current

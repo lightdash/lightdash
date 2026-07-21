@@ -1,0 +1,38 @@
+import { describeContentAsCodeSchemaContract } from './schemaContractTestUtils';
+
+describeContentAsCodeSchemaContract({
+    resource: 'google_sheets_sync',
+    modelSchema: 'SchedulerAndTargets',
+    documentSchema: 'GoogleSheetsSyncAsCode',
+    skippedModelFields: [
+        'appName',
+        'appUuid',
+        'createdAt',
+        'createdBy',
+        'createdByName',
+        'dashboardName',
+        'dashboardUuid',
+        'format',
+        'latestRun',
+        'notificationFrequency',
+        'options',
+        'projectName',
+        'projectSchedulerTimezone',
+        'projectUuid',
+        'savedChartName',
+        'savedChartUuid',
+        'savedSqlName',
+        'savedSqlUuid',
+        'schedulerUuid',
+        'targets',
+        'thresholds',
+        'updatedAt',
+    ],
+    documentOnlyFields: [
+        'contentType',
+        'destination',
+        'downloadedAt',
+        'resource',
+        'version',
+    ],
+});
