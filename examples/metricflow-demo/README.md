@@ -1,25 +1,35 @@
 # MetricFlow → Lightdash example
 
-Two complete dbt projects showing how to bring your dbt **MetricFlow** metrics
-into Lightdash using the Lightdash CLI (`compile` / `deploy`) — **no dbt Cloud
-required**. If you already define metrics with MetricFlow in your dbt project,
-Lightdash can read them straight from the dbt manifest and turn them into
-Lightdash metrics.
+Complete dbt projects showing how to bring your dbt **MetricFlow** metrics into
+Lightdash using the Lightdash CLI (`compile` / `deploy`). If you already define
+metrics with MetricFlow in your dbt project, Lightdash can read them straight
+from the dbt manifest and turn them into Lightdash metrics.
 
-Both projects define the *same* metrics over the same tiny orders dataset, one
-in each of the two MetricFlow YAML specs:
+The example projects define the *same* metrics over the same tiny orders
+dataset, authored in each MetricFlow YAML spec. Verification covers manifests
+produced by **dbt Core**, **dbt Fusion**, and the **dbt Cloud CLI** shape:
 
-| Project | Metrics spec | dbt engine | Warehouse |
+| Source | Metrics spec | dbt engine | Warehouse |
 |---|---|---|---|
 | `legacy-spec/` | Legacy: top-level `semantic_models:` + `metrics:` with `type_params` ([docs](https://docs.getdbt.com/docs/build/sl-getting-started)) | dbt Core ≥ 1.6 (python) | Postgres |
 | `latest-spec/` | Latest: inline `semantic_model:` on the model, metrics with top-level `agg`/`expr` ([docs](https://docs.getdbt.com/docs/build/latest-metrics-spec)) | dbt Fusion 2.0 (≥ preview.199) | DuckDB (local file, zero infra) |
+| `fixtures/cloud-cli-latest-spec-manifest.json` | Same latest-spec metrics, Cloud CLI manifest shape | dbt Cloud CLI (local CLI, compiles in Cloud) | n/a (fixture) |
 
-Both author layers compile to the same manifest sections (`semantic_models` +
-`metrics`), which is what Lightdash reads — so whichever spec your project uses,
-the result in Lightdash is identical. One thing worth knowing: Fusion writes
-simple metrics with `type_params.measure: null` and the aggregation inlined as
-`type_params.metric_aggregation_params`, while dbt Core writes the older shape.
-Lightdash handles both.
+All three author/compile paths feed the same manifest sections (`semantic_models`
++ `metrics`), which is what Lightdash reads — so whichever engine produced your
+manifest, the result in Lightdash is identical.
+
+Manifest shape notes:
+
+- **dbt Core** writes the older shape: simple metrics reference a measure by
+  name (`type_params.measure`).
+- **Fusion / latest-spec** inlines the aggregation as
+  `type_params.metric_aggregation_params` (`type_params.measure` is null) and
+  usually duplicates the column expression on both `type_params.expr` and
+  `metric_aggregation_params.expr`.
+- **dbt Cloud CLI** uses the latest-spec shape but may leave
+  `metric_aggregation_params.expr` **null** while still populating
+  `type_params.expr`. Lightdash falls back to `type_params.expr` in that case.
 
 ## Quick start
 
@@ -27,15 +37,15 @@ Lightdash handles both.
 # from the repo root: build the CLI once
 pnpm -F @lightdash/common build && pnpm -F @lightdash/warehouses build && pnpm -F @lightdash/cli build
 
-# run both projects end-to-end
+# run all verification paths end-to-end
 ./examples/metricflow-demo/test.sh
 ```
 
 `test.sh` seeds/runs/parses each dbt project, runs `lightdash compile` on the
 manifest, and verifies which metrics translate — names, metric types, SQL,
-percentile value — and that unsupported ones are skipped **with warnings**. It's
-a convenience for trying the example out; the two dbt projects below are the part
-worth studying for your own setup.
+percentile value — and that unsupported ones are skipped **with warnings**. It
+also asserts the checked-in Cloud CLI–shaped fixture. Optional live Cloud CLI
+parse (compiles in dbt Cloud) when `DBT_CLOUD_CLI_CONFIG` is set — see below.
 
 ## Environment setup
 
@@ -81,6 +91,26 @@ Why DuckDB here: Fusion's postgres adapter is experimental
 execution** (parse works). DuckDB is officially supported by Fusion and by
 Lightdash, and keeps this example fully self-contained.
 
+### Cloud CLI shape — fixture + optional live parse
+
+`test.sh` always asserts
+`fixtures/cloud-cli-latest-spec-manifest.json`, a slim latest-spec manifest
+where every simple metric has `type_params.expr` set and
+`metric_aggregation_params.expr` null (the Cloud CLI shape). That locks the
+translator behaviour without needing dbt Cloud credentials.
+
+For a live Cloud CLI parse (local CLI, compile/parse runs in dbt Cloud), set
+`DBT_CLOUD_CLI_CONFIG` to a `dbt_cloud.yml` credentials file and ensure
+`latest-spec/dbt_project.yml` has a matching `dbt-cloud.project-id` block:
+
+```bash
+# downloads the Cloud CLI binary into .dbt-cloud-cli/ on first run
+DBT_CLOUD_CLI_CONFIG=~/.dbt/dbt_cloud.yml ./examples/metricflow-demo/test.sh
+```
+
+`test.sh` installs the [dbt Cloud CLI](https://docs.getdbt.com/docs/cloud/cloud-cli-installation)
+binary into `.dbt-cloud-cli/` (gitignored, same pattern as Fusion).
+
 ### Lightdash compile / deploy
 
 ```bash
@@ -107,8 +137,8 @@ explore the result in the Lightdash UI).
 
 ## What translates (and what doesn't)
 
-Both specs produce the identical result: **14 translated, 1 skipped (with
-a warning)**.
+Both specs (and the Cloud CLI fixture) produce the identical result: **14
+translated, 1 skipped (with a warning)**.
 
 ### Supported → Lightdash metrics
 
@@ -173,8 +203,10 @@ coexist.
 ```
 metricflow-demo/
 ├── README.md                  ← you are here
-├── test.sh                    ← runs both specs end-to-end
+├── test.sh                    ← runs Core + Fusion + Cloud CLI fixture (optional live Cloud CLI)
 ├── assert-translation.cjs     ← checks manifest → Lightdash metric translation
+├── fixtures/
+│   └── cloud-cli-latest-spec-manifest.json  ← Cloud CLI shape lock-in
 ├── legacy-spec/
 │   ├── dbt_project.yml
 │   ├── profiles/profiles.yml  ← postgres
