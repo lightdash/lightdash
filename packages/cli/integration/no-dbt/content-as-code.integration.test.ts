@@ -284,16 +284,18 @@ const getSpaceItem = async (
     return getRequiredRecord(matching[0], 'space item');
 };
 
-const withoutDownloadTimestamp = (item: JsonRecord): JsonRecord =>
+const withoutServerTimestamps = (item: JsonRecord): JsonRecord =>
     Object.fromEntries(
-        Object.entries(item).filter(([key]) => key !== 'downloadedAt'),
+        Object.entries(item).filter(
+            ([key]) => key !== 'downloadedAt' && key !== 'updatedAt',
+        ),
     );
 
 const captureSeedState = async (client: ApiClient): Promise<SeedState> => ({
-    chart: withoutDownloadTimestamp(
+    chart: withoutServerTimestamps(
         await getCodeItem(client, 'charts', SEED_CHART_SLUG),
     ),
-    dashboard: withoutDownloadTimestamp(
+    dashboard: withoutServerTimestamps(
         await getCodeItem(client, 'dashboards', SEED_DASHBOARD_SLUG),
     ),
     space: await getSpaceItem(client, SEED_SPACE_SLUG),
