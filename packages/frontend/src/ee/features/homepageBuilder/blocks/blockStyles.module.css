@@ -410,7 +410,9 @@ a .hoverCard:hover,
     position: relative;
     width: 100%;
     flex: 1;
-    min-height: 0;
+    /* Floor, not zero: the band absorbs slack but must always frame the
+     * floating icon with margin rather than being flush with it. */
+    min-height: 56px;
     overflow: hidden;
     background: var(--mantine-color-ldGray-1);
     border-bottom: 1px solid var(--mantine-color-ldGray-2);
@@ -440,7 +442,7 @@ a .hoverCard:hover,
     position: relative;
     width: 100%;
     flex: 1;
-    min-height: 0;
+    min-height: 56px;
     overflow: hidden;
     display: grid;
     place-items: center;
@@ -463,9 +465,9 @@ a .hoverCard:hover,
 .resGlyphFloat {
     position: relative;
     z-index: 1;
-    width: 46px;
-    height: 46px;
-    border-radius: 12px;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
     object-fit: contain;
     background: light-dark(#fff, var(--mantine-color-dark-5));
     box-shadow:
@@ -529,6 +531,11 @@ a .hoverCard:hover,
     font-size: 13.5px;
     font-weight: 600;
     line-height: 1.3;
+    /* One line always: a wrapped title eats the image band above it, since
+     * the band absorbs whatever the body leaves. */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -540,7 +547,9 @@ a .hoverCard:hover,
     line-height: 1.4;
     color: var(--mantine-color-ldGray-6);
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    /* One line, like the title: with band + body sharing a fixed card, a
+     * wrapping description would push past the unit and clip. */
+    -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
