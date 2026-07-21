@@ -1,3 +1,10 @@
+# [0.3434.0](https://github.com/lightdash/lightdash/compare/0.3433.0...0.3434.0) (2026-07-21)
+
+
+### Features
+
+* restructure data-app skill for progressive disclosure ([#25863](https://github.com/lightdash/lightdash/issues/25863)) ([08afba5](https://github.com/lightdash/lightdash/commit/08afba5036dde128eafe8ba8e1470867ef7548ef))
+
 # [0.3433.0](https://github.com/lightdash/lightdash/compare/0.3432.0...0.3433.0) (2026-07-21)
 
 
