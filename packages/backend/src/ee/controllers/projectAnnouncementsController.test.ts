@@ -1,20 +1,33 @@
 import { ParameterError } from '@lightdash/common';
+import { type Request } from 'express';
+import { type ServiceRepository } from '../../services/ServiceRepository';
+import { type ProjectHomepageService } from '../services/ProjectHomepageService';
 import { ProjectAnnouncementsController } from './projectAnnouncementsController';
+
+type UploadImage = ProjectHomepageService['uploadAnnouncementImage'];
 
 describe('ProjectAnnouncementsController — uploadImage', () => {
     const buildController = (
-        uploadAnnouncementImage = vi
+        uploadAnnouncementImage: UploadImage = vi
             .fn()
-            .mockResolvedValue({ url: 'https://app.lightdash.com/api/v1/file/abc' }),
+            .mockResolvedValue({
+                url: 'https://app.lightdash.com/api/v1/file/abc',
+            }),
     ) => {
-        const controller = new ProjectAnnouncementsController({} as any);
-        vi.spyOn(controller as any, 'getHomepageService').mockReturnValue({
-            uploadAnnouncementImage,
-        });
+        const service: Pick<ProjectHomepageService, 'uploadAnnouncementImage'> =
+            { uploadAnnouncementImage };
+        // ServiceRepository.getProjectHomepageService is generic, so a precise
+        // partial can't satisfy it — cast the stub once at the boundary.
+        const services = {
+            getProjectHomepageService: () => service,
+        } as unknown as ServiceRepository;
+        const controller = new ProjectAnnouncementsController(services);
         return { controller, uploadAnnouncementImage };
     };
 
-    const buildRequest = (overrides: Partial<Record<string, string>> = {}) =>
+    const buildRequest = (
+        headers: Record<string, string | undefined>,
+    ): Request =>
         ({
             account: {
                 user: { type: 'registered', id: 'user-1' },
@@ -28,15 +41,15 @@ describe('ProjectAnnouncementsController — uploadImage', () => {
             headers: {
                 'content-type': 'image/png',
                 'content-length': '10',
-                ...overrides,
+                ...headers,
             },
-        }) as any;
+        }) as unknown as Request;
 
     it('throws a ParameterError when Content-Type is missing', async () => {
         const { controller } = buildController();
         await expect(
             controller.uploadImage(
-                buildRequest({ 'content-type': undefined as any }),
+                buildRequest({ 'content-type': undefined }),
                 'project-1',
             ),
         ).rejects.toThrow(ParameterError);
@@ -54,7 +67,7 @@ describe('ProjectAnnouncementsController — uploadImage', () => {
 
     it('delegates to the homepage service and returns its result', async () => {
         const { controller, uploadAnnouncementImage } = buildController();
-        const req = buildRequest();
+        const req = buildRequest({});
 
         const result = await controller.uploadImage(req, 'project-1');
 

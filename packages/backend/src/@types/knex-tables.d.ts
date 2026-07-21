@@ -492,8 +492,6 @@ import {
     ProjectCiStatusTableName,
 } from '../ee/database/entities/projectCiStatus';
 import {
-    AnnouncementCategoriesTable,
-    AnnouncementCategoriesTableName,
     AnnouncementsTable,
     AnnouncementsTableName,
     HomepageAssignmentsTable,
@@ -641,7 +639,6 @@ declare module 'knex/types/tables' {
         [HomepagesTableName]: ProjectHomepagesTable;
         [HomepageAssignmentsTableName]: HomepageAssignmentsTable;
         [HomepagePersonalOverridesTableName]: HomepagePersonalOverridesTable;
-        [AnnouncementCategoriesTableName]: AnnouncementCategoriesTable;
         [AnnouncementsTableName]: AnnouncementsTable;
         [AiAgentReasoningTableName]: AiAgentReasoningTable;
         [AiAgentToolCallTableName]: AiAgentToolCallTable;
