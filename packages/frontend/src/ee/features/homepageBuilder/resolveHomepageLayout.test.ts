@@ -672,6 +672,31 @@ describe('row alignment — narrow rows meet the page edge', () => {
         expect(rows.map((r) => r.align)).toEqual(['center', 'center']);
     });
 
+    it('keeps the ask-ai composer centred on the build surface', () => {
+        // The published page pulls a leading hero into its own centred hero
+        // section; the build surface keeps it in flow, where it must not get
+        // demoted to the left edge like other narrow rows.
+        const { rows } = resolveHomepageLayout(
+            makeConfig([
+                [block('h', 'ask-ai-hero')],
+                [metricsWithCount('m', 4)],
+            ]),
+            { surface: 'build' },
+        );
+        expect(rows[0].widthTier).toBe('composer');
+        expect(rows[0].align).toBe('center');
+    });
+
+    it('keeps a mid-page ask-ai composer centred on the view surface', () => {
+        const { rows } = resolveHomepageLayout(
+            makeConfig([
+                [metricsWithCount('m', 4)],
+                [block('h', 'ask-ai-hero')],
+            ]),
+        );
+        expect(rows[1].align).toBe('center');
+    });
+
     it('aligns by resolved tier, so a smoothed row counts as wide', () => {
         // resources is promoted content -> full by smoothing, so it is not
         // "narrower than the widest" and must stay centred
