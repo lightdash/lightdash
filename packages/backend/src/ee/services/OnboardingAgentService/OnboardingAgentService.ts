@@ -3,12 +3,17 @@ import {
     ForbiddenError,
     getConnectionDefaults,
     getErrorMessage,
+    isUserWithOrg,
     MissingConfigError,
+    NotFoundError,
     RequestMethod,
+    type AgentOnboardingFileContent,
     type AgentOnboardingHandoff,
     type AgentOnboardingJobPayload,
+    type AgentOnboardingRun,
     type AgentOnboardingStage,
     type AgentOnboardingUsage,
+    type SessionUser,
 } from '@lightdash/common';
 import { fromSession } from '../../../auth/account';
 import { type LightdashConfig } from '../../../config/parseConfig';
@@ -17,9 +22,13 @@ import { BaseService } from '../../../services/BaseService';
 import { type PersonalAccessTokenService } from '../../../services/PersonalAccessTokenService';
 import { type PromptService } from '../../../services/PromptService/PromptService';
 import { type UserService } from '../../../services/UserService';
-import { type DbAgentOnboardingRun } from '../../database/entities/agentOnboarding';
+import {
+    type DbAgentOnboardingFile,
+    type DbAgentOnboardingRun,
+} from '../../database/entities/agentOnboarding';
 import { type AgentOnboardingRunModel } from '../../models/AgentOnboardingRunModel';
 import { type SandboxRegistryModel } from '../../models/SandboxRegistryModel';
+import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import {
     interpretAgentEvent,
     resolveSandboxTemplateRef,
@@ -41,13 +50,21 @@ import {
     CLAUDE_SKILLS_DIR,
     CLI_WRAPPER_PATH,
     CLI_WRAPPER_SCRIPT,
+    FILE_SYNC_INTERVAL_MS,
     PAT_EXPIRY_GRACE_MS,
     PROMPT_PATH,
     RUN_TIMEOUT_MS,
     SANDBOX_TIMEOUT_MS,
     WORKDIR,
 } from './constants';
-import { classifyOnboardingStage, sanitizeOnboardingMessage } from './utils';
+import { OnboardingAgentFileStore } from './OnboardingAgentFileStore';
+import {
+    buildManagedOnboardingPrompt,
+    classifyOnboardingStage,
+    isOnboardingOutputFile,
+    parseWorkspaceFileListing,
+    sanitizeOnboardingMessage,
+} from './utils';
 
 type Dependencies = {
     lightdashConfig: LightdashConfig;
@@ -57,13 +74,35 @@ type Dependencies = {
     personalAccessTokenService: PersonalAccessTokenService;
     promptService: PromptService;
     userService: UserService;
+    schedulerClient: CommercialSchedulerClient;
     sandboxManager?: SandboxManager;
+    fileStore?: OnboardingAgentFileStore;
 };
 
 const ONBOARDING_WORKSPACE: PersistentWorkspace = {
     include: [WORKDIR],
     exclude: [],
 };
+
+const toRun = (run: DbAgentOnboardingRun): AgentOnboardingRun => ({
+    agentOnboardingRunUuid: run.agent_onboarding_run_uuid,
+    projectUuid: run.project_uuid,
+    status: run.status,
+    stage: run.stage,
+    events: run.events,
+    handoff: run.handoff,
+    usage: run.usage,
+    files: run.files.map(({ path, sizeBytes, updatedAt }) => ({
+        path,
+        sizeBytes,
+        updatedAt,
+    })),
+    errorMessage: run.error_message,
+    createdAt: run.created_at.toISOString(),
+    updatedAt: run.updated_at.toISOString(),
+    startedAt: run.started_at?.toISOString() ?? null,
+    completedAt: run.completed_at?.toISOString() ?? null,
+});
 
 export class OnboardingAgentService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
@@ -80,6 +119,10 @@ export class OnboardingAgentService extends BaseService {
 
     private readonly userService: UserService;
 
+    private readonly schedulerClient: CommercialSchedulerClient;
+
+    private readonly fileStore: OnboardingAgentFileStore;
+
     private sandboxManager: SandboxManager | undefined;
 
     constructor(dependencies: Dependencies) {
@@ -92,7 +135,215 @@ export class OnboardingAgentService extends BaseService {
             dependencies.personalAccessTokenService;
         this.promptService = dependencies.promptService;
         this.userService = dependencies.userService;
+        this.schedulerClient = dependencies.schedulerClient;
+        this.fileStore =
+            dependencies.fileStore ??
+            new OnboardingAgentFileStore({
+                lightdashConfig: dependencies.lightdashConfig,
+            });
         this.sandboxManager = dependencies.sandboxManager;
+    }
+
+    private async assertCanViewProject(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            user.organizationUuid !== organizationUuid ||
+            this.createAuditedAbility(user).cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+    }
+
+    private async assertCanManageProject(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<{ organizationUuid: string }> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            user.organizationUuid !== organizationUuid ||
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return { organizationUuid };
+    }
+
+    async createRun(args: {
+        user: SessionUser;
+        projectUuid: string;
+    }): Promise<AgentOnboardingRun> {
+        if (!isUserWithOrg(args.user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } = await this.assertCanManageProject(
+            args.user,
+            args.projectUuid,
+        );
+        if (
+            this.createAuditedAbility(args.user).cannot(
+                'create',
+                subject('PersonalAccessToken', {
+                    organizationUuid,
+                    metadata: { userUuid: args.user.userUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const activeRun =
+            await this.agentOnboardingRunModel.findActiveRunForProject(
+                args.projectUuid,
+            );
+        if (activeRun) return toRun(activeRun);
+
+        const run = await this.agentOnboardingRunModel.create({
+            organizationUuid,
+            projectUuid: args.projectUuid,
+            createdByUserUuid: args.user.userUuid,
+        });
+
+        try {
+            await this.schedulerClient.agentOnboardingRun({
+                agentOnboardingRunUuid: run.agent_onboarding_run_uuid,
+                organizationUuid: run.organization_uuid,
+                projectUuid: run.project_uuid,
+                userUuid: run.created_by_user_uuid,
+            });
+        } catch (error) {
+            await this.agentOnboardingRunModel.markFailed(
+                run.agent_onboarding_run_uuid,
+                'Could not start the onboarding agent. Please try again.',
+            );
+            throw error;
+        }
+        return toRun(run);
+    }
+
+    private async findOrganizationScopedRun(
+        user: SessionUser,
+        agentOnboardingRunUuid: string,
+    ): Promise<DbAgentOnboardingRun> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const run = await this.agentOnboardingRunModel.findByUuid(
+            agentOnboardingRunUuid,
+        );
+        if (!run || run.organization_uuid !== user.organizationUuid) {
+            throw new NotFoundError(
+                `Onboarding run ${agentOnboardingRunUuid} not found`,
+            );
+        }
+        return run;
+    }
+
+    private async findScopedRun(
+        user: SessionUser,
+        projectUuid: string,
+        agentOnboardingRunUuid: string,
+    ): Promise<DbAgentOnboardingRun> {
+        const run = await this.findOrganizationScopedRun(
+            user,
+            agentOnboardingRunUuid,
+        );
+        if (run.project_uuid !== projectUuid) {
+            throw new NotFoundError(
+                `Onboarding run ${agentOnboardingRunUuid} not found`,
+            );
+        }
+        await this.assertCanViewProject(user, projectUuid);
+        return run;
+    }
+
+    async getRun(
+        user: SessionUser,
+        projectUuid: string,
+        agentOnboardingRunUuid: string,
+    ): Promise<AgentOnboardingRun> {
+        return toRun(
+            await this.findScopedRun(user, projectUuid, agentOnboardingRunUuid),
+        );
+    }
+
+    async getFile(
+        user: SessionUser,
+        projectUuid: string,
+        agentOnboardingRunUuid: string,
+        path: string,
+    ): Promise<AgentOnboardingFileContent> {
+        if (!isOnboardingOutputFile(path)) {
+            throw new NotFoundError(`Onboarding file ${path} not found`);
+        }
+        const run = await this.findScopedRun(
+            user,
+            projectUuid,
+            agentOnboardingRunUuid,
+        );
+        if (
+            this.createAuditedAbility(user).cannot(
+                'view',
+                subject('SourceCode', {
+                    organizationUuid: run.organization_uuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to view this project source code',
+            );
+        }
+        const file = run.files.find((candidate) => candidate.path === path);
+        if (!file) {
+            throw new NotFoundError(`Onboarding file ${path} not found`);
+        }
+
+        const contents = await this.fileStore.get(file.s3Key);
+        const utf8 = contents.toString('utf8');
+        const isUtf8 = Buffer.from(utf8, 'utf8').equals(contents);
+        return {
+            path: file.path,
+            sizeBytes: file.sizeBytes,
+            updatedAt: file.updatedAt,
+            content: isUtf8 ? utf8 : contents.toString('base64'),
+            encoding: isUtf8 ? 'utf8' : 'base64',
+        };
+    }
+
+    async cancelRun(
+        user: SessionUser,
+        projectUuid: string,
+        agentOnboardingRunUuid: string,
+    ): Promise<AgentOnboardingRun> {
+        const run = await this.findScopedRun(
+            user,
+            projectUuid,
+            agentOnboardingRunUuid,
+        );
+        await this.assertCanManageProject(user, projectUuid);
+        const updatedRun =
+            await this.agentOnboardingRunModel.requestCancellation(
+                run.agent_onboarding_run_uuid,
+            );
+        return toRun(updatedRun ?? run);
+    }
+
+    async markRunTimedOut(agentOnboardingRunUuid: string): Promise<void> {
+        await this.agentOnboardingRunModel.markFailed(
+            agentOnboardingRunUuid,
+            'The onboarding agent took too long and was stopped.',
+        );
     }
 
     private getSandboxManager(): SandboxManager {
@@ -177,31 +428,11 @@ export class OnboardingAgentService extends BaseService {
         const basePrompt =
             await this.promptService.getPrompt('project-onboarding');
         const siteUrl = this.lightdashConfig.siteUrl.replace(/\/+$/, '');
-        const preamble = [
-            '# Lightdash cloud onboarding run',
-            '',
-            'You are running inside a managed sandbox on Lightdash Cloud, completing project setup on behalf of a user.',
-            '',
-            '## Context',
-            `- Lightdash instance URL: ${siteUrl}`,
-            `- Warehouse type: ${args.warehouseType}`,
-            `- Prepared project UUID: ${args.projectUuid}`,
-            ...(args.database
-                ? [`- Configured database: ${args.database}`]
-                : []),
-            ...(args.schema ? [`- Configured schema: ${args.schema}`] : []),
-            '',
-            '## Managed environment',
-            '- The Lightdash CLI and skills are preinstalled. Skip local setup.',
-            `- Run every \`lightdash <args>\` command as \`${CLI_WRAPPER_PATH} <args>\`.`,
-            '- Authentication is already configured. Do not run `lightdash login` or inspect environment variables.',
-            `- Verify the selected project with \`${CLI_WRAPPER_PATH} config get-project\` and confirm it matches the prepared project UUID.`,
-            `- Create all working files under ${WORKDIR} and build a pure Lightdash semantic layer from the warehouse catalog.`,
-            '',
-            '---',
-            '',
-        ].join('\n');
-        return preamble + basePrompt;
+        return buildManagedOnboardingPrompt({
+            ...args,
+            basePrompt,
+            siteUrl,
+        });
     }
 
     private startCancellationPoll(
@@ -226,6 +457,68 @@ export class OnboardingAgentService extends BaseService {
         return () => clearInterval(timer);
     }
 
+    private async syncWorkspaceFiles(args: {
+        run: DbAgentOnboardingRun;
+        sandbox: SandboxHandle;
+        previousFiles: DbAgentOnboardingFile[];
+    }): Promise<DbAgentOnboardingFile[]> {
+        const { run, sandbox, previousFiles } = args;
+        const result = await sandbox.commands.run(
+            `find ${WORKDIR} -type f -printf '%P\\t%s\\t%T@\\n' | sort`,
+        );
+        const previousByPath = new Map(
+            previousFiles.map((file) => [file.path, file]),
+        );
+        const discovered = parseWorkspaceFileListing(result.stdout).filter(
+            ({ path }) => isOnboardingOutputFile(path),
+        );
+
+        const files = await Promise.all(
+            discovered.map(async (file): Promise<DbAgentOnboardingFile> => {
+                const previous = previousByPath.get(file.path);
+                if (
+                    previous &&
+                    previous.sizeBytes === file.sizeBytes &&
+                    previous.updatedAt === file.updatedAt
+                ) {
+                    return previous;
+                }
+
+                const s3Key = [
+                    'agent-onboarding',
+                    run.organization_uuid,
+                    run.agent_onboarding_run_uuid,
+                    'files',
+                    ...file.path.split('/').map(encodeURIComponent),
+                ].join('/');
+                const contents = await sandbox.files.readBytes(
+                    `${WORKDIR}/${file.path}`,
+                );
+                await this.fileStore.put(s3Key, contents);
+                return { ...file, s3Key };
+            }),
+        );
+
+        const filesChanged =
+            files.length !== previousFiles.length ||
+            files.some((file) => {
+                const previous = previousByPath.get(file.path);
+                return (
+                    !previous ||
+                    previous.sizeBytes !== file.sizeBytes ||
+                    previous.updatedAt !== file.updatedAt ||
+                    previous.s3Key !== file.s3Key
+                );
+            });
+        if (filesChanged) {
+            await this.agentOnboardingRunModel.replaceFiles(
+                run.agent_onboarding_run_uuid,
+                files,
+            );
+        }
+        return files;
+    }
+
     private async runAgentInSandbox(args: {
         run: DbAgentOnboardingRun;
         sandbox: SandboxHandle;
@@ -236,6 +529,7 @@ export class OnboardingAgentService extends BaseService {
         usage: AgentOnboardingUsage | null;
     }> {
         const { run, sandbox, patToken, anthropicApiKey } = args;
+        this.fileStore.assertConfigured();
         const { warehouseConnection } =
             await this.projectModel.getWithSensitiveFields(run.project_uuid);
         if (!warehouseConnection) {
@@ -262,6 +556,36 @@ export class OnboardingAgentService extends BaseService {
         let usage: AgentOnboardingUsage | null = null;
         let lastStep = '';
         const pendingEvents: Promise<void>[] = [];
+        let knownFiles = run.files;
+        let syncPromise: Promise<void> | undefined;
+
+        const syncFiles = (): Promise<void> => {
+            if (syncPromise) return syncPromise;
+            syncPromise = this.syncWorkspaceFiles({
+                run,
+                sandbox,
+                previousFiles: knownFiles,
+            })
+                .then((files) => {
+                    knownFiles = files;
+                })
+                .finally(() => {
+                    syncPromise = undefined;
+                });
+            return syncPromise;
+        };
+
+        const fileSyncTimer = setInterval(() => {
+            void syncFiles().catch((error) => {
+                this.logger.warn(
+                    `OnboardingAgent: could not sync files: ${sanitizeOnboardingMessage(
+                        getErrorMessage(error),
+                        sensitiveValues,
+                    )}`,
+                );
+            });
+        }, FILE_SYNC_INTERVAL_MS);
+        fileSyncTimer.unref();
 
         const recordStep = (
             rawMessage: string,
@@ -352,6 +676,7 @@ export class OnboardingAgentService extends BaseService {
             }
         };
 
+        let runError: { value: unknown } | undefined;
         try {
             await sandbox.commands.run(
                 `cat ${PROMPT_PATH} | claude -p ` +
@@ -379,18 +704,45 @@ export class OnboardingAgentService extends BaseService {
                     },
                 },
             );
-        } finally {
-            if (buffer.trim()) {
-                try {
-                    handleEvent(JSON.parse(buffer));
-                } catch {
-                    this.logger.debug(
-                        'OnboardingAgent: received an unparseable trailing Claude event',
-                    );
-                }
-            }
-            await Promise.all(pendingEvents);
+        } catch (error) {
+            runError = { value: error };
         }
+
+        clearInterval(fileSyncTimer);
+        let syncError: { value: unknown } | undefined;
+        try {
+            if (syncPromise) {
+                await syncPromise.catch((error) => {
+                    this.logger.warn(
+                        `OnboardingAgent: periodic file sync failed before final sync: ${sanitizeOnboardingMessage(
+                            getErrorMessage(error),
+                            sensitiveValues,
+                        )}`,
+                    );
+                });
+            }
+            await syncFiles();
+        } catch (error) {
+            syncError = { value: error };
+            this.logger.warn(
+                `OnboardingAgent: could not complete file sync: ${sanitizeOnboardingMessage(
+                    getErrorMessage(error),
+                    sensitiveValues,
+                )}`,
+            );
+        }
+        if (buffer.trim()) {
+            try {
+                handleEvent(JSON.parse(buffer));
+            } catch {
+                this.logger.debug(
+                    'OnboardingAgent: received an unparseable trailing Claude event',
+                );
+            }
+        }
+        await Promise.all(pendingEvents);
+        if (runError) throw runError.value;
+        if (syncError) throw syncError.value;
         return { assistantText, usage };
     }
 

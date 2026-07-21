@@ -15,6 +15,44 @@ const LIGHTDASH_COMMAND_PATTERN = new RegExp(
     )})\\s+([\\w-]+)`,
 );
 
+type BuildManagedOnboardingPromptArgs = {
+    basePrompt: string;
+    siteUrl: string;
+    projectUuid: string;
+    warehouseType: string;
+    database: string | undefined;
+    schema: string | undefined;
+};
+
+export const buildManagedOnboardingPrompt = (
+    args: BuildManagedOnboardingPromptArgs,
+): string => {
+    const preamble = [
+        '# Lightdash cloud onboarding run',
+        '',
+        'You are running inside a managed sandbox on Lightdash Cloud, completing project setup on behalf of a user.',
+        '',
+        '## Context',
+        `- Lightdash instance URL: ${args.siteUrl}`,
+        `- Warehouse type: ${args.warehouseType}`,
+        `- Prepared project UUID: ${args.projectUuid}`,
+        ...(args.database ? [`- Configured database: ${args.database}`] : []),
+        ...(args.schema ? [`- Configured schema: ${args.schema}`] : []),
+        '',
+        '## Environment overrides (IMPORTANT — these replace section 1 of the instructions below)',
+        '- The Lightdash CLI and skills are preinstalled. Skip section 1 entirely.',
+        `- Run every \`lightdash <args>\` command as \`${CLI_WRAPPER_PATH} <args>\` (a thin wrapper around the same CLI).`,
+        '- Authentication is already configured through environment variables (LIGHTDASH_URL, LIGHTDASH_API_KEY, LIGHTDASH_PROJECT). Do NOT run `lightdash login`.',
+        `- For section 1, verify the selected project with \`${CLI_WRAPPER_PATH} config get-project\` and confirm it matches the prepared project UUID, then continue from section 2.`,
+        `- There is no existing repository. Create all working files under ${WORKDIR} and build a pure Lightdash semantic layer from the warehouse catalog.`,
+        '',
+        '---',
+        '',
+    ].join('\n');
+
+    return preamble + args.basePrompt;
+};
+
 const normalizeToolPath = (path: string): string =>
     path
         .replaceAll('\\', '/')
@@ -119,3 +157,62 @@ export const sanitizeOnboardingMessage = (
             '$1[sandbox path]',
         );
 };
+
+export type WorkspaceFileEntry = {
+    path: string;
+    sizeBytes: number;
+    updatedAt: string;
+};
+
+export const isOnboardingOutputFile = (path: string): boolean => {
+    const segments = path.split('/');
+    if (
+        path.startsWith('/') ||
+        path.includes('\\') ||
+        path.includes('\0') ||
+        segments.some(
+            (segment) => !segment || segment === '.' || segment === '..',
+        )
+    ) {
+        return false;
+    }
+    return (
+        /^lightdash\.config\.ya?ml$/.test(path) ||
+        /^lightdash\/.+\.ya?ml$/.test(path) ||
+        /^LIGHTDASH_(?:ONBOARDING_)?HANDOFF(?:_\d{4}-\d{2}-\d{2}(?:-\d+)?)?\.md$/.test(
+            path,
+        )
+    );
+};
+
+export const parseWorkspaceFileListing = (
+    listing: string,
+): WorkspaceFileEntry[] =>
+    listing
+        .split('\n')
+        .filter(Boolean)
+        .flatMap((line) => {
+            const fields = line.split('\t');
+            if (fields.length < 3) return [];
+            const modifiedAt = Number(fields.pop());
+            const sizeBytes = Number(fields.pop());
+            const path = fields.join('\t');
+            const updatedAtMs = Math.floor(modifiedAt * 1000);
+            if (
+                !path ||
+                path.startsWith('/') ||
+                path.split('/').includes('..') ||
+                !Number.isFinite(sizeBytes) ||
+                sizeBytes < 0 ||
+                !Number.isFinite(updatedAtMs)
+            ) {
+                return [];
+            }
+            return [
+                {
+                    path,
+                    sizeBytes,
+                    updatedAt: new Date(updatedAtMs).toISOString(),
+                },
+            ];
+        });

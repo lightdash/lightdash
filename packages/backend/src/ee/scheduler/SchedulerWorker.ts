@@ -28,6 +28,7 @@ import type { AiWritebackService } from '../services/AiWritebackService/AiWriteb
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import type { EmbedService } from '../services/EmbedService/EmbedService';
 import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgentService';
+import { type OnboardingAgentService } from '../services/OnboardingAgentService/OnboardingAgentService';
 import { ProjectContextService } from '../services/ProjectContextService/ProjectContextService';
 import { sendReviewNotification } from './tasks/sendReviewNotification';
 
@@ -39,11 +40,13 @@ const AI_AGENT_REVIEW_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
 const AI_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000;
 const AI_DEEP_RESEARCH_TIMEOUT_MS = 60 * 60 * 1000;
+const AGENT_ONBOARDING_TIMEOUT_MS = 60 * 60 * 1000;
 
 type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     aiAgentService: AiAgentService;
     aiWritebackService: AiWritebackService;
     aiDeepResearchService: AiDeepResearchService;
+    onboardingAgentService: OnboardingAgentService;
     aiAgentReviewClassifierService: AiAgentReviewClassifierService;
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
     aiAgentReviewNotificationModel: AiAgentReviewNotificationModel;
@@ -64,6 +67,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
     protected readonly aiWritebackService: AiWritebackService;
 
     protected readonly aiDeepResearchService: AiDeepResearchService;
+
+    protected readonly onboardingAgentService: OnboardingAgentService;
 
     protected readonly aiAgentReviewClassifierService: AiAgentReviewClassifierService;
 
@@ -94,6 +99,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.aiAgentService = args.aiAgentService;
         this.aiWritebackService = args.aiWritebackService;
         this.aiDeepResearchService = args.aiDeepResearchService;
+        this.onboardingAgentService = args.onboardingAgentService;
         this.aiAgentReviewClassifierService =
             args.aiAgentReviewClassifierService;
         this.aiAgentReviewClassifierModel = args.aiAgentReviewClassifierModel;
@@ -522,6 +528,31 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         await this.aiWritebackService.markRunError(
                             payload.aiWritebackRunUuid,
                             getErrorMessage(e),
+                        );
+                    },
+                );
+            },
+            [EE_SCHEDULER_TASKS.AGENT_ONBOARDING_RUN]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.AGENT_ONBOARDING_RUN,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.onboardingAgentService.executeRun(
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    AGENT_ONBOARDING_TIMEOUT_MS,
+                    async () => {
+                        await this.onboardingAgentService.markRunTimedOut(
+                            payload.agentOnboardingRunUuid,
                         );
                     },
                 );
