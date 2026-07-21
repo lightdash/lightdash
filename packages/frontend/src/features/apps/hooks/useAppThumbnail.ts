@@ -1,6 +1,7 @@
 import {
     type ApiAppThumbnailUrlResponse,
     type ApiError,
+    type ApiSuccessEmpty,
 } from '@lightdash/common';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
@@ -44,12 +45,37 @@ const fetchAppThumbnailUrl = async (
         body: undefined,
     });
 
+const deleteAppThumbnail = async ({
+    projectUuid,
+    appUuid,
+}: {
+    projectUuid: string;
+    appUuid: string;
+}): Promise<ApiSuccessEmpty['results']> =>
+    lightdashApi<ApiSuccessEmpty['results']>({
+        method: 'DELETE',
+        url: `/ee/projects/${projectUuid}/apps/${appUuid}/thumbnail`,
+        body: undefined,
+    });
+
 /**
  * Uploads a thumbnail image for an app.
  */
 export const useAppThumbnailUpload = () =>
     useMutation<void, Error, UploadAppThumbnailParams>({
         mutationFn: uploadAppThumbnail,
+    });
+
+/**
+ * Removes an app's thumbnail. Idempotent on the backend.
+ */
+export const useAppThumbnailDelete = () =>
+    useMutation<
+        ApiSuccessEmpty['results'],
+        ApiError,
+        { projectUuid: string; appUuid: string }
+    >({
+        mutationFn: deleteAppThumbnail,
     });
 
 /**
