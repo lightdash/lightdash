@@ -47,7 +47,7 @@ const VerifiedBadge: FC<{ content: SummaryContent }> = ({ content }) =>
     ) : null;
 
 const TileUpdated: FC<{ date: Date | string }> = ({ date }) => {
-    const timeAgo = useTimeAgo(date);
+    const timeAgo = useTimeAgo(date, 60000);
     return <span>updated {timeAgo}</span>;
 };
 
