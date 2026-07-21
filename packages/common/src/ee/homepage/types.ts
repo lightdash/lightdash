@@ -325,6 +325,7 @@ export type ProjectAnnouncement = {
     body: string | null;
     category: AnnouncementCategory | null;
     pinned: boolean;
+    published: boolean;
     createdByUserUuid: string | null;
     authorName: string | null;
     createdAt: Date;

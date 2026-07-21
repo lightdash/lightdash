@@ -124,13 +124,23 @@ export type DbAnnouncement = {
     created_by_user_uuid: string | null;
     created_at: Date;
     updated_at: Date;
+    published_at: Date | null;
+    pending_slack_channel_id: string | null;
 };
 
 export type DbAnnouncementIn = Pick<
     DbAnnouncement,
     'project_uuid' | 'title' | 'body' | 'created_by_user_uuid'
 > &
-    Partial<Pick<DbAnnouncement, 'category_uuid' | 'category'>>;
+    Partial<
+        Pick<
+            DbAnnouncement,
+            | 'category_uuid'
+            | 'category'
+            | 'published_at'
+            | 'pending_slack_channel_id'
+        >
+    >;
 
 export type DbAnnouncementUpdate = Partial<
     Pick<
@@ -141,6 +151,8 @@ export type DbAnnouncementUpdate = Partial<
         | 'category'
         | 'pinned'
         | 'updated_at'
+        | 'published_at'
+        | 'pending_slack_channel_id'
     >
 >;
 

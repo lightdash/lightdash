@@ -523,6 +523,8 @@ export class ProjectHomepageModel {
             body: row.body,
             category: (row.category as AnnouncementCategory | null) ?? null,
             pinned: row.pinned,
+            published:
+                row.published_at !== null && row.published_at !== undefined,
             createdByUserUuid: row.created_by_user_uuid,
             authorName: row.author_name?.trim() || null,
             createdAt: row.created_at,
@@ -544,29 +546,38 @@ export class ProjectHomepageModel {
 
     async listAnnouncements(
         projectUuid: string,
-        options: { page: number; pageSize: number },
+        options: {
+            page: number;
+            pageSize: number;
+            includeUnpublished?: boolean;
+        },
     ): Promise<AnnouncementsPage> {
         const offset = (options.page - 1) * options.pageSize;
-        const [rows, countRow] = await Promise.all([
-            this.announcementsQuery(projectUuid)
-                .leftJoin(
-                    'users',
-                    'users.user_uuid',
-                    `${AnnouncementsTableName}.created_by_user_uuid`,
-                )
-                .select(
-                    `${AnnouncementsTableName}.*`,
-                    this.database.raw(
-                        `TRIM(CONCAT(users.first_name, ' ', users.last_name)) as author_name`,
-                    ),
-                )
-                .offset(offset)
-                .limit(options.pageSize),
-            this.database(AnnouncementsTableName)
-                .where('project_uuid', projectUuid)
-                .count<{ count: string }>('* as count')
-                .first(),
-        ]);
+        const itemsQuery = this.announcementsQuery(projectUuid)
+            .leftJoin(
+                'users',
+                'users.user_uuid',
+                `${AnnouncementsTableName}.created_by_user_uuid`,
+            )
+            .select(
+                `${AnnouncementsTableName}.*`,
+                this.database.raw(
+                    `TRIM(CONCAT(users.first_name, ' ', users.last_name)) as author_name`,
+                ),
+            )
+            .offset(offset)
+            .limit(options.pageSize);
+        const countQuery = this.database(AnnouncementsTableName)
+            .where('project_uuid', projectUuid)
+            .count<{ count: string }>('* as count')
+            .first();
+        if (!options.includeUnpublished) {
+            void itemsQuery.whereNotNull(
+                `${AnnouncementsTableName}.published_at`,
+            );
+            void countQuery.whereNotNull('published_at');
+        }
+        const [rows, countRow] = await Promise.all([itemsQuery, countQuery]);
         return {
             items: rows.map(ProjectHomepageModel.mapDbAnnouncement),
             totalCount: Number(countRow?.count ?? 0),
@@ -588,6 +599,7 @@ export class ProjectHomepageModel {
         body: string | null;
         category: AnnouncementCategory | null;
         createdByUserUuid: string;
+        pendingSlackChannelId: string | null;
     }): Promise<ProjectAnnouncement> {
         const [row] = await this.database(AnnouncementsTableName)
             .insert({
@@ -596,9 +608,66 @@ export class ProjectHomepageModel {
                 body: data.body,
                 category: data.category,
                 created_by_user_uuid: data.createdByUserUuid,
+                published_at: null,
+                pending_slack_channel_id: data.pendingSlackChannelId,
             })
             .returning('*');
         return ProjectHomepageModel.mapDbAnnouncement(row);
+    }
+
+    /**
+     * Publishes all of a project's draft announcements (called when the
+     * homepage itself is published) and returns the ones with a pending
+     * Slack notification so the caller can fire it.
+     */
+    async publishProjectDraftAnnouncements(
+        projectUuid: string,
+    ): Promise<
+        Array<{ announcement: ProjectAnnouncement; slackChannelId: string }>
+    > {
+        return this.database.transaction(async (trx) => {
+            const drafts = await trx(AnnouncementsTableName)
+                .where({ project_uuid: projectUuid })
+                .whereNull('published_at')
+                .select('announcement_uuid', 'pending_slack_channel_id');
+            if (drafts.length === 0) return [];
+
+            const announcementUuids = drafts.map(
+                (draft) => draft.announcement_uuid,
+            );
+            const rows = await trx(AnnouncementsTableName)
+                .whereIn('announcement_uuid', announcementUuids)
+                .update({
+                    published_at: new Date(),
+                    pending_slack_channel_id: null,
+                })
+                .returning('*');
+
+            const pendingSlackChannelByUuid = new Map(
+                drafts.map((draft) => [
+                    draft.announcement_uuid,
+                    draft.pending_slack_channel_id,
+                ]),
+            );
+            return rows.reduce<
+                Array<{
+                    announcement: ProjectAnnouncement;
+                    slackChannelId: string;
+                }>
+            >((acc, row) => {
+                const slackChannelId = pendingSlackChannelByUuid.get(
+                    row.announcement_uuid,
+                );
+                if (slackChannelId) {
+                    acc.push({
+                        announcement:
+                            ProjectHomepageModel.mapDbAnnouncement(row),
+                        slackChannelId,
+                    });
+                }
+                return acc;
+            }, []);
+        });
     }
 
     async updateAnnouncement(

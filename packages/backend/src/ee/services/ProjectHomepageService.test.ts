@@ -154,6 +154,7 @@ const makeService = ({
             createAnnouncement: vi.fn(),
             updateAnnouncement: vi.fn(),
             deleteAnnouncement: vi.fn().mockResolvedValue(undefined),
+            publishProjectDraftAnnouncements: vi.fn().mockResolvedValue([]),
             ...projectHomepageModel,
         },
         groupsModel: {
@@ -330,6 +331,59 @@ describe('ProjectHomepageService', () => {
             true,
         );
         expect(result.publishedConfig).toEqual(validConfig);
+    });
+
+    it('publishHomepage publishes draft announcements and fires their pending Slack notifications', async () => {
+        const publishedAnnouncement = {
+            announcementUuid: 'ann-draft-1',
+            projectUuid: PROJECT_UUID,
+            title: 'Draft launch',
+            body: null,
+            category: null,
+            pinned: false,
+            published: true,
+            createdByUserUuid: 'user-1',
+            authorName: 'Ana',
+            createdAt: NOW,
+            updatedAt: NOW,
+        };
+        const postMessage = vi.fn().mockResolvedValue(undefined);
+        const publishProjectDraftAnnouncements = vi.fn().mockResolvedValue([
+            {
+                announcement: publishedAnnouncement,
+                slackChannelId: 'C1',
+            },
+        ]);
+        const service = makeService({
+            projectHomepageModel: {
+                getDefault: vi.fn().mockResolvedValue(makeHomepage()),
+                publish: vi
+                    .fn()
+                    .mockResolvedValue(
+                        makeHomepage({ publishedConfig: validConfig }),
+                    ),
+                publishProjectDraftAnnouncements,
+            },
+            slackClient: { postMessage },
+        });
+
+        await service.publishHomepage(
+            makeAdminUser(),
+            PROJECT_UUID,
+            HOMEPAGE_UUID,
+            { type: 'everyone' },
+            true,
+        );
+
+        expect(publishProjectDraftAnnouncements).toHaveBeenCalledWith(
+            PROJECT_UUID,
+        );
+        expect(postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                channel: 'C1',
+                text: expect.stringContaining('Draft launch'),
+            }),
+        );
     });
 
     it('discardDraft reverts the draft to the published config for an admin when the flag is on', async () => {
@@ -511,6 +565,7 @@ describe('ProjectHomepageService', () => {
             body: null,
             category: null,
             pinned: false,
+            published: false,
             createdByUserUuid: 'user-1',
             authorName: 'Ana',
             createdAt: new Date(),
@@ -535,14 +590,13 @@ describe('ProjectHomepageService', () => {
             expect(postMessage).not.toHaveBeenCalled();
         });
 
-        it('createAnnouncement notifies the chosen Slack channel', async () => {
+        it('createAnnouncement stores the pending Slack channel but does not notify yet', async () => {
             const postMessage = vi.fn().mockResolvedValue(undefined);
+            const createAnnouncement = vi
+                .fn()
+                .mockResolvedValue(madeAnnouncement);
             const service = makeService({
-                projectHomepageModel: {
-                    createAnnouncement: vi
-                        .fn()
-                        .mockResolvedValue(madeAnnouncement),
-                },
+                projectHomepageModel: { createAnnouncement },
                 slackClient: { postMessage },
             });
             await service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
@@ -551,25 +605,18 @@ describe('ProjectHomepageService', () => {
                 category: null,
                 slackChannelId: 'C123',
             });
-            expect(postMessage).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    channel: 'C123',
-                    text: expect.stringContaining('Launch'),
-                }),
+            expect(createAnnouncement).toHaveBeenCalledWith(
+                expect.objectContaining({ pendingSlackChannelId: 'C123' }),
             );
+            expect(postMessage).not.toHaveBeenCalled();
         });
 
-        it('createAnnouncement still succeeds when Slack posting fails', async () => {
-            const postMessage = vi
+        it('createAnnouncement is created as a draft (no Slack notification) even without a channel', async () => {
+            const createAnnouncement = vi
                 .fn()
-                .mockRejectedValue(new Error('slack down'));
+                .mockResolvedValue(madeAnnouncement);
             const service = makeService({
-                projectHomepageModel: {
-                    createAnnouncement: vi
-                        .fn()
-                        .mockResolvedValue(madeAnnouncement),
-                },
-                slackClient: { postMessage },
+                projectHomepageModel: { createAnnouncement },
             });
             await expect(
                 service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
@@ -579,6 +626,9 @@ describe('ProjectHomepageService', () => {
                     slackChannelId: 'C123',
                 }),
             ).resolves.toEqual(madeAnnouncement);
+            expect(createAnnouncement).toHaveBeenCalledWith(
+                expect.objectContaining({ pendingSlackChannelId: 'C123' }),
+            );
         });
 
         it('updateAnnouncement passes pinned through for an owned announcement', async () => {

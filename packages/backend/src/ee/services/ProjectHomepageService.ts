@@ -93,6 +93,7 @@ export type ProjectHomepageServiceArguments = {
         | 'createAnnouncement'
         | 'updateAnnouncement'
         | 'deleteAnnouncement'
+        | 'publishProjectDraftAnnouncements'
     >;
     featureFlagService: Pick<FeatureFlagService, 'get'>;
     groupsModel: Pick<GroupsModel, 'findUserGroups'>;
@@ -488,11 +489,29 @@ export class ProjectHomepageService extends BaseService {
         await this.assertFlagEnabled(user);
         this.assertCanManage(user, projectUuid);
         await this.getOwnedHomepage(projectUuid, homepageUuid);
-        return this.projectHomepageModel.publish(
+        const published = await this.projectHomepageModel.publish(
             homepageUuid,
             audience,
             allowPersonal,
         );
+        const { organizationUuid } = user;
+        if (organizationUuid) {
+            const publishedDrafts =
+                await this.projectHomepageModel.publishProjectDraftAnnouncements(
+                    projectUuid,
+                );
+            await Promise.all(
+                publishedDrafts.map(({ announcement, slackChannelId }) =>
+                    this.notifyAnnouncementToSlack(
+                        organizationUuid,
+                        projectUuid,
+                        announcement,
+                        slackChannelId,
+                    ),
+                ),
+            );
+        }
+        return published;
     }
 
     /**
@@ -570,7 +589,11 @@ export class ProjectHomepageService extends BaseService {
     async listAnnouncements(
         user: SessionUser,
         projectUuid: string,
-        options: { page: number; pageSize: number },
+        options: {
+            page: number;
+            pageSize: number;
+            includeUnpublished?: boolean;
+        },
     ): Promise<AnnouncementsPage> {
         await this.assertFlagEnabled(user);
         this.assertCanView(user, projectUuid);
@@ -580,6 +603,10 @@ export class ProjectHomepageService extends BaseService {
             options.pageSize > 100
         ) {
             throw new ParameterError('Invalid pagination');
+        }
+        // Drafts are only ever visible to someone who can manage the homepage.
+        if (options.includeUnpublished) {
+            this.assertCanManage(user, projectUuid);
         }
         return this.projectHomepageModel.listAnnouncements(
             projectUuid,
@@ -658,24 +685,17 @@ export class ProjectHomepageService extends BaseService {
         await this.assertFlagEnabled(user);
         this.assertCanManage(user, projectUuid);
         ProjectHomepageService.validateAnnouncementTitle(data.title);
-        const announcement = await this.projectHomepageModel.createAnnouncement(
-            {
-                projectUuid,
-                title: data.title.trim(),
-                body: data.body,
-                category: data.category,
-                createdByUserUuid: user.userUuid,
-            },
-        );
-        if (data.slackChannelId && user.organizationUuid) {
-            await this.notifyAnnouncementToSlack(
-                user.organizationUuid,
-                projectUuid,
-                announcement,
-                data.slackChannelId,
-            );
-        }
-        return announcement;
+        // Created as a draft — it stays invisible on the live homepage and its
+        // Slack notification (if any) is deferred until the homepage is
+        // published, see `publishHomepage`.
+        return this.projectHomepageModel.createAnnouncement({
+            projectUuid,
+            title: data.title.trim(),
+            body: data.body,
+            category: data.category,
+            createdByUserUuid: user.userUuid,
+            pendingSlackChannelId: data.slackChannelId ?? null,
+        });
     }
 
     async updateAnnouncement(

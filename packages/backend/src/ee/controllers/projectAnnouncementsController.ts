@@ -53,6 +53,7 @@ export class ProjectAnnouncementsController extends BaseController {
         @Path() projectUuid: UUID,
         @Query() page: number = 1,
         @Query() pageSize: number = 25,
+        @Query() includeUnpublished?: boolean,
     ): Promise<ApiAnnouncementsResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -61,7 +62,7 @@ export class ProjectAnnouncementsController extends BaseController {
             results: await this.getHomepageService().listAnnouncements(
                 toSessionUser(req.account),
                 projectUuid,
-                { page, pageSize },
+                { page, pageSize, includeUnpublished },
             ),
         };
     }
