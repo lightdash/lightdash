@@ -233,16 +233,40 @@ const AnnouncementFeed: FC<{
             earlier: rest.slice(RECENT_LIMIT),
         };
     }, [announcements]);
+
+    // 3+ recent cards render as a bento grid: a full-width lead + tiled rest.
+    const asBento = top.length >= 3;
     return (
         <>
-            {top.map((announcement) => (
-                <AnnouncementCard
-                    key={announcement.announcementUuid}
-                    projectUuid={projectUuid}
-                    announcement={announcement}
-                    actions={renderActions?.(announcement)}
-                />
-            ))}
+            {asBento ? (
+                <div className={classes.bento}>
+                    {top.map((announcement, index) => (
+                        <div
+                            key={announcement.announcementUuid}
+                            className={
+                                index === 0
+                                    ? `${classes.bentoCell} ${classes.bentoLead}`
+                                    : classes.bentoCell
+                            }
+                        >
+                            <AnnouncementCard
+                                projectUuid={projectUuid}
+                                announcement={announcement}
+                                actions={renderActions?.(announcement)}
+                            />
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                top.map((announcement) => (
+                    <AnnouncementCard
+                        key={announcement.announcementUuid}
+                        projectUuid={projectUuid}
+                        announcement={announcement}
+                        actions={renderActions?.(announcement)}
+                    />
+                ))
+            )}
             <EarlierSection
                 projectUuid={projectUuid}
                 items={earlier}

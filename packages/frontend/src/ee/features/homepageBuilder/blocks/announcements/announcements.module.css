@@ -254,6 +254,37 @@
         light-dark(var(--mantine-color-ldGray-1), var(--mantine-color-dark-5));
 }
 
+/* Bento grid — used when there are 3+ recent announcements. Lead spans the
+   full width; the rest tile into two columns. */
+.bento {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+}
+
+.bentoLead {
+    grid-column: 1 / -1;
+}
+
+.bentoCell {
+    min-width: 0;
+    height: 100%;
+}
+
+.bentoCell > .card {
+    height: 100%;
+}
+
+@media (max-width: 640px) {
+    .bento {
+        grid-template-columns: 1fr;
+    }
+    .bentoLead {
+        grid-column: auto;
+    }
+}
+
 .announcementImage {
     max-width: 100%;
     border-radius: var(--mantine-radius-md);
