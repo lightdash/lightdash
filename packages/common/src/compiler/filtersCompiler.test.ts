@@ -2060,6 +2060,33 @@ describe('Boolean Filter SQL', () => {
                 '(("table"."is_active")) = true',
             );
         });
+
+        it('should be a no-op when no value is selected', () => {
+            const filterEmptyArray = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: [],
+            };
+            const filterUndefined = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+            };
+            const filterEmptyString = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: [''],
+            };
+
+            expect(renderBooleanFilterSql(dimensionSql, filterEmptyArray)).toBe(
+                'true',
+            );
+            expect(renderBooleanFilterSql(dimensionSql, filterUndefined)).toBe(
+                'true',
+            );
+            expect(renderBooleanFilterSql(dimensionSql, filterEmptyString)).toBe(
+                'true',
+            );
+        });
     });
 
     describe('notEquals operator', () => {
@@ -2084,6 +2111,15 @@ describe('Boolean Filter SQL', () => {
             expect(renderBooleanFilterSql(dimensionSql, filter)).toBe(
                 '((("table"."is_active")) != false OR (("table"."is_active")) IS NULL)',
             );
+        });
+
+        it('should be a no-op when no value is selected', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.NOT_EQUALS,
+                values: [],
+            };
+            expect(renderBooleanFilterSql(dimensionSql, filter)).toBe('true');
         });
     });
 
