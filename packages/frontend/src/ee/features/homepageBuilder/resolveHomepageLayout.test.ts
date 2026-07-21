@@ -691,3 +691,19 @@ describe('row alignment — narrow rows meet the page edge', () => {
         expect(rows.map((r) => r.align)).toEqual(['center', 'center']);
     });
 });
+
+describe('row fit — hug is only for card grids', () => {
+    it('fills a multi-column row of list blocks instead of hugging', () => {
+        const { rows } = resolveHomepageLayout(
+            makeConfig([[block('f', 'favorites'), block('r', 'recent')]]),
+        );
+        expect(rows[0].fit).toBe('fill');
+    });
+
+    it('still hugs when a card-grid block shares the row', () => {
+        const { rows } = resolveHomepageLayout(
+            makeConfig([[metricsWithCount('m', 2), block('r', 'recent')]]),
+        );
+        expect(rows[0].fit).toBe('hug');
+    });
+});

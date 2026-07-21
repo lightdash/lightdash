@@ -50,9 +50,13 @@ const KIND_META: Record<
     HomepageResourceKind,
     { icon: Icon; label: string; thumbAccent: string }
 > = {
-    video: { icon: IconVideo, label: 'Video', thumbAccent: '' },
-    doc: { icon: IconBook, label: 'Doc', thumbAccent: '' },
-    link: { icon: IconLink, label: 'Link', thumbAccent: '' },
+    video: {
+        icon: IconVideo,
+        label: 'Video',
+        thumbAccent: classes.resThumbVideo,
+    },
+    doc: { icon: IconBook, label: 'Doc', thumbAccent: classes.resThumbDoc },
+    link: { icon: IconLink, label: 'Link', thumbAccent: classes.resThumbLink },
     claude: {
         icon: IconSparkles,
         label: 'Claude',
@@ -96,31 +100,20 @@ const CardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
         );
     }
 
-    // No sharp photo → blurred colour backdrop (claude's card, else the site's
-    // own favicon) with the crisp favicon floating on top.
-    const backdrop = item.kind === 'claude' ? imageUrl : favicon;
+    // No sharp photo → a quiet kind-tinted wash with the bare favicon on it.
     return (
         <div className={`${classes.resThumbTile} ${meta.thumbAccent}`}>
-            {backdrop ? (
-                <img
-                    className={classes.resThumbBackdrop}
-                    src={backdrop}
-                    alt=""
-                    loading="lazy"
-                    aria-hidden
-                />
-            ) : null}
             {favicon && !faviconFailed ? (
                 <img
-                    className={classes.resFaviconFloat}
+                    className={classes.resFavTile}
                     src={favicon}
                     alt={item.title}
                     loading="lazy"
                     onError={() => setFaviconFailed(true)}
                 />
             ) : (
-                <div className={classes.resGlyphFloat}>
-                    <MantineIcon icon={meta.icon} size={26} />
+                <div className={classes.resGlyphTile}>
+                    <MantineIcon icon={meta.icon} size={22} />
                 </div>
             )}
         </div>
@@ -162,36 +155,29 @@ const RowThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
 
 // --- Read-only presentation (published + preview) ---------------------------
 
-const ResourceCard: FC<{ item: HomepageResourceItem }> = ({ item }) => {
-    const meta = kindMeta(item.kind);
-    return (
-        <a
-            href={item.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`${classes.mediaCard} ${classes.cardUnit1} ${classes.clickable} ${classes.plainLink}`}
-        >
-            <CardThumb item={item} />
-            <div className={classes.mediaBody}>
-                <div className={classes.mediaKind}>
-                    <MantineIcon icon={meta.icon} size={12} />
-                    <span>{meta.label}</span>
-                    <MantineIcon
-                        icon={IconExternalLink}
-                        size={12}
-                        className={classes.mediaExternal}
-                    />
-                </div>
-                <div className={classes.mediaTitle}>
-                    {item.title || hostnameOf(item.url)}
-                </div>
-                {item.description ? (
-                    <div className={classes.mediaDesc}>{item.description}</div>
-                ) : null}
+const ResourceCard: FC<{ item: HomepageResourceItem }> = ({ item }) => (
+    <a
+        href={item.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`${classes.mediaCard} ${classes.cardUnit1} ${classes.clickable} ${classes.plainLink}`}
+    >
+        <MantineIcon
+            icon={IconExternalLink}
+            size={13}
+            className={classes.resExternal}
+        />
+        <CardThumb item={item} />
+        <div className={classes.mediaBody}>
+            <div className={classes.mediaTitle}>
+                {item.title || hostnameOf(item.url)}
             </div>
-        </a>
-    );
-};
+            <div className={classes.mediaDesc}>
+                {item.description || hostnameOf(item.url)}
+            </div>
+        </div>
+    </a>
+);
 
 const ResourceRow: FC<{ item: HomepageResourceItem }> = ({ item }) => {
     const meta = kindMeta(item.kind);

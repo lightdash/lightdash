@@ -247,13 +247,18 @@ const resolveRow = (
             ? 'grouped'
             : 'section';
     })();
+    // Hug exists to size card-grid columns from their card count. A row of
+    // list/text blocks has no cards to hug — each column shrinks to its own
+    // content and the pair floats mid-page, off the grid every other row
+    // sits on. Those rows fill like single-block rows do.
+    const anyCardGrid = columns.some((column) => column.hugUnits !== null);
     return {
         id: row.id,
         gap,
         widthTier,
         role: 'body',
         align: 'center',
-        fit: single ? 'fill' : 'hug',
+        fit: single || !anyCardGrid ? 'fill' : 'hug',
         columns,
     };
 };
