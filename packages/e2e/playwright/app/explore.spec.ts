@@ -307,6 +307,8 @@ test(
             await expect(page).toHaveURL(
                 `/projects/${SEED_PROJECT.project_uuid}/saved/${createdChartUuid}/edit`,
             );
+            await page.reload({ waitUntil: 'domcontentloaded' });
+            await expect(page.getByTestId('visualization')).toBeVisible();
             await page
                 .getByRole('button', { name: 'Configure', exact: true })
                 .click();
