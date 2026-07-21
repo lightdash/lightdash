@@ -4,7 +4,7 @@ import {
     ResourceViewItemType,
     type ResourceViewDataAppItem,
 } from '@lightdash/common';
-import { Checkbox } from '@mantine-8/core';
+import { Box, Checkbox, Tooltip } from '@mantine-8/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, type FC } from 'react';
 import TransferItemsModal from '../../../components/common/TransferItemsModal/TransferItemsModal';
@@ -97,14 +97,21 @@ export const MoveAppToSpaceModal: FC<Props> = ({
             isLoading={isMovingToSpace}
             footer={
                 hasThumbnail ? (
-                    <Checkbox
-                        checked={includeThumbnail}
-                        onChange={(e) =>
-                            setIncludeThumbnail(e.currentTarget.checked)
-                        }
-                        label="Include app thumbnail"
-                        description="Uncheck to remove the app's current thumbnail when it moves."
-                    />
+                    <Tooltip
+                        label="Uncheck to remove the app's current thumbnail when it moves."
+                        withArrow
+                        position="top"
+                    >
+                        <Box>
+                            <Checkbox
+                                checked={includeThumbnail}
+                                onChange={(e) =>
+                                    setIncludeThumbnail(e.currentTarget.checked)
+                                }
+                                label="Include app thumbnail"
+                            />
+                        </Box>
+                    </Tooltip>
                 ) : null
             }
             onConfirm={async (targetSpaceUuid) => {
