@@ -107,6 +107,7 @@ const ClampedBody: FC<{ projectUuid: string; body: string }> = ({
         <div className={classes.cardBody}>
             <div ref={ref} className={clamped ? classes.clamped : undefined}>
                 <TiptapMarkdownEditor
+                    key={body}
                     content={body}
                     editable={false}
                     mentionProjectUuid={projectUuid}
