@@ -15,11 +15,11 @@ const ConfirmAdminSelfDowngradeModal: FC<
     <MantineModal
         opened={opened}
         onClose={onClose}
-        title="Change your organization role?"
+        title="Downgrade your role?"
         icon={IconAlertTriangle}
         role="alertdialog"
         size="md"
-        description="You are about to remove your own admin access. This action cannot be undone — another admin will need to restore it for you."
+        description="You cannot undo this action. Another admin will have to manage your role for you."
         onConfirm={onConfirm}
         confirmLabel="Change role"
         confirmLoading={loading}
