@@ -549,6 +549,8 @@ export function createStack100TooltipFormatter(
     xAxisDateFormat?: string,
     timezone?: string,
     displayTimezone?: string,
+    pivotValuesColumnsMap?: Record<string, PivotValuesColumn>,
+    parameters?: ParametersValuesMap,
 ) {
     return (params: TooltipParams) => {
         if (!Array.isArray(params)) return '';
@@ -622,9 +624,21 @@ export function createStack100TooltipFormatter(
                         ? `${percentage.toFixed(1)}%`
                         : '0.0%';
                 const countStr =
-                    typeof originalValue === 'number'
-                        ? originalValue.toLocaleString()
-                        : '0';
+                    // eslint-disable-next-line no-nested-ternary
+                    typeof originalValue !== 'number'
+                        ? '0'
+                        : itemsMap
+                        ? getFormattedValue(
+                              originalValue,
+                              dimensionName,
+                              itemsMap,
+                              undefined,
+                              pivotValuesColumnsMap,
+                              parameters,
+                              timezone,
+                              displayTimezone,
+                          )
+                        : originalValue.toLocaleString();
 
                 const colorIndicator = formatColorIndicator(
                     extractColor(marker),
@@ -971,6 +985,8 @@ export const buildCartesianTooltipFormatter =
                 undefined,
                 timezone,
                 displayTimezone,
+                pivotValuesColumnsMap,
+                parameters,
             )(params as TooltipParam[]);
         }
 

@@ -1,5 +1,14 @@
+import {
+    CustomFormatType,
+    FieldType,
+    Format,
+    MetricType,
+    type ItemsMap,
+    type Metric,
+} from '../../types/field';
 import { VizAggregationOptions, type EChartsSeries } from '../types';
 import {
+    createStack100TooltipFormatter,
     findPivotColumnFromSeriesRef,
     transformToPercentageStacking,
     translatePivotRef,
@@ -320,5 +329,68 @@ describe('transformToPercentageStacking', () => {
         );
 
         expect(transformedResults[0]).toEqual({ date: '2024-01-01', a: 3 });
+    });
+});
+
+describe('createStack100TooltipFormatter', () => {
+    const metric: Metric = {
+        fieldType: FieldType.METRIC,
+        type: MetricType.SUM,
+        name: 'total_order_amount',
+        label: 'Total order amount',
+        table: 'orders',
+        tableLabel: 'Orders',
+        sql: '${TABLE}.amount',
+        hidden: false,
+        formatOptions: {
+            type: CustomFormatType.CURRENCY,
+            currency: Format.USD,
+        },
+    };
+    const itemsMap: ItemsMap = { orders_total_order_amount: metric };
+
+    const params = [
+        {
+            seriesName: 'completed',
+            marker: '',
+            data: {
+                orders_status: 'completed',
+                orders_total_order_amount: 46.9,
+            },
+        },
+    ];
+
+    test('formats the count with the field format for 100% stacked charts', () => {
+        const originalValues = new Map([
+            ['completed', new Map([['orders_total_order_amount', 1125.25]])],
+        ]);
+
+        const formatter = createStack100TooltipFormatter(
+            originalValues,
+            () => 'orders_total_order_amount',
+            'orders_status',
+            itemsMap,
+        );
+
+        const html = formatter(params);
+
+        expect(html).toContain('46.9% ($1,125.25)');
+        expect(html).not.toContain('(1,125.25)');
+    });
+
+    test('falls back to toLocaleString when no itemsMap is available', () => {
+        const originalValues = new Map([
+            ['completed', new Map([['orders_total_order_amount', 1125.25]])],
+        ]);
+
+        const formatter = createStack100TooltipFormatter(
+            originalValues,
+            () => 'orders_total_order_amount',
+            'orders_status',
+        );
+
+        const html = formatter(params);
+
+        expect(html).toContain('46.9% (1,125.25)');
     });
 });
