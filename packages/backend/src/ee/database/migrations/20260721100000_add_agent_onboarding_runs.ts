@@ -1,12 +1,25 @@
-import {
-    AGENT_ONBOARDING_ACTIVE_STATUSES,
-    AGENT_ONBOARDING_RUN_STATUSES,
-    AGENT_ONBOARDING_STAGES,
-} from '@lightdash/common';
 import { Knex } from 'knex';
 
 const AgentOnboardingRunsTableName = 'agent_onboarding_runs';
 const ActiveProjectIndexName = 'agent_onboarding_runs_active_project_idx';
+
+// Values frozen at migration time — do not import from @lightdash/common,
+// future changes to those constants must not alter this migration
+const AGENT_ONBOARDING_RUN_STATUSES = [
+    'queued',
+    'running',
+    'completed',
+    'failed',
+    'cancelled',
+];
+const AGENT_ONBOARDING_STAGES = [
+    'preparing_project',
+    'exploring_warehouse',
+    'deploying_semantic_layer',
+    'building_dashboard',
+    'verifying',
+    'handoff',
+];
 
 export async function up(knex: Knex): Promise<void> {
     await knex.schema.createTable(AgentOnboardingRunsTableName, (table) => {
@@ -31,8 +44,8 @@ export async function up(knex: Knex): Promise<void> {
             .text('status')
             .notNullable()
             .defaultTo('queued')
-            .checkIn([...AGENT_ONBOARDING_RUN_STATUSES]);
-        table.text('stage').checkIn([...AGENT_ONBOARDING_STAGES]);
+            .checkIn(AGENT_ONBOARDING_RUN_STATUSES);
+        table.text('stage').checkIn(AGENT_ONBOARDING_STAGES);
         table.jsonb('events').notNullable().defaultTo('[]');
         table.jsonb('handoff');
         table.jsonb('usage');
@@ -56,20 +69,11 @@ export async function up(knex: Knex): Promise<void> {
         table.index(['status', 'updated_at']);
     });
 
-    const activeStatusPlaceholders = AGENT_ONBOARDING_ACTIVE_STATUSES.map(
-        () => '?',
-    ).join(', ');
     await knex.raw(
         `CREATE UNIQUE INDEX ??
         ON ?? (??)
-        WHERE ?? IN (${activeStatusPlaceholders})`,
-        [
-            ActiveProjectIndexName,
-            AgentOnboardingRunsTableName,
-            'project_uuid',
-            'status',
-            ...AGENT_ONBOARDING_ACTIVE_STATUSES,
-        ],
+        WHERE status IN ('queued', 'running')`,
+        [ActiveProjectIndexName, AgentOnboardingRunsTableName, 'project_uuid'],
     );
 }
 
