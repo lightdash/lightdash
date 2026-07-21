@@ -65,6 +65,10 @@ const LINK_METADATA_MAX_BYTES = 256 * 1024;
 const LINK_PREVIEW_USER_AGENT =
     'Lightdash-LinkPreview/1.0 (+https://www.lightdash.com; like Slackbot-LinkExpanding)';
 
+// Slack's `markdown` block renders standard markdown natively. Not yet in the
+// pinned @slack/types, but it structurally satisfies the SDK's base Block type.
+type SlackMarkdownBlock = { type: 'markdown'; text: string };
+
 export type ProjectHomepageServiceArguments = {
     projectHomepageModel: Pick<
         ProjectHomepageModel,
@@ -583,33 +587,19 @@ export class ProjectHomepageService extends BaseService {
         );
     }
 
-    // Convert the stored markdown body to Slack mrkdwn: chart/dashboard
-    // mentions (markdown links) become real Slack links, keeping them clickable
-    // in the notification. Relative mention URLs are made absolute.
-    private bodyToSlackMrkdwn(body: string): string {
+    // The stored body is standard markdown; Slack's `markdown` block renders it
+    // natively (links, bold, lists), so we only need to make relative URLs
+    // absolute and drop inline images (not rendered by the markdown block).
+    private announcementSlackMarkdown(body: string): string {
         const { siteUrl } = this.lightdashConfig;
-        const text = body
+        return body
             .replace(/!\[[^\]]*\]\([^)]*\)/g, '') // drop inline images
-            .replace(/\[([^\]]*)\]\(([^)]*)\)/g, (_match, label, url) => {
-                const target = url as string;
-                // Only linkify safe URLs (relative or http/https); anything
-                // else (e.g. javascript:) is rendered as plain text.
-                const isSafe =
-                    target.startsWith('/') || /^https?:\/\//i.test(target);
-                if (!isSafe) return label as string;
-                const absolute = target.startsWith('/')
-                    ? `${siteUrl}${target}`
-                    : target;
-                return `<${absolute}|${label}>`;
-            })
-            .replace(/\*\*([^*]+)\*\*/g, '*$1*') // markdown bold → slack bold
-            .replace(/^\s*[-*]\s+/gm, '• ') // bullets
-            .replace(/[#>`~]/g, '')
+            .replace(
+                /\]\((\/[^)\s]*)\)/g,
+                (_match, path) => `](${siteUrl}${path})`,
+            )
             .replace(/\n{3,}/g, '\n\n')
             .trim();
-        if (text.length <= 1500) return text;
-        const cut = text.lastIndexOf('\n', 1500);
-        return `${text.slice(0, cut > 0 ? cut : 1500)}…`;
     }
 
     private async notifyAnnouncementToSlack(
@@ -619,10 +609,10 @@ export class ProjectHomepageService extends BaseService {
         channelId: string,
     ): Promise<void> {
         const link = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/home`;
-        const excerpt = announcement.body
-            ? this.bodyToSlackMrkdwn(announcement.body)
+        const markdown = announcement.body
+            ? this.announcementSlackMarkdown(announcement.body)
             : '';
-        const blocks: KnownBlock[] = [
+        const blocks: (KnownBlock | SlackMarkdownBlock)[] = [
             {
                 type: 'header',
                 text: {
@@ -631,13 +621,8 @@ export class ProjectHomepageService extends BaseService {
                     emoji: true,
                 },
             },
-            ...(excerpt
-                ? [
-                      {
-                          type: 'section' as const,
-                          text: { type: 'mrkdwn' as const, text: excerpt },
-                      },
-                  ]
+            ...(markdown
+                ? [{ type: 'markdown' as const, text: markdown }]
                 : []),
             {
                 type: 'context',
