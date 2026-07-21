@@ -113,7 +113,7 @@ const MetricKpiCard: FC<{
             c="inherit"
         >
             <Box
-                className={`${classes.hoverCard} ${classes.clickable} ${classes.kpiCard}`}
+                className={`${classes.hoverCard} ${classes.clickable} ${classes.kpiCard} ${classes.cardUnit1}`}
                 p={14}
             >
                 <div className={classes.kpiLabel}>

@@ -169,7 +169,7 @@ const ResourceCard: FC<{ item: HomepageResourceItem }> = ({ item }) => {
             href={item.url}
             target="_blank"
             rel="noopener noreferrer"
-            className={`${classes.mediaCard} ${classes.clickable} ${classes.plainLink}`}
+            className={`${classes.mediaCard} ${classes.cardUnit1} ${classes.clickable} ${classes.plainLink}`}
         >
             <CardThumb item={item} />
             <div className={classes.mediaBody}>
