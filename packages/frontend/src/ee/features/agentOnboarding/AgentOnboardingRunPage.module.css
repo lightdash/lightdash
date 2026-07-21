@@ -1,0 +1,291 @@
+.page {
+    min-height: calc(100vh - var(--ld-navbar-height, 50px));
+    background:
+        radial-gradient(
+            circle at 50% 0%,
+            var(--mantine-color-blue-0),
+            transparent 34rem
+        ),
+        var(--mantine-color-gray-0);
+}
+
+.content {
+    width: 100%;
+    max-width: 1440px;
+    margin: 0 auto;
+}
+
+.progressStepper {
+    padding: var(--mantine-spacing-md) 0;
+    overflow-x: auto;
+}
+
+.progressSteps {
+    min-width: 720px;
+}
+
+.progressStep {
+    min-width: 90px;
+}
+
+.progressStepBody {
+    text-align: center;
+}
+
+.progressActivityCard {
+    overflow: hidden;
+}
+
+.activityPanel {
+    position: relative;
+    border-top: 1px solid var(--mantine-color-gray-3);
+    background: #111827;
+}
+
+.activityToggle {
+    position: absolute;
+    z-index: 2;
+    top: 8px;
+    right: 12px;
+    color: var(--mantine-color-gray-3);
+    background: #1f2937;
+}
+
+.activityToggle:hover {
+    color: var(--mantine-color-white);
+    background: rgb(255 255 255 / 8%);
+}
+
+.workspace {
+    min-height: 520px;
+    height: calc(100vh - 330px);
+    overflow: hidden;
+}
+
+.workspacePanel {
+    display: grid;
+    grid-template-rows: 49px minmax(0, 1fr);
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+.terminal {
+    min-height: 0;
+    height: 220px;
+    background: inherit;
+}
+
+.terminal[data-collapsed='true'] {
+    height: 42px;
+}
+
+.terminalEntry {
+    min-width: 0;
+}
+
+.terminalTime {
+    flex: 0 0 auto;
+    line-height: 1.5;
+}
+
+.terminalMessage {
+    min-width: 0;
+    color: var(--mantine-color-gray-3);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    line-height: 1.5;
+}
+
+.terminalMessage[data-line-prefix='glob'] {
+    color: var(--mantine-color-green-3);
+}
+
+.terminalMessage[data-line-prefix='grep'] {
+    color: var(--mantine-color-teal-3);
+}
+
+.terminalMessage[data-line-prefix='read'] {
+    color: var(--mantine-color-cyan-3);
+}
+
+.terminalMessage[data-line-prefix='write'] {
+    color: var(--mantine-color-blue-3);
+}
+
+.terminalMessage[data-line-prefix='edit'] {
+    color: var(--mantine-color-violet-3);
+}
+
+.terminalMessage[data-line-prefix='skill'] {
+    color: var(--mantine-color-orange-3);
+}
+
+.terminalMessage[data-line-prefix='todowrite'] {
+    color: var(--mantine-color-yellow-3);
+}
+
+.terminalMessage[data-line-prefix='lightdash'] {
+    color: var(--mantine-color-lime-3);
+}
+
+.terminalMessage[data-line-prefix='command'] {
+    color: var(--mantine-color-gray-3);
+}
+
+.terminal[data-collapsed='true'] .terminalEntry,
+.terminal[data-collapsed='true'] .terminalMessage {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.fileBrowser {
+    min-height: 0;
+    height: 100%;
+}
+
+.filePanel {
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+}
+
+.fileTree {
+    min-height: 0;
+    height: 100%;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    background: var(--mantine-color-gray-0);
+}
+
+.fileResizeHandle {
+    display: flex;
+    flex: 0 0 7px;
+    align-items: center;
+    justify-content: center;
+    width: 7px;
+    color: var(--mantine-color-gray-5);
+    cursor: col-resize;
+    background: var(--mantine-color-gray-2);
+    outline: none;
+    transition:
+        color 120ms ease,
+        background-color 120ms ease;
+}
+
+.fileResizeHandle[data-resize-handle-state='hover'],
+.fileResizeHandle[data-resize-handle-state='drag'],
+.fileResizeHandle:focus-visible {
+    color: var(--mantine-color-blue-7);
+    background: var(--mantine-color-blue-1);
+}
+
+.fileTreeItem {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 36px;
+    padding-top: 8px;
+    padding-right: 10px;
+    padding-bottom: 8px;
+    color: var(--mantine-color-gray-7);
+}
+
+.fileTreeToggle {
+    display: flex;
+    flex: 0 0 20px;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    line-height: 0;
+}
+
+.fileTreeIcon {
+    display: flex;
+    flex: 0 0 20px;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    line-height: 0;
+}
+
+.fileTreeToggle svg,
+.fileTreeIcon svg {
+    flex: 0 0 auto;
+    display: block;
+}
+
+.fileTreeItem:hover {
+    background: var(--mantine-color-gray-1);
+}
+
+.fileTreeItem[data-selected='true'] {
+    color: var(--mantine-color-blue-8);
+    background: var(--mantine-color-blue-0);
+}
+
+.filePreview {
+    display: grid;
+    grid-template-rows: 38px minmax(0, 1fr);
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    background: var(--mantine-color-white);
+}
+
+.filePreviewHeader {
+    height: 38px;
+    border-bottom: 1px solid var(--mantine-color-gray-3);
+    background: var(--mantine-color-gray-0);
+}
+
+.filePreviewScroll {
+    min-height: 0;
+    height: 100%;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+
+.filePreviewCode {
+    min-height: 100%;
+    margin: 0;
+    border-radius: 0;
+}
+
+.markdownPreviewContainer {
+    min-height: 100%;
+    padding: var(--mantine-spacing-lg);
+    color: var(--mantine-color-text);
+    background: var(--mantine-color-white);
+}
+
+.markdownPreview {
+    color: inherit;
+    font-size: var(--mantine-font-size-sm);
+    background: transparent;
+}
+
+.plainTextPreview {
+    min-height: 100%;
+    margin: 0;
+    padding: var(--mantine-spacing-md);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-xs);
+}
+
+@media (max-width: 900px) {
+    .workspace {
+        height: auto;
+    }
+
+    .workspacePanel {
+        height: 520px;
+    }
+}

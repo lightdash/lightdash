@@ -354,6 +354,26 @@ const APP_ROUTES: RouteObject[] = [
                 children: [
                     { index: true, element: <Navigate to="home" replace /> },
                     {
+                        path: 'onboarding/runs/:agentOnboardingRunUuid',
+                        lazy: async () => {
+                            const AgentOnboardingRunPage =
+                                await loadLazyRouteDefault(
+                                    './ee/features/agentOnboarding/AgentOnboardingRunPage',
+                                    () =>
+                                        import('./ee/features/agentOnboarding/AgentOnboardingRunPage'),
+                                );
+                            return {
+                                Component: () => (
+                                    <TrackPage
+                                        name={PageName.AGENT_ONBOARDING_RUN}
+                                    >
+                                        <AgentOnboardingRunPage />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
+                    },
+                    {
                         path: '/projects/:projectUuid/home',
                         lazy: async () => {
                             const MobileHome = await loadLazyRouteDefault(
