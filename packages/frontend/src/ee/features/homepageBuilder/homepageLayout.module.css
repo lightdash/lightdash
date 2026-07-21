@@ -8,7 +8,7 @@
 
     display: flex;
     flex-direction: column;
-    padding: 32px 24px 64px;
+    padding: 24px 24px 48px;
 }
 
 .heroSection {
@@ -93,7 +93,7 @@
  * permutation renders balanced. */
 .row {
     display: flex;
-    gap: 14px;
+    gap: 12px;
     align-items: stretch;
     width: 100%;
     margin-inline: auto;
@@ -104,11 +104,11 @@
 }
 
 .row[data-gap='grouped'] {
-    margin-top: 18px;
+    margin-top: 14px;
 }
 
 .row[data-gap='section'] {
-    margin-top: 40px;
+    margin-top: 30px;
 }
 
 /* A lone leading text block opens the page: give it breathing room on top of
@@ -122,7 +122,7 @@
  * so their edges land on shared tracks instead of drifting apart. Items are
  * left-aligned, so a remainder row starts on the same track as a full one. */
 .pageGrid {
-    --page-grid-gap: 12px;
+    --page-grid-gap: 10px;
 
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -213,8 +213,8 @@
     /* One hug unit is one canonical card: the width a metrics tile takes at
      * full page width ((1160 - 3 gaps) / 4). Sizing units to the real card
      * width means a column asking for one card actually gets a readable one. */
-    --hug-unit: 281px;
-    --hug-gap: 12px;
+    --hug-unit: 282px;
+    --hug-gap: 10px;
 
     justify-content: center;
 }

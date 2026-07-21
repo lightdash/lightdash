@@ -114,7 +114,7 @@ const MetricKpiCard: FC<{
         >
             <Box
                 className={`${classes.hoverCard} ${classes.clickable} ${classes.kpiCard} ${classes.cardUnit1}`}
-                p={14}
+                p={12}
             >
                 <div className={classes.kpiLabel}>
                     {totalQuery.data?.metric.label ?? metricRef.label}
@@ -135,10 +135,10 @@ const MetricKpiCard: FC<{
                         </div>
                         {timeDimension &&
                             (seriesQuery.isInitialLoading ? (
-                                <Skeleton h={40} my={4} radius="sm" />
+                                <Skeleton h={30} my={3} radius="sm" />
                             ) : seriesQuery.data &&
                               seriesQuery.data.points.length > 0 ? (
-                                <Box my={4}>
+                                <Box my={3}>
                                     <MetricSparkline
                                         points={seriesQuery.data.points}
                                         change={change}

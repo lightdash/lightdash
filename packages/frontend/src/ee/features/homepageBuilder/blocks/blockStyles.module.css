@@ -38,12 +38,8 @@
     min-height: var(--card-unit);
 }
 
-.cardUnit2 {
-    height: calc(var(--card-unit) * 2 + var(--page-grid-gap, 12px));
-}
-
 .hoverCard {
-    --card-unit: 156px;
+    --card-unit: 140px;
 
     border: 1px solid var(--mantine-color-ldGray-2);
     border-radius: 10px;
@@ -265,7 +261,7 @@ a .hoverCard:hover,
     font-size: 12px;
     color: var(--mantine-color-ldGray-6);
     font-weight: 500;
-    margin-bottom: 5px;
+    margin-bottom: 4px;
 }
 
 .kpiValue {
@@ -381,7 +377,7 @@ a .hoverCard:hover,
 /* --- Resource cards ---------------------------------------------------- */
 
 .mediaCard {
-    --card-unit: 156px;
+    --card-unit: 140px;
 
     /* Fixed to the unit rather than floored by it: the band below absorbs
      * whatever the body doesn't use, so a one-line and a two-line description

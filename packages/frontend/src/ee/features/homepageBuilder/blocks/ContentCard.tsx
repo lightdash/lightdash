@@ -127,7 +127,7 @@ export const ContentCard: FC<Props> = ({
     if (variant === 'tile') {
         return (
             <MaybeLink to={to} className={`${cardClass} ${classes.cardUnit1}`}>
-                <Box p={14} h="100%">
+                <Box p={12} h="100%">
                     <Group
                         justify="space-between"
                         align="flex-start"
