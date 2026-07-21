@@ -51,6 +51,24 @@ describe('classifyQueryResult', () => {
         ).toBe('fixable');
     });
 
+    it('classifies a BigQuery Access Denied as non-retryable', () => {
+        expect(
+            classifyQueryResult({
+                type: 'error-text',
+                value: 'Error running query. Access Denied: Table my-project:dataset.table: User does not have permission to query table',
+            }),
+        ).toBe('non-retryable');
+    });
+
+    it('classifies a bytesBilledLimitExceeded as non-retryable', () => {
+        expect(
+            classifyQueryResult({
+                type: 'error-text',
+                value: 'Error running query. Query exceeded limit for bytesBilledLimitExceeded',
+            }),
+        ).toBe('non-retryable');
+    });
+
     it('classifies an unknown error as other', () => {
         expect(
             classifyQueryResult({
@@ -67,6 +85,15 @@ describe('shouldCapQueryRetries', () => {
         expect(shouldCapQueryRetries(['warehouse-slow', 'ok']).capped).toBe(
             false,
         );
+        expect(shouldCapQueryRetries(['non-retryable', 'ok']).capped).toBe(
+            false,
+        );
+    });
+
+    it('caps after two non-retryable errors', () => {
+        expect(
+            shouldCapQueryRetries(['non-retryable', 'non-retryable']).capped,
+        ).toBe(true);
     });
 
     it('caps after two warehouse-slow errors', () => {
@@ -110,6 +137,18 @@ describe('collectQueryResultClasses', () => {
         ]);
     });
 
+    it('collects runSql results', () => {
+        const messages: ModelMessage[] = [
+            toolResultMessage('runSql', {
+                type: 'error-text',
+                value: 'Error running SQL query. Access Denied: no permission',
+            }),
+        ];
+        expect(collectQueryResultClasses(messages, QUERY_TOOL_NAMES)).toEqual([
+            'non-retryable',
+        ]);
+    });
+
     it('ignores non-query tools', () => {
         const messages: ModelMessage[] = [
             toolResultMessage('searchFieldValues', {
@@ -124,7 +163,12 @@ describe('collectQueryResultClasses', () => {
 });
 
 describe('buildQueryRetryStepOverride', () => {
-    const allTools = ['generateVisualization', 'runQuery', 'grepFields'];
+    const allTools = [
+        'generateVisualization',
+        'runQuery',
+        'runSql',
+        'grepFields',
+    ];
 
     it('returns null when the cap has not tripped', () => {
         const messages: ModelMessage[] = [
@@ -148,5 +192,24 @@ describe('buildQueryRetryStepOverride', () => {
         const override = buildQueryRetryStepOverride(messages, allTools);
         expect(override?.activeTools).toEqual(['grepFields']);
         expect(override?.nudge.toLowerCase()).toContain('do not');
+    });
+
+    it('surfaces the warehouse error and instructs the agent to report it', () => {
+        const err = {
+            type: 'error-text',
+            value: 'Error running SQL query. Access Denied: User does not have permission to query table my-project:dataset.orders\n\nTry again if you believe the error can be resolved.',
+        };
+        const messages: ModelMessage[] = [
+            toolResultMessage('runSql', err),
+            toolResultMessage('runSql', err),
+        ];
+        const override = buildQueryRetryStepOverride(messages, allTools);
+        expect(override?.activeTools).not.toContain('runSql');
+        // The wrapping prefix/suffix are stripped; the real warehouse text stays.
+        expect(override?.nudge).toContain(
+            'Access Denied: User does not have permission to query table',
+        );
+        expect(override?.nudge).not.toContain('Try again if you believe');
+        expect(override?.nudge.toLowerCase()).toContain('report this error');
     });
 });
