@@ -234,28 +234,36 @@ const AnnouncementFeed: FC<{
         };
     }, [announcements]);
 
-    // 3+ recent cards render as a bento grid: a full-width lead + tiled rest.
+    // 3+ recent cards render as a bento grid: a full-width lead, the rest
+    // tiled two-up, and a lone trailing tile spanning full width so the grid
+    // never ends half-empty.
     const asBento = top.length >= 3;
+    const restIsOdd = (top.length - 1) % 2 === 1;
     return (
         <>
             {asBento ? (
                 <div className={classes.bento}>
-                    {top.map((announcement, index) => (
-                        <div
-                            key={announcement.announcementUuid}
-                            className={
-                                index === 0
-                                    ? `${classes.bentoCell} ${classes.bentoLead}`
-                                    : classes.bentoCell
-                            }
-                        >
-                            <AnnouncementCard
-                                projectUuid={projectUuid}
-                                announcement={announcement}
-                                actions={renderActions?.(announcement)}
-                            />
-                        </div>
-                    ))}
+                    {top.map((announcement, index) => {
+                        const isLead = index === 0;
+                        const isLoneLast =
+                            restIsOdd && index === top.length - 1;
+                        return (
+                            <div
+                                key={announcement.announcementUuid}
+                                className={
+                                    isLead || isLoneLast
+                                        ? `${classes.bentoCell} ${classes.bentoLead}`
+                                        : classes.bentoCell
+                                }
+                            >
+                                <AnnouncementCard
+                                    projectUuid={projectUuid}
+                                    announcement={announcement}
+                                    actions={renderActions?.(announcement)}
+                                />
+                            </div>
+                        );
+                    })}
                 </div>
             ) : (
                 top.map((announcement) => (
