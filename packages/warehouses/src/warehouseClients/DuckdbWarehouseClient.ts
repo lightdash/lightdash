@@ -14,10 +14,12 @@ import {
     MetricType,
     NotImplementedError,
     ParameterError,
+    setCatalogTimestampDomain,
     SupportedDbtAdapter,
     WarehouseCatalog,
     WarehouseResults,
     WarehouseTypes,
+    type TimestampDomain,
     type WarehouseQueryPhase,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
@@ -171,6 +173,17 @@ export const mapFieldTypeFromTypeId = (typeId: number): DimensionType => {
         default:
             return DimensionType.STRING;
     }
+};
+
+export const getDuckdbTimestampDomainFromString = (
+    typeName: string,
+): TimestampDomain | undefined => {
+    const upper = typeName.toUpperCase().replace(/\(\d+\)/, '');
+    if (upper === 'TIMESTAMP WITH TIME ZONE' || upper === 'TIMESTAMPTZ')
+        return 'aware';
+    // TIMESTAMP and its precision variants (TIMESTAMP_S/_MS/_NS)
+    if (upper.startsWith('TIMESTAMP')) return 'naive';
+    return undefined;
 };
 
 const mapFieldTypeFromString = (typeName: string): DimensionType => {
@@ -1694,14 +1707,21 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     if (!catalog[ref.database][ref.schema]) {
                         catalog[ref.database][ref.schema] = {};
                     }
-                    catalog[ref.database][ref.schema][ref.table] = rows.reduce<
-                        Record<string, DimensionType>
-                    >((acc, row) => {
+                    catalog[ref.database][ref.schema][ref.table] = {};
+                    rows.forEach((row) => {
                         const colName = row.column_name as string;
                         const colType = row.data_type as string;
-                        acc[colName] = mapFieldTypeFromString(colType);
-                        return acc;
-                    }, {});
+                        catalog[ref.database][ref.schema][ref.table][colName] =
+                            mapFieldTypeFromString(colType);
+                        setCatalogTimestampDomain(
+                            catalog,
+                            ref.database,
+                            ref.schema,
+                            ref.table,
+                            colName,
+                            getDuckdbTimestampDomainFromString(colType),
+                        );
+                    });
                 }
             }
             /* eslint-enable no-await-in-loop */

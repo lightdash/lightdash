@@ -1,7 +1,13 @@
+import { DimensionType } from './field';
 import {
+    catalogHasTimestampDomains,
+    ensureCatalogTimestampDomainsKey,
+    getCatalogTimestampDomain,
     getUserAttributeQueryTags,
     sanitizeQueryTagKey,
     sanitizeQueryTagValue,
+    setCatalogTimestampDomain,
+    type WarehouseCatalog,
 } from './warehouse';
 
 describe('getUserAttributeQueryTags', () => {
@@ -68,5 +74,54 @@ describe('getUserAttributeQueryTags', () => {
             'invalid_query_tag__',
         );
         expect(sanitizeQueryTagValue("O'Reilly Media")).toBe('o_reilly_media');
+    });
+});
+
+describe('catalog timestamp domain sidecar', () => {
+    const buildCatalog = (): WarehouseCatalog => ({
+        db: { schema: { table: { created_at: DimensionType.TIMESTAMP } } },
+    });
+
+    it('reports a catalog without the sidecar as pre-domain', () => {
+        expect(catalogHasTimestampDomains(buildCatalog())).toBe(false);
+    });
+
+    it('reports a catalog with a classified column as domain-aware', () => {
+        const catalog = buildCatalog();
+        setCatalogTimestampDomain(
+            catalog,
+            'db',
+            'schema',
+            'table',
+            'created_at',
+            'naive',
+        );
+        expect(catalogHasTimestampDomains(catalog)).toBe(true);
+    });
+
+    it('marks a domain-less catalog without clobbering classifications', () => {
+        const empty = buildCatalog();
+        ensureCatalogTimestampDomainsKey(empty);
+        expect(catalogHasTimestampDomains(empty)).toBe(true);
+
+        const classified = buildCatalog();
+        setCatalogTimestampDomain(
+            classified,
+            'db',
+            'schema',
+            'table',
+            'created_at',
+            'aware',
+        );
+        ensureCatalogTimestampDomainsKey(classified);
+        expect(
+            getCatalogTimestampDomain(
+                classified,
+                'db',
+                'schema',
+                'table',
+                'created_at',
+            ),
+        ).toEqual('aware');
     });
 });

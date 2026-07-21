@@ -15,7 +15,7 @@ import {
     config,
     expectedFields,
     expectedRow,
-    expectedWarehouseSchema,
+    expectedWarehouseSchemaWithNaiveTimestamp,
 } from './WarehouseClient.mock';
 
 vi.mock('pg', async () => ({
@@ -134,7 +134,7 @@ describe('PostgresWarehouseClient', () => {
                 };
             });
         expect(await warehouse.getCatalog(config)).toEqual(
-            expectedWarehouseSchema,
+            expectedWarehouseSchemaWithNaiveTimestamp,
         );
     });
     it('expect empty catalog when dbt project has no references', async () => {

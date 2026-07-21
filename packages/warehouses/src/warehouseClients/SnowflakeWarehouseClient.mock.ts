@@ -167,6 +167,12 @@ export const expectedWarehouseSchema = {
             },
         },
     },
+    // TIMESTAMP_NTZ in the catalog carries the naive domain
+    __lightdashTimestampDomains: {
+        myDatabase: {
+            mySchema: { myTable: { MYTIMESTAMPCOLUMN: 'naive' } },
+        },
+    },
 };
 
 export const expectedFields: Record<string, AnyType> = {
