@@ -45,6 +45,10 @@ import type {
     ApiAiRouterInstructionResponse,
     ApiAiRouterResponse,
     ApiAiRouterRouteResponse,
+    ApiAnnouncementCategoriesResponse,
+    ApiAnnouncementCategoryResponse,
+    ApiAnnouncementResponse,
+    ApiAnnouncementsResponse,
     ApiAppendInstructionResponse,
     ApiAppImageUploadResponse,
     ApiAppThumbnailUrlResponse,
@@ -1299,6 +1303,10 @@ type ApiResults =
     | ApiProjectHomepageResponse['results']
     | ApiProjectHomepageOrNullResponse['results']
     | ApiResolvedHomepageResponse['results']
+    | ApiAnnouncementsResponse['results']
+    | ApiAnnouncementResponse['results']
+    | ApiAnnouncementCategoriesResponse['results']
+    | ApiAnnouncementCategoryResponse['results']
     | ApiHomepageViewAsResponse['results']
     | ApiHomepageLinkMetadataResponse['results']
     | ApiProjectColorPaletteResponse['results']

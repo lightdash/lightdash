@@ -302,3 +302,54 @@ export type ApiProjectHomepageResponse = ApiSuccess<ProjectHomepage>;
 export type ApiProjectHomepagesResponse = ApiSuccess<ProjectHomepage[]>;
 export type ApiProjectHomepageOrNullResponse =
     ApiSuccess<ProjectHomepage | null>;
+
+export type AnnouncementCategory = {
+    categoryUuid: string;
+    projectUuid: string;
+    name: string;
+    color: string;
+};
+
+export type ProjectAnnouncement = {
+    announcementUuid: string;
+    projectUuid: string;
+    title: string;
+    body: string | null;
+    categoryUuid: string | null;
+    pinned: boolean;
+    createdByUserUuid: string | null;
+    authorName: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type AnnouncementsPage = {
+    items: ProjectAnnouncement[];
+    totalCount: number;
+};
+
+export type CreateAnnouncementRequest = {
+    title: string;
+    body: string | null;
+    categoryUuid: string | null;
+};
+
+/** PATCH semantics: omitted fields are left unchanged */
+export type UpdateAnnouncementRequest = {
+    title?: string;
+    body?: string | null;
+    categoryUuid?: string | null;
+    pinned?: boolean;
+};
+
+export type CreateAnnouncementCategoryRequest = {
+    name: string;
+    color: string;
+};
+
+export type ApiAnnouncementsResponse = ApiSuccess<AnnouncementsPage>;
+export type ApiAnnouncementResponse = ApiSuccess<ProjectAnnouncement>;
+export type ApiAnnouncementCategoriesResponse = ApiSuccess<
+    AnnouncementCategory[]
+>;
+export type ApiAnnouncementCategoryResponse = ApiSuccess<AnnouncementCategory>;
