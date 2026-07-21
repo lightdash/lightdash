@@ -15,6 +15,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
+import { IS_MOBILE } from '../../../../utils/isMobile';
 
 const PROJECT_HOMEPAGE_QUERY_KEY = 'project_homepage';
 
@@ -151,7 +152,9 @@ export const useHomepageBuilderFlag = () => {
     const { data: flag, isLoading } = useServerFeatureFlag(
         CommercialFeatureFlags.HomepageBuilder,
     );
-    return { isEnabled: !!flag?.enabled, isLoading };
+    // The homepage builder / new onboarding surfaces are desktop-only for now,
+    // so fall back to the classic homepage on mobile.
+    return { isEnabled: !IS_MOBILE && !!flag?.enabled, isLoading };
 };
 
 export const useResolvedHomepage = (
