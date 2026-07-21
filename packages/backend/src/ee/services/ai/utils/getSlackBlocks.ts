@@ -532,6 +532,7 @@ export async function getModernArtifactCardBlocks(
     maxQueryLimit: number,
     createShareUrl: (path: string, params: string) => Promise<string>,
     getExplore: (exploreName: string) => Promise<Explore>,
+    isImageUrlReachable: (url: string) => Promise<boolean>,
     agentUuid?: string,
     artifacts?: AiArtifact[],
     toolResults?: AiAgentToolResult[],
@@ -555,6 +556,17 @@ export async function getModernArtifactCardBlocks(
                     .chartImageUrl,
         )
         .filter((url): url is string => Boolean(url));
+    // A hero image with a URL Slack's servers can't fetch renders blank, so
+    // cards only embed URLs that pass the reachability probe.
+    const reachableImageUrls = new Set(
+        (
+            await Promise.all(
+                [...new Set(chartImageUrls)].map(async (url) =>
+                    (await isImageUrlReachable(url)) ? url : null,
+                ),
+            )
+        ).filter((url): url is string => url !== null),
+    );
     // The viz type lives in chartConfig.chartConfig.defaultVizType (line, bar,
     // ...); parseVizConfig flattens the unified generateVisualization shape to
     // "query_result" and can't tell a line from a bar, so read it directly and
@@ -737,7 +749,10 @@ export async function getModernArtifactCardBlocks(
                     blockId: `ai_agent_chart_card_${artifact.versionUuid}`,
                     title: getArtifactTitle(artifact),
                     subtitle: `${vizConfig.metricQuery.exploreName} chart`,
-                    heroImageUrl: chartImageUrl,
+                    heroImageUrl:
+                        chartImageUrl && reachableImageUrls.has(chartImageUrl)
+                            ? chartImageUrl
+                            : undefined,
                     body:
                         artifact.description ||
                         `${metricCount} metric${
