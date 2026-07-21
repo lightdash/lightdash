@@ -7296,3 +7296,120 @@ describe('Session-independent explicit path (per-column, no session pin)', () =>
         expect(utcData.query).not.toContain('with_timezone');
     });
 });
+
+describe('Known-naive domains survive PoP and fanout metric paths', () => {
+    const popNaiveExplore: Explore = {
+        ...POP_TEST_EXPLORE,
+        tables: {
+            ...POP_TEST_EXPLORE.tables,
+            orders: {
+                ...POP_TEST_EXPLORE.tables.orders,
+                dimensions: {
+                    ...POP_TEST_EXPLORE.tables.orders.dimensions,
+                    order_date: {
+                        ...POP_TEST_EXPLORE.tables.orders.dimensions.order_date,
+                        type: DimensionType.TIMESTAMP,
+                        timestampDomain: 'naive',
+                    },
+                    order_date_year: {
+                        ...POP_TEST_EXPLORE.tables.orders.dimensions
+                            .order_date_year,
+                        timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+                        timestampDomain: 'naive',
+                    },
+                },
+            },
+        },
+    };
+
+    test('PoP comparison emits the explicit naive rebase in every emission of the time dimension', () => {
+        const { query } = buildQuery({
+            explore: popNaiveExplore,
+            compiledMetricQuery: POP_TEST_METRIC_QUERY,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'UTC',
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: 'Asia/Tokyo',
+        });
+        // Selected dim, filter LHS, and the PoP comparison CTE must all carry
+        // the explicit rebase — none may fall back to the session cast.
+        const rebases =
+            query.match(
+                /\(\("orders"\.order_date\) AT TIME ZONE 'Asia\/Tokyo'\)/g,
+            ) ?? [];
+        expect(rebases.length).toBeGreaterThanOrEqual(2);
+        expect(query).not.toContain('("orders".order_date)::timestamptz');
+    });
+
+    const fanoutNaiveExplore: Explore = {
+        ...EXPLORE_WITH_FANOUT_AND_DD_REFERENCE,
+        tables: {
+            ...EXPLORE_WITH_FANOUT_AND_DD_REFERENCE.tables,
+            customers: {
+                ...EXPLORE_WITH_FANOUT_AND_DD_REFERENCE.tables.customers,
+                dimensions: {
+                    ...EXPLORE_WITH_FANOUT_AND_DD_REFERENCE.tables.customers
+                        .dimensions,
+                    created_at: {
+                        type: DimensionType.TIMESTAMP,
+                        name: 'created_at',
+                        label: 'created_at',
+                        table: 'customers',
+                        tableLabel: 'customers',
+                        fieldType: FieldType.DIMENSION,
+                        sql: '${TABLE}.created_at',
+                        compiledSql: '"customers".created_at',
+                        tablesReferences: ['customers'],
+                        hidden: false,
+                        timestampDomain: 'naive',
+                    },
+                },
+                metrics: {
+                    ...EXPLORE_WITH_FANOUT_AND_DD_REFERENCE.tables.customers
+                        .metrics,
+                    latest_created: {
+                        type: MetricType.MAX,
+                        fieldType: FieldType.METRIC,
+                        table: 'customers',
+                        tableLabel: 'customers',
+                        name: 'latest_created',
+                        label: 'latest_created',
+                        sql: '${TABLE}.created_at',
+                        compiledSql: 'MAX("customers".created_at)',
+                        tablesReferences: ['customers'],
+                        hidden: false,
+                        baseDimensionType: DimensionType.TIMESTAMP,
+                        dimensionReference: 'customers_created_at',
+                    },
+                },
+            },
+        },
+    };
+
+    test('fanout-protected MIN/MAX still converts the aggregate operand', () => {
+        const { query } = buildQuery({
+            explore: fanoutNaiveExplore,
+            compiledMetricQuery: {
+                ...METRIC_QUERY_FANOUT_AND_DD_REFERENCE,
+                metrics: [
+                    ...METRIC_QUERY_FANOUT_AND_DD_REFERENCE.metrics,
+                    'customers_latest_created',
+                ],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'UTC',
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: 'Asia/Tokyo',
+        });
+        // Fanout protection is active for the other metrics on the query.
+        expect(query).toContain('dd_customers_total_order_amount_deduped');
+        // The MAX operand is converted wherever the metric is emitted, and the
+        // bare aggregate never survives.
+        expect(query).toContain(
+            `MAX((("customers".created_at) AT TIME ZONE 'Asia/Tokyo'))`,
+        );
+        expect(query).not.toMatch(/MAX\("customers"\.created_at\)/);
+    });
+});
