@@ -775,6 +775,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                         <SchedulersViewActionMenu
                             item={item}
                             projectUuid={itemProjectUuid}
+                            organizationUuid={project?.organizationUuid}
                             onReassignOwner={handleReassignOwner}
                         />
                     </Box>
