@@ -104,11 +104,13 @@
 }
 
 .row[data-gap='grouped'] {
-    margin-top: 14px;
+    margin-top: 16px;
 }
 
+/* Sections breathe: the jump from the 16px grouped gap has to be big enough
+ * to read as a new topic, not just a looser list. */
 .row[data-gap='section'] {
-    margin-top: 30px;
+    margin-top: 56px;
 }
 
 /* A lone leading text block opens the page: give it breathing room on top of

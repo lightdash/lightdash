@@ -9,11 +9,9 @@
 }
 
 .sectionTitle {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-    color: var(--mantine-color-ldGray-6);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--mantine-color-ldDark-9);
 }
 
 .miniPill {
@@ -369,6 +367,12 @@ a .hoverCard:hover,
     border-color: var(--mantine-color-ldGray-5);
     color: var(--mantine-color-ldGray-7);
     background: light-dark(#fff, var(--mantine-color-dark-6));
+}
+
+/* A lone quick-actions row is a CTA band: give it extra vertical air. When
+ * the block shares a row (parent column has siblings) it stays flush. */
+:only-child > .quickActionsBand {
+    margin-block: 24px;
 }
 
 .quickActionChip {

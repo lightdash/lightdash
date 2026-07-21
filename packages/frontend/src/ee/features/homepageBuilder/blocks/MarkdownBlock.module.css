@@ -1,3 +1,11 @@
+/* Published render: a flat white card, matching the other block cards. */
+.preview {
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 12px;
+    padding: 18px 20px;
+}
+
 .editorWrap {
     border: 1px solid var(--mantine-color-ldGray-2);
     border-radius: 10px;

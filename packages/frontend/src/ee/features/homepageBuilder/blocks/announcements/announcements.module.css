@@ -137,7 +137,7 @@
     font-weight: 600;
     color: light-dark(
         var(--mantine-color-ldDark-6),
-        var(--mantine-color-ldGray-4)
+        var(--mantine-color-ldGray-6)
     );
     transition: color 150ms cubic-bezier(0.23, 1, 0.32, 1);
 }
@@ -153,6 +153,12 @@
     transform: scale(0.98);
 }
 
+/* A lone announcements row is the page's news band: extra vertical air.
+ * When it shares a row (parent column has siblings) it stays flush. */
+:only-child > .feedBand {
+    margin-block: 24px;
+}
+
 .earlierToggle {
     display: inline-flex;
     align-items: center;
@@ -163,12 +169,19 @@
     background: none;
     cursor: pointer;
     font-size: 12.5px;
-    font-weight: 600;
+    font-weight: 500;
     color: light-dark(
         var(--mantine-color-ldGray-6),
-        var(--mantine-color-ldGray-4)
+        var(--mantine-color-ldGray-6)
     );
     transition: color 150ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* The feed-level "Show N earlier" toggle tucks under the cards: cancel most
+ * of the parent Stack's gap so it reads as part of the feed. The per-item
+ * "Show less" toggle (never first child) keeps the normal rhythm. */
+.earlierToggle:first-child {
+    margin-top: -8px;
 }
 
 .earlierToggle:hover {

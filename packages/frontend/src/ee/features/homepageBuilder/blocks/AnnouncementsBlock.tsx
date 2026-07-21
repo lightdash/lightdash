@@ -356,7 +356,7 @@ export const AnnouncementsBlockView: FC<BlockComponentProps> = ({
     // Read mode stays invisible until there is something real to show.
     if (isLoading || isError || announcements.length === 0) return null;
     return (
-        <Stack gap="sm">
+        <Stack gap="sm" className={classes.feedBand}>
             <BlockHeader icon={IconSpeakerphone} title={block.config.title} />
             <AnnouncementFeed
                 projectUuid={projectUuid}
