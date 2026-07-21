@@ -1,3 +1,10 @@
+# [0.3431.0](https://github.com/lightdash/lightdash/compare/0.3430.1...0.3431.0) (2026-07-21)
+
+
+### Features
+
+* view charts as code from chart actions ([#25839](https://github.com/lightdash/lightdash/issues/25839)) ([f145ba4](https://github.com/lightdash/lightdash/commit/f145ba454ee873e51ab10c2ac6ab5f4b8cf2a428))
+
 ## [0.3430.1](https://github.com/lightdash/lightdash/compare/0.3430.0...0.3430.1) (2026-07-21)
 
 
