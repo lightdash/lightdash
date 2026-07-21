@@ -349,54 +349,7 @@ a .hoverCard:hover,
     border-color: var(--mantine-color-ldGray-3);
 }
 
-/* Collection card grid: three-up like SimpleGrid, but a partial row centres
- * instead of leaving dead columns on the right. */
-.hugGrid {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 12px;
-}
-
-/* Single-cell grid so the child (an inline <a> card) is blockified and
- * stretched exactly like a SimpleGrid cell would. */
-.hugGridItem {
-    flex: 0 1 calc((100% - 24px) / 3);
-    min-width: 0;
-    display: grid;
-}
-
-/* Sparse collections split the width across the cards they actually have
- * instead of reserving three phantom tracks. */
-.hugGrid[data-per-row='1'] > .hugGridItem {
-    flex-basis: 100%;
-}
-
-.hugGrid[data-per-row='2'] > .hugGridItem {
-    flex-basis: calc((100% - 12px) / 2);
-}
-
-/* The blockifying grid gives its single child (the card) a fresh min-width:
- * auto default of its own, sized to the untruncated title's natural width —
- * so a long title (e.g. via Text truncate's white-space: nowrap) overflows
- * the narrow cell instead of shrinking into it. */
-.hugGridItem > * {
-    min-width: 0;
-}
-
-@media (max-width: 47.99em) {
-    .hugGridItem {
-        flex-basis: 100%;
-    }
-}
-
 /* --- Resource cards ---------------------------------------------------- */
-
-.mediaGrid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-    gap: 10px;
-}
 
 .mediaCard {
     display: flex;
