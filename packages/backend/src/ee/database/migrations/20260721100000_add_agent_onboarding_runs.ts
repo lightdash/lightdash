@@ -73,11 +73,7 @@ export async function up(knex: Knex): Promise<void> {
         `CREATE UNIQUE INDEX ??
         ON ?? (??)
         WHERE status IN ('queued', 'running')`,
-        [
-            ActiveProjectIndexName,
-            AgentOnboardingRunsTableName,
-            'project_uuid',
-        ],
+        [ActiveProjectIndexName, AgentOnboardingRunsTableName, 'project_uuid'],
     );
 }
 
