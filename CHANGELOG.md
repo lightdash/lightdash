@@ -1,3 +1,17 @@
+# [0.3435.0](https://github.com/lightdash/lightdash/compare/0.3434.0...0.3435.0) (2026-07-21)
+
+
+### Bug Fixes
+
+* attach catalog types for empty-string db and Snowflake case ([#25817](https://github.com/lightdash/lightdash/issues/25817)) ([2fa49db](https://github.com/lightdash/lightdash/commit/2fa49dbb6aa58e94687e8d544629e183ae1197e2))
+* portal data-app action menu so animated ancestors can't displace it ([#25873](https://github.com/lightdash/lightdash/issues/25873)) ([4655819](https://github.com/lightdash/lightdash/commit/46558193cc8730e394bcdbfc18fd2cf4c90ca618))
+* stop shadcn init clobbering tailwind config in sandbox image ([#25869](https://github.com/lightdash/lightdash/issues/25869)) ([bf8286d](https://github.com/lightdash/lightdash/commit/bf8286df42698da4ea06a9393ad2999ca0c2885b))
+
+
+### Features
+
+* add managed onboarding lifecycle and sandbox executor ([#25860](https://github.com/lightdash/lightdash/issues/25860)) ([ed632f2](https://github.com/lightdash/lightdash/commit/ed632f26217972279ab9faf8738456e181417c15))
+
 # [0.3434.0](https://github.com/lightdash/lightdash/compare/0.3433.0...0.3434.0) (2026-07-21)
 
 
