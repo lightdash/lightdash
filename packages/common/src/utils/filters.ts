@@ -349,8 +349,9 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                 break;
             }
             case FilterType.BOOLEAN: {
-                filterRuleDefaults.values =
-                    values !== undefined ? values : [false];
+                // No default value: an unset boolean filter is a no-op until the
+                // user picks true/false (see renderBooleanFilterSql)
+                filterRuleDefaults.values = values !== undefined ? values : [];
                 break;
             }
             default:
