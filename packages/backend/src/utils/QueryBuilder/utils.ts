@@ -16,6 +16,7 @@ import {
     Explore,
     FieldId,
     FieldReferenceError,
+    flattenFilterGroup,
     ForbiddenError,
     getCustomGroupOrderSql,
     getCustomGroupSelectSql,
@@ -32,6 +33,7 @@ import {
     isSqlTableCalculation,
     JoinRelationship,
     lightdashVariablePattern,
+    MetricQuery,
     MetricType,
     parseAllReferences,
     QueryWarning,
@@ -43,6 +45,36 @@ import {
 } from '@lightdash/common';
 import { intersection, isArray } from 'lodash';
 import { hasUserAttribute } from '../../services/UserAttributesService/UserAttributeUtils';
+
+export type TotalQueryKind =
+    | 'grandTotal'
+    | 'columnTotal'
+    | 'rowTotal'
+    | 'columnSubtotal';
+
+/**
+ * Turns a source query into a totals query for the given grain. Consumed by
+ * `TotalQueryBuilder` (to collapse the query) and `MetricQueryBuilder` (to
+ * derive what to compute on top of the embedded source rows).
+ */
+export type TotalConfiguration = {
+    kind: TotalQueryKind;
+    // Required only for `columnSubtotal`; undefined for every other kind.
+    subtotalDimensions: string[] | undefined;
+};
+
+// Metric / table-calc filters compile to a post-aggregation WHERE at the
+// source row grain, so a collapsed totals query cannot apply them directly.
+export const hasBlockingTotalFilters = (metricQuery: MetricQuery): boolean => {
+    const hasMetricFilters =
+        !!metricQuery.filters.metrics &&
+        flattenFilterGroup(metricQuery.filters.metrics).length > 0;
+    const hasTableCalculationFilters =
+        !!metricQuery.filters.tableCalculations &&
+        flattenFilterGroup(metricQuery.filters.tableCalculations).length > 0;
+
+    return hasMetricFilters || hasTableCalculationFilters;
+};
 
 export const getDimensionFromId = ({
     dimId,
@@ -641,6 +673,9 @@ export const getCustomBinDimensionSql = ({
           join: string | undefined;
           tables: string[];
           selects: Record<string, string>;
+          // Bare bin-label expressions (no AS alias), keyed by dimension id,
+          // for use outside a SELECT list (e.g. join conditions).
+          exprs: Record<string, string>;
       }
     | undefined => {
     const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
@@ -721,6 +756,7 @@ export const getCustomBinDimensionSql = ({
     );
 
     const selects: Record<string, string> = {};
+    const exprs: Record<string, string> = {};
 
     customDimensions.forEach((customDimension) => {
         const dimension = getDimensionFromId({
@@ -752,13 +788,15 @@ export const getCustomBinDimensionSql = ({
         switch (customDimension.binType) {
             case BinType.FIXED_WIDTH:
                 const width = customDimension.binWidth;
-                const widthSql = `${getFixedWidthBinSelectSql({
+                const widthBinExpr = getFixedWidthBinSelectSql({
                     binWidth: customDimension.binWidth,
                     baseDimensionSql: dimension.compiledSql,
                     warehouseSqlBuilder,
-                })} AS ${quotedDimensionName}`;
+                });
 
-                selects[dimensionId] = widthSql;
+                exprs[dimensionId] = widthBinExpr;
+                selects[dimensionId] =
+                    `${widthBinExpr} AS ${quotedDimensionName}`;
 
                 selects[orderDimensionId] =
                     `FLOOR(${dimension.compiledSql} / ${width}) * ${width} AS ${quotedDimensionOrder}`;
@@ -766,11 +804,14 @@ export const getCustomBinDimensionSql = ({
             case BinType.FIXED_NUMBER:
                 if (customDimension.binNumber <= 1) {
                     // Edge case, bin number with only one bucket does not need a CASE statement
-                    selects[dimensionId] = `${warehouseSqlBuilder.concatString(
+                    const singleBinExpr = warehouseSqlBuilder.concatString(
                         `${cte}.min_id`,
                         dash,
                         `${cte}.max_id`,
-                    )} AS ${quotedDimensionName}`;
+                    );
+                    exprs[dimensionId] = singleBinExpr;
+                    selects[dimensionId] =
+                        `${singleBinExpr} AS ${quotedDimensionName}`;
                     break;
                 }
 
@@ -808,9 +849,11 @@ export const getCustomBinDimensionSql = ({
                     ...binWhens,
                 ];
 
-                selects[dimensionId] = `CASE
+                const binCaseExpr = `CASE
                     ${whens.join('\n')}
-                    END
+                    END`;
+                exprs[dimensionId] = binCaseExpr;
+                selects[dimensionId] = `${binCaseExpr}
                     AS ${quotedDimensionName}`;
 
                 const sortBinWhens = Array.from(
@@ -835,13 +878,15 @@ export const getCustomBinDimensionSql = ({
                         AS ${quotedDimensionOrder}`;
                 break;
             case BinType.CUSTOM_RANGE:
-                const customRangeSql = `${getCustomRangeSelectSql({
+                const customRangeExpr = getCustomRangeSelectSql({
                     binRanges: customDimension.customRange,
                     baseDimensionSql: dimension.compiledSql,
                     warehouseSqlBuilder,
-                })} AS ${quotedDimensionName}`;
+                });
 
-                selects[dimensionId] = customRangeSql;
+                exprs[dimensionId] = customRangeExpr;
+                selects[dimensionId] =
+                    `${customRangeExpr} AS ${quotedDimensionName}`;
 
                 const sortedRangeWhens = customDimension.customRange.map(
                     (range, i) => {
@@ -868,11 +913,14 @@ export const getCustomBinDimensionSql = ({
                 break;
 
             case BinType.CUSTOM_GROUP:
-                selects[dimensionId] = `${getCustomGroupSelectSql({
+                const customGroupExpr = getCustomGroupSelectSql({
                     binGroups: customDimension.customGroups,
                     baseDimensionSql: dimension.compiledSql,
                     warehouseSqlBuilder,
-                })} AS ${quotedDimensionName}`;
+                });
+                exprs[dimensionId] = customGroupExpr;
+                selects[dimensionId] =
+                    `${customGroupExpr} AS ${quotedDimensionName}`;
 
                 selects[orderDimensionId] = `${getCustomGroupOrderSql({
                     binGroups: customDimension.customGroups,
@@ -894,6 +942,7 @@ export const getCustomBinDimensionSql = ({
         join: joins.length > 0 ? `CROSS JOIN ${joins.join(',\n')}` : undefined,
         tables: [...new Set(tables)],
         selects,
+        exprs,
     };
 };
 

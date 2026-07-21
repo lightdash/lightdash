@@ -1,5 +1,6 @@
 import {
     CustomFormatType,
+    FilterOperator,
     MetricQuery,
     PivotConfiguration,
     SortByDirection,
@@ -181,5 +182,51 @@ describe('QueryComposer', () => {
                 expect(composer.getSql({ columnLimit: 100 })).toMatchSnapshot();
             },
         );
+
+        describe('metric-filtered source (filtered dimension groups)', () => {
+            const METRIC_FILTERED_TOTALS_SOURCE: MetricQuery = {
+                ...TOTALS_SOURCE_METRIC_QUERY,
+                filters: {
+                    metrics: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: '1',
+                                target: { fieldId: 'table1_metric1' },
+                                operator: FilterOperator.GREATER_THAN,
+                                values: [10],
+                            },
+                        ],
+                    },
+                },
+            };
+
+            it.each([
+                { kind: 'columnTotal' as const, subtotalDimensions: undefined },
+                {
+                    kind: 'columnSubtotal' as const,
+                    subtotalDimensions: ['table1_dim1'],
+                },
+            ])(
+                'restricts the totals query to the filtered dimension groups for kind "$kind"',
+                ({ kind, subtotalDimensions }) => {
+                    const composer = new QueryComposer(
+                        {
+                            metricQuery: METRIC_FILTERED_TOTALS_SOURCE,
+                            pivotConfiguration:
+                                TOTALS_SOURCE_PIVOT_CONFIGURATION,
+                            totalConfiguration: { kind, subtotalDimensions },
+                        },
+                        CONTEXT,
+                    );
+
+                    const sql = composer.getSql({ columnLimit: 100 });
+                    // The metric filter must not survive into the collapsed
+                    // totals grain; it is enforced by the semi-join instead.
+                    expect(sql).toContain('source_dimension_groups');
+                    expect(sql).toMatchSnapshot();
+                },
+            );
+        });
     });
 });
