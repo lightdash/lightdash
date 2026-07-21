@@ -1899,6 +1899,8 @@ export class McpService extends BaseService {
                         .map((project) => ({
                             name: project.name,
                             projectUuid: project.projectUuid,
+                            type: project.type,
+                            expiresAt: project.expiresAt,
                         }));
 
                     return {
