@@ -42,7 +42,7 @@
     align-items: center;
     gap: 12px;
     width: 100%;
-    max-width: 1160px;
+    max-width: 1000px;
     min-height: var(--homepage-favbar-height);
     margin: 0 auto;
     overflow-x: auto;
@@ -84,7 +84,7 @@
 
 .secondary {
     width: 100%;
-    max-width: 1160px;
+    max-width: 1000px;
     margin: 0 auto;
 }
 
@@ -178,7 +178,7 @@
 }
 
 .tierReading {
-    max-width: 680px;
+    max-width: 640px;
 }
 
 .tierComposer {
@@ -186,11 +186,11 @@
 }
 
 .tierContent {
-    max-width: 960px;
+    max-width: 860px;
 }
 
 .tierFull {
-    max-width: 1160px;
+    max-width: 1000px;
 }
 
 .col {
@@ -220,9 +220,9 @@
  * own content. Dense clusters exceed the row and shrink back to fill it. */
 .row[data-fit='hug'] {
     /* One hug unit is one canonical card: the width a metrics tile takes at
-     * full page width ((1160 - 3 gaps) / 4). Sizing units to the real card
+     * full page width ((1000 - 3 gaps) / 4). Sizing units to the real card
      * width means a column asking for one card actually gets a readable one. */
-    --hug-unit: 282px;
+    --hug-unit: 242px;
     --hug-gap: 10px;
 
     justify-content: center;

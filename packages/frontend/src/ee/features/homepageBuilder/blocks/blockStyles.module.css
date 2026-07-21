@@ -276,7 +276,10 @@ a .hoverCard:hover,
     margin-bottom: 2px;
 }
 
+/* The delta keeps its size; only the caption beside it gives way. */
 .kpiDelta {
+    flex-shrink: 0;
+
     font-size: 12px;
     font-weight: 500;
 }

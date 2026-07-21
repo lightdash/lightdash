@@ -145,7 +145,11 @@ const MetricKpiCard: FC<{
                                     />
                                 </Box>
                             ) : null)}
-                        <Group gap={6} className={classes.kpiFoot}>
+                        <Group
+                            gap={6}
+                            wrap="nowrap"
+                            className={classes.kpiFoot}
+                        >
                             {change !== undefined && (
                                 <span
                                     className={`${classes.kpiDelta} ${
@@ -161,7 +165,7 @@ const MetricKpiCard: FC<{
                                     })}
                                 </span>
                             )}
-                            <Text size="xs" c="dimmed">
+                            <Text size="xs" c="dimmed" truncate miw={0}>
                                 vs previous period
                             </Text>
                         </Group>
