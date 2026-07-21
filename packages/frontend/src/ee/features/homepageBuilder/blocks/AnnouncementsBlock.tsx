@@ -10,6 +10,7 @@ import {
     Group,
     Select,
     Stack,
+    Text,
     TextInput,
     Tooltip,
 } from '@mantine-8/core';
@@ -404,7 +405,7 @@ const AnnouncementFormModal: FC<{
                         placeholder="None"
                         clearable
                         size="sm"
-                        radius="sm"
+                        radius="md"
                         data={CATEGORY_OPTIONS}
                         value={category}
                         onChange={(value) =>
@@ -416,12 +417,21 @@ const AnnouncementFormModal: FC<{
                             label="Notify Slack"
                             placeholder="No notification"
                             size="sm"
-                            radius="sm"
+                            radius="md"
                             value={slackChannelId}
                             onChange={setSlackChannelId}
                         />
                     )}
                 </Group>
+                {!isEdit && (
+                    <Text size="xs" c="dimmed">
+                        This announcement
+                        {slackChannelId
+                            ? ' and its Slack notification'
+                            : ''}{' '}
+                        goes out when you publish the homepage.
+                    </Text>
+                )}
             </Stack>
         </MantineModal>
     );

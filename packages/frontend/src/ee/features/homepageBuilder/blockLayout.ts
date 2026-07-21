@@ -76,7 +76,7 @@ const blockLayoutTraits: Record<HomepageBlock['type'], BlockLayoutTrait> = {
         widthTier: 'content',
         columnWeight: 1,
         rhythm: 'section',
-        fullRowOnly: false,
+        fullRowOnly: true,
         itemSpan: null,
     },
     favorites: {
