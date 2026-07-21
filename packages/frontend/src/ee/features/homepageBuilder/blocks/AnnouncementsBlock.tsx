@@ -6,9 +6,10 @@ import {
 import {
     ActionIcon,
     Button,
+    Divider,
+    Group,
     Select,
     Stack,
-    Text,
     TextInput,
     Tooltip,
 } from '@mantine-8/core';
@@ -63,6 +64,7 @@ const AnnouncementCategoryBadge: FC<{ category: AnnouncementCategory }> = ({
     category,
 }) => {
     const meta = ANNOUNCEMENT_CATEGORY_META[category];
+    if (!meta) return null;
     return (
         <CategoryBadge label={meta.label} color={meta.color} variant="dot" />
     );
@@ -376,28 +378,16 @@ const AnnouncementFormModal: FC<{
             confirmLoading={isLoading}
         >
             <Stack gap="md">
-                <TextInput
-                    label="Title"
-                    placeholder="What's the update?"
-                    value={title}
-                    onChange={(e) => setTitle(e.currentTarget.value)}
-                    data-autofocus
-                />
-                <Select
-                    label="Category"
-                    placeholder="Pick a category"
-                    clearable
-                    data={CATEGORY_OPTIONS}
-                    value={category}
-                    onChange={(value) =>
-                        setCategory(value as AnnouncementCategory | null)
-                    }
-                />
-                <div>
-                    <Text size="sm" fw={500} mb={4}>
-                        Body
-                    </Text>
-                    <div className={classes.editorShell}>
+                <div className={classes.doc}>
+                    <TextInput
+                        variant="unstyled"
+                        placeholder="Announcement title"
+                        classNames={{ input: classes.docTitle }}
+                        value={title}
+                        onChange={(e) => setTitle(e.currentTarget.value)}
+                        data-autofocus
+                    />
+                    <div className={classes.docBody}>
                         <TiptapMarkdownEditor
                             content={announcement?.body ?? ''}
                             onChange={setBody}
@@ -408,14 +398,27 @@ const AnnouncementFormModal: FC<{
                         />
                     </div>
                 </div>
-                {!isEdit && slackInstalled && (
-                    <SlackChannelSelect
-                        label="Notify a Slack channel (optional)"
-                        placeholder="No Slack notification"
-                        value={slackChannelId}
-                        onChange={setSlackChannelId}
+                <Divider />
+                <Group grow align="flex-start" wrap="nowrap">
+                    <Select
+                        label="Category"
+                        placeholder="None"
+                        clearable
+                        data={CATEGORY_OPTIONS}
+                        value={category}
+                        onChange={(value) =>
+                            setCategory(value as AnnouncementCategory | null)
+                        }
                     />
-                )}
+                    {!isEdit && slackInstalled && (
+                        <SlackChannelSelect
+                            label="Notify Slack"
+                            placeholder="No notification"
+                            value={slackChannelId}
+                            onChange={setSlackChannelId}
+                        />
+                    )}
+                </Group>
             </Stack>
         </MantineModal>
     );

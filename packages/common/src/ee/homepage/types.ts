@@ -301,36 +301,21 @@ export type ApiProjectHomepageOrNullResponse =
  * in `ANNOUNCEMENT_CATEGORY_META`.
  */
 export enum AnnouncementCategory {
+    /** Something new to use — a new dashboard, metric, or capability. */
     LAUNCH = 'launch',
-    METRIC_CHANGE = 'metric_change',
-    DASHBOARD_UPDATE = 'dashboard_update',
-    DATA_QUALITY = 'data_quality',
-    MAINTENANCE = 'maintenance',
-    INSIGHT = 'insight',
+    /** Something changed — a metric definition or dashboard refresh. */
+    UPDATE = 'update',
+    /** Something to be aware of — data delays, quality issues, maintenance. */
+    HEADS_UP = 'heads_up',
 }
 
 export const ANNOUNCEMENT_CATEGORY_META: Record<
     AnnouncementCategory,
     { label: string; color: string }
 > = {
-    [AnnouncementCategory.LAUNCH]: { label: 'Launch', color: 'indigo' },
-    [AnnouncementCategory.METRIC_CHANGE]: {
-        label: 'Metric change',
-        color: 'orange',
-    },
-    [AnnouncementCategory.DASHBOARD_UPDATE]: {
-        label: 'Dashboard update',
-        color: 'grape',
-    },
-    [AnnouncementCategory.DATA_QUALITY]: {
-        label: 'Data quality',
-        color: 'red',
-    },
-    [AnnouncementCategory.MAINTENANCE]: {
-        label: 'Maintenance',
-        color: 'gray',
-    },
-    [AnnouncementCategory.INSIGHT]: { label: 'Insight', color: 'teal' },
+    [AnnouncementCategory.LAUNCH]: { label: 'Launch', color: 'green' },
+    [AnnouncementCategory.UPDATE]: { label: 'Update', color: 'violet' },
+    [AnnouncementCategory.HEADS_UP]: { label: 'Heads up', color: 'orange' },
 };
 
 export type ProjectAnnouncement = {
