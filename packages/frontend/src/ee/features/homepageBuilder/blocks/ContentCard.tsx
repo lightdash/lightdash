@@ -48,7 +48,7 @@ const VerifiedBadge: FC<{ content: SummaryContent }> = ({ content }) =>
 
 const TileUpdated: FC<{ date: Date | string }> = ({ date }) => {
     const timeAgo = useTimeAgo(date, 60000);
-    return <span>updated {timeAgo}</span>;
+    return <>updated {timeAgo}</>;
 };
 
 const TileExtra: FC<{ content: SummaryContent }> = ({ content }) => {
@@ -56,13 +56,13 @@ const TileExtra: FC<{ content: SummaryContent }> = ({ content }) => {
         'space' in content && content.space ? content.space.name : null;
     if (!spaceName && !content.lastUpdatedAt) return null;
     return (
-        <div className={classes.tileExtra}>
+        <Box className={classes.tileExtra}>
             {spaceName ? `in ${spaceName}` : null}
             {spaceName && content.lastUpdatedAt ? ' · ' : null}
             {content.lastUpdatedAt ? (
                 <TileUpdated date={content.lastUpdatedAt} />
             ) : null}
-        </div>
+        </Box>
     );
 };
 
@@ -132,7 +132,7 @@ const MaybeLink: FC<
             {children}
         </Link>
     ) : (
-        <div className={className}>{children}</div>
+        <Box className={className}>{children}</Box>
     );
 
 export const ContentCard: FC<Props> = ({
@@ -154,7 +154,7 @@ export const ContentCard: FC<Props> = ({
                 className={`${cardClass} ${classes.cardUnitHalf} ${classes.contentTile}`}
             >
                 <ResourceIcon item={contentToResourceViewItem(content)} />
-                <div className={classes.tileBody}>
+                <Box className={classes.tileBody}>
                     <Group gap={5} wrap="nowrap">
                         <Text size="sm" fw={600} truncate>
                             {content.name}
@@ -163,14 +163,14 @@ export const ContentCard: FC<Props> = ({
                     </Group>
                     <KindAndViews content={content} />
                     <TileExtra content={content} />
-                </div>
-                <div className={classes.tileActions}>
+                </Box>
+                <Box className={classes.tileActions}>
                     <CardActions
                         content={content}
                         onRemove={onRemove}
                         star={star}
                     />
-                </div>
+                </Box>
             </MaybeLink>
         );
     }

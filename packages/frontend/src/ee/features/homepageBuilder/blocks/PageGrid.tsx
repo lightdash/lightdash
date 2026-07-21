@@ -1,3 +1,4 @@
+import { Box } from '@mantine-8/core';
 import { type FC, type ReactNode } from 'react';
 import layout from '../homepageLayout.module.css';
 
@@ -28,16 +29,16 @@ export const PageGrid: FC<PageGridProps> = ({
     floor = 'half',
     children,
 }) => (
-    <div
+    <Box
         className={layout.pageGrid}
         data-span={itemSpan ?? 12}
         data-elastic={elastic || undefined}
         data-floor={elastic ? floor : undefined}
     >
         {children}
-    </div>
+    </Box>
 );
 
 export const PageGridItem: FC<{ children: ReactNode }> = ({ children }) => (
-    <div className={layout.pageGridItem}>{children}</div>
+    <Box className={layout.pageGridItem}>{children}</Box>
 );
