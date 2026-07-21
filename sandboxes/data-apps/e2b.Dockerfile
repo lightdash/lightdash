@@ -16,7 +16,7 @@ COPY template/tailwind.config.js ./tailwind.config.js
 COPY template/postcss.config.js ./postcss.config.js
 COPY template/index.html ./index.html
 COPY template/skill.md ./skill.md
-COPY template/d3-reference.md ./d3-reference.md
+COPY template/references/ ./references/
 COPY lightdash-query-sdk.tgz ./lightdash-query-sdk.tgz
 
 # Swap workspace:* for the local tarball, then install
