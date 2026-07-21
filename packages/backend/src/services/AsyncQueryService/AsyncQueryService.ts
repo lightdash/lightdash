@@ -3490,6 +3490,7 @@ export class AsyncQueryService extends ProjectService {
         userAttributeOverrides,
         materializationRole,
         columnTimezone,
+        dataTimezone,
         sessionTimezone,
         applyDateZoomToFilters,
         preloadedUserAccessControls,
@@ -3517,6 +3518,7 @@ export class AsyncQueryService extends ProjectService {
          */
         pivotDimensions?: string[];
         columnTimezone?: string;
+        dataTimezone?: string;
         sessionTimezone?: string | null;
         /**
          * Opt-in: rewrite WHERE filter LHS to use the zoom-grain dimension
@@ -3598,6 +3600,7 @@ export class AsyncQueryService extends ProjectService {
                 pivotDimensions: pivotDimensions ?? metricQuery.pivotDimensions,
                 useTimezoneAwareDateTrunc,
                 columnTimezone,
+                dataTimezone,
                 rebaseRawTimestampFilters,
                 applyDateZoomToFilters,
                 displayTimezone,
@@ -3732,7 +3735,6 @@ export class AsyncQueryService extends ProjectService {
                     const resolvedDataTimezone = isTimezoneSupportEnabled
                         ? warehouseCredentials.dataTimezone
                         : undefined;
-
                     // Generate cache key from project and query identifiers
                     // Include user UUID to prevent cache sharing between users when user-specific credentials are in use
                     // Use the resolved timezone (not metricQuery.timezone) because the
@@ -4447,6 +4449,7 @@ export class AsyncQueryService extends ProjectService {
             userAttributeOverrides,
             materializationRole,
             columnTimezone: getColumnTimezone(warehouseCredentials),
+            dataTimezone: warehouseCredentials.dataTimezone,
             preloadedUserAccessControls,
             preloadedProjectParameters: projectParameters,
             preloadedProjectTimezone: projectTimezone,
@@ -4669,6 +4672,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             userAttributeOverrides,
             columnTimezone: getColumnTimezone(warehouseCredentials),
+            dataTimezone: warehouseCredentials.dataTimezone,
         });
 
         const queryTagsWithUserAttributes =
@@ -4952,6 +4956,7 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
             pivotDimensions: savedChart.pivotConfig?.columns,
             columnTimezone: getColumnTimezone(warehouseCredentials),
+            dataTimezone: warehouseCredentials.dataTimezone,
             preloadedUserAccessControls,
         });
         const fieldsWithOverrides = queryComposer.getFields();
@@ -5398,6 +5403,7 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
             pivotDimensions: savedChart.pivotConfig?.columns,
             columnTimezone: getColumnTimezone(warehouseCredentials),
+            dataTimezone: warehouseCredentials.dataTimezone,
             sessionTimezone,
             preloadedUserAccessControls: userAccessControls,
             preloadedProjectParameters: projectParameters,
@@ -5747,6 +5753,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             columnTimezone: getColumnTimezone(warehouseCredentials),
+            dataTimezone: warehouseCredentials.dataTimezone,
             // PROD-880: rewrite WHERE LHS to zoom grain (safe here — filters are click-only)
             applyDateZoomToFilters: true,
             preloadedUserAccessControls,
@@ -6664,6 +6671,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             materializationRole: userAccessControls,
             columnTimezone: getColumnTimezone(warehouseCredentials),
+            dataTimezone: warehouseCredentials.dataTimezone,
         });
         const fields = queryComposer.getFields();
 

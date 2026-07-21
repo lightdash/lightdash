@@ -90,6 +90,7 @@ export const getDimensionFromId = ({
                         startOfWeek,
                         effectiveTimezone,
                         columnTimezone,
+                        baseField.timestampDomain,
                     ),
                     timeInterval: newTimeFrame,
                 };
