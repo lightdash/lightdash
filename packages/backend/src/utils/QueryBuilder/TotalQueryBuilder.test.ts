@@ -1011,3 +1011,31 @@ describe('TotalQueryBuilder: columnSubtotal', () => {
         });
     });
 });
+
+describe('TotalQueryBuilder: visible groups (PROD-7570)', () => {
+    it('columnSubtotal always restricts to the grain groups on the visible page', () => {
+        const result = new TotalQueryBuilder({
+            metricQuery: baseMetricQuery,
+            pivotConfiguration,
+            subtotalDimensions: ['orders_created_at'],
+            kind: 'columnSubtotal',
+        }).compileQuery();
+
+        expect(result.sourceQuery).toEqual({
+            // Source query verbatim: sorts and limit define the visible page.
+            metricQuery: baseMetricQuery,
+            pivotConfiguration,
+        });
+    });
+
+    it('other kinds do not emit a visible-page restriction', () => {
+        (['grandTotal', 'columnTotal', 'rowTotal'] as const).forEach((kind) => {
+            const result = new TotalQueryBuilder({
+                metricQuery: baseMetricQuery,
+                pivotConfiguration,
+                kind,
+            }).compileQuery();
+            expect(result.sourceQuery).toBeUndefined();
+        });
+    });
+});

@@ -18,12 +18,36 @@ LIMIT 10"
 `;
 
 exports[`QueryComposer > totalConfiguration > collapses the source query into the totals grain for kind "'columnSubtotal'" 1`] = `
-"SELECT
+"WITH source_rows AS (
+SELECT
   "table1".dim1 AS "table1_dim1",
   "table1".shared AS "table1_shared",
   MAX("table1".number_column) AS "table1_metric1"
 FROM "db"."schema"."table1" AS "table1"
 
+GROUP BY 1,2
+),
+visible_page_rows AS (
+SELECT
+  *
+FROM source_rows
+ORDER BY "table1_dim1"
+LIMIT 500
+),
+visible_dimension_groups AS (
+SELECT DISTINCT
+  "table1_dim1",
+  "table1_shared"
+FROM visible_page_rows
+)
+SELECT
+  "table1".dim1 AS "table1_dim1",
+  "table1".shared AS "table1_shared",
+  MAX("table1".number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
+
+INNER JOIN visible_dimension_groups ON (("table1".dim1) = visible_dimension_groups."table1_dim1" OR (("table1".dim1) IS NULL AND visible_dimension_groups."table1_dim1" IS NULL))
+  AND (("table1".shared) = visible_dimension_groups."table1_shared" OR (("table1".shared) IS NULL AND visible_dimension_groups."table1_shared" IS NULL))
 GROUP BY 1,2
 ORDER BY "table1_metric1" DESC
 LIMIT 500"
@@ -69,11 +93,24 @@ WHERE ((
   ("table1_metric1") > (10)
 ))
 ),
+visible_page_rows AS (
+SELECT
+  *
+FROM source_rows
+ORDER BY "table1_dim1"
+LIMIT 500
+),
 source_dimension_groups AS (
 SELECT DISTINCT
   "table1_dim1",
   "table1_shared"
 FROM source_rows
+),
+visible_dimension_groups AS (
+SELECT DISTINCT
+  "table1_dim1",
+  "table1_shared"
+FROM visible_page_rows
 )
 SELECT
   "table1".dim1 AS "table1_dim1",
@@ -83,6 +120,8 @@ FROM "db"."schema"."table1" AS "table1"
 
 INNER JOIN source_dimension_groups ON (("table1".dim1) = source_dimension_groups."table1_dim1" OR (("table1".dim1) IS NULL AND source_dimension_groups."table1_dim1" IS NULL))
   AND (("table1".shared) = source_dimension_groups."table1_shared" OR (("table1".shared) IS NULL AND source_dimension_groups."table1_shared" IS NULL))
+INNER JOIN visible_dimension_groups ON (("table1".dim1) = visible_dimension_groups."table1_dim1" OR (("table1".dim1) IS NULL AND visible_dimension_groups."table1_dim1" IS NULL))
+  AND (("table1".shared) = visible_dimension_groups."table1_shared" OR (("table1".shared) IS NULL AND visible_dimension_groups."table1_shared" IS NULL))
 GROUP BY 1,2
 ORDER BY "table1_metric1" DESC
 LIMIT 500"

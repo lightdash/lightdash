@@ -83,15 +83,21 @@ totals kind and the two queries. Every use derives from that one embed; new
 rather than add another embed:
 
 - **`groupRestrictions`** — each entry derives a `SELECT DISTINCT <join dims>`
-  CTE (`source_dimension_groups`) and appends an `INNER JOIN` on null-safe
-  equality (`getNullSafeEqualJoinSql`) to `dimensionsSQL.joins`, which reaches
-  every raw scan (fan-out, distinct-metric, nested-aggregate and totals CTEs).
-  DISTINCT makes the join fan-out-free at any grain. Custom bin join dimensions
-  not selected by the totals query get their min/max CTE + CROSS JOIN added.
-  Use: enforcing metric / table-calc filters (PROD-8431 — they compile to a
-  post-aggregation WHERE at the source grain, so the collapsed totals query
-  strips them and restricts raw rows instead; totals stay exact for every
-  metric type since aggregation still runs over raw rows).
+  CTE (`source_dimension_groups`, or `visible_dimension_groups` over
+  `visible_page_rows` = `source_rows` + the source's ORDER BY/LIMIT for scope
+  `'visiblePage'`) and appends an `INNER JOIN` on null-safe equality
+  (`getNullSafeEqualJoinSql`) to `dimensionsSQL.joins`, which reaches every raw
+  scan (fan-out, distinct-metric, nested-aggregate and totals CTEs). DISTINCT
+  makes the join fan-out-free at any grain. Custom bin join dimensions not
+  selected by the totals query get their min/max CTE + CROSS JOIN added.
+  Uses: scope `'results'` enforces metric / table-calc filters (PROD-8431 —
+  they compile to a post-aggregation WHERE at the source grain, so the
+  collapsed totals query strips them and restricts raw rows instead; totals
+  stay exact for every metric type since aggregation still runs over raw
+  rows). Scope `'visiblePage'` pins subtotals to the page the user sees
+  (PROD-7570 — the subtotal response covers exactly the rendered grain groups,
+  so its inherited row limit can never truncate one; subtotal *values* stay
+  full-group aggregates).
 
 **SqlQueryComposer** — the facade for SQL charts (`extends QueryComposer`). SQL charts run user-written SQL rather than compiling a metric query, so this builds everything from raw inputs — the virtual view (`createVirtualView`) from the discovered columns, the wrapping `SqlQueryBuilder` (reference map + dialect config off the warehouse client), a mock `MetricQuery` metadata carrier, and (on the dashboard path) the applied dashboard filters/sorts — then overrides `computeCompiled()` to shape the wrapped user SQL into a `CompiledQuery`. Because `getSql()` is inherited, a request/config `pivotConfiguration` flows through the same seam as metric queries. Used by `AsyncQueryService.prepareSqlChartAsyncQueryArgs` for all three SQL execute paths (raw SQL runner, saved SQL chart, dashboard SQL chart).
 

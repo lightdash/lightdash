@@ -172,8 +172,8 @@ export type BuildQueryProps = {
      * `compiledMetricQuery` + `pivotConfiguration` to the requested grain (via
      * `TotalQueryBuilder`), keeps the original query as the embedded
      * `source_rows` CTE where it must compute on top of the source results
-     * (filter restrictions), and derives what to compute from the two
-     * queries. The collapsed query /
+     * (filter restrictions, visible-page pinning), and derives what to
+     * compute from the two queries. The collapsed query /
      * pivot are exposed via `getEffectiveMetricQuery()` /
      * `getEffectivePivotConfiguration()`.
      */
@@ -182,14 +182,19 @@ export type BuildQueryProps = {
 
 /**
  * Semi-joins every raw scan of this query to the distinct dimension groups of
- * the embedded source rows (null-safe, cannot fan out).
+ * the embedded source rows (null-safe, cannot fan out). Scope 'results' uses
+ * all source result rows; 'visiblePage' first applies the source query's
+ * ORDER BY + LIMIT, i.e. the page the user sees.
  */
 type SourceQueryGroupRestriction = {
     joinDimensions: string[];
+    scope: 'results' | 'visiblePage';
 };
 
 const SOURCE_ROWS_CTE_NAME = 'source_rows';
 const SOURCE_GROUPS_CTE_NAME = 'source_dimension_groups';
+const VISIBLE_PAGE_ROWS_CTE_NAME = 'visible_page_rows';
+const VISIBLE_GROUPS_CTE_NAME = 'visible_dimension_groups';
 
 /**
  * Creates the correct interval syntax for date arithmetic operations with comparison across different warehouse types.
@@ -4619,18 +4624,27 @@ export class MetricQueryBuilder {
 
     /**
      * Derives what this query computes on top of the embedded source rows:
-     * metric / table-calc filters can't survive into a collapsed totals
-     * query, so raw rows are restricted to the source groups passing them.
+     * - metric / table-calc filters can't survive into a collapsed totals
+     *   query, so raw rows are restricted to the source groups passing them;
+     * - subtotals pin to the grain groups on the source's visible page, so a
+     *   limit-truncated response can never miss a rendered group.
      */
-    private static deriveSourceQueryUses(
-        sourceMetricQuery: CompiledMetricQuery,
-    ): {
+    private deriveSourceQueryUses(sourceMetricQuery: CompiledMetricQuery): {
         groupRestrictions: SourceQueryGroupRestriction[];
     } {
+        const grainDimensions = this.args.compiledMetricQuery.dimensions;
+
         const groupRestrictions: SourceQueryGroupRestriction[] = [];
         if (hasBlockingTotalFilters(sourceMetricQuery)) {
             groupRestrictions.push({
                 joinDimensions: sourceMetricQuery.dimensions,
+                scope: 'results',
+            });
+        }
+        if (this.args.totalConfiguration?.kind === 'columnSubtotal') {
+            groupRestrictions.push({
+                joinDimensions: grainDimensions,
+                scope: 'visiblePage',
             });
         }
 
@@ -4640,9 +4654,10 @@ export class MetricQueryBuilder {
     /**
      * Compiles the `sourceQuery` embed: the source query becomes the
      * `source_rows` CTE (embedded once), and each use derives from it —
-     * distinct-group CTEs semi-joined into every raw scan. Custom bin join
-     * dimensions not selected in this query additionally need their min/max
-     * CTE + CROSS JOIN.
+     * distinct-group CTEs semi-joined into every raw scan (optionally scoped
+     * to the visible page, i.e. source ORDER BY + LIMIT applied).
+     * Custom bin join dimensions not selected in this query additionally need
+     * their min/max CTE + CROSS JOIN.
      */
     private buildSourceQuerySQL():
         | {
@@ -4656,7 +4671,7 @@ export class MetricQueryBuilder {
         if (!sourceQuery) {
             return undefined;
         }
-        const { groupRestrictions } = MetricQueryBuilder.deriveSourceQueryUses(
+        const { groupRestrictions } = this.deriveSourceQueryUses(
             sourceQuery.compiledMetricQuery,
         );
 
@@ -4764,17 +4779,41 @@ export class MetricQueryBuilder {
             ? [unselectedBinSql.join]
             : [];
 
+        // The visible page is derived from the embed by re-applying the source
+        // query's ORDER BY + LIMIT; only added when a restriction needs it.
+        const needsVisiblePage = groupRestrictions.some(
+            (restriction) => restriction.scope === 'visiblePage',
+        );
+        if (needsVisiblePage) {
+            leadingCtes.push(
+                `${VISIBLE_PAGE_ROWS_CTE_NAME} AS (\n${MetricQueryBuilder.assembleSqlParts(
+                    [
+                        'SELECT\n  *',
+                        `FROM ${SOURCE_ROWS_CTE_NAME}`,
+                        body.sqlOrderBy,
+                        body.sqlLimit,
+                    ],
+                )}\n)`,
+            );
+        }
+
         // Every restriction joins a DISTINCT-groups CTE, so the join can never
         // fan out regardless of the join dimensions' grain.
         const cteNameCounts: Record<string, number> = {};
         groupRestrictions.forEach((restriction) => {
-            const baseCteName = SOURCE_GROUPS_CTE_NAME;
+            const baseCteName =
+                restriction.scope === 'visiblePage'
+                    ? VISIBLE_GROUPS_CTE_NAME
+                    : SOURCE_GROUPS_CTE_NAME;
             cteNameCounts[baseCteName] = (cteNameCounts[baseCteName] ?? 0) + 1;
             const cteName =
                 cteNameCounts[baseCteName] > 1
                     ? `${baseCteName}_${cteNameCounts[baseCteName]}`
                     : baseCteName;
-            const fromCteName = SOURCE_ROWS_CTE_NAME;
+            const fromCteName =
+                restriction.scope === 'visiblePage'
+                    ? VISIBLE_PAGE_ROWS_CTE_NAME
+                    : SOURCE_ROWS_CTE_NAME;
             const distinctColumns = restriction.joinDimensions.map(
                 (dimId) => `  ${fieldQuoteChar}${dimId}${fieldQuoteChar}`,
             );
