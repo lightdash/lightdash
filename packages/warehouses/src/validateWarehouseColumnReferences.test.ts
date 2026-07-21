@@ -99,7 +99,7 @@ describe('validateWarehouseColumnReferences', () => {
             ...explore,
             warnings: [
                 {
-                    type: InlineErrorType.FIELD_ERROR,
+                    type: InlineErrorType.WAREHOUSE_COLUMN_ERROR,
                     message:
                         // eslint-disable-next-line no-template-curly-in-string
                         'Warehouse rejected column reference ${TABLE}.rolling_30d_avg_sales in model "orders": column orders.rolling_30d_avg_sales does not exist',

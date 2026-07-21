@@ -210,7 +210,7 @@ export const validateWarehouseColumnReferences = async ({
 
         const warnings = warningsByExplore.get(exploreName) ?? [];
         warnings.push({
-            type: InlineErrorType.FIELD_ERROR,
+            type: InlineErrorType.WAREHOUSE_COLUMN_ERROR,
             message: `Warehouse rejected column reference \${TABLE}.${columnReference} in model "${modelName}": ${error}`,
         });
         warningsByExplore.set(exploreName, warnings);

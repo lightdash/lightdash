@@ -261,12 +261,26 @@ export const exploreWithoutMetric: Explore = {
     },
 };
 
-export const exploreWithFieldError: Explore = {
+export const exploreWithWarehouseColumnError: Explore = {
+    ...explore,
+    warnings: [
+        {
+            type: InlineErrorType.WAREHOUSE_COLUMN_ERROR,
+            message: 'Warehouse rejected ${TABLE}.missing_column',
+        },
+    ],
+};
+
+export const exploreWithNonWarehouseWarnings: Explore = {
     ...explore,
     warnings: [
         {
             type: InlineErrorType.FIELD_ERROR,
-            message: 'Warehouse rejected ${TABLE}.missing_column',
+            message: 'Failed to compile dimension "broken_dimension"',
+        },
+        {
+            type: InlineErrorType.SKIPPED_JOIN,
+            message: 'Failed to compile join to "other_table"',
         },
     ],
 };

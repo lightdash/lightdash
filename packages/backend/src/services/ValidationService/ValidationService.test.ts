@@ -5,6 +5,8 @@ import {
     FilterOperator,
     TableCalculationTemplateType,
     TableSelectionType,
+    ValidationErrorType,
+    ValidationSourceType,
     ValidationTarget,
     WindowFunctionType,
 } from '@lightdash/common';
@@ -29,10 +31,11 @@ import {
     dashboardForValidation,
     explore,
     exploreError,
-    exploreWithFieldError,
     exploreWithJoin,
+    exploreWithNonWarehouseWarnings,
     exploreWithoutDimension,
     exploreWithoutMetric,
+    exploreWithWarehouseColumnError,
     project,
     tableConfiguration,
     user,
@@ -233,19 +236,41 @@ describe('validation', () => {
         expect(errors.map((error) => error.error)).toEqual(expectedErrors);
     });
 
-    it('Should validate project with field errors', async () => {
+    it('Should promote warehouse column warnings to table errors', async () => {
         (
             projectModel.findExploresFromCache as import('vitest').Mock
-        ).mockImplementationOnce(async () => [exploreWithFieldError]);
+        ).mockImplementationOnce(async () => [exploreWithWarehouseColumnError]);
 
         const errors = await validationService.generateValidation(
             'projectUuid',
             'userUuid',
         );
 
+        expect({ ...errors[0], createdAt: undefined }).toEqual({
+            createdAt: undefined,
+            name: 'valid_explore',
+            error: 'Warehouse rejected ${TABLE}.missing_column',
+            errorType: ValidationErrorType.Model,
+            modelName: 'valid_explore',
+            projectUuid: 'projectUuid',
+            source: ValidationSourceType.Table,
+        });
         expect(errors.map((error) => error.error)).toEqual([
             'Warehouse rejected ${TABLE}.missing_column',
         ]);
+    });
+
+    it('Should ignore explore warnings that are not warehouse column errors', async () => {
+        (
+            projectModel.findExploresFromCache as import('vitest').Mock
+        ).mockImplementationOnce(async () => [exploreWithNonWarehouseWarnings]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            'userUuid',
+        );
+
+        expect(errors).toEqual([]);
     });
 
     it('Should validate project with table errors', async () => {

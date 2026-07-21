@@ -386,10 +386,11 @@ export class ValidationService extends BaseService {
                     return [...acc, ...exploreErrors];
                 }
 
-                const fieldErrors = (explore.warnings ?? [])
+                const warehouseColumnErrors = (explore.warnings ?? [])
                     .filter(
                         (warning) =>
-                            warning.type === InlineErrorType.FIELD_ERROR,
+                            warning.type ===
+                            InlineErrorType.WAREHOUSE_COLUMN_ERROR,
                     )
                     .map((warning) => ({
                         name: explore.name,
@@ -399,7 +400,7 @@ export class ValidationService extends BaseService {
                         projectUuid,
                         source: ValidationSourceType.Table,
                     }));
-                return [...acc, ...fieldErrors];
+                return [...acc, ...warehouseColumnErrors];
             },
             [],
         );
