@@ -1256,11 +1256,9 @@ export class AppGenerateService extends BaseService {
         await this.assertDataAppsEnabled(user);
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
-        await this.assertCanManageApp(
-            user,
-            app,
-            'Insufficient permissions to view app thumbnail',
-        );
+        // Viewing a thumbnail is a read: anyone who can view the app can see it
+        // (e.g. on a project homepage), not just those who can manage it.
+        await this.assertCanViewApp(user, app);
 
         const { client: s3Client, bucket } = this.getS3Client();
         const key = AppGenerateService.appThumbnailKey(appUuid);
