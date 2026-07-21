@@ -61,6 +61,7 @@ const RowRenderer: FC<{
         className={`${layout.row} ${TIER_CLASS[row.widthTier]}`}
         data-gap={row.gap}
         data-role={row.role}
+        data-align={row.align}
         data-fit={row.fit}
     >
         {row.columns.map((column) => (

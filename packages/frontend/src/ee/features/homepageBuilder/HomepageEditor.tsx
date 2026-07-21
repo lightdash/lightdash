@@ -991,6 +991,10 @@ export const HomepageEditor: FC<Props> = ({
                                                         resolvedRows[rowIndex]
                                                             .fit
                                                     }
+                                                    data-align={
+                                                        resolvedRows[rowIndex]
+                                                            .align
+                                                    }
                                                 >
                                                     {row.blocks.map(
                                                         (block, blockIndex) => {

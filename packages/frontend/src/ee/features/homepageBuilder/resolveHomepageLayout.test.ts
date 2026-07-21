@@ -618,3 +618,76 @@ describe('page grid — sparse blocks stretch', () => {
         expect(rows[0].columns[0].itemSpan).toBe(4);
     });
 });
+
+describe('build surface — uniform editing width', () => {
+    it('renders every build row at full width so block cards align', () => {
+        const config = makeConfig([
+            [block('t', 'markdown')],
+            [metricsWithCount('m', 4)],
+            [resourcesWithItems('r', 3)],
+        ]);
+        const { rows } = resolveHomepageLayout(config, { surface: 'build' });
+        expect(rows.map((r) => r.widthTier)).toEqual(['full', 'full', 'full']);
+    });
+
+    it('leaves the composer at its own width — that is its design', () => {
+        const { rows } = resolveHomepageLayout(
+            makeConfig([[block('a', 'ask-ai-hero')], [block('t', 'markdown')]]),
+            { surface: 'build' },
+        );
+        expect(rows[0].widthTier).toBe('composer');
+        expect(rows[1].widthTier).toBe('full');
+    });
+
+    it('keeps the published widths on the view surface', () => {
+        const config = makeConfig([
+            [block('t', 'markdown')],
+            [metricsWithCount('m', 4)],
+        ]);
+        const { rows } = resolveHomepageLayout(config);
+        expect(rows[0].widthTier).toBe('reading');
+    });
+
+    it('does not change any card span — only chrome width', () => {
+        const config = makeConfig([
+            [resourcesWithItems('r', 3)],
+            [collectionWithItems('c', 6)],
+            [metricsWithCount('m', 4)],
+        ]);
+        const spans = (surface: 'view' | 'build') =>
+            resolveHomepageLayout(config, { surface }).rows.map(
+                (r) => r.columns[0].itemSpan,
+            );
+        expect(spans('build')).toEqual(spans('view'));
+    });
+});
+
+describe('row alignment — narrow rows meet the page edge', () => {
+    it('left-aligns a text row when a wider row shares the page', () => {
+        const { rows } = resolveHomepageLayout(
+            makeConfig([[block('t', 'markdown')], [metricsWithCount('m', 4)]]),
+        );
+        expect(rows[0].widthTier).toBe('reading');
+        expect(rows[0].align).toBe('start');
+        expect(rows[1].align).toBe('center');
+    });
+
+    it('leaves a uniform-width page centred — nothing to align to', () => {
+        const { rows } = resolveHomepageLayout(
+            makeConfig([[block('t', 'markdown')], [block('u', 'markdown')]]),
+        );
+        expect(rows.map((r) => r.align)).toEqual(['center', 'center']);
+    });
+
+    it('aligns by resolved tier, so a smoothed row counts as wide', () => {
+        // resources is promoted content -> full by smoothing, so it is not
+        // "narrower than the widest" and must stay centred
+        const { rows } = resolveHomepageLayout(
+            makeConfig([
+                [metricsWithCount('m', 4)],
+                [resourcesWithItems('r', 3)],
+            ]),
+        );
+        expect(rows.map((r) => r.align)).toEqual(['center', 'center']);
+    });
+});

@@ -29,6 +29,12 @@ export type HeroPresentation = 'viewport' | 'shared';
 // room; everything else is 'body'.
 export type RowRole = 'intro' | 'body';
 
+// Where a row narrower than the page's widest sits on the horizontal axis.
+// A reading measure governs line length, not position: centred text above a
+// left-aligned card grid leaves a ragged edge, so narrow rows align to the
+// page's content edge whenever something wider shares the page.
+export type RowAlign = 'center' | 'start';
+
 export type ResolvedColumn = {
     block: HomepageBlock;
     weight: number;
@@ -55,6 +61,7 @@ export type ResolvedRow = {
     // tier; multi-column rows always span full width.
     widthTier: BlockWidthTier;
     role: RowRole;
+    align: RowAlign;
     fit: RowFit;
     columns: ResolvedColumn[];
 };
@@ -204,6 +211,7 @@ const applyItemSpans = (rows: ResolvedRow[]): ResolvedRow[] =>
 const resolveRow = (
     row: HomepageConfig['rows'][number],
     isFirst: boolean,
+    isBuild: boolean,
 ): ResolvedRow => {
     const single = row.blocks.length === 1;
     const columns: ResolvedColumn[] = row.blocks.map((block) => ({
@@ -218,9 +226,19 @@ const resolveRow = (
             !single,
         ),
     }));
-    const widthTier: BlockWidthTier = single
-        ? traitFor(row.blocks[0].type).widthTier
-        : 'full';
+    const widthTier: BlockWidthTier = (() => {
+        if (!single) return 'full';
+        const tier = traitFor(row.blocks[0].type).widthTier;
+        // Build cards are editing surfaces and read as one column: a text
+        // block indented to its 680px reading measure beside a full-width
+        // metrics card leaves a ragged left edge, and published widths are
+        // what Preview is for. The composer is the exception — its width is
+        // its design, not a published measure. This changes no card span:
+        // every non-full tier either has no card grid, or (resources)
+        // resolves to the same span at both tiers.
+        if (isBuild && tier !== 'composer') return 'full';
+        return tier;
+    })();
     const gap: RowGap = (() => {
         if (isFirst) return 'none';
         // The incoming block's rhythm drives the gap: a grouped block tucks
@@ -234,6 +252,7 @@ const resolveRow = (
         gap,
         widthTier,
         role: 'body',
+        align: 'center',
         fit: single ? 'fill' : 'hug',
         columns,
     };
@@ -247,6 +266,22 @@ const smoothWidthTiers = (rows: ResolvedRow[]): ResolvedRow[] => {
     if (!rows.some((row) => row.widthTier === 'full')) return rows;
     return rows.map((row) =>
         row.widthTier === 'content' ? { ...row, widthTier: 'full' } : row,
+    );
+};
+
+const TIER_ORDER: BlockWidthTier[] = ['reading', 'composer', 'content', 'full'];
+
+// Narrow rows align left once anything wider shares the page, so a text
+// block's left edge agrees with the card grid below it. A page where every
+// row is the same width has nothing to align to, so it stays centred.
+const applyRowAlign = (rows: ResolvedRow[]): ResolvedRow[] => {
+    const widest = Math.max(
+        ...rows.map((row) => TIER_ORDER.indexOf(row.widthTier)),
+    );
+    return rows.map((row) =>
+        TIER_ORDER.indexOf(row.widthTier) < widest
+            ? { ...row, align: 'start' as const }
+            : row,
     );
 };
 
@@ -292,8 +327,10 @@ export const resolveHomepageLayout = (
     const bodyRows = hasLeadingHero
         ? visibleRows.slice(composerIdx + 1)
         : visibleRows;
-    const resolved = bodyRows.map((row, index) => resolveRow(row, index === 0));
-    const smoothed = applyItemSpans(smoothWidthTiers(resolved));
+    const resolved = bodyRows.map((row, index) =>
+        resolveRow(row, index === 0, isBuild),
+    );
+    const smoothed = applyRowAlign(applyItemSpans(smoothWidthTiers(resolved)));
     const rows = hasLeadingHero ? smoothed : applyIntroRole(smoothed);
     // A hero keeps the whole viewport only when it's alone; with body rows it
     // yields so the first row peeks above the fold.
@@ -301,8 +338,8 @@ export const resolveHomepageLayout = (
         ? {
               companions: visibleRows
                   .slice(0, composerIdx)
-                  .map((row) => resolveRow(row, true)),
-              row: resolveRow(composerRow, true),
+                  .map((row) => resolveRow(row, true, isBuild)),
+              row: resolveRow(composerRow, true, isBuild),
               presentation:
                   rows.length > 0 ? ('shared' as const) : ('viewport' as const),
           }

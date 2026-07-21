@@ -99,6 +99,10 @@
     margin-inline: auto;
 }
 
+.row[data-align='start'] {
+    margin-inline: 0 auto;
+}
+
 .row[data-gap='grouped'] {
     margin-top: 18px;
 }
