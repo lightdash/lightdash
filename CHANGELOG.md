@@ -1,3 +1,10 @@
+## [0.3441.2](https://github.com/lightdash/lightdash/compare/0.3441.1...0.3441.2) (2026-07-21)
+
+
+### Bug Fixes
+
+* **homepage:** keep ask-ai composer centred and quick-action chips on one row ([#25897](https://github.com/lightdash/lightdash/issues/25897)) ([4b4f119](https://github.com/lightdash/lightdash/commit/4b4f119009713fd3616a9c1dd4298bef08b35c4e))
+
 ## [0.3441.1](https://github.com/lightdash/lightdash/compare/0.3441.0...0.3441.1) (2026-07-21)
 
 

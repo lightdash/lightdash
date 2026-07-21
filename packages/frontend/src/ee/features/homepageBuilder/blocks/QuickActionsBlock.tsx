@@ -192,11 +192,15 @@ export const QuickActionsBlockView: FC<BlockComponentProps> = ({
     projectUuid,
 }) => {
     if (block.type !== 'quick-actions') return null;
+    // The wrapper keeps the chips Group off the column layout's `.col > *`
+    // flex-direction override, so the chips stay on one wrapping row.
     return (
-        <QuickActionCards
-            actions={block.config.actions}
-            projectUuid={projectUuid}
-        />
+        <Box className={classes.quickActionsBand}>
+            <QuickActionCards
+                actions={block.config.actions}
+                projectUuid={projectUuid}
+            />
+        </Box>
     );
 };
 
