@@ -35,6 +35,22 @@ export const ZERO_CLAUDE_USAGE: ClaudeGenerationUsage = {
     costUsd: 0,
 };
 
+export type ClaudeGenerationTelemetry = {
+    usage: ClaudeGenerationUsage;
+    toolCallCount: number;
+    timeToFirstTokenMs: number | null;
+    turnDurationsMs: number[];
+    attemptCount: number;
+};
+
+export const ZERO_CLAUDE_GENERATION_TELEMETRY: ClaudeGenerationTelemetry = {
+    usage: ZERO_CLAUDE_USAGE,
+    toolCallCount: 0,
+    timeToFirstTokenMs: null,
+    turnDurationsMs: [],
+    attemptCount: 0,
+};
+
 /**
  * Sum two usage records field-by-field. One build can invoke `claude` several
  * times (main generation, build-fix re-runs, metadata), so the pipeline totals
@@ -54,6 +70,41 @@ export function addClaudeUsage(
         numTurns: a.numTurns + b.numTurns,
         durationApiMs: a.durationApiMs + b.durationApiMs,
         costUsd: a.costUsd + b.costUsd,
+    };
+}
+
+/**
+ * Add one CLI attempt to the telemetry for a logical Claude invocation.
+ *
+ * A generation can retry the CLI while continuing the same session. Keeping
+ * the aggregation here ensures successful builds include the cost of failed
+ * attempts, and lets the caller retain partial usage when every attempt fails.
+ */
+export function addClaudeGenerationAttempt(
+    aggregate: ClaudeGenerationTelemetry,
+    attempt: {
+        usage: ClaudeGenerationUsage | null;
+        toolCallCount: number;
+        timeToFirstTokenMs: number | null;
+        turnDurationsMs: number[];
+    },
+    attemptStartedAfterMs: number,
+): ClaudeGenerationTelemetry {
+    const attemptTimeToFirstTokenMs =
+        attempt.timeToFirstTokenMs === null
+            ? null
+            : attemptStartedAfterMs + attempt.timeToFirstTokenMs;
+
+    return {
+        usage: addClaudeUsage(aggregate.usage, attempt.usage),
+        toolCallCount: aggregate.toolCallCount + attempt.toolCallCount,
+        timeToFirstTokenMs:
+            aggregate.timeToFirstTokenMs ?? attemptTimeToFirstTokenMs,
+        turnDurationsMs: [
+            ...aggregate.turnDurationsMs,
+            ...attempt.turnDurationsMs,
+        ],
+        attemptCount: aggregate.attemptCount + 1,
     };
 }
 

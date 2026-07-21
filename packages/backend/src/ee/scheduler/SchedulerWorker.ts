@@ -436,6 +436,10 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 payload,
                 helpers,
             ) => {
+                const schedulerWaitMs = Math.max(
+                    Date.now() - helpers.job.run_at.getTime(),
+                    0,
+                );
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
                         EE_SCHEDULER_TASKS.APP_GENERATE_PIPELINE,
@@ -443,7 +447,10 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         helpers.job.run_at,
                         payload,
                         async () => {
-                            await this.appGenerateService.runPipeline(payload);
+                            await this.appGenerateService.runPipeline(
+                                payload,
+                                schedulerWaitMs,
+                            );
                         },
                     ),
                     helpers.job,
@@ -459,6 +466,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                             this.appGenerateService.trackTimeoutFailure(
                                 payload,
                                 e,
+                                schedulerWaitMs,
                             );
                         }
                     },

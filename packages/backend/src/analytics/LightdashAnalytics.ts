@@ -1374,7 +1374,11 @@ export type DataAppCreatedEvent = BaseTrack & {
         version: number;
         promptLength: number;
         imageCount: number;
+        template: DataAppTemplate | null;
         claudeModel: DataAppClaudeModel;
+        samplesRequested: number;
+        samplesAvailable: number;
+        clarificationCount: number;
     };
 };
 
@@ -1390,8 +1394,12 @@ export type DataAppIteratedEvent = BaseTrack & {
         promptLength: number;
         imageCount: number;
         claudeModel: DataAppClaudeModel;
+        themeChanged: boolean;
+        designUuid: string | null;
         previousVersionStatus: string | null;
         msSinceLastVersion: number | null;
+        samplesRequested: number;
+        samplesAvailable: number;
     };
 };
 
@@ -1418,6 +1426,8 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         version: number;
         isIteration: boolean;
         claudeModel: DataAppClaudeModel;
+        claudeProvider: 'anthropic' | 'bedrock';
+        schedulerWaitMs: number;
         wasResumed: boolean;
         totalDurationMs: number;
         sandboxMs?: number;
@@ -1426,14 +1436,15 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         catalogMs?: number;
         generateMs?: number;
         buildMs?: number;
+        metadataMs?: number;
         packageMs?: number;
         uploadMs?: number;
         buildFixAttempts: number;
         buildFixGenerationMs: number;
         toolCallCount: number;
-        // Token/turn/cost usage summed across every `claude` invocation in the
-        // build (main generation + build-fix re-runs + metadata). Used to
-        // decompose `generateMs` into output volume vs turn count and to
+        // Token/turn/cost usage summed across every `claude` invocation and
+        // retry in the build (main generation + build-fix + metadata). Used
+        // to decompose `generateMs` into output volume vs turn count and to
         // confirm prompt caching is landing (`cacheReadInputTokens > 0`).
         inputTokens: number;
         outputTokens: number;
@@ -1442,10 +1453,11 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         numTurns: number;
         durationApiMs: number;
         totalCostUsd: number;
-        // Latency shape of the main generation call: time-to-first-token and
-        // the slowest single turn. Captured from the main generation only
-        // (per-call metrics, not summed across build-fix / metadata).
-        timeToFirstTokenMs: number;
+        generationAttemptCount: number;
+        // Latency shape of the logical main generation, including retries:
+        // time-to-first-token and the slowest single turn. Not combined with
+        // build-fix or metadata calls.
+        timeToFirstTokenMs: number | null;
         slowestTurnMs: number;
         catalogTableCount: number;
         catalogDimensionCount: number;
@@ -1466,6 +1478,8 @@ export type DataAppVersionFailedEvent = BaseTrack & {
         version: number;
         isIteration: boolean;
         claudeModel: DataAppClaudeModel;
+        claudeProvider?: 'anthropic' | 'bedrock';
+        schedulerWaitMs?: number;
         failureStage:
             | 'sandbox'
             | 'catalog'
@@ -1478,12 +1492,28 @@ export type DataAppVersionFailedEvent = BaseTrack & {
         errorMessage: string;
         buildFixAttempts: number;
         totalDurationMs: number;
+        wasResumed?: boolean;
         sandboxMs?: number;
         resumeMs?: number;
         restoreMs?: number;
         catalogMs?: number;
         generateMs?: number;
         buildMs?: number;
+        metadataMs?: number;
+        packageMs?: number;
+        uploadMs?: number;
+        buildFixGenerationMs?: number;
+        toolCallCount?: number;
+        inputTokens?: number;
+        outputTokens?: number;
+        cacheReadInputTokens?: number;
+        cacheCreationInputTokens?: number;
+        numTurns?: number;
+        durationApiMs?: number;
+        totalCostUsd?: number;
+        generationAttemptCount?: number;
+        timeToFirstTokenMs?: number | null;
+        slowestTurnMs?: number;
     };
 };
 

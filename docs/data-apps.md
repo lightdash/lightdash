@@ -199,6 +199,31 @@ The shared enum + default live in `packages/common/src/ee/apps/types.ts` (`DATA_
 Users can cancel a building version. This atomically marks it as `status='error'` in the database and pauses the sandbox
 (interrupting any running commands). The sandbox remains resumable for subsequent iterations.
 
+### Analytics and generation telemetry
+
+Data App analytics use the app version as the user-facing turn identifier: version 1 is turn 1, version 2 is turn 2,
+and so on. This is distinct from Claude's internal `numTurns`, which counts assistant/tool loops inside the generation.
+
+- `data_app.created` and `data_app.iterated` carry the version plus prompt/workload context (model, prompt and image
+  size, samples, template/clarifications on creation, and theme/design context on iteration).
+- `data_app.version.completed` carries end-to-end and stage durations (`sandboxMs`, `resumeMs`, `restoreMs`, `catalogMs`,
+  `generateMs`, `buildMs`, `metadataMs`, `packageMs`, and `uploadMs`) plus the resolved Claude provider, artifact/catalog
+  sizes, and build-fix counts. `schedulerWaitMs` separately measures how long the Graphile job waited after its scheduled
+  run time before a worker began processing it.
+- Claude usage on a completed version is aggregated across main generation, CLI retries, build-fix calls, and v1 metadata
+  generation. It includes uncached/cache-read/cache-write input tokens, output tokens, internal turns, API duration, cost,
+  main-generation attempt count, time to first token, and the slowest internal turn.
+- `data_app.version.failed` carries the completed stage timings and, when Claude had started, the partial token/cost/turn
+  telemetry incurred before failure. That usage is also emitted to the shared `ai.usage` stream so failed builds are not
+  omitted from spend accounting. Pre-generation failures leave Claude fields absent instead of reporting false zeroes.
+- `data_app.version.cancelled` records the stage and elapsed time at cancellation. It cannot include in-memory Claude
+  usage because cancellation is handled by a separate request while the worker is being interrupted.
+
+The pipeline also creates a `DataApp.generate` OpenTelemetry parent span tagged with app UUID, version, project,
+organization, user, iteration status, scheduler wait, model, and provider. Claude Code request/tool spans nest underneath
+it. Analytics events are the stable source for product dashboards; the OTEL waterfall is the deeper operational view and
+is queried in the configured GCP telemetry backend.
+
 ### Refreshing the preview
 
 A refresh button reloads the iframe to re-execute the app's metric queries against the warehouse, without kicking off a
