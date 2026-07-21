@@ -583,14 +583,33 @@ export class ProjectHomepageService extends BaseService {
         );
     }
 
-    private static announcementExcerpt(body: string): string {
+    // Convert the stored markdown body to Slack mrkdwn: chart/dashboard
+    // mentions (markdown links) become real Slack links, keeping them clickable
+    // in the notification. Relative mention URLs are made absolute.
+    private bodyToSlackMrkdwn(body: string): string {
+        const { siteUrl } = this.lightdashConfig;
         const text = body
-            .replace(/!\[[^\]]*\]\([^)]*\)/g, '') // strip images
-            .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1') // links → label
-            .replace(/[#>*_`~]/g, '')
-            .replace(/\s+/g, ' ')
+            .replace(/!\[[^\]]*\]\([^)]*\)/g, '') // drop inline images
+            .replace(/\[([^\]]*)\]\(([^)]*)\)/g, (_match, label, url) => {
+                const target = url as string;
+                // Only linkify safe URLs (relative or http/https); anything
+                // else (e.g. javascript:) is rendered as plain text.
+                const isSafe =
+                    target.startsWith('/') || /^https?:\/\//i.test(target);
+                if (!isSafe) return label as string;
+                const absolute = target.startsWith('/')
+                    ? `${siteUrl}${target}`
+                    : target;
+                return `<${absolute}|${label}>`;
+            })
+            .replace(/\*\*([^*]+)\*\*/g, '*$1*') // markdown bold → slack bold
+            .replace(/^\s*[-*]\s+/gm, '• ') // bullets
+            .replace(/[#>`~]/g, '')
+            .replace(/\n{3,}/g, '\n\n')
             .trim();
-        return text.length > 240 ? `${text.slice(0, 240)}…` : text;
+        if (text.length <= 1500) return text;
+        const cut = text.lastIndexOf('\n', 1500);
+        return `${text.slice(0, cut > 0 ? cut : 1500)}…`;
     }
 
     private async notifyAnnouncementToSlack(
@@ -601,7 +620,7 @@ export class ProjectHomepageService extends BaseService {
     ): Promise<void> {
         const link = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/home`;
         const excerpt = announcement.body
-            ? ProjectHomepageService.announcementExcerpt(announcement.body)
+            ? this.bodyToSlackMrkdwn(announcement.body)
             : '';
         const blocks: KnownBlock[] = [
             {
@@ -793,7 +812,7 @@ export class ProjectHomepageService extends BaseService {
 
         await this.fileStorageClient.uploadImage(normalizedImage, storageId);
 
-        const url =
+        const persistentUrl =
             await this.persistentDownloadFileService.createPersistentUrl({
                 s3Key,
                 fileType: 'image',
@@ -804,6 +823,11 @@ export class ProjectHomepageService extends BaseService {
                     ANNOUNCEMENT_IMAGE_PERSISTENT_URL_EXPIRY_SECONDS,
             });
 
+        // Store a site-relative URL so the image renders against whatever
+        // origin the browser is on, independent of the configured site host.
+        const url = persistentUrl.startsWith('http')
+            ? new URL(persistentUrl).pathname
+            : persistentUrl;
         return { url };
     }
 }
