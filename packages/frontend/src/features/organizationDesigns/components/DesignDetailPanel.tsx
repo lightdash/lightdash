@@ -9,6 +9,7 @@ import {
     ActionIcon,
     Badge,
     Box,
+    Button,
     Center,
     Divider,
     Group,
@@ -26,8 +27,10 @@ import { IconCheck, IconDownload, IconTrash } from '@tabler/icons-react';
 import { useEffect, useRef, useState, type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal from '../../../components/common/MantineModal';
 import {
     useClearDefaultOrganizationDesign,
+    useDeleteAllDesignFiles,
     useDeleteDesignFile,
     useOrganizationDesign,
     useSetDefaultOrganizationDesign,
@@ -117,6 +120,7 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
     const setDefault = useSetDefaultOrganizationDesign();
     const clearDefault = useClearDefaultOrganizationDesign();
     const deleteFile = useDeleteDesignFile();
+    const deleteAllFiles = useDeleteAllDesignFiles();
 
     const form = useForm({
         initialValues: {
@@ -128,6 +132,7 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
     const [pendingDeleteUuid, setPendingDeleteUuid] = useState<string | null>(
         null,
     );
+    const [clearFilesOpen, setClearFilesOpen] = useState(false);
 
     // Theme size guardrail: files are streamed into the sandbox on each build,
     // so an oversized theme times out when applied. Surface the budget as it fills.
@@ -311,14 +316,32 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
                 <Box>
                     <Group justify="space-between" align="baseline">
                         <Title order={6}>Files</Title>
-                        <Text
-                            size="xs"
-                            c={limitViolation ? 'red.6' : 'ldGray.6'}
-                        >
-                            {design.files.length} files ·{' '}
-                            {formatBytes(totalBytes)} /{' '}
-                            {formatBytes(MAX_THEME_TOTAL_BYTES)}
-                        </Text>
+                        <Group gap="xs" align="baseline">
+                            <Text
+                                size="xs"
+                                c={limitViolation ? 'red.6' : 'ldGray.6'}
+                            >
+                                {design.files.length} files ·{' '}
+                                {formatBytes(totalBytes)} /{' '}
+                                {formatBytes(MAX_THEME_TOTAL_BYTES)}
+                            </Text>
+                            {design.files.length > 0 && (
+                                <Button
+                                    variant="subtle"
+                                    color="red"
+                                    size="compact-xs"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconTrash}
+                                            size={12}
+                                        />
+                                    }
+                                    onClick={() => setClearFilesOpen(true)}
+                                >
+                                    Delete all
+                                </Button>
+                            )}
+                        </Group>
                     </Group>
                     <Text size="sm" c="ldGray.6" mt={4}>
                         Drag &amp; drop CSS, font, image, or markdown
@@ -382,6 +405,26 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
                     </Stack>
                 )}
             </Stack>
+
+            <MantineModal
+                opened={clearFilesOpen}
+                onClose={() => setClearFilesOpen(false)}
+                variant="delete"
+                title="Delete all files"
+                description={`Are you sure you want to delete all ${design.files.length} files from "${design.name}"?`}
+                size="md"
+                confirmLoading={deleteAllFiles.isLoading}
+                onConfirm={() =>
+                    deleteAllFiles.mutate(design.designUuid, {
+                        onSuccess: () => setClearFilesOpen(false),
+                    })
+                }
+            >
+                <span>
+                    The theme itself is kept, along with its description, extra
+                    instructions, and anything already using it.
+                </span>
+            </MantineModal>
         </Group>
     );
 };

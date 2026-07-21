@@ -209,4 +209,42 @@ describe('OrganizationDesignModel', () => {
             expect(tracker.history.update).toHaveLength(0);
         });
     });
+
+    describe('removeAllFiles', () => {
+        it('returns every deleted row so the caller can delete their S3 objects', async () => {
+            // The service builds S3 keys from these rows — dropping any here
+            // silently orphans its bytes in the bucket.
+            const rows = [
+                makeDbFile(),
+                makeDbFile({
+                    file_uuid: '00000000-0000-0000-0000-000000000101',
+                    kind: 'image',
+                    filename: 'logo.png',
+                }),
+            ];
+            tracker.on
+                .delete(OrganizationDesignFilesTableName)
+                .responseOnce(rows);
+            tracker.on.update(OrganizationDesignsTableName).responseOnce(1);
+
+            const removed = await model.removeAllFiles(DESIGN_UUID);
+
+            expect(removed.map((f) => f.filename)).toEqual([
+                'theme.css',
+                'logo.png',
+            ]);
+            expect(tracker.history.update).toHaveLength(1);
+        });
+
+        it('skips the parent bump when the design already has no files', async () => {
+            tracker.on
+                .delete(OrganizationDesignFilesTableName)
+                .responseOnce([]);
+
+            await expect(model.removeAllFiles(DESIGN_UUID)).resolves.toEqual(
+                [],
+            );
+            expect(tracker.history.update).toHaveLength(0);
+        });
+    });
 });

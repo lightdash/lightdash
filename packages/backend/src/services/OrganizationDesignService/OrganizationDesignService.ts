@@ -263,6 +263,10 @@ export const designS3Key = (
 const designS3Prefix = (organizationUuid: string, designUuid: string): string =>
     `designs/${organizationUuid}/${designUuid}/`;
 
+// S3 DeleteObjects accepts at most 1000 keys per call. Themes are capped by
+// total bytes, not file count, so a theme can legitimately exceed this.
+const S3_DELETE_BATCH_SIZE = 1000;
+
 export class OrganizationDesignService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -608,6 +612,61 @@ export class OrganizationDesignService extends BaseService {
                 },
             }),
         );
+    }
+
+    /**
+     * Delete every file in a design, keeping the design itself (name,
+     * description, extra instructions, default flag and any `apps.design_uuid`
+     * links all survive). Deleting and recreating the theme is not an
+     * equivalent workaround — that unlinks every app already using it.
+     */
+    async clearFiles(account: Account, designUuid: string): Promise<void> {
+        const { organizationUuid } = this.assertCanManage(account);
+        // Key off the stored uuid, not the raw path arg — Postgres matches uuids
+        // case-insensitively, so an uppercase arg would build keys that hit
+        // nothing and silently orphan every object.
+        const design = await this.loadOwned(organizationUuid, designUuid);
+
+        // Fail loudly if storage isn't configured — a swallowed MissingConfigError
+        // here would report a successful clear that never deleted any bytes.
+        const { client, bucket } = this.getS3Client();
+
+        // Drop the metadata first — once gone, no API path can reference these
+        // S3 objects, so an orphaned-S3 failure is safe and reconcilable later.
+        const removed = await this.organizationDesignModel.removeAllFiles(
+            design.designUuid,
+        );
+        if (removed.length === 0) return;
+
+        const keys = removed.map((file) => ({
+            Key: designS3Key(
+                organizationUuid,
+                design.designUuid,
+                file.fileUuid,
+                file.filename,
+            ),
+        }));
+
+        try {
+            /* eslint-disable no-await-in-loop */
+            for (let i = 0; i < keys.length; i += S3_DELETE_BATCH_SIZE) {
+                await client.send(
+                    new DeleteObjectsCommand({
+                        Bucket: bucket,
+                        Delete: {
+                            Objects: keys.slice(i, i + S3_DELETE_BATCH_SIZE),
+                            Quiet: true,
+                        },
+                    }),
+                );
+            }
+            /* eslint-enable no-await-in-loop */
+        } catch (err) {
+            this.logger.error(
+                `Failed to delete S3 objects while clearing files for design ${designUuid} (org ${organizationUuid}); objects are orphaned and require manual reconciliation`,
+                { organizationUuid, designUuid, error: err },
+            );
+        }
     }
 
     async getFileStream(
