@@ -23,7 +23,10 @@ export default defineConfig({
         navigationTimeout: 30_000,
         screenshot: 'only-on-failure',
         trace: 'on-first-retry',
-        video: process.env.CI ? 'on' : 'retain-on-failure',
+        video: {
+            mode: process.env.CI ? 'on' : 'retain-on-failure',
+            size: { width: 1280, height: 720 },
+        },
     },
     projects: [
         {

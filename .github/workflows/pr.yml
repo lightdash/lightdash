@@ -495,6 +495,7 @@ jobs:
           HOME: /root
           PLAYWRIGHT_BASE_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        id: playwright_artifacts
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
@@ -503,6 +504,24 @@ jobs:
             packages/e2e/playwright-results
           if-no-files-found: ignore
           retention-days: 7
+      - name: Add Playwright artifact summary
+        if: ${{ !cancelled() && steps.playwright_artifacts.outputs.artifact-url != '' }}
+        env:
+          ARTIFACT_URL: ${{ steps.playwright_artifacts.outputs.artifact-url }}
+        run: |
+          video_count=0
+          if [[ -d packages/e2e/playwright-results ]]; then
+            video_count="$(find packages/e2e/playwright-results -type f -name 'video.webm' | wc -l | tr -d ' ')"
+          fi
+          {
+            echo "## Playwright artifacts"
+            echo
+            echo "Captured **${video_count}** videos at 1280x720."
+            echo
+            echo "[Download videos, traces, screenshots, and HTML report](${ARTIFACT_URL})"
+            echo
+            echo "Artifacts expire after 7 days."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # API and CLI tests can share preview state with mutating browser tests.
   playwright-mutating:
@@ -569,6 +588,7 @@ jobs:
           DBT_PROJECT_DIR: /usr/app/dbt
           GCP_CREDENTIALS_PATH: ${{ github.workspace }}/packages/e2e/playwright/fixtures/credentials.json
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        id: playwright_artifacts
         if: ${{ !cancelled() }}
         with:
           name: playwright-mutating-report
@@ -577,6 +597,24 @@ jobs:
             packages/e2e/playwright-results
           if-no-files-found: ignore
           retention-days: 7
+      - name: Add Playwright artifact summary
+        if: ${{ !cancelled() && steps.playwright_artifacts.outputs.artifact-url != '' }}
+        env:
+          ARTIFACT_URL: ${{ steps.playwright_artifacts.outputs.artifact-url }}
+        run: |
+          video_count=0
+          if [[ -d packages/e2e/playwright-results ]]; then
+            video_count="$(find packages/e2e/playwright-results -type f -name 'video.webm' | wc -l | tr -d ' ')"
+          fi
+          {
+            echo "## Playwright mutating artifacts"
+            echo
+            echo "Captured **${video_count}** videos at 1280x720."
+            echo
+            echo "[Download videos, traces, screenshots, and HTML report](${ARTIFACT_URL})"
+            echo
+            echo "Artifacts expire after 7 days."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   timezone-tests:
     if: needs.files-changed.outputs.timezone == 'true'
@@ -620,6 +658,7 @@ jobs:
           TZ: ${{ matrix.timezone }}
           PLAYWRIGHT_BASE_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        id: playwright_artifacts
         if: ${{ !cancelled() }}
         with:
           name: playwright-report-timezone-${{ strategy.job-index }}
@@ -628,6 +667,24 @@ jobs:
             packages/e2e/playwright-results
           if-no-files-found: ignore
           retention-days: 7
+      - name: Add Playwright artifact summary
+        if: ${{ !cancelled() && steps.playwright_artifacts.outputs.artifact-url != '' }}
+        env:
+          ARTIFACT_URL: ${{ steps.playwright_artifacts.outputs.artifact-url }}
+        run: |
+          video_count=0
+          if [[ -d packages/e2e/playwright-results ]]; then
+            video_count="$(find packages/e2e/playwright-results -type f -name 'video.webm' | wc -l | tr -d ' ')"
+          fi
+          {
+            echo "## Playwright timezone artifacts (${{ matrix.timezone }})"
+            echo
+            echo "Captured **${video_count}** videos at 1280x720."
+            echo
+            echo "[Download videos, traces, screenshots, and HTML report](${ARTIFACT_URL})"
+            echo
+            echo "Artifacts expire after 7 days."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # CLI tests without dbt
   cli-tests-without-dbt:
