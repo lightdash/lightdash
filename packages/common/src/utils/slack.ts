@@ -45,6 +45,8 @@ export const getSlackErrorCode = (error: unknown): string | undefined => {
  * error. Slack reports block-level failures in response_metadata.messages as
  * strings containing json-pointers, e.g.
  * "[ERROR] downloading image failed [json-pointer:/blocks/3/image_url]".
+ * [WARN] entries are ignored — Slack mixes non-fatal warnings into the same
+ * list and those blocks were not the cause of the rejection.
  * Returns an empty array when the error carries no block pointers.
  */
 export const getSlackInvalidBlockIndices = (error: unknown): number[] => {
@@ -61,7 +63,8 @@ export const getSlackInvalidBlockIndices = (error: unknown): number[] => {
     }
     const indices = responseMetadata.messages.reduce<Set<number>>(
         (acc, message) => {
-            if (typeof message !== 'string') return acc;
+            if (typeof message !== 'string' || !message.includes('[ERROR]'))
+                return acc;
             const match = message.match(/json-pointer:\/blocks\/(\d+)/);
             if (match) acc.add(Number(match[1]));
             return acc;
