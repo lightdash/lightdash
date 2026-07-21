@@ -257,12 +257,26 @@ test(
                 exact: true,
             });
             await expect(saveDialog).toBeVisible();
-            await saveDialog
-                .getByTestId('ChartCreateModal/NameInput')
-                .fill(chartName);
-            await saveDialog
-                .getByRole('button', { name: 'Next', exact: true })
-                .click();
+            await expect(
+                saveDialog.getByTestId('ChartCreateModal/Form'),
+            ).toHaveAttribute('aria-busy', 'false');
+            await expect(
+                saveDialog.getByRole('radio', {
+                    name: 'Space',
+                    exact: true,
+                }),
+            ).toBeEnabled();
+            const chartNameInput = saveDialog.getByTestId(
+                'ChartCreateModal/NameInput',
+            );
+            await chartNameInput.fill(chartName);
+            await expect(chartNameInput).toHaveValue(chartName);
+            const nextButton = saveDialog.getByRole('button', {
+                name: 'Next',
+                exact: true,
+            });
+            await expect(nextButton).toBeEnabled();
+            await nextButton.click();
 
             const createResponsePromise = page.waitForResponse(
                 (response) =>

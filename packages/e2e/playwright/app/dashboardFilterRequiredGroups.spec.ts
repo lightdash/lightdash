@@ -32,6 +32,11 @@ const dashboardApiPath = (dashboardUuid: string) =>
     `/api/v2/projects/${SEED_PROJECT.project_uuid}/dashboards/${dashboardUuid}`;
 const dashboardViewPath = (dashboardUuid: string) =>
     `/projects/${SEED_PROJECT.project_uuid}/dashboards/${dashboardUuid}/view`;
+const getGuidedSetupDialog = (page: Page) =>
+    page.getByRole('dialog', {
+        name: 'Set filters to load this dashboard',
+        exact: true,
+    });
 const uuidPattern =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -262,7 +267,10 @@ test.describe('Dashboard filter required groups', { tag: '@mutating' }, () => {
 
         await page.goto(dashboardViewPath(dashboardUuid));
 
-        const guidedSetup = page.getByTestId('guided-filter-setup');
+        const guidedSetupDialog = getGuidedSetupDialog(page);
+        const guidedSetup = guidedSetupDialog.getByTestId(
+            'guided-filter-setup',
+        );
         const unmetRequirements = page.getByTestId(
             'unmet-requirements-placeholder',
         );
@@ -275,7 +283,7 @@ test.describe('Dashboard filter required groups', { tag: '@mutating' }, () => {
         expect(chartRequests).toHaveLength(0);
 
         await closeAutoOpenListbox(page);
-        await guidedSetup
+        await guidedSetupDialog
             .getByRole('button', {
                 name: 'Set filters in the toolbar instead',
                 exact: true,
@@ -347,14 +355,17 @@ test.describe('Dashboard filter required groups', { tag: '@mutating' }, () => {
             'payment method values search response status',
         ).toBe(200);
 
-        const guidedSetup = page.getByTestId('guided-filter-setup');
+        const guidedSetupDialog = getGuidedSetupDialog(page);
+        const guidedSetup = guidedSetupDialog.getByTestId(
+            'guided-filter-setup',
+        );
         await expect(guidedSetup).toBeVisible();
         await expect(
-            guidedSetup.getByText(GUIDED_SETUP_NOTE, { exact: true }),
+            guidedSetupDialog.getByText(GUIDED_SETUP_NOTE, { exact: true }),
         ).toBeVisible();
         await closeAutoOpenListbox(page);
         await expect(
-            guidedSetup.getByText('0 of 2 set', { exact: true }),
+            guidedSetupDialog.getByText('0 of 2 set', { exact: true }),
         ).toBeVisible();
 
         const paymentMethodRule = guidedSetup.locator(
@@ -376,7 +387,7 @@ test.describe('Dashboard filter required groups', { tag: '@mutating' }, () => {
             .click();
 
         await expect(
-            guidedSetup.getByText('1 of 2 set', { exact: true }),
+            guidedSetupDialog.getByText('1 of 2 set', { exact: true }),
         ).toBeVisible();
         await expect(
             guidedSetup.getByText('Change', { exact: true }),
@@ -420,11 +431,14 @@ test.describe('Dashboard filter required groups', { tag: '@mutating' }, () => {
         await expect(
             page.getByTestId('unmet-requirements-placeholder'),
         ).toBeVisible();
-        const guidedSetup = page.getByTestId('guided-filter-setup');
+        const guidedSetupDialog = getGuidedSetupDialog(page);
+        const guidedSetup = guidedSetupDialog.getByTestId(
+            'guided-filter-setup',
+        );
         await expect(guidedSetup).toBeVisible();
         await closeAutoOpenListbox(page);
         await expect(
-            guidedSetup.getByText('0 of 1 set', { exact: true }),
+            guidedSetupDialog.getByText('0 of 1 set', { exact: true }),
         ).toBeVisible();
         expect(chartRequests).toHaveLength(0);
     });

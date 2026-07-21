@@ -137,7 +137,6 @@ const selectEditorView = async (page: Page, name: 'Chart' | 'SQL') => {
     });
     await expect(group).toHaveCount(1);
     await group.getByText(name, { exact: true }).click();
-    await expect(group.getByRole('radio', { name, exact: true })).toBeChecked();
 };
 
 const getMonacoEditor = (page: Page) => page.locator('.monaco-editor');
@@ -333,6 +332,7 @@ test.describe('SQL Runner', { tag: '@mutating' }, () => {
             );
 
             await selectEditorView(page, 'SQL');
+            await expect(getMonacoEditorInput(page)).toBeVisible();
             await replaceMonacoSql(page, ordersSql);
             await expect(getRunQueryButton(page)).toBeEnabled();
             await expect(

@@ -752,6 +752,12 @@ const createPrivateContent = async (
     const chartNameInput = chartDialog.getByTestId(
         'ChartCreateModal/NameInput',
     );
+    await expect(
+        chartDialog.getByTestId('ChartCreateModal/Form'),
+    ).toHaveAttribute('aria-busy', 'false');
+    await expect(
+        chartDialog.getByRole('radio', { name: 'Space', exact: true }),
+    ).toBeEnabled();
     await expect(chartNameInput).toHaveValue('');
     await expect(chartNext).toBeDisabled();
     await chartNameInput.fill(names.chart);
