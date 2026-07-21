@@ -126,6 +126,7 @@ import Logger from '../../logging/logger';
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { generateUniqueSpaceSlug } from '../../utils/SlugUtils';
+import { omitProjectUuid } from './previewContent';
 import Transaction = Knex.Transaction;
 
 export type ProjectModelArguments = {
@@ -2916,7 +2917,7 @@ export class ProjectModel {
                                   );
                               }
                               const createChart: CloneChart = {
-                                  ...d,
+                                  ...omitProjectUuid(d),
                                   search_vector: undefined,
                                   saved_query_id: undefined,
                                   saved_query_uuid: undefined,
@@ -2971,7 +2972,7 @@ export class ProjectModel {
                                   );
                               }
                               const createChart: CloneChart = {
-                                  ...d,
+                                  ...omitProjectUuid(d),
                                   search_vector: undefined,
                                   space_id: null,
                                   dashboard_uuid: d.dashboard_uuid,
@@ -3166,7 +3167,7 @@ export class ProjectModel {
                                       dashboard_uuid?: string;
                                   };
                                   const createDashboard: CloneDashboard = {
-                                      ...d,
+                                      ...omitProjectUuid(d),
                                       search_vector: undefined,
                                       dashboard_id: undefined,
                                       dashboard_uuid: undefined,

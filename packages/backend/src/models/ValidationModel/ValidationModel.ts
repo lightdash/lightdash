@@ -351,7 +351,7 @@ export class ValidationModel {
                 `${SavedChartsTableName}.last_version_updated_by_user_uuid`,
                 `${UserTableName}.user_uuid`,
             )
-            .where('project_uuid', projectUuid)
+            .where(`${ValidationTableName}.project_uuid`, projectUuid)
             .andWhere((queryBuilder) => {
                 if (jobId) {
                     void queryBuilder.where('job_id', jobId);
@@ -460,7 +460,7 @@ export class ValidationModel {
                 `${UserTableName}.user_uuid`,
                 `${DashboardVersionsTableName}.updated_by_user_uuid`,
             )
-            .where('project_uuid', projectUuid)
+            .where(`${ValidationTableName}.project_uuid`, projectUuid)
             .andWhere((queryBuilder) => {
                 if (jobId) {
                     void queryBuilder.where('job_id', jobId);
