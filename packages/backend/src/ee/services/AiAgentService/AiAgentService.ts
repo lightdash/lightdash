@@ -10181,51 +10181,60 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     ): Promise<void> {
         const slackPrompt: SlackPrompt = initialSlackPrompt;
 
-        const user = await this.userModel.findSessionUserAndOrgByUuid(
-            slackPrompt.createdByUserUuid,
-            slackPrompt.organizationUuid,
-        );
-
-        const auditedAbility = this.createAuditedAbility(user);
-        const canManageAgent = auditedAbility.can(
-            'manage',
-            subject('AiAgent', {
-                organizationUuid: slackPrompt.organizationUuid,
-                projectUuid: slackPrompt.projectUuid,
-                metadata: {
-                    promptUuid,
-                    threadUuid: slackPrompt.threadUuid,
-                },
-            }),
-        );
-
-        const threadMessages = await this.aiAgentModel.getThreadMessages(
-            slackPrompt.organizationUuid,
-            slackPrompt.projectUuid,
-            slackPrompt.threadUuid,
-        );
-
-        const thread = await this.aiAgentModel.findThread(
-            slackPrompt.threadUuid,
-        );
-        if (!thread) {
-            throw new Error('Thread not found');
-        }
-
+        // Resolved inside the try so it's available to the catch when a later
+        // step fails; the catch tolerates it being undefined.
         let agent: AiAgent | undefined;
-        if (thread.agentUuid) {
-            agent = await this.getAgent(user, thread.agentUuid);
-        }
 
-        if (slackPrompt.prompt.trim().length === 0) {
-            await this.editPlaceholderOrPost(
-                slackPrompt,
-                AiAgentService.EMPTY_PROMPT_WELCOME,
-            );
-            return;
-        }
-
+        // Everything runs inside this try so ANY failure — thread/agent lookup,
+        // chat-history assembly, or generation itself — posts an explicit error
+        // to the Slack thread instead of letting the worker job die silently
+        // (leaving a stuck "thinking" card and no reply). The status/card path
+        // in replyToSlackPromptWithStatus only rethrows when it never posted a
+        // card, so this remains the single error post.
         try {
+            const user = await this.userModel.findSessionUserAndOrgByUuid(
+                slackPrompt.createdByUserUuid,
+                slackPrompt.organizationUuid,
+            );
+
+            const auditedAbility = this.createAuditedAbility(user);
+            const canManageAgent = auditedAbility.can(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid: slackPrompt.organizationUuid,
+                    projectUuid: slackPrompt.projectUuid,
+                    metadata: {
+                        promptUuid,
+                        threadUuid: slackPrompt.threadUuid,
+                    },
+                }),
+            );
+
+            const threadMessages = await this.aiAgentModel.getThreadMessages(
+                slackPrompt.organizationUuid,
+                slackPrompt.projectUuid,
+                slackPrompt.threadUuid,
+            );
+
+            const thread = await this.aiAgentModel.findThread(
+                slackPrompt.threadUuid,
+            );
+            if (!thread) {
+                throw new Error('Thread not found');
+            }
+
+            if (thread.agentUuid) {
+                agent = await this.getAgent(user, thread.agentUuid);
+            }
+
+            if (slackPrompt.prompt.trim().length === 0) {
+                await this.editPlaceholderOrPost(
+                    slackPrompt,
+                    AiAgentService.EMPTY_PROMPT_WELCOME,
+                );
+                return;
+            }
+
             const chatHistoryMessages =
                 await this.getChatHistoryFromThreadMessages(threadMessages, {
                     organizationUuid: slackPrompt.organizationUuid,
@@ -10275,7 +10284,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     },
                 ],
                 channel: slackPrompt.slackChannelId,
-                thread_ts: slackPrompt.slackThreadTs,
+                // On a brand-new thread slackThreadTs is undefined; fall back to
+                // the prompt's ts (matching threadTs in
+                // replyToSlackPromptWithStatus) so the error still threads.
+                thread_ts:
+                    slackPrompt.slackThreadTs ?? slackPrompt.promptSlackTs,
                 username: agent?.name,
             });
 
