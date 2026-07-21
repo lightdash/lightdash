@@ -153,6 +153,7 @@ interface ServiceManifest {
     /** An implementation signature for these services are not available at this stage */
     aiWritebackService: unknown;
     aiDeepResearchService: unknown;
+    onboardingAgentService: unknown;
     aiAgentReviewNotificationService: unknown;
     writebackPreviewService: unknown;
     previewDeploySetupService: unknown;
@@ -1387,6 +1388,12 @@ export class ServiceRepository
         AiDeepResearchServiceImplT,
     >(): AiDeepResearchServiceImplT {
         return this.getService('aiDeepResearchService');
+    }
+
+    public getOnboardingAgentService<
+        OnboardingAgentServiceImplT,
+    >(): OnboardingAgentServiceImplT {
+        return this.getService('onboardingAgentService');
     }
 
     public getPreviewDeploySetupService<

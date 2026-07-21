@@ -28,6 +28,7 @@ import LicenseClient from './clients/License/LicenseClient';
 import { ManagedAgentClient } from './clients/ManagedAgentClient';
 import OpenAi from './clients/OpenAi';
 import { CommercialSlackClient } from './clients/Slack/SlackClient';
+import { AgentOnboardingRunModel } from './models/AgentOnboardingRunModel';
 import { AiAgentDocumentModel } from './models/AiAgentDocumentModel';
 import { AiAgentModel } from './models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from './models/AiAgentReviewClassifierModel';
@@ -83,6 +84,7 @@ import { ExternalConnectionService } from './services/ExternalConnectionService/
 import { GoogleServiceAccountTokenProvider } from './services/ExternalConnectionService/GoogleServiceAccountTokenProvider';
 import { ManagedAgentService } from './services/ManagedAgentService/ManagedAgentService';
 import { McpService } from './services/McpService/McpService';
+import { OnboardingAgentService } from './services/OnboardingAgentService/OnboardingAgentService';
 import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
 import { PreviewDeploySetupService } from './services/PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
@@ -211,6 +213,19 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     userModel: models.getUserModel(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
+                }),
+            onboardingAgentService: ({ context, models, repository }) =>
+                new OnboardingAgentService({
+                    lightdashConfig: context.lightdashConfig,
+                    agentOnboardingRunModel:
+                        models.getAgentOnboardingRunModel<AgentOnboardingRunModel>(),
+                    sandboxRegistryModel:
+                        models.getSandboxRegistryModel<SandboxRegistryModel>(),
+                    projectModel: models.getProjectModel(),
+                    personalAccessTokenService:
+                        repository.getPersonalAccessTokenService(),
+                    promptService: repository.getPromptService(),
+                    userService: repository.getUserService(),
                 }),
             previewDeploySetupService: ({ context, models }) =>
                 new PreviewDeploySetupService({
@@ -922,6 +937,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiWritebackRunModel({ database }),
             aiDeepResearchRunModel: ({ database }) =>
                 new AiDeepResearchRunModel({ database }),
+            agentOnboardingRunModel: ({ database }) =>
+                new AgentOnboardingRunModel({ database }),
             sandboxRegistryModel: ({ database }) =>
                 new SandboxRegistryModel({ database }),
             projectCiStatusModel: ({ database }) =>

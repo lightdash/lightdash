@@ -31,13 +31,11 @@ Do not rename the prepared project. Keep its existing name for compatibility wit
 ## 2. Discover, author, and deploy the semantic layer
 
 1. Inspect repository documentation, project metadata, and the working tree. Detect whether there is a usable dbt project or an existing pure Lightdash project.
-2. Run one broad catalog query: `lightdash warehouse-catalog --json`. Store large output only in a gitignored temporary location. Prioritize tables in the configured database and schema from the original prompt (matching names case-insensitively) unless repository evidence points elsewhere. If the catalog spans many databases or schemas and neither the configured connection nor repository evidence identifies where to look, ask the user which database and schema to use and wait before continuing.
+2. Start discovery in the configured database and schema from the original prompt, matching names case-insensitively: `lightdash warehouse-catalog --database <database> --schema <schema> --json`. Run the broader `lightdash warehouse-catalog --json` only when that configured scope has no coherent analytics use case or when no database and schema were provided. Store large output only in a gitignored temporary location. If a broad catalog spans many databases or schemas and repository evidence does not identify where to look, ask the user which database and schema to use and wait before continuing.
 3. Choose the smallest coherent analytics use case supported by repository and warehouse evidence. Do not infer business meaning from names alone.
-4. Narrow the catalog only for shortlisted relations. Use the complete command shape:
-    - `lightdash warehouse-catalog --database <database> --schema <schema> --json`
-    - `lightdash warehouse-catalog --database <database> --schema <schema> --table <table> --include-fields --json`
-5. Use `lightdash sql` for aggregate-only profiling. Combine grain, date range, measure, category, and join checks into as few queries as practical. Never output raw identifiers or row samples.
-6. Follow the installed skill and read only the semantic-layer references required for the detected project type.
+4. Fetch fields for each shortlisted relation exactly once with `lightdash warehouse-catalog --database <database> --schema <schema> --table <table> --include-fields --json`. Do not repeat field discovery through `information_schema`, another catalog call, or a raw SQL query.
+5. Use `lightdash sql "<aggregate query>" -o <temporary-output-file>` for aggregate-only profiling; the output file is required. Combine compatible grain, date range, measure, category, and join profiles into as few queries as practical. Read each output file once, extract the evidence needed for authoring, then delete it. Never output raw identifiers or row samples.
+6. Follow the installed skill and read each semantic-layer reference required for the detected project type at most once. Start from its basic example. Read a full schema or run `--help` only after a concrete command or lint failure cannot be resolved from the already-read reference.
 7. Extend a usable dbt project when present. Otherwise, build a minimal pure Lightdash semantic layer from the catalog evidence. A pure project must include the prepared warehouse type before its first deploy:
 
     ```yaml
@@ -54,7 +52,7 @@ Do not rename the prepared project. Keep its existing name for compatibility wit
 
 Create one dashboard for the selected use case with dashboard slug `agent-starter-dashboard` and space slug `lightdash-starter`. Accept the display name generated from that slug; do not rename the space through another interface.
 
-Before authoring, read the installed big-number, cartesian, table, and dashboard references; also read the pie reference only when using a pie or donut chart. Start from their basic examples rather than searching the full schemas ad hoc.
+Before authoring, decide the complete dashboard structure and files. Read the installed big-number, cartesian, table, and dashboard references exactly once; also read the pie reference exactly once only when using a pie or donut chart. Start from their basic examples. Read a full schema or run `--help` only after a concrete lint, upload, or chart-execution failure cannot be resolved from the already-read reference.
 
 Every chart must include these common fields before the first lint:
 
@@ -65,7 +63,7 @@ Every chart must include these common fields before the first lint:
 - top-level `tableName`
 - `version: 1`
 
-Use deterministic `agent-starter-*` chart slugs so reruns update the same content. Author and lint one representative of each chart type before reusing its structure for additional KPI variants.
+Use deterministic `agent-starter-*` chart slugs so reruns update the same content. Author all chart and dashboard files as one batch after deciding the structure. Run one lint across the completed batch, fix only the files and fields it reports, and repeat only failed checks.
 
 ### Dashboard specification
 
@@ -79,16 +77,15 @@ Use deterministic `agent-starter-*` chart slugs so reruns update the same conten
 - Place primary charts below the KPI row at balanced widths such as 24+12 or 18+18; use width 36 for the detail table.
 - Never expose direct identifiers such as names, emails, addresses, account numbers, or IDs. Keep all starter content aggregated regardless of domain.
 
-Run a final `lightdash lint`, execute every chart with `lightdash run-chart -p <chart-yaml-path>`, and upload with `lightdash upload --project <Prepared project UUID> --validate`. Resolve every compile, field, filter, formatting, and query failure, then repeat only the failed check.
+After the batch is authored, run `lightdash lint` once, execute every chart with `lightdash run-chart -p <chart-yaml-path>`, and upload with `lightdash upload --project <Prepared project UUID> --validate`. Resolve every compile, field, filter, formatting, and query failure by changing only the reported files, then repeat only the failed check.
 
 **Gate:** Lint passes, every chart executes successfully, and validated upload succeeds.
 
 ## 4. Validate and hand off
 
-1. Run `lightdash config get-project` and confirm the prepared UUID and existing project name.
-2. Run `lightdash validate --project <Prepared project UUID>` and resolve every reported semantic-layer error.
-3. Do not perform a round-trip download or call internal APIs for additional verification.
-4. Create `LIGHTDASH_HANDOFF.md` in the repository root as the durable, secret-free audit report for this setup. If that file already exists, preserve it and create `LIGHTDASH_ONBOARDING_HANDOFF_<YYYY-MM-DD>.md` using the current date. If that path also exists, append `-2` before `.md`, incrementing the suffix until the path is unused. Never overwrite an existing handoff file.
+1. Run `lightdash validate --project <Prepared project UUID>` and resolve every reported semantic-layer error. Repeat validation only when it failed.
+2. Do not perform a round-trip download, repeat successful chart executions or uploads, or call internal APIs for additional verification.
+3. Create `LIGHTDASH_HANDOFF.md` in the repository root as the durable, secret-free audit report for this setup. If that file already exists, preserve it and create `LIGHTDASH_ONBOARDING_HANDOFF_<YYYY-MM-DD>.md` using the current date. If that path also exists, append `-2` before `.md`, incrementing the suffix until the path is unused. Never overwrite an existing handoff file.
 
 The report must describe what was discovered, why the use case was selected, what was built, and how it was verified. Make it easy to audit with concise prose and Markdown tables. Include:
 

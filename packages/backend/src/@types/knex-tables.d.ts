@@ -340,6 +340,10 @@ import {
     WarehouseCredentialTableName,
 } from '../database/entities/warehouseCredentials';
 import {
+    AgentOnboardingRunsTable,
+    AgentOnboardingRunsTableName,
+} from '../ee/database/entities/agentOnboarding';
+import {
     AiAgentToolCallErrorTable,
     AiAgentToolCallErrorTableName,
     AiAgentToolCallTable,
@@ -612,6 +616,7 @@ declare module 'knex/types/tables' {
         [AiSlackPromptTableName]: AiSlackPromptTable;
         [AiWebAppPromptTableName]: AiWebAppPromptTable;
         [AiWritebackThreadTableName]: AiWritebackThreadTable;
+        [AgentOnboardingRunsTableName]: AgentOnboardingRunsTable;
         [ProjectCiStatusTableName]: ProjectCiStatusTable;
         [AiAgentTableName]: AiAgentTable;
         [AiAgentDocumentTableName]: AiAgentDocumentTable;

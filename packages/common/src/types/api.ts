@@ -4,6 +4,8 @@ import { type ExploreWarningReport } from '../compiler/compilationReport';
 import type {
     ApiAgentAsCodeListResponse,
     ApiAgentAsCodeUpsertResponse,
+    ApiAgentOnboardingFileResponse,
+    ApiAgentOnboardingRunResponse,
     ApiAgentSuggestionsResponse,
     ApiAiAgentAdminConversationsResponse,
     ApiAiAgentAdminPromptActivityResponse,
@@ -1301,6 +1303,8 @@ type ApiResults =
     | ApiHomepageLinkMetadataResponse['results']
     | ApiProjectColorPaletteResponse['results']
     | ApiOrganizationBrandResponse['results']
+    | ApiAgentOnboardingFileResponse['results']
+    | ApiAgentOnboardingRunResponse['results']
     | ApiManagedAgentRunResponse['results']
     | ApiManagedAgentRunsListResponse['results']
     | ApiManagedAgentActionResponse['results']
