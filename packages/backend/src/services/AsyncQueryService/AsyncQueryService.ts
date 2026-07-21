@@ -2354,7 +2354,6 @@ export class AsyncQueryService extends ProjectService {
         queryCreatedAt,
         displayTimezone,
         isPreviewProject,
-        sessionTimezone,
     }: RunAsyncPreAggregateQueryArgs) {
         try {
             const duckDbWarehouseClient =
@@ -2417,7 +2416,6 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns,
                 queryCreatedAt,
                 displayTimezone,
-                sessionTimezone,
             });
         }
     }
@@ -2426,7 +2424,6 @@ export class AsyncQueryService extends ProjectService {
         queryUuid: string,
         workerLabel: string,
         queryTagsOverride?: RunQueryTags,
-        sessionTimezone?: string,
     ): Promise<boolean> {
         const canRun = await this.prepareQueuedQueryForExecution(
             queryUuid,
@@ -2441,7 +2438,7 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             queryTagsOverride,
         );
-        await this.runAsyncWarehouseQuery({ ...args, sessionTimezone });
+        await this.runAsyncWarehouseQuery(args);
         return true;
     }
 
@@ -2449,7 +2446,6 @@ export class AsyncQueryService extends ProjectService {
         queryUuid: string,
         workerLabel: string,
         queryTagsOverride?: RunQueryTags,
-        sessionTimezone?: string,
     ): Promise<boolean> {
         const canRun = await this.prepareQueuedQueryForExecution(
             queryUuid,
@@ -2464,7 +2460,7 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             queryTagsOverride,
         );
-        await this.runAsyncPreAggregateQuery({ ...args, sessionTimezone });
+        await this.runAsyncPreAggregateQuery(args);
         return true;
     }
 
@@ -2550,7 +2546,6 @@ export class AsyncQueryService extends ProjectService {
         originalColumns,
         queryCreatedAt,
         displayTimezone,
-        sessionTimezone,
         warehouseClientOverride,
         warehouseCredentialsTypeOverride,
     }: RunAsyncWarehouseQueryArgs & {
@@ -2734,9 +2729,7 @@ export class AsyncQueryService extends ProjectService {
                         write: stream?.write,
                         pivotConfiguration,
                         itemsMap: fieldsMap,
-                        // The compiled session override wins; legacy queries
-                        // keep the project data timezone
-                        dataTimezone: sessionTimezone ?? resolvedDataTimezone,
+                        dataTimezone: resolvedDataTimezone,
                         displayTimezone,
                     }),
             );
@@ -3742,12 +3735,6 @@ export class AsyncQueryService extends ProjectService {
                     const resolvedDataTimezone = isTimezoneSupportEnabled
                         ? warehouseCredentials.dataTimezone
                         : undefined;
-                    // Compile-time session override (Databricks/Trino UTC
-                    // pin); flips results without changing SQL, so it is part
-                    // of the cache key and rides the execution args.
-                    const compiledSessionTimezone =
-                        queryComposer.getWarehouseSessionTimezone();
-
                     // Generate cache key from project and query identifiers
                     // Include user UUID to prevent cache sharing between users when user-specific credentials are in use
                     // Use the resolved timezone (not metricQuery.timezone) because the
@@ -3763,8 +3750,7 @@ export class AsyncQueryService extends ProjectService {
                                 warehouseCredentials.userWarehouseCredentialsUuid
                                     ? account.user.id
                                     : null,
-                            dataTimezone:
-                                compiledSessionTimezone ?? resolvedDataTimezone,
+                            dataTimezone: resolvedDataTimezone,
                         },
                     );
 
@@ -4077,7 +4063,6 @@ export class AsyncQueryService extends ProjectService {
                         originalColumns,
                         queryCreatedAt,
                         displayTimezone,
-                        sessionTimezone: compiledSessionTimezone,
                     };
 
                     if (executionPlan.target === 'pre_aggregate') {
@@ -4101,7 +4086,6 @@ export class AsyncQueryService extends ProjectService {
                             const natsPayload = {
                                 queryUuid: queryHistoryUuid,
                                 queryTags,
-                                sessionTimezone: compiledSessionTimezone,
                             };
 
                             const enqueueQuery = () => {

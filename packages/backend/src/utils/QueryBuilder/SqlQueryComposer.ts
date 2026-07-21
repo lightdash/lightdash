@@ -88,8 +88,6 @@ export class SqlQueryComposer extends QueryComposer {
             missingParameterReferences: new Set(missingParameterReferences),
             usedParameters,
             compilationErrors: [],
-            // SQL charts reflect raw warehouse output; no session override
-            warehouseSessionTimezone: undefined,
         };
     }
 

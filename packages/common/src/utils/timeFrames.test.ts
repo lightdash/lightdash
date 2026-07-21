@@ -1623,12 +1623,16 @@ describe('TimeFrames', () => {
                 dateTruncTimezoneConversions[
                     SupportedDbtAdapter.DATABRICKS
                 ].castNaiveToInstant?.(col, z),
-            ).toEqual(`to_utc_timestamp(${col}, '${z}')`);
+            ).toEqual(
+                `CAST(to_utc_timestamp(${col}, '${z}') AS TIMESTAMP_NTZ)`,
+            );
             expect(
                 dateTruncTimezoneConversions[
                     SupportedDbtAdapter.SPARK
                 ].castNaiveToInstant?.(col, z),
-            ).toEqual(`to_utc_timestamp(${col}, '${z}')`);
+            ).toEqual(
+                `CAST(to_utc_timestamp(${col}, '${z}') AS TIMESTAMP_NTZ)`,
+            );
             expect(
                 dateTruncTimezoneConversions[
                     SupportedDbtAdapter.TRINO
@@ -1764,7 +1768,7 @@ describe('TimeFrames', () => {
             });
 
             test('Databricks day grain', () => {
-                const input = `from_utc_timestamp(to_utc_timestamp(${col}, '${z}'), '${tz}')`;
+                const input = `from_utc_timestamp(CAST(to_utc_timestamp(${col}, '${z}') AS TIMESTAMP_NTZ), '${tz}')`;
                 expect(
                     getSqlForTruncatedDate(
                         SupportedDbtAdapter.DATABRICKS,
@@ -1777,12 +1781,12 @@ describe('TimeFrames', () => {
                         'naive',
                     ),
                 ).toEqual(
-                    `to_utc_timestamp(DATE_TRUNC('DAY', ${input}), '${tz}')`,
+                    `CAST(to_utc_timestamp(DATE_TRUNC('DAY', ${input}), '${tz}') AS TIMESTAMP_NTZ)`,
                 );
             });
 
             test('Databricks hour grain', () => {
-                const input = `from_utc_timestamp(to_utc_timestamp(${col}, '${z}'), '${tz}')`;
+                const input = `from_utc_timestamp(CAST(to_utc_timestamp(${col}, '${z}') AS TIMESTAMP_NTZ), '${tz}')`;
                 expect(
                     getSqlForTruncatedDate(
                         SupportedDbtAdapter.DATABRICKS,
@@ -1795,7 +1799,7 @@ describe('TimeFrames', () => {
                         'naive',
                     ),
                 ).toEqual(
-                    `to_utc_timestamp(DATE_TRUNC('HOUR', ${input}), '${tz}')`,
+                    `CAST(to_utc_timestamp(DATE_TRUNC('HOUR', ${input}), '${tz}') AS TIMESTAMP_NTZ)`,
                 );
             });
         });
@@ -1819,7 +1823,7 @@ describe('TimeFrames', () => {
             ).toEqual(
                 `CAST(with_timezone(DATE_TRUNC('DAY', ${trinoInput}), '${tz}') AT TIME ZONE 'UTC' AS timestamp)`,
             );
-            const databricksInput = `from_utc_timestamp(to_utc_timestamp(${col}, '${tz}'), '${tz}')`;
+            const databricksInput = `from_utc_timestamp(CAST(to_utc_timestamp(${col}, '${tz}') AS TIMESTAMP_NTZ), '${tz}')`;
             expect(
                 getSqlForTruncatedDate(
                     SupportedDbtAdapter.DATABRICKS,
@@ -1832,7 +1836,7 @@ describe('TimeFrames', () => {
                     'naive',
                 ),
             ).toEqual(
-                `to_utc_timestamp(DATE_TRUNC('DAY', ${databricksInput}), '${tz}')`,
+                `CAST(to_utc_timestamp(DATE_TRUNC('DAY', ${databricksInput}), '${tz}') AS TIMESTAMP_NTZ)`,
             );
         });
 
@@ -1869,7 +1873,6 @@ describe('TimeFrames', () => {
                     SupportedDbtAdapter.POSTGRES,
                     SupportedDbtAdapter.BIGQUERY,
                     SupportedDbtAdapter.TRINO,
-                    SupportedDbtAdapter.DATABRICKS,
                     SupportedDbtAdapter.SNOWFLAKE,
                 ] as const
             ).forEach((adapter) => {
@@ -1950,7 +1953,7 @@ describe('TimeFrames', () => {
                 ],
                 [
                     SupportedDbtAdapter.DATABRICKS,
-                    `DATE_PART('MONTH', from_utc_timestamp(to_utc_timestamp(${col}, '${z}'), '${tz}'))`,
+                    `DATE_PART('MONTH', from_utc_timestamp(CAST(to_utc_timestamp(${col}, '${z}') AS TIMESTAMP_NTZ), '${tz}'))`,
                 ],
             ])('%s: MONTH_NUM naive', (adapter, expected) => {
                 expect(
@@ -1994,7 +1997,7 @@ describe('TimeFrames', () => {
                         'naive',
                     ),
                 ).toEqual(
-                    `DATE_PART('MONTH', from_utc_timestamp(to_utc_timestamp(${col}, '${tz}'), '${tz}'))`,
+                    `DATE_PART('MONTH', from_utc_timestamp(CAST(to_utc_timestamp(${col}, '${tz}') AS TIMESTAMP_NTZ), '${tz}'))`,
                 );
             });
 

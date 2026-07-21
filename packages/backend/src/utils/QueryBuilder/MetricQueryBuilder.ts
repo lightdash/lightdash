@@ -107,13 +107,6 @@ export type CompiledQuery = {
     missingParameterReferences: Set<string>;
     usedParameters: ParametersValuesMap;
     compilationErrors: string[];
-    /**
-     * Session timezone this SQL was compiled against, when it must override
-     * the project data timezone (Databricks/Trino pinned to UTC once every
-     * referenced TIMESTAMP dimension has a known domain). Undefined means the
-     * executor keeps the legacy data-timezone session.
-     */
-    warehouseSessionTimezone: string | undefined;
 };
 
 export type BuildQueryProps = {
@@ -374,19 +367,6 @@ export class MetricQueryBuilder {
     // Contains the metrics from the Explore and the custom metrics from the metric query
     private readonly availableMetrics: Record<string, CompiledMetric> = {};
 
-    /** Adapters whose result rendering depends on the session timezone, so the
-     *  explicit naive-rebase path only activates with the session pinned to
-     *  UTC — and pinning is only safe when the whole query is domain-known. */
-    private static readonly SESSION_PIN_ADAPTERS: ReadonlySet<SupportedDbtAdapter> =
-        new Set([
-            SupportedDbtAdapter.DATABRICKS,
-            SupportedDbtAdapter.SPARK,
-            SupportedDbtAdapter.TRINO,
-        ]);
-
-    /** Set to 'UTC' when this query's SQL assumes a pinned session. */
-    private warehouseSessionTimezone: string | undefined = undefined;
-
     constructor(private args: BuildQueryProps) {
         const { explore, compiledMetricQuery } = this.args;
         this.exploreDimensions = getDimensionMapFromTables(explore.tables);
@@ -489,134 +469,6 @@ export class MetricQueryBuilder {
                 }
             });
         }
-
-        // Per-query, all-or-nothing: on session-sensitive adapters the
-        // explicit conversion and the UTC session pin activate together, and
-        // only when every referenced TIMESTAMP dimension has a known domain.
-        // Otherwise domains are stripped so the whole query compiles the
-        // legacy session-based forms against the legacy session.
-        if (
-            MetricQueryBuilder.SESSION_PIN_ADAPTERS.has(
-                this.args.warehouseSqlBuilder.getAdapterType(),
-            ) &&
-            this.args.useTimezoneAwareDateTrunc &&
-            this.columnTimezone !== 'UTC'
-        ) {
-            if (this.allReferencedTimestampDimensionsHaveKnownDomain()) {
-                this.warehouseSessionTimezone = 'UTC';
-            } else {
-                this.exploreDimensions = MetricQueryBuilder.stripDomains(
-                    this.exploreDimensions,
-                );
-                this.exploreDimensionsWithoutAccess =
-                    MetricQueryBuilder.stripDomains(
-                        this.exploreDimensionsWithoutAccess,
-                    );
-                this.originalExploreDimensions =
-                    MetricQueryBuilder.stripDomains(
-                        this.originalExploreDimensions,
-                    );
-            }
-        }
-    }
-
-    private static stripDomains(
-        dimensions: Record<string, CompiledDimension>,
-    ): Record<string, CompiledDimension> {
-        return Object.fromEntries(
-            Object.entries(dimensions).map(([id, dimension]) =>
-                dimension.timestampDomain !== undefined
-                    ? [id, { ...dimension, timestampDomain: undefined }]
-                    : [id, dimension],
-            ),
-        );
-    }
-
-    /**
-     * Resolves a referenced dimension and reports whether it can take the
-     * explicit domain path: not TIMESTAMP-based → true (nothing to convert);
-     * TIMESTAMP-based → needs a known domain and no timezone-conversion
-     * opt-out (opted-out dims must keep their legacy session rendering).
-     */
-    private referencedDimensionHasKnownDomain(fieldId: string): boolean {
-        const dimension =
-            this.exploreDimensions[fieldId] ??
-            this.exploreDimensionsWithoutAccess[fieldId] ??
-            this.originalExploreDimensions[fieldId];
-        // Custom dimensions and table calculations are handled by the caller
-        if (!dimension) return true;
-        const baseDimensionId = dimension.timeIntervalBaseDimensionName
-            ? `${dimension.table}_${dimension.timeIntervalBaseDimensionName}`
-            : undefined;
-        const baseDimension = baseDimensionId
-            ? (this.originalExploreDimensions[baseDimensionId] ??
-              this.exploreDimensions[baseDimensionId])
-            : undefined;
-        const target = baseDimension ?? dimension;
-        if (target.type !== DimensionType.TIMESTAMP) return true;
-        if (dimension.skipTimezoneConversion || target.skipTimezoneConversion)
-            return false;
-        return (
-            (dimension.timestampDomain ?? target.timestampDomain) !== undefined
-        );
-    }
-
-    /**
-     * True when every TIMESTAMP dimension this query references (selected,
-     * dimension-filter targets, MIN/MAX metric bases, PoP time dimensions)
-     * resolves to a known timestamp domain. Custom SQL dimensions have no
-     * catalog domain, so they fail the check.
-     */
-    private allReferencedTimestampDimensionsHaveKnownDomain(): boolean {
-        const { compiledMetricQuery } = this.args;
-
-        if (
-            compiledMetricQuery.compiledCustomDimensions.some(
-                (customDimension) =>
-                    isCompiledCustomSqlDimension(customDimension) &&
-                    customDimension.dimensionType === DimensionType.TIMESTAMP,
-            )
-        ) {
-            return false;
-        }
-
-        const referencedDimensionIds = new Set<string>(
-            compiledMetricQuery.dimensions,
-        );
-        getFilterRulesFromGroup(compiledMetricQuery.filters.dimensions).forEach(
-            (rule) => referencedDimensionIds.add(rule.target.fieldId),
-        );
-
-        const referencedMetricIds = new Set<string>(
-            compiledMetricQuery.metrics,
-        );
-        getFilterRulesFromGroup(compiledMetricQuery.filters.metrics).forEach(
-            (rule) => referencedMetricIds.add(rule.target.fieldId),
-        );
-        for (const metricId of referencedMetricIds) {
-            const metric = this.availableMetrics[metricId];
-            if (
-                metric &&
-                (metric.type === MetricType.MIN ||
-                    metric.type === MetricType.MAX) &&
-                metric.baseDimensionType === DimensionType.TIMESTAMP
-            ) {
-                const baseDimension = this.resolveMinMaxBaseDimension(
-                    metricId,
-                    metric,
-                );
-                if (!baseDimension) return false;
-                referencedDimensionIds.add(getItemId(baseDimension));
-            }
-        }
-
-        this.popComparisonConfigs.forEach((cfg) =>
-            referencedDimensionIds.add(cfg.timeDimensionId),
-        );
-
-        return [...referencedDimensionIds].every((fieldId) =>
-            this.referencedDimensionHasKnownDomain(fieldId),
-        );
     }
 
     static buildCtesSQL(ctes: string[]) {
@@ -876,13 +728,19 @@ export class MetricQueryBuilder {
             ) {
                 return dimension.compiledSql;
             }
-            const { castToInstant, castNaiveToInstant } =
+            const { castToInstant, castNaiveToInstant, castAwareToInstant } =
                 dateTruncTimezoneConversions[adapterType];
             if (timestampDomain === 'naive' && castNaiveToInstant) {
                 return castNaiveToInstant(
                     baseDimension.compiledSql,
                     this.columnTimezone,
                 );
+            }
+            // Known-aware columns are bare instants everywhere except
+            // Databricks/Spark, where the wire face follows the session — the
+            // explicit cast freezes it.
+            if (timestampDomain === 'aware' && castAwareToInstant) {
+                return castAwareToInstant(baseDimension.compiledSql);
             }
             return castToInstant(baseDimension.compiledSql);
         }
@@ -1034,19 +892,35 @@ export class MetricQueryBuilder {
                 metric,
             );
             if (baseDimension?.skipTimezoneConversion) return baseSql;
-            const { castToInstant, castNaiveAggregateToInstant } =
-                dateTruncTimezoneConversions[adapterType];
-            const explicitRebase =
+            const {
+                castToInstant,
+                castNaiveAggregateToInstant,
+                castAwareToInstant,
+            } = dateTruncTimezoneConversions[adapterType];
+            const explicitNaive =
                 baseDimension?.timestampDomain === 'naive' &&
                 castNaiveAggregateToInstant !== null &&
                 this.dataTimezone !== 'UTC';
-            if (!explicitRebase && this.columnTimezone === 'UTC') {
+            const explicitAware =
+                baseDimension?.timestampDomain === 'aware' &&
+                castAwareToInstant !== null &&
+                this.columnTimezone !== 'UTC';
+            if (
+                !explicitNaive &&
+                !explicitAware &&
+                this.columnTimezone === 'UTC'
+            ) {
                 return baseSql;
             }
-            const convert = explicitRebase
-                ? (sql: string) =>
-                      castNaiveAggregateToInstant!(sql, this.dataTimezone)
-                : castToInstant;
+            let convert: (sql: string) => string;
+            if (explicitNaive) {
+                convert = (sql: string) =>
+                    castNaiveAggregateToInstant!(sql, this.dataTimezone);
+            } else if (explicitAware) {
+                convert = castAwareToInstant!;
+            } else {
+                convert = castToInstant;
+            }
             // Convert the operand, not the aggregate output: wall clock →
             // instant is not monotone across DST gaps, so the two placements
             // can disagree. Falls back to the output wrap when the operand
@@ -5224,7 +5098,6 @@ export class MetricQueryBuilder {
             missingParameterReferences,
             usedParameters,
             compilationErrors: this.compilationErrors,
-            warehouseSessionTimezone: this.warehouseSessionTimezone,
         };
     }
 }

@@ -7115,7 +7115,7 @@ describe('Naive timestamp domain — explicit, session-independent conversion', 
     });
 });
 
-describe('Per-query session pin gating (all-or-nothing on Databricks/Trino)', () => {
+describe('Session-independent explicit path (per-column, no session pin)', () => {
     const trinoClientMock = {
         ...warehouseClientMock,
         getAdapterType: () => SupportedDbtAdapter.TRINO,
@@ -7196,24 +7196,23 @@ describe('Per-query session pin gating (all-or-nothing on Databricks/Trino)', ()
         ...overrides,
     });
 
-    test('pins the session to UTC when every referenced TIMESTAMP dim is classified (Trino)', () => {
-        const { query, warehouseSessionTimezone } = buildQuery(
+    test('classified naive dim compiles the explicit session-independent form (Trino)', () => {
+        const { query } = buildQuery(
             gateArgs(
                 SupportedDbtAdapter.TRINO,
                 trinoClientMock,
                 buildNaiveExplore(SupportedDbtAdapter.TRINO, 'naive'),
             ),
         );
-        expect(warehouseSessionTimezone).toEqual('UTC');
         expect(query).toContain('with_timezone');
     });
 
-    test('an unclassified TIMESTAMP filter target suppresses the explicit path for the whole query (Trino)', () => {
+    test('an unclassified TIMESTAMP filter target does not suppress the explicit path (Trino)', () => {
         const classifiedExplore = withExtraDimension(
             buildNaiveExplore(SupportedDbtAdapter.TRINO, 'naive'),
             unknownTimestampDimension('other_at'),
         );
-        const suppressed = buildQuery(
+        const { query } = buildQuery(
             gateArgs(
                 SupportedDbtAdapter.TRINO,
                 trinoClientMock,
@@ -7230,115 +7229,62 @@ describe('Per-query session pin gating (all-or-nothing on Databricks/Trino)', ()
                 },
             ),
         );
-        expect(suppressed.warehouseSessionTimezone).toBeUndefined();
-        expect(suppressed.query).not.toContain('with_timezone');
-
-        // Byte-identical to compiling with no domains at all
-        const unclassifiedExplore = withExtraDimension(
-            buildNaiveExplore(SupportedDbtAdapter.TRINO),
-            unknownTimestampDimension('other_at'),
-        );
-        const legacy = buildQuery(
-            gateArgs(
-                SupportedDbtAdapter.TRINO,
-                trinoClientMock,
-                unclassifiedExplore,
-                {
-                    compiledMetricQuery: {
-                        ...gateArgs(
-                            SupportedDbtAdapter.TRINO,
-                            trinoClientMock,
-                            unclassifiedExplore,
-                        ).compiledMetricQuery,
-                        filters: filterOn('events_other_at'),
-                    },
-                },
-            ),
-        );
-        expect(suppressed.query).toEqual(legacy.query);
+        // Classified dim keeps the explicit form; the unknown filter target
+        // keeps its legacy bare reference.
+        expect(query).toContain('with_timezone');
+        expect(query).toContain('"events".other_at');
     });
 
-    test('pins and applies the explicit rebase on Databricks when fully classified', () => {
-        const { query, warehouseSessionTimezone } = buildQuery(
+    test('Databricks explicit naive rebase freezes the face as TIMESTAMP_NTZ', () => {
+        const { query } = buildQuery(
             gateArgs(
                 SupportedDbtAdapter.DATABRICKS,
                 databricksClientMock,
                 buildNaiveExplore(SupportedDbtAdapter.DATABRICKS, 'naive'),
             ),
         );
-        expect(warehouseSessionTimezone).toEqual('UTC');
         expect(query).toContain(
-            `to_utc_timestamp("events".occurred_at, 'Asia/Tokyo')`,
+            `CAST(to_utc_timestamp("events".occurred_at, 'Asia/Tokyo') AS TIMESTAMP_NTZ)`,
         );
     });
 
-    test('a skipTimezoneConversion TIMESTAMP dim keeps the legacy session (Databricks)', () => {
-        const explore = withExtraDimension(
-            buildNaiveExplore(SupportedDbtAdapter.DATABRICKS, 'naive'),
-            {
-                ...unknownTimestampDimension('other_at'),
-                timestampDomain: 'aware',
-                skipTimezoneConversion: true,
+    test('Databricks known-aware RAW output is frozen via current_timezone()', () => {
+        const explore = buildNaiveExplore(
+            SupportedDbtAdapter.DATABRICKS,
+            'aware',
+        );
+        const args = gateArgs(
+            SupportedDbtAdapter.DATABRICKS,
+            databricksClientMock,
+            explore,
+        );
+        const { query } = buildQuery({
+            ...args,
+            compiledMetricQuery: {
+                ...args.compiledMetricQuery,
+                dimensions: ['events_occurred_at_raw'],
             },
-        );
-        const { warehouseSessionTimezone } = buildQuery(
-            gateArgs(
-                SupportedDbtAdapter.DATABRICKS,
-                databricksClientMock,
-                explore,
-                {
-                    compiledMetricQuery: {
-                        ...gateArgs(
-                            SupportedDbtAdapter.DATABRICKS,
-                            databricksClientMock,
-                            explore,
-                        ).compiledMetricQuery,
-                        filters: filterOn('events_other_at'),
-                    },
-                },
-            ),
-        );
-        expect(warehouseSessionTimezone).toBeUndefined();
-    });
-
-    test('non-pin adapters never override the session and keep the per-dim explicit path (Postgres)', () => {
-        const explore = withExtraDimension(
-            buildNaiveExplore(SupportedDbtAdapter.POSTGRES, 'naive'),
-            unknownTimestampDimension('other_at'),
-        );
-        const { query, warehouseSessionTimezone } = buildQuery(
-            gateArgs(
-                SupportedDbtAdapter.POSTGRES,
-                warehouseClientMock,
-                explore,
-                {
-                    compiledMetricQuery: {
-                        ...gateArgs(
-                            SupportedDbtAdapter.POSTGRES,
-                            warehouseClientMock,
-                            explore,
-                        ).compiledMetricQuery,
-                        filters: filterOn('events_other_at'),
-                    },
-                },
-            ),
-        );
-        expect(warehouseSessionTimezone).toBeUndefined();
-        // Known-naive dim still takes the explicit rebase despite the
-        // unclassified filter target
+        });
         expect(query).toContain(
-            `(("events".occurred_at) AT TIME ZONE 'Asia/Tokyo')`,
+            `CAST(to_utc_timestamp("events".occurred_at, current_timezone()) AS TIMESTAMP_NTZ)`,
         );
     });
 
-    test('no pin when the flag pipeline is off or the data timezone is UTC (Trino)', () => {
+    test('unknown domains stay byte-identical to a no-domain compile (Trino)', () => {
+        const explore = buildNaiveExplore(SupportedDbtAdapter.TRINO);
+        const { query } = buildQuery(
+            gateArgs(SupportedDbtAdapter.TRINO, trinoClientMock, explore),
+        );
+        expect(query).not.toContain('with_timezone');
+    });
+
+    test('flag off or UTC data timezone keeps legacy SQL (Trino)', () => {
         const explore = buildNaiveExplore(SupportedDbtAdapter.TRINO, 'naive');
         const flagOff = buildQuery(
             gateArgs(SupportedDbtAdapter.TRINO, trinoClientMock, explore, {
                 useTimezoneAwareDateTrunc: false,
             }),
         );
-        expect(flagOff.warehouseSessionTimezone).toBeUndefined();
         expect(flagOff.query).not.toContain('with_timezone');
 
         const utcData = buildQuery(
@@ -7347,7 +7293,6 @@ describe('Per-query session pin gating (all-or-nothing on Databricks/Trino)', ()
                 timezone: 'UTC',
             }),
         );
-        expect(utcData.warehouseSessionTimezone).toBeUndefined();
         expect(utcData.query).not.toContain('with_timezone');
     });
 });

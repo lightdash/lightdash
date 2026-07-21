@@ -225,11 +225,6 @@ export class QueryComposer {
         return this.compile().warnings;
     }
 
-    /** Compile-time session override (Databricks/Trino UTC pin), if any. */
-    getWarehouseSessionTimezone(): string | undefined {
-        return this.compile().warehouseSessionTimezone;
-    }
-
     getUsedParameters(): ParametersValuesMap {
         return this.compile().usedParameters;
     }
