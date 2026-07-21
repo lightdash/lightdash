@@ -88,7 +88,6 @@ const isLeadingHero = (blocks: HomepageBlock[]): boolean =>
 // must not demote the hero, leave a phantom row gap, or hold a ghost column.
 const isConfigEmptyBlock = (block: HomepageBlock): boolean => {
     switch (block.type) {
-        case 'announcements':
         case 'collection':
         case 'resources':
         case 'metrics':
@@ -97,8 +96,9 @@ const isConfigEmptyBlock = (block: HomepageBlock): boolean => {
             return (block.config.actions?.length ?? 0) === 0;
         case 'markdown':
             return (block.config.content ?? '').trim() === '';
-        // Visibility depends on runtime data (viewer, AI availability), not
-        // config — always treat as visible.
+        // Visibility depends on runtime data (viewer, AI availability, the
+        // announcements feed), not config — always treat as visible.
+        case 'announcements':
         case 'ask-ai-hero':
         case 'favorites':
         case 'recent':

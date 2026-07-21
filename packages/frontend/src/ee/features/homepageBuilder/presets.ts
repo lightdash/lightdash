@@ -61,7 +61,7 @@ const resources = (title: string): HomepageBlock => ({
 const announcements = (title: string): HomepageBlock => ({
     id: uuidv4(),
     type: 'announcements',
-    config: { title, items: [] },
+    config: { title },
 });
 
 const config = (...rows: HomepageRow[]): HomepageConfig => ({

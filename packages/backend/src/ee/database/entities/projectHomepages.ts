@@ -94,23 +94,6 @@ export type HomepageAssignmentsTable = Knex.CompositeTableType<
     DbHomepageAssignmentUpdate
 >;
 
-export const AnnouncementCategoriesTableName =
-    'project_announcement_categories';
-
-export type DbAnnouncementCategory = {
-    category_uuid: string;
-    project_uuid: string;
-    name: string;
-    color: string;
-    created_at: Date;
-};
-
-export type AnnouncementCategoriesTable = Knex.CompositeTableType<
-    DbAnnouncementCategory,
-    Pick<DbAnnouncementCategory, 'project_uuid' | 'name' | 'color'>,
-    Partial<Pick<DbAnnouncementCategory, 'name' | 'color'>>
->;
-
 export const AnnouncementsTableName = 'project_announcements';
 
 export type DbAnnouncement = {
@@ -118,22 +101,31 @@ export type DbAnnouncement = {
     project_uuid: string;
     title: string;
     body: string | null;
-    category_uuid: string | null;
+    category: string | null;
     pinned: boolean;
     created_by_user_uuid: string | null;
     created_at: Date;
     updated_at: Date;
+    published_at: Date | null;
+    pending_slack_channel_id: string | null;
 };
 
 export type DbAnnouncementIn = Pick<
     DbAnnouncement,
-    'project_uuid' | 'title' | 'body' | 'category_uuid' | 'created_by_user_uuid'
->;
+    'project_uuid' | 'title' | 'body' | 'created_by_user_uuid' | 'published_at'
+> &
+    Partial<Pick<DbAnnouncement, 'category' | 'pending_slack_channel_id'>>;
 
 export type DbAnnouncementUpdate = Partial<
     Pick<
         DbAnnouncement,
-        'title' | 'body' | 'category_uuid' | 'pinned' | 'updated_at'
+        | 'title'
+        | 'body'
+        | 'category'
+        | 'pinned'
+        | 'updated_at'
+        | 'published_at'
+        | 'pending_slack_channel_id'
     >
 >;
 

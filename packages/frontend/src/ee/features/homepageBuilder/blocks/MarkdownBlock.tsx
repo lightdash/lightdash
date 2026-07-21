@@ -2,6 +2,7 @@ import { Text } from '@mantine-8/core';
 import { type FC } from 'react';
 import { AiMarkdown } from '../../../../components/common/AiMarkdown/AiMarkdown';
 import useApp from '../../../../providers/App/useApp';
+import { useUploadHomepageImage } from '../hooks/useAnnouncements';
 import classes from './MarkdownBlock.module.css';
 import { TiptapMarkdownEditor } from './markdownEditor/TiptapMarkdownEditor';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
@@ -23,8 +24,10 @@ export const MarkdownBlockView: FC<BlockComponentProps> = ({ block }) => {
 
 export const MarkdownBlockBuild: FC<BuildComponentProps> = ({
     block,
+    projectUuid,
     onChange,
 }) => {
+    const uploadImage = useUploadHomepageImage(projectUuid);
     if (block.type !== 'markdown') return null;
     return (
         <div className={classes.editorWrap}>
@@ -36,6 +39,10 @@ export const MarkdownBlockBuild: FC<BuildComponentProps> = ({
                         config: { content: markdown },
                     })
                 }
+                onImageUpload={async (file) => {
+                    const { url } = await uploadImage.mutateAsync(file);
+                    return url;
+                }}
             />
             <Text className={classes.editorHint}>
                 Type &quot;/&quot; for commands

@@ -1,0 +1,356 @@
+/* Data announcements: a clean vertical list of cards. */
+
+.card {
+    position: relative;
+    border: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
+    border-radius: var(--mantine-radius-md);
+    background: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-6)
+    );
+    padding: 16px 18px;
+    transition:
+        border-color 150ms cubic-bezier(0.23, 1, 0.32, 1),
+        box-shadow 150ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .card:hover {
+        border-color: light-dark(
+            var(--mantine-color-ldGray-3),
+            var(--mantine-color-dark-3)
+        );
+        box-shadow: 0 1px 2px
+            light-dark(rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.2));
+    }
+}
+
+.cardDraft {
+    border-style: dashed;
+    background: light-dark(
+        var(--mantine-color-ldGray-0),
+        var(--mantine-color-dark-7)
+    );
+}
+
+.cardHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.headerTags {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.draftTag {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 8px;
+    border-radius: var(--mantine-radius-sm);
+    border: 1px solid
+        light-dark(var(--mantine-color-ldGray-3), var(--mantine-color-dark-3));
+    font-size: 10.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: light-dark(
+        var(--mantine-color-ldGray-6),
+        var(--mantine-color-ldGray-4)
+    );
+}
+
+.pinnedTag {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+    font-weight: 500;
+    color: light-dark(
+        var(--mantine-color-ldGray-5),
+        var(--mantine-color-ldGray-5)
+    );
+}
+
+.cardTitle {
+    /* Category rides the title line: a quiet dot-badge after the last word,
+     * wrapping with the text instead of holding its own header row. */
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 8px;
+    row-gap: 4px;
+
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: -0.006em;
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-dark-0)
+    );
+}
+
+.cardBody {
+    font-size: 13px;
+    line-height: 1.6;
+    color: light-dark(
+        var(--mantine-color-ldGray-7),
+        var(--mantine-color-ldGray-3)
+    );
+    margin-top: 6px;
+}
+
+/* The 120px cap is the single source of truth for "is this body long?" —
+   the TSX decides by measuring scrollHeight against clientHeight. */
+.clamped {
+    max-height: 120px;
+    overflow: hidden;
+    position: relative;
+}
+
+.clampFade::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 44px;
+    background: linear-gradient(
+        transparent,
+        light-dark(var(--mantine-color-white), var(--mantine-color-dark-6))
+    );
+}
+
+.readMore {
+    margin-top: 6px;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    color: light-dark(
+        var(--mantine-color-ldDark-6),
+        var(--mantine-color-ldGray-4)
+    );
+    transition: color 150ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.readMore:hover {
+    color: light-dark(
+        var(--mantine-color-ldDark-9),
+        var(--mantine-color-ldGray-1)
+    );
+}
+
+.readMore:active {
+    transform: scale(0.98);
+}
+
+.earlierToggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 2px;
+    padding: 4px 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: light-dark(
+        var(--mantine-color-ldGray-6),
+        var(--mantine-color-ldGray-4)
+    );
+    transition: color 150ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.earlierToggle:hover {
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-ldGray-1)
+    );
+}
+
+.earlierList {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 6px;
+}
+
+.earlierRow {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 10px;
+    border-radius: var(--mantine-radius-sm);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    transition: background-color 150ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.earlierRow:hover {
+    background: light-dark(
+        var(--mantine-color-ldGray-0),
+        var(--mantine-color-dark-5)
+    );
+}
+
+.earlierRow:active {
+    transform: scale(0.995);
+}
+
+.earlierRowTitle {
+    font-size: 13px;
+    font-weight: 500;
+    color: light-dark(
+        var(--mantine-color-ldGray-8),
+        var(--mantine-color-dark-0)
+    );
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.earlierRowMeta {
+    flex-shrink: 0;
+    font-size: 11px;
+    color: light-dark(
+        var(--mantine-color-ldGray-5),
+        var(--mantine-color-ldGray-5)
+    );
+}
+
+.meta {
+    font-size: 11.5px;
+    color: light-dark(
+        var(--mantine-color-ldGray-5),
+        var(--mantine-color-ldGray-5)
+    );
+    margin-top: 10px;
+}
+
+/* Build-mode hover actions — a floating toolbar on the card corner. */
+.itemActions {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    opacity: 0;
+    transition: opacity 150ms cubic-bezier(0.23, 1, 0.32, 1);
+    background: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-7)
+    );
+    border: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
+    border-radius: var(--mantine-radius-sm);
+    box-shadow: 0 1px 3px light-dark(rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.32));
+}
+
+.card:hover .itemActions,
+.card:focus-within .itemActions {
+    opacity: 1;
+}
+
+.emptyHint {
+    font-size: 12.5px;
+    color: light-dark(
+        var(--mantine-color-ldGray-6),
+        var(--mantine-color-ldGray-4)
+    );
+    border: 1px dashed
+        light-dark(var(--mantine-color-ldGray-3), var(--mantine-color-dark-4));
+    border-radius: var(--mantine-radius-md);
+    padding: 12px 14px;
+}
+
+/* Linear-style document: a big borderless title + free-form body. Only the
+   Category / Slack inputs below the divider are bordered. */
+.doc {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.docTitle {
+    padding: 0;
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-dark-0)
+    );
+}
+
+.docTitle::placeholder {
+    font-weight: 600;
+    color: light-dark(
+        var(--mantine-color-ldGray-4),
+        var(--mantine-color-dark-2)
+    );
+}
+
+.docBody {
+    min-height: 220px;
+}
+
+/* Bento grid — used when there are 3+ recent announcements. Lead spans the
+   full width; the rest tile into two columns. */
+.bento {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+}
+
+.bentoLead {
+    grid-column: 1 / -1;
+}
+
+.bentoCell {
+    min-width: 0;
+    height: 100%;
+}
+
+.bentoCell > .card {
+    height: 100%;
+}
+
+@media (max-width: 640px) {
+    .bento {
+        grid-template-columns: 1fr;
+    }
+    .bentoLead {
+        grid-column: auto;
+    }
+}
+
+.newAnnouncementButton {
+    align-self: flex-start;
+}
+
+.feedError {
+    font-size: 12.5px;
+    color: light-dark(var(--mantine-color-red-7), var(--mantine-color-red-4));
+    border: 1px solid
+        light-dark(var(--mantine-color-red-2), var(--mantine-color-red-9));
+    border-radius: var(--mantine-radius-md);
+    padding: 12px 14px;
+}

@@ -66,19 +66,11 @@ export type HomepageLinkMetadata = {
     imageUrl: string | null;
 };
 
-export type HomepageAnnouncementItem = {
-    /** Markdown — @-mentioned charts/dashboards are plain markdown links
-     * (`[label](/projects/.../saved/:uuid/view)`), rendered as rich chips by
-     * `rehypeAiAgentContentLinks`. */
-    text: string;
-    date: string;
-    author: string;
-};
-
 export type HomepageAnnouncementsBlock = {
     id: string;
     type: 'announcements';
-    config: { title: string; items: HomepageAnnouncementItem[] };
+    /** Feed reference — items live in `project_announcements`. */
+    config: { title: string };
 };
 
 export type HomepageQuickAction =
@@ -303,11 +295,27 @@ export type ApiProjectHomepagesResponse = ApiSuccess<ProjectHomepage[]>;
 export type ApiProjectHomepageOrNullResponse =
     ApiSuccess<ProjectHomepage | null>;
 
-export type AnnouncementCategory = {
-    categoryUuid: string;
-    projectUuid: string;
-    name: string;
-    color: string;
+/**
+ * Curated announcement categories a data team uses to signal intent to
+ * business users. Fixed set (not user-managed) — each maps to a label + colour
+ * in `ANNOUNCEMENT_CATEGORY_META`.
+ */
+export enum AnnouncementCategory {
+    /** Something new to use — a new dashboard, metric, or capability. */
+    LAUNCH = 'launch',
+    /** Something changed — a metric definition or dashboard refresh. */
+    UPDATE = 'update',
+    /** Something to be aware of — data delays, quality issues, maintenance. */
+    HEADS_UP = 'heads_up',
+}
+
+export const ANNOUNCEMENT_CATEGORY_META: Record<
+    AnnouncementCategory,
+    { label: string; color: string }
+> = {
+    [AnnouncementCategory.LAUNCH]: { label: 'Launch', color: 'green' },
+    [AnnouncementCategory.UPDATE]: { label: 'Update', color: 'violet' },
+    [AnnouncementCategory.HEADS_UP]: { label: 'Heads up', color: 'orange' },
 };
 
 export type ProjectAnnouncement = {
@@ -315,8 +323,15 @@ export type ProjectAnnouncement = {
     projectUuid: string;
     title: string;
     body: string | null;
-    categoryUuid: string | null;
+    category: AnnouncementCategory | null;
     pinned: boolean;
+    published: boolean;
+    /**
+     * Slack channel the announcement will notify when it publishes. Always
+     * null once published (consumed) — only drafts carry a value, and drafts
+     * are only visible to users who can manage announcements.
+     */
+    pendingSlackChannelId: string | null;
     createdByUserUuid: string | null;
     authorName: string | null;
     createdAt: Date;
@@ -331,25 +346,27 @@ export type AnnouncementsPage = {
 export type CreateAnnouncementRequest = {
     title: string;
     body: string | null;
-    categoryUuid: string | null;
+    category: AnnouncementCategory | null;
+    /**
+     * Transient (not persisted): when set, publishing posts a notification to
+     * this Slack channel. Requires the org to have Slack installed.
+     */
+    slackChannelId?: string | null;
 };
 
 /** PATCH semantics: omitted fields are left unchanged */
 export type UpdateAnnouncementRequest = {
     title?: string;
     body?: string | null;
-    categoryUuid?: string | null;
+    category?: AnnouncementCategory | null;
     pinned?: boolean;
+    /** Only drafts: set to retarget the Slack notification, null to cancel it */
+    slackChannelId?: string | null;
 };
 
-export type CreateAnnouncementCategoryRequest = {
-    name: string;
-    color: string;
-};
+/** Slack's markdown block rejects ~12k chars; cap bodies well under it */
+export const ANNOUNCEMENT_BODY_MAX_LENGTH = 8000;
 
 export type ApiAnnouncementsResponse = ApiSuccess<AnnouncementsPage>;
 export type ApiAnnouncementResponse = ApiSuccess<ProjectAnnouncement>;
-export type ApiAnnouncementCategoriesResponse = ApiSuccess<
-    AnnouncementCategory[]
->;
-export type ApiAnnouncementCategoryResponse = ApiSuccess<AnnouncementCategory>;
+export type ApiAnnouncementImageUploadResponse = ApiSuccess<{ url: string }>;

@@ -73,10 +73,10 @@ const blockLayoutTraits: Record<HomepageBlock['type'], BlockLayoutTrait> = {
         itemSpan: { full: 4, content: 4, narrow: 6 },
     },
     announcements: {
-        widthTier: 'reading',
+        widthTier: 'content',
         columnWeight: 1,
         rhythm: 'section',
-        fullRowOnly: false,
+        fullRowOnly: true,
         itemSpan: null,
     },
     favorites: {

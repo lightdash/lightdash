@@ -38,14 +38,7 @@ const makeBlock = (
                 },
             };
         case 'announcements':
-            return {
-                id,
-                type,
-                config: {
-                    title: 't',
-                    items: empty ? [] : [{ text: 'x', date: 'd', author: 'a' }],
-                },
-            };
+            return { id, type, config: { title: 't' } };
         case 'quick-actions':
             return {
                 id,
@@ -189,7 +182,7 @@ describe('resolveHomepageLayout', () => {
     describe('config-empty blocks are invisible to the layout', () => {
         it('an empty leading block does not demote the hero', () => {
             const config = makeConfig([
-                [emptyBlock('ann', 'announcements')],
+                [emptyBlock('res', 'resources')],
                 [block('a', 'ask-ai-hero')],
                 [block('c', 'collection')],
             ]);
@@ -788,7 +781,11 @@ describe('tolerates configs from other code versions', () => {
         ) as HomepageConfig;
         expect(() => resolveHomepageLayout(foreign)).not.toThrow();
         const { rows } = resolveHomepageLayout(foreign);
-        // field-less blocks read as empty and drop out instead of crashing
-        expect(rows).toEqual([]);
+        // field-less config-driven blocks read as empty and drop out instead
+        // of crashing; announcements is feed-driven so its row survives
+        expect(rows).toHaveLength(1);
+        expect(rows[0].columns.map((column) => column.block.type)).toEqual([
+            'announcements',
+        ]);
     });
 });
