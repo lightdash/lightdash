@@ -571,12 +571,7 @@ describe.sequential('Content as Code CLI', () => {
             updatedAt: new Date().toISOString(),
             downloadedAt: new Date(Date.now() - 5 * 60_000).toISOString(),
         });
-        const upload = await runCli([
-            'upload',
-            '--verbose',
-            '--charts',
-            input.slug,
-        ]);
+        const upload = await runCli(['upload', '--verbose']);
         expect(upload.stdout).toContain('charts created: 1');
         const created = await captureCreatedResource(resource);
         return { filePath, uuid: created.uuid };
@@ -742,7 +737,7 @@ describe.sequential('Content as Code CLI', () => {
     });
 
     it('downloads charts and dashboards as code', async () => {
-        await runCli(['download', '--skip-spaces']);
+        await runCli(['download']);
         const [chartFiles, dashboardFiles] = await Promise.all([
             listYamlFiles(path.join(cwd, 'lightdash', 'charts')),
             listYamlFiles(path.join(cwd, 'lightdash', 'dashboards')),
@@ -754,11 +749,10 @@ describe.sequential('Content as Code CLI', () => {
     it('downloads a dashboard and its five linked charts by slug', async () => {
         await runCli([
             'download',
-            '--charts',
+            '-c',
             SEED_CHART_SLUG,
-            '--dashboards',
+            '-d',
             SEED_DASHBOARD_SLUG,
-            '--skip-spaces',
         ]);
         const [chartFiles, dashboardFiles] = await Promise.all([
             listYamlFiles(path.join(cwd, 'lightdash', 'charts')),
@@ -802,7 +796,7 @@ describe.sequential('Content as Code CLI', () => {
         const chartUuid = getRequiredString(createdChart, 'uuid');
         setTrackedUuid(resource, chartUuid);
 
-        await runCli(['download', '--charts', slug, '--skip-spaces']);
+        await runCli(['download']);
         const chartPath = path.join(cwd, 'lightdash', 'charts', `${slug}.yml`);
         const updatedDescription = `Updated by CLI integration ${runId}`;
         const chart = await parseYamlRecord(chartPath);
@@ -814,7 +808,7 @@ describe.sequential('Content as Code CLI', () => {
             new Date(Date.now() - 5 * 60_000).toISOString(),
         );
 
-        const upload = await runCli(['upload', '--verbose', '--charts', slug]);
+        const upload = await runCli(['upload', '--verbose']);
         expect(upload.stdout).toContain('charts updated: 1');
 
         const verifyResponse = await admin.get(`/api/v1/saved/${chartUuid}`);
@@ -825,40 +819,55 @@ describe.sequential('Content as Code CLI', () => {
         expect(verifiedChart.description).toBe(updatedDescription);
     });
 
-    it('creates a dashboard after changing its slug', async () => {
+    it('creates a dashboard after changing only its slug', async () => {
+        if (admin === null) {
+            throw new Error('API client is not initialized');
+        }
         const name = `CAC CLI dashboard [${runId}]`;
         const slug = `cac-cli-dashboard-${slugId}`;
-        const resource = trackResource('dashboard', name);
-        await runCli([
-            'download',
-            '--dashboards',
-            SEED_DASHBOARD_SLUG,
-            '--skip-spaces',
-        ]);
+        const sourceResource = trackResource('dashboard', name);
+        const createResponse = await admin.post(
+            `/api/v1/projects/${PROJECT_UUID}/dashboards`,
+            { name, tiles: [], tabs: [] },
+        );
+        expect(createResponse.status).toBe(201);
+        const sourceDashboard = getRequiredRecord(
+            getResults(createResponse.body),
+            'source dashboard',
+        );
+        const sourceUuid = getRequiredString(sourceDashboard, 'uuid');
+        const sourceSlug = getRequiredString(sourceDashboard, 'slug');
+        setTrackedUuid(sourceResource, sourceUuid);
+        const createdResource = trackResource('dashboard', name);
+
+        await runCli(['download']);
         const dashboardPath = path.join(
             cwd,
             'lightdash',
             'dashboards',
-            `${SEED_DASHBOARD_SLUG}.yml`,
+            `${sourceSlug}.yml`,
         );
         const dashboard = await parseYamlRecord(dashboardPath);
-        dashboard.name = name;
         dashboard.slug = slug;
         await writeYamlRecord(dashboardPath, dashboard);
 
-        const upload = await runCli([
-            'upload',
-            '--verbose',
-            '--dashboards',
-            slug,
-        ]);
+        const upload = await runCli(['upload', '--verbose']);
         expect(upload.stdout).toContain('dashboards created: 1');
-        const created = await captureCreatedResource(resource);
+        const matches = (await findContentByExactName(admin, name)).filter(
+            (item) =>
+                item.contentType === 'dashboard' && item.uuid !== sourceUuid,
+        );
+        expect(matches).toHaveLength(1);
+        const [created] = matches;
+        if (created === undefined || created.contentType !== 'dashboard') {
+            throw new Error(`Could not capture dashboard created from ${slug}`);
+        }
+        setTrackedUuid(createdResource, created.uuid);
         expect(created.name).toBe(name);
     });
 
     it('creates a SQL chart', async () => {
-        await runCli(['download', '--skip-spaces']);
+        await runCli(['download']);
         const name = `CAC CLI SQL create [${runId}]`;
         const slug = `cac-cli-sql-create-${slugId}`;
         const { uuid } = await createSqlChart({
@@ -881,7 +890,7 @@ describe.sequential('Content as Code CLI', () => {
     });
 
     it('downloads a SQL chart by slug with the SQL extension', async () => {
-        await runCli(['download', '--skip-spaces']);
+        await runCli(['download']);
         const name = `CAC CLI SQL download [${runId}]`;
         const slug = `cac-cli-sql-download-${slugId}`;
         await createSqlChart({
@@ -895,14 +904,14 @@ describe.sequential('Content as Code CLI', () => {
             recursive: true,
             force: true,
         });
-        await runCli(['download', '--charts', slug, '--skip-spaces']);
+        await runCli(['download', '-c', slug]);
         await expect(
             access(path.join(cwd, 'lightdash', 'charts', `${slug}.sql.yml`)),
         ).resolves.toBeUndefined();
     });
 
     it('updates an existing SQL chart', async () => {
-        await runCli(['download', '--skip-spaces']);
+        await runCli(['download']);
         const name = `CAC CLI SQL update [${runId}]`;
         const slug = `cac-cli-sql-update-${slugId}`;
         const { filePath, uuid } = await createSqlChart({
@@ -917,7 +926,7 @@ describe.sequential('Content as Code CLI', () => {
         sqlChart.downloadedAt = new Date(Date.now() - 5 * 60_000).toISOString();
         await writeYamlRecord(filePath, sqlChart);
 
-        const upload = await runCli(['upload', '--verbose', '--charts', slug]);
+        const upload = await runCli(['upload', '--verbose']);
         expect(upload.stdout).toContain('charts updated: 1');
         if (admin === null) {
             throw new Error('API client is not initialized');
