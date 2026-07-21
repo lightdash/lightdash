@@ -181,13 +181,26 @@ export const isDashboardFieldTarget = (
 
 export type DashboardTileTarget = DashboardFieldTarget | false;
 
+/**
+ * Deliberately an index-signature literal, not `Record<string, ...>`. When
+ * TSOA first resolves `Record<string, DashboardTileTarget>` inside a mapped
+ * type (e.g. `Omit<DashboardFilterRule, 'id'>` in content-as-code types), it
+ * caches an EMPTY model under the shared `Record_string.DashboardTileTarget_`
+ * name, and request validation then strips every tileTargets entry from
+ * bodies — silently breaking dashboard filters on SQL chart tiles. The
+ * index-signature form resolves correctly in every context.
+ */
+export type DashboardTileTargets = {
+    [tileUuid: string]: DashboardTileTarget;
+};
+
 export type DashboardFilterRule<
     O = FilterOperator,
     T extends DashboardFieldTarget = DashboardFieldTarget,
     V = AnyType,
     S = AnyType,
 > = FilterRule<O, T, V, S> & {
-    tileTargets?: Record<string, DashboardTileTarget>;
+    tileTargets?: DashboardTileTargets;
     label: undefined | string;
     singleValue?: boolean;
     /**
@@ -270,13 +283,13 @@ export type DashboardFilters = {
 
 export type DashboardFiltersFromSearchParam = {
     dimensions: (Omit<DashboardFilterRule, 'tileTargets'> & {
-        tileTargets?: (string | Record<string, DashboardTileTarget>)[];
+        tileTargets?: (string | DashboardTileTargets)[];
     })[];
     metrics: (Omit<DashboardFilterRule, 'tileTargets'> & {
-        tileTargets?: (string | Record<string, DashboardTileTarget>)[];
+        tileTargets?: (string | DashboardTileTargets)[];
     })[];
     tableCalculations: (Omit<DashboardFilterRule, 'tileTargets'> & {
-        tileTargets?: (string | Record<string, DashboardTileTarget>)[];
+        tileTargets?: (string | DashboardTileTargets)[];
     })[];
 };
 

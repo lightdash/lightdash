@@ -250,7 +250,7 @@
                             "type": "boolean"
                         },
                         "tileTargets": {
-                            "$ref": "#/$defs/Record_string.DashboardTileTarget_"
+                            "$ref": "#/$defs/DashboardTileTargets"
                         }
                     },
                     "type": "object"
@@ -586,6 +586,25 @@
             "required": ["w", "h", "y", "x", "type"],
             "type": "object"
         },
+        "DashboardTileTarget": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/DashboardFieldTarget"
+                },
+                {
+                    "enum": [false],
+                    "type": "boolean"
+                }
+            ]
+        },
+        "DashboardTileTargets": {
+            "additionalProperties": {
+                "$ref": "#/$defs/DashboardTileTarget"
+            },
+            "description": "Deliberately an index-signature literal, not `Record<string, ...>`. When\nTSOA first resolves `Record<string, DashboardTileTarget>` inside a mapped\ntype (e.g. `Omit<DashboardFilterRule, 'id'>` in content-as-code types), it\ncaches an EMPTY model under the shared `Record_string.DashboardTileTarget_`\nname, and request validation then strips every tileTargets entry from\nbodies — silently breaking dashboard filters on SQL chart tiles. The\nindex-signature form resolves correctly in every context.",
+            "properties": {},
+            "type": "object"
+        },
         "DashboardTileTypes": {
             "enum": [
                 "saved_chart",
@@ -855,7 +874,7 @@
                     "description": "Target field for the filter"
                 },
                 "tileTargets": {
-                    "$ref": "#/$defs/Record_string.DashboardTileTarget_"
+                    "$ref": "#/$defs/DashboardTileTargets"
                 },
                 "values": {
                     "description": "Values to filter by",
@@ -886,11 +905,6 @@
             "additionalProperties": {
                 "$ref": "#/$defs/DashboardParameterValue"
             },
-            "description": "Construct a type with a set of properties K of type T",
-            "properties": {},
-            "type": "object"
-        },
-        "Record_string.DashboardTileTarget_": {
             "description": "Construct a type with a set of properties K of type T",
             "properties": {},
             "type": "object"
