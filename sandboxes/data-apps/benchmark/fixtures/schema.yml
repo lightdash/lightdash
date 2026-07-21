@@ -1,0 +1,166 @@
+models:
+  - name: orders
+    description: "One row per order. Grain: order_id."
+    meta:
+      primary_key: order_id
+      joins:
+        - join: customers
+          sql_on: ${orders.customer_id} = ${customers.customer_id}
+          relationship: many-to-one
+      metrics:
+        total_revenue:
+          type: sum
+          sql: ${TABLE}.amount
+          label: "Total revenue"
+          format: usd
+        order_count:
+          type: count
+          label: "Order count"
+        average_order_value:
+          type: average
+          sql: ${TABLE}.amount
+          label: "Average order value"
+          format: usd
+        completion_rate:
+          type: average
+          sql: "CASE WHEN ${TABLE}.status = 'completed' THEN 1 ELSE 0 END"
+          label: "Completion rate"
+          format: percent
+    columns:
+      - name: order_id
+        meta:
+          dimension:
+            type: number
+            hidden: true
+      - name: customer_id
+        meta:
+          dimension:
+            type: number
+            hidden: true
+      - name: order_date
+        description: "Date the order was placed."
+        meta:
+          dimension:
+            type: date
+            time_intervals: [RAW, DAY, WEEK, MONTH, QUARTER, YEAR]
+      - name: status
+        description: "Order status: placed, shipped, completed, returned, return_pending."
+        meta:
+          dimension:
+            type: string
+      - name: amount
+        description: "Order value in USD."
+        meta:
+          dimension:
+            type: number
+            hidden: true
+      - name: payment_method
+        description: "coupon, bank_transfer, credit_card, gift_card."
+        meta:
+          dimension:
+            type: string
+      - name: customer_segment
+        description: "consumer, corporate, home_office."
+        meta:
+          dimension:
+            type: string
+      - name: region
+        description: "Sales region short code: NA, EMEA, APAC, LATAM."
+        meta:
+          dimension:
+            type: string
+
+  - name: customers
+    description: "One row per customer. Grain: customer_id."
+    meta:
+      primary_key: customer_id
+      metrics:
+        customer_count:
+          type: count_distinct
+          sql: ${TABLE}.customer_id
+          label: "Customer count"
+        average_lifetime_value:
+          type: average
+          sql: ${TABLE}.lifetime_value
+          label: "Average lifetime value"
+          format: usd
+    columns:
+      - name: customer_id
+        meta:
+          dimension:
+            type: number
+            hidden: true
+      - name: customer_name
+        description: "Full customer name."
+        meta:
+          dimension:
+            type: string
+      - name: first_order_date
+        meta:
+          dimension:
+            type: date
+            time_intervals: [RAW, MONTH, YEAR]
+      - name: lifetime_value
+        description: "Total historical spend in USD."
+        meta:
+          dimension:
+            type: number
+            hidden: true
+      - name: churn_risk
+        description: "low, medium, high."
+        meta:
+          dimension:
+            type: string
+
+  - name: payments
+    description: "One row per payment attempt. Grain: payment_id. An order can have several payment attempts."
+    meta:
+      primary_key: payment_id
+      joins:
+        - join: orders
+          sql_on: ${payments.order_id} = ${orders.order_id}
+          relationship: many-to-one
+      metrics:
+        payment_count:
+          type: count
+          label: "Payment count"
+        failed_payment_count:
+          type: count
+          sql: "CASE WHEN ${TABLE}.payment_status = 'failed' THEN 1 END"
+          label: "Failed payment count"
+        total_collected:
+          type: sum
+          sql: ${TABLE}.collected_amount
+          label: "Total collected"
+          format: usd
+    columns:
+      - name: payment_id
+        meta:
+          dimension:
+            type: number
+            hidden: true
+      - name: order_id
+        meta:
+          dimension:
+            type: number
+            hidden: true
+      - name: payment_date
+        meta:
+          dimension:
+            type: timestamp
+            time_intervals: [RAW, DAY, WEEK, MONTH]
+      - name: payment_status
+        description: "authorised, captured, failed, refunded."
+        meta:
+          dimension:
+            type: string
+      - name: collected_amount
+        meta:
+          dimension:
+            type: number
+            hidden: true
+      - name: processor
+        description: "stripe, adyen, paypal."
+        meta:
+          dimension:
+            type: string

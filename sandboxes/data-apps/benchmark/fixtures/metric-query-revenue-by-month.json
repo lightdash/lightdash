@@ -1,0 +1,16 @@
+{
+    "chartName": "Revenue by month",
+    "chartDescription": "Monthly total revenue for the last 12 months.",
+    "chartUuid": "9f4bc1de-0000-4000-8000-000000000001",
+    "exploreName": "orders",
+    "linked": false,
+    "metricQuery": {
+        "dimensions": ["orders_order_date_month"],
+        "metrics": ["orders_total_revenue"],
+        "filters": {},
+        "sorts": [{ "fieldId": "orders_order_date_month", "descending": false }],
+        "limit": 500,
+        "tableCalculations": []
+    },
+    "sampleData": null
+}
