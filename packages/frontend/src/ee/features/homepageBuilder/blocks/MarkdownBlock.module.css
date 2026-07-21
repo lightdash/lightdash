@@ -18,3 +18,13 @@
     color: var(--mantine-color-ldGray-5);
     margin-top: 8px;
 }
+
+/* Uploaded images stay illustrations, not full-bleed banners. */
+.preview img,
+.editorWrap img {
+    max-width: min(400px, 100%);
+    max-height: 400px;
+    height: auto;
+    object-fit: contain;
+    border-radius: 8px;
+}

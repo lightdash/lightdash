@@ -367,3 +367,13 @@
     border-radius: var(--mantine-radius-md);
     padding: 12px 14px;
 }
+
+/* Uploaded images stay illustrations, not full-bleed banners. */
+.cardBody img,
+.docBody img {
+    max-width: min(400px, 100%);
+    max-height: 400px;
+    height: auto;
+    object-fit: contain;
+    border-radius: 8px;
+}
