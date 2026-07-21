@@ -741,3 +741,54 @@ describe('page grid — exact-fit densening', () => {
         expect(rows[0].columns[0].itemSpan).toBe(6);
     });
 });
+
+// Config is persisted data: a newer builder can store shapes this bundle has
+// never seen (a rolling deploy serves old bundles against new configs). The
+// resolver must degrade, never throw — this reproduces the crash a
+// feed-driven announcements config ({ title } with no items) caused on a
+// bundle that expected items.
+describe('tolerates configs from other code versions', () => {
+    it('renders a config whose block configs miss expected fields', () => {
+        const foreign = JSON.parse(
+            JSON.stringify({
+                version: 1,
+                rows: [
+                    {
+                        id: 'r0',
+                        blocks: [
+                            {
+                                id: 'a',
+                                type: 'announcements',
+                                config: { title: 'News' },
+                            },
+                        ],
+                    },
+                    {
+                        id: 'r1',
+                        blocks: [
+                            {
+                                id: 'c',
+                                type: 'collection',
+                                config: { title: 'T' },
+                            },
+                        ],
+                    },
+                    {
+                        id: 'r2',
+                        blocks: [
+                            { id: 'q', type: 'quick-actions', config: {} },
+                        ],
+                    },
+                    {
+                        id: 'r3',
+                        blocks: [{ id: 'm', type: 'markdown', config: {} }],
+                    },
+                ],
+            }),
+        ) as HomepageConfig;
+        expect(() => resolveHomepageLayout(foreign)).not.toThrow();
+        const { rows } = resolveHomepageLayout(foreign);
+        // field-less blocks read as empty and drop out instead of crashing
+        expect(rows).toEqual([]);
+    });
+});
