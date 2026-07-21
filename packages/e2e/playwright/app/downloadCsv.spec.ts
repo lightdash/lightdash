@@ -113,7 +113,10 @@ test('admin can download CSV results from Explore', async ({
     await expect(exportButton).toBeEnabled();
     await exportButton.click();
 
-    const exportDialog = page.getByRole('dialog');
+    const exportDialog = page.getByRole('dialog', {
+        name: 'Export results',
+        exact: true,
+    });
     await expect(exportDialog).toHaveCount(1);
     await expect(exportDialog).toBeVisible();
     const downloadDataButton = exportDialog.getByRole('button', {

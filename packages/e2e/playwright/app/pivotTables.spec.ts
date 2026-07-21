@@ -58,30 +58,33 @@ const getExploreUrl = (chart: typeof tableChart) =>
     `/projects/${SEED_PROJECT.project_uuid}/tables/orders?create_saved_chart_version=${encodeURIComponent(JSON.stringify(chart))}`;
 
 const runQuery = async (page: Page) => {
-    await page
-        .getByRole('button', { name: /^Run query/ })
-        .first()
-        .click();
+    const runQueryButton = page
+        .getByTestId('ExplorerHeader')
+        .getByTestId('RefreshButton/RunQueryButton');
+    await expect(runQueryButton).toHaveCount(1);
+    await runQueryButton.click();
 };
 
 const expectPivotedResults = async (page: Page) => {
     const visualization = page.getByTestId('visualization');
-    await expect(
-        visualization.getByText('placed', { exact: true }).first(),
-    ).toBeVisible();
-    await expect(
-        visualization.getByText('shipped', { exact: true }).first(),
-    ).toBeVisible();
-    await expect(
-        visualization.getByText('False', { exact: true }).first(),
-    ).toBeVisible();
-    await expect(
-        visualization.getByText('2025-06-09', { exact: true }).first(),
-    ).toBeVisible();
-    await expect(
-        visualization.getByText('$1.00', { exact: true }).first(),
-    ).toBeVisible();
+    await Promise.all(
+        ['placed', 'shipped', 'False', '2025-06-09', '$1.00'].map((value) =>
+            expect(
+                visualization.getByText(value, { exact: true }),
+            ).not.toHaveCount(0),
+        ),
+    );
 };
+
+const waitForRender = (page: Page) =>
+    page.evaluate(
+        () =>
+            new Promise<void>((resolve) => {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => resolve());
+                });
+            }),
+    );
 
 const dragTo = async (page: Page, draggable: Locator, droppable: Locator) => {
     await draggable.scrollIntoViewIfNeeded();
@@ -100,11 +103,11 @@ const dragTo = async (page: Page, draggable: Locator, droppable: Locator) => {
     await page.mouse.move(start.x + start.width / 2 + 5, start.y + 5, {
         steps: 5,
     });
-    await page.waitForTimeout(50);
+    await waitForRender(page);
     await page.mouse.move(end.x + end.width / 2, end.y + end.height / 2, {
         steps: 10,
     });
-    await page.waitForTimeout(50);
+    await waitForRender(page);
     await page.mouse.up();
 };
 

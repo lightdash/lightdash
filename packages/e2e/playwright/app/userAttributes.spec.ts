@@ -190,10 +190,11 @@ const addAttributeThroughUi = async (
     await page.goto(settingsPath, { waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: 'Add new attribute' }).click();
 
-    const modal = page.getByRole('dialog');
-    await expect(
-        modal.getByText('Add user attribute', { exact: true }),
-    ).toBeVisible();
+    const modal = page.getByRole('dialog', {
+        name: 'Add user attribute',
+        exact: true,
+    });
+    await expect(modal).toBeVisible();
     await modal.getByRole('textbox', { name: 'Attribute name' }).fill(name);
     await modal.getByRole('button', { name: 'Add user', exact: true }).click();
     await modal.getByLabel('User email').fill('demo');
@@ -237,20 +238,25 @@ const editAttributeThroughUi = async (
         .getByRole('row')
         .filter({ has: page.getByText(name, { exact: true }) });
     await expect(row).toHaveCount(1);
-    await row.getByRole('button').first().click();
+    await row
+        .getByRole('button', {
+            name: `Actions for ${name}`,
+            exact: true,
+        })
+        .click();
     await page.getByRole('menuitem', { name: 'Edit', exact: true }).click();
 
-    const modal = page.getByRole('dialog');
-    await expect(
-        modal.getByText('Update user attribute', { exact: true }),
-    ).toBeVisible();
-    const oldValuePill = modal
-        .getByText(oldValue, { exact: true })
-        .locator('..');
-    await expect(oldValuePill).toBeVisible();
-    await oldValuePill.getByRole('button', { includeHidden: true }).click();
-    await modal.getByLabel('Values').fill(newValue);
-    await modal.getByLabel('Values').press('Enter');
+    const modal = page.getByRole('dialog', {
+        name: 'Update user attribute',
+        exact: true,
+    });
+    await expect(modal).toBeVisible();
+    const valuesInput = modal.getByLabel('Values');
+    await expect(modal.getByText(oldValue, { exact: true })).toBeVisible();
+    await valuesInput.press('Backspace');
+    await expect(modal.getByText(oldValue, { exact: true })).toHaveCount(0);
+    await valuesInput.fill(newValue);
+    await valuesInput.press('Enter');
 
     const responsePromise = waitForAttributeMutation(page, 'PUT', uuid);
     await modal.getByRole('button', { name: 'Update', exact: true }).click();
@@ -328,15 +334,17 @@ const runQuery = async (page: Page, expectedStatus: 200 | 403) => {
             new URL(response.url()).pathname ===
                 `/api/v2/projects/${SEED_PROJECT.project_uuid}/query/metric-query`,
     );
+    const results = page.getByTestId('results-table-container');
+    const runQueryButton = page
+        .getByTestId('ExplorerHeader')
+        .getByTestId('RefreshButton/RunQueryButton');
+    await expect(runQueryButton).toHaveCount(1);
     const [, response] = await Promise.all([
-        page
-            .getByRole('button', { name: /^Run query/ })
-            .first()
-            .click(),
+        runQueryButton.click(),
         responsePromise,
     ]);
     expect(response.status()).toBe(expectedStatus);
-    return page.getByTestId('results-table-container');
+    return results;
 };
 
 test.describe('user attributes', { tag: '@mutating' }, () => {
@@ -429,8 +437,8 @@ test.describe('user attributes', { tag: '@mutating' }, () => {
                     results.getByText('Age', { exact: true }),
                 ).toBeVisible({ timeout: 30_000 });
                 await expect(
-                    results.getByText('30', { exact: true }).first(),
-                ).toBeVisible();
+                    results.getByRole('cell', { name: '30', exact: true }),
+                ).not.toHaveCount(0);
 
                 await editAttributeThroughUi(
                     page,

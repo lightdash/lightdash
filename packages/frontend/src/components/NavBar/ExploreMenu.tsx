@@ -157,6 +157,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             <LargeMenuItem
                                 title="Space"
                                 description="Organize your saved charts and dashboards."
+                                data-testid="ExploreMenu/NewSpaceButton"
                                 onClick={() => setIsCreateSpaceOpen(true)}
                                 icon={IconFolder}
                             />

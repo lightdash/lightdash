@@ -113,11 +113,7 @@ test('admin sees UTC dates rendered in the client timezone', async ({
     const results = page.getByTestId('results-table-container');
     await expect(results).toContainText('2020-08-11, 22:58:00:000 (+00:00)');
 
-    const filtersCard = page
-        .getByRole('heading', { name: 'Filters', exact: true })
-        .locator('..')
-        .locator('..')
-        .locator('..');
+    const filtersCard = page.getByTestId('Filters-card');
     await expect(filtersCard).toContainText('1 active filter');
     await filtersCard.getByTestId('Filters-card-expand').click();
 
@@ -130,11 +126,7 @@ test('admin sees UTC dates rendered in the client timezone', async ({
         }),
     ).toBeVisible();
 
-    const sqlCard = page
-        .getByRole('heading', { name: 'SQL', exact: true })
-        .locator('..')
-        .locator('..')
-        .locator('..');
+    const sqlCard = page.getByTestId('SQL-card');
     await sqlCard.getByTestId('SQL-card-expand').click();
     await expect(sqlCard).toContainText(
         `("events".timestamp_tz) = ('2020-08-11 22:58:00+00:00')`,
