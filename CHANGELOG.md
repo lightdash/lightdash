@@ -1,3 +1,16 @@
+# [0.3436.0](https://github.com/lightdash/lightdash/compare/0.3435.0...0.3436.0) (2026-07-21)
+
+
+### Bug Fixes
+
+* fall back to classic homepage on mobile for new onboarding ([#25855](https://github.com/lightdash/lightdash/issues/25855)) ([214b3b4](https://github.com/lightdash/lightdash/commit/214b3b431bffb02b46eb9f7da21b421d077b11c1)), closes [/linear.app/lightdash/issue/ZAP-649/new-onboarding-playground-homepage-has-no-mobile-equivalent#agent-session-41853](https://github.com//linear.app/lightdash/issue/ZAP-649/new-onboarding-playground-homepage-has-no-mobile-equivalent/issues/agent-session-41853)
+* **filters:** boolean filter with no value compiles to a no-op ([#25858](https://github.com/lightdash/lightdash/issues/25858)) ([4810440](https://github.com/lightdash/lightdash/commit/48104407bbf1134a501ce9408640f49a0938a60c)), closes [/linear.app/lightdash/issue/PROD-9019/chart-filters-boolean-chart-filters-silently-apply-false-when-no-value#agent-session-0b00ddb1](https://github.com//linear.app/lightdash/issue/PROD-9019/chart-filters-boolean-chart-filters-silently-apply-false-when-no-value/issues/agent-session-0b00ddb1) [/linear.app/lightdash/issue/PROD-9019/chart-filters-boolean-chart-filters-silently-apply-false-when-no-value#agent-session-0b00ddb1](https://github.com//linear.app/lightdash/issue/PROD-9019/chart-filters-boolean-chart-filters-silently-apply-false-when-no-value/issues/agent-session-0b00ddb1) [/linear.app/lightdash/issue/PROD-9019/chart-filters-boolean-chart-filters-silently-apply-false-when-no-value#agent-session-0b00ddb1](https://github.com//linear.app/lightdash/issue/PROD-9019/chart-filters-boolean-chart-filters-silently-apply-false-when-no-value/issues/agent-session-0b00ddb1) [/linear.app/lightdash/issue/PROD-9019/chart-filters-boolean-chart-filters-silently-apply-false-when-no-value#agent-session-0b00ddb1](https://github.com//linear.app/lightdash/issue/PROD-9019/chart-filters-boolean-chart-filters-silently-apply-false-when-no-value/issues/agent-session-0b00ddb1)
+
+
+### Features
+
+* **homepage:** one 12-column page grid every block subscribes to ([#25864](https://github.com/lightdash/lightdash/issues/25864)) ([c45e197](https://github.com/lightdash/lightdash/commit/c45e1972a0f25e9c193263e505199a478bc4617b))
+
 # [0.3435.0](https://github.com/lightdash/lightdash/compare/0.3434.0...0.3435.0) (2026-07-21)
 
 
