@@ -12417,6 +12417,11 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
+            "TimestampDomain": {
+                "type": "string",
+                "enum": ["aware", "naive"],
+                "description": "Whether a TIMESTAMP column stores an instant ('aware') or a bare wall clock\n('naive'). Absent means unknown — never assume 'aware' for a missing value."
+            },
             "FilterAutocompleteValue": {
                 "properties": {
                     "label": {
@@ -12645,6 +12650,9 @@
                     },
                     "skipTimezoneConversion": {
                         "type": "boolean"
+                    },
+                    "timestampDomain": {
+                        "$ref": "#/components/schemas/TimestampDomain"
                     },
                     "colors": {
                         "$ref": "#/components/schemas/Record_string.string_"
@@ -13584,6 +13592,9 @@
                     },
                     "skipTimezoneConversion": {
                         "type": "boolean"
+                    },
+                    "timestampDomain": {
+                        "$ref": "#/components/schemas/TimestampDomain"
                     },
                     "colors": {
                         "$ref": "#/components/schemas/Record_string.string_"
@@ -49065,7 +49076,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3439.0",
+        "version": "0.3440.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

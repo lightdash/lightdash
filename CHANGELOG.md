@@ -1,3 +1,11 @@
+# [0.3440.0](https://github.com/lightdash/lightdash/compare/0.3439.0...0.3440.0) (2026-07-21)
+
+
+### Features
+
+* detect timestamp domain from warehouse catalogs ([#25818](https://github.com/lightdash/lightdash/issues/25818)) ([57a270d](https://github.com/lightdash/lightdash/commit/57a270d804f831996fcbee5e7ae1593a6ea8c767)), closes [#25817](https://github.com/lightdash/lightdash/issues/25817)
+* explicit naive-timestamp conversion with gated session pin ([#25819](https://github.com/lightdash/lightdash/issues/25819)) ([49e2e3c](https://github.com/lightdash/lightdash/commit/49e2e3c857143bfc6bd69701b3f1247b24200f6a)), closes [#25806](https://github.com/lightdash/lightdash/issues/25806)
+
 # [0.3439.0](https://github.com/lightdash/lightdash/compare/0.3438.0...0.3439.0) (2026-07-21)
 
 

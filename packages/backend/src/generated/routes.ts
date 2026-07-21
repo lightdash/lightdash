@@ -11714,6 +11714,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TimestampDomain: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['aware'] },
+                { dataType: 'enum', enums: ['naive'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     FilterAutocompleteValue: {
         dataType: 'refAlias',
         type: {
@@ -11858,6 +11870,7 @@ const models: TsoaRoute.Models = {
             customTimeInterval: { dataType: 'string' },
             isAdditionalDimension: { dataType: 'boolean' },
             skipTimezoneConversion: { dataType: 'boolean' },
+            timestampDomain: { ref: 'TimestampDomain' },
             colors: { ref: 'Record_string.string_' },
             isIntervalBase: { dataType: 'boolean' },
             aiHint: {
@@ -12489,6 +12502,7 @@ const models: TsoaRoute.Models = {
             customTimeInterval: { dataType: 'string' },
             isAdditionalDimension: { dataType: 'boolean' },
             skipTimezoneConversion: { dataType: 'boolean' },
+            timestampDomain: { ref: 'TimestampDomain' },
             colors: { ref: 'Record_string.string_' },
             isIntervalBase: { dataType: 'boolean' },
             aiHint: {
