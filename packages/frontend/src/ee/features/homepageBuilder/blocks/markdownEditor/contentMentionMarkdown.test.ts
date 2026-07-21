@@ -5,7 +5,7 @@ import Link from '@tiptap/extension-link';
 import Paragraph from '@tiptap/extension-paragraph';
 import Text from '@tiptap/extension-text';
 import { Markdown } from 'tiptap-markdown';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
     createMentionMarkdownExtension,
     hydrateContentMentions,
@@ -13,8 +13,16 @@ import {
 
 const PROJECT = 'proj-1';
 
-const buildEditor = (content: Content) =>
-    new Editor({
+// Undestroyed editors leave DOMObserver setTimeout flushes behind that fire
+// after jsdom teardown ("document is not defined" unhandled error).
+const editors: Editor[] = [];
+
+afterEach(() => {
+    editors.splice(0).forEach((editor) => editor.destroy());
+});
+
+const buildEditor = (content: Content) => {
+    const editor = new Editor({
         extensions: [
             Document,
             Paragraph,
@@ -25,6 +33,9 @@ const buildEditor = (content: Content) =>
         ],
         content,
     });
+    editors.push(editor);
+    return editor;
+};
 
 const getMarkdown = (editor: Editor): string => {
     const { markdown } = editor.storage as {
