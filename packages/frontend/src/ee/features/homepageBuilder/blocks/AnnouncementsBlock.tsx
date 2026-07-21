@@ -16,6 +16,8 @@ import {
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
+    IconChevronDown,
+    IconChevronRight,
     IconPencil,
     IconPin,
     IconPinnedOff,
@@ -23,7 +25,14 @@ import {
     IconSpeakerphone,
     IconTrash,
 } from '@tabler/icons-react';
-import { useMemo, useState, type FC, type ReactNode } from 'react';
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
 import { CategoryBadge } from '../../../../components/common/CategoryBadge/CategoryBadge';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
@@ -41,6 +50,8 @@ import { TiptapMarkdownEditor } from './markdownEditor/TiptapMarkdownEditor';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 const FEED_PAGE_SIZE = 25;
+const RECENT_LIMIT = 3;
+const CLAMP_MAX_PX = 120;
 
 const NOOP = () => {};
 
@@ -70,6 +81,49 @@ const Timestamp: FC<{ announcement: ProjectAnnouncement }> = ({
     );
 };
 
+const ClampedBody: FC<{ projectUuid: string; body: string }> = ({
+    projectUuid,
+    body,
+}) => {
+    const [expanded, setExpanded] = useState(false);
+    const [overflowing, setOverflowing] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return undefined;
+        const measure = () =>
+            setOverflowing(el.scrollHeight > CLAMP_MAX_PX + 8);
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [body]);
+
+    const clamped = !expanded && overflowing;
+    return (
+        <div className={classes.cardBody}>
+            <div ref={ref} className={clamped ? classes.clamped : undefined}>
+                <TiptapMarkdownEditor
+                    content={body}
+                    editable={false}
+                    mentionProjectUuid={projectUuid}
+                    onChange={NOOP}
+                />
+            </div>
+            {overflowing && (
+                <button
+                    type="button"
+                    className={classes.readMore}
+                    onClick={() => setExpanded((value) => !value)}
+                >
+                    {expanded ? 'Show less' : 'Read more'}
+                </button>
+            )}
+        </div>
+    );
+};
+
 const AnnouncementCard: FC<{
     projectUuid: string;
     announcement: ProjectAnnouncement;
@@ -95,14 +149,7 @@ const AnnouncementCard: FC<{
         )}
         <div className={classes.cardTitle}>{announcement.title}</div>
         {announcement.body && (
-            <div className={classes.cardBody}>
-                <TiptapMarkdownEditor
-                    content={announcement.body}
-                    editable={false}
-                    mentionProjectUuid={projectUuid}
-                    onChange={NOOP}
-                />
-            </div>
+            <ClampedBody projectUuid={projectUuid} body={announcement.body} />
         )}
         <div className={classes.meta}>
             <Timestamp announcement={announcement} />
@@ -110,6 +157,101 @@ const AnnouncementCard: FC<{
         {actions && <div className={classes.itemActions}>{actions}</div>}
     </div>
 );
+
+const EarlierSection: FC<{
+    projectUuid: string;
+    items: ProjectAnnouncement[];
+    renderActions?: (announcement: ProjectAnnouncement) => ReactNode;
+}> = ({ projectUuid, items, renderActions }) => {
+    const [open, setOpen] = useState(false);
+    const [expanded, setExpanded] = useState<Set<string>>(new Set());
+    if (items.length === 0) return null;
+    return (
+        <div>
+            <button
+                type="button"
+                className={classes.earlierToggle}
+                onClick={() => setOpen((value) => !value)}
+            >
+                <MantineIcon
+                    icon={open ? IconChevronDown : IconChevronRight}
+                    size="sm"
+                />
+                {open
+                    ? 'Hide earlier announcements'
+                    : `Show ${items.length} earlier announcement${
+                          items.length === 1 ? '' : 's'
+                      }`}
+            </button>
+            {open && (
+                <div className={classes.earlierList}>
+                    {items.map((announcement) =>
+                        expanded.has(announcement.announcementUuid) ? (
+                            <AnnouncementCard
+                                key={announcement.announcementUuid}
+                                projectUuid={projectUuid}
+                                announcement={announcement}
+                                actions={renderActions?.(announcement)}
+                            />
+                        ) : (
+                            <button
+                                key={announcement.announcementUuid}
+                                type="button"
+                                className={classes.earlierRow}
+                                onClick={() =>
+                                    setExpanded((prev) =>
+                                        new Set(prev).add(
+                                            announcement.announcementUuid,
+                                        ),
+                                    )
+                                }
+                            >
+                                <span className={classes.earlierRowTitle}>
+                                    {announcement.title}
+                                </span>
+                                <span className={classes.earlierRowMeta}>
+                                    <Timestamp announcement={announcement} />
+                                </span>
+                            </button>
+                        ),
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const AnnouncementFeed: FC<{
+    projectUuid: string;
+    announcements: ProjectAnnouncement[];
+    renderActions?: (announcement: ProjectAnnouncement) => ReactNode;
+}> = ({ projectUuid, announcements, renderActions }) => {
+    const { top, earlier } = useMemo(() => {
+        const pinned = announcements.filter((a) => a.pinned);
+        const rest = announcements.filter((a) => !a.pinned);
+        return {
+            top: [...pinned, ...rest.slice(0, RECENT_LIMIT)],
+            earlier: rest.slice(RECENT_LIMIT),
+        };
+    }, [announcements]);
+    return (
+        <>
+            {top.map((announcement) => (
+                <AnnouncementCard
+                    key={announcement.announcementUuid}
+                    projectUuid={projectUuid}
+                    announcement={announcement}
+                    actions={renderActions?.(announcement)}
+                />
+            ))}
+            <EarlierSection
+                projectUuid={projectUuid}
+                items={earlier}
+                renderActions={renderActions}
+            />
+        </>
+    );
+};
 
 const useAnnouncementFeed = (projectUuid: string): ProjectAnnouncement[] => {
     const { data } = useAnnouncements(projectUuid, {
@@ -130,13 +272,10 @@ export const AnnouncementsBlockView: FC<BlockComponentProps> = ({
     return (
         <Stack gap="sm">
             <BlockHeader icon={IconSpeakerphone} title={block.config.title} />
-            {announcements.map((announcement) => (
-                <AnnouncementCard
-                    key={announcement.announcementUuid}
-                    projectUuid={projectUuid}
-                    announcement={announcement}
-                />
-            ))}
+            <AnnouncementFeed
+                projectUuid={projectUuid}
+                announcements={announcements}
+            />
         </Stack>
     );
 };
@@ -345,14 +484,11 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
                     show.
                 </div>
             ) : (
-                announcements.map((announcement) => (
-                    <AnnouncementCard
-                        key={announcement.announcementUuid}
-                        projectUuid={projectUuid}
-                        announcement={announcement}
-                        actions={itemActions(announcement)}
-                    />
-                ))
+                <AnnouncementFeed
+                    projectUuid={projectUuid}
+                    announcements={announcements}
+                    renderActions={itemActions}
+                />
             )}
             {(creating || editing !== null) && (
                 <AnnouncementDrawer
