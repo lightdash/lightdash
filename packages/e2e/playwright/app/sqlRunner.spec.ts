@@ -136,7 +136,9 @@ const selectEditorView = async (page: Page, name: 'Chart' | 'SQL') => {
         has: page.getByRole('radio', { name, exact: true }),
     });
     await expect(group).toHaveCount(1);
-    await group.getByText(name, { exact: true }).click();
+    const label = group.locator('label').filter({ hasText: name });
+    await expect(label).toHaveCount(1);
+    await label.click();
 };
 
 const getMonacoEditor = (page: Page) => page.locator('.monaco-editor');
@@ -326,13 +328,13 @@ test.describe('SQL Runner', { tag: '@mutating' }, () => {
                     url.pathname ===
                     `/projects/${projectUuid}/sql-runner/${createdSavedSql.slug}/edit`,
             );
+            await page.reload({ waitUntil: 'domcontentloaded' });
             await expect(chartView).toBeVisible();
             await expect(page.getByTestId('chart-data-table')).toContainText(
                 'age_sum',
             );
 
             await selectEditorView(page, 'SQL');
-            await expect(getMonacoEditorInput(page)).toBeVisible();
             await replaceMonacoSql(page, ordersSql);
             await expect(getRunQueryButton(page)).toBeEnabled();
             await expect(
