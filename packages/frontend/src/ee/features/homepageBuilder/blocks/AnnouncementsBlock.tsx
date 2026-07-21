@@ -139,9 +139,7 @@ const AnnouncementCard: FC<{
                 : `${classes.card} ${classes.cardDraft}`
         }
     >
-        {(announcement.pinned ||
-            announcement.category ||
-            !announcement.published) && (
+        {(announcement.pinned || !announcement.published) && (
             <div className={classes.cardHeader}>
                 <span className={classes.headerTags}>
                     {!announcement.published && (
@@ -154,14 +152,14 @@ const AnnouncementCard: FC<{
                         </span>
                     )}
                 </span>
-                {announcement.category && (
-                    <AnnouncementCategoryBadge
-                        category={announcement.category}
-                    />
-                )}
             </div>
         )}
-        <div className={classes.cardTitle}>{announcement.title}</div>
+        <div className={classes.cardTitle}>
+            {announcement.title}
+            {announcement.category && (
+                <AnnouncementCategoryBadge category={announcement.category} />
+            )}
+        </div>
         {announcement.body && (
             <ClampedBody projectUuid={projectUuid} body={announcement.body} />
         )}

@@ -78,6 +78,14 @@
 }
 
 .cardTitle {
+    /* Category rides the title line: a quiet dot-badge after the last word,
+     * wrapping with the text instead of holding its own header row. */
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 8px;
+    row-gap: 4px;
+
     font-size: 15px;
     font-weight: 600;
     line-height: 1.35;
