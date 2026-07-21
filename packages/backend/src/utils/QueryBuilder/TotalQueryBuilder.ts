@@ -1,7 +1,6 @@
 import {
     assertUnreachable,
     convertFieldRefToFieldId,
-    flattenFilterGroup,
     getItemId,
     isFormulaTableCalculation,
     isPeriodOverPeriodAdditionalMetric,
@@ -19,6 +18,9 @@ import {
     extractColumnRefs,
     parse as parseFormula,
 } from '@lightdash/formula';
+import { hasBlockingTotalFilters, type TotalQueryKind } from './utils';
+
+export type { TotalQueryKind } from './utils';
 
 const WINDOW_CLAUSE_PATTERN = /\bover\s*\(/i;
 
@@ -109,21 +111,15 @@ const filterTotalsValuesColumns = (
     return valuesColumns.filter((col) => allowed.has(col.reference));
 };
 
-const assertNoBlockingFilters = (
-    metricQuery: MetricQuery,
-    errorMessage: string,
-) => {
-    const hasMetricFilters =
-        !!metricQuery.filters.metrics &&
-        flattenFilterGroup(metricQuery.filters.metrics).length > 0;
-    const hasTableCalculationFilters =
-        !!metricQuery.filters.tableCalculations &&
-        flattenFilterGroup(metricQuery.filters.tableCalculations).length > 0;
-
-    if (hasMetricFilters || hasTableCalculationFilters) {
-        throw new NotSupportedError(errorMessage);
-    }
-};
+// Metric / table-calc filters are evaluated at the source-row grain, so they
+// can't survive into the collapsed totals query (they would filter the totals
+// rows themselves). They are stripped here and enforced via the embedded
+// `sourceQuery` instead: a semi-join restricting raw rows to the source
+// query's passing dimension groups.
+const stripBlockingFilters = (
+    filters: MetricQuery['filters'],
+): MetricQuery['filters'] =>
+    filters.dimensions ? { dimensions: filters.dimensions } : {};
 
 // Returns the field-id references for a `PivotConfiguration.indexColumn`,
 // which can be a single column, an array, or undefined.
@@ -136,12 +132,6 @@ const getIndexColumnFieldIds = (
         : [indexColumn.reference];
 };
 
-export type TotalQueryKind =
-    | 'grandTotal'
-    | 'columnTotal'
-    | 'rowTotal'
-    | 'columnSubtotal';
-
 export type TotalQueryBuilderArgs = {
     metricQuery: MetricQuery;
     pivotConfiguration: PivotConfiguration | null;
@@ -150,9 +140,26 @@ export type TotalQueryBuilderArgs = {
     subtotalDimensions?: string[];
 };
 
+/**
+ * The source query the totals SQL embeds (once) to compute on top of the
+ * original results. `MetricQueryBuilder` derives HOW from the totals
+ * configuration and the two queries themselves (filter restrictions).
+ */
+export type TotalQuerySourceQuery = {
+    // Source query verbatim; the builder embeds it without ORDER BY / LIMIT
+    // and re-applies them only where the visible page is needed.
+    metricQuery: MetricQuery;
+    // The SOURCE pivot configuration, so table calcs using total()/row_total()
+    // compile the same way they did in the source query.
+    pivotConfiguration: PivotConfiguration | undefined;
+};
+
 export type TotalQueryResult = {
     metricQuery: MetricQuery;
     pivotConfiguration: PivotConfiguration | undefined;
+    // Set only when the totals SQL must compute on top of the source query's
+    // results (blocking filters).
+    sourceQuery?: TotalQuerySourceQuery;
 };
 
 /**
@@ -170,24 +177,39 @@ export class TotalQueryBuilder {
 
     public compileQuery(): TotalQueryResult {
         const { kind } = this.args;
+        const sourceQuery = this.buildSourceQuery();
         switch (kind) {
             case 'grandTotal':
                 return {
                     metricQuery: this.buildGrandTotalMetricQuery(),
                     pivotConfiguration: undefined,
+                    sourceQuery,
                 };
             case 'columnTotal':
-                return this.buildColumnTotalQuery();
+                return { ...this.buildColumnTotalQuery(), sourceQuery };
             case 'rowTotal':
-                return this.buildRowTotalQuery();
+                return { ...this.buildRowTotalQuery(), sourceQuery };
             case 'columnSubtotal':
-                return this.buildColumnSubtotalQuery();
+                return { ...this.buildColumnSubtotalQuery(), sourceQuery };
             default:
                 return assertUnreachable(
                     kind,
                     `Total query kind "${kind}" is not supported`,
                 );
         }
+    }
+
+    private buildSourceQuery(): TotalQuerySourceQuery | undefined {
+        const { metricQuery, pivotConfiguration } = this.args;
+        // Blocking filters are enforced by restricting raw rows to the
+        // source groups that pass them.
+        if (!hasBlockingTotalFilters(metricQuery)) {
+            return undefined;
+        }
+        return {
+            metricQuery,
+            pivotConfiguration: pivotConfiguration ?? undefined,
+        };
     }
 
     // Strip a MetricQuery down to a one-row grand total. PoP metrics are
@@ -213,12 +235,10 @@ export class TotalQueryBuilder {
             additionalMetrics: (metricQuery.additionalMetrics ?? []).filter(
                 (am) => !isPeriodOverPeriodAdditionalMetric(am),
             ),
+            filters: hasBlockingTotalFilters(metricQuery)
+                ? stripBlockingFilters(metricQuery.filters)
+                : metricQuery.filters,
         };
-
-        assertNoBlockingFilters(
-            totalQuery,
-            'Totals cannot be correctly calculated with metric filters or table calculation filters',
-        );
 
         return totalQuery;
     }
@@ -268,12 +288,10 @@ export class TotalQueryBuilder {
             additionalMetrics: (metricQuery.additionalMetrics ?? []).filter(
                 (am) => !isPeriodOverPeriodAdditionalMetric(am),
             ),
+            filters: hasBlockingTotalFilters(metricQuery)
+                ? stripBlockingFilters(metricQuery.filters)
+                : metricQuery.filters,
         };
-
-        assertNoBlockingFilters(
-            totalsMetricQuery,
-            'Column totals cannot be calculated when the source query uses metric or table-calculation filters',
-        );
 
         const totalsPivotConfiguration: PivotConfiguration = {
             ...pivotConfiguration,
@@ -341,12 +359,10 @@ export class TotalQueryBuilder {
             additionalMetrics: (metricQuery.additionalMetrics ?? []).filter(
                 (am) => !isPeriodOverPeriodAdditionalMetric(am),
             ),
+            filters: hasBlockingTotalFilters(metricQuery)
+                ? stripBlockingFilters(metricQuery.filters)
+                : metricQuery.filters,
         };
-
-        assertNoBlockingFilters(
-            subtotalMetricQuery,
-            'Column subtotals cannot be calculated when the source query uses metric or table-calculation filters',
-        );
 
         return {
             metricQuery: subtotalMetricQuery,
@@ -411,12 +427,10 @@ export class TotalQueryBuilder {
             additionalMetrics: (metricQuery.additionalMetrics ?? []).filter(
                 (am) => !isPeriodOverPeriodAdditionalMetric(am),
             ),
+            filters: hasBlockingTotalFilters(metricQuery)
+                ? stripBlockingFilters(metricQuery.filters)
+                : metricQuery.filters,
         };
-
-        assertNoBlockingFilters(
-            totalsMetricQuery,
-            'Row totals cannot be calculated when the source query uses metric or table-calculation filters',
-        );
 
         // `groupByColumns: []` opts out of the pivot SQL path in
         // PivotQueryBuilder, so the totals query returns a flat shape:

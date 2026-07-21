@@ -38,6 +38,42 @@ const pivotConfiguration: PivotConfiguration = {
     sortBy: undefined,
 };
 
+const metricFilterGroup = {
+    id: 'metric-filter-group',
+    and: [
+        {
+            id: 'rule-1',
+            target: { fieldId: 'orders_total_revenue' },
+            operator: 'greaterThan' as never,
+            values: [0],
+        },
+    ],
+} as never;
+
+const tableCalculationFilterGroup = {
+    id: 'tc-filter-group',
+    and: [
+        {
+            id: 'rule-1',
+            target: { fieldId: 'profit_margin' },
+            operator: 'greaterThan' as never,
+            values: [0],
+        },
+    ],
+} as never;
+
+const dimensionFilterGroup = {
+    id: 'dimension-filter-group',
+    and: [
+        {
+            id: 'rule-1',
+            target: { fieldId: 'orders_status' },
+            operator: 'equals' as never,
+            values: ['completed'],
+        },
+    ],
+} as never;
+
 describe('TotalQueryBuilder: grandTotal', () => {
     it('strips dimensions and sorts, clamps the limit to 1, and drops calcs referencing non-metric fields', () => {
         const result = new TotalQueryBuilder({
@@ -322,58 +358,39 @@ describe('TotalQueryBuilder: grandTotal', () => {
         expect(result.additionalMetrics).toEqual([]);
     });
 
-    it('rejects sources that use metric filters', () => {
-        expect(
-            () =>
-                new TotalQueryBuilder({
-                    metricQuery: {
-                        ...baseMetricQuery,
-                        filters: {
-                            metrics: {
-                                id: 'metric-filter-group',
-                                and: [
-                                    {
-                                        id: 'rule-1',
-                                        target: {
-                                            fieldId: 'orders_total_revenue',
-                                        },
-                                        operator: 'greaterThan' as never,
-                                        values: [0],
-                                    },
-                                ],
-                            } as never,
-                        },
-                    },
-                    pivotConfiguration: null,
-                    kind: 'grandTotal',
-                }).compileQuery().metricQuery,
-        ).toThrow(NotSupportedError);
+    it('returns no sourceQuery when the source has no metric/table-calc filters', () => {
+        const result = new TotalQueryBuilder({
+            metricQuery: baseMetricQuery,
+            pivotConfiguration: null,
+            kind: 'grandTotal',
+        }).compileQuery();
+
+        expect(result.sourceQuery).toBeUndefined();
     });
 
-    it('rejects sources that use table-calculation filters', () => {
-        expect(
-            () =>
-                new TotalQueryBuilder({
-                    metricQuery: {
-                        ...baseMetricQuery,
-                        filters: {
-                            tableCalculations: {
-                                id: 'tc-filter-group',
-                                and: [
-                                    {
-                                        id: 'rule-1',
-                                        target: { fieldId: 'profit_margin' },
-                                        operator: 'greaterThan' as never,
-                                        values: [0],
-                                    },
-                                ],
-                            } as never,
-                        },
-                    },
-                    pivotConfiguration: null,
-                    kind: 'grandTotal',
-                }).compileQuery().metricQuery,
-        ).toThrow(NotSupportedError);
+    it('strips metric and table-calc filters (keeping dimension filters) and emits the source query', () => {
+        const sourceMetricQuery: MetricQuery = {
+            ...baseMetricQuery,
+            filters: {
+                dimensions: dimensionFilterGroup,
+                metrics: metricFilterGroup,
+                tableCalculations: tableCalculationFilterGroup,
+            },
+        };
+        const result = new TotalQueryBuilder({
+            metricQuery: sourceMetricQuery,
+            pivotConfiguration: null,
+            kind: 'grandTotal',
+        }).compileQuery();
+
+        expect(result.metricQuery.filters).toEqual({
+            dimensions: dimensionFilterGroup,
+        });
+        // The embedded source query keeps every filter.
+        expect(result.sourceQuery).toEqual({
+            metricQuery: sourceMetricQuery,
+            pivotConfiguration: undefined,
+        });
     });
 });
 
@@ -516,33 +533,6 @@ describe('TotalQueryBuilder: columnTotal', () => {
                 'orders_total_revenue',
             ]);
             expect(result.metricQuery.additionalMetrics).toEqual([]);
-        });
-
-        it('rejects sources that use metric filters', () => {
-            expect(() =>
-                new TotalQueryBuilder({
-                    metricQuery: {
-                        ...baseMetricQuery,
-                        filters: {
-                            metrics: {
-                                id: 'metric-filter-group',
-                                and: [
-                                    {
-                                        id: 'rule-1',
-                                        target: {
-                                            fieldId: 'orders_total_revenue',
-                                        },
-                                        operator: 'greaterThan' as never,
-                                        values: [0],
-                                    },
-                                ],
-                            } as never,
-                        },
-                    },
-                    pivotConfiguration,
-                    kind: 'columnTotal',
-                }).compileQuery(),
-            ).toThrow(NotSupportedError);
         });
     });
 
@@ -743,58 +733,6 @@ describe('TotalQueryBuilder: rowTotal', () => {
                 'orders_total_revenue',
             ]);
             expect(result.metricQuery.additionalMetrics).toEqual([]);
-        });
-
-        it('rejects sources that use metric filters', () => {
-            expect(() =>
-                new TotalQueryBuilder({
-                    metricQuery: {
-                        ...baseMetricQuery,
-                        filters: {
-                            metrics: {
-                                id: 'metric-filter-group',
-                                and: [
-                                    {
-                                        id: 'rule-1',
-                                        target: {
-                                            fieldId: 'orders_total_revenue',
-                                        },
-                                        operator: 'greaterThan' as never,
-                                        values: [0],
-                                    },
-                                ],
-                            } as never,
-                        },
-                    },
-                    pivotConfiguration,
-                    kind: 'rowTotal',
-                }).compileQuery(),
-            ).toThrow(NotSupportedError);
-        });
-
-        it('rejects sources that use table-calculation filters', () => {
-            expect(() =>
-                new TotalQueryBuilder({
-                    metricQuery: {
-                        ...baseMetricQuery,
-                        filters: {
-                            tableCalculations: {
-                                id: 'tc-filter-group',
-                                and: [
-                                    {
-                                        id: 'rule-1',
-                                        target: { fieldId: 'profit_margin' },
-                                        operator: 'greaterThan' as never,
-                                        values: [0],
-                                    },
-                                ],
-                            } as never,
-                        },
-                    },
-                    pivotConfiguration,
-                    kind: 'rowTotal',
-                }).compileQuery(),
-            ).toThrow(NotSupportedError);
         });
 
         it('drops sortBy on the pivot column dimension that the collapse removes', () => {
@@ -1053,34 +991,6 @@ describe('TotalQueryBuilder: columnSubtotal', () => {
                 'orders_total_revenue',
             ]);
             expect(result.metricQuery.additionalMetrics).toEqual([]);
-        });
-
-        it('rejects sources that use metric filters', () => {
-            expect(() =>
-                new TotalQueryBuilder({
-                    metricQuery: {
-                        ...baseMetricQuery,
-                        filters: {
-                            metrics: {
-                                id: 'metric-filter-group',
-                                and: [
-                                    {
-                                        id: 'rule-1',
-                                        target: {
-                                            fieldId: 'orders_total_revenue',
-                                        },
-                                        operator: 'greaterThan' as never,
-                                        values: [0],
-                                    },
-                                ],
-                            } as never,
-                        },
-                    },
-                    pivotConfiguration: singleGroupByPivotConfiguration,
-                    subtotalDimensions: ['orders_status'],
-                    kind: 'columnSubtotal',
-                }).compileQuery(),
-            ).toThrow(NotSupportedError);
         });
     });
 

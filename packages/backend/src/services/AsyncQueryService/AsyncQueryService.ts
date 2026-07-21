@@ -162,6 +162,7 @@ import {
 import { TotalQueryBuilder } from '../../utils/QueryBuilder/TotalQueryBuilder';
 import {
     applyLimitToSqlQuery,
+    hasBlockingTotalFilters,
     replaceUserAttributesAsStrings,
 } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
@@ -6883,6 +6884,16 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration: null,
             kind: 'grandTotal',
         }).compileQuery();
+
+        // This legacy path hand-compiles the collapsed query, so it can't
+        // embed the source query to enforce metric / table-calc filters;
+        // callers catch this error and return empty totals, matching the old
+        // behavior. (Sum-of-rows calc totals just stay blank here.)
+        if (hasBlockingTotalFilters(metricQuery)) {
+            throw new NotSupportedError(
+                'Totals cannot be correctly calculated with metric filters or table calculation filters',
+            );
+        }
 
         const { rows } = await this.executeMetricQueryAndGetResultsForTotals({
             account,

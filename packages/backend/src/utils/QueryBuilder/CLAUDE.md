@@ -50,12 +50,16 @@ const sql = composer.getSql({ columnLimit }); // PivotQueryBuilder-wrapped when 
 **Getter surface.** The composer is the single carrier of query/context data through the async execute seam — `AsyncQueryService.executePreparedAsyncQuery` reads everything (explore, metric query, fields, pivot, timezones, parameters, access controls) off `get*()` getters instead of loose args. Non-obvious ones: `getFields()` applies metric/dimension format overrides from the **source** query, `getParameters()` returns the raw combined values (not the reserved-merged compile variant), and `getDisplayTimezone()` is a context carry (not a compile input) that SQL charts pin to `null`.
 
 **Totals mode.** Set `totalConfiguration: { kind, subtotalDimensions }` on the
-definition to build a totals query. The composer collapses the source
-`metricQuery` + `pivotConfiguration` into the requested grain
-(`grandTotal`/`columnTotal`/`rowTotal`/`columnSubtotal`) via `TotalQueryBuilder`
-before compiling. `getMetricQuery()` / `getPivotConfiguration()` return the
-**effective (collapsed)** query, so routing / request echo / response use it
-rather than the source. Date zoom stays inert here — it targets the source
+definition to build a totals query. The composer just forwards it —
+**totals are entirely `MetricQueryBuilder`'s job**: in its constructor the
+builder collapses the (compiled) source query + pivot config into the requested
+grain (`grandTotal`/`columnTotal`/`rowTotal`/`columnSubtotal`) via
+`TotalQueryBuilder`, compiles the collapsed query internally, and keeps the
+original around as the embedded source where needed. The effective (collapsed)
+query/pivot are exposed via the builder's `getEffectiveMetricQuery()` /
+`getEffectivePivotConfiguration()`; the composer's `getMetricQuery()` /
+`getPivotConfiguration()` delegate to them so routing / request echo / response
+use the collapsed form. Date zoom stays inert here — it targets the source
 query's dimensions, which the collapsed totals query typically no longer selects.
 This is what the calculate-total path (`executeAsyncCalculateTotalFromQueryHistory`)
 uses instead of hand-collapsing at the call site.
@@ -65,6 +69,29 @@ replay a query already persisted in query history; applying the source
 dashboard filters again would change its semantics. `AsyncQueryService` asserts
 this invariant at the `executeAsyncMetricQuery` entry point before preparing a
 composer.
+
+**Computing on top of the source query.** Totals sometimes need the *original*
+query's results, not just its collapsed form. In totals mode the builder keeps
+the original compiled query as its internal `sourceQuery`, embeds it ONCE as a
+top-level `source_rows` CTE (its body may itself contain a `WITH` chain — same
+production-proven pattern as PivotQueryBuilder's `original_query`; the
+sub-compile via `compileQueryAsCteBody()` omits ORDER BY / LIMIT and skips
+parameter replacement so the outer query's single replacement pass covers both
+texts) and derives what to compute on top (`deriveSourceQueryUses`) from the
+totals kind and the two queries. Every use derives from that one embed; new
+"calculate on top of the original query" features should extend the derivation
+rather than add another embed:
+
+- **`groupRestrictions`** — each entry derives a `SELECT DISTINCT <join dims>`
+  CTE (`source_dimension_groups`) and appends an `INNER JOIN` on null-safe
+  equality (`getNullSafeEqualJoinSql`) to `dimensionsSQL.joins`, which reaches
+  every raw scan (fan-out, distinct-metric, nested-aggregate and totals CTEs).
+  DISTINCT makes the join fan-out-free at any grain. Custom bin join dimensions
+  not selected by the totals query get their min/max CTE + CROSS JOIN added.
+  Use: enforcing metric / table-calc filters (PROD-8431 — they compile to a
+  post-aggregation WHERE at the source grain, so the collapsed totals query
+  strips them and restricts raw rows instead; totals stay exact for every
+  metric type since aggregation still runs over raw rows).
 
 **SqlQueryComposer** — the facade for SQL charts (`extends QueryComposer`). SQL charts run user-written SQL rather than compiling a metric query, so this builds everything from raw inputs — the virtual view (`createVirtualView`) from the discovered columns, the wrapping `SqlQueryBuilder` (reference map + dialect config off the warehouse client), a mock `MetricQuery` metadata carrier, and (on the dashboard path) the applied dashboard filters/sorts — then overrides `computeCompiled()` to shape the wrapped user SQL into a `CompiledQuery`. Because `getSql()` is inherited, a request/config `pivotConfiguration` flows through the same seam as metric queries. Used by `AsyncQueryService.prepareSqlChartAsyncQueryArgs` for all three SQL execute paths (raw SQL runner, saved SQL chart, dashboard SQL chart).
 

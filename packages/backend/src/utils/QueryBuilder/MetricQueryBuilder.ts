@@ -49,6 +49,7 @@ import {
     ItemsMap,
     lightdashVariablePattern,
     MetricFilterRule,
+    MetricQuery,
     MetricType,
     naiveTimestampRebaseAdapters,
     parseAllReferences,
@@ -74,12 +75,16 @@ import {
     type WeekDay,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
-import { compilePostCalculationMetric } from '../../queryCompiler';
+import {
+    compileMetricQuery,
+    compilePostCalculationMetric,
+} from '../../queryCompiler';
 import { reportMalformedFilterValues } from './malformedFilterValueReporter';
 import {
     safeReplaceParametersWithTypes,
     unsafeReplaceParametersAsRaw,
 } from './parameters';
+import { TotalQueryBuilder } from './TotalQueryBuilder';
 import {
     assertValidDimensionRequiredAttribute,
     findDateGrainTableCalcWarnings,
@@ -91,12 +96,14 @@ import {
     getDimensionFromId,
     getJoinedTables,
     getJoinType,
+    hasBlockingTotalFilters,
     isInflationProofMetric,
     replaceUserAttributesAsStrings,
     replaceUserAttributesInSqlTable,
     replaceUserAttributesRaw,
     sortDayOfWeekName,
     sortMonthName,
+    type TotalConfiguration,
 } from './utils';
 
 export type CompiledQuery = {
@@ -155,7 +162,29 @@ export type BuildQueryProps = {
      *  SELECT. Gated behind NaiveTimestampFilterRebase (the wrap defeats
      *  partition pruning). */
     rebaseRawTimestampFilters?: boolean;
+    /**
+     * Turns this into a totals query: the builder collapses
+     * `compiledMetricQuery` + `pivotConfiguration` to the requested grain (via
+     * `TotalQueryBuilder`), keeps the original query as the embedded
+     * `source_rows` CTE where it must compute on top of the source results
+     * (filter restrictions), and derives what to compute from the two
+     * queries. The collapsed query /
+     * pivot are exposed via `getEffectiveMetricQuery()` /
+     * `getEffectivePivotConfiguration()`.
+     */
+    totalConfiguration?: TotalConfiguration;
 };
+
+/**
+ * Semi-joins every raw scan of this query to the distinct dimension groups of
+ * the embedded source rows (null-safe, cannot fan out).
+ */
+type SourceQueryGroupRestriction = {
+    joinDimensions: string[];
+};
+
+const SOURCE_ROWS_CTE_NAME = 'source_rows';
+const SOURCE_GROUPS_CTE_NAME = 'source_dimension_groups';
 
 /**
  * Creates the correct interval syntax for date arithmetic operations with comparison across different warehouse types.
@@ -356,7 +385,54 @@ export class MetricQueryBuilder {
     // Contains the metrics from the Explore and the custom metrics from the metric query
     private readonly availableMetrics: Record<string, CompiledMetric> = {};
 
+    /** Totals mode: the original (source) query kept for the `source_rows` embed. */
+    private sourceQuery:
+        | {
+              compiledMetricQuery: CompiledMetricQuery;
+              pivotConfiguration?: PivotConfiguration;
+          }
+        | undefined;
+
+    /** Totals mode: the uncompiled collapsed query, for request echo / routing. */
+    private effectiveMetricQuery: MetricQuery | undefined;
+
     constructor(private args: BuildQueryProps) {
+        // Totals mode: collapse the query to the requested grain up front, so
+        // the rest of the builder sees the collapsed query as "the query" and
+        // the original one only survives as the embedded source.
+        if (args.totalConfiguration) {
+            const collapsed = new TotalQueryBuilder({
+                metricQuery: {
+                    ...args.compiledMetricQuery,
+                    // CompiledMetricQuery omits the uncompiled custom
+                    // dimensions; restore them so the collapsed query
+                    // re-compiles with its custom dimensions intact.
+                    customDimensions:
+                        args.compiledMetricQuery.compiledCustomDimensions,
+                },
+                pivotConfiguration: args.pivotConfiguration ?? null,
+                kind: args.totalConfiguration.kind,
+                subtotalDimensions: args.totalConfiguration.subtotalDimensions,
+            }).compileQuery();
+            this.sourceQuery = collapsed.sourceQuery
+                ? {
+                      compiledMetricQuery: args.compiledMetricQuery,
+                      pivotConfiguration: args.pivotConfiguration,
+                  }
+                : undefined;
+            this.effectiveMetricQuery = collapsed.metricQuery;
+            this.args = {
+                ...args,
+                compiledMetricQuery: compileMetricQuery({
+                    explore: args.explore,
+                    metricQuery: collapsed.metricQuery,
+                    warehouseSqlBuilder: args.warehouseSqlBuilder,
+                    availableParameters: Object.keys(args.parameterDefinitions),
+                }),
+                pivotConfiguration: collapsed.pivotConfiguration,
+            };
+        }
+
         const { explore, compiledMetricQuery } = this.args;
         this.exploreDimensions = getDimensionMapFromTables(explore.tables);
         this.exploreDimensionsWithoutAccess = getDimensionMapFromTables(
@@ -458,6 +534,16 @@ export class MetricQueryBuilder {
                 }
             });
         }
+    }
+
+    /** The effective (totals-collapsed) metric query this builder compiles. */
+    public getEffectiveMetricQuery(): MetricQuery {
+        return this.effectiveMetricQuery ?? this.args.compiledMetricQuery;
+    }
+
+    /** The effective (totals-collapsed) pivot configuration, if any. */
+    public getEffectivePivotConfiguration(): PivotConfiguration | undefined {
+        return this.args.pivotConfiguration;
     }
 
     static buildCtesSQL(ctes: string[]) {
@@ -4343,6 +4429,22 @@ export class MetricQueryBuilder {
             }
         }
 
+        // The embedded source query is part of this query's SQL, so its fields
+        // must be visible to the Liquid fields context too.
+        const embeddedQuery = this.sourceQuery?.compiledMetricQuery;
+        if (embeddedQuery) {
+            embeddedQuery.dimensions.forEach((id) => selectedFieldIds.add(id));
+            embeddedQuery.metrics.forEach((id) => selectedFieldIds.add(id));
+            for (const rule of [
+                ...getFilterRulesFromGroup(embeddedQuery.filters.dimensions),
+                ...getFilterRulesFromGroup(embeddedQuery.filters.metrics),
+            ]) {
+                if ('fieldId' in rule.target) {
+                    filteredFieldIds.add(rule.target.fieldId);
+                }
+            }
+        }
+
         const fieldsContext: FieldsContext = {};
 
         for (const [tableName, table] of Object.entries(explore.tables)) {
@@ -4375,7 +4477,209 @@ export class MetricQueryBuilder {
         return fieldsContext;
     }
 
-    public compileQuery(): CompiledQuery {
+    /** Compiles the source query for embedding as a CTE body of this query. */
+    private compileEmbeddedSource(source: {
+        compiledMetricQuery: CompiledMetricQuery;
+        pivotConfiguration?: PivotConfiguration;
+    }): ReturnType<MetricQueryBuilder['compileQueryAsCteBody']> {
+        return new MetricQueryBuilder({
+            ...this.args,
+            compiledMetricQuery: source.compiledMetricQuery,
+            pivotConfiguration: source.pivotConfiguration,
+            totalConfiguration: undefined,
+        }).compileQueryAsCteBody();
+    }
+
+    /**
+     * Derives what this query computes on top of the embedded source rows:
+     * metric / table-calc filters can't survive into a collapsed totals
+     * query, so raw rows are restricted to the source groups passing them.
+     */
+    private static deriveSourceQueryUses(
+        sourceMetricQuery: CompiledMetricQuery,
+    ): {
+        groupRestrictions: SourceQueryGroupRestriction[];
+    } {
+        const groupRestrictions: SourceQueryGroupRestriction[] = [];
+        if (hasBlockingTotalFilters(sourceMetricQuery)) {
+            groupRestrictions.push({
+                joinDimensions: sourceMetricQuery.dimensions,
+            });
+        }
+
+        return { groupRestrictions };
+    }
+
+    /**
+     * Compiles the `sourceQuery` embed: the source query becomes the
+     * `source_rows` CTE (embedded once), and each use derives from it —
+     * distinct-group CTEs semi-joined into every raw scan. Custom bin join
+     * dimensions not selected in this query additionally need their min/max
+     * CTE + CROSS JOIN.
+     */
+    private buildSourceQuerySQL():
+        | {
+              leadingCtes: string[];
+              binCtes: string[];
+              joins: string[];
+              warnings: QueryWarning[];
+          }
+        | undefined {
+        const { sourceQuery } = this;
+        if (!sourceQuery) {
+            return undefined;
+        }
+        const { groupRestrictions } = MetricQueryBuilder.deriveSourceQueryUses(
+            sourceQuery.compiledMetricQuery,
+        );
+
+        const {
+            explore,
+            warehouseSqlBuilder,
+            intrinsicUserAttributes,
+            userAttributes = {},
+        } = this.args;
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+        const adapterType = warehouseSqlBuilder.getAdapterType();
+        const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
+        const { compiledCustomDimensions, dimensions: selectedDimensions } =
+            this.args.compiledMetricQuery;
+
+        // The single embed every use derives from.
+        const body = this.compileEmbeddedSource(sourceQuery);
+        const leadingCtes = [`${SOURCE_ROWS_CTE_NAME} AS (\n${body.sql}\n)`];
+        const warnings: QueryWarning[] = [...body.warnings];
+
+        // Custom bin join dimensions need their bin expression (and, when not
+        // selected in this query, their min/max CTE + CROSS JOIN) available at
+        // the raw scan grain.
+        const allJoinDimensions = new Set(
+            groupRestrictions.flatMap(
+                (restriction) => restriction.joinDimensions,
+            ),
+        );
+        const binJoinDimensions = compiledCustomDimensions
+            .filter(isCustomBinDimension)
+            .filter((cd) => allJoinDimensions.has(cd.id));
+        const binExprs =
+            getCustomBinDimensionSql({
+                warehouseSqlBuilder,
+                explore,
+                customDimensions: binJoinDimensions,
+                intrinsicUserAttributes,
+                userAttributes,
+            })?.exprs ?? {};
+        const unselectedBinSql = getCustomBinDimensionSql({
+            warehouseSqlBuilder,
+            explore,
+            customDimensions: binJoinDimensions.filter(
+                (cd) => !selectedDimensions.includes(cd.id),
+            ),
+            intrinsicUserAttributes,
+            userAttributes,
+        });
+
+        const getJoinDimensionExpr = (dimId: string): string => {
+            const customDimension = compiledCustomDimensions.find(
+                (cd) => cd.id === dimId,
+            );
+            if (customDimension) {
+                if (isCompiledCustomSqlDimension(customDimension)) {
+                    return `(${customDimension.compiledSql})`;
+                }
+                const binExpr = binExprs[dimId];
+                if (binExpr === undefined) {
+                    throw new CompileError(
+                        `Missing bin expression for custom dimension "${dimId}" in totals query`,
+                    );
+                }
+                return `(${binExpr})`;
+            }
+            const dimension = getDimensionFromId({
+                dimId,
+                dimensions: this.exploreDimensions,
+                dimensionsWithoutAccess: this.exploreDimensionsWithoutAccess,
+                adapterType,
+                startOfWeek,
+                timezone: this.timezoneForDateTrunc,
+                columnTimezone: this.columnTimezone,
+            });
+            const sql = this.getTimezoneAwareDimensionSql(
+                dimension,
+                adapterType,
+                startOfWeek,
+            );
+            return `(${replaceUserAttributesAsStrings(
+                sql,
+                intrinsicUserAttributes,
+                userAttributes,
+                warehouseSqlBuilder,
+                { noWrap: true },
+            )})`;
+        };
+
+        const buildJoinConditions = (
+            joinDimensions: string[],
+            targetCteName: string,
+        ): string =>
+            joinDimensions.length > 0
+                ? joinDimensions
+                      .map((dimId) =>
+                          warehouseSqlBuilder.getNullSafeEqualJoinSql(
+                              getJoinDimensionExpr(dimId),
+                              `${targetCteName}.${fieldQuoteChar}${dimId}${fieldQuoteChar}`,
+                          ),
+                      )
+                      .join('\n  AND ')
+                : '1 = 1';
+
+        const joins: string[] = unselectedBinSql?.join
+            ? [unselectedBinSql.join]
+            : [];
+
+        // Every restriction joins a DISTINCT-groups CTE, so the join can never
+        // fan out regardless of the join dimensions' grain.
+        const cteNameCounts: Record<string, number> = {};
+        groupRestrictions.forEach((restriction) => {
+            const baseCteName = SOURCE_GROUPS_CTE_NAME;
+            cteNameCounts[baseCteName] = (cteNameCounts[baseCteName] ?? 0) + 1;
+            const cteName =
+                cteNameCounts[baseCteName] > 1
+                    ? `${baseCteName}_${cteNameCounts[baseCteName]}`
+                    : baseCteName;
+            const fromCteName = SOURCE_ROWS_CTE_NAME;
+            const distinctColumns = restriction.joinDimensions.map(
+                (dimId) => `  ${fieldQuoteChar}${dimId}${fieldQuoteChar}`,
+            );
+            leadingCtes.push(
+                `${cteName} AS (\nSELECT DISTINCT\n${distinctColumns.join(
+                    ',\n',
+                )}\nFROM ${fromCteName}\n)`,
+            );
+            joins.push(
+                `INNER JOIN ${cteName} ON ${buildJoinConditions(
+                    restriction.joinDimensions,
+                    cteName,
+                )}`,
+            );
+        });
+
+        return {
+            leadingCtes,
+            binCtes: unselectedBinSql?.ctes ?? [],
+            joins,
+            warnings,
+        };
+    }
+
+    private buildQueryParts(): {
+        ctes: string[];
+        finalSelectParts: Array<string | undefined>;
+        sqlOrderBy: string | undefined;
+        sqlLimit: string | undefined;
+        fields: ItemsMap;
+        warnings: QueryWarning[];
+    } {
         const { explore, compiledMetricQuery } = this.args;
         const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
         const usedFieldCompilationErrors = this.getUsedFieldCompilationErrors();
@@ -4395,6 +4699,17 @@ export class MetricQueryBuilder {
             tablesReferencedInDimensions: dimensionsSQL.tables,
             tablesReferencedInMetrics: metricsSQL.tables,
         });
+
+        // Mutates dimensionsSQL before any consumer reads it, so the
+        // source-query restriction joins reach every raw scan (main select,
+        // fan-out, distinct-metric, nested-aggregate and totals CTEs).
+        const sourceQuerySQL = this.buildSourceQuerySQL();
+        if (sourceQuerySQL) {
+            dimensionsSQL.ctes.unshift(...sourceQuerySQL.leadingCtes);
+            dimensionsSQL.ctes.push(...sourceQuerySQL.binCtes);
+            dimensionsSQL.joins.push(...sourceQuerySQL.joins);
+        }
+
         const sqlSelect = `SELECT\n${[
             ...Object.values(dimensionsSQL.selects),
             ...metricsSQL.selects,
@@ -4415,6 +4730,9 @@ export class MetricQueryBuilder {
         ];
 
         const warnings: QueryWarning[] = [];
+        if (sourceQuerySQL) {
+            warnings.push(...sourceQuerySQL.warnings);
+        }
         const experimentalMetricsCteSQL = this.getExperimentalMetricsCteSQL({
             joinedTables: joins.tables,
             dimensionSelects: dimensionsSQL.selects,
@@ -4919,6 +5237,61 @@ export class MetricQueryBuilder {
             ];
             ctes.push(...ctesToAdd);
         }
+
+        return {
+            ctes,
+            finalSelectParts,
+            sqlOrderBy,
+            sqlLimit,
+            fields,
+            warnings,
+        };
+    }
+
+    /**
+     * Compiles the query without ORDER BY / LIMIT and without parameter
+     * replacement, for embedding as the body of a CTE in an outer query.
+     * `sqlOrderBy` / `sqlLimit` are returned separately so the outer query can
+     * derive the sorted, limited result page from the embedded rows. Parameter
+     * placeholders survive so the outer query's single replacement pass covers
+     * the embedded SQL too.
+     */
+    public compileQueryAsCteBody(): {
+        sql: string;
+        sqlOrderBy: string | undefined;
+        sqlLimit: string | undefined;
+        fields: ItemsMap;
+        warnings: QueryWarning[];
+    } {
+        const {
+            ctes,
+            finalSelectParts,
+            sqlOrderBy,
+            sqlLimit,
+            fields,
+            warnings,
+        } = this.buildQueryParts();
+        return {
+            sql: MetricQueryBuilder.assembleSqlParts([
+                MetricQueryBuilder.buildCtesSQL(ctes),
+                ...finalSelectParts,
+            ]),
+            sqlOrderBy,
+            sqlLimit,
+            fields,
+            warnings,
+        };
+    }
+
+    public compileQuery(): CompiledQuery {
+        const {
+            fields,
+            warnings,
+            ctes,
+            finalSelectParts,
+            sqlOrderBy,
+            sqlLimit,
+        } = this.buildQueryParts();
 
         const query = MetricQueryBuilder.assembleSqlParts([
             MetricQueryBuilder.buildCtesSQL(ctes),
