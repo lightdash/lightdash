@@ -1,3 +1,10 @@
+# [0.3430.0](https://github.com/lightdash/lightdash/compare/0.3429.1...0.3430.0) (2026-07-21)
+
+
+### Features
+
+* add managed onboarding sandbox ([#25844](https://github.com/lightdash/lightdash/issues/25844)) ([12d35da](https://github.com/lightdash/lightdash/commit/12d35da03b9cdb4d81e8f637a29fd4c5f3689390))
+
 ## [0.3429.1](https://github.com/lightdash/lightdash/compare/0.3429.0...0.3429.1) (2026-07-21)
 
 
