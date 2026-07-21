@@ -49,6 +49,7 @@ const mockDownloadFileModel = {
 function createService(
     overrides: Partial<{
         savedSqlModel: Partial<SavedSqlModel>;
+        savedChartModel: Partial<SavedChartModel>;
     }> = {},
 ) {
     return new UnfurlService({
@@ -59,7 +60,8 @@ function createService(
             },
         } as unknown as LightdashConfig,
         dashboardModel: {} as unknown as DashboardModel,
-        savedChartModel: {} as unknown as SavedChartModel,
+        savedChartModel: (overrides.savedChartModel ??
+            {}) as unknown as SavedChartModel,
         savedSqlModel: (overrides.savedSqlModel ??
             {}) as unknown as SavedSqlModel,
         appModel: {} as unknown as AppModel,
@@ -81,6 +83,55 @@ function createService(
 describe('UnfurlService', () => {
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    describe('exportChart', () => {
+        it('keeps legacy slug export compatible without a project', async () => {
+            const get = vi.fn().mockRejectedValue(new Error('stop'));
+            const service = createService({ savedChartModel: { get } });
+
+            await expect(
+                service.exportChart('shared-slug', {} as never),
+            ).rejects.toThrow('stop');
+            expect(get).toHaveBeenCalledWith(
+                'shared-slug',
+                undefined,
+                undefined,
+            );
+        });
+
+        it('scopes slug resolution to the requested project', async () => {
+            const get = vi.fn().mockRejectedValue(new Error('stop'));
+            const service = createService({ savedChartModel: { get } });
+
+            await expect(
+                service.exportChart(
+                    'shared-slug',
+                    {} as never,
+                    '22222222-2222-4222-8222-222222222222',
+                ),
+            ).rejects.toThrow('stop');
+            expect(get).toHaveBeenCalledWith('shared-slug', undefined, {
+                projectUuid: '22222222-2222-4222-8222-222222222222',
+            });
+        });
+
+        it('keeps globally unique UUID export compatible without a project', async () => {
+            const get = vi.fn().mockRejectedValue(new Error('stop'));
+            const service = createService({ savedChartModel: { get } });
+
+            await expect(
+                service.exportChart(
+                    '11111111-1111-4111-8111-111111111111',
+                    {} as never,
+                ),
+            ).rejects.toThrow('stop');
+            expect(get).toHaveBeenCalledWith(
+                '11111111-1111-4111-8111-111111111111',
+                undefined,
+                undefined,
+            );
+        });
     });
 
     describe('getPreviewSignedUrl', () => {

@@ -982,8 +982,13 @@ export class UnfurlService extends BaseService {
     async exportChart(
         chartUuidOrSlug: string,
         user: SessionUser,
+        projectUuid?: string,
     ): Promise<string> {
-        const chart = await this.savedChartModel.get(chartUuidOrSlug);
+        const chart = await this.savedChartModel.get(
+            chartUuidOrSlug,
+            undefined,
+            projectUuid ? { projectUuid } : undefined,
+        );
         const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
