@@ -2083,9 +2083,9 @@ describe('Boolean Filter SQL', () => {
             expect(renderBooleanFilterSql(dimensionSql, filterUndefined)).toBe(
                 'true',
             );
-            expect(renderBooleanFilterSql(dimensionSql, filterEmptyString)).toBe(
-                'true',
-            );
+            expect(
+                renderBooleanFilterSql(dimensionSql, filterEmptyString),
+            ).toBe('true');
         });
     });
 
