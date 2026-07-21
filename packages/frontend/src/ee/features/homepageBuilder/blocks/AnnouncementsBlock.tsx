@@ -1,131 +1,636 @@
-import { type HomepageAnnouncementItem } from '@lightdash/common';
-import { ActionIcon, Stack } from '@mantine-8/core';
-import { IconSpeakerphone, IconX } from '@tabler/icons-react';
-import { type FC } from 'react';
+import {
+    ANNOUNCEMENT_BODY_MAX_LENGTH,
+    ANNOUNCEMENT_CATEGORY_META,
+    AnnouncementCategory,
+    type ProjectAnnouncement,
+} from '@lightdash/common';
+import {
+    ActionIcon,
+    Button,
+    Divider,
+    Group,
+    Select,
+    Skeleton,
+    Stack,
+    Text,
+    TextInput,
+    Tooltip,
+} from '@mantine-8/core';
+import {
+    IconChevronDown,
+    IconChevronRight,
+    IconPencil,
+    IconPin,
+    IconPinnedOff,
+    IconPlus,
+    IconSpeakerphone,
+    IconTrash,
+} from '@tabler/icons-react';
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
+import { CategoryBadge } from '../../../../components/common/CategoryBadge/CategoryBadge';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import MantineModal from '../../../../components/common/MantineModal';
+import { SlackChannelSelect } from '../../../../components/common/SlackChannelSelect';
+import { useGetSlack } from '../../../../hooks/slack/useSlack';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
-import useApp from '../../../../providers/App/useApp';
-import { AnnouncementComposer } from './announcements/AnnouncementComposer';
-import { AnnouncementContent } from './announcements/AnnouncementContent';
+import {
+    useAnnouncements,
+    useCreateAnnouncement,
+    useDeleteAnnouncement,
+    useUpdateAnnouncement,
+    useUploadAnnouncementImage,
+} from '../hooks/useAnnouncements';
+import classes from './announcements/announcements.module.css';
 import { BlockHeader } from './BlockShell';
-import classes from './blockStyles.module.css';
+import { TiptapMarkdownEditor } from './markdownEditor/TiptapMarkdownEditor';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
-const AnnouncementRow: FC<{
-    item: HomepageAnnouncementItem;
-    projectUuid: string;
-    onRemove?: () => void;
-}> = ({ item, projectUuid, onRemove }) => {
-    const timeAgo = useTimeAgo(item.date);
+const FEED_PAGE_SIZE = 25;
+const RECENT_LIMIT = 3;
+
+const NOOP = () => {};
+
+const CATEGORY_OPTIONS = Object.values(AnnouncementCategory).map((value) => ({
+    value,
+    label: ANNOUNCEMENT_CATEGORY_META[value].label,
+}));
+
+const AnnouncementCategoryBadge: FC<{ category: AnnouncementCategory }> = ({
+    category,
+}) => {
+    const meta = ANNOUNCEMENT_CATEGORY_META[category];
+    if (!meta) return null;
     return (
-        <div className={`${classes.listRow} ${classes.listRowTop}`}>
-            <span className={classes.announcementDot} />
-            <div className={classes.flexFill}>
-                <div className={classes.announcementText}>
-                    <AnnouncementContent
-                        projectUuid={projectUuid}
-                        text={item.text}
+        <CategoryBadge label={meta.label} color={meta.color} variant="dot" />
+    );
+};
+
+const Timestamp: FC<{ announcement: ProjectAnnouncement }> = ({
+    announcement,
+}) => {
+    const timeAgo = useTimeAgo(new Date(announcement.createdAt));
+    return (
+        <>
+            {timeAgo}
+            {announcement.authorName ? ` by ${announcement.authorName}` : ''}
+        </>
+    );
+};
+
+const ClampedBody: FC<{ projectUuid: string; body: string }> = ({
+    projectUuid,
+    body,
+}) => {
+    const [expanded, setExpanded] = useState(false);
+    const [overflowing, setOverflowing] = useState(false);
+    const clampRef = useRef<HTMLDivElement>(null);
+    const contentRef = useRef<HTMLDivElement>(null);
+
+    // The clamp height lives in CSS; overflow is whatever the clamped box
+    // couldn't fit. Measured against the inner content, which is what grows.
+    useEffect(() => {
+        const clampEl = clampRef.current;
+        const contentEl = contentRef.current;
+        if (!clampEl || !contentEl || expanded) return undefined;
+        const measure = () =>
+            setOverflowing(clampEl.scrollHeight > clampEl.clientHeight);
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(contentEl);
+        return () => observer.disconnect();
+    }, [body, expanded]);
+
+    const clampClass = expanded
+        ? undefined
+        : overflowing
+          ? `${classes.clamped} ${classes.clampFade}`
+          : classes.clamped;
+    return (
+        <div className={classes.cardBody}>
+            <div ref={clampRef} className={clampClass}>
+                <div ref={contentRef}>
+                    <TiptapMarkdownEditor
+                        key={body}
+                        content={body}
+                        editable={false}
+                        mentionProjectUuid={projectUuid}
+                        onChange={NOOP}
                     />
                 </div>
-                <div
-                    className={`${classes.rowAside} ${classes.rowAsideSpaced}`}
-                >
-                    {timeAgo} · {item.author}
-                </div>
             </div>
-            {onRemove && (
-                <ActionIcon
-                    variant="subtle"
-                    color="ldGray.6"
-                    size="sm"
-                    aria-label="Remove announcement"
-                    onClick={onRemove}
+            {overflowing && (
+                <button
+                    type="button"
+                    className={classes.readMore}
+                    onClick={() => setExpanded((value) => !value)}
                 >
-                    <MantineIcon icon={IconX} />
-                </ActionIcon>
+                    {expanded ? 'Show less' : 'Read more'}
+                </button>
             )}
         </div>
     );
 };
 
+const AnnouncementCard: FC<{
+    projectUuid: string;
+    announcement: ProjectAnnouncement;
+    actions?: ReactNode;
+}> = ({ projectUuid, announcement, actions }) => (
+    <div
+        className={
+            announcement.published
+                ? classes.card
+                : `${classes.card} ${classes.cardDraft}`
+        }
+    >
+        {(announcement.pinned || !announcement.published) && (
+            <div className={classes.cardHeader}>
+                <span className={classes.headerTags}>
+                    {!announcement.published && (
+                        <span className={classes.draftTag}>Draft</span>
+                    )}
+                    {announcement.pinned && (
+                        <span className={classes.pinnedTag}>
+                            <MantineIcon icon={IconPin} size="sm" />
+                            Pinned
+                        </span>
+                    )}
+                </span>
+            </div>
+        )}
+        <div className={classes.cardTitle}>
+            {announcement.title}
+            {announcement.category && (
+                <AnnouncementCategoryBadge category={announcement.category} />
+            )}
+        </div>
+        {announcement.body && (
+            <ClampedBody projectUuid={projectUuid} body={announcement.body} />
+        )}
+        <div className={classes.meta}>
+            <Timestamp announcement={announcement} />
+        </div>
+        {actions && <div className={classes.itemActions}>{actions}</div>}
+    </div>
+);
+
+const EarlierSection: FC<{
+    projectUuid: string;
+    items: ProjectAnnouncement[];
+    renderActions?: (announcement: ProjectAnnouncement) => ReactNode;
+}> = ({ projectUuid, items, renderActions }) => {
+    const [open, setOpen] = useState(false);
+    const [expanded, setExpanded] = useState<Set<string>>(new Set());
+    const toggleRow = (uuid: string) =>
+        setExpanded((prev) => {
+            const next = new Set(prev);
+            if (!next.delete(uuid)) next.add(uuid);
+            return next;
+        });
+    if (items.length === 0) return null;
+    return (
+        <div>
+            <button
+                type="button"
+                className={classes.earlierToggle}
+                onClick={() => setOpen((value) => !value)}
+            >
+                <MantineIcon
+                    icon={open ? IconChevronDown : IconChevronRight}
+                    size="sm"
+                />
+                {open
+                    ? 'Show fewer'
+                    : `Show ${items.length} earlier announcement${
+                          items.length === 1 ? '' : 's'
+                      }`}
+            </button>
+            {open && (
+                <div className={classes.earlierList}>
+                    {items.map((announcement) =>
+                        expanded.has(announcement.announcementUuid) ? (
+                            <div key={announcement.announcementUuid}>
+                                <AnnouncementCard
+                                    projectUuid={projectUuid}
+                                    announcement={announcement}
+                                    actions={renderActions?.(announcement)}
+                                />
+                                <button
+                                    type="button"
+                                    className={classes.earlierToggle}
+                                    onClick={() =>
+                                        toggleRow(announcement.announcementUuid)
+                                    }
+                                >
+                                    Show less
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                key={announcement.announcementUuid}
+                                type="button"
+                                className={classes.earlierRow}
+                                onClick={() =>
+                                    toggleRow(announcement.announcementUuid)
+                                }
+                            >
+                                <span className={classes.earlierRowTitle}>
+                                    {announcement.title}
+                                </span>
+                                <span className={classes.earlierRowMeta}>
+                                    <Timestamp announcement={announcement} />
+                                </span>
+                            </button>
+                        ),
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const AnnouncementFeed: FC<{
+    projectUuid: string;
+    announcements: ProjectAnnouncement[];
+    renderActions?: (announcement: ProjectAnnouncement) => ReactNode;
+}> = ({ projectUuid, announcements, renderActions }) => {
+    const { top, earlier } = useMemo(() => {
+        const pinned = announcements.filter((a) => a.pinned);
+        const rest = announcements.filter((a) => !a.pinned);
+        return {
+            top: [...pinned, ...rest.slice(0, RECENT_LIMIT)],
+            earlier: rest.slice(RECENT_LIMIT),
+        };
+    }, [announcements]);
+
+    // 3+ recent cards render as a bento grid: a full-width lead, the rest
+    // tiled two-up, and a lone trailing tile spanning full width so the grid
+    // never ends half-empty.
+    const asBento = top.length >= 3;
+    const restIsOdd = (top.length - 1) % 2 === 1;
+    return (
+        <>
+            {asBento ? (
+                <div className={classes.bento}>
+                    {top.map((announcement, index) => {
+                        const isLead = index === 0;
+                        const isLoneLast =
+                            restIsOdd && index === top.length - 1;
+                        return (
+                            <div
+                                key={announcement.announcementUuid}
+                                className={
+                                    isLead || isLoneLast
+                                        ? `${classes.bentoCell} ${classes.bentoLead}`
+                                        : classes.bentoCell
+                                }
+                            >
+                                <AnnouncementCard
+                                    projectUuid={projectUuid}
+                                    announcement={announcement}
+                                    actions={renderActions?.(announcement)}
+                                />
+                            </div>
+                        );
+                    })}
+                </div>
+            ) : (
+                top.map((announcement) => (
+                    <AnnouncementCard
+                        key={announcement.announcementUuid}
+                        projectUuid={projectUuid}
+                        announcement={announcement}
+                        actions={renderActions?.(announcement)}
+                    />
+                ))
+            )}
+            <EarlierSection
+                projectUuid={projectUuid}
+                items={earlier}
+                renderActions={renderActions}
+            />
+        </>
+    );
+};
+
+const useAnnouncementFeed = (
+    projectUuid: string,
+    includeUnpublished = false,
+) => {
+    const { data, isInitialLoading, isError } = useAnnouncements(projectUuid, {
+        page: 1,
+        pageSize: FEED_PAGE_SIZE,
+        includeUnpublished,
+    });
+    const announcements = useMemo(() => data?.items ?? [], [data]);
+    return { announcements, isLoading: isInitialLoading, isError };
+};
+
+const FeedSkeleton: FC = () => (
+    <Stack gap="xs">
+        <Skeleton h={92} radius="md" />
+        <Skeleton h={92} radius="md" />
+    </Stack>
+);
+
+const FeedError: FC = () => (
+    <div className={classes.feedError}>
+        Couldn’t load announcements. Try refreshing the page.
+    </div>
+);
+
 export const AnnouncementsBlockView: FC<BlockComponentProps> = ({
     block,
     projectUuid,
 }) => {
-    if (block.type !== 'announcements' || block.config.items.length === 0) {
-        return null;
-    }
+    const { announcements, isLoading, isError } =
+        useAnnouncementFeed(projectUuid);
+    if (block.type !== 'announcements') return null;
+    // Read mode stays invisible until there is something real to show.
+    if (isLoading || isError || announcements.length === 0) return null;
     return (
-        <Stack gap={0}>
+        <Stack gap="sm">
             <BlockHeader icon={IconSpeakerphone} title={block.config.title} />
-            <div className={classes.listCard}>
-                {block.config.items.map((item) => (
-                    <AnnouncementRow
-                        key={`${item.date}-${item.author}`}
-                        item={item}
-                        projectUuid={projectUuid}
-                    />
-                ))}
-            </div>
+            <AnnouncementFeed
+                projectUuid={projectUuid}
+                announcements={announcements}
+            />
         </Stack>
+    );
+};
+
+const AnnouncementFormModal: FC<{
+    projectUuid: string;
+    announcement: ProjectAnnouncement | null;
+    slackInstalled: boolean;
+    onClose: () => void;
+}> = ({ projectUuid, announcement, slackInstalled, onClose }) => {
+    const isEdit = announcement !== null;
+    // Slack can only be retargeted while the announcement is still a draft.
+    const slackEditable = slackInstalled && !announcement?.published;
+    const initialSlackChannelId = announcement?.pendingSlackChannelId ?? null;
+    const [title, setTitle] = useState(announcement?.title ?? '');
+    const [body, setBody] = useState(announcement?.body ?? '');
+    const [category, setCategory] = useState<AnnouncementCategory | null>(
+        announcement?.category ?? null,
+    );
+    const [slackChannelId, setSlackChannelId] = useState<string | null>(
+        initialSlackChannelId,
+    );
+    const { mutate: create, isLoading: creating } =
+        useCreateAnnouncement(projectUuid);
+    const { mutate: update, isLoading: updating } =
+        useUpdateAnnouncement(projectUuid);
+    const uploadImage = useUploadAnnouncementImage(projectUuid);
+    const isLoading = creating || updating;
+    const bodyTooLong = body.trim().length > ANNOUNCEMENT_BODY_MAX_LENGTH;
+
+    const handleSave = () => {
+        const trimmedTitle = title.trim();
+        if (trimmedTitle.length === 0 || bodyTooLong) return;
+        const bodyValue = body.trim() || null;
+        if (isEdit) {
+            update(
+                {
+                    announcementUuid: announcement.announcementUuid,
+                    title: trimmedTitle,
+                    body: bodyValue,
+                    category,
+                    // Omitted when untouched — PATCH leaves it unchanged.
+                    ...(slackEditable &&
+                    slackChannelId !== initialSlackChannelId
+                        ? { slackChannelId }
+                        : {}),
+                },
+                { onSuccess: onClose },
+            );
+        } else {
+            create(
+                {
+                    title: trimmedTitle,
+                    body: bodyValue,
+                    category,
+                    slackChannelId,
+                },
+                { onSuccess: onClose },
+            );
+        }
+    };
+
+    let saveLabel = 'Create draft';
+    if (isEdit) saveLabel = 'Save';
+    else if (slackChannelId) saveLabel = 'Create draft & queue Slack';
+
+    return (
+        <MantineModal
+            opened
+            onClose={onClose}
+            title={isEdit ? 'Edit announcement' : 'New announcement'}
+            icon={IconSpeakerphone}
+            size="lg"
+            onConfirm={handleSave}
+            confirmLabel={saveLabel}
+            confirmDisabled={title.trim().length === 0 || bodyTooLong}
+            confirmLoading={isLoading}
+        >
+            <Stack gap="md">
+                <div className={classes.doc}>
+                    <TextInput
+                        variant="unstyled"
+                        placeholder="Announcement title"
+                        classNames={{ input: classes.docTitle }}
+                        value={title}
+                        onChange={(e) => setTitle(e.currentTarget.value)}
+                        data-autofocus
+                    />
+                    <div className={classes.docBody}>
+                        <TiptapMarkdownEditor
+                            content={announcement?.body ?? ''}
+                            onChange={setBody}
+                            onImageUpload={async (file) =>
+                                (await uploadImage.mutateAsync(file)).url
+                            }
+                            mentionProjectUuid={projectUuid}
+                        />
+                    </div>
+                </div>
+                <Divider />
+                <Group grow align="flex-start" wrap="nowrap">
+                    <Select
+                        label="Category"
+                        placeholder="None"
+                        clearable
+                        size="sm"
+                        radius="md"
+                        data={CATEGORY_OPTIONS}
+                        value={category}
+                        onChange={(value) =>
+                            setCategory(value as AnnouncementCategory | null)
+                        }
+                    />
+                    {slackEditable && (
+                        <SlackChannelSelect
+                            label="Notify Slack"
+                            placeholder="No notification"
+                            size="sm"
+                            radius="md"
+                            value={slackChannelId}
+                            onChange={setSlackChannelId}
+                        />
+                    )}
+                </Group>
+                {bodyTooLong && (
+                    <Text size="xs" c="red">
+                        Body is {body.trim().length.toLocaleString()} characters
+                        — trim it to{' '}
+                        {ANNOUNCEMENT_BODY_MAX_LENGTH.toLocaleString()} or
+                        fewer.
+                    </Text>
+                )}
+                {!announcement?.published && (
+                    <Text size="xs" c="dimmed">
+                        Saved as a draft. It
+                        {slackChannelId
+                            ? ' and its Slack notification'
+                            : ''}{' '}
+                        goes live when you publish the homepage.
+                    </Text>
+                )}
+            </Stack>
+        </MantineModal>
     );
 };
 
 export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
     block,
     projectUuid,
-    onChange,
+    onChange: _onChange,
 }) => {
-    const { user } = useApp();
+    const [creating, setCreating] = useState(false);
+    const [editing, setEditing] = useState<ProjectAnnouncement | null>(null);
+    const [deleting, setDeleting] = useState<ProjectAnnouncement | null>(null);
+    // Build mode shows drafts too (they stay hidden on the live homepage).
+    const { announcements, isLoading, isError } = useAnnouncementFeed(
+        projectUuid,
+        true,
+    );
+    // Warmed here so the Slack picker is ready the instant the modal opens.
+    const { data: slack } = useGetSlack();
+    const slackInstalled = !!slack?.organizationUuid;
+    const { mutate: update } = useUpdateAnnouncement(projectUuid);
+    const { mutate: remove, isLoading: removing } =
+        useDeleteAnnouncement(projectUuid);
     if (block.type !== 'announcements') return null;
 
-    const postAnnouncement = (text: string) => {
-        const author = [user.data?.firstName, user.data?.lastName]
-            .filter(Boolean)
-            .join(' ');
-        onChange({
-            ...block,
-            config: {
-                ...block.config,
-                items: [
-                    {
-                        text,
-                        date: new Date().toISOString(),
-                        author,
-                    },
-                    ...block.config.items,
-                ],
-            },
-        });
-    };
+    const itemActions = (announcement: ProjectAnnouncement) => (
+        <>
+            <Tooltip label={announcement.pinned ? 'Unpin' : 'Pin to top'}>
+                <ActionIcon
+                    variant="subtle"
+                    color="ldGray.6"
+                    size="sm"
+                    aria-label={announcement.pinned ? 'Unpin' : 'Pin'}
+                    onClick={() =>
+                        update({
+                            announcementUuid: announcement.announcementUuid,
+                            pinned: !announcement.pinned,
+                        })
+                    }
+                >
+                    <MantineIcon
+                        icon={announcement.pinned ? IconPinnedOff : IconPin}
+                    />
+                </ActionIcon>
+            </Tooltip>
+            <Tooltip label="Edit">
+                <ActionIcon
+                    variant="subtle"
+                    color="ldGray.6"
+                    size="sm"
+                    aria-label="Edit announcement"
+                    onClick={() => setEditing(announcement)}
+                >
+                    <MantineIcon icon={IconPencil} />
+                </ActionIcon>
+            </Tooltip>
+            <Tooltip label="Delete">
+                <ActionIcon
+                    variant="subtle"
+                    color="red"
+                    size="sm"
+                    aria-label="Delete announcement"
+                    onClick={() => setDeleting(announcement)}
+                >
+                    <MantineIcon icon={IconTrash} />
+                </ActionIcon>
+            </Tooltip>
+        </>
+    );
 
     return (
-        <Stack gap={0}>
+        <Stack gap="sm">
             <BlockHeader icon={IconSpeakerphone} title={block.config.title} />
-            <div className={`${classes.listCard} ${classes.listCardSpaced}`}>
-                {block.config.items.map((item, index) => (
-                    <AnnouncementRow
-                        key={`${item.date}-${item.author}`}
-                        item={item}
-                        projectUuid={projectUuid}
-                        onRemove={() =>
-                            onChange({
-                                ...block,
-                                config: {
-                                    ...block.config,
-                                    items: block.config.items.filter(
-                                        (_, i) => i !== index,
-                                    ),
-                                },
-                            })
-                        }
-                    />
-                ))}
-            </div>
-            <AnnouncementComposer
-                projectUuid={projectUuid}
-                onPost={postAnnouncement}
-            />
+            <Button
+                variant="default"
+                size="xs"
+                leftSection={<MantineIcon icon={IconPlus} />}
+                onClick={() => setCreating(true)}
+                className={classes.newAnnouncementButton}
+            >
+                New announcement
+            </Button>
+            {isLoading ? (
+                <FeedSkeleton />
+            ) : isError ? (
+                <FeedError />
+            ) : announcements.length === 0 ? (
+                <div className={classes.emptyHint}>
+                    No announcements yet — share your first update. The block
+                    stays hidden on the homepage until there is something to
+                    show.
+                </div>
+            ) : (
+                <AnnouncementFeed
+                    projectUuid={projectUuid}
+                    announcements={announcements}
+                    renderActions={itemActions}
+                />
+            )}
+            {(creating || editing !== null) && (
+                <AnnouncementFormModal
+                    projectUuid={projectUuid}
+                    announcement={editing}
+                    slackInstalled={slackInstalled}
+                    onClose={() => {
+                        setCreating(false);
+                        setEditing(null);
+                    }}
+                />
+            )}
+            {deleting !== null && (
+                <MantineModal
+                    opened
+                    onClose={() => !removing && setDeleting(null)}
+                    title="Delete announcement"
+                    variant="delete"
+                    resourceType="announcement"
+                    resourceLabel={deleting.title}
+                    cancelDisabled={removing}
+                    confirmLoading={removing}
+                    onConfirm={() =>
+                        remove(deleting.announcementUuid, {
+                            onSuccess: () => setDeleting(null),
+                        })
+                    }
+                />
+            )}
         </Stack>
     );
 };

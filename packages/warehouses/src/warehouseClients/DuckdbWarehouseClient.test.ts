@@ -984,6 +984,11 @@ describe('DuckdbWarehouseClient', () => {
                     },
                 },
             },
+            __lightdashTimestampDomains: {
+                analytics: {
+                    main: { orders: { created_at: 'naive' } },
+                },
+            },
         });
     });
 

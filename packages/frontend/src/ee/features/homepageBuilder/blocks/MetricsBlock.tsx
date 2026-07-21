@@ -16,7 +16,6 @@ import {
     Card,
     Group,
     Loader,
-    SimpleGrid,
     Skeleton,
     Stack,
     Text,
@@ -40,6 +39,7 @@ import { calculateComparisonValue } from '../../../../hooks/useBigNumberConfig';
 import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
 import MetricSparkline from './MetricSparkline';
+import { PageGrid, PageGridItem } from './PageGrid';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 const KPI_TIME_FRAME = TimeFrames.MONTH;
@@ -113,9 +113,8 @@ const MetricKpiCard: FC<{
             c="inherit"
         >
             <Box
-                className={`${classes.hoverCard} ${classes.clickable}`}
-                p={14}
-                h="100%"
+                className={`${classes.hoverCard} ${classes.clickable} ${classes.kpiCard} ${classes.cardUnit1}`}
+                p={12}
             >
                 <div className={classes.kpiLabel}>
                     {totalQuery.data?.metric.label ?? metricRef.label}
@@ -136,17 +135,21 @@ const MetricKpiCard: FC<{
                         </div>
                         {timeDimension &&
                             (seriesQuery.isInitialLoading ? (
-                                <Skeleton h={40} my={4} radius="sm" />
+                                <Skeleton h={30} my={3} radius="sm" />
                             ) : seriesQuery.data &&
                               seriesQuery.data.points.length > 0 ? (
-                                <Box my={4}>
+                                <Box my={3}>
                                     <MetricSparkline
                                         points={seriesQuery.data.points}
                                         change={change}
                                     />
                                 </Box>
                             ) : null)}
-                        <Group gap={6}>
+                        <Group
+                            gap={6}
+                            wrap="nowrap"
+                            className={classes.kpiFoot}
+                        >
                             {change !== undefined && (
                                 <span
                                     className={`${classes.kpiDelta} ${
@@ -162,7 +165,7 @@ const MetricKpiCard: FC<{
                                     })}
                                 </span>
                             )}
-                            <Text size="xs" c="dimmed">
+                            <Text size="xs" c="dimmed" truncate miw={0}>
                                 vs previous period
                             </Text>
                         </Group>
@@ -263,31 +266,26 @@ const MetricsPickerModal: FC<{
 export const MetricsBlockView: FC<BlockComponentProps> = ({
     block,
     projectUuid,
+    itemSpan,
 }) => {
     if (block.type !== 'metrics' || block.config.items.length === 0) {
         return null;
     }
-    const itemCount = block.config.items.length;
     return (
         <Stack gap={0}>
             <BlockHeader icon={IconChartDots} title={block.config.title} />
-            {/* Tracks match the item count so sparse rows leave no phantom columns */}
-            <SimpleGrid
-                cols={{
-                    base: 1,
-                    sm: Math.min(itemCount, 2),
-                    md: Math.min(itemCount, 4),
-                }}
-                spacing={12}
-            >
+            <PageGrid itemSpan={itemSpan ?? null} elastic floor="unit">
                 {block.config.items.map((metricRef) => (
-                    <MetricKpiCard
+                    <PageGridItem
                         key={`${metricRef.tableName}-${metricRef.metricName}`}
-                        metricRef={metricRef}
-                        projectUuid={projectUuid}
-                    />
+                    >
+                        <MetricKpiCard
+                            metricRef={metricRef}
+                            projectUuid={projectUuid}
+                        />
+                    </PageGridItem>
                 ))}
-            </SimpleGrid>
+            </PageGrid>
         </Stack>
     );
 };
@@ -296,6 +294,7 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
     block,
     projectUuid,
     onChange,
+    itemSpan,
 }) => {
     const [isPickerOpen, setIsPickerOpen] = useState(false);
     if (block.type !== 'metrics') return null;
@@ -319,49 +318,53 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
                     })
                 }
             />
-            <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="sm">
+            <PageGrid itemSpan={itemSpan ?? null}>
                 {block.config.items.map((metricRef) => (
-                    <Card
+                    <PageGridItem
                         key={`${metricRef.tableName}-${metricRef.metricName}`}
-                        withBorder
-                        p="sm"
                     >
-                        <Group gap="xs" wrap="nowrap" justify="space-between">
-                            <Box miw={0}>
-                                <Text size="sm" fw={500} truncate>
-                                    {metricRef.label}
-                                </Text>
-                                <Text size="xs" c="dimmed" truncate>
-                                    {metricRef.tableName}
-                                </Text>
-                            </Box>
-                            <ActionIcon
-                                variant="subtle"
-                                color="ldGray.6"
-                                size="sm"
-                                aria-label={`Remove metric ${metricRef.label}`}
-                                onClick={() =>
-                                    onChange({
-                                        ...block,
-                                        config: {
-                                            ...block.config,
-                                            items: block.config.items.filter(
-                                                (item) =>
-                                                    item.metricName !==
-                                                        metricRef.metricName ||
-                                                    item.tableName !==
-                                                        metricRef.tableName,
-                                            ),
-                                        },
-                                    })
-                                }
+                        <Card withBorder p="sm" h="100%">
+                            <Group
+                                gap="xs"
+                                wrap="nowrap"
+                                justify="space-between"
                             >
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
-                        </Group>
-                    </Card>
+                                <Box miw={0}>
+                                    <Text size="sm" fw={500} truncate>
+                                        {metricRef.label}
+                                    </Text>
+                                    <Text size="xs" c="dimmed" truncate>
+                                        {metricRef.tableName}
+                                    </Text>
+                                </Box>
+                                <ActionIcon
+                                    variant="subtle"
+                                    color="ldGray.6"
+                                    size="sm"
+                                    aria-label={`Remove metric ${metricRef.label}`}
+                                    onClick={() =>
+                                        onChange({
+                                            ...block,
+                                            config: {
+                                                ...block.config,
+                                                items: block.config.items.filter(
+                                                    (item) =>
+                                                        item.metricName !==
+                                                            metricRef.metricName ||
+                                                        item.tableName !==
+                                                            metricRef.tableName,
+                                                ),
+                                            },
+                                        })
+                                    }
+                                >
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
+                            </Group>
+                        </Card>
+                    </PageGridItem>
                 ))}
-            </SimpleGrid>
+            </PageGrid>
             <Button
                 variant="default"
                 size="xs"

@@ -36,6 +36,7 @@ import {
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { BlockHeader, IconSquare, MiniPill } from './BlockShell';
 import classes from './blockStyles.module.css';
+import { PageGrid, PageGridItem } from './PageGrid';
 import {
     faviconUrl,
     hostnameOf,
@@ -49,9 +50,13 @@ const KIND_META: Record<
     HomepageResourceKind,
     { icon: Icon; label: string; thumbAccent: string }
 > = {
-    video: { icon: IconVideo, label: 'Video', thumbAccent: '' },
-    doc: { icon: IconBook, label: 'Doc', thumbAccent: '' },
-    link: { icon: IconLink, label: 'Link', thumbAccent: '' },
+    video: {
+        icon: IconVideo,
+        label: 'Video',
+        thumbAccent: classes.resThumbVideo,
+    },
+    doc: { icon: IconBook, label: 'Doc', thumbAccent: classes.resThumbDoc },
+    link: { icon: IconLink, label: 'Link', thumbAccent: classes.resThumbLink },
     claude: {
         icon: IconSparkles,
         label: 'Claude',
@@ -70,6 +75,11 @@ const KIND_OPTIONS = (Object.keys(KIND_META) as HomepageResourceKind[]).map(
 
 const kindMeta = (kind: HomepageResourceKind) =>
     KIND_META[kind] ?? KIND_META.link;
+
+// Google's favicon service never 404s: sites with no favicon get its default
+// globe, served at 16px however large we ask. Detect it by size and fall back
+// to our own kind glyph instead of showing the blurry globe.
+const isDefaultFavicon = (img: HTMLImageElement) => img.naturalWidth < 32;
 
 // --- Thumbnails -------------------------------------------------------------
 
@@ -95,31 +105,24 @@ const CardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
         );
     }
 
-    // No sharp photo → blurred colour backdrop (claude's card, else the site's
-    // own favicon) with the crisp favicon floating on top.
-    const backdrop = item.kind === 'claude' ? imageUrl : favicon;
+    // No sharp photo → a quiet kind-tinted wash with the bare favicon on it.
     return (
         <div className={`${classes.resThumbTile} ${meta.thumbAccent}`}>
-            {backdrop ? (
-                <img
-                    className={classes.resThumbBackdrop}
-                    src={backdrop}
-                    alt=""
-                    loading="lazy"
-                    aria-hidden
-                />
-            ) : null}
             {favicon && !faviconFailed ? (
                 <img
-                    className={classes.resFaviconFloat}
+                    className={classes.resFavTile}
                     src={favicon}
                     alt={item.title}
                     loading="lazy"
                     onError={() => setFaviconFailed(true)}
+                    onLoad={(e) => {
+                        if (isDefaultFavicon(e.currentTarget))
+                            setFaviconFailed(true);
+                    }}
                 />
             ) : (
-                <div className={classes.resGlyphFloat}>
-                    <MantineIcon icon={meta.icon} size={26} />
+                <div className={classes.resGlyphTile}>
+                    <MantineIcon icon={meta.icon} size={22} />
                 </div>
             )}
         </div>
@@ -152,6 +155,10 @@ const RowThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
                     alt=""
                     loading="lazy"
                     onError={() => setFaviconFailed(true)}
+                    onLoad={(e) => {
+                        if (isDefaultFavicon(e.currentTarget))
+                            setFaviconFailed(true);
+                    }}
                 />
             </div>
         );
@@ -161,36 +168,29 @@ const RowThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
 
 // --- Read-only presentation (published + preview) ---------------------------
 
-const ResourceCard: FC<{ item: HomepageResourceItem }> = ({ item }) => {
-    const meta = kindMeta(item.kind);
-    return (
-        <a
-            href={item.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`${classes.mediaCard} ${classes.clickable} ${classes.plainLink}`}
-        >
-            <CardThumb item={item} />
-            <div className={classes.mediaBody}>
-                <div className={classes.mediaKind}>
-                    <MantineIcon icon={meta.icon} size={12} />
-                    <span>{meta.label}</span>
-                    <MantineIcon
-                        icon={IconExternalLink}
-                        size={12}
-                        className={classes.mediaExternal}
-                    />
-                </div>
-                <div className={classes.mediaTitle}>
-                    {item.title || hostnameOf(item.url)}
-                </div>
-                {item.description ? (
-                    <div className={classes.mediaDesc}>{item.description}</div>
-                ) : null}
+const ResourceCard: FC<{ item: HomepageResourceItem }> = ({ item }) => (
+    <a
+        href={item.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`${classes.mediaCard} ${classes.cardUnit1} ${classes.clickable} ${classes.plainLink}`}
+    >
+        <MantineIcon
+            icon={IconExternalLink}
+            size={13}
+            className={classes.resExternal}
+        />
+        <CardThumb item={item} />
+        <div className={classes.mediaBody}>
+            <div className={classes.mediaTitle}>
+                {item.title || hostnameOf(item.url)}
             </div>
-        </a>
-    );
-};
+            <div className={classes.mediaDesc}>
+                {item.description || hostnameOf(item.url)}
+            </div>
+        </div>
+    </a>
+);
 
 const ResourceRow: FC<{ item: HomepageResourceItem }> = ({ item }) => {
     const meta = kindMeta(item.kind);
@@ -214,7 +214,10 @@ const ResourceRow: FC<{ item: HomepageResourceItem }> = ({ item }) => {
     );
 };
 
-export const ResourcesBlockView: FC<BlockComponentProps> = ({ block }) => {
+export const ResourcesBlockView: FC<BlockComponentProps> = ({
+    block,
+    itemSpan,
+}) => {
     if (block.type !== 'resources' || block.config.items.length === 0) {
         return null;
     }
@@ -223,11 +226,13 @@ export const ResourcesBlockView: FC<BlockComponentProps> = ({ block }) => {
         <Stack gap={0}>
             <BlockHeader icon={IconBook} title={block.config.title} />
             {layout === 'card' ? (
-                <div className={classes.mediaGrid}>
+                <PageGrid itemSpan={itemSpan ?? null}>
                     {block.config.items.map((item, i) => (
-                        <ResourceCard key={`${item.url}-${i}`} item={item} />
+                        <PageGridItem key={`${item.url}-${i}`}>
+                            <ResourceCard item={item} />
+                        </PageGridItem>
                     ))}
-                </div>
+                </PageGrid>
             ) : (
                 <div className={classes.listCard}>
                     {block.config.items.map((item, i) => (
@@ -381,6 +386,7 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
     block,
     projectUuid,
     onChange,
+    itemSpan,
 }) => {
     const [pasteValue, setPasteValue] = useState('');
     const [batch, setBatch] = useState<BatchEntry[]>([]);
@@ -503,22 +509,27 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
             </Group>
 
             {layout === 'card' ? (
-                <div className={classes.mediaGrid}>
+                <PageGrid itemSpan={itemSpan ?? null}>
                     {items.map((item, i) => (
-                        <BuildCard
-                            key={`${item.url}-${i}`}
-                            item={item}
-                            onPatch={(patch) => patchItem(i, patch)}
-                            onRemove={() => removeItem(i)}
-                        />
+                        <PageGridItem key={`${item.url}-${i}`}>
+                            <BuildCard
+                                item={item}
+                                onPatch={(patch) => patchItem(i, patch)}
+                                onRemove={() => removeItem(i)}
+                            />
+                        </PageGridItem>
                     ))}
                     {resolvedBatch.map((e) => (
-                        <ResourceCard key={e.key} item={e.item} />
+                        <PageGridItem key={e.key}>
+                            <ResourceCard item={e.item} />
+                        </PageGridItem>
                     ))}
                     {Array.from({ length: pendingCount }).map((_, i) => (
-                        <SkeletonCard key={`sk-${i}`} />
+                        <PageGridItem key={`sk-${i}`}>
+                            <SkeletonCard />
+                        </PageGridItem>
                     ))}
-                </div>
+                </PageGrid>
             ) : (
                 <div className={classes.listCard}>
                     {items.map((item, i) => (

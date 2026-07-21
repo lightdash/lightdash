@@ -76,7 +76,9 @@ describe('TrinoWarehouseClient', () => {
 
         await expect(
             warehouse.getCatalog(warehouseClient.config),
-        ).resolves.toEqual(warehouseClient.expectedWarehouseSchema);
+        ).resolves.toEqual(
+            warehouseClient.expectedWarehouseSchemaWithNaiveTimestamp,
+        );
     });
 
     describe('streamQuery client tag headers', () => {

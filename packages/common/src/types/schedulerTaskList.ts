@@ -1,5 +1,6 @@
 import includes from 'lodash/includes';
 import {
+    type AgentOnboardingJobPayload,
     type AiAgentEvalRunJobPayload,
     type AiAgentReviewClassifierJobPayload,
     type AiAgentReviewRemediationCompileJobPayload,
@@ -84,6 +85,9 @@ export type AiWritebackPipelineJobPayload = TraceTaskBase & {
 export type AiDeepResearchPipelineJobPayload = TraceTaskBase &
     AiDeepResearchJobPayload;
 
+export type AgentOnboardingPipelineJobPayload = TraceTaskBase &
+    AgentOnboardingJobPayload;
+
 export type AiAgentEditDbtProjectPipelineJobPayload = TraceTaskBase & {
     aiWritebackRunUuid: string;
     // Serializes back-to-back edits in the same thread: the pipeline job runs on
@@ -115,6 +119,7 @@ export const EE_SCHEDULER_TASKS = {
     APP_BUILD_FROM_SOURCE: 'appBuildFromSource',
     AI_WRITEBACK_PIPELINE: 'aiWritebackPipeline',
     AI_DEEP_RESEARCH: 'aiDeepResearch',
+    AGENT_ONBOARDING_RUN: 'agentOnboardingRun',
     AI_AGENT_EDIT_DBT_PROJECT_PIPELINE: 'aiAgentEditDbtProjectPipeline',
     SWEEP_STALE_APP_LOCKS: 'sweepStaleAppLocks',
     SWEEP_STALE_AI_WRITEBACK_RUNS: 'sweepStaleAiWritebackRuns',
@@ -223,6 +228,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: TraceTaskBase;
     [SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: AiWritebackPipelineJobPayload;
     [SCHEDULER_TASKS.AI_DEEP_RESEARCH]: AiDeepResearchPipelineJobPayload;
+    [SCHEDULER_TASKS.AGENT_ONBOARDING_RUN]: AgentOnboardingPipelineJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: AiAgentEditDbtProjectPipelineJobPayload;
 }
 
@@ -245,6 +251,7 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: AiWritebackPipelineJobPayload;
     [EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH]: AiDeepResearchPipelineJobPayload;
+    [EE_SCHEDULER_TASKS.AGENT_ONBOARDING_RUN]: AgentOnboardingPipelineJobPayload;
     [EE_SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: AiAgentEditDbtProjectPipelineJobPayload;
 }
 

@@ -62,6 +62,7 @@ export type QueryComposerContext = {
     continueOnError?: boolean;
     useTimezoneAwareDateTrunc?: boolean;
     columnTimezone?: string;
+    dataTimezone?: string;
     rebaseRawTimestampFilters?: boolean;
     applyDateZoomToFilters?: boolean;
     /**
@@ -122,6 +123,7 @@ export class QueryComposer {
             continueOnError,
             useTimezoneAwareDateTrunc,
             columnTimezone,
+            dataTimezone,
             rebaseRawTimestampFilters,
             applyDateZoomToFilters,
         } = this.context;
@@ -183,6 +185,7 @@ export class QueryComposer {
                     : undefined,
             useTimezoneAwareDateTrunc,
             columnTimezone,
+            dataTimezone,
             rebaseRawTimestampFilters,
             totalConfiguration,
         });

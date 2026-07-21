@@ -26,6 +26,7 @@ import SchedulerJobsProvider from './providers/SchedulerJobs/SchedulerJobsProvid
 import ThirdPartyProvider from './providers/ThirdPartyServicesProvider';
 import TrackingProvider from './providers/Tracking/TrackingProvider';
 import Routes from './Routes';
+import { IS_MOBILE } from './utils/isMobile';
 
 installChunkLoadErrorHandler();
 
@@ -34,7 +35,7 @@ installChunkLoadErrorHandler();
 //         navigator.userAgent,
 //     ) || window.innerWidth < 768;
 
-const isMobile = window.innerWidth < 768;
+const isMobile = IS_MOBILE;
 
 const isMinimalPage = window.location.pathname.startsWith('/minimal');
 

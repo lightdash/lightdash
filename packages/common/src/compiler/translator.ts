@@ -33,9 +33,11 @@ import {
     DimensionType,
     FieldType,
     friendlyName,
+    isTimestampDomain,
     type Dimension,
     type Metric,
     type Source,
+    type TimestampDomain,
 } from '../types/field';
 import { parseModelRequiredFilters } from '../types/filterGrammar';
 import {
@@ -44,7 +46,11 @@ import {
 } from '../types/lightdashProjectConfig';
 import { OrderFieldsByStrategy, type FieldGroupType } from '../types/table';
 import { type TimeFrames } from '../types/timeFrames';
-import { type WarehouseSqlBuilder } from '../types/warehouse';
+import {
+    getCatalogTimestampDomain,
+    type WarehouseCatalog,
+    type WarehouseSqlBuilder,
+} from '../types/warehouse';
 import assertUnreachable from '../utils/assertUnreachable';
 import {
     getDefaultTimeFrames,
@@ -200,6 +206,22 @@ const convertDimension = (
     if (type === DimensionType.TIMESTAMP && !disableTimestampConversion) {
         sql = convertTimezone(sql, 'UTC', 'UTC', targetWarehouse);
     }
+    // YAML declaration wins over the warehouse catalog. The catalog describes
+    // the physical column, so its domain is dropped when custom SQL replaces
+    // the column — the expression may change the domain — and for additional
+    // dimensions, whose carrier column is the parent's, not their own.
+    // Computed on the base type so interval children inherit it like
+    // skipTimezoneConversion does.
+    const rawTimestampDomain =
+        meta.dimension?.timestamp_domain ??
+        (meta.dimension?.sql || isAdditionalDimension
+            ? undefined
+            : column.timestamp_domain);
+    const timestampDomain: TimestampDomain | undefined =
+        type === DimensionType.TIMESTAMP &&
+        isTimestampDomain(rawTimestampDomain)
+            ? rawTimestampDomain
+            : undefined;
     const isIntervalBase =
         timeInterval === undefined && isInterval(type, meta.dimension);
 
@@ -291,6 +313,7 @@ const convertDimension = (
         ...(meta.dimension?.convert_timezone === false
             ? { skipTimezoneConversion: true }
             : {}),
+        ...(timestampDomain ? { timestampDomain } : {}),
         groups,
         isIntervalBase,
         ...(meta.dimension && meta.dimension.tags
@@ -676,6 +699,10 @@ export const convertTable = (
                         sql: dim.sql,
                         description: dim.description,
                         hidden: dim.hidden,
+                        // Additional-dim children must inherit the additional
+                        // dimension's own resolved domain, not the parent
+                        // column's annotation riding in the meta spread.
+                        timestamp_domain: dim.timestampDomain,
                     };
 
                     // Generate standard interval dimensions
@@ -779,6 +806,9 @@ export const convertTable = (
                                     dim.isAdditionalDimension,
                                 ...(dim.skipTimezoneConversion
                                     ? { skipTimezoneConversion: true }
+                                    : {}),
+                                ...(dim.timestampDomain
+                                    ? { timestampDomain: dim.timestampDomain }
                                     : {}),
                             } satisfies Dimension,
                         };
@@ -1361,13 +1391,7 @@ export const convertExplores = async (
 
 export const attachTypesToModels = (
     models: DbtModelNode[],
-    warehouseCatalog: {
-        [database: string]: {
-            [schema: string]: {
-                [table: string]: { [column: string]: DimensionType };
-            };
-        };
-    },
+    warehouseCatalog: WarehouseCatalog,
     throwOnMissingCatalogEntry: boolean = true,
     caseSensitiveMatching: boolean = true,
 ): DbtModelNode[] => {
@@ -1378,23 +1402,27 @@ export const attachTypesToModels = (
                 ? db === database
                 : db.toLowerCase() === database.toLowerCase(),
         );
+        // Explicit undefined checks: a matched key can be the empty string
+        // (ClickHouse table_catalog), which is falsy but a real match.
         const schemaMatch =
-            databaseMatch &&
-            Object.keys(warehouseCatalog[databaseMatch]).find((s) =>
-                caseSensitiveMatching
-                    ? s === schema
-                    : s.toLowerCase() === schema.toLowerCase(),
-            );
+            databaseMatch !== undefined
+                ? Object.keys(warehouseCatalog[databaseMatch]).find((s) =>
+                      caseSensitiveMatching
+                          ? s === schema
+                          : s.toLowerCase() === schema.toLowerCase(),
+                  )
+                : undefined;
         const tableMatch =
-            databaseMatch &&
-            schemaMatch &&
-            Object.keys(warehouseCatalog[databaseMatch][schemaMatch]).find(
-                (t) =>
-                    caseSensitiveMatching
-                        ? t === name
-                        : t.toLowerCase() === name.toLowerCase(),
-            );
-        if (!tableMatch && throwOnMissingCatalogEntry) {
+            databaseMatch !== undefined && schemaMatch !== undefined
+                ? Object.keys(
+                      warehouseCatalog[databaseMatch][schemaMatch],
+                  ).find((t) =>
+                      caseSensitiveMatching
+                          ? t === name
+                          : t.toLowerCase() === name.toLowerCase(),
+                  )
+                : undefined;
+        if (tableMatch === undefined && throwOnMissingCatalogEntry) {
             throw new MissingCatalogEntryError(
                 `Model "${name}" was expected in your target warehouse at "${database}.${schema}.${name}". Does the table exist in your target data warehouse?`,
                 {},
@@ -1402,10 +1430,12 @@ export const attachTypesToModels = (
         }
     });
 
-    const getType = (
+    const getColumnType = (
         { database, schema, name, alias }: DbtModelNode,
         columnName: string,
-    ): DimensionType | undefined => {
+    ):
+        | { type: DimensionType; timestampDomain: TimestampDomain | undefined }
+        | undefined => {
         const tableName = alias || name;
         const databaseMatch = Object.keys(warehouseCatalog).find((db) =>
             caseSensitiveMatching
@@ -1413,36 +1443,53 @@ export const attachTypesToModels = (
                 : db.toLowerCase() === database.toLowerCase(),
         );
         const schemaMatch =
-            databaseMatch &&
-            Object.keys(warehouseCatalog[databaseMatch]).find((s) =>
-                caseSensitiveMatching
-                    ? s === schema
-                    : s.toLowerCase() === schema.toLowerCase(),
-            );
+            databaseMatch !== undefined
+                ? Object.keys(warehouseCatalog[databaseMatch]).find((s) =>
+                      caseSensitiveMatching
+                          ? s === schema
+                          : s.toLowerCase() === schema.toLowerCase(),
+                  )
+                : undefined;
         const tableMatch =
-            databaseMatch &&
-            schemaMatch &&
-            Object.keys(warehouseCatalog[databaseMatch][schemaMatch]).find(
-                (t) =>
-                    caseSensitiveMatching
-                        ? t === tableName
-                        : t.toLowerCase() === tableName.toLowerCase(),
-            );
+            databaseMatch !== undefined && schemaMatch !== undefined
+                ? Object.keys(
+                      warehouseCatalog[databaseMatch][schemaMatch],
+                  ).find((t) =>
+                      caseSensitiveMatching
+                          ? t === tableName
+                          : t.toLowerCase() === tableName.toLowerCase(),
+                  )
+                : undefined;
         const columnMatch =
-            databaseMatch &&
-            schemaMatch &&
-            tableMatch &&
-            Object.keys(
-                warehouseCatalog[databaseMatch][schemaMatch][tableMatch],
-            ).find((c) =>
-                caseSensitiveMatching
-                    ? c === columnName
-                    : c.toLowerCase() === columnName.toLowerCase(),
-            );
-        if (databaseMatch && schemaMatch && tableMatch && columnMatch) {
-            return warehouseCatalog[databaseMatch][schemaMatch][tableMatch][
-                columnMatch
-            ];
+            databaseMatch !== undefined &&
+            schemaMatch !== undefined &&
+            tableMatch !== undefined
+                ? Object.keys(
+                      warehouseCatalog[databaseMatch][schemaMatch][tableMatch],
+                  ).find((c) =>
+                      caseSensitiveMatching
+                          ? c === columnName
+                          : c.toLowerCase() === columnName.toLowerCase(),
+                  )
+                : undefined;
+        if (
+            databaseMatch !== undefined &&
+            schemaMatch !== undefined &&
+            tableMatch !== undefined &&
+            columnMatch !== undefined
+        ) {
+            return {
+                type: warehouseCatalog[databaseMatch][schemaMatch][tableMatch][
+                    columnMatch
+                ],
+                timestampDomain: getCatalogTimestampDomain(
+                    warehouseCatalog,
+                    databaseMatch,
+                    schemaMatch,
+                    tableMatch,
+                    columnMatch,
+                ),
+            };
         }
         if (throwOnMissingCatalogEntry) {
             throw new MissingCatalogEntryError(
@@ -1457,10 +1504,21 @@ export const attachTypesToModels = (
     return models.map((model) => ({
         ...model,
         columns: Object.fromEntries(
-            Object.entries(model.columns).map(([column_name, column]) => [
-                column_name,
-                { ...column, data_type: getType(model, column_name) },
-            ]),
+            Object.entries(model.columns).map(([column_name, column]) => {
+                const columnType = getColumnType(model, column_name);
+                return [
+                    column_name,
+                    {
+                        ...column,
+                        data_type: columnType?.type,
+                        // Sibling of data_type: that field is overwritten
+                        // wholesale, so the domain must ride separately.
+                        ...(columnType?.timestampDomain
+                            ? { timestamp_domain: columnType.timestampDomain }
+                            : {}),
+                    },
+                ];
+            }),
         ),
     }));
 };

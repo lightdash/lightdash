@@ -15,6 +15,7 @@ import { type FC, type PropsWithChildren } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { ResourceIcon } from '../../../../components/common/ResourceIcon';
+import { useTimeAgo } from '../../../../hooks/useTimeAgo';
 import classes from './blockStyles.module.css';
 
 const contentUrl = (projectUuid: string, content: SummaryContent): string => {
@@ -44,6 +45,26 @@ const VerifiedBadge: FC<{ content: SummaryContent }> = ({ content }) =>
             </Box>
         </Tooltip>
     ) : null;
+
+const TileUpdated: FC<{ date: Date | string }> = ({ date }) => {
+    const timeAgo = useTimeAgo(date, 60000);
+    return <>updated {timeAgo}</>;
+};
+
+const TileExtra: FC<{ content: SummaryContent }> = ({ content }) => {
+    const spaceName =
+        'space' in content && content.space ? content.space.name : null;
+    if (!spaceName && !content.lastUpdatedAt) return null;
+    return (
+        <Box className={classes.tileExtra}>
+            {spaceName ? `in ${spaceName}` : null}
+            {spaceName && content.lastUpdatedAt ? ' · ' : null}
+            {content.lastUpdatedAt ? (
+                <TileUpdated date={content.lastUpdatedAt} />
+            ) : null}
+        </Box>
+    );
+};
 
 const KindAndViews: FC<{ content: SummaryContent }> = ({ content }) => (
     <Group gap={5} wrap="nowrap" className={classes.rowMeta}>
@@ -111,7 +132,7 @@ const MaybeLink: FC<
             {children}
         </Link>
     ) : (
-        <div className={className}>{children}</div>
+        <Box className={className}>{children}</Box>
     );
 
 export const ContentCard: FC<Props> = ({
@@ -125,31 +146,30 @@ export const ContentCard: FC<Props> = ({
     const cardClass = `${classes.hoverCard}${to ? ` ${classes.clickable}` : ''}`;
 
     if (variant === 'tile') {
+        // Horizontal at half a card unit: two content tiles stack to exactly
+        // one unit card, so mixed rows keep sharing horizontal edges.
         return (
-            <MaybeLink to={to} className={cardClass}>
-                <Box p={14} h="100%">
-                    <Group
-                        justify="space-between"
-                        align="flex-start"
-                        mb={10}
-                        wrap="nowrap"
-                    >
-                        <ResourceIcon
-                            item={contentToResourceViewItem(content)}
-                        />
-                        <CardActions
-                            content={content}
-                            onRemove={onRemove}
-                            star={star}
-                        />
-                    </Group>
-                    <Group gap={5} wrap="nowrap" mb={2}>
+            <MaybeLink
+                to={to}
+                className={`${cardClass} ${classes.cardUnitHalf} ${classes.contentTile}`}
+            >
+                <ResourceIcon item={contentToResourceViewItem(content)} />
+                <Box className={classes.tileBody}>
+                    <Group gap={5} wrap="nowrap">
                         <Text size="sm" fw={600} truncate>
                             {content.name}
                         </Text>
                         <VerifiedBadge content={content} />
                     </Group>
                     <KindAndViews content={content} />
+                    <TileExtra content={content} />
+                </Box>
+                <Box className={classes.tileActions}>
+                    <CardActions
+                        content={content}
+                        onRemove={onRemove}
+                        star={star}
+                    />
                 </Box>
             </MaybeLink>
         );

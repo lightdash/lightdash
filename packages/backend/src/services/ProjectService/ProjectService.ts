@@ -4426,6 +4426,7 @@ export class ProjectService extends BaseService {
                 continueOnError: true, // Return SQL even with compilation errors for debugging
                 useTimezoneAwareDateTrunc,
                 columnTimezone: getColumnTimezone(warehouseCredentials),
+                dataTimezone: warehouseCredentials.dataTimezone,
                 applyDateZoomToFilters: undefined,
             },
         );
@@ -5452,6 +5453,8 @@ export class ProjectService extends BaseService {
                             columnTimezone: getColumnTimezone(
                                 warehouseClient.credentials,
                             ),
+                            dataTimezone:
+                                warehouseClient.credentials.dataTimezone,
                         },
                     ).compile();
 

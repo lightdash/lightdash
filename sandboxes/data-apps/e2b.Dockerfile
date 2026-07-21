@@ -16,7 +16,7 @@ COPY template/tailwind.config.js ./tailwind.config.js
 COPY template/postcss.config.js ./postcss.config.js
 COPY template/index.html ./index.html
 COPY template/skill.md ./skill.md
-COPY template/d3-reference.md ./d3-reference.md
+COPY template/references/ ./references/
 COPY lightdash-query-sdk.tgz ./lightdash-query-sdk.tgz
 
 # Swap workspace:* for the local tarball, then install
@@ -31,6 +31,14 @@ RUN npx shadcn@2.3.0 init --defaults --force
 RUN npx shadcn@2.3.0 add --overwrite --yes \
     button badge card table dialog tabs select input label popover tooltip separator \
     skeleton dropdown-menu sheet scroll-area switch checkbox avatar alert progress resizable
+
+# shadcn init --force rewrites tailwind.config.js to its legacy
+# hsl(var(--x)) convention, which clashes with index.css's raw oklch
+# variables — every color utility computes hsl(oklch(...)), invalid CSS
+# that browsers silently drop (dark-theme apps render black-on-black,
+# floating-surface chrome goes transparent). Restore the repo config so
+# raw `var(--x)` + complete oklch colors is the single convention.
+COPY template/tailwind.config.js ./tailwind.config.js
 
 # Vendored Claude Code skills (e.g. frontend-design @ Apache-2.0). Auto-discovered
 # from /app/.claude/skills/ when Claude Code starts in the sandbox.

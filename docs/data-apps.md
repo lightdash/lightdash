@@ -41,7 +41,10 @@ flowchart LR
 
 2. **Sandbox setup** — An [E2B](https://e2b.dev/) sandbox is created from the `lightdash-data-app` template (override
    with `E2B_TEMPLATE_NAME` for development). The template contains a pre-configured React + Vite project with the
-   Lightdash App SDK, plus a system prompt (`/app/skill.md`) that teaches Claude how to build data apps.
+   Lightdash App SDK, plus a system prompt (`/app/skill.md`) that teaches Claude how to build data apps. The skill
+   follows the progressive-disclosure pattern: a slim always-loaded core plus on-demand reference files under
+   `/app/references/*.md` (chart references, external APIs, attached images, element references, parameters, Sheets
+   export, PDF downloads, themes, resizable panels, drilldown, D3) that Claude Reads only when the build needs them.
 
 3. **Catalog injection** — The project's compiled explores (tables, dimensions, metrics, joins, parameters, and AI
    hints) are fetched from the project cache and written as YAML into the sandbox at
@@ -195,6 +198,31 @@ The shared enum + default live in `packages/common/src/ee/apps/types.ts` (`DATA_
 
 Users can cancel a building version. This atomically marks it as `status='error'` in the database and pauses the sandbox
 (interrupting any running commands). The sandbox remains resumable for subsequent iterations.
+
+### Analytics and generation telemetry
+
+Data App analytics use the app version as the user-facing turn identifier: version 1 is turn 1, version 2 is turn 2,
+and so on. This is distinct from Claude's internal `numTurns`, which counts assistant/tool loops inside the generation.
+
+- `data_app.created` and `data_app.iterated` carry the version plus prompt/workload context (model, prompt and image
+  size, samples, template/clarifications on creation, and theme/design context on iteration).
+- `data_app.version.completed` carries end-to-end and stage durations (`sandboxMs`, `resumeMs`, `restoreMs`, `catalogMs`,
+  `generateMs`, `buildMs`, `metadataMs`, `packageMs`, and `uploadMs`) plus the resolved Claude provider, artifact/catalog
+  sizes, and build-fix counts. `schedulerWaitMs` separately measures how long the Graphile job waited after its scheduled
+  run time before a worker began processing it.
+- Claude usage on a completed version is aggregated across main generation, CLI retries, build-fix calls, and v1 metadata
+  generation. It includes uncached/cache-read/cache-write input tokens, output tokens, internal turns, API duration, cost,
+  main-generation attempt count, time to first token, and the slowest internal turn.
+- `data_app.version.failed` carries the completed stage timings and, when Claude had started, the partial token/cost/turn
+  telemetry incurred before failure. That usage is also emitted to the shared `ai.usage` stream so failed builds are not
+  omitted from spend accounting. Pre-generation failures leave Claude fields absent instead of reporting false zeroes.
+- `data_app.version.cancelled` records the stage and elapsed time at cancellation. It cannot include in-memory Claude
+  usage because cancellation is handled by a separate request while the worker is being interrupted.
+
+The pipeline also creates a `DataApp.generate` OpenTelemetry parent span tagged with app UUID, version, project,
+organization, user, iteration status, scheduler wait, model, and provider. Claude Code request/tool spans nest underneath
+it. Analytics events are the stable source for product dashboards; the OTEL waterfall is the deeper operational view and
+is queried in the configured GCP telemetry backend.
 
 ### Refreshing the preview
 
@@ -763,7 +791,7 @@ with wording chosen from the filename:
 - **Attachment** → `[Design reference image N at /tmp/images/<uuid>.<ext> — use the Read tool to view it]`
 - **Screenshot** → `[Screenshot of the current app at /tmp/images/screenshot-<uuid>.<ext> — use the Read tool to view it. This is what the user is looking at right now, not a design to reproduce.]`
 
-The screenshot wording is paired with a section in `sandboxes/data-apps/template/skill.md` ("Attached images") that
+The screenshot wording is paired with `sandboxes/data-apps/template/references/attached-images.md` (pointed to by the "Attached images" section of the core skill) that
 documents the filename convention so Claude doesn't try to reproduce its own screenshot pixel-for-pixel. Both lines
 are added by `writeCatalogAndPrompt` in `AppGenerateService.ts` — if you change the prefix string or the filename
 convention, update the skill at the same time.
@@ -903,7 +931,7 @@ Admins can test a connection from the app's connections panel before relying on 
 
 From a successful test, an admin can **Save as sample** (`POST .../external-connections/{connectionUuid}/sample` → `ExternalConnectionService.saveSample`). The sample is **sanitized and truncated** (capped to ~16 KB / 50 rows, with known auth keys redacted) and persisted to `external_connections.last_test_sample`; it never contains secret material (`saveSample` never decrypts the connection's credential).
 
-During a generation, for every linked connection that has a saved sample, the pipeline (`AppGenerateService.writeCatalogAndPrompt` → `writeExternalConnectionSamples`) writes `/tmp/external-data/{alias}.json` into the sandbox and prepends a one-line reference to `/tmp/prompt.txt`, mirroring how chart-reference and image files are surfaced. This grounds Claude in the API's response shape (field names, nesting, formats) so its fetch/render code matches reality. The sample is for code generation only — at runtime the app fetches live data through the proxy, never from these files. The skill (`sandboxes/data-apps/template/skill.md`, "Linked external connections" section) documents the convention; keep the prompt-prepend wording and that section in sync.
+During a generation, for every linked connection that has a saved sample, the pipeline (`AppGenerateService.writeCatalogAndPrompt` → `writeExternalConnectionSamples`) writes `/tmp/external-data/{alias}.json` into the sandbox and prepends a one-line reference to `/tmp/prompt.txt`, mirroring how chart-reference and image files are surfaced. This grounds Claude in the API's response shape (field names, nesting, formats) so its fetch/render code matches reality. The sample is for code generation only — at runtime the app fetches live data through the proxy, never from these files. The skill reference (`sandboxes/data-apps/template/references/external-apis.md`, pointed to by the core skill's "Linked external connections" section) documents the convention; keep the prompt-prepend wording and that file in sync.
 
 The same `/tmp/external-data/{alias}.json` doc carries the connection's **instructions** (when the admin set any) as a top-level `instructions` string field, alongside the auto-generated `signature`/`origin`/`rules`/`samples`. The field is omitted entirely when empty, so existing connections with no instructions are unchanged. The prompt-prepend block tells Claude to read and follow the `instructions` field when present.
 

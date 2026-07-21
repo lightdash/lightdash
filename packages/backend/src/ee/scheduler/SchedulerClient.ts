@@ -1,4 +1,5 @@
 import {
+    AgentOnboardingPipelineJobPayload,
     AiAgentEditDbtProjectPipelineJobPayload,
     AiAgentEvalRunJobPayload,
     AiAgentReviewClassifierJobPayload,
@@ -212,6 +213,20 @@ export class CommercialSchedulerClient extends SchedulerClient {
                 runAt: new Date(),
                 maxAttempts: 1,
                 jobKey: `ai-writeback:${payload.aiWritebackRunUuid}`,
+            },
+        );
+        return { jobId };
+    }
+
+    async agentOnboardingRun(payload: AgentOnboardingPipelineJobPayload) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.AGENT_ONBOARDING_RUN,
+            payload,
+            {
+                runAt: new Date(),
+                maxAttempts: 1,
+                jobKey: `agent-onboarding:${payload.agentOnboardingRunUuid}`,
             },
         );
         return { jobId };

@@ -24,6 +24,7 @@ import {
     IconBolt,
     IconCircleCheck,
     IconCircleCheckFilled,
+    IconCode,
     IconCopy,
     IconDatabase,
     IconDatabaseExport,
@@ -60,6 +61,7 @@ import {
     useResolvedHomepage,
     useSetPersonalHomepage,
 } from '../../../ee/features/homepageBuilder/hooks/useProjectHomepage';
+import DashboardAsCodeModal from '../../../features/contentAsCode/components/DashboardAsCodeModal';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
     usePromoteDashboardDiffMutation,
@@ -190,6 +192,8 @@ const DashboardHeader = memo(
             useDisclosure(false);
         const [isPreAggAuditOpen, preAggAuditHandlers] = useDisclosure(false);
         const [isPreAggRefreshOpen, preAggRefreshHandlers] =
+            useDisclosure(false);
+        const [isDashboardAsCodeModalOpen, dashboardAsCodeModalHandlers] =
             useDisclosure(false);
 
         const uniquePreAggregateNames = useMemo(() => {
@@ -326,6 +330,16 @@ const DashboardHeader = memo(
             'manage',
             subject('ExportCsv', { organizationUuid, projectUuid }),
         );
+
+        const userCanViewContentAsCode =
+            project &&
+            user.data?.ability.can(
+                'view',
+                subject('ContentAsCode', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid: project.projectUuid,
+                }),
+            );
 
         const userCanPinDashboard = user.data?.ability.can(
             'manage',
@@ -738,7 +752,8 @@ const DashboardHeader = memo(
                                 shadow="md"
                                 disabled={
                                     !userCanManageDashboard &&
-                                    !userCanExportData
+                                    !userCanExportData &&
+                                    !userCanViewContentAsCode
                                 }
                             >
                                 <Menu.Target>
@@ -1019,6 +1034,27 @@ const DashboardHeader = memo(
                                         </Menu.Item>
                                     )}
 
+                                    {userCanViewContentAsCode && (
+                                        <>
+                                            <Menu.Divider />
+                                            <Menu.Label>
+                                                Content as code
+                                            </Menu.Label>
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconCode}
+                                                    />
+                                                }
+                                                onClick={
+                                                    dashboardAsCodeModalHandlers.open
+                                                }
+                                            >
+                                                View as code
+                                            </Menu.Item>
+                                        </>
+                                    )}
+
                                     {userCanManageDashboard && (
                                         <>
                                             <Menu.Divider />
@@ -1063,6 +1099,17 @@ const DashboardHeader = memo(
                                     toggleScheduledDeliveriesModal(false)
                                 }
                                 initialSchedulerUuid={initialSchedulerUuid}
+                            />
+                        )}
+                        {projectUuid && (
+                            <DashboardAsCodeModal
+                                opened={isDashboardAsCodeModalOpen}
+                                onClose={dashboardAsCodeModalHandlers.close}
+                                projectUuid={projectUuid}
+                                dashboardUuid={dashboard.uuid}
+                                hasUnsavedChanges={
+                                    hasDashboardChanged && isEditMode
+                                }
                             />
                         )}
                         {(promoteDashboardDiff ||

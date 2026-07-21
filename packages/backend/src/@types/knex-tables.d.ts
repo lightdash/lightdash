@@ -340,6 +340,10 @@ import {
     WarehouseCredentialTableName,
 } from '../database/entities/warehouseCredentials';
 import {
+    AgentOnboardingRunsTable,
+    AgentOnboardingRunsTableName,
+} from '../ee/database/entities/agentOnboarding';
+import {
     AiAgentToolCallErrorTable,
     AiAgentToolCallErrorTableName,
     AiAgentToolCallTable,
@@ -488,6 +492,8 @@ import {
     ProjectCiStatusTableName,
 } from '../ee/database/entities/projectCiStatus';
 import {
+    AnnouncementsTable,
+    AnnouncementsTableName,
     HomepageAssignmentsTable,
     HomepageAssignmentsTableName,
     HomepagePersonalOverridesTable,
@@ -612,6 +618,7 @@ declare module 'knex/types/tables' {
         [AiSlackPromptTableName]: AiSlackPromptTable;
         [AiWebAppPromptTableName]: AiWebAppPromptTable;
         [AiWritebackThreadTableName]: AiWritebackThreadTable;
+        [AgentOnboardingRunsTableName]: AgentOnboardingRunsTable;
         [ProjectCiStatusTableName]: ProjectCiStatusTable;
         [AiAgentTableName]: AiAgentTable;
         [AiAgentDocumentTableName]: AiAgentDocumentTable;
@@ -632,6 +639,7 @@ declare module 'knex/types/tables' {
         [HomepagesTableName]: ProjectHomepagesTable;
         [HomepageAssignmentsTableName]: HomepageAssignmentsTable;
         [HomepagePersonalOverridesTableName]: HomepagePersonalOverridesTable;
+        [AnnouncementsTableName]: AnnouncementsTable;
         [AiAgentReasoningTableName]: AiAgentReasoningTable;
         [AiAgentToolCallTableName]: AiAgentToolCallTable;
         [AiAgentToolCallErrorTableName]: AiAgentToolCallErrorTable;

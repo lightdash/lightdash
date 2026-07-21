@@ -1,6 +1,6 @@
 import { SupportedDbtAdapter } from '../types/dbt';
 import { ParseError } from '../types/errors';
-import { DimensionType } from '../types/field';
+import { DimensionType, type TimestampDomain } from '../types/field';
 import { DateGranularity, TimeFrames } from '../types/timeFrames';
 
 export enum WeekDay {
@@ -78,6 +78,7 @@ type WarehouseConfig = {
         type: DimensionType,
         timezone?: string,
         sourceTimezone?: string,
+        timestampDomain?: TimestampDomain,
     ) => string;
 };
 
@@ -92,12 +93,38 @@ type WarehouseConfig = {
  *
  *  `castToInstant` rebases a naive timestamp into a true instant via the
  *  warehouse session timezone; identity in value for aware columns. It is the
- *  inner term of `toProjectTz`, composed below so the two cannot drift. */
+ *  inner term of `toProjectTz`, composed below so the two cannot drift.
+ *
+ *  `castNaiveToInstant` is the explicit, session-independent version for a
+ *  known-naive column: rebase the stored wall clock from its data timezone
+ *  `z` into an instant. Null where the domain-directed path never fires
+ *  (Snowflake's compile-time wrap + session already handle NTZ; ClickHouse
+ *  has no naive columns). `toProjectTzFromInstant` is the outer term of
+ *  `toProjectTz` — it accepts an already-instant input so the naive rebase
+ *  can replace the inner `castToInstant` without double-wrapping. */
 type DateTruncTimezoneConversion = {
     toProjectTz: (sql: string, tz: string, sourceTimezone?: string) => string;
+    toProjectTzFromInstant: (instantSql: string, tz: string) => string;
     toUTC: (sql: string, tz: string) => string;
     castAsDate: (sql: string, tz: string) => string;
     castToInstant: (sql: string) => string;
+    castNaiveToInstant: ((sql: string, z: string) => string) | null;
+    /** Explicit naive rebase for aggregate OUTPUTS (MIN/MAX over a bare
+     *  column). Equals `castNaiveToInstant` except on Snowflake, whose dim
+     *  path is compile-time wrapped (so `castNaiveToInstant` stays null until
+     *  the wrap is retired) while its aggregates see the bare column and can
+     *  rebase explicitly. Null only where no naive columns exist. */
+    castNaiveAggregateToInstant: ((sql: string, z: string) => string) | null;
+    /** Explicit session-proof instant for a KNOWN-AWARE column. Non-null only
+     *  on adapters whose bare aware outputs depend on the session timezone
+     *  (Databricks/Spark); everywhere else the bare column is already an
+     *  instant on the wire. */
+    castAwareToInstant: ((sql: string) => string) | null;
+    /** Applied to the final sub-day output of the explicit truncation path so
+     *  the wire value stops depending on the session timezone. Non-null only
+     *  on Databricks/Spark (TIMESTAMP_NTZ freeze); day-or-coarser grains exit
+     *  via castAsDate, which is already session-proof. */
+    freezeInstantOutput: ((sql: string) => string) | null;
 };
 
 const bigqueryCastToInstant = (sql: string) => `TIMESTAMP(${sql})`;
@@ -118,6 +145,45 @@ export const naiveTimestampRebaseAdapters: ReadonlySet<SupportedDbtAdapter> =
         SupportedDbtAdapter.DUCKDB,
     ]);
 
+const bigqueryCastNaiveToInstant = (sql: string, z: string) =>
+    `TIMESTAMP(${sql}, '${z}')`;
+// 3-arg CONVERT_TIMEZONE reads the NTZ wall clock in z and returns the UTC
+// face as TIMESTAMP_NTZ — session-independent, NTZ-input only (safe because
+// it is applied exclusively to known-naive bases).
+const snowflakeCastNaiveToInstant = (sql: string, z: string) =>
+    `CONVERT_TIMEZONE('${z}', 'UTC', ${sql})`;
+const postgresLikeCastNaiveToInstant = (sql: string, z: string) =>
+    `((${sql}) AT TIME ZONE '${z}')`;
+// Databricks/Spark render TIMESTAMP results through the session timezone, so
+// every explicit-path exit to the wire freezes the face as TIMESTAMP_NTZ —
+// the driver returns NTZ verbatim, making the result session-independent.
+const databricksCastNaiveToInstant = (sql: string, z: string) =>
+    `CAST(to_utc_timestamp(${sql}, '${z}') AS TIMESTAMP_NTZ)`;
+// Known-aware column to a frozen UTC face: shift the session-rendered face to
+// UTC (the two session dependencies cancel under any session).
+const databricksCastAwareToInstant = (sql: string) =>
+    `CAST(to_utc_timestamp(${sql}, current_timezone()) AS TIMESTAMP_NTZ)`;
+const databricksFreezeInstantOutput = (sql: string) =>
+    `CAST(${sql} AS TIMESTAMP_NTZ)`;
+// Trino has no instant wire type Lightdash can parse (see toUTC comment
+// below), so its "instant" form is a naive-UTC timestamp.
+const trinoCastNaiveToInstant = (sql: string, z: string) =>
+    `CAST(with_timezone(${sql}, '${z}') AT TIME ZONE 'UTC' AS timestamp)`;
+
+const bigqueryToProjectTzFromInstant = (instantSql: string, tz: string) =>
+    `DATETIME(${instantSql}, '${tz}')`;
+const postgresLikeToProjectTzFromInstant = (instantSql: string, tz: string) =>
+    `${instantSql} AT TIME ZONE '${tz}'`;
+const databricksToProjectTzFromInstant = (instantSql: string, tz: string) =>
+    `from_utc_timestamp(${instantSql}, '${tz}')`;
+// Legacy wrap: a naive input is read in the session zone (the session crutch).
+const trinoToProjectTz = (sql: string, tz: string) =>
+    `CAST(${sql} AT TIME ZONE '${tz}' AS timestamp)`;
+// Explicit variant for an already-instant (naive-UTC) input: re-attach UTC so
+// the read stays correct regardless of the session zone.
+const trinoToProjectTzFromInstant = (instantSql: string, tz: string) =>
+    `CAST(with_timezone(${instantSql}, 'UTC') AT TIME ZONE '${tz}' AS timestamp)`;
+
 export const dateTruncTimezoneConversions: Record<
     SupportedDbtAdapter,
     DateTruncTimezoneConversion
@@ -129,54 +195,100 @@ export const dateTruncTimezoneConversions: Record<
     // tz) requires a TIMESTAMP left side.
     [SupportedDbtAdapter.BIGQUERY]: {
         toProjectTz: (sql, tz) =>
-            `DATETIME(${bigqueryCastToInstant(sql)}, '${tz}')`,
+            bigqueryToProjectTzFromInstant(bigqueryCastToInstant(sql), tz),
+        toProjectTzFromInstant: bigqueryToProjectTzFromInstant,
         toUTC: (sql, tz) => `TIMESTAMP(${sql}, '${tz}')`,
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
         castToInstant: bigqueryCastToInstant,
+        castNaiveToInstant: bigqueryCastNaiveToInstant,
+        castNaiveAggregateToInstant: bigqueryCastNaiveToInstant,
+        castAwareToInstant: null,
+        freezeInstantOutput: null,
     },
     [SupportedDbtAdapter.SNOWFLAKE]: {
         toProjectTz: (sql, tz, sourceTimezone = 'UTC') =>
             `CONVERT_TIMEZONE('${sourceTimezone}', '${tz}', ${sql})`,
+        toProjectTzFromInstant: (sql, tz) =>
+            `CONVERT_TIMEZONE('UTC', '${tz}', ${sql})`,
         toUTC: (sql, tz) => `CONVERT_TIMEZONE('${tz}', 'UTC', ${sql})`,
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
         castToInstant: identityCastToInstant,
+        // Dim path stays on the compile-time wrap until the rescope retires it
+        castNaiveToInstant: null,
+        castNaiveAggregateToInstant: snowflakeCastNaiveToInstant,
+        castAwareToInstant: null,
+        freezeInstantOutput: null,
     },
     [SupportedDbtAdapter.POSTGRES]: {
         toProjectTz: (sql, tz) =>
-            `${postgresLikeCastToInstant(sql)} AT TIME ZONE '${tz}'`,
+            postgresLikeToProjectTzFromInstant(
+                postgresLikeCastToInstant(sql),
+                tz,
+            ),
+        toProjectTzFromInstant: postgresLikeToProjectTzFromInstant,
         toUTC: (sql, tz) => `(${sql}) AT TIME ZONE '${tz}'`,
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
         castToInstant: postgresLikeCastToInstant,
+        castNaiveToInstant: postgresLikeCastNaiveToInstant,
+        castNaiveAggregateToInstant: postgresLikeCastNaiveToInstant,
+        castAwareToInstant: null,
+        freezeInstantOutput: null,
     },
     [SupportedDbtAdapter.REDSHIFT]: {
         toProjectTz: (sql, tz) =>
-            `${postgresLikeCastToInstant(sql)} AT TIME ZONE '${tz}'`,
+            postgresLikeToProjectTzFromInstant(
+                postgresLikeCastToInstant(sql),
+                tz,
+            ),
+        toProjectTzFromInstant: postgresLikeToProjectTzFromInstant,
         toUTC: (sql, tz) => `(${sql}) AT TIME ZONE '${tz}'`,
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
         castToInstant: postgresLikeCastToInstant,
+        castNaiveToInstant: postgresLikeCastNaiveToInstant,
+        castNaiveAggregateToInstant: postgresLikeCastNaiveToInstant,
+        castAwareToInstant: null,
+        freezeInstantOutput: null,
     },
     [SupportedDbtAdapter.DUCKDB]: {
         toProjectTz: (sql, tz) =>
-            `${postgresLikeCastToInstant(sql)} AT TIME ZONE '${tz}'`,
+            postgresLikeToProjectTzFromInstant(
+                postgresLikeCastToInstant(sql),
+                tz,
+            ),
+        toProjectTzFromInstant: postgresLikeToProjectTzFromInstant,
         toUTC: (sql, tz) => `(${sql}) AT TIME ZONE '${tz}'`,
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
         castToInstant: postgresLikeCastToInstant,
+        castNaiveToInstant: postgresLikeCastNaiveToInstant,
+        castNaiveAggregateToInstant: postgresLikeCastNaiveToInstant,
+        castAwareToInstant: null,
+        freezeInstantOutput: null,
     },
     // Databricks TIMESTAMP is an instant (LTZ-like), so a session-tz rebase
     // would double-shift it — castToInstant stays identity.
     [SupportedDbtAdapter.DATABRICKS]: {
         toProjectTz: (sql, tz) =>
             `from_utc_timestamp(to_utc_timestamp(${sql}, current_timezone()), '${tz}')`,
+        toProjectTzFromInstant: databricksToProjectTzFromInstant,
         toUTC: (sql, tz) => `to_utc_timestamp(${sql}, '${tz}')`,
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
         castToInstant: identityCastToInstant,
+        castNaiveToInstant: databricksCastNaiveToInstant,
+        castNaiveAggregateToInstant: databricksCastNaiveToInstant,
+        castAwareToInstant: databricksCastAwareToInstant,
+        freezeInstantOutput: databricksFreezeInstantOutput,
     },
     [SupportedDbtAdapter.SPARK]: {
         toProjectTz: (sql, tz) =>
             `from_utc_timestamp(to_utc_timestamp(${sql}, current_timezone()), '${tz}')`,
+        toProjectTzFromInstant: databricksToProjectTzFromInstant,
         toUTC: (sql, tz) => `to_utc_timestamp(${sql}, '${tz}')`,
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
         castToInstant: identityCastToInstant,
+        castNaiveToInstant: databricksCastNaiveToInstant,
+        castNaiveAggregateToInstant: databricksCastNaiveToInstant,
+        castAwareToInstant: databricksCastAwareToInstant,
+        freezeInstantOutput: databricksFreezeInstantOutput,
     },
     // Trino returns `timestamp with time zone` values as strings like
     // "2024-01-14 00:00:00.000 America/New_York", which dayjs/moment can't
@@ -184,20 +296,28 @@ export const dateTruncTimezoneConversions: Record<
     // `timestamp`. `with_timezone` attaches the project zone explicitly
     // (independent of session zone) before shifting to UTC.
     [SupportedDbtAdapter.TRINO]: {
-        toProjectTz: (sql, tz) =>
-            `CAST(${sql} AT TIME ZONE '${tz}' AS timestamp)`,
+        toProjectTz: (sql, tz) => trinoToProjectTz(sql, tz),
+        toProjectTzFromInstant: trinoToProjectTzFromInstant,
         toUTC: (sql, tz) =>
             `CAST(with_timezone(${sql}, '${tz}') AT TIME ZONE 'UTC' AS timestamp)`,
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
         castToInstant: identityCastToInstant,
+        castNaiveToInstant: trinoCastNaiveToInstant,
+        castNaiveAggregateToInstant: trinoCastNaiveToInstant,
+        castAwareToInstant: null,
+        freezeInstantOutput: null,
     },
     [SupportedDbtAdapter.ATHENA]: {
-        toProjectTz: (sql, tz) =>
-            `CAST(${sql} AT TIME ZONE '${tz}' AS timestamp)`,
+        toProjectTz: (sql, tz) => trinoToProjectTz(sql, tz),
+        toProjectTzFromInstant: trinoToProjectTzFromInstant,
         toUTC: (sql, tz) =>
             `CAST(with_timezone(${sql}, '${tz}') AT TIME ZONE 'UTC' AS timestamp)`,
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
         castToInstant: identityCastToInstant,
+        castNaiveToInstant: trinoCastNaiveToInstant,
+        castNaiveAggregateToInstant: trinoCastNaiveToInstant,
+        castAwareToInstant: null,
+        freezeInstantOutput: null,
     },
     // Merge the DST fall-back: ClickHouse DateTime always carries a zone and
     // toTimeZone only relabels (instant domain), so the two folded instants
@@ -209,21 +329,30 @@ export const dateTruncTimezoneConversions: Record<
     [SupportedDbtAdapter.CLICKHOUSE]: {
         toProjectTz: (sql, tz) =>
             `toDateTime64(formatDateTime(toTimeZone(${sql}, '${tz}'), '%Y-%m-%d %H:%i:%S.%f'), 3, 'UTC')`,
+        toProjectTzFromInstant: (sql, tz) =>
+            `toDateTime64(formatDateTime(toTimeZone(${sql}, '${tz}'), '%Y-%m-%d %H:%i:%S.%f'), 3, 'UTC')`,
         toUTC: (sql, tz) =>
             `toTimeZone(toDateTime64(formatDateTime(${sql}, '%Y-%m-%d %H:%i:%S.%f'), 3, '${tz}'), 'UTC')`,
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
         castToInstant: clickhouseCastToInstant,
+        castNaiveToInstant: null,
+        castNaiveAggregateToInstant: null,
+        castAwareToInstant: null,
+        freezeInstantOutput: null,
     },
 };
 
 // EXTRACT returns a number/string, so no `toUTC` inverse — one-way shift only.
-// `sourceTimezone` semantics match `DateTruncTimezoneConversion.toProjectTz`.
+// `sourceTimezone` semantics match `DateTruncTimezoneConversion.toProjectTz`;
+// `toExtractInputTzFromInstant` mirrors `toProjectTzFromInstant` (outer term
+// only, for an already-instant input).
 type DateExtractTimezoneConversion = {
     toExtractInputTz: (
         sql: string,
         tz: string,
         sourceTimezone?: string,
     ) => string;
+    toExtractInputTzFromInstant: (instantSql: string, tz: string) => string;
 };
 
 export const dateExtractsTimezoneConversions: Record<
@@ -234,42 +363,80 @@ export const dateExtractsTimezoneConversions: Record<
     // TIMESTAMP, so coerce DATETIME-shaped inputs.
     [SupportedDbtAdapter.BIGQUERY]: {
         toExtractInputTz: (sql, tz) => `TIMESTAMP(${sql}) AT TIME ZONE '${tz}'`,
+        toExtractInputTzFromInstant: (sql, tz) => `${sql} AT TIME ZONE '${tz}'`,
     },
     [SupportedDbtAdapter.SNOWFLAKE]: {
         toExtractInputTz: (sql, tz, sourceTimezone = 'UTC') =>
             `CONVERT_TIMEZONE('${sourceTimezone}', '${tz}', ${sql})`,
+        toExtractInputTzFromInstant: (sql, tz) =>
+            `CONVERT_TIMEZONE('UTC', '${tz}', ${sql})`,
     },
     [SupportedDbtAdapter.POSTGRES]: {
         toExtractInputTz: (sql, tz) =>
             `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
+        toExtractInputTzFromInstant: postgresLikeToProjectTzFromInstant,
     },
     [SupportedDbtAdapter.REDSHIFT]: {
         toExtractInputTz: (sql, tz) =>
             `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
+        toExtractInputTzFromInstant: postgresLikeToProjectTzFromInstant,
     },
     [SupportedDbtAdapter.DUCKDB]: {
         toExtractInputTz: (sql, tz) =>
             `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
+        toExtractInputTzFromInstant: postgresLikeToProjectTzFromInstant,
     },
     [SupportedDbtAdapter.DATABRICKS]: {
         toExtractInputTz: (sql, tz) =>
             `from_utc_timestamp(to_utc_timestamp(${sql}, current_timezone()), '${tz}')`,
+        toExtractInputTzFromInstant: databricksToProjectTzFromInstant,
     },
     [SupportedDbtAdapter.SPARK]: {
         toExtractInputTz: (sql, tz) =>
             `from_utc_timestamp(to_utc_timestamp(${sql}, current_timezone()), '${tz}')`,
+        toExtractInputTzFromInstant: databricksToProjectTzFromInstant,
     },
     [SupportedDbtAdapter.TRINO]: {
         toExtractInputTz: (sql, tz) =>
             `CAST(${sql} AT TIME ZONE '${tz}' AS timestamp)`,
+        toExtractInputTzFromInstant: trinoToProjectTzFromInstant,
     },
     [SupportedDbtAdapter.ATHENA]: {
         toExtractInputTz: (sql, tz) =>
             `CAST(${sql} AT TIME ZONE '${tz}' AS timestamp)`,
+        toExtractInputTzFromInstant: trinoToProjectTzFromInstant,
     },
     [SupportedDbtAdapter.CLICKHOUSE]: {
         toExtractInputTz: (sql, tz) => `toTimeZone(${sql}, '${tz}')`,
+        toExtractInputTzFromInstant: (sql, tz) => `toTimeZone(${sql}, '${tz}')`,
     },
+};
+
+/** Shift an EXTRACT/format input into the project zone. For a known-naive
+ *  column the session-based inner cast is replaced by the explicit
+ *  `castNaiveToInstant` rebase from the data timezone; aware/unknown domains
+ *  emit exactly the legacy `toExtractInputTz` form. */
+export const getExtractInputTzSql = (
+    adapterType: SupportedDbtAdapter,
+    originalSql: string,
+    timezone: string,
+    sourceTimezone?: string,
+    timestampDomain?: TimestampDomain,
+): string => {
+    const { castNaiveToInstant } = dateTruncTimezoneConversions[adapterType];
+    if (timestampDomain === 'naive' && castNaiveToInstant) {
+        return dateExtractsTimezoneConversions[
+            adapterType
+        ].toExtractInputTzFromInstant(
+            castNaiveToInstant(originalSql, sourceTimezone ?? 'UTC'),
+            timezone,
+        );
+    }
+    return dateExtractsTimezoneConversions[adapterType].toExtractInputTz(
+        originalSql,
+        timezone,
+        sourceTimezone,
+    );
 };
 
 export const SUB_DAY_TIME_FRAMES: ReadonlySet<TimeFrames> = new Set([
@@ -354,6 +521,8 @@ const bigqueryConfig: WarehouseConfig = {
         originalSql: string,
         type: DimensionType,
         timezone,
+        sourceTimezone,
+        timestampDomain,
     ) => {
         // https://cloud.google.com/bigquery/docs/reference/standard-sql/format-elements#format_elements_date_time
         const timeFrameExpressions: Record<TimeFrames, string | null> = {
@@ -370,8 +539,16 @@ const bigqueryConfig: WarehouseConfig = {
         }
         if (type === DimensionType.TIMESTAMP) {
             if (timezone) {
-                // FORMAT_TIMESTAMP requires TIMESTAMP; coerce DATETIME-shaped inputs.
-                return `FORMAT_TIMESTAMP('${formatExpression}', TIMESTAMP(${originalSql}), '${timezone}')`;
+                // FORMAT_TIMESTAMP requires TIMESTAMP; coerce DATETIME-shaped
+                // inputs (known-naive columns rebase from their data timezone).
+                const instant =
+                    timestampDomain === 'naive'
+                        ? bigqueryCastNaiveToInstant(
+                              originalSql,
+                              sourceTimezone ?? 'UTC',
+                          )
+                        : bigqueryCastToInstant(originalSql);
+                return `FORMAT_TIMESTAMP('${formatExpression}', ${instant}, '${timezone}')`;
             }
             return `FORMAT_DATETIME('${formatExpression}', ${originalSql})`;
         }
@@ -398,11 +575,16 @@ const snowflakeConfig: WarehouseConfig = {
         _type,
         timezone,
         sourceTimezone,
+        timestampDomain,
     ) => {
         const sql = timezone
-            ? dateExtractsTimezoneConversions[
-                  SupportedDbtAdapter.SNOWFLAKE
-              ].toExtractInputTz(originalSql, timezone, sourceTimezone)
+            ? getExtractInputTzSql(
+                  SupportedDbtAdapter.SNOWFLAKE,
+                  originalSql,
+                  timezone,
+                  sourceTimezone,
+                  timestampDomain,
+              )
             : originalSql;
         // https://docs.snowflake.com/en/sql-reference/functions/to_char.html
         const timeFrameExpressionsFn: Record<
@@ -467,11 +649,17 @@ const postgresConfig: WarehouseConfig = {
         originalSql: string,
         _type,
         timezone,
+        sourceTimezone,
+        timestampDomain,
     ) => {
         const sql = timezone
-            ? dateExtractsTimezoneConversions[
-                  SupportedDbtAdapter.POSTGRES
-              ].toExtractInputTz(originalSql, timezone)
+            ? getExtractInputTzSql(
+                  SupportedDbtAdapter.POSTGRES,
+                  originalSql,
+                  timezone,
+                  sourceTimezone,
+                  timestampDomain,
+              )
             : originalSql;
         // https://www.postgresql.org/docs/current/functions-formatting.html
         const timeFrameExpressions: Record<TimeFrames, string | null> = {
@@ -531,11 +719,17 @@ const databricksConfig: WarehouseConfig = {
         originalSql: string,
         _type,
         timezone,
+        sourceTimezone,
+        timestampDomain,
     ) => {
         const sql = timezone
-            ? dateExtractsTimezoneConversions[
-                  SupportedDbtAdapter.DATABRICKS
-              ].toExtractInputTz(originalSql, timezone)
+            ? getExtractInputTzSql(
+                  SupportedDbtAdapter.DATABRICKS,
+                  originalSql,
+                  timezone,
+                  sourceTimezone,
+                  timestampDomain,
+              )
             : originalSql;
         // https://docs.databricks.com/spark/latest/spark-sql/language-manual/functions/date_format.html
         const timeFrameExpressions: Record<TimeFrames, string | null> = {
@@ -600,11 +794,17 @@ const trinoConfig: WarehouseConfig = {
         originalSql: string,
         _type,
         timezone,
+        sourceTimezone,
+        timestampDomain,
     ) => {
         const sql = timezone
-            ? dateExtractsTimezoneConversions[
-                  SupportedDbtAdapter.TRINO
-              ].toExtractInputTz(originalSql, timezone)
+            ? getExtractInputTzSql(
+                  SupportedDbtAdapter.TRINO,
+                  originalSql,
+                  timezone,
+                  sourceTimezone,
+                  timestampDomain,
+              )
             : originalSql;
         const timeFrameExpressionsFn: Record<
             TimeFrames,
@@ -710,11 +910,17 @@ const clickhouseConfig: WarehouseConfig = {
         originalSql: string,
         _type,
         timezone,
+        sourceTimezone,
+        timestampDomain,
     ) => {
         const sql = timezone
-            ? dateExtractsTimezoneConversions[
-                  SupportedDbtAdapter.CLICKHOUSE
-              ].toExtractInputTz(originalSql, timezone)
+            ? getExtractInputTzSql(
+                  SupportedDbtAdapter.CLICKHOUSE,
+                  originalSql,
+                  timezone,
+                  sourceTimezone,
+                  timestampDomain,
+              )
             : originalSql;
         const timeFrameExpressions: Record<TimeFrames, string | null> = {
             ...nullTimeFrameMap,
@@ -773,25 +979,47 @@ export const isTimezoneRoundTripNoOp = (
     adapterType: SupportedDbtAdapter,
     timezone: string,
     sourceTimezone?: string,
+    timestampDomain?: TimestampDomain,
 ): boolean => {
     const source = sourceTimezone ?? 'UTC';
+    // Known-naive columns need the explicit rebase whenever either zone is
+    // non-UTC — the wider equal-zones skip would wrongly drop it on
+    // Trino/Databricks at display == data timezone.
+    if (
+        timestampDomain === 'naive' &&
+        dateTruncTimezoneConversions[adapterType].castNaiveToInstant !== null
+    ) {
+        return timezone === 'UTC' && source === 'UTC';
+    }
     if (equalZonesSkipAdapters.has(adapterType)) return timezone === source;
     return timezone === 'UTC' && source === 'UTC';
 };
 
-// Returns the resolved (timezone, sourceTimezone) when the dim needs a tz
-// wrap, else null. Wrap conditions: TIMESTAMP-typed dim AND a target timezone
-// AND target != source.
+// Returns the resolved (timezone, sourceTimezone, timestampDomain) when the
+// dim needs a tz wrap, else null. Wrap conditions: TIMESTAMP-typed dim AND a
+// target timezone AND target != source.
 const resolveTimezoneWrap = (
     adapterType: SupportedDbtAdapter,
     type: DimensionType,
     timezone?: string,
     sourceTimezone?: string,
-): { timezone: string; sourceTimezone?: string } | null => {
+    timestampDomain?: TimestampDomain,
+): {
+    timezone: string;
+    sourceTimezone?: string;
+    timestampDomain?: TimestampDomain;
+} | null => {
     if (type !== DimensionType.TIMESTAMP || !timezone) return null;
-    if (isTimezoneRoundTripNoOp(adapterType, timezone, sourceTimezone))
+    if (
+        isTimezoneRoundTripNoOp(
+            adapterType,
+            timezone,
+            sourceTimezone,
+            timestampDomain,
+        )
+    )
         return null;
-    return { timezone, sourceTimezone };
+    return { timezone, sourceTimezone, timestampDomain };
 };
 
 export const getSqlForTruncatedDate = (
@@ -802,6 +1030,7 @@ export const getSqlForTruncatedDate = (
     startOfWeek?: WeekDay | null,
     timezone?: string,
     sourceTimezone?: string,
+    timestampDomain?: TimestampDomain,
     castDayOrCoarserToDate: boolean = false,
 ): string => {
     const wrap = resolveTimezoneWrap(
@@ -809,6 +1038,7 @@ export const getSqlForTruncatedDate = (
         type,
         timezone,
         sourceTimezone,
+        timestampDomain,
     );
     // GLITCH-452: day-or-coarser grains emit a real DATE so the warehouse type
     // matches the metadata; sub-day grains stay TIMESTAMP.
@@ -823,9 +1053,31 @@ export const getSqlForTruncatedDate = (
         return castToDate ? `CAST(${bare} AS DATE)` : bare;
     }
 
-    const { toProjectTz, toUTC, castAsDate } =
-        dateTruncTimezoneConversions[adapterType];
-    const input = toProjectTz(originalSql, wrap.timezone, wrap.sourceTimezone);
+    const {
+        toProjectTz,
+        toProjectTzFromInstant,
+        toUTC,
+        castAsDate,
+        castNaiveToInstant,
+        castAwareToInstant,
+        freezeInstantOutput,
+    } = dateTruncTimezoneConversions[adapterType];
+    // Known domain: substitute the explicit, session-independent instant for
+    // the session-based inner cast; unknown keeps the legacy composition
+    // byte-identical.
+    let explicitInstant: string | null = null;
+    if (wrap.timestampDomain === 'naive' && castNaiveToInstant) {
+        explicitInstant = castNaiveToInstant(
+            originalSql,
+            wrap.sourceTimezone ?? 'UTC',
+        );
+    } else if (wrap.timestampDomain === 'aware' && castAwareToInstant) {
+        explicitInstant = castAwareToInstant(originalSql);
+    }
+    const input =
+        explicitInstant !== null
+            ? toProjectTzFromInstant(explicitInstant, wrap.timezone)
+            : toProjectTz(originalSql, wrap.timezone, wrap.sourceTimezone);
     const truncated = warehouseConfigs[adapterType].getSqlForTruncatedDate(
         timeFrame,
         input,
@@ -839,7 +1091,11 @@ export const getSqlForTruncatedDate = (
     // — CAST(... AS DATE) everywhere — reads the right calendar date in the
     // project tz. See `castAsDate` in dateTruncTimezoneConversions.
     if (!castToDate) {
-        return toUTC(truncated, wrap.timezone);
+        const output = toUTC(truncated, wrap.timezone);
+        // Explicit-path sub-day outputs must not depend on the session.
+        return explicitInstant !== null && freezeInstantOutput
+            ? freezeInstantOutput(output)
+            : output;
     }
     return castAsDate(truncated, wrap.timezone);
 };
@@ -853,18 +1109,22 @@ export const getSqlForDatePart = (
     startOfWeek?: WeekDay | null,
     timezone?: string,
     sourceTimezone?: string,
+    timestampDomain?: TimestampDomain,
 ): string => {
     const wrap = resolveTimezoneWrap(
         adapterType,
         type,
         timezone,
         sourceTimezone,
+        timestampDomain,
     );
     const wrappedSql = wrap
-        ? dateExtractsTimezoneConversions[adapterType].toExtractInputTz(
+        ? getExtractInputTzSql(
+              adapterType,
               originalSql,
               wrap.timezone,
               wrap.sourceTimezone,
+              wrap.timestampDomain,
           )
         : originalSql;
     return warehouseConfigs[adapterType].getSqlForDatePart(
@@ -886,12 +1146,14 @@ export const getSqlForDatePartName = (
     _startOfWeek?: WeekDay | null,
     timezone?: string,
     sourceTimezone?: string,
+    timestampDomain?: TimestampDomain,
 ): string => {
     const wrap = resolveTimezoneWrap(
         adapterType,
         type,
         timezone,
         sourceTimezone,
+        timestampDomain,
     );
     if (!wrap) {
         return warehouseConfigs[adapterType].getSqlForDatePartName(
@@ -906,6 +1168,7 @@ export const getSqlForDatePartName = (
         type,
         wrap.timezone,
         wrap.sourceTimezone,
+        wrap.timestampDomain,
     );
 };
 
@@ -920,6 +1183,7 @@ type TimeFrameConfig = {
         startOfWeek?: WeekDay | null,
         timezone?: string,
         sourceTimezone?: string,
+        timestampDomain?: TimestampDomain,
     ) => string;
     getAxisMinInterval: () => number | null;
     getAxisLabelFormatter: () => Record<string, string> | null;

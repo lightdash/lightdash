@@ -1815,7 +1815,7 @@
                 "idempotentHint": true,
                 "readOnlyHint": true
             },
-            "description": "List all accessible projects in the organization. Projects contain explores, fields, and content. Use this to discover available projects before calling set_project to select one as the active context for subsequent operations.",
+            "description": "List all accessible projects in the organization. Projects contain explores, fields, and content. Use this to discover available projects before calling set_project to select one as the active context for subsequent operations. Each project includes a \"type\": prefer DEFAULT projects, which are live production environments. PREVIEW projects are ephemeral CI/PR environments that may be decommissioned — their warehouse credentials are often gone, so run_sql and run_metric_query can fail with 403 errors even when the schema is still visible. Only select a PREVIEW project if the user explicitly asks for it.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,

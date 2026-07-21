@@ -5,12 +5,14 @@ import {
     Metric,
     MetricType,
     getErrorMessage as originalGetErrorMessage,
+    setCatalogTimestampDomain,
     SupportedDbtAdapter,
     TimeIntervalUnit,
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type TimestampDomain,
 } from '@lightdash/common';
 import {
     BasicAuth,
@@ -92,10 +94,23 @@ const queryTableSchema = ({
                                                                       AND table_name = '${table}'
                                                                     ORDER BY 1, 2, 3, ordinal_position`;
 
+export const getTrinoTimestampDomain = (
+    type: TrinoTypes | string,
+): TimestampDomain | undefined => {
+    switch (type.replace(/\(\d+\)/, '')) {
+        case TrinoTypes.TIMESTAMP:
+            return 'naive';
+        case TrinoTypes.TIMESTAMP_TZ:
+            return 'aware';
+        default:
+            return undefined;
+    }
+};
+
 const convertDataTypeToDimensionType = (
     type: TrinoTypes | string,
 ): DimensionType => {
-    const typeWithoutTimePrecision = type.replace(/\(\d\)/, '');
+    const typeWithoutTimePrecision = type.replace(/\(\d+\)/, '');
     switch (typeWithoutTimePrecision) {
         case TrinoTypes.BOOLEAN:
             return DimensionType.BOOLEAN;
@@ -145,6 +160,14 @@ const catalogToSchema = (results: string[][][]): WarehouseCatalog => {
                 warehouseCatalog[table_catalog][table_schema][table_name][
                     column_name
                 ] = convertDataTypeToDimensionType(data_type);
+                setCatalogTimestampDomain(
+                    warehouseCatalog,
+                    table_catalog,
+                    table_schema,
+                    table_name,
+                    column_name,
+                    getTrinoTimestampDomain(data_type),
+                );
             },
         );
     });
@@ -436,7 +459,11 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             ORDER BY 1,2,3
         `;
         const { rows } = await this.runQuery(query, tags);
-        return this.parseWarehouseCatalog(rows, convertDataTypeToDimensionType);
+        return this.parseWarehouseCatalog(
+            rows,
+            convertDataTypeToDimensionType,
+            getTrinoTimestampDomain,
+        );
     }
 
     async getFields(
@@ -466,7 +493,11 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         `;
         const { rows } = await this.runQuery(query, tags);
 
-        return this.parseWarehouseCatalog(rows, convertDataTypeToDimensionType);
+        return this.parseWarehouseCatalog(
+            rows,
+            convertDataTypeToDimensionType,
+            getTrinoTimestampDomain,
+        );
     }
 
     async getAllTables() {

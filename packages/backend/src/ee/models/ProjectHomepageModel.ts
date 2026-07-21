@@ -1,21 +1,27 @@
 import {
+    AnnouncementCategory,
     ConflictError,
     NotFoundError,
     ParameterError,
+    type AnnouncementsPage,
     type HomepageAssignment,
     type HomepageAudience,
     type HomepageConfig,
     type HomepageRecentlyViewedItem,
+    type ProjectAnnouncement,
     type ProjectHomepage,
     type ProjectMemberRole,
     type PublishedProjectHomepage,
     type ResolvedPublishedHomepage,
+    type UpdateAnnouncementRequest,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import {
+    AnnouncementsTableName,
     HomepageAssignmentsTableName,
     HomepagePersonalOverridesTableName,
     HomepagesTableName,
+    type DbAnnouncement,
     type DbProjectHomepage,
 } from '../database/entities/projectHomepages';
 
@@ -503,5 +509,217 @@ export class ProjectHomepageModel {
         return publishedDefault
             ? { homepage: publishedDefault, source: { type: 'default' } }
             : undefined;
+    }
+
+    // --- Announcements -----------------------------------------------------
+
+    private static mapDbAnnouncement(
+        row: DbAnnouncement & { author_name?: string | null },
+    ): ProjectAnnouncement {
+        return {
+            announcementUuid: row.announcement_uuid,
+            projectUuid: row.project_uuid,
+            title: row.title,
+            body: row.body,
+            category: (row.category as AnnouncementCategory | null) ?? null,
+            pinned: row.pinned,
+            published:
+                row.published_at !== null && row.published_at !== undefined,
+            pendingSlackChannelId: row.pending_slack_channel_id ?? null,
+            createdByUserUuid: row.created_by_user_uuid,
+            authorName: row.author_name?.trim() || null,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+        };
+    }
+
+    private announcementsQuery(projectUuid: string) {
+        return this.database(AnnouncementsTableName)
+            .where(`${AnnouncementsTableName}.project_uuid`, projectUuid)
+            .orderBy([
+                { column: 'pinned', order: 'desc' },
+                {
+                    column: `${AnnouncementsTableName}.created_at`,
+                    order: 'desc',
+                },
+            ]);
+    }
+
+    async listAnnouncements(
+        projectUuid: string,
+        options: {
+            page: number;
+            pageSize: number;
+            includeUnpublished?: boolean;
+        },
+    ): Promise<AnnouncementsPage> {
+        const offset = (options.page - 1) * options.pageSize;
+        const itemsQuery = this.announcementsQuery(projectUuid)
+            .leftJoin(
+                'users',
+                'users.user_uuid',
+                `${AnnouncementsTableName}.created_by_user_uuid`,
+            )
+            .select(
+                `${AnnouncementsTableName}.*`,
+                this.database.raw(
+                    `TRIM(CONCAT(users.first_name, ' ', users.last_name)) as author_name`,
+                ),
+            )
+            .offset(offset)
+            .limit(options.pageSize);
+        const countQuery = this.database(AnnouncementsTableName)
+            .where('project_uuid', projectUuid)
+            .count<{ count: string }>('* as count')
+            .first();
+        if (!options.includeUnpublished) {
+            void itemsQuery.whereNotNull(
+                `${AnnouncementsTableName}.published_at`,
+            );
+            void countQuery.whereNotNull('published_at');
+        }
+        const [rows, countRow] = await Promise.all([itemsQuery, countQuery]);
+        return {
+            items: rows.map(ProjectHomepageModel.mapDbAnnouncement),
+            totalCount: Number(countRow?.count ?? 0),
+        };
+    }
+
+    async getAnnouncement(
+        announcementUuid: string,
+    ): Promise<ProjectAnnouncement | undefined> {
+        const row = await this.database(AnnouncementsTableName)
+            .where({ announcement_uuid: announcementUuid })
+            .first();
+        return row ? ProjectHomepageModel.mapDbAnnouncement(row) : undefined;
+    }
+
+    async createAnnouncement(data: {
+        projectUuid: string;
+        title: string;
+        body: string | null;
+        category: AnnouncementCategory | null;
+        createdByUserUuid: string;
+        pendingSlackChannelId: string | null;
+    }): Promise<ProjectAnnouncement> {
+        const [row] = await this.database(AnnouncementsTableName)
+            .insert({
+                project_uuid: data.projectUuid,
+                title: data.title,
+                body: data.body,
+                category: data.category,
+                created_by_user_uuid: data.createdByUserUuid,
+                published_at: null,
+                pending_slack_channel_id: data.pendingSlackChannelId,
+            })
+            .returning('*');
+        return ProjectHomepageModel.mapDbAnnouncement(row);
+    }
+
+    /**
+     * Publishes all of a project's draft announcements (called when the
+     * homepage itself is published) and returns the ones with a pending
+     * Slack notification so the caller can fire it.
+     */
+    async publishProjectDraftAnnouncements(
+        projectUuid: string,
+    ): Promise<
+        Array<{ announcement: ProjectAnnouncement; slackChannelId: string }>
+    > {
+        return this.database.transaction(async (trx) => {
+            // Lock the drafts (skipping any a concurrent publisher already
+            // holds) so the same draft can't be published — and Slack-notified
+            // — twice.
+            const drafts = await trx(AnnouncementsTableName)
+                .where({ project_uuid: projectUuid })
+                .whereNull('published_at')
+                .forUpdate()
+                .skipLocked()
+                .select('announcement_uuid', 'pending_slack_channel_id');
+            if (drafts.length === 0) return [];
+
+            const announcementUuids = drafts.map(
+                (draft) => draft.announcement_uuid,
+            );
+            const rows = await trx(AnnouncementsTableName)
+                .whereIn('announcement_uuid', announcementUuids)
+                .whereNull('published_at')
+                .update({
+                    published_at: new Date(),
+                    pending_slack_channel_id: null,
+                })
+                .returning('*');
+
+            const pendingSlackChannelByUuid = new Map(
+                drafts.map((draft) => [
+                    draft.announcement_uuid,
+                    draft.pending_slack_channel_id,
+                ]),
+            );
+            return rows.reduce<
+                Array<{
+                    announcement: ProjectAnnouncement;
+                    slackChannelId: string;
+                }>
+            >((acc, row) => {
+                const slackChannelId = pendingSlackChannelByUuid.get(
+                    row.announcement_uuid,
+                );
+                if (slackChannelId) {
+                    acc.push({
+                        announcement:
+                            ProjectHomepageModel.mapDbAnnouncement(row),
+                        slackChannelId,
+                    });
+                }
+                return acc;
+            }, []);
+        });
+    }
+
+    async updateAnnouncement(
+        announcementUuid: string,
+        update: UpdateAnnouncementRequest,
+    ): Promise<ProjectAnnouncement> {
+        return this.database.transaction(async (trx) => {
+            const existing = await trx(AnnouncementsTableName)
+                .where({ announcement_uuid: announcementUuid })
+                .first();
+            if (!existing) throw new NotFoundError('Announcement not found');
+            // Single lead story: pinning unpins the previous lead first.
+            if (update.pinned === true) {
+                await trx(AnnouncementsTableName)
+                    .where({
+                        project_uuid: existing.project_uuid,
+                        pinned: true,
+                    })
+                    .update({ pinned: false, updated_at: new Date() });
+            }
+            const [row] = await trx(AnnouncementsTableName)
+                .where({ announcement_uuid: announcementUuid })
+                .update({
+                    ...(update.title !== undefined && { title: update.title }),
+                    ...(update.body !== undefined && { body: update.body }),
+                    ...(update.category !== undefined && {
+                        category: update.category,
+                    }),
+                    ...(update.pinned !== undefined && {
+                        pinned: update.pinned,
+                    }),
+                    ...(update.slackChannelId !== undefined && {
+                        pending_slack_channel_id: update.slackChannelId,
+                    }),
+                    updated_at: new Date(),
+                })
+                .returning('*');
+            return ProjectHomepageModel.mapDbAnnouncement(row);
+        });
+    }
+
+    async deleteAnnouncement(announcementUuid: string): Promise<void> {
+        const deleted = await this.database(AnnouncementsTableName)
+            .where({ announcement_uuid: announcementUuid })
+            .delete();
+        if (deleted === 0) throw new NotFoundError('Announcement not found');
     }
 }

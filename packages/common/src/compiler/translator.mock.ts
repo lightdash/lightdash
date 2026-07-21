@@ -4,14 +4,10 @@ import { DimensionType, FieldType, MetricType } from '../types/field';
 import type { LightdashProjectConfig } from '../types/lightdashProjectConfig';
 import { OrderFieldsByStrategy } from '../types/table';
 import { TimeFrames } from '../types/timeFrames';
-
-type WarehouseCatalog = {
-    [database: string]: {
-        [schema: string]: {
-            [table: string]: { [column: string]: DimensionType };
-        };
-    };
-};
+import {
+    setCatalogTimestampDomain,
+    type WarehouseCatalog,
+} from '../types/warehouse';
 
 export const VALID_ID_COLUMN_NAMES = [
     { input: 'userid', output: 'user' },
@@ -1201,6 +1197,16 @@ export const warehouseSchema: WarehouseCatalog = {
     },
 };
 
+export const warehouseSchemaWithEmptyStringDatabase: WarehouseCatalog = {
+    '': {
+        [model.schema]: {
+            [model.name]: {
+                [column.name]: DimensionType.STRING,
+            },
+        },
+    },
+};
+
 export const warehouseSchemaWithMissingTable: WarehouseCatalog = {
     [model.database]: {
         [model.schema]: {},
@@ -1210,6 +1216,16 @@ export const warehouseSchemaWithMissingColumn: WarehouseCatalog = {
     [model.database]: {
         [model.schema]: {
             [model.name]: {},
+        },
+    },
+};
+
+export const warehouseSchemaWithAllUpperCaseKeys: WarehouseCatalog = {
+    [model.database.toUpperCase()]: {
+        [model.schema.toUpperCase()]: {
+            [model.name.toUpperCase()]: {
+                [column.name.toUpperCase()]: DimensionType.STRING,
+            },
         },
     },
 };
@@ -1228,6 +1244,209 @@ export const expectedModelWithType: DbtModelNode = {
     ...model,
     columns: {
         myColumnName: { ...column, data_type: DimensionType.STRING },
+    },
+};
+
+export const warehouseSchemaWithTimestampDomain: WarehouseCatalog = (() => {
+    const catalog: WarehouseCatalog = {
+        [model.database]: {
+            [model.schema]: {
+                [model.name]: {
+                    [column.name]: DimensionType.TIMESTAMP,
+                },
+            },
+        },
+    };
+    setCatalogTimestampDomain(
+        catalog,
+        model.database,
+        model.schema,
+        model.name,
+        column.name,
+        'naive',
+    );
+    return catalog;
+})();
+
+export const expectedModelWithTimestampDomain: DbtModelNode = {
+    ...model,
+    columns: {
+        myColumnName: {
+            ...column,
+            data_type: DimensionType.TIMESTAMP,
+            timestamp_domain: 'naive',
+        },
+    },
+};
+
+export const MODEL_WITH_TIMESTAMP_DOMAIN: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_created: {
+            name: 'user_created',
+            data_type: DimensionType.TIMESTAMP,
+            timestamp_domain: 'naive',
+            meta: {
+                dimension: {
+                    time_intervals: ['RAW', 'DAY', 'slt_week'],
+                },
+            },
+        },
+    },
+};
+
+export const MODEL_WITH_TIMESTAMP_DOMAIN_YAML_OVERRIDE: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_created: {
+            name: 'user_created',
+            data_type: DimensionType.TIMESTAMP,
+            timestamp_domain: 'naive',
+            meta: {
+                dimension: {
+                    timestamp_domain: 'aware',
+                    time_intervals: ['RAW', 'DAY'],
+                },
+            },
+        },
+    },
+};
+
+export const MODEL_WITH_UNKNOWN_TIMESTAMP_DOMAIN: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_created: {
+            name: 'user_created',
+            data_type: DimensionType.TIMESTAMP,
+            meta: {
+                dimension: {
+                    time_intervals: ['RAW', 'DAY'],
+                },
+            },
+        },
+    },
+};
+
+export const MODEL_WITH_TIMESTAMP_DOMAIN_CUSTOM_SQL: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_created: {
+            name: 'user_created',
+            data_type: DimensionType.TIMESTAMP,
+            timestamp_domain: 'naive',
+            meta: {
+                dimension: {
+                    sql: "${TABLE}.user_created AT TIME ZONE 'UTC'",
+                    time_intervals: ['RAW', 'DAY'],
+                },
+            },
+        },
+    },
+};
+
+export const MODEL_WITH_TIMESTAMP_DOMAIN_CUSTOM_SQL_ANNOTATED: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_created: {
+            name: 'user_created',
+            data_type: DimensionType.TIMESTAMP,
+            timestamp_domain: 'naive',
+            meta: {
+                dimension: {
+                    sql: 'COALESCE(${TABLE}.user_created, ${TABLE}.fallback_at)',
+                    timestamp_domain: 'naive',
+                    time_intervals: ['RAW', 'DAY'],
+                },
+            },
+        },
+    },
+};
+
+export const MODEL_WITH_TIMESTAMP_DOMAIN_ADDITIONAL_DIMENSION: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_created: {
+            name: 'user_created',
+            data_type: DimensionType.TIMESTAMP,
+            timestamp_domain: 'naive',
+            meta: {
+                dimension: {
+                    time_intervals: ['RAW'],
+                },
+                additional_dimensions: {
+                    user_created_shifted: {
+                        type: DimensionType.TIMESTAMP,
+                        sql: "${TABLE}.user_created + INTERVAL '1 day'",
+                    },
+                },
+            },
+        },
+    },
+};
+
+export const MODEL_WITH_SQLLESS_ADDITIONAL_DIMENSION: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_created: {
+            name: 'user_created',
+            data_type: DimensionType.TIMESTAMP,
+            timestamp_domain: 'naive',
+            meta: {
+                dimension: {
+                    time_intervals: ['RAW'],
+                },
+                additional_dimensions: {
+                    user_created_copy: {
+                        type: DimensionType.TIMESTAMP,
+                    },
+                },
+            },
+        },
+    },
+};
+
+export const MODEL_WITH_ANNOTATED_ADDITIONAL_DIMENSIONS: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_created: {
+            name: 'user_created',
+            data_type: DimensionType.TIMESTAMP,
+            meta: {
+                dimension: {
+                    timestamp_domain: 'naive',
+                    time_intervals: ['RAW', 'DAY'],
+                },
+                additional_dimensions: {
+                    user_created_aware: {
+                        type: DimensionType.TIMESTAMP,
+                        sql: '${TABLE}.user_created_utc',
+                        timestamp_domain: 'aware',
+                        time_intervals: ['RAW', 'DAY'],
+                    },
+                    user_created_plain: {
+                        type: DimensionType.TIMESTAMP,
+                        sql: '${TABLE}.user_created_other',
+                        time_intervals: ['RAW', 'DAY'],
+                    },
+                },
+            },
+        },
     },
 };
 

@@ -48,4 +48,10 @@ export class PersistentDownloadFileModel {
 
         return row;
     }
+
+    async delete(nanoid: string): Promise<void> {
+        await this.database(PersistentDownloadFileTableName)
+            .where('nanoid', nanoid)
+            .delete();
+    }
 }

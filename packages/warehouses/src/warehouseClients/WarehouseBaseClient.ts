@@ -4,12 +4,14 @@ import {
     DimensionType,
     Metric,
     PartitionColumn,
+    setCatalogTimestampDomain,
     SupportedDbtAdapter,
     TimeIntervalUnit,
     WarehouseCatalog,
     WarehouseResults,
     WarehouseSqlBuilder,
     WeekDay,
+    type TimestampDomain,
     type WarehouseExecuteAsyncQuery,
     type WarehouseExecuteAsyncQueryArgs,
     type WarehousePhaseTimings,
@@ -198,6 +200,7 @@ export default abstract class WarehouseBaseClient<
     parseWarehouseCatalog(
         rows: Record<string, AnyType>[],
         mapFieldType: (type: string) => DimensionType,
+        mapTimestampDomain?: (type: string) => TimestampDomain | undefined,
     ): WarehouseCatalog {
         return rows.reduce(
             (
@@ -215,9 +218,18 @@ export default abstract class WarehouseBaseClient<
                     acc[table_catalog][table_schema] || {};
                 acc[table_catalog][table_schema][table_name] =
                     acc[table_catalog][table_schema][table_name] || {};
-                if (column_name && data_type)
+                if (column_name && data_type) {
                     acc[table_catalog][table_schema][table_name][column_name] =
                         mapFieldType(data_type);
+                    setCatalogTimestampDomain(
+                        acc,
+                        table_catalog,
+                        table_schema,
+                        table_name,
+                        column_name,
+                        mapTimestampDomain?.(data_type),
+                    );
+                }
                 return acc;
             },
             {},

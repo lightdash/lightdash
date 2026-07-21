@@ -15,6 +15,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
+import { IS_MOBILE } from '../../../../utils/isMobile';
+import { ANNOUNCEMENTS_QUERY_KEY } from './useAnnouncements';
 
 const PROJECT_HOMEPAGE_QUERY_KEY = 'project_homepage';
 
@@ -151,7 +153,9 @@ export const useHomepageBuilderFlag = () => {
     const { data: flag, isLoading } = useServerFeatureFlag(
         CommercialFeatureFlags.HomepageBuilder,
     );
-    return { isEnabled: !!flag?.enabled, isLoading };
+    // The homepage builder / new onboarding surfaces are desktop-only for now,
+    // so fall back to the classic homepage on mobile.
+    return { isEnabled: !IS_MOBILE && !!flag?.enabled, isLoading };
 };
 
 export const useResolvedHomepage = (
@@ -459,9 +463,16 @@ export const usePublishHomepage = (
         {
             mutationKey: ['publish_project_homepage'],
             onSuccess: async () => {
-                await queryClient.invalidateQueries([
-                    PROJECT_HOMEPAGE_QUERY_KEY,
-                    projectUuid,
+                await Promise.all([
+                    queryClient.invalidateQueries([
+                        PROJECT_HOMEPAGE_QUERY_KEY,
+                        projectUuid,
+                    ]),
+                    // Publishing also flips draft announcements to published.
+                    queryClient.invalidateQueries([
+                        ANNOUNCEMENTS_QUERY_KEY,
+                        projectUuid,
+                    ]),
                 ]);
                 showToastSuccess({ title: 'Homepage published' });
             },

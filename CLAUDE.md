@@ -79,7 +79,14 @@ pnpm -F backend test:dev:nowatch # runs only tests for modified files
 
 **API Generation:**
 
-Generate OpenAPI specs from TSOA controllers. Always run this when:
+OpenAPI artifacts are generated from TSOA controllers in PR CI for compatibility
+checks and again by the release workflow. Feature PRs must not commit changes to
+`packages/backend/src/generated/routes.ts` or
+`packages/backend/src/generated/swagger.json`; the pre-commit hook unstages them
+and the release workflow commits the generated artifacts.
+
+Run generation locally when validating changes to any of the following, or when
+local generated routes are stale:
 
 - controllers change
 - return signatures of service functions called by controllers change

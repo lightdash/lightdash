@@ -1,6 +1,8 @@
 import {
+    addClaudeGenerationAttempt,
     addClaudeUsage,
     ClaudeStreamProcessor,
+    ZERO_CLAUDE_GENERATION_TELEMETRY,
     ZERO_CLAUDE_USAGE,
     type ClaudeGenerationUsage,
 } from './ClaudeStreamProcessor';
@@ -172,5 +174,73 @@ describe('addClaudeUsage', () => {
         expect(addClaudeUsage(ZERO_CLAUDE_USAGE, null)).toEqual(
             ZERO_CLAUDE_USAGE,
         );
+    });
+});
+
+describe('addClaudeGenerationAttempt', () => {
+    const usage = (n: number): ClaudeGenerationUsage => ({
+        inputTokens: n,
+        outputTokens: n,
+        cacheReadInputTokens: n,
+        cacheCreationInputTokens: n,
+        numTurns: n,
+        durationApiMs: n,
+        costUsd: n,
+    });
+
+    test('aggregates usage, tools, turns, and attempts across CLI retries', () => {
+        const first = addClaudeGenerationAttempt(
+            ZERO_CLAUDE_GENERATION_TELEMETRY,
+            {
+                usage: usage(1),
+                toolCallCount: 2,
+                timeToFirstTokenMs: null,
+                turnDurationsMs: [100],
+            },
+            0,
+        );
+        const second = addClaudeGenerationAttempt(
+            first,
+            {
+                usage: usage(2),
+                toolCallCount: 3,
+                timeToFirstTokenMs: 50,
+                turnDurationsMs: [200, 300],
+            },
+            1_000,
+        );
+
+        expect(second).toEqual({
+            usage: usage(3),
+            toolCallCount: 5,
+            timeToFirstTokenMs: 1_050,
+            turnDurationsMs: [100, 200, 300],
+            attemptCount: 2,
+        });
+    });
+
+    test('keeps the first observed token latency across later attempts', () => {
+        const first = addClaudeGenerationAttempt(
+            ZERO_CLAUDE_GENERATION_TELEMETRY,
+            {
+                usage: null,
+                toolCallCount: 0,
+                timeToFirstTokenMs: 75,
+                turnDurationsMs: [],
+            },
+            0,
+        );
+        const second = addClaudeGenerationAttempt(
+            first,
+            {
+                usage: null,
+                toolCallCount: 0,
+                timeToFirstTokenMs: 25,
+                turnDurationsMs: [],
+            },
+            500,
+        );
+
+        expect(second.timeToFirstTokenMs).toBe(75);
     });
 });
