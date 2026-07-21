@@ -28,13 +28,16 @@
     );
 }
 
-/* Fold-aware hero: when body rows follow, the hero yields most of the viewport
- * so the first row peeks above the fold. Solo heroes — and day-0, which never
- * stamps the attribute — keep the full-viewport treatment above. The favBar
- * variant is repeated so it can't win the specificity contest. */
+/* Fold-aware hero: when body rows follow, the hero yields part of the
+ * viewport so the first row just peeks above the fold — the composer owns
+ * the opening view and the body starts clearly below it. Solo heroes — and
+ * day-0, which never stamps the attribute — keep the full-viewport treatment
+ * above. The favBar variant is repeated so it can't win the specificity
+ * contest. */
 .heroSection[data-presentation='shared'],
 .page:has(.favBar) .heroSection[data-presentation='shared'] {
-    min-height: 50vh;
+    min-height: 66vh;
+    padding-bottom: 32px;
 }
 
 .favBar {
@@ -104,11 +107,13 @@
 }
 
 .row[data-gap='grouped'] {
-    margin-top: 14px;
+    margin-top: 16px;
 }
 
+/* Sections breathe: the jump from the 16px grouped gap has to be big enough
+ * to read as a new topic, not just a looser list. */
 .row[data-gap='section'] {
-    margin-top: 30px;
+    margin-top: 56px;
 }
 
 /* A lone leading text block opens the page: give it breathing room on top of

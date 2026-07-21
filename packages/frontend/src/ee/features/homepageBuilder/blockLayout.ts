@@ -94,7 +94,9 @@ const blockLayoutTraits: Record<HomepageBlock['type'], BlockLayoutTrait> = {
         itemSpan: null,
     },
     markdown: {
-        widthTier: 'reading',
+        // Full width even alone: a text banner joins the page's card-grid
+        // axis instead of floating as a narrow reading column.
+        widthTier: 'full',
         columnWeight: 1,
         rhythm: 'grouped',
         fullRowOnly: false,

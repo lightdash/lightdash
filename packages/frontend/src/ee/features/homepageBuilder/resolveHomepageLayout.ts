@@ -293,13 +293,17 @@ const TIER_ORDER: BlockWidthTier[] = ['reading', 'composer', 'content', 'full'];
 
 // Narrow rows align left once anything wider shares the page, so a text
 // block's left edge agrees with the card grid below it. A page where every
-// row is the same width has nothing to align to, so it stays centred.
+// row is the same width has nothing to align to, so it stays centred. The
+// Ask-AI composer is the exception: it is a centred focal element on every
+// surface (the published page even pulls it out into its own hero section),
+// so it never joins the left edge.
 const applyRowAlign = (rows: ResolvedRow[]): ResolvedRow[] => {
     const widest = Math.max(
         ...rows.map((row) => TIER_ORDER.indexOf(row.widthTier)),
     );
     return rows.map((row) =>
-        TIER_ORDER.indexOf(row.widthTier) < widest
+        TIER_ORDER.indexOf(row.widthTier) < widest &&
+        !row.columns.some((column) => column.block.type === 'ask-ai-hero')
             ? { ...row, align: 'start' as const }
             : row,
     );
