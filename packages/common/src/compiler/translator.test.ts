@@ -75,6 +75,8 @@ import {
     MODEL_WITH_WRONG_METRICS,
     SPOTLIGHT_CONFIG_WITH_CATEGORIES_AND_HIDE,
     warehouseSchema,
+    warehouseSchemaWithAllUpperCaseKeys,
+    warehouseSchemaWithEmptyStringDatabase,
     warehouseSchemaWithMissingColumn,
     warehouseSchemaWithMissingTable,
     warehouseSchemaWithUpperCaseColumn,
@@ -121,6 +123,33 @@ describe('attachTypesToModels', () => {
         ).toThrowError(
             'Column "myColumnName" from model "myTable" does not exist.\n "myTable.myColumnName" was not found in your target warehouse at myDatabase.mySchema.myTable. Try rerunning dbt to update your warehouse.',
         );
+    });
+    it('should match an empty-string database key (ClickHouse table_catalog)', async () => {
+        const emptyDbModel = { ...model, database: '' };
+        expect(() =>
+            attachTypesToModels(
+                [emptyDbModel],
+                warehouseSchemaWithEmptyStringDatabase,
+                true,
+            ),
+        ).not.toThrow();
+        expect(
+            attachTypesToModels(
+                [emptyDbModel],
+                warehouseSchemaWithEmptyStringDatabase,
+                false,
+            )[0].columns.myColumnName.data_type,
+        ).toEqual(DimensionType.STRING);
+    });
+    it('should match uppercase catalog keys at every level when case-insensitive (Snowflake)', async () => {
+        expect(
+            attachTypesToModels(
+                [model],
+                warehouseSchemaWithAllUpperCaseKeys,
+                true,
+                false,
+            )[0],
+        ).toEqual(expectedModelWithType);
     });
     it('should throw an error when column has wrong case', async () => {
         expect(() =>

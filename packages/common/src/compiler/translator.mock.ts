@@ -1201,6 +1201,16 @@ export const warehouseSchema: WarehouseCatalog = {
     },
 };
 
+export const warehouseSchemaWithEmptyStringDatabase: WarehouseCatalog = {
+    '': {
+        [model.schema]: {
+            [model.name]: {
+                [column.name]: DimensionType.STRING,
+            },
+        },
+    },
+};
+
 export const warehouseSchemaWithMissingTable: WarehouseCatalog = {
     [model.database]: {
         [model.schema]: {},
@@ -1210,6 +1220,16 @@ export const warehouseSchemaWithMissingColumn: WarehouseCatalog = {
     [model.database]: {
         [model.schema]: {
             [model.name]: {},
+        },
+    },
+};
+
+export const warehouseSchemaWithAllUpperCaseKeys: WarehouseCatalog = {
+    [model.database.toUpperCase()]: {
+        [model.schema.toUpperCase()]: {
+            [model.name.toUpperCase()]: {
+                [column.name.toUpperCase()]: DimensionType.STRING,
+            },
         },
     },
 };
