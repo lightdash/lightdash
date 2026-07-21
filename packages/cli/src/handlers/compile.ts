@@ -385,10 +385,7 @@ export const compile = async (options: CompileHandlerOptions) => {
         // Skipping assumes yml has the field types.
         let catalog: WarehouseCatalog = {};
         let validationWarehouseClient: WarehouseClient | null = null;
-        if (
-            !options.skipWarehouseCatalog ||
-            options.validateWarehouseColumns === true
-        ) {
+        if (!options.skipWarehouseCatalog) {
             const { warehouseClient } = await getWarehouseClient({
                 isDbtCloudCLI: dbtVersionResult.success
                     ? dbtVersionResult.version.isDbtCloudCLI
@@ -399,14 +396,19 @@ export const compile = async (options: CompileHandlerOptions) => {
                 startOfWeek: options.startOfWeek,
             });
             validationWarehouseClient = warehouseClient;
-        }
-        if (!options.skipWarehouseCatalog && validationWarehouseClient) {
             GlobalState.debug('> Fetching warehouse catalog');
-            catalog = await validationWarehouseClient.getCatalog(
+            catalog = await warehouseClient.getCatalog(
                 getSchemaStructureFromDbtModels(validModels),
             );
         } else {
             GlobalState.debug('> Skipping warehouse catalog');
+            if (options.validateWarehouseColumns === true) {
+                console.error(
+                    styles.warning(
+                        '> Skipping warehouse column validation because --skip-warehouse-catalog was supplied',
+                    ),
+                );
+            }
         }
 
         const validModelsWithTypes = applyMetricFlowMetrics(
