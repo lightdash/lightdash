@@ -156,9 +156,10 @@
 }
 
 /* Below the two-column breakpoint the 12-track grid stops earning its keep —
- * every card goes full width rather than becoming an unreadable sliver. */
+ * every card goes full width rather than becoming an unreadable sliver.
+ * Matches the [data-span] selectors' specificity so it actually wins. */
 @media (max-width: 47.99em) {
-    .pageGridItem {
+    .pageGrid[data-span] > .pageGridItem {
         grid-column: 1 / -1;
     }
 }

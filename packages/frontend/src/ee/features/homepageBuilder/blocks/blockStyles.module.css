@@ -232,6 +232,20 @@ a .hoverCard:hover,
     margin-bottom: 8px;
 }
 
+/* KPI cards stack top-down with their comparison line pinned to the bottom.
+ * A metric without a time dimension has no sparkline, so without this its
+ * content stops mid-card and the tile reads as empty next to a fuller
+ * neighbour — the grid already stretches every card to the row's height. */
+.kpiCard {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.kpiFoot {
+    margin-top: auto;
+}
+
 .kpiLabel {
     font-size: 12px;
     color: var(--mantine-color-ldGray-6);

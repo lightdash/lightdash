@@ -113,9 +113,8 @@ const MetricKpiCard: FC<{
             c="inherit"
         >
             <Box
-                className={`${classes.hoverCard} ${classes.clickable}`}
+                className={`${classes.hoverCard} ${classes.clickable} ${classes.kpiCard}`}
                 p={14}
-                h="100%"
             >
                 <div className={classes.kpiLabel}>
                     {totalQuery.data?.metric.label ?? metricRef.label}
@@ -146,7 +145,7 @@ const MetricKpiCard: FC<{
                                     />
                                 </Box>
                             ) : null)}
-                        <Group gap={6}>
+                        <Group gap={6} className={classes.kpiFoot}>
                             {change !== undefined && (
                                 <span
                                     className={`${classes.kpiDelta} ${
