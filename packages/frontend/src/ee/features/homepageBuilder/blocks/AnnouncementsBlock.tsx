@@ -316,8 +316,9 @@ export const AnnouncementsBlockView: FC<BlockComponentProps> = ({
 const AnnouncementFormModal: FC<{
     projectUuid: string;
     announcement: ProjectAnnouncement | null;
+    slackInstalled: boolean;
     onClose: () => void;
-}> = ({ projectUuid, announcement, onClose }) => {
+}> = ({ projectUuid, announcement, slackInstalled, onClose }) => {
     const isEdit = announcement !== null;
     const [title, setTitle] = useState(announcement?.title ?? '');
     const [body, setBody] = useState(announcement?.body ?? '');
@@ -325,8 +326,6 @@ const AnnouncementFormModal: FC<{
         announcement?.category ?? null,
     );
     const [slackChannelId, setSlackChannelId] = useState<string | null>(null);
-    const { data: slack } = useGetSlack();
-    const slackInstalled = !!slack?.organizationUuid;
     const { mutate: create, isLoading: creating } =
         useCreateAnnouncement(projectUuid);
     const { mutate: update, isLoading: updating } =
@@ -404,6 +403,8 @@ const AnnouncementFormModal: FC<{
                         label="Category"
                         placeholder="None"
                         clearable
+                        size="sm"
+                        radius="sm"
                         data={CATEGORY_OPTIONS}
                         value={category}
                         onChange={(value) =>
@@ -414,6 +415,8 @@ const AnnouncementFormModal: FC<{
                         <SlackChannelSelect
                             label="Notify Slack"
                             placeholder="No notification"
+                            size="sm"
+                            radius="sm"
                             value={slackChannelId}
                             onChange={setSlackChannelId}
                         />
@@ -432,6 +435,9 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
     const [creating, setCreating] = useState(false);
     const [editing, setEditing] = useState<ProjectAnnouncement | null>(null);
     const announcements = useAnnouncementFeed(projectUuid);
+    // Warmed here so the Slack picker is ready the instant the modal opens.
+    const { data: slack } = useGetSlack();
+    const slackInstalled = !!slack?.organizationUuid;
     const { mutate: update } = useUpdateAnnouncement(projectUuid);
     const { mutate: remove } = useDeleteAnnouncement(projectUuid);
     if (block.type !== 'announcements') return null;
@@ -510,6 +516,7 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
                 <AnnouncementFormModal
                     projectUuid={projectUuid}
                     announcement={editing}
+                    slackInstalled={slackInstalled}
                     onClose={() => {
                         setCreating(false);
                         setEditing(null);
