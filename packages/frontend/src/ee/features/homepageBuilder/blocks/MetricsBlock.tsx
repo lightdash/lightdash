@@ -317,45 +317,49 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
             />
             <PageGrid itemSpan={itemSpan ?? null}>
                 {block.config.items.map((metricRef) => (
-                    <Card
+                    <PageGridItem
                         key={`${metricRef.tableName}-${metricRef.metricName}`}
-                        withBorder
-                        p="sm"
                     >
-                        <Group gap="xs" wrap="nowrap" justify="space-between">
-                            <Box miw={0}>
-                                <Text size="sm" fw={500} truncate>
-                                    {metricRef.label}
-                                </Text>
-                                <Text size="xs" c="dimmed" truncate>
-                                    {metricRef.tableName}
-                                </Text>
-                            </Box>
-                            <ActionIcon
-                                variant="subtle"
-                                color="ldGray.6"
-                                size="sm"
-                                aria-label={`Remove metric ${metricRef.label}`}
-                                onClick={() =>
-                                    onChange({
-                                        ...block,
-                                        config: {
-                                            ...block.config,
-                                            items: block.config.items.filter(
-                                                (item) =>
-                                                    item.metricName !==
-                                                        metricRef.metricName ||
-                                                    item.tableName !==
-                                                        metricRef.tableName,
-                                            ),
-                                        },
-                                    })
-                                }
+                        <Card withBorder p="sm" h="100%">
+                            <Group
+                                gap="xs"
+                                wrap="nowrap"
+                                justify="space-between"
                             >
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
-                        </Group>
-                    </Card>
+                                <Box miw={0}>
+                                    <Text size="sm" fw={500} truncate>
+                                        {metricRef.label}
+                                    </Text>
+                                    <Text size="xs" c="dimmed" truncate>
+                                        {metricRef.tableName}
+                                    </Text>
+                                </Box>
+                                <ActionIcon
+                                    variant="subtle"
+                                    color="ldGray.6"
+                                    size="sm"
+                                    aria-label={`Remove metric ${metricRef.label}`}
+                                    onClick={() =>
+                                        onChange({
+                                            ...block,
+                                            config: {
+                                                ...block.config,
+                                                items: block.config.items.filter(
+                                                    (item) =>
+                                                        item.metricName !==
+                                                            metricRef.metricName ||
+                                                        item.tableName !==
+                                                            metricRef.tableName,
+                                                ),
+                                            },
+                                        })
+                                    }
+                                >
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
+                            </Group>
+                        </Card>
+                    </PageGridItem>
                 ))}
             </PageGrid>
             <Button

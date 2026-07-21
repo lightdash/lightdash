@@ -332,6 +332,7 @@ type BlockCardProps = {
     onRemove: () => void;
     onChange: (updated: HomepageBlock) => void;
     justPlaced: boolean;
+    itemSpan: number | null;
 };
 
 const BlockCard: FC<BlockCardProps> = ({
@@ -346,6 +347,7 @@ const BlockCard: FC<BlockCardProps> = ({
     onRemove,
     onChange,
     justPlaced,
+    itemSpan,
 }) => {
     const {
         attributes,
@@ -435,6 +437,7 @@ const BlockCard: FC<BlockCardProps> = ({
                 block={block}
                 projectUuid={projectUuid}
                 onChange={onChange}
+                itemSpan={itemSpan}
             />
         </div>
     );
@@ -1036,6 +1039,15 @@ export const HomepageEditor: FC<Props> = ({
                                                                         }
                                                                     >
                                                                         <BlockCard
+                                                                            itemSpan={
+                                                                                resolvedRows[
+                                                                                    rowIndex
+                                                                                ]
+                                                                                    .columns[
+                                                                                    blockIndex
+                                                                                ]
+                                                                                    .itemSpan
+                                                                            }
                                                                             block={
                                                                                 block
                                                                             }

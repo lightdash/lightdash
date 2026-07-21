@@ -9,9 +9,11 @@ export type BlockComponentProps = {
     projectUuid: string;
     presentation?: BlockPresentation;
     // Page-grid columns one of this block's cards spans, from the resolver.
-    // null for blocks that don't render a card grid; omitted by call sites
-    // that render a block outside a resolved row (e.g. the hero slot).
-    itemSpan?: number | null;
+    // null for blocks that don't render a card grid, or that render outside a
+    // resolved row (the hero slot). Required, not optional: a call site that
+    // silently omits it renders every card full width, and that failed once
+    // already — the compiler now catches it instead of a reviewer.
+    itemSpan: number | null;
 };
 
 export type BuildComponentProps = BlockComponentProps & {

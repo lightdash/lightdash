@@ -5,6 +5,9 @@ import {
 } from '@lightdash/common';
 import { type BlockWidthTier, traitFor } from './blockLayout';
 
+// The page grid's track count, mirrored in homepageLayout.module.css.
+const GRID_COLUMNS = 12;
+
 // Only a single-block leading row of one of these types gets the day-0 style
 // vertically-centred hero treatment.
 const LEADING_HERO_TYPES: HomepageBlock['type'][] = ['ask-ai-hero'];
@@ -140,6 +143,30 @@ const hugUnitsFor = (block: HomepageBlock): ResolvedColumn['hugUnits'] => {
     }
 };
 
+// How many items a block actually has, for blocks laid out on the page grid.
+const gridItemCountFor = (block: HomepageBlock): number => {
+    switch (block.type) {
+        case 'metrics':
+        case 'collection':
+        case 'resources':
+            return block.config.items.length;
+        default:
+            return 0;
+    }
+};
+
+// A block whose items don't fill one row stretches them across it rather than
+// leaving trailing empty tracks — a lone KPI beside a full collection should
+// span its column, not sit as a sliver with half the row blank. Blocks that do
+// fill a row keep their declared span so their cards stay on the shared
+// tracks. Sparse stretching only ever widens, never narrows.
+const stretchSparse = (declaredSpan: number, itemCount: number): number => {
+    if (itemCount === 0) return declaredSpan;
+    const perRow = Math.floor(GRID_COLUMNS / declaredSpan);
+    if (itemCount >= perRow) return declaredSpan;
+    return Math.floor(GRID_COLUMNS / itemCount);
+};
+
 // A block sharing a row gets its `narrow` span regardless of the row's tier
 // (multi-column rows are always full width, but each column is a fraction of
 // it). A block owning its row follows the row's tier — `content` and the two
@@ -151,8 +178,11 @@ const itemSpanFor = (
 ): number | null => {
     const { itemSpan } = traitFor(block.type);
     if (itemSpan === null) return null;
-    if (isShared) return itemSpan.narrow;
-    return widthTier === 'full' ? itemSpan.full : itemSpan.content;
+    const declared = (() => {
+        if (isShared) return itemSpan.narrow;
+        return widthTier === 'full' ? itemSpan.full : itemSpan.content;
+    })();
+    return stretchSparse(declared, gridItemCountFor(block));
 };
 
 // Re-derives every column's span from the row's final tier. Called after width

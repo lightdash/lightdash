@@ -22,7 +22,7 @@ const BlockRenderer: FC<{
     projectUuid: string;
     personalPlaceholders: boolean;
     presentation?: BlockPresentation;
-    itemSpan?: number | null;
+    itemSpan: number | null;
 }> = ({ block, projectUuid, personalPlaceholders, presentation, itemSpan }) => {
     const definition = getBlockDefinition(block.type);
     if (!definition) return null;
@@ -125,6 +125,7 @@ export const PublishedHomepage: FC<Props> = ({
                             projectUuid={projectUuid}
                             personalPlaceholders={personalPlaceholders}
                             presentation="hero"
+                            itemSpan={hero.row.columns[0].itemSpan}
                         />
                     </div>
                 </div>

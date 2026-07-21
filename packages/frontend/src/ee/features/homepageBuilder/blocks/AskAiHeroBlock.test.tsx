@@ -29,6 +29,7 @@ describe('AskAiHeroBlockView', () => {
     it('greets in the hero slot', () => {
         wrap(
             <AskAiHeroBlockView
+                itemSpan={null}
                 block={block}
                 projectUuid="p1"
                 presentation="hero"
@@ -41,7 +42,13 @@ describe('AskAiHeroBlockView', () => {
     });
 
     it('renders inline mid-page without the greeting, even when toggled on', () => {
-        wrap(<AskAiHeroBlockView block={block} projectUuid="p1" />);
+        wrap(
+            <AskAiHeroBlockView
+                itemSpan={null}
+                block={block}
+                projectUuid="p1"
+            />,
+        );
         expect(screen.queryByText(/What do you want to know/)).toBeNull();
         expect(screen.getByTestId('ask-input')).toBeInTheDocument();
     });

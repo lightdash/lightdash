@@ -89,6 +89,32 @@ const collectionWithItems = (id: string, count: number): HomepageBlock => ({
     },
 });
 
+const resourcesWithItems = (id: string, count: number): HomepageBlock => ({
+    id,
+    type: 'resources',
+    config: {
+        title: 't',
+        items: Array.from({ length: count }, (_, i) => ({
+            title: `r${i}`,
+            url: `https://x${i}.example`,
+            kind: 'link' as const,
+        })),
+    },
+});
+
+const metricsWithCount = (id: string, count: number): HomepageBlock => ({
+    id,
+    type: 'metrics',
+    config: {
+        title: 't',
+        items: Array.from({ length: count }, (_, i) => ({
+            tableName: 'orders',
+            metricName: `m${i}`,
+            label: `M${i}`,
+        })),
+    },
+});
+
 const makeConfig = (rows: HomepageBlock[][]): HomepageConfig => ({
     version: 1,
     rows: rows.map((blocks, i) => ({ id: `row-${i}`, blocks })),
@@ -459,7 +485,7 @@ describe('page grid — item spans', () => {
     it('uses the content span when the row stays at content width', () => {
         // resources alone, no full row on the page, so no width smoothing
         const { rows } = resolveHomepageLayout(
-            makeConfig([[block('r', 'resources')]]),
+            makeConfig([[resourcesWithItems('r', 3)]]),
         );
         expect(rows[0].widthTier).toBe('content');
         expect(rows[0].columns[0].itemSpan).toBe(4);
@@ -469,7 +495,10 @@ describe('page grid — item spans', () => {
         // metrics forces the page wide, so the resources row is promoted
         // content -> full and must take its *full* span with it
         const { rows } = resolveHomepageLayout(
-            makeConfig([[block('m', 'metrics')], [block('r', 'resources')]]),
+            makeConfig([
+                [metricsWithCount('m', 4)],
+                [resourcesWithItems('r', 3)],
+            ]),
         );
         expect(rows[1].widthTier).toBe('full');
         expect(rows[1].columns[0].itemSpan).toBe(4);
@@ -477,7 +506,9 @@ describe('page grid — item spans', () => {
 
     it('narrows the span when a block shares a row', () => {
         const { rows } = resolveHomepageLayout(
-            makeConfig([[block('m', 'metrics'), block('r', 'resources')]]),
+            makeConfig([
+                [metricsWithCount('m', 4), resourcesWithItems('r', 3)],
+            ]),
         );
         const [metrics, resources] = rows[0].columns;
         expect(metrics.itemSpan).toBe(6);
@@ -496,12 +527,94 @@ describe('page grid — item spans', () => {
     it('keeps metrics denser than content cards at the same width', () => {
         const { rows } = resolveHomepageLayout(
             makeConfig([
-                [block('m', 'metrics')],
+                [metricsWithCount('m', 4)],
                 [collectionWithItems('c', 6)],
             ]),
         );
         // 3 columns per tile => 4-up; 4 columns per card => 3-up
         expect(rows[0].columns[0].itemSpan).toBe(3);
         expect(rows[1].columns[0].itemSpan).toBe(4);
+    });
+});
+
+// The builder canvas and the published page must agree on card geometry, or
+// the WYSIWYG promise breaks: an admin arranges cards 3-up and viewers get
+// something else. These assert the two surfaces resolve identical spans.
+describe('page grid — view/build parity', () => {
+    const spansOf = (layout: ReturnType<typeof resolveHomepageLayout>) =>
+        layout.rows.map((row) => row.columns.map((c) => c.itemSpan));
+
+    it('resolves the same item spans on both surfaces', () => {
+        const config = makeConfig([
+            [collectionWithItems('c', 6)],
+            [block('m', 'metrics'), block('r', 'resources')],
+            [block('t', 'markdown')],
+        ]);
+        const view = resolveHomepageLayout(config);
+        const build = resolveHomepageLayout(config, { surface: 'build' });
+        expect(spansOf(build)).toEqual(spansOf(view));
+    });
+
+    it('still spans config-empty blocks on the build surface', () => {
+        // build keeps empty blocks editable; they must be laid out on the same
+        // grid as a populated one, not fall back to full width
+        const config = makeConfig([
+            [emptyBlock('r', 'resources'), metricsWithCount('m', 2)],
+        ]);
+        const { rows } = resolveHomepageLayout(config, { surface: 'build' });
+        expect(rows[0].columns.map((c) => c.itemSpan)).toEqual([6, 6]);
+    });
+
+    it('spans a build-surface hero row like any other row', () => {
+        // build never hoists the hero, so the ask-ai row stays in flow and the
+        // rows after it must keep the spans the view surface gives them
+        const config = makeConfig([
+            [block('a', 'ask-ai-hero')],
+            [collectionWithItems('c', 6)],
+        ]);
+        const build = resolveHomepageLayout(config, { surface: 'build' });
+        const view = resolveHomepageLayout(config);
+        expect(build.rows[1].columns[0].itemSpan).toBe(
+            view.rows[0].columns[0].itemSpan,
+        );
+    });
+});
+
+// A block with fewer items than its row holds should fill the row rather than
+// leave trailing empty tracks — a lone KPI next to a full collection looked
+// like a sliver with half its column blank.
+describe('page grid — sparse blocks stretch', () => {
+    it.each([
+        [1, 12],
+        [2, 6],
+        [3, 4],
+        [4, 3],
+    ])(
+        'stretches %i metrics to a span of %i at full width',
+        (count, expected) => {
+            const { rows } = resolveHomepageLayout(
+                makeConfig([[metricsWithCount('m', count)]]),
+            );
+            expect(rows[0].columns[0].itemSpan).toBe(expected);
+        },
+    );
+
+    it('stretches a lone metric to fill its column in a shared row', () => {
+        const { rows } = resolveHomepageLayout(
+            makeConfig([
+                [metricsWithCount('m', 1), collectionWithItems('c', 3)],
+            ]),
+        );
+        const [metrics, collection] = rows[0].columns;
+        expect(metrics.itemSpan).toBe(12);
+        // the collection fills its own row at the shared-row span, so it keeps it
+        expect(collection.itemSpan).toBe(6);
+    });
+
+    it('never narrows a block that already fills its row', () => {
+        const { rows } = resolveHomepageLayout(
+            makeConfig([[collectionWithItems('c', 7)]]),
+        );
+        expect(rows[0].columns[0].itemSpan).toBe(4);
     });
 });
