@@ -503,11 +503,25 @@ jobs:
             packages/e2e/playwright-results
           if-no-files-found: ignore
 
+  # API and CLI tests can share preview state with mutating browser tests.
   playwright-mutating:
-    if: needs.files-changed.outputs.frontend == 'true'
+    if: |
+      !cancelled() &&
+      needs.files-changed.outputs.frontend == 'true' &&
+      needs.app-tests.result == 'success' &&
+      (needs.api-tests.result == 'success' || needs.api-tests.result == 'skipped') &&
+      (needs.cli-tests-without-dbt.result == 'success' || needs.cli-tests-without-dbt.result == 'skipped') &&
+      (needs.cli-tests.result == 'success' || needs.cli-tests.result == 'skipped') &&
+      (needs.cli-dbt-tests.result == 'success' || needs.cli-dbt-tests.result == 'skipped')
     timeout-minutes: 60
     runs-on: depot-ubuntu-24.04-4
-    needs: [app-tests, files-changed]
+    needs:
+      - api-tests
+      - app-tests
+      - cli-dbt-tests
+      - cli-tests
+      - cli-tests-without-dbt
+      - files-changed
     container:
       image: mcr.microsoft.com/playwright:v1.56.1-noble
     name: "E2E: Playwright mutating"
