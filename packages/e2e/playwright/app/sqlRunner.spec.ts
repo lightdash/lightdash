@@ -131,6 +131,15 @@ const responseMatches = (
 const getRunQueryButton = (page: Page) =>
     page.getByRole('button', { name: /^Run query(?: \(\d+\))?$/ });
 
+const selectEditorView = async (page: Page, name: 'Chart' | 'SQL') => {
+    const group = page.getByRole('radiogroup').filter({
+        has: page.getByRole('radio', { name, exact: true }),
+    });
+    await expect(group).toHaveCount(1);
+    await group.getByText(name, { exact: true }).click();
+    await expect(group.getByRole('radio', { name, exact: true })).toBeChecked();
+};
+
 const getMonacoEditor = (page: Page) => page.locator('.monaco-editor');
 
 const getMonacoEditorInput = (page: Page) =>
@@ -255,7 +264,7 @@ test.describe('SQL Runner', { tag: '@mutating' }, () => {
             await expect(runQueryButton).toBeEnabled();
             await runSqlAndWaitForColumn(page, 'customer_id');
 
-            await page.getByText('Chart', { exact: true }).click();
+            await selectEditorView(page, 'Chart');
             const chartView = page.getByTestId(
                 `chart-view-${ChartKind.VERTICAL_BAR}`,
             );
@@ -265,8 +274,9 @@ test.describe('SQL Runner', { tag: '@mutating' }, () => {
             await page
                 .getByRole('button', { name: 'Save chart', exact: true })
                 .click();
-            const saveChartDialog = page.getByRole('dialog').filter({
-                has: page.getByText('Save Chart', { exact: true }),
+            const saveChartDialog = page.getByRole('dialog', {
+                name: 'Save Chart',
+                exact: true,
             });
             await expect(saveChartDialog).toBeVisible();
             await saveChartDialog.getByLabel('Chart name').fill(chartName);
@@ -322,7 +332,7 @@ test.describe('SQL Runner', { tag: '@mutating' }, () => {
                 'age_sum',
             );
 
-            await page.getByText('SQL', { exact: true }).click();
+            await selectEditorView(page, 'SQL');
             await replaceMonacoSql(page, ordersSql);
             await expect(getRunQueryButton(page)).toBeEnabled();
             await expect(
@@ -330,7 +340,7 @@ test.describe('SQL Runner', { tag: '@mutating' }, () => {
             ).toBeEnabled();
             await runSqlAndWaitForColumn(page, 'order_id');
 
-            await page.getByText('Chart', { exact: true }).click();
+            await selectEditorView(page, 'Chart');
             await expect(
                 page.getByText(
                     'Column "created" does not exist. Choose another',
@@ -343,10 +353,9 @@ test.describe('SQL Runner', { tag: '@mutating' }, () => {
                 .getByRole('button', { name: 'Save', exact: true })
                 .click();
 
-            const fixErrorsDialog = page.getByRole('dialog').filter({
-                has: page.getByText('Fix errors before saving', {
-                    exact: true,
-                }),
+            const fixErrorsDialog = page.getByRole('dialog', {
+                name: 'Fix errors before saving',
+                exact: true,
             });
             await expect(fixErrorsDialog).toBeVisible();
             await fixErrorsDialog

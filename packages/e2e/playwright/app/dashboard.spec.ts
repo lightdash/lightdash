@@ -152,9 +152,7 @@ const findCapture = <T>(
 const getDashboardGrid = (page: Page) => page.locator('.react-grid-layout');
 
 const getDialog = (page: Page, title: string) =>
-    page
-        .getByRole('dialog')
-        .filter({ has: page.getByText(title, { exact: true }) });
+    page.getByRole('dialog', { name: title, exact: true });
 
 const getDashboardTile = (page: Page, title: string) =>
     getDashboardGrid(page)
@@ -941,7 +939,12 @@ test(
             await markdownDialog
                 .getByRole('textbox', { name: 'Title', exact: true })
                 .fill(markdownTitle);
-            await markdownDialog.locator('textarea').fill(markdownContent);
+            await markdownDialog
+                .getByRole('textbox', {
+                    name: 'Markdown content',
+                    exact: true,
+                })
+                .fill(markdownContent);
             await markdownDialog
                 .getByRole('button', { name: 'Add', exact: true })
                 .click();

@@ -250,6 +250,9 @@ const normalizedPathname = (url: string) => {
     return pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
 };
 
+const escapeRegExp = (value: string) =>
+    value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const waitForApiResponse = (page: Page, method: string, pathname: string) =>
     page.waitForResponse(
         (response) =>
@@ -330,9 +333,7 @@ const resourceTable = async (page: Page) => {
 };
 
 const dialogByTitle = (page: Page, title: string) =>
-    page.getByRole('dialog').filter({
-        has: page.getByText(title, { exact: true }),
-    });
+    page.getByRole('dialog', { name: title, exact: true });
 
 const resourceRow = (page: Page, table: Locator, name: string) =>
     table.getByRole('row').filter({
@@ -361,7 +362,11 @@ const expectResourceAbsent = async (
 const openSpaceFromTable = async (page: Page, name: string) => {
     const table = await resourceTable(page);
     const row = await expectResourceVisible(page, table, name);
-    await row.getByRole('link').click();
+    await row
+        .getByRole('link', {
+            name: new RegExp(`^${escapeRegExp(name)}(?:\\s|$)`),
+        })
+        .click();
     await expect(page).toHaveURL((url) =>
         url.pathname.startsWith(`/projects/${projectUuid}/spaces/`),
     );
@@ -387,7 +392,12 @@ const expandTreeItem = async (
     await expect(label).toHaveCount(1);
     const treeItem = label.locator('xpath=ancestor::*[@role="treeitem"]');
     await expect(treeItem).toHaveCount(1);
-    await treeItem.getByRole('button').click();
+    await treeItem
+        .getByRole('button', {
+            name: `Expand ${parentName}`,
+            exact: true,
+        })
+        .click();
     await expect(tree.getByText(childName, { exact: true })).toBeVisible();
 };
 
@@ -459,16 +469,7 @@ const openDashboardSelectorFromHome = async (
 ) => {
     await page.goto(`/projects/${projectUuid}/home`);
     await page.getByTestId('ExploreMenu/NewButton').click();
-    const newMenu = page.getByRole('menu').filter({
-        has: page.getByText('Arrange multiple charts into a single view.', {
-            exact: true,
-        }),
-    });
-    await newMenu
-        .getByText('Arrange multiple charts into a single view.', {
-            exact: true,
-        })
-        .click();
+    await page.getByTestId('ExploreMenu/NewDashboardButton').click();
 
     const dialog = dialogByTitle(page, 'Create Dashboard');
     await expect(dialog).toBeVisible();
@@ -693,16 +694,7 @@ const createPrivateContent = async (
     }
 
     await newButton.click();
-    const newMenu = page.getByRole('menu').filter({
-        has: page.getByText('Organize your saved charts and dashboards.', {
-            exact: true,
-        }),
-    });
-    await newMenu
-        .getByText('Organize your saved charts and dashboards.', {
-            exact: true,
-        })
-        .click();
+    await page.getByTestId('ExploreMenu/NewSpaceButton').click();
 
     const spaceDialog = dialogByTitle(page, 'Create new space');
     await spaceDialog.getByText('Restricted access', { exact: true }).click();

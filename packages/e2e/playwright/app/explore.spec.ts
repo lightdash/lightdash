@@ -194,7 +194,14 @@ const configureChartType = async (page: Page, chartType: string) => {
     const chartTypeButton = page.getByTestId('VisualizationCardOptions');
     await chartTypeButton.click();
 
-    const menu = page.getByRole('menu');
+    const selectedChartType = (await chartTypeButton.textContent())?.trim();
+    if (!selectedChartType) {
+        throw new Error('Chart type button must have text');
+    }
+    const menu = page.getByRole('menu', {
+        name: selectedChartType,
+        exact: true,
+    });
     await expect(menu).toBeVisible();
     await menu.getByRole('menuitem', { name: chartType, exact: true }).click();
     await expect(chartTypeButton).toHaveText(chartType);
@@ -245,7 +252,10 @@ test(
                 .getByRole('button', { name: 'Save chart', exact: true })
                 .click();
 
-            const saveDialog = page.getByRole('dialog');
+            const saveDialog = page.getByRole('dialog', {
+                name: 'Save chart',
+                exact: true,
+            });
             await expect(saveDialog).toBeVisible();
             await saveDialog
                 .getByTestId('ChartCreateModal/NameInput')
