@@ -1,3 +1,10 @@
+## [0.3436.1](https://github.com/lightdash/lightdash/compare/0.3436.0...0.3436.1) (2026-07-21)
+
+
+### Bug Fixes
+
+* remove bind parameters from agent onboarding runs index migration ([#25875](https://github.com/lightdash/lightdash/issues/25875)) ([b3dcef8](https://github.com/lightdash/lightdash/commit/b3dcef8f9168be40bb0f4b6e40fbc54895853c3c))
+
 # [0.3436.0](https://github.com/lightdash/lightdash/compare/0.3435.0...0.3436.0) (2026-07-21)
 
 
