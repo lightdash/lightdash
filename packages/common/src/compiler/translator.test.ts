@@ -46,6 +46,7 @@ import {
     MODEL_WITH_AI_HINT,
     MODEL_WITH_AI_HINT_ARRAY,
     MODEL_WITH_AI_HINT_IN_CONFIG,
+    MODEL_WITH_ANNOTATED_ADDITIONAL_DIMENSIONS,
     MODEL_WITH_COMPOSITE_PRIMARY_KEY,
     MODEL_WITH_CUSTOM_GRANULARITY,
     MODEL_WITH_CUSTOM_GRANULARITY_AND_REQUIRED_ATTRIBUTES,
@@ -72,6 +73,7 @@ import {
     MODEL_WITH_SINGLE_PRIMARY_KEY,
     MODEL_WITH_SQL_FILTER,
     MODEL_WITH_SQL_WHERE,
+    MODEL_WITH_SQLLESS_ADDITIONAL_DIMENSION,
     MODEL_WITH_TIMESTAMP_DOMAIN,
     MODEL_WITH_TIMESTAMP_DOMAIN_ADDITIONAL_DIMENSION,
     MODEL_WITH_TIMESTAMP_DOMAIN_CUSTOM_SQL,
@@ -294,6 +296,48 @@ describe('timestamp domain', () => {
 
         expect(result.dimensions.user_created.timestampDomain).toEqual('naive');
         expect(result.dimensions.user_created_shifted).not.toHaveProperty(
+            'timestampDomain',
+        );
+    });
+
+    it('should not stamp the catalog domain on a sql-less additional dimension', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            MODEL_WITH_SQLLESS_ADDITIONAL_DIMENSION,
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(result.dimensions.user_created.timestampDomain).toEqual('naive');
+        expect(result.dimensions.user_created_copy).not.toHaveProperty(
+            'timestampDomain',
+        );
+    });
+
+    it('should carry an additional dimension timestamp_domain to its interval children and not leak the base annotation', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            MODEL_WITH_ANNOTATED_ADDITIONAL_DIMENSIONS,
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        // Base column YAML annotation applies to itself and its children
+        expect(result.dimensions.user_created.timestampDomain).toEqual('naive');
+        expect(result.dimensions.user_created_day.timestampDomain).toEqual(
+            'naive',
+        );
+        // Annotated additional dim: its own domain reaches its children
+        expect(result.dimensions.user_created_aware.timestampDomain).toEqual(
+            'aware',
+        );
+        expect(
+            result.dimensions.user_created_aware_day.timestampDomain,
+        ).toEqual('aware');
+        // Unannotated additional dim: neither the base annotation nor the
+        // catalog leaks onto it or its children
+        expect(result.dimensions.user_created_plain).not.toHaveProperty(
+            'timestampDomain',
+        );
+        expect(result.dimensions.user_created_plain_day).not.toHaveProperty(
             'timestampDomain',
         );
     });

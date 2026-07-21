@@ -1396,6 +1396,60 @@ export const MODEL_WITH_TIMESTAMP_DOMAIN_ADDITIONAL_DIMENSION: DbtModelNode & {
     },
 };
 
+export const MODEL_WITH_SQLLESS_ADDITIONAL_DIMENSION: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_created: {
+            name: 'user_created',
+            data_type: DimensionType.TIMESTAMP,
+            timestamp_domain: 'naive',
+            meta: {
+                dimension: {
+                    time_intervals: ['RAW'],
+                },
+                additional_dimensions: {
+                    user_created_copy: {
+                        type: DimensionType.TIMESTAMP,
+                    },
+                },
+            },
+        },
+    },
+};
+
+export const MODEL_WITH_ANNOTATED_ADDITIONAL_DIMENSIONS: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_created: {
+            name: 'user_created',
+            data_type: DimensionType.TIMESTAMP,
+            meta: {
+                dimension: {
+                    timestamp_domain: 'naive',
+                    time_intervals: ['RAW', 'DAY'],
+                },
+                additional_dimensions: {
+                    user_created_aware: {
+                        type: DimensionType.TIMESTAMP,
+                        sql: '${TABLE}.user_created_utc',
+                        timestamp_domain: 'aware',
+                        time_intervals: ['RAW', 'DAY'],
+                    },
+                    user_created_plain: {
+                        type: DimensionType.TIMESTAMP,
+                        sql: '${TABLE}.user_created_other',
+                        time_intervals: ['RAW', 'DAY'],
+                    },
+                },
+            },
+        },
+    },
+};
+
 export const LIGHTDASH_TABLE_SQL_WHERE: Omit<Table, 'lineageGraph'> = {
     ...BASE_LIGHTDASH_TABLE,
     sqlWhere: '${payment_method} IS NOT NULL',

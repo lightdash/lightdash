@@ -208,11 +208,15 @@ const convertDimension = (
     }
     // YAML declaration wins over the warehouse catalog. The catalog describes
     // the physical column, so its domain is dropped when custom SQL replaces
-    // the column — the expression may change the domain. Computed on the base
-    // type so interval children inherit it like skipTimezoneConversion does.
+    // the column — the expression may change the domain — and for additional
+    // dimensions, whose carrier column is the parent's, not their own.
+    // Computed on the base type so interval children inherit it like
+    // skipTimezoneConversion does.
     const rawTimestampDomain =
         meta.dimension?.timestamp_domain ??
-        (meta.dimension?.sql ? undefined : column.timestamp_domain);
+        (meta.dimension?.sql || isAdditionalDimension
+            ? undefined
+            : column.timestamp_domain);
     const timestampDomain: TimestampDomain | undefined =
         type === DimensionType.TIMESTAMP &&
         isTimestampDomain(rawTimestampDomain)
@@ -695,6 +699,10 @@ export const convertTable = (
                         sql: dim.sql,
                         description: dim.description,
                         hidden: dim.hidden,
+                        // Additional-dim children must inherit the additional
+                        // dimension's own resolved domain, not the parent
+                        // column's annotation riding in the meta spread.
+                        timestamp_domain: dim.timestampDomain,
                     };
 
                     // Generate standard interval dimensions
