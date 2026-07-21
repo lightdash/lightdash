@@ -56,14 +56,21 @@ export async function up(knex: Knex): Promise<void> {
         table.index(['status', 'updated_at']);
     });
 
-    const activeStatuses = AGENT_ONBOARDING_ACTIVE_STATUSES.map(
-        (status) => `'${status}'`,
+    const activeStatusPlaceholders = AGENT_ONBOARDING_ACTIVE_STATUSES.map(
+        () => '?',
     ).join(', ');
-    await knex.raw(`
-        CREATE UNIQUE INDEX ${ActiveProjectIndexName}
-        ON ${AgentOnboardingRunsTableName} (project_uuid)
-        WHERE status IN (${activeStatuses})
-    `);
+    await knex.raw(
+        `CREATE UNIQUE INDEX ??
+        ON ?? (??)
+        WHERE ?? IN (${activeStatusPlaceholders})`,
+        [
+            ActiveProjectIndexName,
+            AgentOnboardingRunsTableName,
+            'project_uuid',
+            'status',
+            ...AGENT_ONBOARDING_ACTIVE_STATUSES,
+        ],
+    );
 }
 
 export async function down(knex: Knex): Promise<void> {

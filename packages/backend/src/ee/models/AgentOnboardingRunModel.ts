@@ -31,8 +31,8 @@ type UpdateAgentOnboardingRun = Partial<
     >
 >;
 
-const activeStatusesSql = AGENT_ONBOARDING_ACTIVE_STATUSES.map(
-    (status) => `'${status}'`,
+const activeStatusPlaceholders = AGENT_ONBOARDING_ACTIVE_STATUSES.map(
+    () => '?',
 ).join(', ');
 
 export class AgentOnboardingRunModel {
@@ -70,7 +70,12 @@ export class AgentOnboardingRunModel {
             })
             .onConflict(
                 this.database.raw(
-                    `(project_uuid) WHERE status IN (${activeStatusesSql})`,
+                    `(??) WHERE ?? IN (${activeStatusPlaceholders})`,
+                    [
+                        'project_uuid',
+                        'status',
+                        ...AGENT_ONBOARDING_ACTIVE_STATUSES,
+                    ],
                 ),
             )
             .merge({
