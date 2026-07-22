@@ -3022,12 +3022,13 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError('Copilot is not enabled');
         }
 
+        const project = await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
                 'manage',
                 subject('AiAgent', {
-                    organizationUuid,
+                    organizationUuid: project.organizationUuid,
                     projectUuid,
                     metadata,
                 }),
