@@ -2901,6 +2901,10 @@
                     "description": "Internal name of the table calculation",
                     "type": "string"
                 },
+                "totalMode": {
+                    "$ref": "#/$defs/TableCalculationTotalMode",
+                    "description": "How column totals are computed for this calculation"
+                },
                 "type": {
                     "$ref": "#/$defs/TableCalculationType",
                     "description": "Data type of the calculation result"
@@ -3110,6 +3114,10 @@
         },
         "TableCalculationTemplateType.WINDOW_FUNCTION": {
             "enum": ["window_function"],
+            "type": "string"
+        },
+        "TableCalculationTotalMode": {
+            "enum": ["formula", "sum_of_rows", "none"],
             "type": "string"
         },
         "TableCalculationType": {

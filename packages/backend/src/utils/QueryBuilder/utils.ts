@@ -39,6 +39,8 @@ import {
     QueryWarning,
     SupportedDbtAdapter,
     TableCalculation,
+    TableCalculationTotalMode,
+    TableCalculationType,
     UserAttributeValueMap,
     WeekDay,
     type WarehouseSqlBuilder,
@@ -75,6 +77,18 @@ export const hasBlockingTotalFilters = (metricQuery: MetricQuery): boolean => {
 
     return hasMetricFilters || hasTableCalculationFilters;
 };
+
+// Calcs whose total is the SUM of their row-level values over the source
+// result rows (totalMode 'sum_of_rows') rather than the calc re-applied to
+// the collapsed totals row.
+export const getSumOfRowsTableCalculations = (
+    metricQuery: MetricQuery,
+): TableCalculation[] =>
+    metricQuery.tableCalculations.filter(
+        (calc) =>
+            calc.totalMode === TableCalculationTotalMode.SUM_OF_ROWS &&
+            (!calc.type || calc.type === TableCalculationType.NUMBER),
+    );
 
 export const getDimensionFromId = ({
     dimId,

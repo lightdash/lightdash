@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     buildTotalFieldRegex,
     CompiledDimension,
     CompiledMetric,
@@ -96,6 +97,7 @@ import {
     getDimensionFromId,
     getJoinedTables,
     getJoinType,
+    getSumOfRowsTableCalculations,
     hasBlockingTotalFilters,
     isInflationProofMetric,
     replaceUserAttributesAsStrings,
@@ -172,8 +174,8 @@ export type BuildQueryProps = {
      * `compiledMetricQuery` + `pivotConfiguration` to the requested grain (via
      * `TotalQueryBuilder`), keeps the original query as the embedded
      * `source_rows` CTE where it must compute on top of the source results
-     * (filter restrictions, visible-page pinning), and derives what to
-     * compute from the two queries. The collapsed query /
+     * (filter restrictions, visible-page pinning, sum-of-rows calcs), and
+     * derives what to compute from the two queries. The collapsed query /
      * pivot are exposed via `getEffectiveMetricQuery()` /
      * `getEffectivePivotConfiguration()`.
      */
@@ -191,10 +193,43 @@ type SourceQueryGroupRestriction = {
     scope: 'results' | 'visiblePage';
 };
 
+type SourceQueryAggregationFunction = 'sum';
+
+/**
+ * Aggregations computed over the embedded source rows at a grain and joined
+ * onto this query's final select ([] grain = one global row, CROSS JOINed).
+ */
+type SourceQueryAggregations = {
+    grainDimensions: string[];
+    columns: Array<{
+        reference: string;
+        aggregation: SourceQueryAggregationFunction;
+    }>;
+};
+
 const SOURCE_ROWS_CTE_NAME = 'source_rows';
 const SOURCE_GROUPS_CTE_NAME = 'source_dimension_groups';
 const VISIBLE_PAGE_ROWS_CTE_NAME = 'visible_page_rows';
 const VISIBLE_GROUPS_CTE_NAME = 'visible_dimension_groups';
+const SOURCE_AGGREGATIONS_CTE_NAME = 'source_aggregations';
+// Prefix for the grain columns of the source-aggregations CTE, so they can't
+// collide with this query's own column aliases.
+const SOURCE_AGGREGATIONS_GRAIN_PREFIX = 'sa_';
+
+const getSourceAggregationSql = (
+    aggregation: SourceQueryAggregationFunction,
+    quotedReference: string,
+): string => {
+    switch (aggregation) {
+        case 'sum':
+            return `SUM(${quotedReference})`;
+        default:
+            return assertUnreachable(
+                aggregation,
+                `Unknown source aggregation "${aggregation}"`,
+            );
+    }
+};
 
 /**
  * Creates the correct interval syntax for date arithmetic operations with comparison across different warehouse types.
@@ -4627,10 +4662,13 @@ export class MetricQueryBuilder {
      * - metric / table-calc filters can't survive into a collapsed totals
      *   query, so raw rows are restricted to the source groups passing them;
      * - subtotals pin to the grain groups on the source's visible page, so a
-     *   limit-truncated response can never miss a rendered group.
+     *   limit-truncated response can never miss a rendered group;
+     * - 'sum_of_rows' table calcs are aggregated over the source rows at the
+     *   totals grain (this query's own dimensions).
      */
     private deriveSourceQueryUses(sourceMetricQuery: CompiledMetricQuery): {
         groupRestrictions: SourceQueryGroupRestriction[];
+        aggregations: SourceQueryAggregations | undefined;
     } {
         const grainDimensions = this.args.compiledMetricQuery.dimensions;
 
@@ -4648,14 +4686,26 @@ export class MetricQueryBuilder {
             });
         }
 
-        return { groupRestrictions };
+        const sumOfRowsColumns = getSumOfRowsTableCalculations(
+            sourceMetricQuery,
+        ).map((calc) => ({
+            reference: calc.name,
+            aggregation: 'sum' as const,
+        }));
+        const aggregations: SourceQueryAggregations | undefined =
+            sumOfRowsColumns.length > 0
+                ? { grainDimensions, columns: sumOfRowsColumns }
+                : undefined;
+
+        return { groupRestrictions, aggregations };
     }
 
     /**
      * Compiles the `sourceQuery` embed: the source query becomes the
      * `source_rows` CTE (embedded once), and each use derives from it —
      * distinct-group CTEs semi-joined into every raw scan (optionally scoped
-     * to the visible page, i.e. source ORDER BY + LIMIT applied).
+     * to the visible page, i.e. source ORDER BY + LIMIT applied), and an
+     * aggregations CTE joined onto the final select by `buildQueryParts`.
      * Custom bin join dimensions not selected in this query additionally need
      * their min/max CTE + CROSS JOIN.
      */
@@ -4664,6 +4714,8 @@ export class MetricQueryBuilder {
               leadingCtes: string[];
               binCtes: string[];
               joins: string[];
+              aggregations: SourceQueryAggregations | undefined;
+              aggregationFields: ItemsMap;
               warnings: QueryWarning[];
           }
         | undefined {
@@ -4671,7 +4723,7 @@ export class MetricQueryBuilder {
         if (!sourceQuery) {
             return undefined;
         }
-        const { groupRestrictions } = this.deriveSourceQueryUses(
+        const { groupRestrictions, aggregations } = this.deriveSourceQueryUses(
             sourceQuery.compiledMetricQuery,
         );
 
@@ -4830,10 +4882,52 @@ export class MetricQueryBuilder {
             );
         });
 
+        let aggregationFields: ItemsMap = {};
+        if (aggregations) {
+            const grainSelects = aggregations.grainDimensions.map(
+                (dimId) =>
+                    `  ${fieldQuoteChar}${dimId}${fieldQuoteChar} AS ${fieldQuoteChar}${SOURCE_AGGREGATIONS_GRAIN_PREFIX}${dimId}${fieldQuoteChar}`,
+            );
+            const aggregationSelects = aggregations.columns.map(
+                (column) =>
+                    `  ${getSourceAggregationSql(
+                        column.aggregation,
+                        `${fieldQuoteChar}${column.reference}${fieldQuoteChar}`,
+                    )} AS ${fieldQuoteChar}${column.reference}${fieldQuoteChar}`,
+            );
+            leadingCtes.push(
+                `${SOURCE_AGGREGATIONS_CTE_NAME} AS (\n${MetricQueryBuilder.assembleSqlParts(
+                    [
+                        `SELECT\n${[
+                            ...grainSelects,
+                            ...aggregationSelects,
+                        ].join(',\n')}`,
+                        `FROM ${SOURCE_ROWS_CTE_NAME}`,
+                        aggregations.grainDimensions.length > 0
+                            ? `GROUP BY ${aggregations.grainDimensions
+                                  .map((_, index) => index + 1)
+                                  .join(',')}`
+                            : undefined,
+                    ],
+                )}\n)`,
+            );
+            // The aggregated columns are not part of this query's own fields,
+            // so surface them from the embed for response metadata / pivots.
+            aggregationFields = Object.fromEntries(
+                aggregations.columns.flatMap(({ reference }) =>
+                    body.fields[reference]
+                        ? [[reference, body.fields[reference]]]
+                        : [],
+                ),
+            );
+        }
+
         return {
             leadingCtes,
             binCtes: unselectedBinSql?.ctes ?? [],
             joins,
+            aggregations,
+            aggregationFields,
             warnings,
         };
     }
@@ -4874,6 +4968,7 @@ export class MetricQueryBuilder {
             dimensionsSQL.ctes.unshift(...sourceQuerySQL.leadingCtes);
             dimensionsSQL.ctes.push(...sourceQuerySQL.binCtes);
             dimensionsSQL.joins.push(...sourceQuerySQL.joins);
+            Object.assign(fields, sourceQuerySQL.aggregationFields);
         }
 
         const sqlSelect = `SELECT\n${[
@@ -5260,10 +5355,14 @@ export class MetricQueryBuilder {
             this.createSimpleTableCalculationSelects(simpleTableCalcs);
         const tableCalculationFilters = this.createTableCalculationFilters();
 
-        const needsPostAgg = this.needsPostAggCte({
-            requiresQueryInCTE,
-            metricsSQL,
-        });
+        const needsPostAgg =
+            this.needsPostAggCte({
+                requiresQueryInCTE,
+                metricsSQL,
+            }) ||
+            // Source-query aggregations join onto the final select, which
+            // needs the grouped rows behind a CTE.
+            sourceQuerySQL?.aggregations !== undefined;
 
         const needsMetricFiltersCte =
             interdependentTableCalcs.length > 0 && !!metricsSQL.filtersSQL;
@@ -5396,11 +5495,51 @@ export class MetricQueryBuilder {
                     : metricsSQL.filtersSQL;
 
             const finalFromName = currentCteName; // last dependent CTE if any, otherwise `current`
-            finalSelectParts = [
-                `SELECT\n${finalSelectColumns.join(',\n')}`,
-                `FROM ${finalFromName}`,
-                whereClause,
-            ];
+            const aggregations = sourceQuerySQL?.aggregations;
+            if (aggregations) {
+                // Qualify the grouped-rows columns so the joined aggregations
+                // CTE can't make unqualified aliases ambiguous.
+                const qualifiedColumns = finalSelectColumns.map((column) => {
+                    const trimmed = column.trimStart();
+                    if (trimmed === '*') {
+                        return `  ${finalFromName}.*`;
+                    }
+                    if (trimmed.startsWith(fieldQuoteChar)) {
+                        return `  ${finalFromName}.${trimmed}`;
+                    }
+                    return column;
+                });
+                const aggregationColumns = aggregations.columns.map(
+                    ({ reference }) =>
+                        `  ${SOURCE_AGGREGATIONS_CTE_NAME}.${fieldQuoteChar}${reference}${fieldQuoteChar} AS ${fieldQuoteChar}${reference}${fieldQuoteChar}`,
+                );
+                const aggregationsJoin =
+                    aggregations.grainDimensions.length > 0
+                        ? `LEFT JOIN ${SOURCE_AGGREGATIONS_CTE_NAME} ON ${aggregations.grainDimensions
+                              .map((dimId) =>
+                                  this.args.warehouseSqlBuilder.getNullSafeEqualJoinSql(
+                                      `${finalFromName}.${fieldQuoteChar}${dimId}${fieldQuoteChar}`,
+                                      `${SOURCE_AGGREGATIONS_CTE_NAME}.${fieldQuoteChar}${SOURCE_AGGREGATIONS_GRAIN_PREFIX}${dimId}${fieldQuoteChar}`,
+                                  ),
+                              )
+                              .join('\n  AND ')}`
+                        : `CROSS JOIN ${SOURCE_AGGREGATIONS_CTE_NAME}`;
+                finalSelectParts = [
+                    `SELECT\n${[
+                        ...qualifiedColumns,
+                        ...aggregationColumns,
+                    ].join(',\n')}`,
+                    `FROM ${finalFromName}`,
+                    aggregationsJoin,
+                    whereClause,
+                ];
+            } else {
+                finalSelectParts = [
+                    `SELECT\n${finalSelectColumns.join(',\n')}`,
+                    `FROM ${finalFromName}`,
+                    whereClause,
+                ];
+            }
             ctes.push(...ctesToAdd);
         }
 
