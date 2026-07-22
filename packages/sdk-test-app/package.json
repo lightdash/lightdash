@@ -30,7 +30,7 @@
         "pg": "8.13.1",
         "pg-connection-string": "2.7.0",
         "typescript": "npm:@typescript/typescript6@6.0.1",
-        "vite": "8.0.5",
+        "vite": "8.0.16",
         "typescript-7": "npm:typescript@7.0.1-rc",
         "vite-plugin-svgr": "4.5.0"
     }
