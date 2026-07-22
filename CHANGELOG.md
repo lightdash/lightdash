@@ -1,3 +1,15 @@
+# [0.3458.0](https://github.com/lightdash/lightdash/compare/0.3457.2...0.3458.0) (2026-07-22)
+
+
+### Bug Fixes
+
+* **frontend:** shrink dashboard tile filter hovercard text ([#25988](https://github.com/lightdash/lightdash/issues/25988)) ([285ec72](https://github.com/lightdash/lightdash/commit/285ec720f974b8f62515312d6f039e69c7d9fecd)), closes [#25981](https://github.com/lightdash/lightdash/issues/25981) [#25985](https://github.com/lightdash/lightdash/issues/25985)
+
+
+### Features
+
+* advertise playground capability in health; invite page skips unavailable provisioning ([#25972](https://github.com/lightdash/lightdash/issues/25972)) ([a09647d](https://github.com/lightdash/lightdash/commit/a09647d6127a532b4a4acd0c6d6ee67b9f0ea84e))
+
 ## [0.3457.2](https://github.com/lightdash/lightdash/compare/0.3457.1...0.3457.2) (2026-07-22)
 
 
