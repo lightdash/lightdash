@@ -261,7 +261,10 @@ describe('Dashboard', () => {
         cy.get('[data-testid="DashboardFilterConfiguration/ChartTiles"]')
             .findAllByRole('checkbox')
             .eq(1)
-            .uncheck({ force: true })
+            .click({ force: true });
+        cy.get('[data-testid="DashboardFilterConfiguration/ChartTiles"]')
+            .findAllByRole('checkbox')
+            .eq(1)
             .should('not.be.checked');
         cy.contains('button', 'Apply').click({ force: true });
 
