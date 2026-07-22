@@ -19,6 +19,7 @@ const ORG_ONLY_SCOPE_NAMES = [
     'view:OrganizationWarehouseCredentials',
     'manage:OrganizationWarehouseCredentials',
     'manage:PersonalAccessToken',
+    'manage:OrganizationColorPalette',
     'impersonate:User',
     'view:OrganizationDesign',
     'manage:OrganizationDesign',

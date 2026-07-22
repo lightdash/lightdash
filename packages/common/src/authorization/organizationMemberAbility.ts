@@ -457,6 +457,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'Organization', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'OrganizationColorPalette', {
+            organizationUuid: member.organizationUuid,
+        });
         can('view', 'Analytics', {
             organizationUuid: member.organizationUuid,
         });

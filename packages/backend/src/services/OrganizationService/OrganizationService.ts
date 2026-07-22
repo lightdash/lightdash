@@ -1017,8 +1017,8 @@ export class OrganizationService extends BaseService {
         if (
             !user.organizationUuid ||
             auditedAbility.cannot(
-                'update',
-                subject('Organization', {
+                'manage',
+                subject('OrganizationColorPalette', {
                     organizationUuid: user.organizationUuid,
                 }),
             )
@@ -1060,8 +1060,8 @@ export class OrganizationService extends BaseService {
         if (
             !user.organizationUuid ||
             auditedAbility.cannot(
-                'update',
-                subject('Organization', {
+                'manage',
+                subject('OrganizationColorPalette', {
                     organizationUuid: user.organizationUuid,
                     metadata: { colorPaletteUuid },
                 }),
@@ -1091,8 +1091,8 @@ export class OrganizationService extends BaseService {
         if (
             !user.organizationUuid ||
             auditedAbility.cannot(
-                'update',
-                subject('Organization', {
+                'manage',
+                subject('OrganizationColorPalette', {
                     organizationUuid: user.organizationUuid,
                     metadata: { colorPaletteUuid },
                 }),
@@ -1115,8 +1115,8 @@ export class OrganizationService extends BaseService {
         if (
             !user.organizationUuid ||
             auditedAbility.cannot(
-                'update',
-                subject('Organization', {
+                'manage',
+                subject('OrganizationColorPalette', {
                     organizationUuid: user.organizationUuid,
                     metadata: { colorPaletteUuid },
                 }),

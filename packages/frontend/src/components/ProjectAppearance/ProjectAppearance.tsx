@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     Anchor,
     Button,
@@ -38,7 +39,14 @@ const ProjectAppearance: FC<Props> = ({ projectUuid }) => {
 
     const isLoading = isProjectLoading || isPalettesLoading || isHealthLoading;
     const canManageOrgPalettes =
-        user.data?.ability?.can('update', 'Organization') ?? false;
+        (user.data?.ability?.can('update', 'Organization') ||
+            user.data?.ability?.can(
+                'manage',
+                subject('OrganizationColorPalette', {
+                    organizationUuid: user.data?.organizationUuid,
+                }),
+            )) ??
+        false;
 
     return (
         <Stack gap="sm" pos="relative">

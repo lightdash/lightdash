@@ -134,6 +134,7 @@ const PROJECT_PARITY_IGNORE = new Set([
     // Case 1: org-only subjects.
     '*:OrganizationMemberProfile',
     '*:Organization',
+    '*:OrganizationColorPalette',
     '*:OrganizationDesign',
     '*:Group',
     '*:InviteLink',
