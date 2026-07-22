@@ -1,11 +1,11 @@
 import { useLocalStorage } from '@mantine-8/hooks';
+import { Notifications } from '@mantine-8/notifications';
 import {
     ColorSchemeProvider,
     MantineProvider as MantineProviderBase,
     type ColorScheme,
     type MantineThemeOverride,
 } from '@mantine/core';
-import { Notifications } from '@mantine/notifications';
 import { useEffect, useMemo, type FC } from 'react';
 import { getMantineThemeOverride } from '../mantineTheme';
 import Mantine8Provider from './Mantine8Provider';
@@ -67,8 +67,7 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
             >
                 {children}
 
-                {/* Wrap Notifications in Mantine8Provider so stacked toasts (e.g. MultipleToastBody) have Mantine 8 context */}
-                {/* TODO: Fix this to not rely on Mantine8Provider once migration is complete */}
+                {/* Notifications is a Mantine 8 component, so it needs the v8 provider context */}
                 <Mantine8Provider>
                     <Notifications limit={notificationsLimit} />
                 </Mantine8Provider>

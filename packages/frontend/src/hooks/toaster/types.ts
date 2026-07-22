@@ -1,7 +1,9 @@
 import { type ApiErrorDetail } from '@lightdash/common';
-import { type ButtonProps } from '@mantine-8/core';
-import { type notifications } from '@mantine/notifications';
-import { type PolymorphicComponentProps } from '@mantine/utils';
+import {
+    type ButtonProps,
+    type PolymorphicComponentProps,
+} from '@mantine-8/core';
+import { type notifications } from '@mantine-8/notifications';
 import { type Icon } from '@tabler/icons-react';
 import { type ReactNode } from 'react';
 
