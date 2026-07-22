@@ -356,6 +356,10 @@ ENV NODE_ENV production
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --prod --frozen-lockfile --prefer-offline
 
+# Keep the versioned playground bundle in a late layer so bundle-only updates
+# do not invalidate production dependency installation or sourcemap processing.
+COPY packages/backend/assets/ ./packages/backend/assets/
+
 # -----------------------------
 # Stage 5: execution environment for backend
 # -----------------------------
@@ -363,6 +367,7 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 FROM pnpm-base as prod
 
 ENV NODE_ENV production
+ENV PLAYGROUND_DATA_DIR=/usr/app/packages/backend/assets/playground
 # Boot must work fully offline: pnpm is baked in, never fetch it from npmjs at runtime
 ENV COREPACK_ENABLE_NETWORK=0
 
