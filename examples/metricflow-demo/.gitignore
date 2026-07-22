@@ -1,5 +1,8 @@
 .fusion/
+.dbt-cloud-cli/
 .venv/
+.venv-core112/
+.fusion-*/
 target/
 warehouse/
 logs/

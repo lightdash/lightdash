@@ -2,10 +2,7 @@ import { type AnyType } from './any';
 
 /**
  * Types for dbt's MetricFlow semantic layer as it appears in the dbt manifest
- * (`semantic_models` + `metrics`). These are the definitions dbt Core writes
- * when a project uses semantic models — no dbt Cloud required.
- *
- * Translation into Lightdash metrics lives in `dbt/metricFlow.ts`.
+ * (`semantic_models` + `metrics`). Translation: `dbt/metricFlow.ts`.
  */
 
 /** MetricFlow measure aggregation types (dbt manifest `Measure.agg`). */
@@ -117,8 +114,8 @@ export type DbtSemanticMetricInput = {
 };
 
 /**
- * dbt Fusion / latest-spec manifests inline the aggregation on simple metrics
- * (`type_params.measure` is null) instead of referencing a measure.
+ * Latest-spec simple metrics inline aggregation here (`type_params.measure` is
+ * null). Core 1.12 omits `expr` (column is on `type_params.expr`); Fusion sets both.
  */
 export type DbtSemanticMetricAggregationParams = {
     semantic_model: string;

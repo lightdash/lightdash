@@ -12,7 +12,7 @@ import { MetricType } from '../types/field';
 
 /**
  * Translation for dbt's MetricFlow semantic layer as it appears in the dbt
- * manifest (`semantic_models` + `metrics`) — no dbt Cloud required.
+ * manifest (`semantic_models` + `metrics`).
  *
  * Only a supported subset is translated into Lightdash metrics during CLI
  * deploy/compile; unsupported definitions are skipped and surfaced as warnings.
@@ -374,11 +374,9 @@ export const translateMetricFlowMetrics = ({
         return { modelName, definition };
     };
 
-    // Resolve a simple metric definition to the semantic model + measure it
-    // aggregates, collecting any filters defined on the metric or its measure
-    // reference along the way. Legacy manifests (dbt Core) reference a measure
-    // by name; Fusion / latest-spec manifests inline the aggregation as
-    // `metric_aggregation_params`.
+    // Legacy manifests (dbt Core <1.12) reference a measure by name; latest-spec
+    // inlines aggregation as metric_aggregation_params. Core 1.12 keeps expr on
+    // type_params only; Fusion also copies it onto metric_aggregation_params.
     const resolveSimpleMetricMeasure = (
         metric: DbtSemanticMetric,
     ):
@@ -422,7 +420,7 @@ export const translateMetricFlowMetrics = ({
                 measure: {
                     name: metric.name,
                     agg: inlineAggParams.agg,
-                    expr: inlineAggParams.expr,
+                    expr: inlineAggParams.expr ?? metric.type_params.expr,
                     agg_params: inlineAggParams.agg_params,
                 },
                 filters,

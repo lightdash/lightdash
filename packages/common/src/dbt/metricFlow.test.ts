@@ -241,6 +241,53 @@ describe('translateMetricFlowMetrics', () => {
         });
     });
 
+    // Core 1.12: expr only on type_params. Fusion: also on metric_aggregation_params.
+    it('falls back to type_params.expr when metric_aggregation_params.expr is null', () => {
+        const result = translateMetricFlowMetrics({
+            semanticModels: {
+                sm: {
+                    ...ordersSemanticModel,
+                    measures: [
+                        {
+                            name: 'total_revenue',
+                            agg: MetricFlowAggregation.SUM,
+                            expr: 'amount',
+                            create_metric: true,
+                        },
+                    ],
+                },
+            },
+            metrics: {
+                m: {
+                    name: 'total_revenue',
+                    unique_id: 'metric.jaffle.total_revenue',
+                    type: 'simple',
+                    label: 'Total revenue',
+                    description: 'Sum of all order amounts',
+                    type_params: {
+                        measure: null,
+                        expr: 'amount',
+                        metric_aggregation_params: {
+                            semantic_model: 'orders',
+                            agg: MetricFlowAggregation.SUM,
+                            expr: null,
+                            agg_params: { percentile: null },
+                        },
+                    },
+                },
+            },
+            modelNamesByUniqueId,
+        });
+
+        expect(result.translatedCount).toBe(1);
+        expect(result.metricsByModel.orders.total_revenue).toEqual({
+            type: MetricType.SUM,
+            sql: '${TABLE}.amount',
+            label: 'Total revenue',
+            description: 'Sum of all order amounts',
+        });
+    });
+
     it('does not translate the mirrored measure of a skipped filtered metric', () => {
         const result = translateMetricFlowMetrics({
             semanticModels: {
