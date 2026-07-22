@@ -918,6 +918,8 @@ export function formatRow(
                     false,
                     parameters,
                     timezone,
+                    undefined,
+                    row,
                 ),
             },
         };

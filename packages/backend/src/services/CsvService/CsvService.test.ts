@@ -2,6 +2,7 @@ import {
     DimensionType,
     FieldType,
     ItemsMap,
+    MetricType,
     type Dimension,
 } from '@lightdash/common';
 import * as fs from 'fs/promises';
@@ -198,6 +199,50 @@ $4.00,value_4,2020-03-16
 
         expect(csv).toEqual(['$1.00', 'value_1', '2020-03-16']);
     });
+
+    it('Should use row fields in formatted CSV values', () => {
+        const rowAwareItemMap: ItemsMap = {
+            orders_amount: {
+                fieldType: FieldType.METRIC,
+                type: MetricType.SUM,
+                name: 'amount',
+                label: 'Amount',
+                table: 'orders',
+                tableLabel: 'Orders',
+                sql: '${TABLE}.amount',
+                hidden: false,
+                format: '${ld.fields.orders_currency_symbol}#,##0.00',
+            },
+            orders_currency_symbol: {
+                fieldType: FieldType.DIMENSION,
+                type: DimensionType.STRING,
+                name: 'currency_symbol',
+                label: 'Currency symbol',
+                table: 'orders',
+                tableLabel: 'Orders',
+                sql: '${TABLE}.currency_symbol',
+                hidden: false,
+            },
+        };
+        const row = {
+            orders_amount: 1234.56,
+            orders_currency_symbol: '€',
+        };
+
+        expect(
+            CsvService.convertRowToCsv(row, rowAwareItemMap, false, [
+                'orders_amount',
+                'orders_currency_symbol',
+            ]),
+        ).toEqual(['€1,234.56', '€']);
+        expect(
+            CsvService.convertRowToCsv(row, rowAwareItemMap, true, [
+                'orders_amount',
+                'orders_currency_symbol',
+            ]),
+        ).toEqual([1234.56, '€']);
+    });
+
     it('Should convert RAW rows to csv', async () => {
         const row = {
             column_number: 1,

@@ -2907,6 +2907,48 @@ describe('Formatting', () => {
         });
     });
 
+    describe('formatItemValue with result row fields', () => {
+        const rowAwareMetric = {
+            ...metric,
+            type: MetricType.NUMBER,
+            format: '${ld.fields.orders_currency_symbol}${ld.parameters.unit=="M"?"#,##0.00,,\\"M\\"":"#,##0.00,\\"K\\""}',
+        };
+
+        it('should combine a row currency symbol with a parameter unit', () => {
+            expect(
+                formatItemValue(
+                    rowAwareMetric,
+                    1_234_567,
+                    false,
+                    { unit: 'M' },
+                    undefined,
+                    undefined,
+                    { orders_currency_symbol: '€' },
+                ),
+            ).toBe('€1.23M');
+
+            expect(
+                formatItemValue(
+                    rowAwareMetric,
+                    1_234_567,
+                    false,
+                    { unit: 'K' },
+                    undefined,
+                    undefined,
+                    { orders_currency_symbol: '$' },
+                ),
+            ).toBe('$1,234.57K');
+        });
+
+        it('should fall back to default formatting when the field is missing', () => {
+            expect(
+                formatItemValue(rowAwareMetric, 1_234_567, false, {
+                    unit: 'M',
+                }),
+            ).toBe('1,234,567');
+        });
+    });
+
     describe('timezone-aware formatting', () => {
         const utcTimestamp = '2020-04-04T02:00:00.000Z';
 

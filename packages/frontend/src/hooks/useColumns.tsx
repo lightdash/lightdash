@@ -79,20 +79,31 @@ export const formatCellContent = (
     data?: { value: ResultValue },
     item?: Field | AdditionalMetric | TableCalculation | CustomDimension,
     parameters?: ParametersValuesMap,
+    fieldValues?: ResultRow,
 ) => {
     if (!data) return '-';
 
-    // Only re-format on frontend when there are parameters and the format uses them
-    // Otherwise, use the pre-formatted value from backend
-    const hasParameterFormat =
+    // Re-format dynamic expressions with the current parameter and row values.
+    // Otherwise, use the pre-formatted value from the backend.
+    const hasDynamicFormat =
         item &&
         'format' in item &&
         typeof item.format === 'string' &&
         (item.format.includes('${ld.parameters') ||
-            item.format.includes('${lightdash.parameters'));
+            item.format.includes('${lightdash.parameters') ||
+            item.format.includes('${ld.fields.') ||
+            item.format.includes('${lightdash.fields.'));
 
-    if (hasParameterFormat && parameters) {
-        return formatItemValue(item, data.value.raw, false, parameters);
+    if (hasDynamicFormat && (parameters || fieldValues)) {
+        return formatItemValue(
+            item,
+            data.value.raw,
+            false,
+            parameters,
+            undefined,
+            undefined,
+            fieldValues,
+        );
     }
 
     // Use backend-formatted value by default
@@ -115,6 +126,7 @@ export const formatResultsTableCell = (
         | undefined,
     parameters: ParametersValuesMap | undefined,
     timezone: string | undefined,
+    fieldValues?: ResultRow,
 ): string => {
     if (!data) return '-';
 
@@ -126,7 +138,15 @@ export const formatResultsTableCell = (
         return data.value.formatted;
     }
 
-    return formatItemValue(item, data.value.raw, false, parameters, timezone);
+    return formatItemValue(
+        item,
+        data.value.raw,
+        false,
+        parameters,
+        timezone,
+        undefined,
+        fieldValues,
+    );
 };
 
 const getResultJsonCellValue = (
@@ -187,7 +207,12 @@ const formatBarDisplayCell = (
 
         // Only render bar if value is a valid number
         if (Number.isNaN(value)) {
-            return formatCellContent(cellValue, item, parameters);
+            return formatCellContent(
+                cellValue,
+                item,
+                parameters,
+                info.row.original as ResultRow,
+            );
         }
     } else {
         value = Number(cellValue);
@@ -204,7 +229,12 @@ const formatBarDisplayCell = (
     if (!minMax) {
         // Handle both ResultRow and RawResultRow formats
         if (isResultValue(cellValue)) {
-            return formatCellContent(cellValue, item, parameters);
+            return formatCellContent(
+                cellValue,
+                item,
+                parameters,
+                info.row.original as ResultRow,
+            );
         } else {
             // For raw string values, return formatted value
             return <span>{formatted}</span>;
@@ -425,7 +455,7 @@ export const getFormattedValueCell = (
         }
     }
 
-    return formatCellContent(cellValue, item, parameters);
+    return formatCellContent(cellValue, item, parameters, info.row.original);
 };
 
 const getJsonFormattedValueCell = (
@@ -684,6 +714,7 @@ export const useColumns = (): TableColumn[] => {
                             info.column.columnDef.meta?.item,
                             parameters,
                             timezone,
+                            info.row.original,
                         );
                     },
                     footer: () => {

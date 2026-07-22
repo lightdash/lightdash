@@ -672,4 +672,56 @@ describe('formatCellContent - Parameter-based formatting', () => {
             '¥5,000.75',
         );
     });
+
+    test('should combine a result row field with a parameter format', () => {
+        const mockItem = {
+            name: 'revenue',
+            table: 'orders',
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+            label: 'Revenue',
+            sql: 'revenue',
+            tableLabel: 'Orders',
+            hidden: false,
+            format: '${ld.fields.orders_currency_symbol}${ld.parameters.unit=="M"?"#,##0.00,,\\"M\\"":"#,##0.00,\\"K\\""}',
+        };
+        const data = {
+            value: { raw: 2_815_413.64, formatted: '2,815,413.64' },
+        };
+        const row: ResultRow = {
+            orders_currency_symbol: {
+                value: { raw: '€', formatted: '€' },
+            },
+        };
+
+        expect(formatCellContent(data, mockItem, { unit: 'M' }, row)).toBe(
+            '€2.82M',
+        );
+    });
+
+    test('should support a result row field without parameters', () => {
+        const mockItem = {
+            name: 'revenue',
+            table: 'orders',
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+            label: 'Revenue',
+            sql: 'revenue',
+            tableLabel: 'Orders',
+            hidden: false,
+            format: '${ld.fields.orders_currency_symbol}#,##0.00',
+        };
+        const data = {
+            value: { raw: 1234.56, formatted: '1,234.56' },
+        };
+        const row: ResultRow = {
+            orders_currency_symbol: {
+                value: { raw: '$', formatted: '$' },
+            },
+        };
+
+        expect(formatCellContent(data, mockItem, undefined, row)).toBe(
+            '$1,234.56',
+        );
+    });
 });

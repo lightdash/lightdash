@@ -1,11 +1,16 @@
 import moment from 'moment';
 import {
     DimensionType,
+    FieldType,
     formatRawValue,
+    formatRow,
     getDateGroupLabel,
     getFilterRuleFromFieldWithDefaultValue,
     getPasswordSchema,
     isValidEmailAddress,
+    MetricType,
+    VizAggregationOptions,
+    type ItemsMap,
 } from '.';
 import {
     dateDayDimension,
@@ -17,6 +22,97 @@ import {
 } from './index.mock';
 
 describe('Common index', () => {
+    describe('formatRow', () => {
+        test('makes current row fields available to format expressions', () => {
+            const itemsMap: ItemsMap = {
+                orders_amount: {
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.SUM,
+                    name: 'amount',
+                    label: 'Amount',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    sql: '${TABLE}.amount',
+                    hidden: false,
+                    format: '${ld.fields.orders_currency_symbol}${ld.parameters.unit=="M"?"#,##0.00,,\\"M\\"":"#,##0.00,\\"K\\""}',
+                },
+                orders_currency_symbol: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    name: 'currency_symbol',
+                    label: 'Currency symbol',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    sql: '${TABLE}.currency_symbol',
+                    hidden: false,
+                },
+            };
+
+            const result = formatRow(
+                {
+                    orders_amount: 1_234_567,
+                    orders_currency_symbol: '€',
+                },
+                itemsMap,
+                undefined,
+                { unit: 'M' },
+            );
+
+            expect(result.orders_amount.value).toEqual({
+                raw: 1_234_567,
+                formatted: '€1.23M',
+            });
+        });
+
+        test('uses passthrough fields when formatting a pivot value', () => {
+            const itemsMap: ItemsMap = {
+                orders_amount: {
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.SUM,
+                    name: 'amount',
+                    label: 'Amount',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    sql: '${TABLE}.amount',
+                    hidden: false,
+                    format: '${ld.fields.orders_currency_symbol}#,##0.00',
+                },
+                orders_currency_symbol: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    name: 'currency_symbol',
+                    label: 'Currency symbol',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    sql: '${TABLE}.currency_symbol',
+                    hidden: false,
+                },
+            };
+            const pivotColumn = 'orders_amount_completed';
+
+            const result = formatRow(
+                {
+                    [pivotColumn]: 1234.56,
+                    orders_currency_symbol: '$',
+                },
+                itemsMap,
+                {
+                    [pivotColumn]: {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotColumnName: pivotColumn,
+                        pivotValues: [],
+                        referenceField: 'orders_amount',
+                    },
+                },
+            );
+
+            expect(result[pivotColumn].value).toEqual({
+                raw: 1234.56,
+                formatted: '$1,234.56',
+            });
+        });
+    });
+
     describe('default values on filter rule', () => {
         // TODO mock some timezones
         test('should return right default day value', async () => {

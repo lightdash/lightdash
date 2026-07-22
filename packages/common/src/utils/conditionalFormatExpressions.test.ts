@@ -293,4 +293,62 @@ describe('evaluateConditionalFormatExpression', () => {
             expect(result).toBe('Different');
         });
     });
+
+    describe('result row fields', () => {
+        it('should substitute a field value', () => {
+            const result = evaluateConditionalFormatExpression(
+                '${ld.fields.orders_currency_symbol}#,##0.00',
+                {},
+                { orders_currency_symbol: '£' },
+            );
+            expect(result).toBe('£#,##0.00');
+        });
+
+        it('should support the long field prefix', () => {
+            const result = evaluateConditionalFormatExpression(
+                '${lightdash.fields.orders_currency_symbol}#,##0.00',
+                {},
+                { orders_currency_symbol: '€' },
+            );
+            expect(result).toBe('€#,##0.00');
+        });
+
+        it('should unwrap a formatted result row value', () => {
+            const result = evaluateConditionalFormatExpression(
+                '${ld.fields.orders_currency_symbol}#,##0.00',
+                {},
+                {
+                    orders_currency_symbol: {
+                        value: { raw: '$', formatted: '$' },
+                    },
+                },
+            );
+            expect(result).toBe('$#,##0.00');
+        });
+
+        it('should use a field in a ternary condition', () => {
+            const result = evaluateConditionalFormatExpression(
+                '${ld.fields.orders_metric_format=="percent"?"#,##0.0%":"#,##0.00"}',
+                {},
+                { orders_metric_format: 'percent' },
+            );
+            expect(result).toBe('#,##0.0%');
+        });
+
+        it('should combine a field prefix with a parameter format', () => {
+            const result = evaluateConditionalFormatExpression(
+                '${ld.fields.orders_currency_symbol}${ld.parameters.unit=="M"?"#,##0.00,,\\"M\\"":"#,##0.00,\\"K\\""}',
+                { unit: 'M' },
+                { orders_currency_symbol: '$' },
+            );
+            expect(result).toBe('$#,##0.00,,"M"');
+        });
+
+        it('should leave a missing field reference unchanged', () => {
+            const result = evaluateConditionalFormatExpression(
+                '${ld.fields.orders_currency_symbol}#,##0.00',
+            );
+            expect(result).toBe('${ld.fields.orders_currency_symbol}#,##0.00');
+        });
+    });
 });
