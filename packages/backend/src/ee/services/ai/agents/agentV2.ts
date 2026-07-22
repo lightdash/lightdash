@@ -80,6 +80,7 @@ import {
     AiAgentStepCapReachedError,
     getUserFacingErrorMessage,
 } from '../utils/errorMessages';
+import { renderMemoryBlock } from '../utils/memoryBlock';
 import {
     isPendingToolResult,
     summarizeToolCall,
@@ -779,11 +780,30 @@ const getUnauthenticatedMcpServerNames = (
         .map((server) => server.serverName);
 };
 
+export const buildMessagesWithMemoryBlock = ({
+    systemPrompt,
+    messageHistory,
+    memoryEnabled,
+    memoryBlock,
+}: {
+    systemPrompt: ModelMessage;
+    messageHistory: ModelMessage[];
+    memoryEnabled: boolean;
+    memoryBlock: string | null;
+}): ModelMessage[] => [
+    systemPrompt,
+    ...(memoryEnabled && memoryBlock
+        ? [{ role: 'user' as const, content: memoryBlock }]
+        : []),
+    ...messageHistory,
+];
+
 const getAgentMessages = (
     args: AiAgentArgs,
     availableExplores: Explore[],
     mcpToolSetup: AgentMcpToolSetup,
     verifiedFieldUsage: Map<string, number>,
+    memoryBlock: string | null,
 ) => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
@@ -801,38 +821,40 @@ const getAgentMessages = (
     const hasProjectContext =
         args.projectContextEnabled && args.projectContext.length > 0;
 
-    const messages = [
-        getSystemPromptV2({
-            agentName: args.agentSettings.name,
-            instructions: args.agentSettings.instruction || undefined,
-            requestingUser: args.requestingUser,
-            availableExplores,
-            availableSkills: args.availableSkills,
-            knowledgeDocuments: args.knowledgeDocuments,
-            hasProjectContext,
-            enableAiAgentMemory: args.aiAgentMemoryEnabled,
-            enableDataAccess: args.enableDataAccess,
-            enableAiWriteback: args.enableAiWriteback,
-            writebackAttribution: args.writebackAttribution,
-            enableCodingAgent: args.enableCodingAgent,
-            siteUrl: args.siteUrl,
-            enableRepoDiscovery: args.enableRepoDiscovery,
-            repoFsRoot: args.repoFsRoot,
-            repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
-            enableGrepFields: args.enableGrepFields,
-            enableContentTools:
-                args.enableDataAccess && args.enableContentTools,
-            slackChannelId: args.slackChannelId,
-            canRunSql: args.canRunSql,
-            warehouseType: args.warehouseType,
-            warehouseSchema: args.warehouseSchema,
-            unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
-                args,
-                mcpToolSetup,
-            ),
-        }),
-        ...messageHistory,
-    ];
+    const systemPrompt = getSystemPromptV2({
+        agentName: args.agentSettings.name,
+        instructions: args.agentSettings.instruction || undefined,
+        requestingUser: args.requestingUser,
+        availableExplores,
+        availableSkills: args.availableSkills,
+        knowledgeDocuments: args.knowledgeDocuments,
+        hasProjectContext,
+        enableAiAgentMemory: args.aiAgentMemoryEnabled,
+        enableDataAccess: args.enableDataAccess,
+        enableAiWriteback: args.enableAiWriteback,
+        writebackAttribution: args.writebackAttribution,
+        enableCodingAgent: args.enableCodingAgent,
+        siteUrl: args.siteUrl,
+        enableRepoDiscovery: args.enableRepoDiscovery,
+        repoFsRoot: args.repoFsRoot,
+        repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
+        enableGrepFields: args.enableGrepFields,
+        enableContentTools: args.enableDataAccess && args.enableContentTools,
+        slackChannelId: args.slackChannelId,
+        canRunSql: args.canRunSql,
+        warehouseType: args.warehouseType,
+        warehouseSchema: args.warehouseSchema,
+        unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
+            args,
+            mcpToolSetup,
+        ),
+    });
+    const messages = buildMessagesWithMemoryBlock({
+        systemPrompt,
+        messageHistory,
+        memoryEnabled: args.aiAgentMemoryEnabled,
+        memoryBlock,
+    });
 
     logger('Agent Messages', `Retrieved ${messages.length} messages.`);
 
@@ -861,6 +883,16 @@ const getAgentMessages = (
     return messages;
 };
 
+const getMemoryBlock = async (
+    args: AiAgentArgs,
+    dependencies: AiAgentDependencies,
+): Promise<string | null> => {
+    if (!args.aiAgentMemoryEnabled) return null;
+    return renderMemoryBlock(
+        await dependencies.getAiAgentMemoryContextEntries(),
+    );
+};
+
 export const generateAgentResponse = async ({
     args,
     dependencies,
@@ -883,7 +915,10 @@ export const generateAgentResponse = async ({
     const modelName = getAiAgentModelName(args.model);
 
     try {
-        const availableExplores = await dependencies.listExplores();
+        const [availableExplores, memoryBlock] = await Promise.all([
+            dependencies.listExplores(),
+            getMemoryBlock(args, dependencies),
+        ]);
         // Verified-chart usage powers verified-first ranking in grep discovery;
         // degrade to an empty map if it can't be fetched.
         const verifiedFieldUsage = args.enableGrepFields
@@ -906,6 +941,7 @@ export const generateAgentResponse = async ({
             availableExplores,
             mcpToolSetup,
             verifiedFieldUsage,
+            memoryBlock,
         );
         logger(
             'Generate Agent Response',
@@ -1176,7 +1212,10 @@ export const streamAgentResponse = async ({
     };
 
     try {
-        const availableExplores = await dependencies.listExplores();
+        const [availableExplores, memoryBlock] = await Promise.all([
+            dependencies.listExplores(),
+            getMemoryBlock(args, dependencies),
+        ]);
         const verifiedFieldUsage = args.enableGrepFields
             ? await dependencies
                   .getVerifiedFieldUsage()
@@ -1194,6 +1233,7 @@ export const streamAgentResponse = async ({
             availableExplores,
             mcpToolSetup,
             verifiedFieldUsage,
+            memoryBlock,
         );
         logger(
             'Stream Agent Response',
