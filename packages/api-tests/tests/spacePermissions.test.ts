@@ -251,6 +251,139 @@ describe('Lightdash API tests for an editor accessing other private spaces', () 
     });
 });
 
+describe('Lightdash API tests for moving charts between spaces', () => {
+    let admin: ApiClient;
+    let editorClient: ApiClient;
+    let publicSpace: Space;
+    let secondPublicSpace: Space;
+    let publicChart: SavedChart;
+    let privateSpace: Space;
+    let privateChart: SavedChart;
+
+    beforeAll(async () => {
+        admin = await login();
+
+        const publicSpaceResp = await admin.post<{ results: Space }>(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
+            {
+                name: uniqueName('public space'),
+                inheritParentPermissions: true,
+            },
+        );
+        expect(publicSpaceResp.status).toBe(200);
+        publicSpace = publicSpaceResp.body.results;
+
+        const secondPublicSpaceResp = await admin.post<{ results: Space }>(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
+            {
+                name: uniqueName('second public space'),
+                inheritParentPermissions: true,
+            },
+        );
+        expect(secondPublicSpaceResp.status).toBe(200);
+        secondPublicSpace = secondPublicSpaceResp.body.results;
+
+        const publicChartResp = await admin.post<{ results: SavedChart }>(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/saved`,
+            {
+                ...chartBody,
+                name: uniqueName('public chart'),
+                spaceUuid: publicSpace.uuid,
+            },
+        );
+        expect(publicChartResp.status).toBe(200);
+        publicChart = publicChartResp.body.results;
+
+        const privateResult = await createPrivateChart(admin);
+        privateSpace = privateResult.space;
+        privateChart = privateResult.chart;
+
+        const perm = await loginWithPermissions('member', [
+            {
+                role: 'editor',
+                projectUuid: SEED_PROJECT.project_uuid,
+            },
+        ]);
+        editorClient = perm.client;
+    });
+
+    afterAll(async () => {
+        await deleteSpace(admin, privateSpace.uuid);
+        await deleteSpace(admin, secondPublicSpace.uuid);
+        await deleteSpace(admin, publicSpace.uuid);
+    });
+
+    it('Should updateMultiple a chart within a space the user can access', async () => {
+        const resp = await editorClient.patch(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/saved/`,
+            [
+                {
+                    uuid: publicChart.uuid,
+                    name: 'updated name',
+                    description: 'updated description',
+                    spaceUuid: publicSpace.uuid,
+                },
+            ],
+            { failOnStatusCode: false },
+        );
+        expect(resp.status).toBe(200);
+    });
+
+    it('Should move a chart between spaces the user can access', async () => {
+        const resp = await editorClient.post(
+            `/api/v2/content/${SEED_PROJECT.project_uuid}/move`,
+            {
+                item: {
+                    uuid: publicChart.uuid,
+                    contentType: 'chart',
+                    source: 'dbt_explore',
+                },
+                action: {
+                    type: 'move',
+                    targetSpaceUuid: secondPublicSpace.uuid,
+                },
+            },
+            { failOnStatusCode: false },
+        );
+        expect(resp.status).toBe(200);
+    });
+
+    it('Should not move a chart into a space the user cannot access', async () => {
+        const resp = await editorClient.post(
+            `/api/v2/content/${SEED_PROJECT.project_uuid}/move`,
+            {
+                item: {
+                    uuid: publicChart.uuid,
+                    contentType: 'chart',
+                    source: 'dbt_explore',
+                },
+                action: {
+                    type: 'move',
+                    targetSpaceUuid: privateSpace.uuid,
+                },
+            },
+            { failOnStatusCode: false },
+        );
+        expect(resp.status).toBe(403);
+    });
+
+    it('Should not updateMultiple a chart out of a space the user cannot access', async () => {
+        const resp = await editorClient.patch(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/saved/`,
+            [
+                {
+                    uuid: privateChart.uuid,
+                    name: 'updated name',
+                    description: 'updated description',
+                    spaceUuid: publicSpace.uuid,
+                },
+            ],
+            { failOnStatusCode: false },
+        );
+        expect(resp.status).toBe(403);
+    });
+});
+
 describe('Lightdash API tests for a project admin accessing other private spaces', () => {
     let admin: ApiClient;
     let projectAdminClient: ApiClient;
