@@ -305,13 +305,22 @@ screenshot capability, and hidden in the viewer (`AppPreviewTest`), which passes
 
 Storage is intentionally simple and app-scoped: the latest manual screenshot overwrites
 `apps/{appUuid}/thumbnail.png` in the app runtime S3 bucket. There is no DB row or per-version history; the object key is
-the metadata convention. The backend exposes signed-url (`GET`) and idempotent delete (`DELETE`) endpoints for that
-optional object, and the My Apps settings table lazy-loads it on name hover to show a preview when a thumbnail exists.
+the metadata convention. The backend exposes a signed-url endpoint for that optional object, and the My Apps settings
+table lazy-loads it on name hover to show a preview when a thumbnail exists.
 
-Because the key is app-scoped, the thumbnail automatically travels with the app when it moves between spaces. The move
-flow (`MoveAppToSpaceModal`, shared by the app header menu, space chip, My Apps list, and browse table) therefore offers
-an **Include app thumbnail** checkbox — shown only when a thumbnail exists, on by default. Unchecking it deletes the
-thumbnail after a successful move, so a stale or sensitive screenshot isn't shared with the space.
+Because the key is app-scoped, an existing thumbnail automatically travels with the app when it moves between spaces.
+The move flow (`MoveAppToSpaceModal`, shared by the app header menu, space chip, My Apps list, and browse table)
+additionally offers a capture checkbox in the modal footer, checked by default: labelled **Include app thumbnail** when
+the app has none, or **Replace app thumbnail** when one already exists (the label — not the default — is what signals
+the overwrite; a default derived from the async thumbnail check would flip the checkbox under the user). When checked, the modal captures
+a fresh screenshot of the app **before the move** and uploads it as the thumbnail. The capture source depends on the
+surface: pages with a live preview (builder, viewer — including via their space chip) pass the iframe's
+`captureScreenshot` handle into the modal, so the thumbnail shows the app **exactly as the user sees it**, interactive
+state (selected metrics, filters) included. Surfaces without a live preview (browse table, My Apps) fall back to an
+invisible `AppIframePreview` of the latest ready version, which renders the app's **default** state — the container is
+in-viewport at `opacity: 0` (never `display: none` or offscreen), so the app still renders, animation frames run, and
+IntersectionObserver-driven content loads. The checkbox is disabled when the app has no ready version; if the app's
+template predates the screenshot handler, the capture times out and the move proceeds with a warning toast.
 
 ### Refreshing a data app inside a dashboard
 

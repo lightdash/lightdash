@@ -1,6 +1,5 @@
 import {
     CopyObjectCommand,
-    DeleteObjectCommand,
     DeleteObjectsCommand,
     GetObjectCommand,
     HeadObjectCommand,
@@ -1288,43 +1287,6 @@ export class AppGenerateService extends BaseService {
         );
 
         return { thumbnailUrl };
-    }
-
-    /**
-     * Remove an app's thumbnail. Idempotent — deleting a thumbnail that does
-     * not exist succeeds (S3 delete semantics).
-     */
-    async deleteThumbnail(
-        user: SessionUser,
-        projectUuid: string,
-        appUuid: string,
-    ): Promise<void> {
-        await this.assertDataAppsEnabled(user);
-
-        const app = await this.appModel.getApp(appUuid, projectUuid);
-        await this.assertCanManageApp(
-            user,
-            app,
-            'Insufficient permissions to update app thumbnail',
-        );
-
-        const { client: s3Client, bucket } = this.getS3Client();
-        await s3Client.send(
-            new DeleteObjectCommand({
-                Bucket: bucket,
-                Key: AppGenerateService.appThumbnailKey(appUuid),
-            }),
-        );
-
-        this.analytics.track({
-            event: 'data_app.thumbnail_deleted',
-            userId: user.userUuid,
-            properties: {
-                organizationId: user.organizationUuid!,
-                projectId: projectUuid,
-                appUuid,
-            },
-        });
     }
 
     private static truncateEnd(text: string, maxLength: number): string {

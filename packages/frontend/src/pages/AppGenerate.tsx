@@ -764,6 +764,18 @@ const AppGenerate: FC = () => {
     const { mutateAsync: uploadImage } = useAppImageUpload();
     const { showToastError, showToastSuccess, showToastWarning } = useToaster();
     const { mutateAsync: uploadThumbnail } = useAppThumbnailUpload();
+
+    // Raw live-preview capture handed to the move modal (via header actions
+    // and space chip) so move-time thumbnails show the app exactly as
+    // currently displayed — interactive state included. Must stay in the
+    // unconditional hook section: the component has early returns below.
+    const capturePreviewScreenshot = useCallback(async () => {
+        const capture = previewRef.current?.captureScreenshot;
+        if (!capture) {
+            throw new Error('Screenshot capture is not available');
+        }
+        return capture();
+    }, []);
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { user } = useApp();
     const ability = useAbilityContext();
@@ -3026,6 +3038,11 @@ const AppGenerate: FC = () => {
                                         <AppSpaceChip
                                             projectUuid={projectUuid}
                                             spaceName={appSpaceName}
+                                            capturePreviewScreenshot={
+                                                screenshotAvailable
+                                                    ? capturePreviewScreenshot
+                                                    : null
+                                            }
                                             app={{
                                                 uuid: activeAppUuid,
                                                 name: appName,
@@ -3073,6 +3090,11 @@ const AppGenerate: FC = () => {
                                                     !screenshotAvailable ||
                                                     isCapturingScreenshot,
                                             }}
+                                            capturePreviewScreenshot={
+                                                screenshotAvailable
+                                                    ? capturePreviewScreenshot
+                                                    : null
+                                            }
                                             onViewNetwork={() =>
                                                 setNetworkPanelHidden(false)
                                             }

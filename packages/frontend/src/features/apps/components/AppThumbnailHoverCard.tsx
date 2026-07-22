@@ -44,8 +44,16 @@ const AppThumbnailHoverCard: FC<AppThumbnailHoverCardProps> = ({
         isActive && hasReadyVersion,
     );
     const isLoadingThumbnail = thumbnail.isLoading || thumbnail.isFetching;
-    const thumbnailUrl = thumbnail.data?.thumbnailUrl;
-    const hasThumbnailPreview = !!thumbnailUrl;
+    // react-query keeps stale data when a refetch errors (e.g. the thumbnail
+    // was deleted → 404), so an error means "no thumbnail" even with data.
+    const thumbnailUrl = thumbnail.isError
+        ? undefined
+        : thumbnail.data?.thumbnailUrl;
+    // A signed URL can also die under us (object deleted, 15-min expiry) —
+    // if the image fails to load, drop the preview instead of showing a
+    // broken image. A later hover refetches a fresh URL.
+    const [brokenUrl, setBrokenUrl] = useState<string | null>(null);
+    const hasThumbnailPreview = !!thumbnailUrl && thumbnailUrl !== brokenUrl;
     const showPreview = hasThumbnailPreview;
     const renderedChildren =
         typeof children === 'function'
@@ -108,6 +116,9 @@ const AppThumbnailHoverCard: FC<AppThumbnailHoverCardProps> = ({
                                 w={320}
                                 mah={220}
                                 fit="contain"
+                                onError={() =>
+                                    setBrokenUrl(thumbnailUrl ?? null)
+                                }
                             />
                         </Stack>
                     ) : null}
