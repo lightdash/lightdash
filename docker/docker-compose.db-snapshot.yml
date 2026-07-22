@@ -1,0 +1,57 @@
+# Builds the pre-seeded database that preview environments divert from.
+# Deployed by .github/workflows/preview-db-snapshot.yml into the persistent
+# db-snapshot namespace: the seeder runs the same entrypoint as previews
+# (dbt + migrate + seed) against a blank volume, then the workflow snapshots
+# the volume with scripts/preview-db-snapshot.sh.
+volumes:
+    db-data:
+        driver_opts:
+            # csi-okteto is required: the default storage class can't snapshot
+            class: csi-okteto
+            size: 2Gi
+
+services:
+    db-snapshot:
+        image: pgvector/pgvector:pg18
+        restart: always
+        environment:
+            # Must match the preview PGPASSWORD in okteto.preview.yaml: a
+            # database diverted from this snapshot keeps this password
+            - POSTGRES_PASSWORD=not-very-secret-preview-db
+        ports:
+            - '5432'
+        volumes:
+            - db-data:/var/lib/postgresql
+
+    db-snapshot-seeder:
+        build:
+            target: pr-runner
+            context: ..
+            dockerfile: dockerfile-prs
+        restart: always
+        depends_on:
+            - db-snapshot
+        environment:
+            NODE_ENV: production
+            DBT_DEMO_DIR: /usr/app
+            # Must match the preview LIGHTDASH_SECRET in
+            # docker-compose.preview.yml: the seed encrypts warehouse
+            # credentials with it, and a diverted preview must decrypt them
+            LIGHTDASH_SECRET: not very secret
+            PGHOST: db-snapshot
+            PGPORT: 5432
+            PGDATABASE: postgres
+            PGPASSWORD: not-very-secret-preview-db
+            PGUSER: postgres
+            PGMAXCONNECTIONS: 10
+            # Set in the okteto admin UI. EE migrations and seeds only run
+            # with a license key; without it diverted previews would be
+            # missing the enterprise seed data
+            LIGHTDASH_LICENSE_KEY: ${LIGHTDASH_LICENSE_KEY}
+            # Never used by migrate/seed, but loading the knexfile parses the
+            # full Lightdash config, which requires S3 settings to be present
+            S3_ENDPOINT: http://unused:9000
+            S3_BUCKET: unused
+            S3_REGION: unused
+        entrypoint: ['/usr/bin/renderDeployHook.sh']
+        command: ['sleep', 'infinity']
