@@ -200,8 +200,10 @@ export {
     WarehouseTypes,
 } from './types/projects';
 export type {
+    ApiEnsurePlaygroundProjectResponse,
     ApiGetProjectGroupAccesses,
     ApiProjectResponse,
+    EnsurePlaygroundProjectResults,
     AthenaCredentials,
     BigqueryCredentials,
     ClickhouseCredentials,

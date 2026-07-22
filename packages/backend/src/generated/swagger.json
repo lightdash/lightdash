@@ -25912,6 +25912,41 @@
                     }
                 ]
             },
+            "DuckdbConnectionType.EMBEDDED": {
+                "enum": ["embedded"],
+                "type": "string"
+            },
+            "CreateDuckdbEmbeddedCredentials": {
+                "properties": {
+                    "schema": {
+                        "type": "string"
+                    },
+                    "startOfWeek": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dataTimezone": {
+                        "type": "string"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "dataset": {
+                        "type": "string"
+                    },
+                    "connectionType": {
+                        "$ref": "#/components/schemas/DuckdbConnectionType.EMBEDDED"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.DUCKDB"
+                    }
+                },
+                "required": ["dataset", "connectionType", "type"],
+                "type": "object"
+            },
+            "DuckdbEmbeddedCredentials": {
+                "$ref": "#/components/schemas/CreateDuckdbEmbeddedCredentials"
+            },
             "DuckdbCredentials": {
                 "anyOf": [
                     {
@@ -25919,6 +25954,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/DuckdbDucklakeCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DuckdbEmbeddedCredentials"
                     }
                 ]
             },
@@ -26972,6 +27010,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/CreateDuckdbDucklakeCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreateDuckdbEmbeddedCredentials"
                     }
                 ]
             },
@@ -38279,6 +38320,10 @@
             },
             "Project": {
                 "properties": {
+                    "provisioningSource": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "expiresAt": {
                         "type": "string",
                         "format": "date-time",
@@ -38383,7 +38428,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Project.name-or-projectUuid-or-organizationUuid-or-type-or-upstreamProjectUuid-or-createdByUserUuid_": {
+            "Pick_Project.name-or-projectUuid-or-organizationUuid-or-type-or-upstreamProjectUuid-or-createdByUserUuid-or-provisioningSource_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -38403,6 +38448,10 @@
                     },
                     "upstreamProjectUuid": {
                         "type": "string"
+                    },
+                    "provisioningSource": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -38416,7 +38465,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ProjectSummary": {
-                "$ref": "#/components/schemas/Pick_Project.name-or-projectUuid-or-organizationUuid-or-type-or-upstreamProjectUuid-or-createdByUserUuid_"
+                "$ref": "#/components/schemas/Pick_Project.name-or-projectUuid-or-organizationUuid-or-type-or-upstreamProjectUuid-or-createdByUserUuid-or-provisioningSource_"
             },
             "ApiSuccess_ProjectSummary_": {
                 "properties": {
@@ -41432,6 +41481,10 @@
             },
             "OrganizationProject": {
                 "properties": {
+                    "provisioningSource": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "expiresAt": {
                         "type": "string",
                         "format": "date-time",
@@ -42328,6 +42381,32 @@
                         "type": "object"
                     }
                 ]
+            },
+            "EnsurePlaygroundProjectResults": {
+                "properties": {
+                    "created": {
+                        "type": "boolean"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["created", "projectUuid"],
+                "type": "object"
+            },
+            "ApiEnsurePlaygroundProjectResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/EnsurePlaygroundProjectResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
             },
             "ImpersonationOrganizationSettings": {
                 "properties": {
@@ -72939,6 +73018,38 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/org/playground-projects/ensure": {
+            "post": {
+                "operationId": "EnsurePlaygroundProject",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnsurePlaygroundProjectResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Return the organization's existing project or provision its sample-data\nplayground when the new onboarding flow is available.",
+                "summary": "Ensure playground project",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/org/impersonation": {

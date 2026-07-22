@@ -1130,6 +1130,16 @@ export type ApiProjectResponse = {
     results: Project;
 };
 
+export type EnsurePlaygroundProjectResults = {
+    projectUuid: string;
+    created: boolean;
+};
+
+export type ApiEnsurePlaygroundProjectResponse = {
+    status: 'ok';
+    results: EnsurePlaygroundProjectResults;
+};
+
 export type UpdateProjectDetails = Partial<Pick<Project, 'name'>>;
 
 export type ApiGetProjectGroupAccesses = {

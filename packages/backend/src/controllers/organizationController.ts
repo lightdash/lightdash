@@ -1,8 +1,10 @@
+import { subject } from '@casl/ability';
 import {
     ApiColorPaletteResponse,
     ApiColorPalettesResponse,
     ApiCreatedColorPaletteResponse,
     ApiCreateGroupResponse,
+    ApiEnsurePlaygroundProjectResponse,
     ApiErrorPayload,
     ApiGroupListResponse,
     ApiImpersonationOrganizationSettingsResponse,
@@ -19,6 +21,7 @@ import {
     CreateColorPalette,
     CreateGroup,
     CreateOrganization,
+    ForbiddenError,
     getRequestMethod,
     KnexPaginateArgs,
     LightdashRequestMethodHeader,
@@ -777,6 +780,43 @@ export class OrganizationController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    /**
+     * Return the organization's existing project or provision its sample-data
+     * playground when the new onboarding flow is available.
+     * @summary Ensure playground project
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Post('/playground-projects/ensure')
+    @OperationId('EnsurePlaygroundProject')
+    async ensurePlaygroundProject(
+        @Request() req: express.Request,
+    ): Promise<ApiEnsurePlaygroundProjectResponse> {
+        assertRegisteredAccount(req.account);
+        const user = toSessionUser(req.account);
+        if (
+            user.ability.cannot(
+                'create',
+                subject('InviteLink', {
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User does not have permission to create invite links',
+            );
+        }
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .ensurePlaygroundProject(user),
         };
     }
 

@@ -256,6 +256,7 @@ import {
     DbtProjectType,
     type CreateWarehouseCredentials,
     type DbtProjectConfig,
+    type EnsurePlaygroundProjectResults,
     type Project,
     type WarehouseCredentials,
 } from './projects';
@@ -1045,6 +1046,7 @@ export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
     | BigqueryProjectRecommendation
+    | EnsurePlaygroundProjectResults
     | ApiWarehouseConnectCodeResponse['results']
     | ApiWarehouseConnectCodeClaimResponse['results']
     | ApiQueryResults
