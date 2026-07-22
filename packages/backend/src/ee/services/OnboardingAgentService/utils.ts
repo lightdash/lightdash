@@ -1,4 +1,7 @@
-import { type AgentOnboardingStage } from '@lightdash/common';
+import {
+    PayloadTooLargeError,
+    type AgentOnboardingStage,
+} from '@lightdash/common';
 import {
     CLAUDE_SKILLS_DIR,
     CLI_WRAPPER_PATH,
@@ -175,7 +178,7 @@ export const validateOnboardingOutputFileLimits = (
     files: WorkspaceFileEntry[],
 ): void => {
     if (files.length > MAX_ONBOARDING_FILE_COUNT) {
-        throw new Error(
+        throw new PayloadTooLargeError(
             `The onboarding agent generated more than ${MAX_ONBOARDING_FILE_COUNT} files`,
         );
     }
@@ -184,7 +187,7 @@ export const validateOnboardingOutputFileLimits = (
         ({ sizeBytes }) => sizeBytes > MAX_ONBOARDING_FILE_SIZE_BYTES,
     );
     if (oversizedFile) {
-        throw new Error(
+        throw new PayloadTooLargeError(
             `Onboarding file ${oversizedFile.path} exceeds the ${MAX_ONBOARDING_FILE_SIZE_BYTES} byte limit`,
         );
     }
@@ -194,7 +197,7 @@ export const validateOnboardingOutputFileLimits = (
         0,
     );
     if (totalSizeBytes > MAX_ONBOARDING_TOTAL_SIZE_BYTES) {
-        throw new Error(
+        throw new PayloadTooLargeError(
             `Onboarding files exceed the ${MAX_ONBOARDING_TOTAL_SIZE_BYTES} byte total limit`,
         );
     }

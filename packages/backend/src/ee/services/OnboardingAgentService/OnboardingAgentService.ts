@@ -7,6 +7,7 @@ import {
     MissingConfigError,
     NotFoundError,
     RequestMethod,
+    UnexpectedServerError,
     type AgentOnboardingFileContent,
     type AgentOnboardingHandoff,
     type AgentOnboardingJobPayload,
@@ -499,7 +500,7 @@ export class OnboardingAgentService extends BaseService {
                     `${WORKDIR}/${file.path}`,
                 );
                 if (containsOnboardingSecret(contents, sensitiveValues)) {
-                    throw new Error(
+                    throw new UnexpectedServerError(
                         `Onboarding file ${file.path} contains sensitive content and was not persisted`,
                     );
                 }
@@ -535,7 +536,7 @@ export class OnboardingAgentService extends BaseService {
                     ].join('/');
                     const contents = contentsByPath.get(file.path);
                     if (!contents) {
-                        throw new Error(
+                        throw new UnexpectedServerError(
                             `Could not read onboarding file ${file.path}`,
                         );
                     }
@@ -958,7 +959,7 @@ export class OnboardingAgentService extends BaseService {
                 });
             const handoff = this.buildHandoff(assistantText, sensitiveValues());
             if (!hasCompleteOnboardingOutput(files) || !handoff.dashboardUrl) {
-                throw new Error(
+                throw new UnexpectedServerError(
                     'The onboarding agent stopped before generating all required project files. Please try again.',
                 );
             }
