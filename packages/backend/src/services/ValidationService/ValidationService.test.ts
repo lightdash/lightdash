@@ -222,12 +222,13 @@ describe('validation', () => {
         expect(errors.map((error) => error.error)).toEqual(expectedErrors);
     });
 
-    it('Should promote CLI warehouse column warnings to table errors without probing the warehouse', async () => {
+    it('Should create table validation errors from CLI warehouse diagnostics without probing the warehouse', async () => {
         const errors = await validationService.generateValidation(
             'projectUuid',
             [exploreWithWarehouseColumnError],
         );
 
+        expect(errors).toHaveLength(1);
         expect({ ...errors[0], createdAt: undefined }).toEqual({
             createdAt: undefined,
             name: 'valid_explore',
@@ -237,13 +238,10 @@ describe('validation', () => {
             projectUuid: 'projectUuid',
             source: ValidationSourceType.Table,
         });
-        expect(errors.map((error) => error.error)).toEqual([
-            'Warehouse rejected ${TABLE}.missing_column',
-        ]);
         expect(validateWarehouseColumnReferences).not.toHaveBeenCalled();
     });
 
-    it('Should ignore explore warnings that are not warehouse column errors', async () => {
+    it('Should ignore cached explore warnings unrelated to warehouse columns', async () => {
         (
             projectModel.findExploresFromCache as import('vitest').Mock
         ).mockImplementationOnce(async () => [exploreWithNonWarehouseWarnings]);
@@ -254,18 +252,18 @@ describe('validation', () => {
         expect(errors).toEqual([]);
     });
 
-    it('Should promote only the warehouse column warning when mixed with generic warnings', async () => {
+    it('Should create only the warehouse table error from mixed CLI diagnostics', async () => {
         const errors = await validationService.generateValidation(
             'projectUuid',
             [exploreWithMixedWarnings],
         );
 
-        expect(errors.map((error) => error.error)).toEqual([
-            'Warehouse rejected ${TABLE}.missing_column',
-        ]);
-        expect(errors.map((error) => error.errorType)).toEqual([
-            ValidationErrorType.Model,
-        ]);
+        expect(errors).toHaveLength(1);
+        expect(errors[0]).toMatchObject({
+            error: 'Warehouse rejected ${TABLE}.missing_column',
+            errorType: ValidationErrorType.Model,
+            source: ValidationSourceType.Table,
+        });
     });
 
     it('Should validate project with table errors', async () => {
