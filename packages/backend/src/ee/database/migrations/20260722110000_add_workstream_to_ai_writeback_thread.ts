@@ -13,7 +13,7 @@ export async function up(knex: Knex): Promise<void> {
         [ColumnName]: 'dbt-writeback',
     });
     await knex.schema.alterTable(TableName, (table) => {
-        table.text(ColumnName).notNullable().alter();
+        table.text(ColumnName).notNullable().defaultTo('dbt-writeback').alter();
     });
 }
 
