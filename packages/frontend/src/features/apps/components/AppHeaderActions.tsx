@@ -1,8 +1,4 @@
-import {
-    FeatureFlags,
-    getAppDisplayName,
-    type AppVersionStatus,
-} from '@lightdash/common';
+import { getAppDisplayName, type AppVersionStatus } from '@lightdash/common';
 import { ActionIcon, Menu, Tooltip } from '@mantine-8/core';
 import {
     IconArrowsUpDown,
@@ -23,7 +19,6 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import AppDeleteModal from '../../../components/common/modal/AppDeleteModal';
 import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
 import { useProject } from '../../../hooks/useProject';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { AppSchedulersModal } from '../../scheduler/components/SchedulerModals';
 import { useCanCreateDataApp } from '../hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../hooks/useCanEditDataApp';
@@ -100,10 +95,6 @@ const AppHeaderActions: FC<Props> = ({
     // Duplicating forks the app into the user's own personal app, so it only
     // needs `create:DataApp` — not manage rights on this app.
     const canDuplicate = useCanCreateDataApp(projectUuid);
-
-    const scheduledDeliveriesFlag = useServerFeatureFlag(
-        FeatureFlags.DataAppsScheduledDeliveries,
-    );
 
     // Promotion is only offered from a preview project linked to an upstream.
     const { data: project } = useProject(projectUuid);
@@ -187,7 +178,7 @@ const AppHeaderActions: FC<Props> = ({
                     >
                         View network
                     </Menu.Item>
-                    {canEdit && scheduledDeliveriesFlag.data?.enabled && (
+                    {canEdit && (
                         <Menu.Item
                             leftSection={
                                 <MantineIcon icon={IconSend} size={14} />
