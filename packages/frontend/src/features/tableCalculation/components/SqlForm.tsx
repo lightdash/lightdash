@@ -14,9 +14,8 @@ import {
 import { useMantineTheme } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { IconAlertCircle, IconSparkles, IconWand } from '@tabler/icons-react';
-import { useCallback, type FC } from 'react';
+import { useCallback, type CSSProperties, type FC } from 'react';
 import AceEditor, { type IAceEditorProps } from 'react-ace';
-import styled, { css } from 'styled-components';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { SqlEditorActions } from '../../../components/SqlRunner/SqlEditorActions';
 import {
@@ -59,23 +58,41 @@ type Props = {
     conversionState?: SqlFormConversionState;
 };
 
-export const SqlEditor = styled(AceEditor)<
-    IAceEditorProps & { isFullScreen: boolean; gutterBackgroundColor: string }
->`
-    width: 100%;
-    & > .ace_gutter {
-        background-color: ${({ gutterBackgroundColor }) =>
-            gutterBackgroundColor};
-    }
-    ${({ isFullScreen }) =>
-        isFullScreen
-            ? css`
-                  min-height: 100px;
-              `
-            : css`
-                  min-height: 250px;
-              `}
-`;
+type SqlEditorProps = IAceEditorProps & {
+    isFullScreen: boolean;
+    gutterBackgroundColor: string;
+};
+
+type SqlEditorStyle = CSSProperties & {
+    '--ace-gutter-background': string;
+};
+
+export const SqlEditor: FC<SqlEditorProps> = ({
+    isFullScreen,
+    gutterBackgroundColor,
+    className,
+    style,
+    width = '100%',
+    ...props
+}) => (
+    <AceEditor
+        className={[
+            classes.sqlEditor,
+            isFullScreen ? classes.sqlEditorFullScreen : undefined,
+            className,
+        ]
+            .filter(Boolean)
+            .join(' ')}
+        style={
+            {
+                '--ace-gutter-background': gutterBackgroundColor,
+                ...style,
+            } as SqlEditorStyle
+        }
+        width={width}
+        {...props}
+    />
+);
 
 export const SqlForm: FC<Props> = ({
     form,

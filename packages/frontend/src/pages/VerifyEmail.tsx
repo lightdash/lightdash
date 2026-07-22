@@ -16,15 +16,16 @@ import {
 import { type FC } from 'react';
 import { Navigate, useNavigate } from 'react-router';
 import { useIntercom } from 'react-use-intercom';
+import MantineIcon from '../components/common/MantineIcon';
 import MantineModal from '../components/common/MantineModal';
 import Page from '../components/common/Page/Page';
 import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 import PageSpinner from '../components/PageSpinner';
-import { SuccessIconBounce } from '../components/RegisterForms/ProjectConnectFlow.styles';
 import VerifyEmailForm from '../components/RegisterForms/VerifyEmailForm';
 import { useEmailStatus } from '../hooks/useEmailVerification';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
+import classes from './VerifyEmail.module.css';
 
 const VerificationSuccess: FC<{
     isOpen: boolean;
@@ -43,7 +44,8 @@ const VerificationSuccess: FC<{
             actions={<Button onClick={onContinue}>Continue</Button>}
         >
             <Stack align="center">
-                <SuccessIconBounce
+                <MantineIcon
+                    className={classes.successIcon}
                     icon={IconCircleCheckFilled}
                     size={42}
                     style={{

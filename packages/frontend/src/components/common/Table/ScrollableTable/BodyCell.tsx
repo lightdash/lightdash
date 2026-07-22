@@ -20,9 +20,9 @@ import {
     useMemo,
     useRef,
     useState,
+    type CSSProperties,
     type FC,
 } from 'react';
-import { type CSSProperties } from 'styled-components';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { JsonCellModal } from '../../JsonViewer/JsonCellViewer';
 import { type JsonCellValue } from '../../JsonViewer/utils';
