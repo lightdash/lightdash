@@ -6723,6 +6723,7 @@ describe('RAW time frame naive-column rebase', () => {
 const buildNaiveExplore = (
     adapter: SupportedDbtAdapter = SupportedDbtAdapter.POSTGRES,
     timestampDomain?: TimestampDomain,
+    skipTimezoneConversion: boolean = false,
 ): Explore => ({
     targetDatabase: adapter,
     name: 'events',
@@ -6751,6 +6752,9 @@ const buildNaiveExplore = (
                     tablesReferences: ['events'],
                     hidden: false,
                     ...(timestampDomain ? { timestampDomain } : {}),
+                    ...(skipTimezoneConversion
+                        ? { skipTimezoneConversion: true }
+                        : {}),
                 },
                 occurred_at_raw: {
                     type: DimensionType.TIMESTAMP,
@@ -7164,6 +7168,32 @@ describe('Naive timestamp domain — explicit, session-independent conversion', 
                 `("events".occurred_at) = ('2024-01-15 02:00:00'::timestamp)`,
             );
         });
+
+        test.each(['events_occurred_at', 'events_occurred_at_raw'])(
+            'convert_timezone: false keeps the known-naive %s filter literal in the raw value space',
+            (fieldId) => {
+                const { query } = buildQuery({
+                    explore: buildNaiveExplore(
+                        SupportedDbtAdapter.POSTGRES,
+                        'naive',
+                        true,
+                    ),
+                    compiledMetricQuery: filteredQuery(fieldId),
+                    warehouseSqlBuilder: warehouseClientMock,
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: 'UTC',
+                    useTimezoneAwareDateTrunc: true,
+                    columnTimezone: 'Asia/Tokyo',
+                });
+                const whereClause = query.slice(query.indexOf('WHERE'));
+                expect(whereClause).toContain(
+                    `("events".occurred_at) = ('2024-01-14 17:00:00+00:00')`,
+                );
+                expect(whereClause).not.toContain(
+                    `'2024-01-15 02:00:00'::timestamp`,
+                );
+            },
+        );
 
         test('hour filter at display == data timezone wraps LHS and literal symmetrically (Trino, known-naive)', () => {
             const { query } = buildQuery({

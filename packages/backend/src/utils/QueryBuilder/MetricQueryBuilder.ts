@@ -904,13 +904,16 @@ export class MetricQueryBuilder {
      * Effective timestamp domain for a filter target, resolved with the same
      * guards as the LHS in `getTimezoneAwareDimensionSql` so literal and
      * column decisions stay symmetric: the dim's own value, falling back to
-     * its interval base dimension.
+     * its interval base dimension. Bare targets with timezone conversion
+     * disabled keep the legacy RHS so the literal stays in the raw value
+     * space alongside the column.
      */
     private resolveFilterTimestampDomain(
         dimension: CompiledDimension,
     ): TimestampDomain | undefined {
         if (!dimension.timeInterval) {
-            return dimension.type === DimensionType.TIMESTAMP
+            return dimension.type === DimensionType.TIMESTAMP &&
+                !dimension.skipTimezoneConversion
                 ? dimension.timestampDomain
                 : undefined;
         }
@@ -924,6 +927,12 @@ export class MetricQueryBuilder {
         if (
             !baseDimension?.compiledSql ||
             baseDimension.type !== DimensionType.TIMESTAMP
+        ) {
+            return undefined;
+        }
+        if (
+            dimension.timeInterval === TimeFrames.RAW &&
+            baseDimension.skipTimezoneConversion
         ) {
             return undefined;
         }
