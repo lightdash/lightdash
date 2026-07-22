@@ -35,6 +35,7 @@ const PERSISTENT_URL_S3_EXPIRY_SECONDS = 300; // 5 minutes
 
 export class PersistentDownloadFileService extends BaseService {
     private readonly analytics: LightdashAnalytics;
+
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly persistentDownloadFileModel: PersistentDownloadFileModel;
