@@ -1034,6 +1034,7 @@ export type ApiInviteLinkResponse = {
 export type ApiCreateProjectResults = {
     project: Project;
     hasContentCopy: boolean;
+    accessCopyError?: string;
     contentCopyError?: string;
 };
 

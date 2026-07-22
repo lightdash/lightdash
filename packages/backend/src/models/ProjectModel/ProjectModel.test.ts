@@ -138,6 +138,84 @@ describe('ProjectModel', () => {
         ).resolves.toBe(false);
     });
 
+    test('copies only eligible project access in one idempotent transaction', async () => {
+        const upstreamProjectUuid = 'upstream-project-uuid';
+        const previewProjectUuid = 'preview-project-uuid';
+        const matchSql =
+            (table: string) =>
+            ({ sql }: RawQuery) =>
+                sql.includes(table);
+
+        tracker.on.select(matchSql(ProjectTableName)).response([
+            {
+                project_id: 1,
+                project_uuid: upstreamProjectUuid,
+                organization_id: 10,
+            },
+            {
+                project_id: 2,
+                project_uuid: previewProjectUuid,
+                organization_id: 10,
+            },
+        ]);
+        tracker.on.select(matchSql(ProjectMembershipsTableName)).response([
+            {
+                user_id: 1,
+                role: ProjectMemberRole.EDITOR,
+                role_uuid: null,
+                is_internal: false,
+                organization_id: 10,
+            },
+            {
+                user_id: 2,
+                role: ProjectMemberRole.VIEWER,
+                role_uuid: null,
+                is_internal: false,
+                organization_id: null,
+            },
+            {
+                user_id: 3,
+                role: ProjectMemberRole.VIEWER,
+                role_uuid: null,
+                is_internal: true,
+                organization_id: 10,
+            },
+        ]);
+        tracker.on.select(matchSql(ProjectGroupAccessTableName)).response([
+            {
+                group_uuid: 'group-uuid',
+                role: ProjectMemberRole.VIEWER,
+                role_uuid: null,
+            },
+        ]);
+        tracker.on.insert(matchSql(ProjectMembershipsTableName)).response([]);
+        tracker.on.insert(matchSql(ProjectGroupAccessTableName)).response([]);
+
+        const copyAccess = () =>
+            model.copyProjectAccess(upstreamProjectUuid, previewProjectUuid);
+        const expectedResult = {
+            userAccessCount: 1,
+            skippedUserAccessCount: 2,
+            groupAccessCount: 1,
+        };
+
+        await expect(copyAccess()).resolves.toEqual(expectedResult);
+        await expect(copyAccess()).resolves.toEqual(expectedResult);
+
+        expect(tracker.history.insert).toHaveLength(4);
+        expect(tracker.history.insert[0].bindings).toEqual(
+            expect.arrayContaining([1, 2, ProjectMemberRole.EDITOR]),
+        );
+        expect(tracker.history.insert[0].bindings).not.toContain(3);
+        expect(tracker.history.insert[0].sql).toContain('on conflict');
+        expect(tracker.history.insert[1].sql).toContain('on conflict');
+        const groupAccessQuery = tracker.history.select.find(({ sql }) =>
+            sql.includes(ProjectGroupAccessTableName),
+        );
+        expect(groupAccessQuery?.sql).toContain('groups');
+        expect(groupAccessQuery?.bindings).toContain(10);
+    });
+
     describe('should convert outdated metric filters in explores', () => {
         test('should add fieldRef property when metric filters have fieldId', () => {
             expect(
