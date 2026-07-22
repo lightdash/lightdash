@@ -20,6 +20,10 @@
     min-width: 300px;
 }
 
+.chatPanelOuter[data-collapsed='true'] {
+    min-width: 0;
+}
+
 /* Compose stage: the chat panel becomes a centered card on the muted
    backdrop, then morphs into the split sidebar (see .chatPanel's
    view-transition-name) on first submit. */

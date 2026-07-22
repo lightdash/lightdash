@@ -56,7 +56,12 @@ import {
     type FC,
 } from 'react';
 import { flushSync } from 'react-dom';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import {
+    Panel,
+    PanelGroup,
+    PanelResizeHandle,
+    type ImperativePanelHandle,
+} from 'react-resizable-panels';
 import {
     Link,
     Navigate,
@@ -94,6 +99,7 @@ import {
 import AppTemplatePicker from '../features/apps/AppTemplatePicker';
 import ChatBubbleMeta from '../features/apps/ChatBubbleMeta';
 import ChatMessageContent from '../features/apps/ChatMessageContent';
+import AppBuilderSidebarToggle from '../features/apps/components/AppBuilderSidebarToggle';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import AppSpaceChip from '../features/apps/components/AppSpaceChip';
@@ -566,6 +572,15 @@ const AppGenerate: FC = () => {
         null,
     );
     const previewRef = useRef<AppIframePreviewHandle>(null);
+    const chatPanelRef = useRef<ImperativePanelHandle>(null);
+    const [isChatPanelCollapsed, setIsChatPanelCollapsed] = useState(false);
+    const handleToggleChatPanel = useCallback(() => {
+        if (chatPanelRef.current?.isCollapsed()) {
+            chatPanelRef.current.expand();
+        } else {
+            chatPanelRef.current?.collapse();
+        }
+    }, []);
     const {
         queries: trackedQueries,
         persistLogs,
@@ -1994,9 +2009,15 @@ const AppGenerate: FC = () => {
             >
                 {/* Chat Panel */}
                 <Panel
+                    ref={chatPanelRef}
                     defaultSize={newAppLanding ? 100 : 30}
                     minSize={newAppLanding ? 100 : 22}
                     maxSize={newAppLanding ? 100 : 50}
+                    collapsible={!newAppLanding}
+                    collapsedSize={0}
+                    onCollapse={() => setIsChatPanelCollapsed(true)}
+                    onExpand={() => setIsChatPanelCollapsed(false)}
+                    data-collapsed={isChatPanelCollapsed || undefined}
                     className={`${classes.chatPanelOuter}${
                         newAppLanding ? ` ${classes.chatPanelOuterCompose}` : ''
                     }`}
@@ -3090,68 +3111,74 @@ const AppGenerate: FC = () => {
                                         />
                                     }
                                     rightSection={
-                                        <AppHeaderActions
-                                            projectUuid={projectUuid}
-                                            appUuid={activeAppUuid}
-                                            appName={appName}
-                                            appDescription={
-                                                appDescription || null
-                                            }
-                                            appSpaceUuid={appSpaceUuid}
-                                            appCreatedByUserUuid={
-                                                appCreatedByUserUuid
-                                            }
-                                            latestVersionNumber={
-                                                latestReadyVersion?.version ??
-                                                null
-                                            }
-                                            latestVersionStatus={
-                                                latestReadyVersion?.status ??
-                                                null
-                                            }
-                                            onRefresh={handleRefreshPreview}
-                                            refreshDisabled={!previewApp}
-                                            captureThumbnail={{
-                                                onCapture: () =>
-                                                    void handleCaptureThumbnail(),
-                                                disabled:
-                                                    !previewApp ||
-                                                    !screenshotAvailable ||
-                                                    isCapturingScreenshot,
-                                            }}
-                                            capturePreviewScreenshot={
-                                                screenshotAvailable
-                                                    ? capturePreviewScreenshot
-                                                    : null
-                                            }
-                                            onViewNetwork={() =>
-                                                setNetworkPanelHidden(false)
-                                            }
-                                            onDeleted={() =>
-                                                void navigate(
-                                                    `/projects/${projectUuid}/apps/generate`,
-                                                )
-                                            }
-                                            navItem={
-                                                previewApp ? (
-                                                    <Menu.Item
-                                                        component={Link}
-                                                        to={`/projects/${projectUuid}/apps/${previewApp.appUuid}/view`}
-                                                        target="_blank"
-                                                        leftSection={
-                                                            <MantineIcon
-                                                                icon={
-                                                                    IconExternalLink
-                                                                }
-                                                                size={14}
-                                                            />
-                                                        }
-                                                    >
-                                                        Preview latest
-                                                    </Menu.Item>
-                                                ) : null
-                                            }
-                                        />
+                                        <Group gap="xs" wrap="nowrap">
+                                            <AppBuilderSidebarToggle
+                                                collapsed={isChatPanelCollapsed}
+                                                onToggle={handleToggleChatPanel}
+                                            />
+                                            <AppHeaderActions
+                                                projectUuid={projectUuid}
+                                                appUuid={activeAppUuid}
+                                                appName={appName}
+                                                appDescription={
+                                                    appDescription || null
+                                                }
+                                                appSpaceUuid={appSpaceUuid}
+                                                appCreatedByUserUuid={
+                                                    appCreatedByUserUuid
+                                                }
+                                                latestVersionNumber={
+                                                    latestReadyVersion?.version ??
+                                                    null
+                                                }
+                                                latestVersionStatus={
+                                                    latestReadyVersion?.status ??
+                                                    null
+                                                }
+                                                onRefresh={handleRefreshPreview}
+                                                refreshDisabled={!previewApp}
+                                                captureThumbnail={{
+                                                    onCapture: () =>
+                                                        void handleCaptureThumbnail(),
+                                                    disabled:
+                                                        !previewApp ||
+                                                        !screenshotAvailable ||
+                                                        isCapturingScreenshot,
+                                                }}
+                                                capturePreviewScreenshot={
+                                                    screenshotAvailable
+                                                        ? capturePreviewScreenshot
+                                                        : null
+                                                }
+                                                onViewNetwork={() =>
+                                                    setNetworkPanelHidden(false)
+                                                }
+                                                onDeleted={() =>
+                                                    void navigate(
+                                                        `/projects/${projectUuid}/apps/generate`,
+                                                    )
+                                                }
+                                                navItem={
+                                                    previewApp ? (
+                                                        <Menu.Item
+                                                            component={Link}
+                                                            to={`/projects/${projectUuid}/apps/${previewApp.appUuid}/view`}
+                                                            target="_blank"
+                                                            leftSection={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconExternalLink
+                                                                    }
+                                                                    size={14}
+                                                                />
+                                                            }
+                                                        >
+                                                            Preview latest
+                                                        </Menu.Item>
+                                                    ) : null
+                                                }
+                                            />
+                                        </Group>
                                     }
                                 />
                             )}
