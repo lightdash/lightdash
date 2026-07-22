@@ -53,6 +53,8 @@ minimumReleaseAgeExclude:
   - vite@7.3.5
   # Renovate security update: undici@6.27.0
   - undici@6.27.0
+  # Renovate security update: tar@7.5.19
+  - tar@7.5.19
 
 overrides:
   '@typescript/typescript6>typescript': 6.0.3
