@@ -5,6 +5,7 @@ import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { DbPersistentDownloadFile } from '../../database/entities/persistentDownloadFile';
 import { PersistentDownloadFileModel } from '../../models/PersistentDownloadFileModel';
+import type { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { PersistentDownloadFileService } from './PersistentDownloadFileService';
 
 const mockS3GetFileUrl = vi.fn();
@@ -24,6 +25,9 @@ const createService = (
     configOverrides: Partial<LightdashConfig['persistentDownloadUrls']> = {},
 ) =>
     new PersistentDownloadFileService({
+        analytics: {
+            track: vi.fn(),
+        } as unknown as LightdashAnalytics,
         lightdashConfig: {
             ...lightdashConfigMock,
             persistentDownloadUrls: {

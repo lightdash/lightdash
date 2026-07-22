@@ -25,7 +25,7 @@ export type PersistentDownloadFileSource =
     | 'other';
 
 type PersistentDownloadFileServiceArguments = {
-    analytics?: LightdashAnalytics;
+    analytics: LightdashAnalytics;
     lightdashConfig: LightdashConfig;
     persistentDownloadFileModel: PersistentDownloadFileModel;
     fileStorageClient: FileStorageClient;
@@ -34,7 +34,7 @@ type PersistentDownloadFileServiceArguments = {
 const PERSISTENT_URL_S3_EXPIRY_SECONDS = 300; // 5 minutes
 
 export class PersistentDownloadFileService extends BaseService {
-    private readonly analytics: LightdashAnalytics | undefined;
+    private readonly analytics: LightdashAnalytics;
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly persistentDownloadFileModel: PersistentDownloadFileModel;
@@ -52,16 +52,6 @@ export class PersistentDownloadFileService extends BaseService {
         this.lightdashConfig = lightdashConfig;
         this.persistentDownloadFileModel = persistentDownloadFileModel;
         this.fileStorageClient = fileStorageClient;
-    }
-
-    private safelyTrack(track: () => void): void {
-        try {
-            track();
-        } catch {
-            this.logger.warn(
-                'Unable to track persistent download file lifecycle event',
-            );
-        }
     }
 
     async createPersistentUrl(data: {
@@ -103,20 +93,18 @@ export class PersistentDownloadFileService extends BaseService {
         const expiresAt = new Date(Date.now() + expirationSeconds * 1000);
         const source = data.source ?? 'other';
         const createStartedAt = Date.now();
-        this.safelyTrack(() => {
-            this.analytics?.track({
-                event: 'persistent_file.generation_requested',
-                userId: data.createdByUserUuid ?? ANONYMOUS_TRACKING_UUID,
-                properties: {
-                    fileUuid: fileNanoid,
-                    organizationId: data.organizationUuid,
-                    projectId: data.projectUuid,
-                    createdByUserUuid: data.createdByUserUuid,
-                    fileType: data.fileType,
-                    source,
-                    expirationSeconds,
-                },
-            });
+        this.analytics.track({
+            event: 'persistent_file.generation_requested',
+            userId: data.createdByUserUuid ?? ANONYMOUS_TRACKING_UUID,
+            properties: {
+                fileUuid: fileNanoid,
+                organizationId: data.organizationUuid,
+                projectId: data.projectUuid,
+                createdByUserUuid: data.createdByUserUuid,
+                fileType: data.fileType,
+                source,
+                expirationSeconds,
+            },
         });
         await this.persistentDownloadFileModel.create({
             nanoid: fileNanoid,
@@ -127,21 +115,19 @@ export class PersistentDownloadFileService extends BaseService {
             createdByUserUuid: data.createdByUserUuid,
             expiresAt,
         });
-        this.safelyTrack(() => {
-            this.analytics?.track({
-                event: 'persistent_file.generation_completed',
-                userId: data.createdByUserUuid ?? ANONYMOUS_TRACKING_UUID,
-                properties: {
-                    fileUuid: fileNanoid,
-                    organizationId: data.organizationUuid,
-                    projectId: data.projectUuid,
-                    createdByUserUuid: data.createdByUserUuid,
-                    fileType: data.fileType,
-                    source,
-                    expirationSeconds,
-                    durationMs: Date.now() - createStartedAt,
-                },
-            });
+        this.analytics.track({
+            event: 'persistent_file.generation_completed',
+            userId: data.createdByUserUuid ?? ANONYMOUS_TRACKING_UUID,
+            properties: {
+                fileUuid: fileNanoid,
+                organizationId: data.organizationUuid,
+                projectId: data.projectUuid,
+                createdByUserUuid: data.createdByUserUuid,
+                fileType: data.fileType,
+                source,
+                expirationSeconds,
+                durationMs: Date.now() - createStartedAt,
+            },
         });
 
         const url = new URL(
@@ -229,38 +215,34 @@ export class PersistentDownloadFileService extends BaseService {
         const requestStartedAt = Date.now();
         const requestedByUserUuid =
             requestContext?.requestedByUserUuid ?? null;
-        this.safelyTrack(() => {
-            this.analytics?.track({
-                event: 'persistent_file.url_requested',
-                userId: requestedByUserUuid ?? ANONYMOUS_TRACKING_UUID,
-                properties: {
-                    fileUuid: fileNanoid,
-                    organizationId: file.organization_uuid,
-                    projectId: file.project_uuid,
-                    createdByUserUuid: file.created_by_user_uuid,
-                    requestedByUserUuid,
-                    source: 'api',
-                },
-            });
+        this.analytics.track({
+            event: 'persistent_file.url_requested',
+            userId: requestedByUserUuid ?? ANONYMOUS_TRACKING_UUID,
+            properties: {
+                fileUuid: fileNanoid,
+                organizationId: file.organization_uuid,
+                projectId: file.project_uuid,
+                createdByUserUuid: file.created_by_user_uuid,
+                requestedByUserUuid,
+                source: 'api',
+            },
         });
 
         const stream = await this.fileStorageClient.getFileStream(file.s3_key);
 
-        this.safelyTrack(() => {
-            this.analytics?.track({
-                event: 'persistent_file.url_responded',
-                userId: requestedByUserUuid ?? ANONYMOUS_TRACKING_UUID,
-                properties: {
-                    fileUuid: fileNanoid,
-                    organizationId: file.organization_uuid,
-                    projectId: file.project_uuid,
-                    createdByUserUuid: file.created_by_user_uuid,
-                    requestedByUserUuid,
-                    source: 'api',
-                    statusCode: 200,
-                    responseMs: Date.now() - requestStartedAt,
-                },
-            });
+        this.analytics.track({
+            event: 'persistent_file.url_responded',
+            userId: requestedByUserUuid ?? ANONYMOUS_TRACKING_UUID,
+            properties: {
+                fileUuid: fileNanoid,
+                organizationId: file.organization_uuid,
+                projectId: file.project_uuid,
+                createdByUserUuid: file.created_by_user_uuid,
+                requestedByUserUuid,
+                source: 'api',
+                statusCode: 200,
+                responseMs: Date.now() - requestStartedAt,
+            },
         });
 
         this.logger.info(
