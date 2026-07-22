@@ -7,6 +7,7 @@ import {
     ParseError,
     SentryConfig,
     WarehouseTypes,
+    WeekDay,
 } from '@lightdash/common';
 import { VERSION } from '../version';
 import {
@@ -1160,6 +1161,52 @@ test('should set groups.enabled only when the environment variable is set', () =
     expect(falseConfig.groups.enabled).toBe(false);
 });
 
+describe('LD_SETUP_START_OF_WEEK', () => {
+    beforeEach(() => {
+        process.env.LD_SETUP_ADMIN_EMAIL = 'admin@example.com';
+        process.env.LD_SETUP_PROJECT_PAT = 'project_personal_access_token';
+    });
+
+    test('should convert day name to its numeric WeekDay value', () => {
+        process.env.LD_SETUP_START_OF_WEEK = 'THURSDAY';
+        const config = parseConfig();
+        expect(
+            config.initialSetup?.projects[0]?.warehouseConnection.startOfWeek,
+        ).toBe(WeekDay.THURSDAY);
+    });
+
+    test('should accept the numeric WeekDay value', () => {
+        process.env.LD_SETUP_START_OF_WEEK = '3';
+        const config = parseConfig();
+        expect(
+            config.initialSetup?.projects[0]?.warehouseConnection.startOfWeek,
+        ).toBe(WeekDay.THURSDAY);
+    });
+
+    test('should be undefined when unset', () => {
+        const config = parseConfig();
+        expect(
+            config.initialSetup?.projects[0]?.warehouseConnection.startOfWeek,
+        ).toBeUndefined();
+    });
+
+    test('should skip initial setup for an invalid value', () => {
+        process.env.LD_SETUP_START_OF_WEEK = 'FUNDAY';
+        const consoleError = vi
+            .spyOn(console, 'error')
+            .mockImplementation(() => {});
+        const config = parseConfig();
+        expect(config.initialSetup).toBeUndefined();
+        expect(consoleError).toHaveBeenCalledWith(
+            'Error parsing initial setup config',
+            expect.objectContaining({
+                message: expect.stringContaining('FUNDAY'),
+            }),
+        );
+        consoleError.mockRestore();
+    });
+});
+
 describe('getMultiProjectSetupConfig', () => {
     beforeEach(() => {
         delete process.env.LD_SETUP_PROJECTS;
@@ -1198,6 +1245,72 @@ describe('getMultiProjectSetupConfig', () => {
         process.env.LD_SETUP_PROJECTS = JSON.stringify(projects);
         const result = getMultiProjectSetupConfig();
         expect(result).toEqual(projects);
+    });
+
+    test('should convert day-name startOfWeek to its numeric WeekDay value', () => {
+        process.env.LD_SETUP_PROJECTS = JSON.stringify([
+            {
+                name: 'Test',
+                warehouseConnection: {
+                    type: WarehouseTypes.DATABRICKS,
+                    startOfWeek: 'THURSDAY',
+                },
+                dbtConnection: { type: DbtProjectType.NONE },
+            },
+        ]);
+        const result = getMultiProjectSetupConfig();
+        expect(result?.[0]?.warehouseConnection.startOfWeek).toBe(
+            WeekDay.THURSDAY,
+        );
+    });
+
+    test('should keep numeric startOfWeek values', () => {
+        process.env.LD_SETUP_PROJECTS = JSON.stringify([
+            {
+                name: 'Test',
+                warehouseConnection: {
+                    type: WarehouseTypes.DATABRICKS,
+                    startOfWeek: 3,
+                },
+                dbtConnection: { type: DbtProjectType.NONE },
+            },
+        ]);
+        const result = getMultiProjectSetupConfig();
+        expect(result?.[0]?.warehouseConnection.startOfWeek).toBe(
+            WeekDay.THURSDAY,
+        );
+    });
+
+    test('should keep null startOfWeek', () => {
+        process.env.LD_SETUP_PROJECTS = JSON.stringify([
+            {
+                name: 'Test',
+                warehouseConnection: {
+                    type: WarehouseTypes.DATABRICKS,
+                    startOfWeek: null,
+                },
+                dbtConnection: { type: DbtProjectType.NONE },
+            },
+        ]);
+        const result = getMultiProjectSetupConfig();
+        expect(result?.[0]?.warehouseConnection.startOfWeek).toBeNull();
+    });
+
+    test('should throw ParseError for invalid startOfWeek', () => {
+        process.env.LD_SETUP_PROJECTS = JSON.stringify([
+            {
+                name: 'Test',
+                warehouseConnection: {
+                    type: WarehouseTypes.DATABRICKS,
+                    startOfWeek: 'FUNDAY',
+                },
+                dbtConnection: { type: DbtProjectType.NONE },
+            },
+        ]);
+        expect(() => getMultiProjectSetupConfig()).toThrow(ParseError);
+        expect(() => getMultiProjectSetupConfig()).toThrow(
+            'Invalid LD_SETUP_PROJECTS',
+        );
     });
 
     test('should throw ParseError for non-array JSON', () => {
