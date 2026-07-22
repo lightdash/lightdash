@@ -1230,6 +1230,11 @@ program
             .default(Object.values(ValidationTarget)),
     )
     .option(
+        '--validate-warehouse-columns',
+        `Check physical \${TABLE}.column references in dimensions and metrics by executing zero-row queries against the warehouse. Requires warehouse credentials and only applies when tables are validated.`,
+        false,
+    )
+    .option(
         '--include-spaces <spaceSlugs...>',
         'Only report validation errors for charts and dashboards in these spaces (and their sub-spaces). Spaces must be visible to your credentials',
     )

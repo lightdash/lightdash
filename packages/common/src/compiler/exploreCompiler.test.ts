@@ -11,6 +11,7 @@ import { FilterOperator, UnitOfTime } from '../types/filter';
 import { TimeFrames } from '../types/timeFrames';
 import {
     ExploreCompiler,
+    getTableColumnReferences,
     parseAllReferences,
     sqlAggregationWrapsReferences,
     sqlContainsAggregation,
@@ -619,6 +620,33 @@ describe('Parse dimension reference', () => {
         expect(parseAllReferences('${TABLE}', 'table')).toStrictEqual([
             { refName: 'TABLE', refTable: 'table' },
         ]);
+    });
+    test('should parse unquoted TABLE column references', () => {
+        expect(
+            getTableColumnReferences(
+                'SUM(${TABLE}.amount) + ${TABLE}."Order Total" + ${TABLE}.`tax``rate` + ${TABLE}.some_other_name + ${TABLE}.amount',
+            ),
+        ).toStrictEqual(['amount', 'some_other_name']);
+        expect(
+            getTableColumnReferences(
+                '${TABLE}.address.city + ${amount} + ${orders.shipping_cost}',
+            ),
+        ).toStrictEqual(['address']);
+    });
+    test('should not swallow adjacent references when parsing unquoted TABLE column references', () => {
+        expect(getTableColumnReferences('${TABLE}.a${amount}')).toStrictEqual([
+            'a',
+        ]);
+    });
+    test('should parse unquoted TABLE column references with legacy \\w+ semantics', () => {
+        expect(
+            getTableColumnReferences('${TABLE}.payment_count_30d'),
+        ).toStrictEqual(['payment_count_30d']);
+        expect(getTableColumnReferences('${TABLE}.2024_revenue')).toStrictEqual(
+            ['2024_revenue'],
+        );
+        expect(getTableColumnReferences('${TABLE}.a$b')).toStrictEqual(['a']);
+        expect(getTableColumnReferences('${TABLE}."a$b"')).toStrictEqual([]);
     });
     test('should not parse lightdash attribute', () => {
         expect(

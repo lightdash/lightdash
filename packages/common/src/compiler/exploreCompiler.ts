@@ -69,6 +69,8 @@ import {
 export const lightdashVariablePattern =
     /\$\{((?!(lightdash|ld)\.)[a-zA-Z0-9_.-]+)\}/g;
 
+const lightdashTableColumnReferenceSearchPattern = /\$\{TABLE\}\.(\w+)/g;
+
 type Reference = {
     refTable: string;
     refName: string;
@@ -323,6 +325,15 @@ const getHiddenRequiredFilterRefs = ({
 export const getAllReferences = (raw: string): string[] =>
     (raw.match(lightdashVariablePattern) || []).map(
         (value) => value.slice(2, value.length - 1), // value without brackets
+    );
+
+export const getTableColumnReferences = (raw: string): string[] =>
+    Array.from(
+        new Set(
+            [
+                ...raw.matchAll(lightdashTableColumnReferenceSearchPattern),
+            ].flatMap((match) => (match[1] === undefined ? [] : [match[1]])),
+        ),
     );
 
 export const parseAllReferences = (

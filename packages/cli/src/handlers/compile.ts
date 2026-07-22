@@ -11,15 +11,21 @@ import {
     getErrorMessage,
     getModelsFromManifest,
     getSchemaStructureFromDbtModels,
+    InlineErrorType,
     isExploreError,
     isSupportedDbtAdapter,
     LightdashProjectConfig,
     ParseError,
     preAggregatePostProcessor,
+    QueryExecutionContext,
     translateMetricFlowMetrics,
     WarehouseCatalog,
+    type WarehouseClient,
 } from '@lightdash/common';
-import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import {
+    validateWarehouseColumnReferences,
+    warehouseSqlBuilderFromType,
+} from '@lightdash/warehouses';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
@@ -49,6 +55,24 @@ export type CompileHandlerOptions = DbtCompileOptions & {
     startOfWeek?: number;
     warehouseCredentials?: boolean;
     disableTimestampConversion?: boolean;
+    validateWarehouseColumns?: boolean;
+};
+
+const getDisplayableDiagnostics = (explore: Explore) => {
+    const diagnostics = explore.warnings ?? [];
+    const errors = diagnostics.filter(
+        (diagnostic) =>
+            diagnostic.type === InlineErrorType.WAREHOUSE_COLUMN_ERROR,
+    );
+    const warnings =
+        process.env.PARTIAL_COMPILATION_ENABLED !== 'false'
+            ? diagnostics.filter(
+                  (diagnostic) =>
+                      diagnostic.type !==
+                      InlineErrorType.WAREHOUSE_COLUMN_ERROR,
+              )
+            : [];
+    return { errors, warnings };
 };
 
 const getExploresFromLightdashYmlProject = async (
@@ -285,6 +309,14 @@ export const compile = async (options: CompileHandlerOptions) => {
         options.disableTimestampConversion,
     );
 
+    if (explores !== null && options.validateWarehouseColumns === true) {
+        console.error(
+            styles.warning(
+                '> Skipping warehouse column validation because it is not supported for Lightdash YAML projects',
+            ),
+        );
+    }
+
     // Load dbt Project
     if (explores === null) {
         if (!dbtVersionResult.success) {
@@ -378,22 +410,42 @@ export const compile = async (options: CompileHandlerOptions) => {
 
         // Skipping assumes yml has the field types.
         let catalog: WarehouseCatalog = {};
+        let validationWarehouseClient: WarehouseClient | null = null;
         if (!options.skipWarehouseCatalog) {
+            const isDbtCloudCLI =
+                dbtVersionResult.success &&
+                dbtVersionResult.version.isDbtCloudCLI;
             const { warehouseClient } = await getWarehouseClient({
-                isDbtCloudCLI: dbtVersionResult.success
-                    ? dbtVersionResult.version.isDbtCloudCLI
-                    : false,
+                isDbtCloudCLI,
                 profilesDir: options.profilesDir,
                 profile: options.profile || context.profileName,
                 target: options.target,
                 startOfWeek: options.startOfWeek,
             });
+            // dbt Cloud CLI clients stub runQuery, so column probing would
+            // silently pass instead of validating anything
+            if (!isDbtCloudCLI) {
+                validationWarehouseClient = warehouseClient;
+            } else if (options.validateWarehouseColumns === true) {
+                console.error(
+                    styles.warning(
+                        '> Skipping warehouse column validation because dbt Cloud CLI cannot run warehouse queries',
+                    ),
+                );
+            }
             GlobalState.debug('> Fetching warehouse catalog');
             catalog = await warehouseClient.getCatalog(
                 getSchemaStructureFromDbtModels(validModels),
             );
         } else {
             GlobalState.debug('> Skipping warehouse catalog');
+            if (options.validateWarehouseColumns === true) {
+                console.error(
+                    styles.warning(
+                        '> Skipping warehouse column validation because --skip-warehouse-catalog was supplied',
+                    ),
+                );
+            }
         }
 
         const validModelsWithTypes = applyMetricFlowMetrics(
@@ -450,9 +502,20 @@ export const compile = async (options: CompileHandlerOptions) => {
                 postProcessors: [preAggregatePostProcessor],
             },
         );
+        const validatedExplores =
+            options.validateWarehouseColumns === true &&
+            validationWarehouseClient
+                ? await validateWarehouseColumnReferences({
+                      explores: validExplores,
+                      client: validationWarehouseClient,
+                      tags: {
+                          query_context: QueryExecutionContext.CLI,
+                      },
+                  })
+                : validExplores;
         console.error('');
 
-        explores = [...validExplores, ...failedExplores];
+        explores = [...validatedExplores, ...failedExplores];
         dbtMetrics = manifest.metrics;
     }
 
@@ -468,33 +531,43 @@ export const compile = async (options: CompileHandlerOptions) => {
             status = styles.error('ERROR');
             messages = `: ${styles.error(e.errors.map((err) => err.message).join(', '))}`;
             errors += 1;
-        } else if (
-            process.env.PARTIAL_COMPILATION_ENABLED !== 'false' &&
-            'warnings' in e &&
-            e.warnings &&
-            e.warnings.length > 0
-        ) {
-            status = styles.warning('PARTIAL_SUCCESS');
-            messages = `\n${e.warnings
-                .map(
-                    (warning) =>
-                        `    ${styles.warning(`⚠ ${warning.message}`)}`,
-                )
-                .join('\n')}`;
-            partialSuccess += 1;
         } else {
-            status = styles.success('SUCCESS');
-            success += 1;
+            const { errors: warehouseErrors, warnings } =
+                getDisplayableDiagnostics(e);
+            if (warehouseErrors.length > 0) {
+                status = styles.error('ERROR');
+                messages = `: ${styles.error(
+                    warehouseErrors.map((error) => error.message).join(', '),
+                )}`;
+                if (warnings.length > 0) {
+                    messages += `\n${warnings
+                        .map(
+                            (warning) =>
+                                `    ${styles.warning(`⚠ ${warning.message}`)}`,
+                        )
+                        .join('\n')}`;
+                }
+                errors += 1;
+            } else if (warnings.length > 0) {
+                status = styles.warning('PARTIAL_SUCCESS');
+                messages = `\n${warnings
+                    .map(
+                        (warning) =>
+                            `    ${styles.warning(`⚠ ${warning.message}`)}`,
+                    )
+                    .join('\n')}`;
+                partialSuccess += 1;
+            } else {
+                status = styles.success('SUCCESS');
+                success += 1;
+            }
         }
 
         console.error(`- ${status}> ${e.name} ${messages}`);
     });
     console.error('');
 
-    if (
-        process.env.PARTIAL_COMPILATION_ENABLED !== 'false' &&
-        partialSuccess > 0
-    ) {
+    if (partialSuccess > 0) {
         console.error(
             `Compiled ${explores.length} explores, SUCCESS=${success} PARTIAL_SUCCESS=${partialSuccess} ERRORS=${errors}`,
         );
