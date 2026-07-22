@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import { FeatureFlags, type AiAgentModelConfig } from '@lightdash/common';
 import {
     Anchor,
@@ -31,6 +32,7 @@ import {
     IconAdjustmentsAlt,
     IconAlertTriangle,
     IconBook2,
+    IconCode,
     IconInfoCircle,
     IconLock,
     IconPlug,
@@ -61,6 +63,7 @@ import {
 import { useAiOrganizationSettings } from '../hooks/useAiOrganizationSettings';
 import { useDeleteAiAgentMutation } from '../hooks/useProjectAiAgents';
 import { useGetAgentExploreAccessSummary } from '../hooks/useUserAgentPreferences';
+import AiAgentAsCodeModal from './AiAgentAsCodeModal';
 import { AiAgentKnowledgeFilesSection } from './AiAgentKnowledgeFilesSection';
 import { AiAgentMcpServersInput } from './AiAgentMcpServersInput';
 import { InstructionsGuidelines } from './InstructionsSupport';
@@ -150,6 +153,15 @@ export const AiAgentFormSetup = ({
 
     const { user } = useApp();
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [isAsCodeModalOpen, asCodeModalHandlers] = useDisclosure(false);
+
+    const canViewContentAsCode = !!user.data?.ability.can(
+        'view',
+        subject('ContentAsCode', {
+            organizationUuid: user.data.organizationUuid,
+            projectUuid,
+        }),
+    );
 
     const handleDeleteClick = useCallback(() => {
         setDeleteModalOpen(true);
@@ -278,16 +290,31 @@ export const AiAgentFormSetup = ({
             <form>
                 <Stack gap="sm">
                     <Paper p="xl">
-                        <Group align="center" gap="xs" mb="md">
-                            <Paper p="xxs" withBorder radius="sm">
-                                <MantineIcon
-                                    icon={IconAdjustmentsAlt}
-                                    size="md"
-                                />
-                            </Paper>
-                            <Title order={5} c="ldGray.9" fw={700}>
-                                Basic information
-                            </Title>
+                        <Group align="center" justify="space-between" mb="md">
+                            <Group align="center" gap="xs">
+                                <Paper p="xxs" withBorder radius="sm">
+                                    <MantineIcon
+                                        icon={IconAdjustmentsAlt}
+                                        size="md"
+                                    />
+                                </Paper>
+                                <Title order={5} c="ldGray.9" fw={700}>
+                                    Basic information
+                                </Title>
+                            </Group>
+                            {mode === 'edit' &&
+                                agentUuid &&
+                                canViewContentAsCode && (
+                                    <Button
+                                        variant="default"
+                                        onClick={asCodeModalHandlers.open}
+                                        leftSection={
+                                            <MantineIcon icon={IconCode} />
+                                        }
+                                    >
+                                        View as code
+                                    </Button>
+                                )}
                         </Group>
                         <Stack>
                             <Group>
@@ -1131,6 +1158,14 @@ export const AiAgentFormSetup = ({
                 description="This action cannot be undone."
                 onConfirm={handleDelete}
             />
+            {agentUuid && (
+                <AiAgentAsCodeModal
+                    opened={isAsCodeModalOpen}
+                    onClose={asCodeModalHandlers.close}
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                />
+            )}
         </>
     );
 };
