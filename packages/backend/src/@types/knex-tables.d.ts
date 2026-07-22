@@ -402,6 +402,12 @@ import {
     AiAgentDocumentTableName,
 } from '../ee/database/entities/aiAgentDocument';
 import {
+    AiAgentMemoryTable,
+    AiAgentMemoryTableName,
+    AiAgentThreadDistillTable,
+    AiAgentThreadDistillTableName,
+} from '../ee/database/entities/aiAgentMemory';
+import {
     AiAgentReviewClassifierRunTable,
     AiAgentReviewClassifierRunTableName,
     AiAgentReviewItemTable,
@@ -621,6 +627,8 @@ declare module 'knex/types/tables' {
         [AiAgentTableName]: AiAgentTable;
         [AiAgentDocumentTableName]: AiAgentDocumentTable;
         [AiAgentDocumentAccessTableName]: AiAgentDocumentAccessTable;
+        [AiAgentMemoryTableName]: AiAgentMemoryTable;
+        [AiAgentThreadDistillTableName]: AiAgentThreadDistillTable;
         [AiAgentReviewClassifierRunTableName]: AiAgentReviewClassifierRunTable;
         [AiAgentTurnSignalTableName]: AiAgentTurnSignalTable;
         [AiAgentReviewItemTableName]: AiAgentReviewItemTable;
