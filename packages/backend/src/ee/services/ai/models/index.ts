@@ -7,6 +7,7 @@ import {
     type ByoAiProvider,
 } from '@lightdash/common';
 import { simulateStreamingMiddleware, wrapLanguageModel } from 'ai';
+import type { AiKeyManagement } from '../../../../analytics/aiUsage';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import Logger from '../../../../logging/logger';
 import { getAnthropicModel } from './anthropic-claude';
@@ -21,7 +22,6 @@ import {
     ModelPreset,
     ModelPresetProvider,
 } from './presets';
-import type { AiKeyManagement } from '../../../../analytics/aiUsage';
 import { AiModel, AiProvider } from './types';
 
 export { MODEL_PRESETS };
