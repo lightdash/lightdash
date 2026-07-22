@@ -906,6 +906,15 @@ const AppGenerate: FC = () => {
             // fall back to createdAt for old rows persisted before the column
             // started being written, or for rows still mid-build.
             const replyTimestamp = v.statusUpdatedAt ?? v.createdAt;
+            // Uploaded-from-source versions (`lightdash upload`) are the only
+            // ones created without a prompt. Their build pipeline stores no
+            // completion message either, so derive the assistant bubble from
+            // the version row rather than trusting a leftover statusMessage.
+            const isUploadedVersion = v.prompt === '';
+            const readyMessage =
+                v.version === 1
+                    ? 'Your app is ready!'
+                    : `Version ${v.version} is ready!`;
             const msgs: ChatMessage[] = [
                 {
                     role: 'user',
@@ -926,11 +935,9 @@ const AppGenerate: FC = () => {
             if (v.status === 'ready') {
                 msgs.push({
                     role: 'assistant',
-                    content:
-                        v.statusMessage ??
-                        (v.version === 1
-                            ? 'Your app is ready!'
-                            : `Version ${v.version} is ready!`),
+                    content: isUploadedVersion
+                        ? readyMessage
+                        : (v.statusMessage ?? readyMessage),
                     imagePreviewUrls: [],
                     imageResourceIds: [],
                     charts: [],
@@ -2090,11 +2097,26 @@ const AppGenerate: FC = () => {
                                                                 msg.userName
                                                             }
                                                         />
-                                                        <ChatMessageContent
-                                                            content={
-                                                                msg.content
-                                                            }
-                                                        />
+                                                        {msg.content === '' ? (
+                                                            // Uploaded-from-source
+                                                            // versions have no
+                                                            // prompt to show
+                                                            <Text
+                                                                inherit
+                                                                fs="italic"
+                                                                c="dimmed"
+                                                            >
+                                                                Uploaded a
+                                                                locally-built
+                                                                version
+                                                            </Text>
+                                                        ) : (
+                                                            <ChatMessageContent
+                                                                content={
+                                                                    msg.content
+                                                                }
+                                                            />
+                                                        )}
                                                         {msg.charts.length >
                                                             0 && (
                                                             <Box
