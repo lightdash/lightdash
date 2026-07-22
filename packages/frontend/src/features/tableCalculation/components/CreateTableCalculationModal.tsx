@@ -3,7 +3,6 @@ import {
     TableCalculationType,
     type TableCalculation,
 } from '@lightdash/common';
-import { type ModalProps } from '@mantine/core';
 import { useCallback, type FC } from 'react';
 import {
     explorerActions,
@@ -15,7 +14,7 @@ import TableCalculationModal, {
     type TableCalculationSaveMeta,
 } from './TableCalculationModal';
 
-type Props = ModalProps & {
+type Props = {
     opened: boolean;
     onClose: () => void;
 };

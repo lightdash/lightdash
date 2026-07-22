@@ -1,6 +1,5 @@
 import { type OrganizationWarehouseCredentials } from '@lightdash/common';
-import { Group, Paper, Text, ActionIcon } from '@mantine-8/core';
-import { Table } from '@mantine/core';
+import { ActionIcon, Group, Paper, Table } from '@mantine-8/core';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
@@ -30,13 +29,11 @@ const CredentialsItem: FC<
     setWarehouseCredentialsToBeDeleted,
     setWarehouseCredentialsToBeEdited,
 }) => (
-    <tr>
-        <Text component="td" fw={500}>
-            {credentials.name}
-        </Text>
-        <td>{credentials.description || '-'}</td>
-        <td>{getWarehouseLabel(credentials.warehouseType)}</td>
-        <td
+    <Table.Tr>
+        <Table.Td fw={500}>{credentials.name}</Table.Td>
+        <Table.Td>{credentials.description || '-'}</Table.Td>
+        <Table.Td>{getWarehouseLabel(credentials.warehouseType)}</Table.Td>
+        <Table.Td
             style={{
                 display: 'flex',
                 justifyContent: 'flex-end',
@@ -64,8 +61,8 @@ const CredentialsItem: FC<
                     <MantineIcon icon={IconTrash} />
                 </ActionIcon>
             </Group>
-        </td>
-    </tr>
+        </Table.Td>
+    </Table.Tr>
 );
 
 export const CredentialsTable: FC<CredentialsTableProps> = ({
@@ -81,15 +78,15 @@ export const CredentialsTable: FC<CredentialsTableProps> = ({
                 className={cx(classes.root, classes.alignLastTdRight)}
                 ta="left"
             >
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Description</th>
-                        <th>Warehouse</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
+                <Table.Thead>
+                    <Table.Tr>
+                        <Table.Th>Name</Table.Th>
+                        <Table.Th>Description</Table.Th>
+                        <Table.Th>Warehouse</Table.Th>
+                        <Table.Th />
+                    </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
                     {credentials?.map((c) => (
                         <CredentialsItem
                             key={c.organizationWarehouseCredentialsUuid}
@@ -102,7 +99,7 @@ export const CredentialsTable: FC<CredentialsTableProps> = ({
                             }
                         />
                     ))}
-                </tbody>
+                </Table.Tbody>
             </Table>
         </Paper>
     );
