@@ -20,7 +20,6 @@ import {
     QueryExecutionContext,
     translateMetricFlowMetrics,
     WarehouseCatalog,
-    type InlineError,
     type WarehouseClient,
 } from '@lightdash/common';
 import {
@@ -59,16 +58,21 @@ export type CompileHandlerOptions = DbtCompileOptions & {
     validateWarehouseColumns?: boolean;
 };
 
-// Warehouse column warnings come from explicit `--validate-warehouse-columns`
-// probing, not partial compilation, so the env gate must never hide them.
-const getDisplayableWarnings = (explore: Explore): InlineError[] => {
-    const warnings = explore.warnings ?? [];
-    if (process.env.PARTIAL_COMPILATION_ENABLED !== 'false') {
-        return warnings;
-    }
-    return warnings.filter(
-        (warning) => warning.type === InlineErrorType.WAREHOUSE_COLUMN_ERROR,
+const getDisplayableDiagnostics = (explore: Explore) => {
+    const diagnostics = explore.warnings ?? [];
+    const errors = diagnostics.filter(
+        (diagnostic) =>
+            diagnostic.type === InlineErrorType.WAREHOUSE_COLUMN_ERROR,
     );
+    const warnings =
+        process.env.PARTIAL_COMPILATION_ENABLED !== 'false'
+            ? diagnostics.filter(
+                  (diagnostic) =>
+                      diagnostic.type !==
+                      InlineErrorType.WAREHOUSE_COLUMN_ERROR,
+              )
+            : [];
+    return { errors, warnings };
 };
 
 const getExploresFromLightdashYmlProject = async (
@@ -528,8 +532,21 @@ export const compile = async (options: CompileHandlerOptions) => {
             messages = `: ${styles.error(e.errors.map((err) => err.message).join(', '))}`;
             errors += 1;
         } else {
-            const warnings = getDisplayableWarnings(e);
-            if (warnings.length > 0) {
+            const { errors: warehouseErrors, warnings } =
+                getDisplayableDiagnostics(e);
+            if (warehouseErrors.length > 0) {
+                status = styles.error('ERROR');
+                messages = `\n${[
+                    ...warehouseErrors.map(
+                        (error) => `    ${styles.error(`✖ ${error.message}`)}`,
+                    ),
+                    ...warnings.map(
+                        (warning) =>
+                            `    ${styles.warning(`⚠ ${warning.message}`)}`,
+                    ),
+                ].join('\n')}`;
+                errors += 1;
+            } else if (warnings.length > 0) {
                 status = styles.warning('PARTIAL_SUCCESS');
                 messages = `\n${warnings
                     .map(
