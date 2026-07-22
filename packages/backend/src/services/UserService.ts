@@ -2511,6 +2511,15 @@ export class UserService extends BaseService {
             userToDelete,
             context: 'leave_organization',
         });
+        this.analytics.track({
+            event: 'user.left_organization',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                wasOrganizationAdmin:
+                    member.role === OrganizationMemberRole.ADMIN,
+            },
+        });
 
         this.logger.info('User left organization', {
             userUuid: user.userUuid,

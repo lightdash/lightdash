@@ -5,6 +5,7 @@ import {
     ProjectMemberRole,
 } from '@lightdash/common';
 import EmailClient from '../../clients/EmailClient/EmailClient';
+import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
@@ -57,6 +58,7 @@ const userModel = {
 describe('AdminNotificationService', () => {
     const service = new AdminNotificationService({
         lightdashConfig: lightdashConfigMock,
+        analytics: analyticsMock,
         emailClient: emailClient as unknown as EmailClient,
         organizationMemberProfileModel:
             organizationMemberProfileModel as unknown as OrganizationMemberProfileModel,

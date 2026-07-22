@@ -329,6 +329,7 @@ export class ServiceRepository
             () =>
                 new AdminNotificationService({
                     lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
                     emailClient: this.clients.getEmailClient(),
                     organizationMemberProfileModel:
                         this.models.getOrganizationMemberProfileModel(),
