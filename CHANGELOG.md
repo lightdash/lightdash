@@ -1,3 +1,10 @@
+# [0.3446.0](https://github.com/lightdash/lightdash/compare/0.3445.0...0.3446.0) (2026-07-22)
+
+
+### Features
+
+* add data apps to homepage Resources block with thumbnails ([#25842](https://github.com/lightdash/lightdash/issues/25842)) ([930f8bf](https://github.com/lightdash/lightdash/commit/930f8bfceb435d69849820839c8e68b7a6714f48)), closes [/linear.app/lightdash/issue/ZAP-647/add-data-app-references-and-thumbnails-to-homepage-builder#agent-session-94c169](https://github.com//linear.app/lightdash/issue/ZAP-647/add-data-app-references-and-thumbnails-to-homepage-builder/issues/agent-session-94c169)
+
 # [0.3445.0](https://github.com/lightdash/lightdash/compare/0.3444.0...0.3445.0) (2026-07-22)
 
 

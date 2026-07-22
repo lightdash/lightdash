@@ -8921,6 +8921,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['link'] },
                 { dataType: 'enum', enums: ['claude'] },
                 { dataType: 'enum', enums: ['youtube'] },
+                { dataType: 'enum', enums: ['data-app'] },
             ],
             validators: {},
         },
@@ -8931,6 +8932,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                appUuid: { dataType: 'string' },
                 imageUrl: { dataType: 'string' },
                 description: { dataType: 'string' },
                 kind: { ref: 'HomepageResourceKind', required: true },
