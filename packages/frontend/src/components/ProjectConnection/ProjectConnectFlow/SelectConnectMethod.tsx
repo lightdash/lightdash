@@ -89,9 +89,9 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                                         color="black"
                                     />
                                 }
-                                description="Connect your warehouse, then let your coding agent finish setup"
+                                description="Connect your warehouse, then let Lightdash finish your project setup"
                             >
-                                Using your coding agent
+                                Set up with a coding agent
                             </OnboardingButton>
                         )}
 

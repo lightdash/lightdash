@@ -8,9 +8,31 @@ import {
     type Project,
     type WarehouseCredentials,
 } from '@lightdash/common';
-import { Button, Code, CopyButton, Stack, Text, Title } from '@mantine-8/core';
-import { IconCheck, IconChevronLeft, IconCopy } from '@tabler/icons-react';
+import {
+    Button,
+    Code,
+    Collapse,
+    CopyButton,
+    Divider,
+    Group,
+    Stack,
+    Text,
+    ThemeIcon,
+    Title,
+} from '@mantine-8/core';
+import {
+    IconCheck,
+    IconChevronDown,
+    IconChevronLeft,
+    IconCopy,
+    IconSparkles,
+} from '@tabler/icons-react';
 import { useMemo, useRef, useState, type FC } from 'react';
+import { useNavigate } from 'react-router';
+import { AgentOnboardingProgress } from '../../../ee/features/agentOnboarding/AgentOnboardingProgress';
+import { useStartAgentOnboardingRun } from '../../../ee/features/agentOnboarding/hooks/useAgentOnboarding';
+import { getAgentOnboardingRunUrl } from '../../../ee/features/agentOnboarding/utils';
+import { useIsCopilotEnabled } from '../../../ee/features/aiCopilot/hooks/useIsCopilotEnabled';
 import { useCreateProjectWithoutCompileMutation } from '../../../hooks/useProject';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -40,6 +62,25 @@ type ConnectionDefaults = {
 // Treats empty strings as "not configured"
 const nonEmpty = (value: string | undefined): string | undefined =>
     value || undefined;
+
+const getSchemaField = (
+    warehouseType: WarehouseTypes,
+): 'dataset' | 'database' | 'schema' => {
+    if (warehouseType === WarehouseTypes.BIGQUERY) return 'dataset';
+    if (warehouseType === WarehouseTypes.DATABRICKS) return 'database';
+    return 'schema';
+};
+
+const getAgentWarehouseValidators = (warehouseType: WarehouseTypes) => {
+    const validators = {
+        ...createWarehouseValueValidators[warehouseType],
+    } as Record<
+        string,
+        (value: string, values: ProjectConnectionForm) => string | undefined
+    >;
+    delete validators[getSchemaField(warehouseType)];
+    return validators;
+};
 
 const getConnectionDefaults = (
     credentials: WarehouseCredentials,
@@ -105,8 +146,12 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
     onBack,
 }) => {
     const [preparedProject, setPreparedProject] = useState<PreparedProject>();
+    const [isLocalPromptOpen, setIsLocalPromptOpen] = useState(false);
     const isCreatingProjectRef = useRef(false);
+    const navigate = useNavigate();
     const createProjectMutation = useCreateProjectWithoutCompileMutation();
+    const startAgentOnboardingRun = useStartAgentOnboardingRun();
+    const { isCopilotEnabled } = useIsCopilotEnabled();
     const onProjectError = useOnProjectError();
     const { track } = useTracking();
 
@@ -119,7 +164,7 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
             organizationWarehouseCredentialsUuid: undefined,
         },
         validate: {
-            warehouse: createWarehouseValueValidators[selectedWarehouse],
+            warehouse: getAgentWarehouseValidators(selectedWarehouse),
         },
         validateInputOnBlur: true,
     });
@@ -129,6 +174,11 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
 
         isCreatingProjectRef.current = true;
         try {
+            const warehouseConnection = {
+                ...formValues.warehouse,
+                type: selectedWarehouse,
+                [getSchemaField(selectedWarehouse)]: '',
+            } as CreateWarehouseCredentials;
             const result = await createProjectMutation.mutateAsync({
                 name: `Coding agent onboarding ${new Date().toISOString()}`,
                 type: ProjectType.DEFAULT,
@@ -136,10 +186,7 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
                 dbtVersion: dbtDefaults.dbtVersion,
                 organizationWarehouseCredentialsUuid:
                     formValues.organizationWarehouseCredentialsUuid,
-                warehouseConnection: {
-                    ...formValues.warehouse,
-                    type: selectedWarehouse,
-                } as CreateWarehouseCredentials,
+                warehouseConnection,
             });
 
             const project = {
@@ -186,52 +233,149 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
         ].join('\n');
     }, [preparedProject, selectedWarehouse, siteUrl]);
 
+    const openProject = () => {
+        if (!preparedProject) return;
+        void navigate(`/projects/${preparedProject.projectUuid}`);
+    };
+
+    const startManagedSetup = async () => {
+        if (!preparedProject) return;
+        try {
+            const run = await startAgentOnboardingRun.mutateAsync(
+                preparedProject.projectUuid,
+            );
+            void navigate(
+                getAgentOnboardingRunUrl(
+                    run.agentOnboardingRunUuid,
+                    run.projectUuid,
+                ),
+            );
+        } catch {
+            return;
+        }
+    };
+
+    const localPrompt = (
+        <Stack gap="lg" className="sentry-block ph-no-capture">
+            <div>
+                <Title order={3}>Complete your project setup</Title>
+                <Text c="dimmed" mt="xs">
+                    Copy the prompt below and run it with your coding agent to
+                    finish setting up your Lightdash project.
+                </Text>
+            </div>
+
+            <Code
+                block
+                className="sentry-block ph-no-capture"
+                style={{
+                    whiteSpace: 'pre-wrap',
+                    overflowWrap: 'anywhere',
+                }}
+            >
+                {agentSetupPrompt}
+            </Code>
+
+            <CopyButton value={agentSetupPrompt ?? ''}>
+                {({ copied, copy }) => (
+                    <Button
+                        onClick={() => {
+                            copy();
+                            track({
+                                name: EventName.AGENT_SETUP_PROMPT_COPIED,
+                            });
+                        }}
+                        leftSection={
+                            <MantineIcon icon={copied ? IconCheck : IconCopy} />
+                        }
+                    >
+                        {copied ? 'Prompt copied' : 'Copy prompt'}
+                    </Button>
+                )}
+            </CopyButton>
+        </Stack>
+    );
+
     if (preparedProject) {
+        if (isCopilotEnabled) {
+            return (
+                <Stack w="100%" maw={960} mx="auto" mt="xl">
+                    <SettingsCard p="xl">
+                        <Stack gap="xl">
+                            <Group align="flex-start" wrap="nowrap" gap="md">
+                                <ThemeIcon
+                                    size={44}
+                                    radius="xl"
+                                    variant="light"
+                                    color="violet"
+                                >
+                                    <MantineIcon
+                                        icon={IconSparkles}
+                                        size="lg"
+                                    />
+                                </ThemeIcon>
+                                <Stack gap={6} style={{ flex: 1 }}>
+                                    <Title order={3}>
+                                        Let Lightdash build it for you
+                                    </Title>
+                                    <Text c="dimmed">
+                                        We’ll explore your warehouse, create a
+                                        semantic layer, and build a starter
+                                        dashboard. You can follow every step.
+                                    </Text>
+                                </Stack>
+                            </Group>
+
+                            <AgentOnboardingProgress />
+
+                            <Group justify="space-between">
+                                <Button
+                                    size="md"
+                                    leftSection={
+                                        <MantineIcon icon={IconSparkles} />
+                                    }
+                                    onClick={() => void startManagedSetup()}
+                                    loading={startAgentOnboardingRun.isLoading}
+                                >
+                                    Run it for me
+                                </Button>
+                                <Button
+                                    variant="subtle"
+                                    color="gray"
+                                    onClick={openProject}
+                                    disabled={startAgentOnboardingRun.isLoading}
+                                >
+                                    Skip to project
+                                </Button>
+                            </Group>
+
+                            <Divider />
+
+                            <Button
+                                variant="subtle"
+                                color="gray"
+                                w="fit-content"
+                                rightSection={
+                                    <MantineIcon icon={IconChevronDown} />
+                                }
+                                onClick={() =>
+                                    setIsLocalPromptOpen((value) => !value)
+                                }
+                            >
+                                Use my own coding agent instead
+                            </Button>
+                            <Collapse in={isLocalPromptOpen}>
+                                {localPrompt}
+                            </Collapse>
+                        </Stack>
+                    </SettingsCard>
+                </Stack>
+            );
+        }
+
         return (
             <Stack w="100%" maw={960} mx="auto" mt="xl">
-                <SettingsCard p="xl">
-                    <Stack gap="lg" className="sentry-block ph-no-capture">
-                        <div>
-                            <Title order={3}>Complete your project setup</Title>
-                            <Text c="dimmed" mt="xs">
-                                Copy the prompt below and run it with your
-                                coding agent to finish setting up your Lightdash
-                                project.
-                            </Text>
-                        </div>
-
-                        <Code
-                            block
-                            className="sentry-block ph-no-capture"
-                            style={{
-                                whiteSpace: 'pre-wrap',
-                                overflowWrap: 'anywhere',
-                            }}
-                        >
-                            {agentSetupPrompt}
-                        </Code>
-
-                        <CopyButton value={agentSetupPrompt ?? ''}>
-                            {({ copied, copy }) => (
-                                <Button
-                                    onClick={() => {
-                                        copy();
-                                        track({
-                                            name: EventName.AGENT_SETUP_PROMPT_COPIED,
-                                        });
-                                    }}
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={copied ? IconCheck : IconCopy}
-                                        />
-                                    }
-                                >
-                                    {copied ? 'Prompt copied' : 'Copy prompt'}
-                                </Button>
-                            )}
-                        </CopyButton>
-                    </Stack>
-                </SettingsCard>
+                <SettingsCard p="xl">{localPrompt}</SettingsCard>
             </Stack>
         );
     }

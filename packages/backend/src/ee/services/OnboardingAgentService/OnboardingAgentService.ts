@@ -7,6 +7,7 @@ import {
     MissingConfigError,
     NotFoundError,
     RequestMethod,
+    UnexpectedServerError,
     type AgentOnboardingFileContent,
     type AgentOnboardingHandoff,
     type AgentOnboardingJobPayload,
@@ -46,8 +47,13 @@ import {
 import {
     ALLOWED_TOOLS,
     CANCELLATION_POLL_INTERVAL_MS,
+    CLAUDE_BASH_GUARD_PATH,
+    CLAUDE_BASH_GUARD_SCRIPT,
     CLAUDE_MODEL,
+    CLAUDE_SETTINGS,
+    CLAUDE_SETTINGS_PATH,
     CLAUDE_SKILLS_DIR,
+    CLAUDE_TOOLS,
     CLI_WRAPPER_PATH,
     CLI_WRAPPER_SCRIPT,
     FILE_SYNC_INTERVAL_MS,
@@ -61,9 +67,12 @@ import { OnboardingAgentFileStore } from './OnboardingAgentFileStore';
 import {
     buildManagedOnboardingPrompt,
     classifyOnboardingStage,
+    containsOnboardingSecret,
+    hasCompleteOnboardingOutput,
     isOnboardingOutputFile,
     parseWorkspaceFileListing,
     sanitizeOnboardingMessage,
+    validateOnboardingOutputFileLimits,
 } from './utils';
 
 type Dependencies = {
@@ -461,8 +470,9 @@ export class OnboardingAgentService extends BaseService {
         run: DbAgentOnboardingRun;
         sandbox: SandboxHandle;
         previousFiles: DbAgentOnboardingFile[];
+        sensitiveValues: string[];
     }): Promise<DbAgentOnboardingFile[]> {
-        const { run, sandbox, previousFiles } = args;
+        const { run, sandbox, previousFiles, sensitiveValues } = args;
         const result = await sandbox.commands.run(
             `find ${WORKDIR} -type f -printf '%P\\t%s\\t%T@\\n' | sort`,
         );
@@ -472,31 +482,68 @@ export class OnboardingAgentService extends BaseService {
         const discovered = parseWorkspaceFileListing(result.stdout).filter(
             ({ path }) => isOnboardingOutputFile(path),
         );
+        validateOnboardingOutputFileLimits(discovered);
 
-        const files = await Promise.all(
-            discovered.map(async (file): Promise<DbAgentOnboardingFile> => {
+        const contentsByPath = new Map<string, Buffer>();
+        await Promise.all(
+            discovered.map(async (file) => {
                 const previous = previousByPath.get(file.path);
                 if (
                     previous &&
                     previous.sizeBytes === file.sizeBytes &&
                     previous.updatedAt === file.updatedAt
                 ) {
-                    return previous;
+                    return;
                 }
 
-                const s3Key = [
-                    'agent-onboarding',
-                    run.organization_uuid,
-                    run.agent_onboarding_run_uuid,
-                    'files',
-                    ...file.path.split('/').map(encodeURIComponent),
-                ].join('/');
                 const contents = await sandbox.files.readBytes(
                     `${WORKDIR}/${file.path}`,
                 );
-                await this.fileStore.put(s3Key, contents);
-                return { ...file, s3Key };
+                if (containsOnboardingSecret(contents, sensitiveValues)) {
+                    throw new UnexpectedServerError(
+                        `Onboarding file ${file.path} contains sensitive content and was not persisted`,
+                    );
+                }
+                contentsByPath.set(file.path, contents);
             }),
+        );
+
+        const filesWithActualSizes = discovered.map((file) => ({
+            ...file,
+            sizeBytes:
+                contentsByPath.get(file.path)?.byteLength ?? file.sizeBytes,
+        }));
+        validateOnboardingOutputFileLimits(filesWithActualSizes);
+
+        const files = await Promise.all(
+            filesWithActualSizes.map(
+                async (file): Promise<DbAgentOnboardingFile> => {
+                    const previous = previousByPath.get(file.path);
+                    if (
+                        previous &&
+                        previous.sizeBytes === file.sizeBytes &&
+                        previous.updatedAt === file.updatedAt
+                    ) {
+                        return previous;
+                    }
+
+                    const s3Key = [
+                        'agent-onboarding',
+                        run.organization_uuid,
+                        run.agent_onboarding_run_uuid,
+                        'files',
+                        ...file.path.split('/').map(encodeURIComponent),
+                    ].join('/');
+                    const contents = contentsByPath.get(file.path);
+                    if (!contents) {
+                        throw new UnexpectedServerError(
+                            `Could not read onboarding file ${file.path}`,
+                        );
+                    }
+                    await this.fileStore.put(s3Key, contents);
+                    return { ...file, s3Key };
+                },
+            ),
         );
 
         const filesChanged =
@@ -526,6 +573,7 @@ export class OnboardingAgentService extends BaseService {
         anthropicApiKey: string;
     }): Promise<{
         assistantText: string;
+        files: DbAgentOnboardingFile[];
         usage: AgentOnboardingUsage | null;
     }> {
         const { run, sandbox, patToken, anthropicApiKey } = args;
@@ -546,9 +594,16 @@ export class OnboardingAgentService extends BaseService {
         });
         const sensitiveValues = [patToken, anthropicApiKey];
 
-        await sandbox.commands.run(`mkdir -p ${WORKDIR}`);
+        await sandbox.commands.run(
+            `mkdir -p ${WORKDIR}/lightdash/models ${WORKDIR}/lightdash/charts ${WORKDIR}/lightdash/dashboards && chmod -R a+rwX ${WORKDIR}`,
+        );
         await sandbox.files.write(PROMPT_PATH, prompt);
         await sandbox.files.write(CLI_WRAPPER_PATH, CLI_WRAPPER_SCRIPT);
+        await sandbox.files.write(
+            CLAUDE_BASH_GUARD_PATH,
+            CLAUDE_BASH_GUARD_SCRIPT,
+        );
+        await sandbox.files.write(CLAUDE_SETTINGS_PATH, CLAUDE_SETTINGS);
         await sandbox.commands.run(`chmod +x ${CLI_WRAPPER_PATH}`);
 
         let buffer = '';
@@ -565,6 +620,7 @@ export class OnboardingAgentService extends BaseService {
                 run,
                 sandbox,
                 previousFiles: knownFiles,
+                sensitiveValues,
             })
                 .then((files) => {
                     knownFiles = files;
@@ -683,6 +739,9 @@ export class OnboardingAgentService extends BaseService {
                     `--model ${CLAUDE_MODEL} ` +
                     '--output-format stream-json --verbose ' +
                     `--add-dir ${CLAUDE_SKILLS_DIR} ` +
+                    `--settings ${CLAUDE_SETTINGS_PATH} ` +
+                    '--permission-mode dontAsk ' +
+                    `--tools "${CLAUDE_TOOLS}" ` +
                     `--allowedTools "${ALLOWED_TOOLS}"`,
                 {
                     cwd: WORKDIR,
@@ -743,7 +802,7 @@ export class OnboardingAgentService extends BaseService {
         await Promise.all(pendingEvents);
         if (runError) throw runError.value;
         if (syncError) throw syncError.value;
-        return { assistantText, usage };
+        return { assistantText, files: knownFiles, usage };
     }
 
     private buildHandoff(
@@ -891,19 +950,23 @@ export class OnboardingAgentService extends BaseService {
             }
 
             const anthropicApiKey = this.getAnthropicApiKey();
-            const { assistantText, usage } = await this.runAgentInSandbox({
-                run,
-                sandbox: sandbox.handle,
-                patToken: pat.token,
-                anthropicApiKey,
-            });
+            const { assistantText, files, usage } =
+                await this.runAgentInSandbox({
+                    run,
+                    sandbox: sandbox.handle,
+                    patToken: pat.token,
+                    anthropicApiKey,
+                });
+            const handoff = this.buildHandoff(assistantText, sensitiveValues());
+            if (!hasCompleteOnboardingOutput(files) || !handoff.dashboardUrl) {
+                throw new UnexpectedServerError(
+                    'The onboarding agent stopped before generating all required project files. Please try again.',
+                );
+            }
             const completed = await this.agentOnboardingRunModel.markCompleted(
                 run.agent_onboarding_run_uuid,
                 {
-                    handoff: this.buildHandoff(
-                        assistantText,
-                        sensitiveValues(),
-                    ),
+                    handoff,
                     usage,
                     stage: 'handoff',
                 },

@@ -1,7 +1,13 @@
-import { type AgentOnboardingStage } from '@lightdash/common';
+import {
+    PayloadTooLargeError,
+    type AgentOnboardingStage,
+} from '@lightdash/common';
 import {
     CLAUDE_SKILLS_DIR,
     CLI_WRAPPER_PATH,
+    MAX_ONBOARDING_FILE_COUNT,
+    MAX_ONBOARDING_FILE_SIZE_BYTES,
+    MAX_ONBOARDING_TOTAL_SIZE_BYTES,
     PROMPT_PATH,
     WORKDIR,
 } from './constants';
@@ -42,9 +48,13 @@ export const buildManagedOnboardingPrompt = (
         '## Environment overrides (IMPORTANT — these replace section 1 of the instructions below)',
         '- The Lightdash CLI and skills are preinstalled. Skip section 1 entirely.',
         `- Run every \`lightdash <args>\` command as \`${CLI_WRAPPER_PATH} <args>\` (a thin wrapper around the same CLI).`,
+        '- Run each wrapper invocation as a single direct command. Do not use pipes, redirects, command chaining, command substitution, or environment expansion.',
+        `- \`warehouse-catalog\` prints its result directly and does not accept \`-o\`. For \`sql\`, always use \`-o ${WORKDIR}/<descriptive-name>.csv\`; no other output extension is permitted.`,
         '- Authentication is already configured through environment variables (LIGHTDASH_URL, LIGHTDASH_API_KEY, LIGHTDASH_PROJECT). Do NOT run `lightdash login`.',
         `- For section 1, verify the selected project with \`${CLI_WRAPPER_PATH} config get-project\` and confirm it matches the prepared project UUID, then continue from section 2.`,
         `- There is no existing repository. Create all working files under ${WORKDIR} and build a pure Lightdash semantic layer from the warehouse catalog.`,
+        '- The standard Lightdash models, charts, and dashboards directories are already prepared.',
+        '- Temporary CSV profiling files are excluded from persistence and do not need manual cleanup.',
         '',
         '---',
         '',
@@ -164,6 +174,60 @@ export type WorkspaceFileEntry = {
     updatedAt: string;
 };
 
+export const validateOnboardingOutputFileLimits = (
+    files: WorkspaceFileEntry[],
+): void => {
+    if (files.length > MAX_ONBOARDING_FILE_COUNT) {
+        throw new PayloadTooLargeError(
+            `The onboarding agent generated more than ${MAX_ONBOARDING_FILE_COUNT} files`,
+        );
+    }
+
+    const oversizedFile = files.find(
+        ({ sizeBytes }) => sizeBytes > MAX_ONBOARDING_FILE_SIZE_BYTES,
+    );
+    if (oversizedFile) {
+        throw new PayloadTooLargeError(
+            `Onboarding file ${oversizedFile.path} exceeds the ${MAX_ONBOARDING_FILE_SIZE_BYTES} byte limit`,
+        );
+    }
+
+    const totalSizeBytes = files.reduce(
+        (total, { sizeBytes }) => total + sizeBytes,
+        0,
+    );
+    if (totalSizeBytes > MAX_ONBOARDING_TOTAL_SIZE_BYTES) {
+        throw new PayloadTooLargeError(
+            `Onboarding files exceed the ${MAX_ONBOARDING_TOTAL_SIZE_BYTES} byte total limit`,
+        );
+    }
+};
+
+export const containsOnboardingSecret = (
+    contents: Buffer,
+    sensitiveValues: string[],
+): boolean => {
+    const text = contents.toString('utf8');
+    if (!Buffer.from(text, 'utf8').equals(contents)) return true;
+    if (
+        sensitiveValues.some(
+            (value) =>
+                value.length > 0 && contents.includes(Buffer.from(value)),
+        )
+    ) {
+        return true;
+    }
+
+    return [
+        /\bldpat_[A-Za-z0-9_-]+\b/,
+        /\bsk-ant-[A-Za-z0-9_-]{20,}\b/,
+        /\bgh[pousr]_[A-Za-z0-9]{20,}\b/,
+        /\bgithub_pat_[A-Za-z0-9_]{20,}\b/,
+        /\bgl(?:pat|oas|ptt|rt|cbt|soat)-[A-Za-z0-9_-]{20,}\b/,
+        /-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----/,
+    ].some((pattern) => pattern.test(text));
+};
+
 export const isOnboardingOutputFile = (path: string): boolean => {
     const segments = path.split('/');
     if (
@@ -184,6 +248,15 @@ export const isOnboardingOutputFile = (path: string): boolean => {
         )
     );
 };
+
+export const hasCompleteOnboardingOutput = (
+    files: Array<{ path: string }>,
+): boolean =>
+    [
+        /^lightdash\.config\.ya?ml$/,
+        /^lightdash\/models\/.+\.ya?ml$/,
+        /^LIGHTDASH_(?:ONBOARDING_)?HANDOFF(?:_\d{4}-\d{2}-\d{2}(?:-\d+)?)?\.md$/,
+    ].every((pattern) => files.some(({ path }) => pattern.test(path)));
 
 export const parseWorkspaceFileListing = (
     listing: string,
