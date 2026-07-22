@@ -30,14 +30,17 @@ export type LinearCustomerIssue = {
     pullRequestUrl: string | null;
 };
 
+// Anchored to the public open-source repo: a bare github.com/<org>/<repo>
+// match would also accept issues/PRs in private repos, leaking their names
+// to customers and letting a private-repo issue satisfy the public gate.
 const GITHUB_ISSUE_URL_PATTERN =
-    /^https:\/\/github\.com\/[^/]+\/[^/]+\/issues\/\d+/;
+    /^https:\/\/github\.com\/lightdash\/lightdash\/issues\/\d+/;
 const GITHUB_PULL_URL_PATTERN =
-    /^https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+/;
+    /^https:\/\/github\.com\/lightdash\/lightdash\/pull\/\d+/;
 
 /**
  * Pick the public GitHub issue and pull-request links out of a Linear issue's
- * attachment URLs. Only exact github.com issue/PR URLs qualify; the first of
+ * attachment URLs. Only exact public-repo issue/PR URLs qualify; the first of
  * each wins. Everything else is internal and ignored.
  */
 export const classifyGithubAttachmentUrls = (

@@ -287,6 +287,14 @@ describe('sanitizeRoadmapLink', () => {
         ['Linear issue', 'https://linear.app/lightdash/issue/PROD-1'],
         ['http downgrade', 'http://github.com/lightdash/lightdash/issues/1'],
         ['lookalike host', 'https://github.com.evil.example/issues/1'],
+        [
+            'private repo in the same org',
+            'https://github.com/lightdash/lightdash-cloud/pull/2873',
+        ],
+        [
+            'public-looking repo in another org',
+            'https://github.com/other-org/lightdash/issues/1',
+        ],
         ['non-string', 42],
         ['null', null],
         ['undefined', undefined],

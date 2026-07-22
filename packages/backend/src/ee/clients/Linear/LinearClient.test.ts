@@ -169,6 +169,16 @@ describe('LinearClient', () => {
         ).toEqual({ issueUrl: null, pullRequestUrl: null });
     });
 
+    it('classifyGithubAttachmentUrls ignores private-repo issue/PR urls', () => {
+        expect(
+            classifyGithubAttachmentUrls([
+                'https://github.com/lightdash/lightdash-cloud/issues/100',
+                'https://github.com/lightdash/lightdash-cloud/pull/2873',
+                'https://github.com/other-org/lightdash/pull/1',
+            ]),
+        ).toEqual({ issueUrl: null, pullRequestUrl: null });
+    });
+
     it('filters by label when a feature-request label is configured', async () => {
         fetchMock.mockResolvedValueOnce(
             buildResponse(
