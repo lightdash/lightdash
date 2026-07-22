@@ -10555,7 +10555,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     public handleSqlApprovalButton(app: App) {
         app.action(
             /^actions\.sql_approval:/,
-            async ({ ack, body, action, respond }) => {
+            async ({ ack, body, action, context, respond }) => {
                 await ack();
                 if (body.type !== 'block_actions' || action.type !== 'button') {
                     return;
@@ -10584,35 +10584,108 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     return;
                 }
 
+                // Approving raw SQL is privileged: resolve the Slack actor to
+                // a Lightdash user and require the same SqlRunner scope as the
+                // web approval path (decideSqlApproval) before recording.
+                const approvalContext =
+                    await this.aiAgentModel.findSqlApprovalContext(toolCallId);
+                if (!approvalContext?.agentUuid) {
+                    await respond({
+                        text: 'This SQL approval request is no longer available.',
+                        replace_original: false,
+                        response_type: 'ephemeral',
+                    });
+                    return;
+                }
+
+                if (!context.teamId) {
+                    return;
+                }
+
+                let decidedBy: SessionUser;
+                try {
+                    const organizationUuid =
+                        await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
+                            context.teamId,
+                        );
+                    const identity =
+                        await this.openIdIdentityModel.findIdentityByOpenId(
+                            OpenIdIdentityIssuerType.SLACK,
+                            body.user.id,
+                        );
+                    if (!identity) {
+                        throw new ForbiddenError(
+                            'Slack account is not linked to a Lightdash user',
+                        );
+                    }
+                    decidedBy =
+                        await this.userModel.findSessionUserAndOrgByUuid(
+                            identity.userUuid,
+                            organizationUuid,
+                        );
+                    const agent = await this.aiAgentModel.getAgent({
+                        organizationUuid,
+                        agentUuid: approvalContext.agentUuid,
+                    });
+                    if (!agent) {
+                        throw new NotFoundError(
+                            `Agent not found: ${approvalContext.agentUuid}`,
+                        );
+                    }
+                    if (
+                        this.createAuditedAbility(decidedBy).cannot(
+                            'manage',
+                            subject('SqlRunner', {
+                                organizationUuid,
+                                projectUuid: agent.projectUuid,
+                                metadata: {
+                                    agentUuid: approvalContext.agentUuid,
+                                    threadUuid,
+                                    toolCallId,
+                                },
+                            }),
+                        )
+                    ) {
+                        throw new ForbiddenError(
+                            'You need the SqlRunner permission to approve SQL execution',
+                        );
+                    }
+                } catch (error) {
+                    Logger.warn(
+                        `Slack SQL approval denied for Slack user ${
+                            body.user.id
+                        }: ${getErrorMessage(error)}`,
+                    );
+                    await respond({
+                        text: `:warning: SQL ${decision} not recorded: ${getErrorMessage(
+                            error,
+                        )}`,
+                        replace_original: false,
+                        response_type: 'ephemeral',
+                    });
+                    return;
+                }
+
                 if (isApprovedAlways) {
                     await this.aiAgentModel.setThreadSqlAutoApproved(
                         threadUuid,
                     );
                 }
 
-                // We don't reverse-map Slack user IDs → Lightdash user UUIDs
-                // here (no direct join exists), so the audit trail records
-                // the decision without a user reference. The Slack user id
-                // is available via body.user.id if we want to enrich later.
                 const recorded = await this.aiAgentModel.recordSqlApproval(
                     toolCallId,
                     decision,
-                    null,
+                    decidedBy.userUuid,
                 );
 
                 // Resume the suspended run once, on the first recorded decision.
                 // The reply job rebuilds history with the approval response, so
                 // the SDK executes runSql (approve) or skips it (reject).
                 if (isNative && recorded) {
-                    const context =
-                        await this.aiAgentModel.findSqlApprovalContext(
-                            toolCallId,
+                    const resumePrompt =
+                        await this.aiAgentModel.findSlackPrompt(
+                            approvalContext.promptUuid,
                         );
-                    const resumePrompt = context
-                        ? await this.aiAgentModel.findSlackPrompt(
-                              context.promptUuid,
-                          )
-                        : undefined;
                     if (resumePrompt) {
                         await this.schedulerClient.slackAiPrompt({
                             slackPromptUuid: resumePrompt.promptUuid,
