@@ -194,7 +194,9 @@ const OnboardingInviteExpert: FC = () => {
         });
         track({
             name: EventName.SETUP_INVITE_SENT,
-            properties: { organizationId: organization?.organizationUuid ?? '' },
+            properties: {
+                organizationId: organization?.organizationUuid ?? '',
+            },
         });
 
         if (canOfferPlayground) {
