@@ -1,8 +1,14 @@
-import { isExploreError } from '@lightdash/common';
+import {
+    DimensionType,
+    isExploreError,
+    MetricType,
+    type LightdashModel,
+} from '@lightdash/common';
 import fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import type { Mock } from 'vitest';
+import * as lightdashLoader from '../lightdash/loader';
 import { compile, type CompileHandlerOptions } from './compile';
 
 vi.mock('execa');
@@ -10,6 +16,27 @@ vi.mock('../analytics/analytics');
 vi.mock('../config', () => ({
     getConfig: vi.fn().mockResolvedValue({ user: null, context: null }),
 }));
+
+const modelWithBrokenMetric = {
+    type: 'model',
+    name: 'test_model',
+    description: 'Test model',
+    sql_from: 'SELECT * FROM test_table',
+    dimensions: [
+        {
+            name: 'id',
+            description: 'ID column',
+            type: DimensionType.NUMBER,
+            sql: 'id',
+        },
+    ],
+    metrics: {
+        broken_metric: {
+            type: MetricType.SUM,
+            sql: `\${missing_dimension}`,
+        },
+    },
+} satisfies LightdashModel;
 
 const getCompileOptions = (projectDir: string): CompileHandlerOptions => ({
     projectDir,
@@ -121,25 +148,9 @@ dimensions:
     });
 
     test('should allow partial compilation by default and allow it to be disabled explicitly', async () => {
-        await fs.writeFile(
-            path.join(tempDir, 'lightdash', 'models', 'test_model.yml'),
-            `
-version: 1
-type: model
-name: test_model
-description: Test model
-sql_from: "SELECT * FROM test_table"
-dimensions:
-  - name: id
-    description: ID column
-    type: number
-    sql: id
-metrics:
-  broken_metric:
-    type: sum
-    sql: \${missing_dimension}
-            `,
-        );
+        vi.spyOn(lightdashLoader, 'loadLightdashModels').mockResolvedValue([
+            modelWithBrokenMetric,
+        ]);
 
         const errorOutput: string[] = [];
         vi.spyOn(console, 'error').mockImplementation((...args) => {
