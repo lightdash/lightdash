@@ -415,6 +415,15 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Install okteto and kubectl
+        run: |
+          set -euo pipefail
+          curl -sSfL https://get.okteto.com | sh
+          curl -sSfL "https://dl.k8s.io/release/$(curl -sSfL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+            -o /usr/local/bin/kubectl
+          chmod +x /usr/local/bin/kubectl
+          okteto version
+          kubectl version --client
       - name: Context
         uses: okteto/context@5212ce5ebf9d3584bafd33f4a295a8521fc5abe7 # latest
         with:
@@ -425,6 +434,9 @@ jobs:
           set -euo pipefail
           chmod +x scripts/prove-golden-db.sh
           ./scripts/prove-golden-db.sh "${{ github.event.number }}"
+        env:
+          OKTETO_TOKEN: ${{ secrets.OKTETO_TOKEN }}
+          OKTETO_CONTEXT: ${{ secrets.OKTETO_CONTEXT }}
 
   # ============================================================================
   # Stage 3: E2E and CLI tests (only after preview is up)
