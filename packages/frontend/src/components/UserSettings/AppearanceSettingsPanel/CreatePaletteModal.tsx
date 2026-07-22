@@ -7,7 +7,14 @@ import {
 } from '../../../hooks/appearance/useOrganizationAppearance';
 import { PaletteModalBase, type PaletteFormValues } from './PaletteModalBase';
 
-type Props = Pick<ModalProps, 'opened' | 'onClose'>;
+type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
+    /**
+     * Seed values for the form. When omitted the default palette is used. The
+     * "from brand colors" flow passes a palette generated from the org brand.
+     */
+    initialValues?: PaletteFormValues;
+    title?: string;
+};
 
 const DEFAULT_COLOR_PALETTE = {
     name: 'Default',
@@ -28,7 +35,12 @@ const DEFAULT_COLOR_PALETTE = {
     ],
 };
 
-export const CreatePaletteModal: FC<Props> = ({ opened, onClose }) => {
+export const CreatePaletteModal: FC<Props> = ({
+    opened,
+    onClose,
+    initialValues,
+    title = 'Create new palette',
+}) => {
     const { data: palettes = [] } = useColorPalettes();
     const createColorPalette = useCreateColorPalette();
 
@@ -48,13 +60,16 @@ export const CreatePaletteModal: FC<Props> = ({ opened, onClose }) => {
             onClose={onClose}
             onSubmit={handleCreatePalette}
             isLoading={createColorPalette.isLoading}
-            initialValues={{
-                name: '',
-                colors: DEFAULT_COLOR_PALETTE.colors,
-            }}
-            title="Create new palette"
+            initialValues={
+                initialValues ?? {
+                    name: '',
+                    colors: DEFAULT_COLOR_PALETTE.colors,
+                }
+            }
+            title={title}
             submitButtonText="Create palette"
             existingPaletteNames={palettes.map((p) => p.name)}
+            requireDirty={false}
         />
     );
 };
