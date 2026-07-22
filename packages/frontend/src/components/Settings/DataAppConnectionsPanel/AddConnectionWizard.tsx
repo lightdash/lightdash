@@ -20,6 +20,7 @@ import {
 import { useForm, type UseFormReturnType } from '@mantine/form';
 import { IconPlugConnected } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
+import { CustomHeadersField } from '../../../features/externalConnections/components/CustomHeadersField';
 import { MethodsField } from '../../../features/externalConnections/components/MethodsField';
 import { PathRulesField } from '../../../features/externalConnections/components/PathRulesField';
 import {
@@ -28,6 +29,11 @@ import {
 } from '../../../features/externalConnections/constants';
 import { useCreateExternalConnection } from '../../../features/externalConnections/hooks/useCreateExternalConnection';
 import { useSaveConnectionSample } from '../../../features/externalConnections/hooks/useSaveConnectionSample';
+import {
+    customHeaderRowsToRecord,
+    validateCustomHeaderRows,
+    type CustomHeaderRow,
+} from '../../../features/externalConnections/utils/customHeaders';
 import {
     resolvePathPrefixes,
     type PathMode,
@@ -55,6 +61,7 @@ type WizardValues = {
     apiKeyName: string;
     apiKeyLocation: ApiKeyLocation;
     oauthScopes: string[];
+    customHeaders: CustomHeaderRow[];
     allowedMethods: ExternalConnectionMethod[];
     pathMode: PathMode;
     allowedPathPrefixes: PathPrefix[];
@@ -90,6 +97,7 @@ const toCreatePayload = (values: WizardValues): CreateExternalConnection => ({
     apiKeyLocation: values.type === 'api_key' ? values.apiKeyLocation : null,
     oauthScopes:
         values.type === 'google_service_account' ? values.oauthScopes : null,
+    customHeaders: customHeaderRowsToRecord(values.customHeaders),
     allowedMethods: values.allowedMethods,
     allowedPathPrefixes: resolvePathPrefixes(
         values.pathMode,
@@ -205,6 +213,13 @@ const AuthStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({ form }) => {
                     />
                 </>
             )}
+
+            <CustomHeadersField
+                label="Custom headers (optional)"
+                value={form.values.customHeaders}
+                onChange={(value) => form.setFieldValue('customHeaders', value)}
+                error={form.errors.customHeaders}
+            />
         </Stack>
     );
 };
@@ -263,6 +278,7 @@ export const AddConnectionWizard: FC<Props> = ({
             apiKeyName: '',
             apiKeyLocation: 'header',
             oauthScopes: [],
+            customHeaders: [],
             allowedMethods: ['GET'],
             pathMode: 'all',
             allowedPathPrefixes: [],
@@ -300,6 +316,7 @@ export const AddConnectionWizard: FC<Props> = ({
                     ? null
                     : 'Use a valid header or query parameter name';
             },
+            customHeaders: validateCustomHeaderRows,
             allowedMethods: (value) =>
                 value.length === 0 ? 'Select at least one method' : null,
             allowedPathPrefixes: (value, values) => {
@@ -337,7 +354,13 @@ export const AddConnectionWizard: FC<Props> = ({
         const secret = form.validateField('secret');
         const apiKeyName = form.validateField('apiKeyName');
         const oauthScopes = form.validateField('oauthScopes');
-        if (!secret.hasError && !apiKeyName.hasError && !oauthScopes.hasError) {
+        const customHeaders = form.validateField('customHeaders');
+        if (
+            !secret.hasError &&
+            !apiKeyName.hasError &&
+            !oauthScopes.hasError &&
+            !customHeaders.hasError
+        ) {
             setActive(2);
         }
     };

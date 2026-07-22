@@ -72,6 +72,7 @@ export class ExternalConnectionModel {
             apiKeyName: row.api_key_name,
             apiKeyLocation: row.api_key_location,
             oauthScopes: row.oauth_scopes,
+            customHeaders: row.custom_headers,
             hasSecret,
             createdByUserUuid: row.created_by_user_uuid,
             updatedByUserUuid: row.updated_by_user_uuid,
@@ -132,6 +133,11 @@ export class ExternalConnectionModel {
                     oauth_scopes: data.oauthScopes?.length
                         ? JSON.stringify(data.oauthScopes)
                         : null,
+                    custom_headers:
+                        data.customHeaders &&
+                        Object.keys(data.customHeaders).length
+                            ? JSON.stringify(data.customHeaders)
+                            : null,
                     created_by_user_uuid: userUuid,
                     updated_by_user_uuid: userUuid,
                 })
@@ -200,6 +206,9 @@ export class ExternalConnectionModel {
                         api_key_location: src.api_key_location,
                         oauth_scopes: src.oauth_scopes
                             ? JSON.stringify(src.oauth_scopes)
+                            : null,
+                        custom_headers: src.custom_headers
+                            ? JSON.stringify(src.custom_headers)
                             : null,
                         created_by_user_uuid: src.created_by_user_uuid,
                         updated_by_user_uuid: src.updated_by_user_uuid,
@@ -412,6 +421,11 @@ export class ExternalConnectionModel {
                 updatePayload.oauth_scopes = data.oauthScopes?.length
                     ? JSON.stringify(data.oauthScopes)
                     : null;
+            if (data.customHeaders !== undefined)
+                updatePayload.custom_headers =
+                    data.customHeaders && Object.keys(data.customHeaders).length
+                        ? JSON.stringify(data.customHeaders)
+                        : null;
 
             await trx(ExternalConnectionsTableName)
                 .where('external_connection_uuid', uuid)

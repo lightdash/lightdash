@@ -349,3 +349,47 @@ describe('validateExternalConnectionConfig', () => {
         });
     });
 });
+
+describe('validateExternalConnectionConfig customHeaders', () => {
+    it('accepts a config with valid custom headers', () => {
+        expect(() =>
+            validateExternalConnectionConfig(
+                {
+                    ...base,
+                    customHeaders: { 'anthropic-version': '2023-06-01' },
+                },
+                false,
+            ),
+        ).not.toThrow();
+    });
+
+    it('rejects a custom header colliding with the api key header', () => {
+        expect(() =>
+            validateExternalConnectionConfig(
+                {
+                    ...base,
+                    type: 'api_key',
+                    apiKeyName: 'X-Service-Key',
+                    apiKeyLocation: 'header',
+                    customHeaders: { 'x-service-key': 'clobber' },
+                },
+                true,
+            ),
+        ).toThrow(ParameterError);
+    });
+
+    it('allows the same name when the api key is sent as a query param', () => {
+        expect(() =>
+            validateExternalConnectionConfig(
+                {
+                    ...base,
+                    type: 'api_key',
+                    apiKeyName: 'X-Service-Key',
+                    apiKeyLocation: 'query',
+                    customHeaders: { 'x-service-key': 'header-plane-value' },
+                },
+                true,
+            ),
+        ).not.toThrow();
+    });
+});

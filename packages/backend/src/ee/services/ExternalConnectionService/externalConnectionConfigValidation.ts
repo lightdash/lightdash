@@ -5,6 +5,7 @@ import {
     type ApiKeyLocation,
     type ExternalConnectionAuthType,
 } from '@lightdash/common';
+import { validateCustomHeaders } from './proxyValidation';
 
 // Defense-in-depth caps for the numeric limits. The runtime proxy enforces
 // these too, but bad config should never be persisted in the first place.
@@ -43,6 +44,7 @@ export type ValidatableExternalConnectionConfig = {
     apiKeyName?: string | null;
     apiKeyLocation?: ApiKeyLocation | null;
     oauthScopes?: string[] | null;
+    customHeaders?: Record<string, string> | null;
 };
 
 /**
@@ -203,6 +205,12 @@ export function validateExternalConnectionConfig(
             MAX_RATE_LIMIT,
         );
     }
+
+    // --- custom request headers ---
+    validateCustomHeaders(
+        config.customHeaders,
+        config.apiKeyLocation === 'header' ? (config.apiKeyName ?? null) : null,
+    );
 
     // --- auth invariants ---
     if (
