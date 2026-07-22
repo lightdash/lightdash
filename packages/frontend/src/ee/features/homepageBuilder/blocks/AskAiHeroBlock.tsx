@@ -105,19 +105,6 @@ export const AskAiHeroBlockBuild: FC<BuildComponentProps> = ({
                     })
                 }
             />
-            <Switch
-                label="Show recommended actions"
-                checked={block.config.showRecommendedActions === true}
-                onChange={(e) =>
-                    onChange({
-                        ...block,
-                        config: {
-                            ...block.config,
-                            showRecommendedActions: e.currentTarget.checked,
-                        },
-                    })
-                }
-            />
         </Stack>
     );
 };

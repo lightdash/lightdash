@@ -1,7 +1,7 @@
 import { type HomepageAskAiHeroBlock } from '@lightdash/common';
 import { MantineProvider } from '@mantine-8/core';
 import { render, screen } from '@testing-library/react';
-import { AskAiHeroBlockView } from './AskAiHeroBlock';
+import { AskAiHeroBlockBuild, AskAiHeroBlockView } from './AskAiHeroBlock';
 
 vi.mock('../DayOneAskInput', () => ({
     DayOneAskInput: () => <div data-testid="ask-input" />,
@@ -65,5 +65,27 @@ describe('AskAiHeroBlockView', () => {
         );
         expect(screen.queryByText(/What do you want to know/)).toBeNull();
         expect(screen.getByTestId('ask-input')).toBeInTheDocument();
+    });
+});
+
+describe('AskAiHeroBlockBuild', () => {
+    it('does not offer recommended actions configuration', () => {
+        wrap(
+            <AskAiHeroBlockBuild
+                itemSpan={null}
+                block={block}
+                projectUuid="p1"
+                onChange={vi.fn()}
+            />,
+        );
+
+        expect(
+            screen.getByRole('switch', { name: 'Show greeting' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('switch', {
+                name: 'Show recommended actions',
+            }),
+        ).not.toBeInTheDocument();
     });
 });
