@@ -420,4 +420,21 @@ export class AiAgentMemoryModel {
 
         return query;
     }
+
+    async incrementPulledForActiveMemories(args: {
+        projectUuid: string;
+        slugs: string[];
+    }): Promise<void> {
+        const slugs = [...new Set(args.slugs)];
+        if (slugs.length === 0) return;
+
+        await this.database<AiAgentMemoryTable>(AiAgentMemoryTableName)
+            .where('project_uuid', args.projectUuid)
+            .where('status', 'active')
+            .whereIn('slug', slugs)
+            .update({
+                pulled_count: this.database.raw('pulled_count + 1'),
+                last_pulled_at: this.database.fn.now(),
+            } as never);
+    }
 }

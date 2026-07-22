@@ -15,6 +15,7 @@ import { getCodingAgentSection } from './systemV2CodingAgent';
 import { CONTENT_TOOLS_SECTION } from './systemV2ContentTools';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
+import { MEMORIES_SECTION } from './systemV2Memories';
 import {
     REPO_FS_SECTION,
     repoFsRootHint,
@@ -56,6 +57,7 @@ export const getSystemPromptV2 = (args: {
     // discoverFields (the ai-grep-fields flag).
     enableGrepFields?: boolean;
     enableContentTools?: boolean;
+    enableAiAgentMemory?: boolean;
     // Originating Slack channel for "this channel" scheduling targets; null on
     // web and MCP prompts.
     slackChannelId?: string | null;
@@ -79,6 +81,7 @@ export const getSystemPromptV2 = (args: {
         repoFsSupportsCodeSearch = true,
         enableGrepFields = false,
         enableContentTools = false,
+        enableAiAgentMemory = false,
         slackChannelId = null,
         canRunSql = false,
         warehouseType = null,
@@ -212,6 +215,10 @@ export const getSystemPromptV2 = (args: {
         .replace(
             '{{scheduling_tools_section}}',
             enableContentTools ? getSchedulingToolsSection(slackChannelId) : '',
+        )
+        .replace(
+            '{{memories_section}}',
+            enableAiAgentMemory ? MEMORIES_SECTION : '',
         )
         .replace('{{cross_explore_join_rule}}', crossExploreJoinRule)
         .replace('{{custom_sql_limitation}}', customSqlLimitation)

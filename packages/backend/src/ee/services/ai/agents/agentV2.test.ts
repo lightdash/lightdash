@@ -62,6 +62,7 @@ describe('getAgentTools workstream tool gate', () => {
     const buildArgs = (flags: {
         enableCodingAgent: boolean;
         enableAiWriteback: boolean;
+        aiAgentMemoryEnabled?: boolean;
     }): AiAgentArgs =>
         ({
             agentSettings: { name: 'test-agent' },
@@ -84,6 +85,7 @@ describe('getAgentTools workstream tool gate', () => {
             maxQueryLimit: 5000,
             model: {},
             organizationId: 'org-1',
+            aiAgentMemoryEnabled: false,
             projectContextEnabled: false,
             promptUuid: 'prompt-1',
             providerOptions: {},
@@ -100,6 +102,7 @@ describe('getAgentTools workstream tool gate', () => {
     const toolNames = (flags: {
         enableCodingAgent: boolean;
         enableAiWriteback: boolean;
+        aiAgentMemoryEnabled?: boolean;
     }) =>
         Object.keys(
             getAgentTools(buildArgs(flags), depsStub(), [], mcpStub, new Map()),
@@ -115,6 +118,16 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).toContain('getPullRequestDiff');
         expect(names).toContain('editDbtProject');
         expect(names).not.toContain('editRepo');
+    });
+
+    it('exposes loadProjectContext when AI agent memory is enabled', () => {
+        const names = toolNames({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+            aiAgentMemoryEnabled: true,
+        });
+
+        expect(names).toContain('loadProjectContext');
     });
 
     it('still exposes them for the general coding agent (writeback off) — unchanged', () => {

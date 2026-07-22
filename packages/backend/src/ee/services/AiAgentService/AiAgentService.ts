@@ -213,6 +213,7 @@ import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import { wrapSentryTransaction } from '../../../utils';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
+import { AiAgentMemoryModel } from '../../models/AiAgentMemoryModel';
 import {
     AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_ALLOW,
     AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_DENY,
@@ -388,6 +389,7 @@ type EmbedAiAgentRuntimeOptions = {
 
 type AiAgentServiceDependencies = {
     aiAgentModel: AiAgentModel;
+    aiAgentMemoryModel: AiAgentMemoryModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
     projectContextModel: ProjectContextModel;
     analytics: LightdashAnalytics;
@@ -602,6 +604,8 @@ function validateGeneratedSuggestion(
 
 export class AiAgentService extends BaseService {
     private readonly aiAgentModel: AiAgentModel;
+
+    private readonly aiAgentMemoryModel: AiAgentMemoryModel;
 
     private readonly aiAgentDocumentModel: AiAgentDocumentModel;
 
@@ -937,6 +941,7 @@ export class AiAgentService extends BaseService {
     constructor(dependencies: AiAgentServiceDependencies) {
         super();
         this.aiAgentModel = dependencies.aiAgentModel;
+        this.aiAgentMemoryModel = dependencies.aiAgentMemoryModel;
         this.aiAgentDocumentModel = dependencies.aiAgentDocumentModel;
         this.projectContextModel = dependencies.projectContextModel;
         this.analytics = dependencies.analytics;
@@ -7382,6 +7387,27 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const getProjectContextDocument: AiAgentDependencies['getProjectContextDocument'] =
             () => this.projectContextModel.getDocument(projectUuid);
+        const getAiAgentMemoryContextEntries: AiAgentDependencies['getAiAgentMemoryContextEntries'] =
+            async () => {
+                const memories =
+                    await this.aiAgentMemoryModel.findActiveForProject({
+                        projectUuid,
+                    });
+                return memories.map((memory) => ({
+                    slug: memory.slug,
+                    content: memory.raw_memory,
+                    terms: memory.terms,
+                    objects: memory.objects,
+                }));
+            };
+        const incrementAiAgentMemoryPulls: AiAgentDependencies['incrementAiAgentMemoryPulls'] =
+            (entries) =>
+                this.aiAgentMemoryModel.incrementPulledForActiveMemories({
+                    projectUuid,
+                    slugs: entries
+                        .filter((entry) => entry.source === 'memory')
+                        .map((entry) => entry.id),
+                });
 
         const updateProgress: UpdateProgressFn = (
             progress,
@@ -7947,6 +7973,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         return {
             listExplores: toolsRuntime.listExplores,
             getProjectContextDocument,
+            getAiAgentMemoryContextEntries,
+            incrementAiAgentMemoryPulls,
             getExplore: toolsRuntime.getExplore,
             listContent: toolsRuntime.listContent,
             findContent: toolsRuntime.findContent,
@@ -8138,6 +8166,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const {
             listExplores,
             getProjectContextDocument,
+            getAiAgentMemoryContextEntries,
+            incrementAiAgentMemoryPulls,
             getExplore,
             listContent,
             findContent,
@@ -8376,6 +8406,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             }
         }
 
+        const { enabled: aiAgentMemoryEnabled } =
+            await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AiAgentMemory,
+            });
+
         const projectContextEnabled =
             aiWritebackEnabled &&
             (await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled(
@@ -8514,6 +8550,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             knowledgeDocuments,
             projectContext,
             projectContextEnabled,
+            aiAgentMemoryEnabled,
             mcpServers,
 
             messageHistory,
@@ -8591,6 +8628,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const dependencies: AiAgentDependencies = {
             listExplores,
             getProjectContextDocument,
+            getAiAgentMemoryContextEntries,
+            incrementAiAgentMemoryPulls,
             getExplore,
             listContent,
             findContent,

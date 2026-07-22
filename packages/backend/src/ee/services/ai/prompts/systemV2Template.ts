@@ -139,6 +139,8 @@ See the CRITICAL section at the top of this prompt: reasoning is user-visible. D
 
 {{requesting_user_section}}
 
+{{memories_section}}
+
 ## Available explores
 {{available_explores}}
 
