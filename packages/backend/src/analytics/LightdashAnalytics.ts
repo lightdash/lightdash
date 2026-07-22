@@ -48,6 +48,7 @@ import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
 import { type ExternalConnectionEvent } from '../ee/analytics';
+import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { VERSION } from '../version';
 import type { AiUsageEvent } from './aiUsage';
 import type { EventStreamSink } from './eventStream/EventStreamSink';
@@ -63,6 +64,7 @@ type Identify = {
     };
 };
 export type BaseTrack = Omit<AnalyticsTrack, 'context'>;
+export const ANONYMOUS_TRACKING_UUID = '00000000-0000-0000-0000-000000000000';
 export type OnboardingFlow = 'new' | 'legacy';
 export type OneTimePasscodePurpose =
     | 'signup_verification'
@@ -1931,6 +1933,63 @@ export type DownloadCsv = BaseTrack & {
     };
 };
 
+export type PersistentFileGenerationRequestedEvent = BaseTrack & {
+    event: 'persistent_file.generation_requested';
+    userId?: string;
+    properties: {
+        fileUuid: string;
+        organizationId: string;
+        projectId: string | null;
+        createdByUserUuid: string | null;
+        fileType: string;
+        source: PersistentDownloadFileSource;
+        expirationSeconds: number;
+    };
+};
+
+export type PersistentFileGenerationCompletedEvent = BaseTrack & {
+    event: 'persistent_file.generation_completed';
+    userId?: string;
+    properties: {
+        fileUuid: string;
+        organizationId: string;
+        projectId: string | null;
+        createdByUserUuid: string | null;
+        fileType: string;
+        source: PersistentDownloadFileSource;
+        expirationSeconds: number;
+        durationMs: number;
+    };
+};
+
+export type PersistentFileUrlRequestedEvent = BaseTrack & {
+    event: 'persistent_file.url_requested';
+    userId?: string;
+    properties: {
+        fileUuid: string;
+        organizationId: string;
+        projectId: string | null;
+        createdByUserUuid: string | null;
+        requestedByUserUuid: string | null;
+        source: 'api';
+    };
+};
+
+export type PersistentFileUrlRespondedEvent = BaseTrack & {
+    event: 'persistent_file.url_responded';
+    userId?: string;
+    properties: {
+        fileUuid: string;
+        organizationId: string;
+        projectId: string | null;
+        createdByUserUuid: string | null;
+        requestedByUserUuid: string | null;
+        source: 'api';
+        statusCode: number;
+        responseMs: number;
+    };
+};
+
 export type Validation = BaseTrack & {
     event:
         | 'validation.page_viewed'
@@ -2813,6 +2872,10 @@ type TypedEvent =
     | SchedulerOwnershipReassignedEvent
     | ImpersonationEvent
     | PromptFetchedEvent
+    | PersistentFileGenerationRequestedEvent
+    | PersistentFileGenerationCompletedEvent
+    | PersistentFileUrlRequestedEvent
+    | PersistentFileUrlRespondedEvent
     | AiUsageEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &

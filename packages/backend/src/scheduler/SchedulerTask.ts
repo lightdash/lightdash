@@ -743,6 +743,7 @@ export default class SchedulerTask {
                                     createdByUserUuid: userUuid,
                                     expirationSeconds:
                                         expirationSecondsOverride,
+                                    source: 'scheduler',
                                 },
                             );
                     }
@@ -4937,6 +4938,7 @@ export default class SchedulerTask {
             organizationUuid,
             projectUuid,
             createdByUserUuid,
+            source: 'scheduler',
         });
     }
 
@@ -5009,6 +5011,7 @@ export default class SchedulerTask {
                 projectUuid,
                 createdByUserUuid,
                 expirationSeconds: expirationSecondsOverride,
+                source: 'scheduler',
             }),
             numFileFailures: workbookResult.failedFileCount,
         };

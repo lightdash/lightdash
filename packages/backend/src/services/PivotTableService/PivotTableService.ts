@@ -368,6 +368,7 @@ export class PivotTableService extends BaseService {
                     projectUuid,
                     createdByUserUuid,
                     expirationSeconds: expirationSecondsOverride,
+                    source: 'pivot',
                 });
             return {
                 filename: fileName,
