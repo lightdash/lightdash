@@ -45,7 +45,17 @@ const baseOptions: ValidateOptions = {
     disableTimestampConversion: false,
 };
 
+const TARGET_SKIP_WARNING =
+    'Skipping warehouse column validation because --only does not include the tables validation target';
+
 describe('validateHandler warehouse column validation', () => {
+    let errorOutput: string[];
+
+    const skipWarnings = () =>
+        errorOutput.filter((line) =>
+            line.includes('Skipping warehouse column validation'),
+        );
+
     beforeEach(() => {
         vi.clearAllMocks();
         vi.mocked(checkLightdashVersion).mockResolvedValue(undefined);
@@ -62,6 +72,15 @@ describe('validateHandler warehouse column validation', () => {
             }
             throw new Error(`Unexpected API call: ${method} ${url}`);
         });
+
+        errorOutput = [];
+        vi.spyOn(console, 'error').mockImplementation((...args) => {
+            errorOutput.push(args.map(String).join(' '));
+        });
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     test('does not request warehouse column validation by default', async () => {
@@ -71,6 +90,7 @@ describe('validateHandler warehouse column validation', () => {
         expect(compile).toHaveBeenCalledWith(
             expect.objectContaining({ validateWarehouseColumns: false }),
         );
+        expect(skipWarnings()).toEqual([]);
     });
 
     test('requests warehouse column validation when the flag is set and every target is validated', async () => {
@@ -82,6 +102,7 @@ describe('validateHandler warehouse column validation', () => {
         expect(compile).toHaveBeenCalledWith(
             expect.objectContaining({ validateWarehouseColumns: true }),
         );
+        expect(skipWarnings()).toEqual([]);
     });
 
     test('requests warehouse column validation when the flag is set and only tables are validated', async () => {
@@ -94,6 +115,20 @@ describe('validateHandler warehouse column validation', () => {
         expect(compile).toHaveBeenCalledWith(
             expect.objectContaining({ validateWarehouseColumns: true }),
         );
+        expect(skipWarnings()).toEqual([]);
+    });
+
+    test('requests warehouse column validation when the flag is set and a mixed target list includes tables', async () => {
+        await validateHandler({
+            ...baseOptions,
+            only: [ValidationTarget.TABLES, ValidationTarget.CHARTS],
+            validateWarehouseColumns: true,
+        });
+
+        expect(compile).toHaveBeenCalledWith(
+            expect.objectContaining({ validateWarehouseColumns: true }),
+        );
+        expect(skipWarnings()).toEqual([]);
     });
 
     test('does not request warehouse column validation when tables are not validated', async () => {
@@ -106,5 +141,36 @@ describe('validateHandler warehouse column validation', () => {
         expect(compile).toHaveBeenCalledWith(
             expect.objectContaining({ validateWarehouseColumns: false }),
         );
+        const warnings = skipWarnings();
+        expect(warnings).toHaveLength(1);
+        expect(warnings[0]).toContain(TARGET_SKIP_WARNING);
+    });
+
+    test('warns exactly once when the flag is set and only charts are validated', async () => {
+        await validateHandler({
+            ...baseOptions,
+            only: [ValidationTarget.CHARTS],
+            validateWarehouseColumns: true,
+        });
+
+        expect(compile).toHaveBeenCalledWith(
+            expect.objectContaining({ validateWarehouseColumns: false }),
+        );
+        const warnings = skipWarnings();
+        expect(warnings).toHaveLength(1);
+        expect(warnings[0]).toContain(TARGET_SKIP_WARNING);
+    });
+
+    test('does not warn when only charts are validated without the flag', async () => {
+        await validateHandler({
+            ...baseOptions,
+            only: [ValidationTarget.CHARTS],
+            validateWarehouseColumns: false,
+        });
+
+        expect(compile).toHaveBeenCalledWith(
+            expect.objectContaining({ validateWarehouseColumns: false }),
+        );
+        expect(skipWarnings()).toEqual([]);
     });
 });

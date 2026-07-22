@@ -202,6 +202,13 @@ export const validateHandler = async (
         const includesTableValidation =
             validationTargets.length === 0 ||
             validationTargets.includes(ValidationTarget.TABLES);
+        if (options.validateWarehouseColumns && !includesTableValidation) {
+            console.error(
+                styles.warning(
+                    '> Skipping warehouse column validation because --only does not include the tables validation target',
+                ),
+            );
+        }
         const explores = await compile({
             ...options,
             validateWarehouseColumns:
