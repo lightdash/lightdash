@@ -1,3 +1,11 @@
+# [0.3455.0](https://github.com/lightdash/lightdash/compare/0.3454.0...0.3455.0) (2026-07-22)
+
+
+### Features
+
+* add manage:OrganizationColorPalette custom-role scope ([#25937](https://github.com/lightdash/lightdash/issues/25937)) ([e545e97](https://github.com/lightdash/lightdash/commit/e545e97305376249bbfb66b44322a6abf37b2d14)), closes [/linear.app/lightdash/issue/PROD-8943/add-a-granular-custom-role-scope-for-managing-organization-colour#agent-session-2201a08](https://github.com//linear.app/lightdash/issue/PROD-8943/add-a-granular-custom-role-scope-for-managing-organization-colour/issues/agent-session-2201a08)
+* **frontend:** route the add-semantic-layer setup action into the coding-agent flow ([#25952](https://github.com/lightdash/lightdash/issues/25952)) ([43c1a02](https://github.com/lightdash/lightdash/commit/43c1a027304981d84cb83345b51c5ef976f939c5))
+
 # [0.3454.0](https://github.com/lightdash/lightdash/compare/0.3453.0...0.3454.0) (2026-07-22)
 
 
