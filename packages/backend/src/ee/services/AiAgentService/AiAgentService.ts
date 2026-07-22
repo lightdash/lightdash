@@ -1033,6 +1033,24 @@ export class AiAgentService extends BaseService {
         ).href;
     }
 
+    // Proxy for whether Slack's servers can fetch the URL: deployments where
+    // SITE_URL is unreachable internally are the ones Slack can't reach either.
+    private static async isCardImageUrlReachable(
+        url: string,
+    ): Promise<boolean> {
+        try {
+            const response = await fetch(url, {
+                signal: AbortSignal.timeout(5000),
+            });
+            // Discard the body without downloading it — an unconsumed body
+            // keeps the connection open
+            await response.body?.cancel();
+            return response.ok;
+        } catch {
+            return false;
+        }
+    }
+
     private enqueueReviewClassifierEvent(args: {
         eventType: AiAgentReviewClassifierEventType;
         organizationUuid: string | null | undefined;
@@ -9098,6 +9116,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     null,
                     exploreName,
                 ),
+            AiAgentService.isCardImageUrlReachable,
             agent?.uuid,
             promptArtifactVersions.length > 0
                 ? promptArtifactVersions

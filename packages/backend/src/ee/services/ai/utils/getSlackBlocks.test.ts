@@ -252,6 +252,7 @@ describe('Slack AI agent blocks', () => {
             500,
             async () => 'https://lightdash.example.com/share/chart',
             async () => ({}) as never,
+            async () => true,
             'agent-1',
             [
                 {
@@ -324,6 +325,89 @@ describe('Slack AI agent blocks', () => {
         ]);
     });
 
+    it('omits the hero but keeps the Open image button when the image URL is unreachable', async () => {
+        const blocks = await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async () => 'https://lightdash.example.com/share/chart',
+            async () => ({}) as never,
+            async () => false,
+            'agent-1',
+            [
+                {
+                    artifactUuid: 'artifact-1',
+                    threadUuid: 'thread-1',
+                    promptUuid: 'prompt-1',
+                    artifactType: 'chart',
+                    savedQueryUuid: null,
+                    savedDashboardUuid: null,
+                    createdAt: new Date(),
+                    versionNumber: 1,
+                    versionUuid: 'version-1',
+                    title: 'Orders Over Time',
+                    description: null,
+                    dashboardConfig: null,
+                    versionCreatedAt: new Date(),
+                    verifiedByUserUuid: null,
+                    verifiedAt: null,
+                    chartConfig: {
+                        title: 'Orders Over Time',
+                        description: 'Orders by month',
+                        queryConfig: {
+                            exploreName: 'orders',
+                            dimensions: ['orders_order_date_month'],
+                            metrics: ['orders_unique_order_count'],
+                            sorts: [],
+                            limit: 500,
+                            customMetrics: [],
+                            tableCalculations: [],
+                            filters: null,
+                        },
+                        chartConfig: null,
+                    },
+                },
+            ],
+            [
+                {
+                    uuid: 'result-1',
+                    promptUuid: 'prompt-1',
+                    toolCallId: 'call-1',
+                    toolType: 'built-in',
+                    toolName: 'generateVisualization',
+                    result: 'ok',
+                    createdAt: new Date(),
+                    metadata: {
+                        status: 'success',
+                        chartImageUrl:
+                            'https://internal.example.com/api/v1/slack/card-image/abc',
+                    } as never,
+                },
+            ],
+        );
+
+        expect(blocks).toMatchObject([
+            {
+                type: 'card',
+                actions: [
+                    {
+                        text: { text: 'Open image' },
+                        url: 'https://internal.example.com/api/v1/slack/card-image/abc',
+                    },
+                    {
+                        text: { text: 'Explore in Lightdash' },
+                        url: 'https://lightdash.example.com/share/chart',
+                    },
+                ],
+            },
+        ]);
+        expect(blocks[0]).not.toHaveProperty('hero_image');
+    });
+
     it('uses the latest visualization attempt image when a single artifact was retried', async () => {
         const artifact = {
             artifactUuid: 'artifact-1',
@@ -382,6 +466,7 @@ describe('Slack AI agent blocks', () => {
             500,
             async () => 'https://lightdash.example.com/share/chart',
             async () => ({}) as never,
+            async () => true,
             'agent-1',
             [artifact],
             [
@@ -484,6 +569,7 @@ describe('Slack AI agent blocks', () => {
             500,
             async () => 'https://lightdash.example.com/share/chart',
             async () => ({}) as never,
+            async () => true,
             'agent-1',
             [
                 chartVersion('version-1', 'Placed orders by month', 'placed'),
@@ -586,6 +672,7 @@ describe('Slack AI agent blocks', () => {
             500,
             async () => 'https://lightdash.example.com/share/chart',
             async () => ({}) as never,
+            async () => true,
             'agent-1',
             [
                 retryVersion('version-1'),
@@ -655,6 +742,7 @@ describe('Slack AI agent blocks', () => {
             500,
             async () => 'https://lightdash.example.com/share/chart',
             async () => ({}) as never,
+            async () => true,
             'agent-1',
             [
                 retryVersion('version-1', 'day'),
@@ -715,6 +803,7 @@ describe('Slack AI agent blocks', () => {
             500,
             async () => 'https://lightdash.example.com/share/chart',
             async () => ({}) as never,
+            async () => true,
             'agent-1',
             [
                 chartVersion('version-1', 'Placed orders', 'placed'),
@@ -800,6 +889,7 @@ describe('Slack AI agent blocks', () => {
             500,
             async () => 'https://lightdash.example.com/share/chart',
             async () => ({}) as never,
+            async () => true,
             'agent-1',
             [
                 chartVersion('version-1', 'line', 'line'),
@@ -833,6 +923,7 @@ describe('Slack AI agent blocks', () => {
             500,
             createShareUrl,
             async () => mockOrdersExplore,
+            async () => true,
             'agent-1',
             [
                 {
@@ -916,6 +1007,7 @@ describe('Slack AI agent blocks', () => {
             createShareUrl,
             // Broken explore: chart config conversion throws, table fallback kicks in
             async () => ({}) as never,
+            async () => true,
             'agent-1',
             [
                 {
@@ -977,6 +1069,7 @@ describe('Slack AI agent blocks', () => {
                 throw new Error('share service unavailable');
             },
             async () => mockOrdersExplore,
+            async () => true,
             'agent-1',
             [
                 {
