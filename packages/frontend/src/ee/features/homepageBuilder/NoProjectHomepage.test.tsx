@@ -3,7 +3,12 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import NoProjectHomepage from './NoProjectHomepage';
 
-const state = vi.hoisted(() => ({ needsProject: true }));
+const state = vi.hoisted(() => ({
+    needsProject: true,
+    isCopilotEnabled: true,
+    isCopilotLoading: false,
+    isHomepageBuilderEnabled: true,
+}));
 
 vi.mock('../../../providers/App/useApp', () => ({
     default: () => ({ user: { data: { firstName: 'Ada' } } }),
@@ -19,6 +24,20 @@ vi.mock('../../../hooks/organization/useOrganization', () => ({
 vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({
         data: { enabled: true },
+        isLoading: false,
+    }),
+}));
+
+vi.mock('../aiCopilot/hooks/useIsCopilotEnabled', () => ({
+    useIsCopilotEnabled: () => ({
+        isCopilotEnabled: state.isCopilotEnabled,
+        isLoading: state.isCopilotLoading,
+    }),
+}));
+
+vi.mock('./hooks/useProjectHomepage', () => ({
+    useHomepageBuilderFlag: () => ({
+        isEnabled: state.isHomepageBuilderEnabled,
         isLoading: false,
     }),
 }));
@@ -53,6 +72,9 @@ const renderHomepage = () =>
 describe('NoProjectHomepage', () => {
     beforeEach(() => {
         state.needsProject = true;
+        state.isCopilotEnabled = true;
+        state.isCopilotLoading = false;
+        state.isHomepageBuilderEnabled = true;
     });
 
     it('renders the decorative sky on the stage that holds the hero', () => {
@@ -72,5 +94,30 @@ describe('NoProjectHomepage', () => {
 
         expect(screen.getByText('redirected')).toBeInTheDocument();
         expect(screen.queryByTestId('homepage-stars')).toBeNull();
+    });
+
+    it('redirects away when the organization has no copilot', () => {
+        state.isCopilotEnabled = false;
+        renderHomepage();
+
+        expect(screen.getByText('redirected')).toBeInTheDocument();
+        expect(screen.queryByTestId('ask-input')).toBeNull();
+    });
+
+    it('redirects away when the homepage builder is disabled', () => {
+        state.isHomepageBuilderEnabled = false;
+        renderHomepage();
+
+        expect(screen.getByText('redirected')).toBeInTheDocument();
+        expect(screen.queryByTestId('ask-input')).toBeNull();
+    });
+
+    it('waits for the copilot signal before deciding', () => {
+        state.isCopilotEnabled = false;
+        state.isCopilotLoading = true;
+        renderHomepage();
+
+        expect(screen.queryByText('redirected')).toBeNull();
+        expect(screen.queryByTestId('ask-input')).toBeNull();
     });
 });
