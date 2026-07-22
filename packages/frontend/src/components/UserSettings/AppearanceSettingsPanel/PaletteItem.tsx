@@ -33,6 +33,7 @@ type PaletteItemProps = {
     isActive: boolean;
     onSetActive?: ((uuid: string) => void) | undefined;
     readOnly?: boolean;
+    canManage: boolean;
 };
 
 export const PaletteItem: FC<PaletteItemProps> = ({
@@ -40,6 +41,7 @@ export const PaletteItem: FC<PaletteItemProps> = ({
     isActive,
     onSetActive,
     readOnly,
+    canManage,
 }) => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -194,25 +196,33 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                                 >
                                     Copy UUID
                                 </Menu.Item>
-                                <Menu.Item
-                                    disabled={readOnly}
-                                    leftSection={
-                                        <MantineIcon icon={IconEdit} />
-                                    }
-                                    onClick={() => setIsEditModalOpen(true)}
-                                >
-                                    Edit palette
-                                </Menu.Item>
-                                <Menu.Item
-                                    leftSection={
-                                        <MantineIcon icon={IconTrash} />
-                                    }
-                                    onClick={() => setIsDeleteModalOpen(true)}
-                                    disabled={isActive || readOnly}
-                                    color="red"
-                                >
-                                    Delete palette
-                                </Menu.Item>
+                                {canManage && (
+                                    <>
+                                        <Menu.Item
+                                            disabled={readOnly}
+                                            leftSection={
+                                                <MantineIcon icon={IconEdit} />
+                                            }
+                                            onClick={() =>
+                                                setIsEditModalOpen(true)
+                                            }
+                                        >
+                                            Edit palette
+                                        </Menu.Item>
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon icon={IconTrash} />
+                                            }
+                                            onClick={() =>
+                                                setIsDeleteModalOpen(true)
+                                            }
+                                            disabled={isActive || readOnly}
+                                            color="red"
+                                        >
+                                            Delete palette
+                                        </Menu.Item>
+                                    </>
+                                )}
                             </Menu.Dropdown>
                         </Menu>
                     </Group>

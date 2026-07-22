@@ -96,6 +96,7 @@ const AppearanceColorSettings: FC<{ canManage: boolean }> = ({ canManage }) => {
                                     }}
                                     isActive={true}
                                     readOnly
+                                    canManage={canManage}
                                     onSetActive={undefined}
                                 />
                             )}
@@ -106,7 +107,7 @@ const AppearanceColorSettings: FC<{ canManage: boolean }> = ({ canManage }) => {
                                 isActive={
                                     palette.isActive && !hasColorPaletteOverride
                                 }
-                                readOnly={!canManage}
+                                canManage={canManage}
                                 onSetActive={
                                     hasColorPaletteOverride || !canManage
                                         ? undefined
