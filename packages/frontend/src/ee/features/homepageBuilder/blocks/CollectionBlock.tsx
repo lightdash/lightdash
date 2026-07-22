@@ -26,12 +26,19 @@ import {
     Checkbox,
     Divider,
     Group,
+    SegmentedControl,
     Skeleton,
     Stack,
     Text,
     TextInput,
 } from '@mantine-8/core';
-import { IconLayoutGrid, IconPin, IconPlus } from '@tabler/icons-react';
+import { useDebouncedValue } from '@mantine/hooks';
+import {
+    IconLayoutGrid,
+    IconPin,
+    IconPlus,
+    IconSearch,
+} from '@tabler/icons-react';
 import { useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
@@ -52,14 +59,26 @@ import { ContentCard } from './ContentCard';
 import { PageGrid, PageGridItem } from './PageGrid';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
-const toFavoriteType = (content: SummaryContent) =>
-    content.contentType === ContentType.DASHBOARD
-        ? ResourceViewItemType.DASHBOARD
-        : ResourceViewItemType.CHART;
+// Only charts and dashboards can be favorited — spaces and data apps have no
+// favorite toggle, so the star is hidden for them.
+const toFavoriteType = (
+    content: SummaryContent,
+): ResourceViewItemType.CHART | ResourceViewItemType.DASHBOARD | null => {
+    switch (content.contentType) {
+        case ContentType.CHART:
+            return ResourceViewItemType.CHART;
+        case ContentType.DASHBOARD:
+            return ResourceViewItemType.DASHBOARD;
+        case ContentType.SPACE:
+        case ContentType.DATA_APP:
+            return null;
+        default:
+            return assertUnreachable(content, 'Unknown collection content');
+    }
+};
 
 const toItemRef = (content: SummaryContent): HomepageCollectionItemRef => ({
-    contentType:
-        content.contentType === ContentType.DASHBOARD ? 'dashboard' : 'chart',
+    contentType: content.contentType,
     uuid: content.uuid,
 });
 
@@ -195,6 +214,91 @@ const SpaceContent: FC<{
     );
 };
 
+// A flat, search-driven list for a single content type (data apps or spaces),
+// which — unlike charts/dashboards — aren't naturally browsed by space.
+const SearchContentList: FC<{
+    projectUuid: string;
+    contentType: ContentType.DATA_APP | ContentType.SPACE;
+    placeholder: string;
+    emptyLabel: string;
+    selected: Map<string, HomepageCollectionItemRef>;
+    onToggleItem: (content: SummaryContent) => void;
+}> = ({
+    projectUuid,
+    contentType,
+    placeholder,
+    emptyLabel,
+    selected,
+    onToggleItem,
+}) => {
+    const [search, setSearch] = useState('');
+    const [debouncedSearch] = useDebouncedValue(search, 300);
+    const { data, isFetching, hasNextPage, fetchNextPage, isFetchingNextPage } =
+        useInfiniteContent(
+            {
+                projectUuids: [projectUuid],
+                contentTypes: [contentType],
+                pageSize: PAGE_SIZE,
+                search: debouncedSearch || undefined,
+            },
+            { keepPreviousData: true },
+        );
+    const items = useMemo(
+        () => (data?.pages ?? []).flatMap((page) => page.data),
+        [data],
+    );
+
+    return (
+        <Stack gap="xs" flex={1} miw={0}>
+            <TextInput
+                size="xs"
+                placeholder={placeholder}
+                leftSection={<MantineIcon icon={IconSearch} size={14} />}
+                value={search}
+                onChange={(e) => setSearch(e.currentTarget.value)}
+                autoFocus
+            />
+            <Box flex={1} miw={0} className={classes.pickerScrollList}>
+                {isFetching && items.length === 0 ? (
+                    <Stack gap={4} p="xs">
+                        <Skeleton h={24} />
+                        <Skeleton h={24} />
+                        <Skeleton h={24} />
+                    </Stack>
+                ) : items.length === 0 ? (
+                    <Text size="sm" c="dimmed" p="sm">
+                        {emptyLabel}
+                    </Text>
+                ) : (
+                    <Stack gap={2}>
+                        {items.map((content) => (
+                            <ContentRow
+                                key={content.uuid}
+                                content={content}
+                                checked={selected.has(content.uuid)}
+                                onToggle={() => onToggleItem(content)}
+                            />
+                        ))}
+                        {hasNextPage && (
+                            <Button
+                                variant="subtle"
+                                size="xs"
+                                w="fit-content"
+                                loading={isFetchingNextPage}
+                                onClick={() => void fetchNextPage()}
+                            >
+                                Load more
+                            </Button>
+                        )}
+                    </Stack>
+                )}
+            </Box>
+        </Stack>
+    );
+};
+
+type PickerTab = 'content' | 'apps' | 'spaces';
+
 const CollectionPicker: FC<{
     projectUuid: string;
     initialSelected: HomepageCollectionItemRef[];
@@ -203,6 +307,7 @@ const CollectionPicker: FC<{
      * selection — the footer lives in MantineModal, outside this component. */
     registerApply: (commit: () => void) => void;
 }> = ({ projectUuid, initialSelected, onApply, registerApply }) => {
+    const [tab, setTab] = useState<PickerTab>('content');
     const [selectedSpaceUuid, setSelectedSpaceUuid] = useState<string | null>(
         null,
     );
@@ -239,41 +344,79 @@ const CollectionPicker: FC<{
 
     return (
         <Stack gap="sm">
-            <Group align="stretch" gap="md" wrap="nowrap" h="min(64vh, 720px)">
-                <Box w={340} className={classes.pickerScrollList}>
-                    <SpaceSelector
-                        projectUuid={projectUuid}
-                        spaces={spaces}
-                        selectedSpaceUuid={selectedSpaceUuid}
-                        onSelectSpace={setSelectedSpaceUuid}
-                        itemType={undefined}
-                        isRootSelectionEnabled={false}
-                    />
-                </Box>
-                <Divider orientation="vertical" />
-                <Stack gap="xs" flex={1} miw={0}>
-                    <Text size="sm" c="dimmed">
-                        {selected.size} selected
-                    </Text>
-                    <Box flex={1} miw={0} className={classes.pickerScrollList}>
-                        {selectedSpaceUuid == null ? (
-                            <Text size="sm" c="dimmed" p="sm">
-                                Pick a space on the left to see its charts and
-                                dashboards.
-                            </Text>
-                        ) : (
-                            <SpaceContent
-                                key={selectedSpaceUuid}
-                                projectUuid={projectUuid}
-                                spaceUuid={selectedSpaceUuid}
-                                selected={selected}
-                                onToggleItem={toggleItem}
-                                onToggleMany={toggleMany}
-                            />
-                        )}
-                    </Box>
-                </Stack>
+            <Group justify="space-between" gap="sm" wrap="nowrap">
+                <SegmentedControl
+                    size="xs"
+                    value={tab}
+                    onChange={(value) => setTab(value as PickerTab)}
+                    data={[
+                        { label: 'Charts & dashboards', value: 'content' },
+                        { label: 'Data apps', value: 'apps' },
+                        { label: 'Spaces', value: 'spaces' },
+                    ]}
+                />
+                <Text size="sm" c="dimmed">
+                    {selected.size} selected
+                </Text>
             </Group>
+            <Box h="min(64vh, 720px)">
+                {tab === 'content' && (
+                    <Group align="stretch" gap="md" wrap="nowrap" h="100%">
+                        <Box w={340} className={classes.pickerScrollList}>
+                            <SpaceSelector
+                                projectUuid={projectUuid}
+                                spaces={spaces}
+                                selectedSpaceUuid={selectedSpaceUuid}
+                                onSelectSpace={setSelectedSpaceUuid}
+                                itemType={undefined}
+                                isRootSelectionEnabled={false}
+                            />
+                        </Box>
+                        <Divider orientation="vertical" />
+                        <Box
+                            flex={1}
+                            miw={0}
+                            className={classes.pickerScrollList}
+                        >
+                            {selectedSpaceUuid == null ? (
+                                <Text size="sm" c="dimmed" p="sm">
+                                    Pick a space on the left to see its charts
+                                    and dashboards.
+                                </Text>
+                            ) : (
+                                <SpaceContent
+                                    key={selectedSpaceUuid}
+                                    projectUuid={projectUuid}
+                                    spaceUuid={selectedSpaceUuid}
+                                    selected={selected}
+                                    onToggleItem={toggleItem}
+                                    onToggleMany={toggleMany}
+                                />
+                            )}
+                        </Box>
+                    </Group>
+                )}
+                {tab === 'apps' && (
+                    <SearchContentList
+                        projectUuid={projectUuid}
+                        contentType={ContentType.DATA_APP}
+                        placeholder="Search data apps..."
+                        emptyLabel="No data apps found."
+                        selected={selected}
+                        onToggleItem={toggleItem}
+                    />
+                )}
+                {tab === 'spaces' && (
+                    <SearchContentList
+                        projectUuid={projectUuid}
+                        contentType={ContentType.SPACE}
+                        placeholder="Search spaces..."
+                        emptyLabel="No spaces found."
+                        selected={selected}
+                        onToggleItem={toggleItem}
+                    />
+                )}
+            </Box>
         </Stack>
     );
 };
@@ -350,24 +493,34 @@ export const CollectionBlockView: FC<BlockComponentProps> = ({
                 </PageGrid>
             ) : (
                 <PageGrid itemSpan={itemSpan ?? null} elastic>
-                    {(contents ?? []).map((content) => (
-                        <PageGridItem key={content.uuid}>
-                            <ContentCard
-                                content={content}
-                                projectUuid={projectUuid}
-                                variant="tile"
-                                star={{
-                                    isFavorite: favoriteUuids.has(content.uuid),
-                                    onToggle: () =>
-                                        toggleFavorite({
-                                            contentType:
-                                                toFavoriteType(content),
-                                            contentUuid: content.uuid,
-                                        }),
-                                }}
-                            />
-                        </PageGridItem>
-                    ))}
+                    {(contents ?? []).map((content) => {
+                        const favoriteType = toFavoriteType(content);
+                        return (
+                            <PageGridItem key={content.uuid}>
+                                <ContentCard
+                                    content={content}
+                                    projectUuid={projectUuid}
+                                    variant="tile"
+                                    star={
+                                        favoriteType
+                                            ? {
+                                                  isFavorite: favoriteUuids.has(
+                                                      content.uuid,
+                                                  ),
+                                                  onToggle: () =>
+                                                      toggleFavorite({
+                                                          contentType:
+                                                              favoriteType,
+                                                          contentUuid:
+                                                              content.uuid,
+                                                      }),
+                                              }
+                                            : undefined
+                                    }
+                                />
+                            </PageGridItem>
+                        );
+                    })}
                 </PageGrid>
             )}
         </Stack>
@@ -433,20 +586,11 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
     );
     if (block.type !== 'collection') return null;
 
-    const importablePins = (pinnedItems ?? []).flatMap(
-        (item): HomepageCollectionItemRef[] =>
-            item.type === ContentType.CHART ||
-            item.type === ContentType.DASHBOARD
-                ? [
-                      {
-                          contentType:
-                              item.type === ContentType.DASHBOARD
-                                  ? 'dashboard'
-                                  : 'chart',
-                          uuid: item.data.uuid,
-                      },
-                  ]
-                : [],
+    const importablePins = (pinnedItems ?? []).map(
+        (item): HomepageCollectionItemRef => ({
+            contentType: item.type,
+            uuid: item.data.uuid,
+        }),
     );
 
     return (
