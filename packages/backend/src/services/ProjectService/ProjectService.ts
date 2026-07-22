@@ -1576,6 +1576,15 @@ export class ProjectService extends BaseService {
                         token: '',
                     };
                 }
+                if (
+                    credentials.connectionType === DuckdbConnectionType.EMBEDDED
+                ) {
+                    const clearedCredentials = {
+                        ...credentials,
+                    } as typeof credentials & { dataDirectory?: string };
+                    delete clearedCredentials.dataDirectory;
+                    return clearedCredentials;
+                }
                 const { catalog, dataPath } = credentials;
                 const clearedCatalog =
                     catalog.type === 'postgres'
@@ -2339,6 +2348,11 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
 
+        ProjectService.assertEmbeddedCredentialsAreInternal(
+            data.warehouseConnection,
+            internalProvisioning,
+        );
+
         await this.validateProjectCreationPermissions(user, data);
 
         const newProjectData = data;
@@ -2385,6 +2399,14 @@ export class ProjectService extends BaseService {
                 );
             }
         }
+
+        // Re-check after the copy/merge above: the guard at the top only saw
+        // the credentials the caller sent, and a preview can inherit embedded
+        // ones from its upstream project without ever naming them.
+        ProjectService.assertEmbeddedCredentialsAreInternal(
+            newProjectData.warehouseConnection,
+            internalProvisioning,
+        );
 
         const createProject: CreateProjectOptionalCredentials =
             hasWarehouseCredentials(newProjectData)
@@ -2593,6 +2615,10 @@ export class ProjectService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
+
+        ProjectService.assertEmbeddedCredentialsAreInternal(
+            data.warehouseConnection,
+        );
 
         await this.validateProjectCreationPermissions(user, data);
         ProjectService.validateDbtEnvironmentVariables(data.dbtConnection);
@@ -2996,6 +3022,21 @@ export class ProjectService extends BaseService {
         });
     }
 
+    private static assertEmbeddedCredentialsAreInternal(
+        credentials: CreateWarehouseCredentials | undefined,
+        internalProvisioning?: { source: 'playground' },
+    ): void {
+        if (
+            credentials?.type === WarehouseTypes.DUCKDB &&
+            credentials.connectionType === DuckdbConnectionType.EMBEDDED &&
+            internalProvisioning?.source !== 'playground'
+        ) {
+            throw new ParameterError(
+                'Embedded DuckDB connections can only be provisioned internally',
+            );
+        }
+    }
+
     validateConfigSecrets(project: UpdateProject) {
         switch (project.warehouseConnection?.type) {
             case WarehouseTypes.BIGQUERY:
@@ -3066,6 +3107,9 @@ export class ProjectService extends BaseService {
         method: RequestMethod,
     ): Promise<{ jobUuid: string }> {
         assertIsAccountWithOrg(account);
+        ProjectService.assertEmbeddedCredentialsAreInternal(
+            data.warehouseConnection,
+        );
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         const auditedAbility = this.createAuditedAbility(account);
@@ -3212,6 +3256,9 @@ export class ProjectService extends BaseService {
         data: { warehouseConnection: CreateWarehouseCredentials },
     ): Promise<void> {
         assertIsAccountWithOrg(account);
+        ProjectService.assertEmbeddedCredentialsAreInternal(
+            data.warehouseConnection,
+        );
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         const auditedAbility = this.createAuditedAbility(account);
@@ -3738,6 +3785,9 @@ export class ProjectService extends BaseService {
             ) {
                 throw new ForbiddenError();
             }
+            ProjectService.assertEmbeddedCredentialsAreInternal(
+                body.credentials,
+            );
             effectiveCredentials = body.credentials;
         }
 
@@ -7316,10 +7366,17 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.ATHENA:
                 return credentials.database; // Athena uses database as catalog name
             case WarehouseTypes.DUCKDB:
-                return credentials.connectionType ===
-                    DuckdbConnectionType.DUCKLAKE
-                    ? (credentials.catalogAlias ?? 'ducklake')
-                    : credentials.database;
+                if (
+                    credentials.connectionType === DuckdbConnectionType.DUCKLAKE
+                ) {
+                    return credentials.catalogAlias ?? 'ducklake';
+                }
+                if (
+                    credentials.connectionType === DuckdbConnectionType.EMBEDDED
+                ) {
+                    return credentials.dataset;
+                }
+                return credentials.database;
             default:
                 return assertUnreachable(credentials, 'Unknown warehouse type');
         }

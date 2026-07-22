@@ -127,7 +127,7 @@ const athenaAuthIs =
 
 const isMotherduck = (values: ProjectConnectionForm) =>
     values.warehouse.type === WarehouseTypes.DUCKDB &&
-    values.warehouse.connectionType !== DuckdbConnectionType.DUCKLAKE;
+    values.warehouse.connectionType === DuckdbConnectionType.MOTHERDUCK;
 
 export const createWarehouseValueValidators: Record<
     WarehouseTypes,

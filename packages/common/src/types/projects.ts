@@ -33,6 +33,7 @@ export enum WarehouseTypes {
 export enum DuckdbConnectionType {
     MOTHERDUCK = 'motherduck',
     DUCKLAKE = 'ducklake',
+    EMBEDDED = 'embedded',
 }
 
 export type SshTunnelConfiguration = {
@@ -242,6 +243,17 @@ export type DuckdbMotherduckCredentials = Omit<
     SensitiveCredentialsFieldNames
 >;
 
+export type CreateDuckdbEmbeddedCredentials = {
+    type: WarehouseTypes.DUCKDB;
+    connectionType: DuckdbConnectionType.EMBEDDED;
+    dataset: string;
+    requireUserCredentials?: boolean;
+    dataTimezone?: string;
+    startOfWeek?: number;
+    schema?: string;
+};
+export type DuckdbEmbeddedCredentials = CreateDuckdbEmbeddedCredentials;
+
 export enum DucklakeCatalogType {
     POSTGRES = 'postgres',
     SQLITE = 'sqlite',
@@ -369,11 +381,13 @@ export type DuckdbDucklakeCredentials = Omit<
 
 export type CreateDuckdbCredentials =
     | CreateDuckdbMotherduckCredentials
-    | CreateDuckdbDucklakeCredentials;
+    | CreateDuckdbDucklakeCredentials
+    | CreateDuckdbEmbeddedCredentials;
 
 export type DuckdbCredentials =
     | DuckdbMotherduckCredentials
-    | DuckdbDucklakeCredentials;
+    | DuckdbDucklakeCredentials
+    | DuckdbEmbeddedCredentials;
 
 /**
  * Rows created before the connectionType field was introduced are
