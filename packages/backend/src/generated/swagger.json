@@ -9892,9 +9892,6 @@
             },
             "PublishedProjectHomepage": {
                 "properties": {
-                    "allowPersonal": {
-                        "type": "boolean"
-                    },
                     "config": {
                         "$ref": "#/components/schemas/HomepageConfig"
                     },
@@ -9905,40 +9902,22 @@
                         "type": "string"
                     }
                 },
-                "required": ["allowPersonal", "config", "name", "homepageUuid"],
+                "required": ["config", "name", "homepageUuid"],
                 "type": "object"
             },
             "ResolvedHomepage": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "homepage": {
-                                "$ref": "#/components/schemas/PublishedProjectHomepage"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["homepage"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["homepage", "type"],
-                        "type": "object"
+                "properties": {
+                    "homepage": {
+                        "$ref": "#/components/schemas/PublishedProjectHomepage"
                     },
-                    {
-                        "properties": {
-                            "dashboardUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["dashboard"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["dashboardUuid", "type"],
-                        "type": "object"
+                    "type": {
+                        "type": "string",
+                        "enum": ["homepage"],
+                        "nullable": false
                     }
-                ]
+                },
+                "required": ["homepage", "type"],
+                "type": "object"
             },
             "ApiSuccess_ResolvedHomepage-or-null_": {
                 "properties": {
@@ -9961,30 +9940,6 @@
             },
             "ApiResolvedHomepageResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_ResolvedHomepage-or-null_"
-            },
-            "ApiSuccess_string-or-null_": {
-                "properties": {
-                    "results": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "SetPersonalHomepageRequest": {
-                "properties": {
-                    "dashboardUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["dashboardUuid"],
-                "type": "object"
             },
             "HomepageResolutionSource": {
                 "anyOf": [
@@ -10034,25 +9989,7 @@
                 ]
             },
             "HomepageViewAsReason": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "dashboardUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["personal"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["dashboardUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "$ref": "#/components/schemas/HomepageResolutionSource"
-                    }
-                ]
+                "$ref": "#/components/schemas/HomepageResolutionSource"
             },
             "HomepageViewAsResult": {
                 "properties": {
@@ -10107,9 +10044,6 @@
                         "type": "string",
                         "nullable": true
                     },
-                    "allowPersonal": {
-                        "type": "boolean"
-                    },
                     "isDefault": {
                         "type": "boolean"
                     },
@@ -10138,7 +10072,6 @@
                     "updatedAt",
                     "createdAt",
                     "createdByUserUuid",
-                    "allowPersonal",
                     "isDefault",
                     "publishedConfig",
                     "draftConfig",
@@ -10444,14 +10377,11 @@
             },
             "PublishProjectHomepageRequest": {
                 "properties": {
-                    "allowPersonal": {
-                        "type": "boolean"
-                    },
                     "audience": {
                         "$ref": "#/components/schemas/HomepageAudience"
                     }
                 },
-                "required": ["allowPersonal", "audience"],
+                "required": ["audience"],
                 "type": "object"
             },
             "AnnouncementCategory": {
@@ -49231,7 +49161,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3457.1",
+        "version": "0.3457.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -53162,129 +53092,6 @@
                         }
                     }
                 }
-            }
-        },
-        "/api/v1/projects/{projectUuid}/homepage/personal-override": {
-            "get": {
-                "operationId": "getPersonalHomepage",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccess_string-or-null_"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "tags": ["Homepage"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ]
-            },
-            "patch": {
-                "operationId": "setPersonalHomepage",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "tags": ["Homepage"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/SetPersonalHomepageRequest"
-                            }
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "operationId": "clearPersonalHomepage",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "tags": ["Homepage"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ]
             }
         },
         "/api/v1/projects/{projectUuid}/homepage/view-as": {

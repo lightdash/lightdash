@@ -1,3 +1,17 @@
+## [0.3457.2](https://github.com/lightdash/lightdash/compare/0.3457.1...0.3457.2) (2026-07-22)
+
+
+### Bug Fixes
+
+* BigQuery auth default and picker copy consult Google OAuth capability ([#25970](https://github.com/lightdash/lightdash/issues/25970)) ([bdf2a7c](https://github.com/lightdash/lightdash/commit/bdf2a7c40fce9819e22828c5a9cb01472cab490f))
+* check chart space access on both current and target space when moving charts ([#25926](https://github.com/lightdash/lightdash/issues/25926)) ([536e440](https://github.com/lightdash/lightdash/commit/536e440f2f762779a0847adaf7ffe4f8b3eb5e6c))
+* day-0 get-started surfaces require copilot to match the homepage renderer ([#25971](https://github.com/lightdash/lightdash/issues/25971)) ([400e477](https://github.com/lightdash/lightdash/commit/400e477f2fcd146b2fac0f54ec88b13819bf5f7b))
+* dev-fast-start ensures local sandbox images; data-apps build script packs its own SDK ([#25983](https://github.com/lightdash/lightdash/issues/25983)) ([d50ddd0](https://github.com/lightdash/lightdash/commit/d50ddd0a0136e17f28191f7f396fce12c1ec9118))
+* org-setup redirect gates on health loaded, not telemetry enabled ([#25969](https://github.com/lightdash/lightdash/issues/25969)) ([ce2a7f3](https://github.com/lightdash/lightdash/commit/ce2a7f3c59c5f685802aef1b872645340e538a2a))
+* require manage permission to append agent instructions ([#25789](https://github.com/lightdash/lightdash/issues/25789)) ([312e3ca](https://github.com/lightdash/lightdash/commit/312e3ca82584d691022d3d65d9efe7c20caa5612))
+* resolve organization from target project in MCP server management check ([#25795](https://github.com/lightdash/lightdash/issues/25795)) ([597f104](https://github.com/lightdash/lightdash/commit/597f10492fcbc24dd69d5b3411af8909fda01f1b))
+* resolve Slack runSql approval clicks to a Lightdash user and check SqlRunner scope ([#25905](https://github.com/lightdash/lightdash/issues/25905)) ([13016c6](https://github.com/lightdash/lightdash/commit/13016c6cd58f6a99cbb45d30f4b8df2e59ee7bc4))
+
 ## [0.3457.1](https://github.com/lightdash/lightdash/compare/0.3457.0...0.3457.1) (2026-07-22)
 
 

@@ -9248,7 +9248,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                allowPersonal: { dataType: 'boolean', required: true },
                 config: { ref: 'HomepageConfig', required: true },
                 name: { dataType: 'string', required: true },
                 homepageUuid: { dataType: 'string', required: true },
@@ -9260,34 +9259,11 @@ const models: TsoaRoute.Models = {
     ResolvedHomepage: {
         dataType: 'refAlias',
         type: {
-            dataType: 'union',
-            subSchemas: [
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        homepage: {
-                            ref: 'PublishedProjectHomepage',
-                            required: true,
-                        },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['homepage'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        dashboardUuid: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['dashboard'],
-                            required: true,
-                        },
-                    },
-                },
-            ],
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                homepage: { ref: 'PublishedProjectHomepage', required: true },
+                type: { dataType: 'enum', enums: ['homepage'], required: true },
+            },
             validators: {},
         },
     },
@@ -9314,36 +9290,6 @@ const models: TsoaRoute.Models = {
     ApiResolvedHomepageResponse: {
         dataType: 'refAlias',
         type: { ref: 'ApiSuccess_ResolvedHomepage-or-null_', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiSuccess_string-or-null_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SetPersonalHomepageRequest: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                dashboardUuid: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     HomepageResolutionSource: {
@@ -9391,24 +9337,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     HomepageViewAsReason: {
         dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        dashboardUuid: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['personal'],
-                            required: true,
-                        },
-                    },
-                },
-                { ref: 'HomepageResolutionSource' },
-            ],
-            validators: {},
-        },
+        type: { ref: 'HomepageResolutionSource', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     HomepageViewAsResult: {
@@ -9469,7 +9398,6 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                allowPersonal: { dataType: 'boolean', required: true },
                 isDefault: { dataType: 'boolean', required: true },
                 publishedConfig: {
                     dataType: 'union',
@@ -9814,7 +9742,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                allowPersonal: { dataType: 'boolean', required: true },
                 audience: { ref: 'HomepageAudience', required: true },
             },
             validators: {},
@@ -53970,195 +53897,6 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getResolved',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: 200,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsProjectHomepageController_getPersonalOverride: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        projectUuid: {
-            in: 'path',
-            name: 'projectUuid',
-            required: true,
-            ref: 'UUID',
-        },
-    };
-    app.get(
-        '/api/v1/projects/:projectUuid/homepage/personal-override',
-        ...fetchMiddlewares<RequestHandler>(ProjectHomepageController),
-        ...fetchMiddlewares<RequestHandler>(
-            ProjectHomepageController.prototype.getPersonalOverride,
-        ),
-
-        async function ProjectHomepageController_getPersonalOverride(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsProjectHomepageController_getPersonalOverride,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<ProjectHomepageController>(
-                        ProjectHomepageController,
-                    );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'getPersonalOverride',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: 200,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsProjectHomepageController_setPersonalOverride: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        projectUuid: {
-            in: 'path',
-            name: 'projectUuid',
-            required: true,
-            ref: 'UUID',
-        },
-        body: {
-            in: 'body',
-            name: 'body',
-            required: true,
-            ref: 'SetPersonalHomepageRequest',
-        },
-    };
-    app.patch(
-        '/api/v1/projects/:projectUuid/homepage/personal-override',
-        ...fetchMiddlewares<RequestHandler>(ProjectHomepageController),
-        ...fetchMiddlewares<RequestHandler>(
-            ProjectHomepageController.prototype.setPersonalOverride,
-        ),
-
-        async function ProjectHomepageController_setPersonalOverride(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsProjectHomepageController_setPersonalOverride,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<ProjectHomepageController>(
-                        ProjectHomepageController,
-                    );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'setPersonalOverride',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: 200,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsProjectHomepageController_clearPersonalOverride: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        projectUuid: {
-            in: 'path',
-            name: 'projectUuid',
-            required: true,
-            ref: 'UUID',
-        },
-    };
-    app.delete(
-        '/api/v1/projects/:projectUuid/homepage/personal-override',
-        ...fetchMiddlewares<RequestHandler>(ProjectHomepageController),
-        ...fetchMiddlewares<RequestHandler>(
-            ProjectHomepageController.prototype.clearPersonalOverride,
-        ),
-
-        async function ProjectHomepageController_clearPersonalOverride(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsProjectHomepageController_clearPersonalOverride,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<ProjectHomepageController>(
-                        ProjectHomepageController,
-                    );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'clearPersonalOverride',
                     controller,
                     response,
                     next,
