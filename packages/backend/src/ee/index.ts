@@ -25,6 +25,7 @@ import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { AiModelCatalog } from './clients/Ai/AiModelCatalog';
 import { AiDeepResearchClient } from './clients/AiDeepResearchClient';
 import LicenseClient from './clients/License/LicenseClient';
+import { LinearClient } from './clients/Linear/LinearClient';
 import { ManagedAgentClient } from './clients/ManagedAgentClient';
 import OpenAi from './clients/OpenAi';
 import { CommercialSlackClient } from './clients/Slack/SlackClient';
@@ -50,6 +51,7 @@ import { ProjectContextModel } from './models/ProjectContextModel';
 import { ProjectHomepageModel } from './models/ProjectHomepageModel';
 import { SandboxRegistryModel } from './models/SandboxRegistryModel';
 import { SchedulerAiAugmentationModel } from './models/SchedulerAiAugmentationModel';
+import { RoadmapModel } from './models/RoadmapModel';
 import { ServiceAccountModel } from './models/ServiceAccountModel';
 import { createLightdashPgWireHandlers } from './postgresWire/lightdashHandlers';
 import { PostgresWireServer } from './postgresWire/PostgresWireServer';
@@ -91,6 +93,7 @@ import { ProjectContextService } from './services/ProjectContextService/ProjectC
 import { ProjectHomepageService } from './services/ProjectHomepageService';
 import { provisionOnboardingHomepage } from './services/ProjectService/provisionOnboardingHomepage';
 import { SchedulerAiAugmentationService } from './services/SchedulerAiAugmentationService/SchedulerAiAugmentationService';
+import { RoadmapService } from './services/RoadmapService/RoadmapService';
 import { ScimService } from './services/ScimService/ScimService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
 import { CommercialSlackService } from './services/SlackService/SlackService';
@@ -311,6 +314,21 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         aiModelCatalog,
                     }),
                 }),
+            roadmapService: ({ context, models }) => {
+                const { roadmap } = context.lightdashConfig;
+                return new RoadmapService({
+                    lightdashConfig: context.lightdashConfig,
+                    roadmapModel: models.getRoadmapModel<RoadmapModel>(),
+                    linearClient: roadmap.linear.apiKey
+                        ? new LinearClient({
+                              apiKey: roadmap.linear.apiKey,
+                              apiUrl: roadmap.linear.apiUrl,
+                              featureRequestLabel:
+                                  roadmap.linear.featureRequestLabel,
+                          })
+                        : null,
+                });
+            },
             embedService: ({ repository, context, models }) =>
                 new EmbedService({
                     analytics: context.lightdashAnalytics,
@@ -982,6 +1000,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             mcpContextModel: ({ database }) => new McpContextModel(database),
             dashboardSummaryModel: ({ database }) =>
                 new DashboardSummaryModel({ database }),
+            roadmapModel: ({ database }) => new RoadmapModel({ database }),
             slackAuthenticationModel: ({ database }) =>
                 new CommercialSlackAuthenticationModel({ database }),
             serviceAccountModel: ({ database }) =>
@@ -1079,6 +1098,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 mcpToolCallModel:
                     context.models.getMcpToolCallModel<McpToolCallModel>(),
                 prometheusMetrics: context.prometheusMetrics,
+                roadmapService:
+                    context.serviceRepository.getRoadmapService<RoadmapService>(),
             }),
         clientProviders: {
             schedulerClient: ({ context, models }) =>
