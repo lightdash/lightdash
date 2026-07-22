@@ -4,8 +4,8 @@ import {
     OrganizationMemberRole,
     ProjectMemberRole,
 } from '@lightdash/common';
-import EmailClient from '../../clients/EmailClient/EmailClient';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';

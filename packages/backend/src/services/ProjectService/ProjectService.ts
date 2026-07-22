@@ -145,8 +145,8 @@ import {
     ProjectSummary,
     ProjectType,
     QueryExecutionContext,
-    RegisteredAccount,
     RedshiftAuthenticationType,
+    RegisteredAccount,
     ReplaceableCustomFields,
     ReplaceCustomFields,
     ReplaceCustomFieldsPayload,
@@ -2759,10 +2759,10 @@ export class ProjectService extends BaseService {
             warehouseType === WarehouseTypes.BIGQUERY ||
             warehouseType === WarehouseTypes.SNOWFLAKE ||
             warehouseType === WarehouseTypes.REDSHIFT
-                ? createProject.warehouseConnection?.authenticationType ??
+                ? (createProject.warehouseConnection?.authenticationType ??
                   (warehouseType === WarehouseTypes.REDSHIFT
                       ? RedshiftAuthenticationType.PASSWORD
-                      : undefined)
+                      : undefined))
                 : undefined;
         return {
             projectName: createProject.name,
