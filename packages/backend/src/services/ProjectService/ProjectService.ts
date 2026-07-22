@@ -4394,6 +4394,7 @@ export class ProjectService extends BaseService {
         userUuid,
         primary,
         manifestFetchAdapters,
+        onDbtSourceCount,
     }: {
         projectUuid: string;
         organizationUuid: string | undefined;
@@ -4405,6 +4406,7 @@ export class ProjectService extends BaseService {
             dbtVersionOption: DbtVersionOption;
         };
         manifestFetchAdapters: ProjectAdapter[];
+        onDbtSourceCount?: (dbtSourceCount: number) => void;
     }): Promise<ProjectAdapter> {
         const { enabled: multiDbtSourcesEnabled } =
             await this.featureFlagModel.get({
@@ -4412,13 +4414,16 @@ export class ProjectService extends BaseService {
                 user: { userUuid, organizationUuid },
             });
         if (!multiDbtSourcesEnabled) {
+            onDbtSourceCount?.(1);
             return primary.adapter;
         }
         const sources =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         if (sources.length === 0) {
+            onDbtSourceCount?.(1);
             return primary.adapter;
         }
+        onDbtSourceCount?.(sources.length + 1);
         return this.buildMergedManifestAdapter({
             projectUuid,
             organizationUuid,
@@ -6442,12 +6447,16 @@ export class ProjectService extends BaseService {
             // compiling, so cross-source ref()/joins resolve and the explore set is
             // the union of all sources. A project with zero registered sources runs
             // the unchanged single-source path (N=0 short-circuit / regression firewall).
+            let dbtSourceCount = 1;
             adapter = await this.resolveCompileAdapter({
                 projectUuid,
                 organizationUuid: project.organizationUuid,
                 userUuid: user.userUuid,
                 primary: buildResult,
                 manifestFetchAdapters,
+                onDbtSourceCount: (count) => {
+                    dbtSourceCount = count;
+                },
             });
             const packages = await adapter.getDbtPackages();
             const trackingParams = {
@@ -6585,6 +6594,7 @@ export class ProjectService extends BaseService {
                         },
                         0,
                     ),
+                    dbtSourceCount,
                 },
             });
 
