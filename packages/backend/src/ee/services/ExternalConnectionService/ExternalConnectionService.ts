@@ -39,6 +39,7 @@ import {
     computeMinuteWindow,
     normalizeAndValidatePath,
     serializeRequestBody,
+    validateCustomHeaders,
 } from './proxyValidation';
 
 type ExternalConnectionServiceArguments = {
@@ -353,6 +354,10 @@ export class ExternalConnectionService extends BaseService {
                 apiKeyName: resolvedApiKeyName,
                 apiKeyLocation: resolvedApiKeyLocation,
                 oauthScopes: resolvedOauthScopes,
+                customHeaders:
+                    data.customHeaders !== undefined
+                        ? data.customHeaders
+                        : existing.customHeaders,
             },
             hasSecretAfter,
         );
@@ -683,6 +688,19 @@ export class ExternalConnectionService extends BaseService {
         // Start from the app's query; add api_key-in-query if configured.
         const query: Record<string, string> = { ...(req.query ?? {}) };
         const headers: Record<string, string> = {};
+
+        // Admin-configured static headers (e.g. anthropic-version), applied
+        // BEFORE auth and Content-Type so proxy-set headers always win.
+        // Re-validated at send time so a bad stored row fails closed.
+        if (connection.customHeaders) {
+            validateCustomHeaders(
+                connection.customHeaders,
+                connection.apiKeyLocation === 'header'
+                    ? connection.apiKeyName
+                    : null,
+            );
+            Object.assign(headers, connection.customHeaders);
+        }
 
         if (connection.type === 'bearer_token') {
             // Fail closed: an authenticated connection must never fall through
@@ -1152,6 +1170,7 @@ export class ExternalConnectionService extends BaseService {
             apiKeyName: data.apiKeyName ?? null,
             apiKeyLocation: data.apiKeyLocation ?? null,
             oauthScopes: data.oauthScopes ?? null,
+            customHeaders: data.customHeaders ?? null,
             hasSecret: Boolean(data.secret),
             createdByUserUuid: null,
             updatedByUserUuid: null,

@@ -9,6 +9,11 @@ import { type FC } from 'react';
 import { isValidOAuthScope } from '../../../features/externalConnections/constants';
 import { useUpdateExternalConnection } from '../../../features/externalConnections/hooks/useUpdateExternalConnection';
 import {
+    customHeaderRowsToRecord,
+    recordToCustomHeaderRows,
+    validateCustomHeaderRows,
+} from '../../../features/externalConnections/utils/customHeaders';
+import {
     derivePathRules,
     resolvePathPrefixes,
 } from '../../../features/externalConnections/utils/pathRules';
@@ -46,6 +51,7 @@ const EditConnectionModalContent: FC<Props> = ({
             apiKeyName: connection.apiKeyName ?? '',
             apiKeyLocation: connection.apiKeyLocation ?? 'header',
             oauthScopes: connection.oauthScopes ?? [],
+            customHeaders: recordToCustomHeaderRows(connection.customHeaders),
             allowedMethods: connection.allowedMethods,
             pathMode: pathRules.mode,
             allowedPathPrefixes: pathRules.prefixes,
@@ -81,6 +87,7 @@ const EditConnectionModalContent: FC<Props> = ({
                     ? `Invalid OAuth scope: ${invalid} (use an https:// scope)`
                     : null;
             },
+            customHeaders: validateCustomHeaderRows,
             allowedMethods: (value) =>
                 value.length === 0 ? 'Select at least one method' : null,
             allowedPathPrefixes: (value, values) => {
@@ -118,6 +125,7 @@ const EditConnectionModalContent: FC<Props> = ({
                 values.type === 'google_service_account'
                     ? values.oauthScopes
                     : null,
+            customHeaders: customHeaderRowsToRecord(values.customHeaders),
             // Blank => omit so the stored secret is unchanged. A non-blank
             // value on a non-"none" type rotates it via PATCH.
             ...(values.type !== 'none' && values.secret

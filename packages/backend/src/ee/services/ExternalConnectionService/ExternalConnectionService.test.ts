@@ -35,6 +35,7 @@ const connection: ExternalConnection = {
     apiKeyName: null,
     apiKeyLocation: null,
     oauthScopes: null,
+    customHeaders: null,
     hasSecret: true,
     createdByUserUuid: 'user-1',
     updatedByUserUuid: 'user-1',

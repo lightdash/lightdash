@@ -32,6 +32,7 @@ const baseConnection = (
     apiKeyName: null,
     apiKeyLocation: null,
     oauthScopes: null,
+    customHeaders: null,
     hasSecret: false,
     createdByUserUuid: 'user-1',
     updatedByUserUuid: 'user-1',
@@ -435,6 +436,46 @@ describe('ExternalConnectionService.proxyFetch', () => {
             service.proxyFetch(user, 'proj-1', 'app-1', {
                 connectionAlias: 'weather',
                 path: '/v1/x',
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(mockSecureFetch).not.toHaveBeenCalled();
+    });
+
+    it('sends the connection custom headers alongside the injected auth', async () => {
+        const { service } = buildService({
+            connection: baseConnection({
+                type: 'bearer_token',
+                customHeaders: {
+                    'anthropic-version': '2023-06-01',
+                    Accept: 'application/json',
+                },
+            }),
+            secret: 'tok_abc',
+        });
+        await service.proxyFetch(user, 'proj-1', 'app-1', {
+            connectionAlias: 'weather',
+            path: '/v1/x',
+        });
+        const [, opts] = mockSecureFetch.mock.calls[0];
+        expect(opts.headers!['anthropic-version']).toBe('2023-06-01');
+        expect(opts.headers!.Accept).toBe('application/json');
+        expect(opts.headers!.Authorization).toBe('Bearer tok_abc');
+    });
+
+    it('fails closed on a stored forbidden custom header (Content-Type)', async () => {
+        // Belt-and-braces: content-type is rejected at write time, but even a
+        // row that bypassed validation must fail closed rather than override.
+        const { service } = buildService({
+            connection: baseConnection({
+                customHeaders: { 'Content-Type': 'text/evil' },
+            }),
+        });
+        await expect(
+            service.proxyFetch(user, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                method: 'POST',
+                path: '/v1/echo',
+                body: {},
             }),
         ).rejects.toBeInstanceOf(ParameterError);
         expect(mockSecureFetch).not.toHaveBeenCalled();

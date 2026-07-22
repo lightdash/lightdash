@@ -17,6 +17,38 @@ export type ExternalConnectionMethod =
     (typeof EXTERNAL_CONNECTION_METHODS)[number];
 export type ApiKeyLocation = 'header' | 'query';
 
+/** Bounds for a connection's custom request headers — shared by backend
+ *  validation and the frontend form so both reject the same shapes. */
+export const CUSTOM_HEADER_LIMITS = {
+    maxCount: 20,
+    maxNameChars: 128,
+    maxValueChars: 1024,
+} as const;
+
+/** Header names custom request headers may never use: routing/framing headers
+ *  the proxy owns, plus credential-shaped names — header values are plaintext
+ *  config returned by the read API, so secrets belong in the encrypted secret. */
+export const FORBIDDEN_CUSTOM_HEADER_NAMES = [
+    'host',
+    'content-length',
+    'content-type',
+    'connection',
+    'transfer-encoding',
+    'te',
+    'trailer',
+    'upgrade',
+    'keep-alive',
+    'expect',
+    'authorization',
+    'proxy-authorization',
+    'proxy-connection',
+    'cookie',
+    'x-api-key',
+    'api-key',
+    'x-auth-token',
+    'x-access-token',
+] as const;
+
 /** READ shape returned by the API — NEVER includes the secret value. */
 export type ExternalConnection = {
     externalConnectionUuid: string;
@@ -37,6 +69,9 @@ export type ExternalConnection = {
     apiKeyLocation: ApiKeyLocation | null;
     // OAuth scopes for type 'google_service_account'; null for other types.
     oauthScopes: string[] | null;
+    // Static non-secret headers sent on every proxied request, applied before
+    // auth so the injected credential always wins (e.g. anthropic-version).
+    customHeaders: Record<string, string> | null;
     hasSecret: boolean;
     createdByUserUuid: string | null;
     updatedByUserUuid: string | null;
@@ -60,6 +95,7 @@ export type CreateExternalConnection = {
     apiKeyName?: string | null;
     apiKeyLocation?: ApiKeyLocation | null;
     oauthScopes?: string[] | null; // OAuth scopes for type 'google_service_account'
+    customHeaders?: Record<string, string> | null; // static non-secret headers sent on every request
     secret?: string | null; // bearer token, api key, or service account keyfile JSON; null for type 'none'
 };
 
@@ -101,11 +137,17 @@ export type ApiTestExternalConnectionRequest = {
 };
 
 /** Test an unsaved connection config (incl. plaintext secret) before creating
- *  it. Runs through the same SSRF-guarded proxy core, persisting nothing. */
-export type ApiTestExternalConnectionConfigRequest =
-    ApiTestExternalConnectionRequest & {
-        config: CreateExternalConnection;
-    };
+ *  it. Runs through the same SSRF-guarded proxy core, persisting nothing.
+ *  Deliberately a flat object, NOT `ApiTestExternalConnectionRequest & {...}`:
+ *  TSOA validates intersection bodies in remove-extras mode, which empties
+ *  Record<string, string> fields (query, config.customHeaders). */
+export type ApiTestExternalConnectionConfigRequest = {
+    method?: ExternalConnectionMethod;
+    path: string;
+    query?: Record<string, string>;
+    body?: unknown;
+    config: CreateExternalConnection;
+};
 
 export type ApiTestExternalConnectionResponse = {
     status: 'ok';

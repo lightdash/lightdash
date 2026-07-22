@@ -16,9 +16,11 @@ import {
 } from '@mantine-8/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { type FC, useState } from 'react';
+import { CustomHeadersField } from '../../../features/externalConnections/components/CustomHeadersField';
 import { MethodsField } from '../../../features/externalConnections/components/MethodsField';
 import { PathRulesField } from '../../../features/externalConnections/components/PathRulesField';
 import { SUGGESTED_GOOGLE_SCOPES } from '../../../features/externalConnections/constants';
+import { type CustomHeaderRow } from '../../../features/externalConnections/utils/customHeaders';
 import {
     type PathMode,
     type PathPrefix,
@@ -35,6 +37,7 @@ export type ExternalConnectionFormValues = {
     apiKeyName: string;
     apiKeyLocation: 'header' | 'query';
     oauthScopes: string[];
+    customHeaders: CustomHeaderRow[];
     allowedMethods: ExternalConnectionMethod[];
     pathMode: PathMode;
     allowedPathPrefixes: PathPrefix[];
@@ -164,6 +167,14 @@ export const ExternalConnectionForm: FC<Props> = ({
                     />
                 </Group>
             )}
+
+            <CustomHeadersField
+                label="Custom headers"
+                value={form.values.customHeaders}
+                onChange={(value) => form.setFieldValue('customHeaders', value)}
+                error={form.errors.customHeaders}
+                disabled={disabled}
+            />
 
             <Divider label="Request policy" labelPosition="left" />
 
