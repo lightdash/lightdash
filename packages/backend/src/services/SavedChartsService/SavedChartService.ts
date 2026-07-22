@@ -967,20 +967,28 @@ export class SavedChartService
     ): Promise<SavedChart[]> {
         const auditedAbility = this.createAuditedAbility(user);
         const spaceAccessPromises = data.map(async (chart) => {
-            const { inheritsFromOrgOrProject, access, organizationUuid } =
-                await this.spacePermissionService.getSpaceAccessContext(
-                    user.userUuid,
-                    chart.spaceUuid,
-                );
-            return auditedAbility.can(
-                'update',
-                subject('SavedChart', {
-                    organizationUuid,
-                    projectUuid,
-                    inheritsFromOrgOrProject,
-                    access,
-                    metadata: { savedChartUuid: chart.uuid },
-                }),
+            const { spaceUuid: currentSpaceUuid } =
+                await this.savedChartModel.getSummary(chart.uuid);
+            const spaceContexts = await Promise.all(
+                [currentSpaceUuid, chart.spaceUuid].map((spaceUuid) =>
+                    this.spacePermissionService.getSpaceAccessContext(
+                        user.userUuid,
+                        spaceUuid,
+                    ),
+                ),
+            );
+            return spaceContexts.every(
+                ({ inheritsFromOrgOrProject, access, organizationUuid }) =>
+                    auditedAbility.can(
+                        'update',
+                        subject('SavedChart', {
+                            organizationUuid,
+                            projectUuid,
+                            inheritsFromOrgOrProject,
+                            access,
+                            metadata: { savedChartUuid: chart.uuid },
+                        }),
+                    ),
             );
         });
 
@@ -2287,7 +2295,7 @@ export class SavedChartService
             await this.hasAccess(
                 'update',
                 { user, projectUuid },
-                { savedChartUuid },
+                { savedChartUuid, spaceUuid: targetSpaceUuid },
             );
         }
 
