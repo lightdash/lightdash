@@ -23,7 +23,7 @@ import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { SettingsCard } from '../../../components/common/Settings/SettingsCard';
-import { useTableStyles } from '../../../hooks/styles/useTableStyles';
+import tableStyles from '../../../hooks/styles/tableStyles.module.css';
 import useApp from '../../../providers/App/useApp';
 import {
     useDeleteOrganizationDesign,
@@ -113,7 +113,6 @@ const DesignRow: FC<{
 );
 
 const DesignListPage: FC = () => {
-    const { cx, classes } = useTableStyles();
     const {
         user: { data: user },
     } = useApp();
@@ -166,10 +165,7 @@ const DesignListPage: FC = () => {
                     ) : designs.length === 0 ? null : (
                         <Paper withBorder style={{ overflow: 'hidden' }}>
                             <Table
-                                className={cx(
-                                    classes.root,
-                                    classes.alignLastTdRight,
-                                )}
+                                className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
                             >
                                 <Table.Thead>
                                     <Table.Tr>

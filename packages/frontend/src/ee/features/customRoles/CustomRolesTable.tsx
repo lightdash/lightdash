@@ -14,7 +14,7 @@ import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useTableStyles } from '../../../hooks/styles/useTableStyles';
+import tableStyles from '../../../hooks/styles/tableStyles.module.css';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import { CustomRolesDeleteModal } from './CustomRolesDeleteModal';
 
@@ -110,7 +110,6 @@ export const CustomRolesTable: FC<TableProps> = ({
     onEdit,
     isDeleting,
 }) => {
-    const { cx, classes } = useTableStyles();
     const [deleteOpened, { open: openDelete, close: closeDelete }] =
         useDisclosure(false);
     const [roleToDelete, setRoleToDelete] = useState<
@@ -138,7 +137,9 @@ export const CustomRolesTable: FC<TableProps> = ({
     return (
         <>
             <Paper withBorder style={{ overflow: 'hidden' }}>
-                <Table className={cx(classes.root, classes.alignLastTdRight)}>
+                <Table
+                    className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
+                >
                     <Table.Thead>
                         <Table.Tr>
                             <Table.Th>Name</Table.Th>

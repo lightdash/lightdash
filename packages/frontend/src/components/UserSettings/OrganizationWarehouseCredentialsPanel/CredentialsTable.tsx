@@ -2,7 +2,7 @@ import { type OrganizationWarehouseCredentials } from '@lightdash/common';
 import { ActionIcon, Group, Paper, Table } from '@mantine-8/core';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
-import { useTableStyles } from '../../../hooks/styles/useTableStyles';
+import tableStyles from '../../../hooks/styles/tableStyles.module.css';
 import MantineIcon from '../../common/MantineIcon';
 import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/utils';
 
@@ -70,12 +70,10 @@ export const CredentialsTable: FC<CredentialsTableProps> = ({
     setWarehouseCredentialsToBeEdited,
     setWarehouseCredentialsToBeDeleted,
 }) => {
-    const { cx, classes } = useTableStyles();
-
     return (
         <Paper withBorder style={{ overflow: 'hidden' }}>
             <Table
-                className={cx(classes.root, classes.alignLastTdRight)}
+                className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
                 ta="left"
             >
                 <Table.Thead>

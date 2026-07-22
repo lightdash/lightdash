@@ -3,7 +3,7 @@ import { Select } from '@mantine-8/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { useSelectStyles } from '../../styles/useSelectStyles';
+import selectStyles from '../../styles/selectStyles.module.css';
 
 type Props = {
     dimension: TimeDimensionConfig;
@@ -14,7 +14,6 @@ export const TimeDimensionIntervalPicker: FC<Props> = ({
     dimension,
     onChange,
 }) => {
-    const { classes } = useSelectStyles();
     const [optimisticInterval, setOptimisticInterval] = useState(
         dimension.interval,
     );
@@ -64,9 +63,9 @@ export const TimeDimensionIntervalPicker: FC<Props> = ({
                 />
             }
             classNames={{
-                input: classes.input,
-                option: classes.option,
-                section: classes.rightSection,
+                input: selectStyles.input,
+                option: selectStyles.option,
+                section: selectStyles.rightSection,
             }}
         />
     );
