@@ -167,6 +167,7 @@ const SHIPPED_PAGE_NAMES = [
     'onboarding_data_source',
     'onboarding_invite_expert',
     'onboarding_project_ready',
+    'agent_onboarding_run',
     'no_project_homepage',
     'embed_dashboard',
     'embed_saved_chart',
