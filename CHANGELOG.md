@@ -1,3 +1,10 @@
+## [0.3449.1](https://github.com/lightdash/lightdash/compare/0.3449.0...0.3449.1) (2026-07-22)
+
+
+### Bug Fixes
+
+* isolate dbt target dir per compile to prevent cross-project manifest contamination ([#25922](https://github.com/lightdash/lightdash/issues/25922)) ([7038f6a](https://github.com/lightdash/lightdash/commit/7038f6aff51871d6e0ff537a422a9a4314b91e4f))
+
 # [0.3449.0](https://github.com/lightdash/lightdash/compare/0.3448.0...0.3449.0) (2026-07-22)
 
 
