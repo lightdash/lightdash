@@ -1,3 +1,11 @@
+# [0.3447.0](https://github.com/lightdash/lightdash/compare/0.3446.0...0.3447.0) (2026-07-22)
+
+
+### Features
+
+* add dashboard project ownership expansion ([#25906](https://github.com/lightdash/lightdash/issues/25906)) ([170f4b7](https://github.com/lightdash/lightdash/commit/170f4b714ca870abfb9b5ce1ab124bb041aacb37)), closes [#25868](https://github.com/lightdash/lightdash/issues/25868) [#25871](https://github.com/lightdash/lightdash/issues/25871) [#25891](https://github.com/lightdash/lightdash/issues/25891)
+* **totals:** pin subtotals to the visible page ([#25892](https://github.com/lightdash/lightdash/issues/25892)) ([bfd49fa](https://github.com/lightdash/lightdash/commit/bfd49fa2ef7b2adcdcf7984019c8012bde54c805))
+
 # [0.3446.0](https://github.com/lightdash/lightdash/compare/0.3445.0...0.3446.0) (2026-07-22)
 
 
