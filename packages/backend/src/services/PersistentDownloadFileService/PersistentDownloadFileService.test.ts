@@ -1,11 +1,11 @@
 import { NotFoundError } from '@lightdash/common';
 import { Readable } from 'stream';
+import type { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { DbPersistentDownloadFile } from '../../database/entities/persistentDownloadFile';
 import { PersistentDownloadFileModel } from '../../models/PersistentDownloadFileModel';
-import type { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { PersistentDownloadFileService } from './PersistentDownloadFileService';
 
 const mockS3GetFileUrl = vi.fn();

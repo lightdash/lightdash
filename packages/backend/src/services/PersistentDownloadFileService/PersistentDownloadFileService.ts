@@ -213,8 +213,7 @@ export class PersistentDownloadFileService extends BaseService {
     }> {
         const file = await this.getValidFile(fileNanoid);
         const requestStartedAt = Date.now();
-        const requestedByUserUuid =
-            requestContext?.requestedByUserUuid ?? null;
+        const requestedByUserUuid = requestContext?.requestedByUserUuid ?? null;
         this.analytics.track({
             event: 'persistent_file.url_requested',
             userId: requestedByUserUuid ?? ANONYMOUS_TRACKING_UUID,
