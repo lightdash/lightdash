@@ -43,7 +43,7 @@ type Args = {
 };
 
 export function getGroupingValuesAndSubtotalKey(
-    info: CellContext<ResultRow, ResultRow[string]>,
+    info: Pick<CellContext<ResultRow, unknown>, 'row' | 'table'>,
 ) {
     const groupingDimensions = info.table
         .getState()

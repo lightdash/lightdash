@@ -90,6 +90,10 @@ import {
     getFrozenColumnLayout,
     type FrozenColumnEntry,
 } from './getFrozenColumnLayout';
+import {
+    getMetricsAsRowsMetricIds,
+    projectMetricsAsRowsSubtotalRenderRows,
+} from './getMetricsAsRowsSubtotalRenderRows';
 import { getGroupedDimColumnIds, getRowSpanMerges } from './getRowSpanMerges';
 import { collectPivotUnderlyingValues } from './getUnderlyingFieldValues';
 import pivotStyles from './PivotTable.module.css';
@@ -666,11 +670,29 @@ const PivotTable: FC<PivotTableProps> = ({
         },
     });
 
-    const { rows } = table.getRowModel();
+    const { rows: tableRows } = table.getRowModel();
+    const metricsAsRowsMetricIds = useMemo(
+        () => getMetricsAsRowsMetricIds(data.indexValues),
+        [data.indexValues],
+    );
+    const projectedRows = useMemo(
+        () =>
+            projectMetricsAsRowsSubtotalRenderRows({
+                rows: tableRows,
+                metricFieldIds: metricsAsRowsMetricIds,
+                enabled: data.pivotConfig.metricsAsRows && showSubtotals,
+            }),
+        [
+            tableRows,
+            metricsAsRowsMetricIds,
+            data.pivotConfig.metricsAsRows,
+            showSubtotals,
+        ],
+    );
 
     const rowVirtualizer = useVirtualizer({
         getScrollElement: () => containerRef.current,
-        count: rows.length,
+        count: projectedRows.length,
         estimateSize: () => CELL_HEIGHT,
         overscan: 25,
     });
@@ -686,25 +708,28 @@ const PivotTable: FC<PivotTableProps> = ({
         );
         if (groupedColumnIds.length === 0) return null;
         return getRowSpanMerges(
-            rows.length,
+            tableRows.length,
             groupedColumnIds,
             (rowIndex, columnId) => {
-                const cell = rows[rowIndex]?.getValue(columnId) as
+                const cell = tableRows[rowIndex]?.getValue(columnId) as
                     | { value?: ResultValue }
                     | undefined;
                 return cell?.value?.raw;
             },
         );
-    }, [groupingOnlyMode, data.indexValueTypes, columnOrder, rows]);
+    }, [groupingOnlyMode, data.indexValueTypes, columnOrder, tableRows]);
 
     // In merge mode, render every row (no virtualization) so rowSpans stay
     // contiguous — a block's first row must never be unmounted while its
     // absorbed siblings are visible.
     const renderedBodyRows = groupingOnlyMode
-        ? rows.map((row, rowIndex) => ({ row, rowIndex }))
+        ? projectedRows.map((renderRow, renderIndex) => ({
+              renderRow,
+              renderIndex,
+          }))
         : virtualRows.map((virtualRow) => ({
-              row: rows[virtualRow.index],
-              rowIndex: virtualRow.index,
+              renderRow: projectedRows[virtualRow.index],
+              renderIndex: virtualRow.index,
           }));
 
     const getColumnTotalValueFromAxis = useCallback(
@@ -759,8 +784,8 @@ const PivotTable: FC<PivotTableProps> = ({
     );
 
     const getUnderlyingFieldValues = useCallback(
-        (rowIndex: number, colIndex: number) => {
-            const visibleCells = rows[rowIndex].getVisibleCells();
+        (row: Row<ResultRow>, dataRowIndex: number, colIndex: number) => {
+            const visibleCells = row.getVisibleCells();
             const clickedItem =
                 visibleCells[colIndex].column.columnDef.meta?.item;
             const clickedValue = (
@@ -780,15 +805,15 @@ const PivotTable: FC<PivotTableProps> = ({
                     ? getItemId(clickedItem)
                     : undefined,
                 clickedValue,
-                labelFieldId: data.indexValues[rowIndex].find(
+                labelFieldId: data.indexValues[dataRowIndex].find(
                     (indexValue) => indexValue.type === 'label',
                 )?.fieldId,
                 // Hidden row-index dims are excluded from the rendered cells;
                 // merge them so drill-down stays scoped (PROD-7841).
-                hiddenIndexCells: data.hiddenIndexValues?.[rowIndex] ?? [],
+                hiddenIndexCells: data.hiddenIndexValues?.[dataRowIndex] ?? [],
             });
         },
-        [rows, data.indexValues, data.hiddenIndexValues],
+        [data.indexValues, data.hiddenIndexValues],
     );
 
     // Find the data column index from headerInfo by matching against headerValues
@@ -872,7 +897,7 @@ const PivotTable: FC<PivotTableProps> = ({
     // that share the same index dimension values (same "row group" in the original data)
     const buildRowFieldsForMetricsAsRows = useCallback(
         (
-            rowIndex: number,
+            dataRowIndex: number,
             headerInfo: Record<string, ResultValue> | undefined,
         ): ConditionalFormattingRowFields => {
             const dataColIndex = findDataColumnIndex(headerInfo);
@@ -883,7 +908,7 @@ const PivotTable: FC<PivotTableProps> = ({
                 buildRowFieldsFromHeaderInfo(headerInfo);
 
             const currentIndexDims = extractIndexDimensions(
-                data.indexValues[rowIndex] ?? [],
+                data.indexValues[dataRowIndex] ?? [],
             );
 
             // Include row dimension values from indexValues
@@ -1563,8 +1588,16 @@ const PivotTable: FC<PivotTableProps> = ({
                     />
                 )}
 
-                {renderedBodyRows.map(({ row, rowIndex }) => {
-                    if (!row) return null;
+                {renderedBodyRows.map(({ renderRow, renderIndex }) => {
+                    if (!renderRow) return null;
+
+                    const { row } = renderRow;
+                    const isMetricSubtotal =
+                        renderRow.kind === 'metricSubtotal';
+                    const dataRowIndex =
+                        renderRow.kind === 'standard'
+                            ? renderRow.dataRowIndex
+                            : null;
 
                     const toggleExpander = row.getToggleExpandedHandler();
 
@@ -1583,17 +1616,20 @@ const PivotTable: FC<PivotTableProps> = ({
                             );
                         })?.column.columnDef.meta?.headerInfo;
 
-                    const rowLevelFields = representativeHeaderInfo
-                        ? data.pivotConfig.metricsAsRows
-                            ? buildRowFieldsForMetricsAsRows(
-                                  rowIndex,
-                                  representativeHeaderInfo,
-                              )
-                            : buildRowFieldsFromVisibleCells(
-                                  row,
-                                  representativeHeaderInfo,
-                              )
-                        : buildRowFieldsFromVisibleCells(row, undefined);
+                    const rowLevelFields = isMetricSubtotal
+                        ? {}
+                        : representativeHeaderInfo
+                          ? data.pivotConfig.metricsAsRows &&
+                            dataRowIndex !== null
+                              ? buildRowFieldsForMetricsAsRows(
+                                    dataRowIndex,
+                                    representativeHeaderInfo,
+                                )
+                              : buildRowFieldsFromVisibleCells(
+                                    row,
+                                    representativeHeaderInfo,
+                                )
+                          : buildRowFieldsFromVisibleCells(row, undefined);
 
                     const rowBackgroundColor = getRowConditionalFormattingColor(
                         {
@@ -1612,15 +1648,19 @@ const PivotTable: FC<PivotTableProps> = ({
 
                     return (
                         <Table.Row
-                            key={`row-${rowIndex}-${data.pivotConfig.metricsAsRows}`}
-                            index={rowIndex}
+                            key={
+                                isMetricSubtotal
+                                    ? `subtotal-${row.id}-${renderRow.metricFieldId}`
+                                    : `row-${row.id}`
+                            }
+                            index={renderIndex}
                         >
                             {row.getVisibleCells().map((cell, colIndex) => {
                                 // Measure body cell widths in the first row only.
                                 // Column widths are uniform across rows (CSS table
                                 // layout), so one measurement per column is enough.
                                 const measureRef =
-                                    rowIndex === 0
+                                    renderIndex === 0
                                         ? measureCellRef(cell.column.id)
                                         : undefined;
                                 if (cell.column.id === ROW_NUMBER_COLUMN_ID) {
@@ -1637,7 +1677,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                               });
                                     return (
                                         <Table.Cell
-                                            key={`row-number-${rowIndex}`}
+                                            key={cell.id}
                                             ref={measureRef}
                                             className={
                                                 rowNumberStickyBody.className
@@ -1657,8 +1697,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                              * them reads as a parallel
                                              * sequence interleaved with the
                                              * leaf-row counter. */}
-                                            {groupingOnlyMode &&
-                                            row.getIsGrouped()
+                                            {isMetricSubtotal ||
+                                            (groupingOnlyMode &&
+                                                row.getIsGrouped())
                                                 ? null
                                                 : flexRender(
                                                       cell.column.columnDef
@@ -1677,7 +1718,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                 const rowSpanMerge =
                                     rowSpanMergesByColumnId?.get(
                                         cell.column.id,
-                                    )?.[rowIndex];
+                                    )?.[renderIndex];
                                 if (
                                     rowSpanMerge &&
                                     !rowSpanMerge.isBlockStart
@@ -1691,38 +1732,96 @@ const PivotTable: FC<PivotTableProps> = ({
                                     meta?.type !== 'indexValue' &&
                                     meta?.type !== 'label' &&
                                     !isRowTotal;
+                                const metricFieldId = isMetricSubtotal
+                                    ? renderRow.metricFieldId
+                                    : dataRowIndex !== null
+                                      ? data.indexValues[dataRowIndex]?.find(
+                                            (indexValue) =>
+                                                indexValue.type === 'label',
+                                        )?.fieldId
+                                      : undefined;
                                 let item = meta?.item;
 
                                 if (
                                     data.pivotConfig.metricsAsRows &&
-                                    isDataColumn
+                                    isDataColumn &&
+                                    metricFieldId
                                 ) {
-                                    const metricLabelInfo = data.indexValues[
-                                        rowIndex
-                                    ]?.find(
-                                        (indexValue) =>
-                                            indexValue.type === 'label',
-                                    );
-                                    if (metricLabelInfo) {
-                                        item = getField(
-                                            metricLabelInfo.fieldId,
-                                        );
-                                    }
-                                } else if (item && isDimension(item)) {
-                                    const underlyingId = data.indexValues[
-                                        rowIndex
-                                    ]?.find(
-                                        (indexValue) =>
-                                            indexValue.type === 'label',
-                                    )?.fieldId;
-                                    item = underlyingId
-                                        ? getField(underlyingId)
+                                    item = getField(metricFieldId);
+                                } else if (
+                                    item &&
+                                    isDimension(item) &&
+                                    dataRowIndex !== null
+                                ) {
+                                    item = metricFieldId
+                                        ? getField(metricFieldId)
                                         : item;
                                 }
 
                                 const fullValue =
                                     cell.getValue() as ResultRow[0];
-                                const value = fullValue?.value;
+                                const metricSubtotalValue =
+                                    isMetricSubtotal && isDataColumn
+                                        ? (() => {
+                                              const groupingMatch =
+                                                  getGroupingValuesAndSubtotalKey(
+                                                      cell.getContext(),
+                                                  );
+                                              if (!groupingMatch) return null;
+
+                                              const subtotal =
+                                                  findMatchingSubtotal(
+                                                      data.groupedSubtotals?.[
+                                                          groupingMatch
+                                                              .subtotalGroupKey
+                                                      ],
+                                                      groupingMatch.groupingValues,
+                                                      meta?.headerInfo ?? {},
+                                                  );
+                                              return getSubtotalValueFromGroup(
+                                                  subtotal,
+                                                  renderRow.metricFieldId,
+                                              );
+                                          })()
+                                        : null;
+                                const metricSubtotalResultValue:
+                                    | ResultValue
+                                    | undefined =
+                                    isMetricSubtotal &&
+                                    isDataColumn &&
+                                    metricSubtotalValue !== null
+                                        ? {
+                                              raw: metricSubtotalValue,
+                                              formatted: formatItemValue(
+                                                  item,
+                                                  metricSubtotalValue,
+                                                  false,
+                                                  parameters,
+                                              ),
+                                          }
+                                        : undefined;
+                                const metricSubtotalLabelValue:
+                                    | ResultValue
+                                    | undefined =
+                                    isMetricSubtotal && meta?.type === 'label'
+                                        ? {
+                                              raw: renderRow.metricFieldId,
+                                              formatted:
+                                                  getFieldLabel(
+                                                      renderRow.metricFieldId,
+                                                  ) ?? renderRow.metricFieldId,
+                                          }
+                                        : undefined;
+                                const value = isMetricSubtotal
+                                    ? isDataColumn
+                                        ? metricSubtotalResultValue
+                                        : meta?.type === 'label'
+                                          ? metricSubtotalLabelValue
+                                          : meta?.type === 'indexValue' &&
+                                              cell.getIsGrouped()
+                                            ? fullValue?.value
+                                            : undefined
+                                    : fullValue?.value;
 
                                 // In merge mode an empty pivot data cell renders
                                 // blank instead of the `∅`/`-` placeholder. An
@@ -1740,37 +1839,43 @@ const PivotTable: FC<PivotTableProps> = ({
                                 const currentHeaderInfo =
                                     cell.column.columnDef.meta?.headerInfo;
 
-                                const rowFieldsForCell = data.pivotConfig
-                                    .metricsAsRows
-                                    ? buildRowFieldsForMetricsAsRows(
-                                          rowIndex,
-                                          currentHeaderInfo,
-                                      )
-                                    : buildRowFieldsFromVisibleCells(
-                                          row,
-                                          currentHeaderInfo,
-                                      );
+                                const rowFieldsForCell = isMetricSubtotal
+                                    ? {}
+                                    : data.pivotConfig.metricsAsRows &&
+                                        dataRowIndex !== null
+                                      ? buildRowFieldsForMetricsAsRows(
+                                            dataRowIndex,
+                                            currentHeaderInfo,
+                                        )
+                                      : buildRowFieldsFromVisibleCells(
+                                            row,
+                                            currentHeaderInfo,
+                                        );
 
                                 const cellConditionalFormattingConfig =
-                                    getConditionalFormattingConfig({
-                                        field: item,
-                                        value: value?.raw,
-                                        minMaxMap,
-                                        conditionalFormattings,
-                                        rowFields: rowFieldsForCell,
-                                        applyTo:
-                                            ConditionalFormattingColorApplyTo.CELL,
-                                    });
+                                    isMetricSubtotal
+                                        ? undefined
+                                        : getConditionalFormattingConfig({
+                                              field: item,
+                                              value: value?.raw,
+                                              minMaxMap,
+                                              conditionalFormattings,
+                                              rowFields: rowFieldsForCell,
+                                              applyTo:
+                                                  ConditionalFormattingColorApplyTo.CELL,
+                                          });
                                 const textConditionalFormattingConfig =
-                                    getConditionalFormattingConfig({
-                                        field: item,
-                                        value: value?.raw,
-                                        minMaxMap,
-                                        conditionalFormattings,
-                                        rowFields: rowFieldsForCell,
-                                        applyTo:
-                                            ConditionalFormattingColorApplyTo.TEXT,
-                                    });
+                                    isMetricSubtotal
+                                        ? undefined
+                                        : getConditionalFormattingConfig({
+                                              field: item,
+                                              value: value?.raw,
+                                              minMaxMap,
+                                              conditionalFormattings,
+                                              rowFields: rowFieldsForCell,
+                                              applyTo:
+                                                  ConditionalFormattingColorApplyTo.TEXT,
+                                          });
 
                                 const cellConditionalFormattingResult =
                                     getConditionalFormattingColor({
@@ -1882,29 +1987,22 @@ const PivotTable: FC<PivotTableProps> = ({
                                 const labelFieldDescription = (() => {
                                     if (meta?.type !== 'label')
                                         return undefined;
-                                    const labelInfo = data.indexValues[
-                                        rowIndex
-                                    ]?.find(
-                                        (indexValue) =>
-                                            indexValue.type === 'label',
-                                    );
-                                    if (!labelInfo) return undefined;
-                                    const labelField = getField(
-                                        labelInfo.fieldId,
-                                    );
+                                    if (!metricFieldId) return undefined;
+                                    const labelField = getField(metricFieldId);
                                     return isField(labelField)
                                         ? labelField.description
                                         : undefined;
                                 })();
 
                                 const suppressContextMenu =
-                                    (value === undefined ||
+                                    isMetricSubtotal ||
+                                    ((value === undefined ||
                                         cell.getIsPlaceholder()) &&
-                                    !cell.getIsAggregated() &&
-                                    !cell.getIsGrouped();
-                                const allowInteractions = suppressContextMenu
-                                    ? undefined
-                                    : !!value?.formatted;
+                                        !cell.getIsAggregated() &&
+                                        !cell.getIsGrouped());
+                                const allowInteractions = !suppressContextMenu
+                                    ? !!value?.formatted
+                                    : undefined;
 
                                 const cellWidth = meta?.width;
 
@@ -1917,7 +2015,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                     : Table.Cell;
                                 return (
                                     <TableCellComponent
-                                        key={`value-${rowIndex}-${colIndex}-${data.pivotConfig.metricsAsRows}`}
+                                        key={cell.id}
                                         ref={measureRef}
                                         rowSpan={
                                             rowSpanMerge &&
@@ -1966,14 +2064,25 @@ const PivotTable: FC<PivotTableProps> = ({
                                         ) => (
                                             <ValueCellMenu
                                                 opened={isOpen}
-                                                rowIndex={rowIndex}
+                                                rowIndex={
+                                                    dataRowIndex ?? undefined
+                                                }
                                                 colIndex={colIndex}
                                                 item={item}
                                                 value={value}
                                                 getUnderlyingFieldValues={
-                                                    isRowTotal
+                                                    isRowTotal ||
+                                                    dataRowIndex === null
                                                         ? undefined
-                                                        : getUnderlyingFieldValues
+                                                        : (
+                                                              _rowIndex,
+                                                              targetColIndex,
+                                                          ) =>
+                                                              getUnderlyingFieldValues(
+                                                                  row,
+                                                                  dataRowIndex,
+                                                                  targetColIndex,
+                                                              )
                                                 }
                                                 onClose={onClose}
                                                 onCopy={onCopy}
@@ -1983,7 +2092,32 @@ const PivotTable: FC<PivotTableProps> = ({
                                             </ValueCellMenu>
                                         )}
                                     >
-                                        {cell.getIsGrouped() ? (
+                                        {isMetricSubtotal &&
+                                        meta?.type === 'label' ? (
+                                            <Text span fw={600}>
+                                                {getFieldLabel(
+                                                    renderRow.metricFieldId,
+                                                ) ?? renderRow.metricFieldId}
+                                            </Text>
+                                        ) : isMetricSubtotal && isDataColumn ? (
+                                            metricSubtotalValue === undefined &&
+                                            isSubtotalsLoading &&
+                                            isNumericItem(item) ? (
+                                                <Skeleton
+                                                    height={16}
+                                                    width="min(60%, 50px)"
+                                                    ml="auto"
+                                                />
+                                            ) : metricSubtotalValue ===
+                                              null ? null : (
+                                                <Text span fw={600}>
+                                                    {value?.formatted}
+                                                </Text>
+                                            )
+                                        ) : isMetricSubtotal &&
+                                          (isRowTotal ||
+                                              (meta?.type === 'indexValue' &&
+                                                  !cell.getIsGrouped())) ? null : cell.getIsGrouped() ? (
                                             // Grouping-only mode (row dedup
                                             // without subtotals): suppress the
                                             // carat + group count chrome and
@@ -1996,7 +2130,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                                     cell.column.columnDef.cell,
                                                     cell.getContext(),
                                                 )
-                                            ) : (
+                                            ) : isMetricSubtotal &&
+                                              renderRow.metricIndex >
+                                                  0 ? null : (
                                                 <Group gap="two" wrap="nowrap">
                                                     <Button
                                                         size="compact-xs"
@@ -2042,7 +2178,13 @@ const PivotTable: FC<PivotTableProps> = ({
                                                                 'inherit',
                                                         }}
                                                     >
-                                                        ({countSubRows(row)})
+                                                        {`(${
+                                                            isMetricSubtotal
+                                                                ? renderRow.sourceRowCount
+                                                                : countSubRows(
+                                                                      row,
+                                                                  )
+                                                        })`}
                                                     </Button>
                                                     {flexRender(
                                                         cell.column.columnDef
