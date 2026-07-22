@@ -478,7 +478,9 @@ const BaseCell = (
                                 openDelay={500}
                                 variant="xs"
                             >
-                                <Text span>{children}</Text>
+                                <Text span inherit>
+                                    {children}
+                                </Text>
                             </Tooltip>
                         ) : (
                             <>{children}</>
