@@ -2262,8 +2262,16 @@
                 "enum": ["number", "string", "date", "timestamp", "boolean"],
                 "type": "string"
             },
+            "TableCalculationTotalMode": {
+                "enum": ["formula", "sum_of_rows", "none"],
+                "type": "string"
+            },
             "TableCalculationBase": {
                 "properties": {
+                    "totalMode": {
+                        "$ref": "#/components/schemas/TableCalculationTotalMode",
+                        "description": "How column totals are computed for this calculation"
+                    },
                     "type": {
                         "$ref": "#/components/schemas/TableCalculationType",
                         "description": "Data type of the calculation result"
@@ -49058,7 +49066,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3447.3",
+        "version": "0.3448.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

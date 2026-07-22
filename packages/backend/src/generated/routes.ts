@@ -2084,11 +2084,17 @@ const models: TsoaRoute.Models = {
         enums: ['number', 'string', 'date', 'timestamp', 'boolean'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TableCalculationTotalMode: {
+        dataType: 'refEnum',
+        enums: ['formula', 'sum_of_rows', 'none'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     TableCalculationBase: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                totalMode: { ref: 'TableCalculationTotalMode' },
                 type: { ref: 'TableCalculationType' },
                 format: { ref: 'CustomFormat' },
                 displayName: { dataType: 'string', required: true },
@@ -59367,6 +59373,73 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'uploadThumbnail',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAppGenerateController_deleteAppThumbnail: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        appUuid: {
+            in: 'path',
+            name: 'appUuid',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.delete(
+        '/api/v1/ee/projects/:projectUuid/apps/:appUuid/thumbnail',
+        ...fetchMiddlewares<RequestHandler>(AppGenerateController),
+        ...fetchMiddlewares<RequestHandler>(
+            AppGenerateController.prototype.deleteAppThumbnail,
+        ),
+
+        async function AppGenerateController_deleteAppThumbnail(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAppGenerateController_deleteAppThumbnail,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AppGenerateController>(
+                        AppGenerateController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'deleteAppThumbnail',
                     controller,
                     response,
                     next,

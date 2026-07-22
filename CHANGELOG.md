@@ -1,3 +1,11 @@
+# [0.3448.0](https://github.com/lightdash/lightdash/compare/0.3447.3...0.3448.0) (2026-07-22)
+
+
+### Features
+
+* remove-thumbnail action in the data app builder menu ([#25880](https://github.com/lightdash/lightdash/issues/25880)) ([6acd825](https://github.com/lightdash/lightdash/commit/6acd8252d56d824b09aba882d5a615fcc27e1d73))
+* **table-calculations:** per-calc total modes (formula, sum of rows, none) ([#25893](https://github.com/lightdash/lightdash/issues/25893)) ([581dc44](https://github.com/lightdash/lightdash/commit/581dc44802c2d8b99bd00306cb5c9985667b5698))
+
 ## [0.3447.3](https://github.com/lightdash/lightdash/compare/0.3447.2...0.3447.3) (2026-07-22)
 
 
