@@ -173,7 +173,10 @@ const ActionRow: FC<{
                         onClick={() =>
                             track({
                                 name: EventName.HOMEPAGE_RECOMMENDED_ACTION_CLICKED,
-                                properties: { actionKey },
+                                properties: {
+                                    actionKey,
+                                    destination: status.url,
+                                },
                             })
                         }
                     >

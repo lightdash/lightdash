@@ -127,6 +127,7 @@ export type HomepageRecommendedActionClickedEvent = {
     name: EventName.HOMEPAGE_RECOMMENDED_ACTION_CLICKED;
     properties: {
         actionKey: HomepageRecommendedActionKey;
+        destination: string;
     };
 };
 
