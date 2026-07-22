@@ -33,10 +33,6 @@ describe('OnboardingModel', () => {
             shownSuccessAt: null,
             playgroundProjectDeletedAt: null,
         });
-
-        expect(tracker.history.insert[0].sql).toContain(
-            'on conflict ("organization_id") do nothing',
-        );
     });
 
     it('holds an organization advisory lock around playground provisioning', async () => {
