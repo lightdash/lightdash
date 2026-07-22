@@ -44,6 +44,7 @@ type Props = Omit<PillsInputProps, 'onChange'> & {
     createLabel?: ReactNode;
     onCreate?: (value: string) => void;
     shouldCreate?: (value: string) => boolean;
+    filterOptions?: boolean;
     hidePickedOptions?: boolean;
     maxDropdownHeight?: number;
     topContent?: ReactNode;
@@ -90,6 +91,7 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
             createLabel,
             onCreate,
             shouldCreate = (query) => query.trim().length > 0,
+            filterOptions = true,
             hidePickedOptions = false,
             maxDropdownHeight = 250,
             topContent,
@@ -125,9 +127,17 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                 new Map(options.map((option) => [option.value, option.label])),
             [options],
         );
-        const visibleOptions = hidePickedOptions
-            ? options.filter((option) => !selectedValues.includes(option.value))
-            : options;
+        const normalizedSearch = searchValue.trim().toLowerCase();
+        const visibleOptions = options.filter(
+            (option) =>
+                (!hidePickedOptions ||
+                    !selectedValues.includes(option.value)) &&
+                (!filterOptions ||
+                    option.label
+                        .trim()
+                        .toLowerCase()
+                        .includes(normalizedSearch)),
+        );
         const groups = useMemo(() => {
             const grouped = new Map<string, MultiSelectComboboxOption[]>();
             const ungrouped: MultiSelectComboboxOption[] = [];

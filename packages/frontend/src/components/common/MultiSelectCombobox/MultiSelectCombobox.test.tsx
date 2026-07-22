@@ -15,6 +15,31 @@ const defaultProps = {
 };
 
 describe('MultiSelectCombobox', () => {
+    it('filters options by label case-insensitively', () => {
+        const options = [
+            { value: 'gb', label: 'United Kingdom' },
+            { value: 'us', label: 'United States' },
+        ];
+        const { rerender } = renderWithProviders(
+            <MultiSelectCombobox {...defaultProps} options={options} />,
+        );
+        fireEvent.focus(screen.getByRole('textbox'));
+        rerender(
+            <MultiSelectCombobox
+                {...defaultProps}
+                options={options}
+                searchValue="KING"
+            />,
+        );
+
+        expect(
+            screen.getByRole('option', { name: 'United Kingdom' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('option', { name: 'United States' }),
+        ).not.toBeInTheDocument();
+    });
+
     it('keeps an action footer usable without closing the dropdown', async () => {
         const user = userEvent.setup();
         const onLoadMore = vi.fn();

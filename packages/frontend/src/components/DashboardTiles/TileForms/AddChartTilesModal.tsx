@@ -301,6 +301,7 @@ const AddChartTilesModal: FC<Props> = ({
                     id="saved-charts"
                     label={`Select the charts you want to add to this dashboard`}
                     options={filteredSavedCharts}
+                    filterOptions={false}
                     disabled={isInitialLoading}
                     placeholder="Search..."
                     required
