@@ -192,7 +192,12 @@ const OnboardingInviteExpert: FC = () => {
             role: OrganizationMemberRole.ADMIN,
             purpose: InviteLinkPurpose.Setup,
         });
-        track({ name: EventName.SETUP_INVITE_SENT });
+        track({
+            name: EventName.SETUP_INVITE_SENT,
+            properties: {
+                organizationId: organization?.organizationUuid ?? '',
+            },
+        });
 
         if (canOfferPlayground) {
             await preparePlayground();

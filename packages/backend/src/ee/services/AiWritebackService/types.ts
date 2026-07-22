@@ -349,6 +349,7 @@ export type AiWritebackRunArgs = {
      */
     startNewPullRequest?: boolean;
     aiThreadUuid?: string;
+    promptUuid?: string;
     /**
      * Identifies the trigger surface so logs, metrics, and analytics can
      * group runs by where they originated. Required so adding new triggers

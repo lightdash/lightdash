@@ -61,7 +61,9 @@ vi.mock('../hooks/useInviteLink', () => ({
 }));
 
 vi.mock('../hooks/organization/useOrganization', () => ({
-    useOrganization: () => ({ data: { needsProject: mocks.needsProject } }),
+    useOrganization: () => ({
+        data: { organizationUuid: 'org-1', needsProject: mocks.needsProject },
+    }),
 }));
 
 vi.mock('@sentry/react', () => ({ captureException: vi.fn() }));
@@ -180,6 +182,7 @@ describe('OnboardingInviteExpert', () => {
         expect(mocks.updateUser).not.toHaveBeenCalled();
         expect(mocks.track).toHaveBeenCalledWith({
             name: EventName.SETUP_INVITE_SENT,
+            properties: { organizationId: 'org-1' },
         });
 
         await waitFor(() => {
