@@ -1,5 +1,18 @@
-import type { AiProjectContextTypedObjectRef } from '@lightdash/common';
+import {
+    ProjectType,
+    type AiProjectContextTypedObjectRef,
+    type AiThreadCreatedFrom,
+    type UUID,
+} from '@lightdash/common';
 import { Knex } from 'knex';
+import { ProjectTableName } from '../../database/entities/projects';
+import {
+    AiAgentToolCallTableName,
+    AiAgentToolResultTableName,
+    AiPromptInterruptTableName,
+    AiPromptTableName,
+    AiThreadTableName,
+} from '../database/entities/ai';
 import {
     AiAgentMemoryTableName,
     AiAgentThreadDistillTableName,
@@ -9,12 +22,17 @@ import {
     type DbAiAgentThreadDistill,
 } from '../database/entities/aiAgentMemory';
 
+export const AI_AGENT_MEMORY_THREAD_SOURCES = [
+    'web_app',
+    'slack',
+] as const satisfies readonly AiThreadCreatedFrom[];
+
 type SourceThreadMemory = {
-    organizationUuid: string;
-    projectUuid: string;
-    agentUuid: string | null;
-    userUuid: string | null;
-    sourceThreadUuid: string;
+    organizationUuid: UUID;
+    projectUuid: UUID;
+    agentUuid: UUID | null;
+    userUuid: UUID | null;
+    sourceThreadUuid: UUID;
     slug: string;
     title: string;
     rawMemory: string;
@@ -26,7 +44,7 @@ type SourceThreadMemory = {
 };
 
 type ThreadDistillResult = {
-    aiThreadUuid: string;
+    aiThreadUuid: UUID;
     distillPromptHash: string | null;
     distilledUpTo: Date;
 } & (
@@ -41,17 +59,247 @@ type ThreadDistillResult = {
           errorMessage?: never;
       }
     | {
+          outcome: 'skipped';
+          noOpReason?: never;
+          errorMessage?: never;
+      }
+    | {
           outcome: 'failed';
           noOpReason?: never;
           errorMessage: string;
       }
 );
 
+export type AiAgentMemoryThreadCandidate = {
+    threadUuid: UUID;
+    organizationUuid: UUID;
+    projectUuid: UUID;
+    latestActivity: Date;
+};
+
+export type AiAgentMemoryThread = AiAgentMemoryThreadCandidate & {
+    distilledUpTo: Date | null;
+    agentUuid: UUID | null;
+    userUuid: UUID | null;
+    title: string | null;
+    createdFrom: AiThreadCreatedFrom;
+    projectType: ProjectType;
+    turns: Array<{
+        promptUuid: UUID;
+        createdAt: Date;
+        userText: string;
+        assistantText: string | null;
+        errorMessage: string | null;
+        respondedAt: Date | null;
+        interrupted: boolean;
+        tools: Array<{
+            toolCallId: string;
+            name: string;
+            args: unknown;
+            result: string | null;
+            source: 'lightdash' | 'mcp';
+        }>;
+    }>;
+};
+
 export class AiAgentMemoryModel {
     private readonly database: Knex;
 
     constructor({ database }: { database: Knex }) {
         this.database = database;
+    }
+
+    async findThreadsDueForDistill(args: {
+        idleBefore: Date;
+        activityFloor: Date;
+    }): Promise<AiAgentMemoryThreadCandidate[]> {
+        const rows = await this.database(`${AiThreadTableName} as thread`)
+            .join(
+                `${ProjectTableName} as project`,
+                'project.project_uuid',
+                'thread.project_uuid',
+            )
+            .leftJoin(
+                `${AiAgentThreadDistillTableName} as distill`,
+                'distill.ai_thread_uuid',
+                'thread.ai_thread_uuid',
+            )
+            .whereIn('thread.created_from', AI_AGENT_MEMORY_THREAD_SOURCES)
+            .whereNot('project.project_type', ProjectType.PREVIEW)
+            .whereBetween('thread.updated_at', [
+                args.activityFloor,
+                args.idleBefore,
+            ])
+            .where((query) => {
+                void query
+                    .whereNull('distill.ai_thread_uuid')
+                    .orWhereRaw('distill.distilled_up_to < thread.updated_at');
+            })
+            .select<AiAgentMemoryThreadCandidate[]>({
+                threadUuid: 'thread.ai_thread_uuid',
+                organizationUuid: 'thread.organization_uuid',
+                projectUuid: 'thread.project_uuid',
+                latestActivity: 'thread.updated_at',
+            });
+
+        return rows;
+    }
+
+    async findThreadForDistill(
+        threadUuid: UUID,
+    ): Promise<AiAgentMemoryThread | undefined> {
+        const promptRows = await this.database(`${AiThreadTableName} as thread`)
+            .join(
+                `${ProjectTableName} as project`,
+                'project.project_uuid',
+                'thread.project_uuid',
+            )
+            .leftJoin(
+                `${AiAgentThreadDistillTableName} as distill`,
+                'distill.ai_thread_uuid',
+                'thread.ai_thread_uuid',
+            )
+            .join(
+                `${AiPromptTableName} as prompt`,
+                'prompt.ai_thread_uuid',
+                'thread.ai_thread_uuid',
+            )
+            .leftJoin(
+                `${AiPromptInterruptTableName} as prompt_interrupt`,
+                'prompt_interrupt.ai_prompt_uuid',
+                'prompt.ai_prompt_uuid',
+            )
+            .where('thread.ai_thread_uuid', threadUuid)
+            .whereIn('thread.created_from', AI_AGENT_MEMORY_THREAD_SOURCES)
+            .whereNot('project.project_type', ProjectType.PREVIEW)
+            .whereNotNull('thread.updated_at')
+            .orderBy('prompt.created_at', 'asc')
+            .select<
+                Array<{
+                    threadUuid: UUID;
+                    organizationUuid: UUID;
+                    projectUuid: UUID;
+                    agentUuid: UUID | null;
+                    title: string | null;
+                    createdFrom: AiThreadCreatedFrom;
+                    projectType: ProjectType;
+                    latestActivity: Date;
+                    distilledUpTo: Date | null;
+                    promptUuid: UUID;
+                    createdAt: Date;
+                    userUuid: UUID | null;
+                    userText: string;
+                    assistantText: string | null;
+                    errorMessage: string | null;
+                    respondedAt: Date | null;
+                    interruptUuid: UUID | null;
+                    hidden: boolean;
+                }>
+            >({
+                threadUuid: 'thread.ai_thread_uuid',
+                organizationUuid: 'thread.organization_uuid',
+                projectUuid: 'thread.project_uuid',
+                agentUuid: 'thread.agent_uuid',
+                title: 'thread.title',
+                createdFrom: 'thread.created_from',
+                projectType: 'project.project_type',
+                latestActivity: 'thread.updated_at',
+                distilledUpTo: 'distill.distilled_up_to',
+                promptUuid: 'prompt.ai_prompt_uuid',
+                createdAt: 'prompt.created_at',
+                userUuid: 'prompt.created_by_user_uuid',
+                userText: 'prompt.prompt',
+                assistantText: 'prompt.response',
+                errorMessage: 'prompt.error_message',
+                respondedAt: 'prompt.responded_at',
+                interruptUuid: 'prompt_interrupt.ai_prompt_uuid',
+                hidden: 'prompt.hidden',
+            });
+
+        const first = promptRows[0];
+        if (!first) return undefined;
+        const visiblePromptRows = promptRows.filter((row) => !row.hidden);
+
+        type ToolRow = {
+            promptUuid: string;
+            toolCallId: string;
+            name: string;
+            args: unknown;
+            result: string | null;
+            mcpServerUuid: string | null;
+        };
+        const toolRows = await this.database(
+            `${AiAgentToolCallTableName} as tool_call`,
+        )
+            .join(
+                `${AiPromptTableName} as prompt`,
+                'prompt.ai_prompt_uuid',
+                'tool_call.ai_prompt_uuid',
+            )
+            .leftJoin(
+                `${AiAgentToolResultTableName} as tool_result`,
+                function joinToolResult() {
+                    this.on(
+                        'tool_result.tool_call_id',
+                        '=',
+                        'tool_call.tool_call_id',
+                    ).andOn(
+                        'tool_result.ai_prompt_uuid',
+                        '=',
+                        'tool_call.ai_prompt_uuid',
+                    );
+                },
+            )
+            .where('prompt.ai_thread_uuid', threadUuid)
+            .whereNull('tool_call.parent_tool_call_id')
+            .orderBy('tool_call.created_at', 'asc')
+            .select<ToolRow[]>({
+                promptUuid: 'tool_call.ai_prompt_uuid',
+                toolCallId: 'tool_call.tool_call_id',
+                name: 'tool_call.tool_name',
+                args: 'tool_call.tool_args',
+                result: 'tool_result.result',
+                mcpServerUuid: 'tool_call.ai_mcp_server_uuid',
+            });
+        const toolsByPrompt = toolRows.reduce((map, row) => {
+            const tools = map.get(row.promptUuid) ?? [];
+            tools.push(row);
+            map.set(row.promptUuid, tools);
+            return map;
+        }, new Map<string, ToolRow[]>());
+
+        return {
+            threadUuid: first.threadUuid,
+            organizationUuid: first.organizationUuid,
+            projectUuid: first.projectUuid,
+            agentUuid: first.agentUuid,
+            userUuid:
+                promptRows.findLast((row) => row.userUuid !== null)?.userUuid ??
+                null,
+            title: first.title,
+            createdFrom: first.createdFrom,
+            projectType: first.projectType,
+            latestActivity: first.latestActivity,
+            distilledUpTo: first.distilledUpTo,
+            turns: visiblePromptRows.map((row) => ({
+                promptUuid: row.promptUuid,
+                createdAt: row.createdAt,
+                userText: row.userText,
+                assistantText: row.assistantText,
+                errorMessage: row.errorMessage,
+                respondedAt: row.respondedAt,
+                interrupted: row.interruptUuid !== null,
+                tools: (toolsByPrompt.get(row.promptUuid) ?? []).map(
+                    (tool: ToolRow) => ({
+                        toolCallId: tool.toolCallId,
+                        name: tool.name,
+                        args: tool.args,
+                        result: tool.result,
+                        source: tool.mcpServerUuid ? 'mcp' : 'lightdash',
+                    }),
+                ),
+            })),
+        };
     }
 
     async upsertSourceThreadMemory(
