@@ -47,6 +47,7 @@ import {
     isNonAggregateMetric,
     isPeriodOverPeriodAdditionalMetric,
     isPostCalculationMetric,
+    isTimezoneRoundTripNoOp,
     ItemsMap,
     lightdashVariablePattern,
     MetricFilterRule,
@@ -59,6 +60,7 @@ import {
     QueryWarning,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
+    resolveTimestampFilterContext,
     snakeCaseName,
     SortField,
     sqlAggregationWrapsReferences,
@@ -73,6 +75,8 @@ import {
     type ParameterDefinitions,
     type ParametersValuesMap,
     type TimestampDomain,
+    type TimestampFilterContext,
+    type TimestampFilterLhsMode,
     type WarehouseSqlBuilder,
     type WeekDay,
 } from '@lightdash/common';
@@ -789,23 +793,23 @@ export class MetricQueryBuilder {
      * in its raw warehouse value. Pass `respectConvertTimezone: false` from
      * filter rendering so WHERE clauses keep wrapping regardless.
      */
-    private getTimezoneAwareDimensionSql(
+    private resolveTimezoneAwareDimensionSql(
         dimension: CompiledDimension,
         adapterType: SupportedDbtAdapter,
         startOfWeek: WeekDay | null | undefined,
         respectConvertTimezone: boolean = true,
-    ): string {
+    ): { sql: string; lhsMode: TimestampFilterLhsMode } {
         const { timezone, useTimezoneAwareDateTrunc } = this.args;
 
         if (!useTimezoneAwareDateTrunc || !dimension.timeInterval) {
-            return dimension.compiledSql;
+            return { sql: dimension.compiledSql, lhsMode: 'legacy' };
         }
 
         const isRaw = dimension.timeInterval === TimeFrames.RAW;
         const isTruncatable = truncatableTimeFrames.has(dimension.timeInterval);
         const isExtractable = extractableTimeFrames.has(dimension.timeInterval);
         if (!isRaw && !isTruncatable && !isExtractable) {
-            return dimension.compiledSql;
+            return { sql: dimension.compiledSql, lhsMode: 'legacy' };
         }
 
         const baseDimensionId = dimension.timeIntervalBaseDimensionName
@@ -822,11 +826,11 @@ export class MetricQueryBuilder {
             !baseDimension?.compiledSql ||
             baseDimension.type !== DimensionType.TIMESTAMP
         ) {
-            return dimension.compiledSql;
+            return { sql: dimension.compiledSql, lhsMode: 'legacy' };
         }
 
         if (respectConvertTimezone && baseDimension.skipTimezoneConversion) {
-            return dimension.compiledSql;
+            return { sql: dimension.compiledSql, lhsMode: 'legacy' };
         }
 
         // Effective domain: the child dim's own value, falling back to the
@@ -840,7 +844,7 @@ export class MetricQueryBuilder {
         // explicit data-timezone rebase when the column is known-naive.
         if (isRaw) {
             if (this.columnTimezone === 'UTC') {
-                return dimension.compiledSql;
+                return { sql: dimension.compiledSql, lhsMode: 'legacy' };
             }
             // Filter LHS: a known domain keeps the bare column (the literal
             // side carries the conversion, so predicates stay sargable); the
@@ -853,27 +857,62 @@ export class MetricQueryBuilder {
                     baseDimension.skipTimezoneConversion ||
                     !naiveTimestampRebaseAdapters.has(adapterType))
             ) {
-                return dimension.compiledSql;
+                return { sql: dimension.compiledSql, lhsMode: 'legacy' };
             }
             const { castToInstant, castNaiveToInstant, castAwareToInstant } =
                 dateTruncTimezoneConversions[adapterType];
             if (timestampDomain === 'naive' && castNaiveToInstant) {
-                return castNaiveToInstant(
-                    baseDimension.compiledSql,
-                    this.columnTimezone,
-                );
+                return {
+                    sql: castNaiveToInstant(
+                        baseDimension.compiledSql,
+                        this.columnTimezone,
+                    ),
+                    lhsMode: 'instant',
+                };
             }
             // Known-aware columns are bare instants everywhere except
             // Databricks/Spark, where the wire face follows the session — the
             // explicit cast freezes it.
             if (timestampDomain === 'aware' && castAwareToInstant) {
-                return castAwareToInstant(baseDimension.compiledSql);
+                return {
+                    sql: castAwareToInstant(baseDimension.compiledSql),
+                    lhsMode: 'instant',
+                };
             }
-            return castToInstant(baseDimension.compiledSql);
+            return {
+                sql: castToInstant(baseDimension.compiledSql),
+                lhsMode: 'instant',
+            };
         }
 
         if (isTruncatable) {
-            return getSqlForTruncatedDate(
+            return {
+                sql: getSqlForTruncatedDate(
+                    adapterType,
+                    dimension.timeInterval,
+                    baseDimension.compiledSql,
+                    baseDimension.type,
+                    startOfWeek,
+                    timezone,
+                    this.columnTimezone,
+                    timestampDomain,
+                    // GLITCH-452: reached only when useTimezoneAwareDateTrunc is on,
+                    // so day-or-coarser grains emit a real DATE (matches metadata).
+                    true,
+                ),
+                lhsMode: isTimezoneRoundTripNoOp(
+                    adapterType,
+                    timezone,
+                    this.columnTimezone,
+                    timestampDomain,
+                )
+                    ? 'legacy'
+                    : 'wrapped',
+            };
+        }
+
+        return {
+            sql: timeFrameConfigs[dimension.timeInterval].getSql(
                 adapterType,
                 dimension.timeInterval,
                 baseDimension.compiledSql,
@@ -882,22 +921,23 @@ export class MetricQueryBuilder {
                 timezone,
                 this.columnTimezone,
                 timestampDomain,
-                // GLITCH-452: reached only when useTimezoneAwareDateTrunc is on,
-                // so day-or-coarser grains emit a real DATE (matches metadata).
-                true,
-            );
-        }
+            ),
+            lhsMode: 'legacy',
+        };
+    }
 
-        return timeFrameConfigs[dimension.timeInterval].getSql(
+    private getTimezoneAwareDimensionSql(
+        dimension: CompiledDimension,
+        adapterType: SupportedDbtAdapter,
+        startOfWeek: WeekDay | null | undefined,
+        respectConvertTimezone: boolean = true,
+    ): string {
+        return this.resolveTimezoneAwareDimensionSql(
+            dimension,
             adapterType,
-            dimension.timeInterval,
-            baseDimension.compiledSql,
-            baseDimension.type,
             startOfWeek,
-            timezone,
-            this.columnTimezone,
-            timestampDomain,
-        );
+            respectConvertTimezone,
+        ).sql;
     }
 
     /**
@@ -937,6 +977,34 @@ export class MetricQueryBuilder {
             return undefined;
         }
         return dimension.timestampDomain ?? baseDimension.timestampDomain;
+    }
+
+    private resolveTimezoneAwareFilterDimension(
+        dimension: CompiledDimension,
+        adapterType: SupportedDbtAdapter,
+        startOfWeek: WeekDay | null | undefined,
+    ): {
+        field: CompiledDimension;
+        timestampFilterContext: TimestampFilterContext;
+    } {
+        const { sql, lhsMode } = this.resolveTimezoneAwareDimensionSql(
+            dimension,
+            adapterType,
+            startOfWeek,
+            false,
+        );
+
+        return {
+            field: { ...dimension, compiledSql: sql },
+            timestampFilterContext: resolveTimestampFilterContext({
+                adapterType,
+                useTimezoneAwareDateTrunc: this.args.useTimezoneAwareDateTrunc,
+                sourceTimezone: this.columnTimezone,
+                timestampDomain: this.resolveFilterTimestampDomain(dimension),
+                timeInterval: dimension.timeInterval,
+                lhsMode,
+            }),
+        };
     }
 
     /**
@@ -2085,31 +2153,18 @@ export class MetricQueryBuilder {
             throw new FieldReferenceError(errorMessage);
         }
 
-        // Override filter dimension SQL to match the timezone-aware SELECT
-        // clause. Filters always wrap by project tz — even for dims with
-        // `convert_timezone: false` — so pass `respectConvertTimezone: false`.
-        const filterField = isDimension(field)
-            ? {
-                  ...field,
-                  compiledSql: this.getTimezoneAwareDimensionSql(
-                      field,
-                      adapterType,
-                      startOfWeek,
-                      false,
-                  ),
-              }
-            : field;
-
-        // A rebased RAW filter LHS is an instant — tag the literal to match.
-        // Decided here, where the wrap happened, so the two cannot diverge.
-        const rawFilterLhsIsInstant =
-            isDimension(field) &&
-            field.timeInterval === TimeFrames.RAW &&
-            filterField.compiledSql !== field.compiledSql;
-
-        const timestampDomain = isDimension(field)
-            ? this.resolveFilterTimestampDomain(field)
+        // Resolve the actual filter LHS and its matching literal mode together.
+        // Filters always wrap by project tz — even for dims with
+        // `convert_timezone: false` — so the resolver passes
+        // `respectConvertTimezone: false` to the dimension SQL path.
+        const resolvedFilterDimension = isDimension(field)
+            ? this.resolveTimezoneAwareFilterDimension(
+                  field,
+                  adapterType,
+                  startOfWeek,
+              )
             : undefined;
+        const filterField = resolvedFilterDimension?.field ?? field;
 
         // For period-to-date filters on truncated dimensions, resolve the
         // base (raw) dimension SQL so EXTRACT operates on the actual date
@@ -2149,9 +2204,7 @@ export class MetricQueryBuilder {
                     DEFAULT_FILTER_CASE_SENSITIVE,
                 baseDimensionSql,
                 this.args.useTimezoneAwareDateTrunc,
-                this.columnTimezone,
-                rawFilterLhsIsInstant,
-                timestampDomain,
+                resolvedFilterDimension?.timestampFilterContext,
             );
         });
 

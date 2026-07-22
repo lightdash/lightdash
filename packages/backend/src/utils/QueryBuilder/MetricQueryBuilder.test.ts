@@ -6786,6 +6786,21 @@ const buildNaiveExplore = (
                     timeIntervalBaseDimensionName: 'occurred_at',
                     timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
                 },
+                occurred_at_custom: {
+                    type: DimensionType.TIMESTAMP,
+                    name: 'occurred_at_custom',
+                    label: 'occurred_at_custom',
+                    table: 'events',
+                    tableLabel: 'events',
+                    fieldType: FieldType.DIMENSION,
+                    sql: `DATETIME(\${TABLE}.occurred_at, 'Asia/Tokyo')`,
+                    compiledSql: `DATETIME("events".occurred_at, 'Asia/Tokyo')`,
+                    tablesReferences: ['events'],
+                    hidden: false,
+                    customTimeInterval: 'tokyo_wall_clock',
+                    timeIntervalBaseDimensionName: 'occurred_at',
+                    timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+                },
                 occurred_at_day: {
                     type: DimensionType.DATE,
                     name: 'occurred_at_day',
@@ -7224,6 +7239,66 @@ describe('Naive timestamp domain — explicit, session-independent conversion', 
             expect(query).toContain(
                 `(DATE_TRUNC('HOUR', CAST("events".occurred_at AS TIMESTAMP))) = CAST('2024-01-14 17:00:00+00:00' AS timestamp)`,
             );
+        });
+
+        test('known-aware hour filter uses the actual unwrapped LHS to retain the legacy literal (Trino)', () => {
+            const { query } = buildQuery({
+                explore: buildNaiveExplore(SupportedDbtAdapter.TRINO, 'aware'),
+                compiledMetricQuery: filteredQuery('events_occurred_at_hour'),
+                warehouseSqlBuilder: trinoClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: 'Asia/Tokyo',
+                useTimezoneAwareDateTrunc: true,
+                columnTimezone: 'Asia/Tokyo',
+            });
+            expect(query).toContain(
+                `(DATE_TRUNC('HOUR', CAST("events".occurred_at AS TIMESTAMP))) = CAST('2024-01-14 17:00:00+00:00' AS timestamp)`,
+            );
+        });
+
+        test.each([SupportedDbtAdapter.DATABRICKS, SupportedDbtAdapter.SPARK])(
+            '%s known-aware RAW filter keeps a bare LHS and offset-bearing instant',
+            (adapter) => {
+                const { query } = buildQuery({
+                    explore: buildNaiveExplore(adapter, 'aware'),
+                    compiledMetricQuery: filteredQuery(
+                        'events_occurred_at_raw',
+                    ),
+                    warehouseSqlBuilder: {
+                        ...warehouseClientMock,
+                        getAdapterType: () => adapter,
+                    },
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: 'UTC',
+                    useTimezoneAwareDateTrunc: true,
+                    columnTimezone: 'Asia/Tokyo',
+                });
+                const whereClause = query.slice(query.indexOf('WHERE'));
+                expect(whereClause).toContain(
+                    `("events".occurred_at) = ('2024-01-14 17:00:00+00:00')`,
+                );
+                expect(whereClause).not.toContain('to_utc_timestamp');
+            },
+        );
+
+        test('custom granularity output stays unknown and keeps its legacy literal (BigQuery)', () => {
+            const { query } = buildQuery({
+                explore: buildNaiveExplore(
+                    SupportedDbtAdapter.BIGQUERY,
+                    'naive',
+                ),
+                compiledMetricQuery: filteredQuery('events_occurred_at_custom'),
+                warehouseSqlBuilder: bigqueryClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: 'UTC',
+                useTimezoneAwareDateTrunc: true,
+                columnTimezone: 'Asia/Tokyo',
+            });
+            const whereClause = query.slice(query.indexOf('WHERE'));
+            expect(whereClause).toContain(
+                `(DATETIME("events".occurred_at, 'Asia/Tokyo')) = ('2024-01-14 17:00:00')`,
+            );
+            expect(whereClause).not.toContain(`DATETIME '2024-01-15 02:00:00'`);
         });
     });
 });

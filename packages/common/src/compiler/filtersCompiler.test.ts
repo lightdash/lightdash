@@ -14,6 +14,8 @@ import {
     renderNumberFilterSql,
     renderStringFilterSql,
     renderTimestampFilterSql,
+    resolveTimestampFilterContext,
+    type TimestampFilterLhsMode,
 } from './filtersCompiler';
 import {
     adapterType,
@@ -3016,7 +3018,6 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 undefined,
                 true,
                 DimensionType.TIMESTAMP,
-                'UTC',
             );
             expect(sql).not.toContain('TIMESTAMP(');
             expect(sql).toContain("'2024-01-15'");
@@ -3054,7 +3055,6 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 undefined,
                 true,
                 DimensionType.TIMESTAMP,
-                'America/New_York',
             );
             expect(sql).not.toContain('TIMESTAMP(');
         });
@@ -3075,7 +3075,6 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 undefined,
                 true,
                 DimensionType.TIMESTAMP,
-                'UTC',
             );
             expect(sql).not.toContain('TIMESTAMP(');
             expect(sql).toContain("'2024-01-15'");
@@ -3095,7 +3094,6 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 undefined,
                 true,
                 DimensionType.TIMESTAMP,
-                'UTC',
             );
             expect(sql).not.toContain('AT TIME ZONE');
             expect(sql).not.toContain('::timestamp');
@@ -3115,7 +3113,6 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 undefined,
                 true,
                 DimensionType.TIMESTAMP,
-                'UTC',
             );
             expect(sql).not.toContain('toDateTime(');
         });
@@ -3134,7 +3131,6 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 undefined,
                 true,
                 DimensionType.TIMESTAMP,
-                'UTC',
             );
             expect(sql).not.toContain('AT TIME ZONE');
             expect(sql).not.toContain('::timestamp');
@@ -3154,7 +3150,6 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 undefined,
                 true,
                 DimensionType.TIMESTAMP,
-                'UTC',
             );
             expect(sql).not.toContain('toDateTime(');
             expect(sql).toContain("'2024-01-15'");
@@ -3186,15 +3181,26 @@ describe('domain-directed timestamp filter literals', () => {
             timestampDomain,
             timeInterval = TimeFrames.RAW,
             useTimezoneAwareDateTrunc = true,
+            lhsMode = 'legacy',
         }: {
             timezone?: string;
             sourceTimezone?: string;
             timestampDomain?: TimestampDomain;
             timeInterval?: TimeFrames;
             useTimezoneAwareDateTrunc?: boolean;
+            lhsMode?: TimestampFilterLhsMode;
         },
-    ) =>
-        renderFilterRuleSql(
+    ) => {
+        const timestampFilterContext = resolveTimestampFilterContext({
+            adapterType: adapter,
+            useTimezoneAwareDateTrunc,
+            sourceTimezone,
+            timestampDomain,
+            timeInterval,
+            lhsMode,
+        });
+
+        return renderFilterRuleSql(
             filter,
             DimensionType.TIMESTAMP,
             DimensionSqlMock,
@@ -3207,11 +3213,9 @@ describe('domain-directed timestamp filter literals', () => {
             undefined,
             useTimezoneAwareDateTrunc,
             DimensionType.TIMESTAMP,
-            sourceTimezone,
-            undefined,
-            timestampDomain,
-            timeInterval,
+            timestampFilterContext,
         );
+    };
 
     describe('bare naive LHS (RAW frame) renders typed data-timezone wall clocks', () => {
         test.each([
@@ -3228,7 +3232,15 @@ describe('domain-directed timestamp filter literals', () => {
                 `(${DimensionSqlMock}) = TIMESTAMP '2024-01-15 02:00:00'`,
             ],
             [
+                SupportedDbtAdapter.ATHENA,
+                `(${DimensionSqlMock}) = TIMESTAMP '2024-01-15 02:00:00'`,
+            ],
+            [
                 SupportedDbtAdapter.DATABRICKS,
+                `(${DimensionSqlMock}) = TIMESTAMP_NTZ '2024-01-15 02:00:00'`,
+            ],
+            [
+                SupportedDbtAdapter.SPARK,
                 `(${DimensionSqlMock}) = TIMESTAMP_NTZ '2024-01-15 02:00:00'`,
             ],
         ])('equals on %s', (adapter, expected) => {
@@ -3254,7 +3266,15 @@ describe('domain-directed timestamp filter literals', () => {
                 `((${DimensionSqlMock}) >= TIMESTAMP '2024-01-15 01:30:00' AND (${DimensionSqlMock}) <= TIMESTAMP '2024-01-15 02:30:00')`,
             ],
             [
+                SupportedDbtAdapter.ATHENA,
+                `((${DimensionSqlMock}) >= TIMESTAMP '2024-01-15 01:30:00' AND (${DimensionSqlMock}) <= TIMESTAMP '2024-01-15 02:30:00')`,
+            ],
+            [
                 SupportedDbtAdapter.DATABRICKS,
+                `((${DimensionSqlMock}) >= TIMESTAMP_NTZ '2024-01-15 01:30:00' AND (${DimensionSqlMock}) <= TIMESTAMP_NTZ '2024-01-15 02:30:00')`,
+            ],
+            [
+                SupportedDbtAdapter.SPARK,
                 `((${DimensionSqlMock}) >= TIMESTAMP_NTZ '2024-01-15 01:30:00' AND (${DimensionSqlMock}) <= TIMESTAMP_NTZ '2024-01-15 02:30:00')`,
             ],
         ])('inBetween on %s', (adapter, expected) => {
@@ -3264,6 +3284,31 @@ describe('domain-directed timestamp filter literals', () => {
                     timestampDomain: 'naive',
                 }),
             ).toStrictEqual(expected);
+        });
+
+        test('relative boundaries use the same data-timezone wall-clock context', () => {
+            vi.setSystemTime(new Date('2024-01-14T17:00:00Z').getTime());
+            const sql = renderTimestamp(
+                SupportedDbtAdapter.POSTGRES,
+                {
+                    id: 'id',
+                    target: { fieldId: 'fieldId' },
+                    operator: FilterOperator.IN_THE_PAST,
+                    values: [1],
+                    settings: {
+                        unitOfTime: UnitOfTime.hours,
+                        completed: false,
+                    },
+                },
+                {
+                    sourceTimezone: 'Asia/Tokyo',
+                    timestampDomain: 'naive',
+                },
+            );
+
+            expect(sql).toStrictEqual(
+                `((${DimensionSqlMock}) >= ('2024-01-15 01:00:00'::timestamp) AND (${DimensionSqlMock}) <= ('2024-01-15 02:00:00'::timestamp))`,
+            );
         });
     });
 
@@ -3313,20 +3358,33 @@ describe('domain-directed timestamp filter literals', () => {
             );
         });
 
-        test('Trino emits a zoned TIMESTAMP literal', () => {
-            expect(
-                renderTimestamp(
-                    SupportedDbtAdapter.TRINO,
-                    equalsInstantFilter,
-                    {
+        test.each([SupportedDbtAdapter.TRINO, SupportedDbtAdapter.ATHENA])(
+            '%s emits a zoned TIMESTAMP literal',
+            (adapter) => {
+                expect(
+                    renderTimestamp(adapter, equalsInstantFilter, {
                         sourceTimezone: 'Asia/Tokyo',
                         timestampDomain: 'aware',
-                    },
-                ),
-            ).toStrictEqual(
-                `(${DimensionSqlMock}) = TIMESTAMP '2024-01-14 17:00:00 UTC'`,
-            );
-        });
+                    }),
+                ).toStrictEqual(
+                    `(${DimensionSqlMock}) = TIMESTAMP '2024-01-14 17:00:00 UTC'`,
+                );
+            },
+        );
+
+        test.each([SupportedDbtAdapter.DATABRICKS, SupportedDbtAdapter.SPARK])(
+            '%s keeps the offset-bearing instant literal',
+            (adapter) => {
+                expect(
+                    renderTimestamp(adapter, equalsInstantFilter, {
+                        sourceTimezone: 'Asia/Tokyo',
+                        timestampDomain: 'aware',
+                    }),
+                ).toStrictEqual(
+                    `(${DimensionSqlMock}) = ('2024-01-14 17:00:00+00:00')`,
+                );
+            },
+        );
 
         test('Postgres keeps the offset-string form byte-identical', () => {
             expect(
@@ -3345,22 +3403,22 @@ describe('domain-directed timestamp filter literals', () => {
     });
 
     describe('wrapped LHS (sub-day trunc) wraps the literal with the same round trip', () => {
-        test('Trino known-naive at display == data timezone wraps both sides', () => {
-            expect(
-                renderTimestamp(
-                    SupportedDbtAdapter.TRINO,
-                    equalsInstantFilter,
-                    {
+        test.each([SupportedDbtAdapter.TRINO, SupportedDbtAdapter.ATHENA])(
+            '%s known-naive at display == data timezone wraps both sides',
+            (adapter) => {
+                expect(
+                    renderTimestamp(adapter, equalsInstantFilter, {
                         timezone: 'Asia/Tokyo',
                         sourceTimezone: 'Asia/Tokyo',
                         timestampDomain: 'naive',
                         timeInterval: TimeFrames.HOUR,
-                    },
-                ),
-            ).toStrictEqual(
-                `(${DimensionSqlMock}) = CAST(with_timezone(CAST('2024-01-15 02:00:00' AS timestamp), 'Asia/Tokyo') AT TIME ZONE 'UTC' AS timestamp)`,
-            );
-        });
+                        lhsMode: 'wrapped',
+                    }),
+                ).toStrictEqual(
+                    `(${DimensionSqlMock}) = CAST(with_timezone(CAST('2024-01-15 02:00:00' AS timestamp), 'Asia/Tokyo') AT TIME ZONE 'UTC' AS timestamp)`,
+                );
+            },
+        );
 
         test('BigQuery emits a single explicit TIMESTAMP(s, tz) wrap', () => {
             expect(
@@ -3372,6 +3430,7 @@ describe('domain-directed timestamp filter literals', () => {
                         sourceTimezone: 'Asia/Tokyo',
                         timestampDomain: 'naive',
                         timeInterval: TimeFrames.HOUR,
+                        lhsMode: 'wrapped',
                     },
                 ),
             ).toStrictEqual(
@@ -3389,6 +3448,7 @@ describe('domain-directed timestamp filter literals', () => {
                         sourceTimezone: 'Asia/Tokyo',
                         timestampDomain: 'aware',
                         timeInterval: TimeFrames.HOUR,
+                        lhsMode: 'wrapped',
                     },
                 ),
             ).toStrictEqual(
@@ -3415,22 +3475,22 @@ describe('domain-directed timestamp filter literals', () => {
             );
         });
 
-        test('Databricks freezes the wrapped literal as TIMESTAMP_NTZ to match the frozen LHS', () => {
-            expect(
-                renderTimestamp(
-                    SupportedDbtAdapter.DATABRICKS,
-                    equalsInstantFilter,
-                    {
+        test.each([SupportedDbtAdapter.DATABRICKS, SupportedDbtAdapter.SPARK])(
+            '%s freezes the wrapped literal as TIMESTAMP_NTZ to match the frozen LHS',
+            (adapter) => {
+                expect(
+                    renderTimestamp(adapter, equalsInstantFilter, {
                         timezone: 'Asia/Tokyo',
                         sourceTimezone: 'Asia/Tokyo',
                         timestampDomain: 'naive',
                         timeInterval: TimeFrames.HOUR,
-                    },
-                ),
-            ).toStrictEqual(
-                `(${DimensionSqlMock}) = CAST(to_utc_timestamp('2024-01-15 02:00:00', 'Asia/Tokyo') AS TIMESTAMP_NTZ)`,
-            );
-        });
+                        lhsMode: 'wrapped',
+                    }),
+                ).toStrictEqual(
+                    `(${DimensionSqlMock}) = CAST(to_utc_timestamp('2024-01-15 02:00:00', 'Asia/Tokyo') AS TIMESTAMP_NTZ)`,
+                );
+            },
+        );
     });
 
     describe('unknown domain stays byte-identical (the flag-gated LHS rebase owns this case)', () => {
