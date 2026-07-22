@@ -424,11 +424,17 @@ jobs:
           chmod +x /usr/local/bin/kubectl
           okteto version
           kubectl version --client
-      - name: Context
-        uses: okteto/context@5212ce5ebf9d3584bafd33f4a295a8521fc5abe7 # latest
-        with:
-          url: ${{ secrets.OKTETO_CONTEXT }}
-          token: ${{ secrets.OKTETO_TOKEN }}
+      - name: Configure okteto context
+        run: |
+          set -euo pipefail
+          # Use host CLI (okteto/context action writes kubeconfig into a
+          # container-mounted HOME that later steps cannot see).
+          okteto context use --token="$OKTETO_TOKEN" "$OKTETO_CONTEXT"
+          okteto kubeconfig
+          kubectl config current-context
+        env:
+          OKTETO_TOKEN: ${{ secrets.OKTETO_TOKEN }}
+          OKTETO_CONTEXT: ${{ secrets.OKTETO_CONTEXT }}
       - name: Prove PVC snapshot + restore
         run: |
           set -euo pipefail
