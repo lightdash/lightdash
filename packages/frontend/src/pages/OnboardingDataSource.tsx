@@ -29,6 +29,7 @@ import {
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';
+import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
 import classes from './OnboardingDataSource.module.css';
@@ -65,12 +66,25 @@ const popularKeys: SelectedWarehouse[] = POPULAR_WAREHOUSES.map(
     (warehouse) => warehouse.key,
 );
 
-const popularWarehouses = POPULAR_WAREHOUSES.map(({ key, subtitle }) => {
-    const label = WarehouseTypeLabels.find(
-        (warehouse) => warehouse.key === key,
-    )?.label;
-    return label ? { key, subtitle, label } : undefined;
-}).filter((warehouse) => warehouse !== undefined);
+const BIGQUERY_SERVICE_ACCOUNT_SUBTITLE = 'Connect with a service account';
+
+const getPopularWarehouses = (isGoogleSsoAvailable: boolean) =>
+    POPULAR_WAREHOUSES.map(({ key, subtitle }) => {
+        const label = WarehouseTypeLabels.find(
+            (warehouse) => warehouse.key === key,
+        )?.label;
+        if (!label) {
+            return undefined;
+        }
+        return {
+            key,
+            label,
+            subtitle:
+                key === WarehouseTypes.BIGQUERY && !isGoogleSsoAvailable
+                    ? BIGQUERY_SERVICE_ACCOUNT_SUBTITLE
+                    : subtitle,
+        };
+    }).filter((warehouse) => warehouse !== undefined);
 
 const allWarehouses = orderedWarehouses.filter(
     (warehouse) => !popularKeys.includes(warehouse.key),
@@ -105,6 +119,10 @@ const SectionHeader: FC<{ title: string; hint?: string }> = ({
 const DataSourcePicker: FC = () => {
     const navigate = useNavigate();
     const { track } = useTracking();
+    const { health } = useApp();
+    const popularWarehouses = getPopularWarehouses(
+        health.data?.auth.google.enabled ?? false,
+    );
 
     const handleSelect = (
         key: SelectedWarehouse,
