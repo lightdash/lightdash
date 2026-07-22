@@ -1139,7 +1139,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                         <Stack gap="xs" align="flex-start">
                                             {appliedFilterRules.length > 0 && (
                                                 <>
-                                                    <Text c="ldGray.7" fw={500}>
+                                                    <Text
+                                                        c="ldGray.7"
+                                                        fw={500}
+                                                        fz="xs"
+                                                    >
                                                         Dashboard filter
                                                         {appliedFilterRules.length >
                                                         1
@@ -1202,6 +1206,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     <Text
                                                                         fw={600}
                                                                         span
+                                                                        inherit
                                                                         c="foreground"
                                                                     >
                                                                         {
@@ -1213,6 +1218,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                         <Text
                                                                             c="foreground"
                                                                             span
+                                                                            inherit
                                                                         >
                                                                             is
                                                                             any
@@ -1222,6 +1228,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                         <>
                                                                             <Text
                                                                                 span
+                                                                                inherit
                                                                                 c="foreground"
                                                                             >
                                                                                 {
@@ -1233,6 +1240,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                                     600
                                                                                 }
                                                                                 span
+                                                                                inherit
                                                                                 c="foreground"
                                                                             >
                                                                                 {
@@ -1249,7 +1257,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                             )}
                                             {chartFilterRules.length > 0 && (
                                                 <>
-                                                    <Text c="ldGray.7" fw={500}>
+                                                    <Text
+                                                        c="ldGray.7"
+                                                        fw={500}
+                                                        fz="xs"
+                                                    >
                                                         Chart filter
                                                         {chartFilterRules.length >
                                                         1
@@ -1326,6 +1338,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     <Text
                                                                         fw={600}
                                                                         span
+                                                                        inherit
                                                                         c="foreground"
                                                                         style={
                                                                             ruleStrikeStyle
@@ -1340,6 +1353,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                         <Text
                                                                             c="foreground"
                                                                             span
+                                                                            inherit
                                                                             style={
                                                                                 ruleStrikeStyle
                                                                             }
@@ -1352,6 +1366,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                         <>
                                                                             <Text
                                                                                 span
+                                                                                inherit
                                                                                 c="foreground"
                                                                                 style={
                                                                                     ruleStrikeStyle
@@ -1366,6 +1381,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                                     600
                                                                                 }
                                                                                 span
+                                                                                inherit
                                                                                 c="foreground"
                                                                                 style={
                                                                                     ruleStrikeStyle
@@ -1380,6 +1396,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     {isOverridden && (
                                                                         <Text
                                                                             span
+                                                                            inherit
                                                                             c="foreground"
                                                                             fs="italic"
                                                                         >
