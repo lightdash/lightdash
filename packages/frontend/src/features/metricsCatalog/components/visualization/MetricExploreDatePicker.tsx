@@ -15,8 +15,8 @@ import {
     Button,
     SegmentedControl,
     Popover,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
 import { DatePicker, MonthPicker, YearPicker } from '@mantine/dates';
 import { useCallback, useEffect, useRef, type FC } from 'react';
 import useTracking from '../../../../providers/Tracking/useTracking';
@@ -131,7 +131,6 @@ export const MetricExploreDatePicker: FC<Props> = ({
         ...presets.map((preset) => ({
             label: (
                 <Tooltip
-                    variant="xs"
                     label={`${formatDate(preset.getValue()[0])} to ${formatDate(
                         preset.getValue()[1],
                     )}`}
@@ -203,7 +202,6 @@ export const MetricExploreDatePicker: FC<Props> = ({
                     {showTimeDimensionIntervalPicker &&
                         timeDimensionBaseField && (
                             <Tooltip
-                                variant="xs"
                                 label="Change granularity"
                                 position="top"
                                 withinPortal

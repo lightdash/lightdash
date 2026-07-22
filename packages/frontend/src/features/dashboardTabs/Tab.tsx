@@ -56,7 +56,6 @@ const DraggableTab: FC<DraggableTabProps> = ({
                         withArrow
                         openDelay={500}
                         color="dark"
-                        variant="xs"
                         disabled={!isTruncated}
                         maw={300}
                         multiline

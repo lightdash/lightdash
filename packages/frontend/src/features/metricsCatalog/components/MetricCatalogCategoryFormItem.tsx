@@ -11,8 +11,8 @@ import {
     ActionIcon,
     SimpleGrid,
     Popover,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconCode, IconDots, IconTrash } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
@@ -144,7 +144,6 @@ const EditPopover: FC<EditPopoverProps> = ({
 
                     <Group justify="space-between">
                         <Tooltip
-                            variant="xs"
                             label="Delete this tag permanently"
                             openDelay={200}
                             maw={250}
@@ -234,7 +233,6 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
 
             {!canEdit && (
                 <Tooltip
-                    variant="xs"
                     maw={200}
                     position="top"
                     withinPortal

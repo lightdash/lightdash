@@ -97,11 +97,7 @@ export const ValidatorTableTopToolbar: FC<ValidatorTableTopToolbarProps> = ({
 
                 <Popover width={250} position="bottom-start">
                     <Popover.Target>
-                        <Tooltip
-                            withinPortal
-                            variant="xs"
-                            label="Filter by source type"
-                        >
+                        <Tooltip withinPortal label="Filter by source type">
                             <Button
                                 h={30}
                                 c="foreground"

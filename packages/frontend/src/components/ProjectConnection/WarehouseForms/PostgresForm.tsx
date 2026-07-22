@@ -8,8 +8,9 @@ import {
     Anchor,
     Select,
     PasswordInput,
+    Tooltip,
 } from '@mantine-8/core';
-import { NumberInput, Tooltip } from '@mantine/core';
+import { NumberInput } from '@mantine/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import React, { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';

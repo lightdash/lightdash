@@ -3,8 +3,7 @@ import {
     getHiddenFieldsFromVizTableConfig,
     type VizTableConfig,
 } from '@lightdash/common';
-import { ActionIcon, Popover } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
+import { ActionIcon, Popover, Tooltip } from '@mantine-8/core';
 import { IconDownload } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -43,7 +42,7 @@ const ResultsDownloadButton: FC<Props> = ({
     return (
         <Popover withArrow disabled={disabled}>
             <Popover.Target>
-                <Tooltip variant="xs" label="Download results">
+                <Tooltip label="Download results">
                     <ActionIcon variant="default" disabled={disabled}>
                         <MantineIcon icon={IconDownload} />
                     </ActionIcon>

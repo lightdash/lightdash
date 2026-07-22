@@ -89,7 +89,6 @@ const ResourceViewGridDataAppItem: FC<ResourceViewGridDataAppItemProps> = ({
                         <Tooltip
                             label={item.data.description}
                             position="top"
-                            variant="xs"
                             maw={400}
                             multiline
                             disabled={

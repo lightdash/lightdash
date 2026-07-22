@@ -18,8 +18,8 @@ import {
     NumberInput,
     SegmentedControl,
     Stack,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
 import { IconRotate360 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { EMPTY_X_AXIS } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
@@ -217,7 +217,7 @@ export const Layout: FC<Props> = ({ items }) => {
                             validConfig?.layout.flipAxes ? 'Y' : 'X'
                         }-axis`}</Config.Heading>
                         <Group gap="two">
-                            <Tooltip variant="xs" label="Flip Axes">
+                            <Tooltip label="Flip Axes">
                                 <ActionIcon
                                     variant="subtle"
                                     onClick={() =>
@@ -454,7 +454,6 @@ export const Layout: FC<Props> = ({ items }) => {
                     </Stack>
                     {canBeStacked && (
                         <Tooltip
-                            variant="xs"
                             label="x-axis must be non-numeric to enable stacking"
                             withinPortal
                             position="top-start"

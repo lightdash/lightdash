@@ -78,7 +78,6 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
                 <Tooltip
                     label={item.data.description}
                     position="top"
-                    variant="xs"
                     maw={400}
                     multiline
                     disabled={!item.data.description}

@@ -14,8 +14,8 @@ import {
     Stack,
     Text,
     Select,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
 import { IconCalendar, IconStack } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
 import { useCallback, type FC } from 'react';
@@ -137,7 +137,6 @@ export const MetricExploreComparison: FC<Props> = ({
                         <Tooltip
                             key={comparison.type}
                             label={comparison.tooltipLabel}
-                            variant="xs"
                             position="right"
                             withinPortal
                         >

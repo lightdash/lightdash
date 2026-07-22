@@ -1,6 +1,5 @@
 import type { CatalogItem } from '@lightdash/common';
-import { Group, ActionIcon, Badge } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
+import { Group, ActionIcon, Badge, Tooltip } from '@mantine-8/core';
 import { IconCode, IconX } from '@tabler/icons-react';
 import type { CSSProperties, FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -47,7 +46,6 @@ export const CatalogCategory: FC<Props> = ({
             rightSection={
                 showYamlIcon && (
                     <Tooltip
-                        variant="xs"
                         maw={200}
                         position="top"
                         withinPortal

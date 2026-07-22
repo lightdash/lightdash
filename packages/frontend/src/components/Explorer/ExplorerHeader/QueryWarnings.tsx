@@ -6,8 +6,8 @@ import {
     Title,
     ActionIcon,
     Popover,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { Fragment, useState, type FC } from 'react';

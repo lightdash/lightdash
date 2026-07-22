@@ -19,8 +19,8 @@ import {
     Text,
     SegmentedControl,
     Select,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
 import differenceBy from 'lodash/differenceBy';
 import { useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
@@ -237,7 +237,6 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                                         <Tooltip
                                             label="Compare selected field to values"
                                             withinPortal
-                                            variant="xs"
                                         >
                                             <Center>Values</Center>
                                         </Tooltip>
@@ -249,7 +248,6 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                                         <Tooltip
                                             label="Compare selected field to another field"
                                             withinPortal
-                                            variant="xs"
                                         >
                                             <Center>Field</Center>
                                         </Tooltip>
@@ -261,7 +259,6 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                                         <Tooltip
                                             label="Compare another field to values"
                                             withinPortal
-                                            variant="xs"
                                         >
                                             <Center>Field values</Center>
                                         </Tooltip>

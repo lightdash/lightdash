@@ -34,8 +34,8 @@ import {
     SegmentedControl,
     Badge,
     Popover,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
 import {
     IconEye,
     IconEyeOff,
@@ -113,7 +113,6 @@ const SortableColumn: FC<{
         <Group ref={setNodeRef} style={style} justify="space-between" h={28}>
             <Group gap={4}>
                 <Tooltip
-                    variant="xs"
                     disabled={!column.frozen}
                     label={`The ${column.name} column is pinned for usability`}
                     position="top"
@@ -439,7 +438,6 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         <Popover.Target>
                             <Tooltip
                                 withinPortal
-                                variant="xs"
                                 multiline
                                 maw={150}
                                 label="Manage column visibility"
@@ -505,7 +503,6 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                         <>
                                             <Tooltip
                                                 position="bottom"
-                                                variant="xs"
                                                 withinPortal
                                                 label={
                                                     hasConfigChanges
@@ -551,7 +548,6 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                     ) : (
                                         <Tooltip
                                             position="bottom"
-                                            variant="xs"
                                             withinPortal
                                             label={'Discard unsaved changes'}
                                         >
@@ -609,7 +605,6 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                 label: (
                                     <Tooltip
                                         withinPortal
-                                        variant="xs"
                                         label="List view"
                                         position="bottom-end"
                                     >
@@ -627,7 +622,6 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                 label: (
                                     <Tooltip
                                         withinPortal
-                                        variant="xs"
                                         label="Canvas"
                                         position="bottom-end"
                                     >

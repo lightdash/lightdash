@@ -2,8 +2,13 @@ import {
     assertUnreachable,
     type ConditionalFormattingTextStyle,
 } from '@lightdash/common';
-import { Box, type BoxProps as BoxPropsBase, Text } from '@mantine-8/core';
-import { Tooltip, useMantineTheme } from '@mantine/core';
+import {
+    Box,
+    type BoxProps as BoxPropsBase,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
+import { useMantineTheme } from '@mantine/core';
 import { getHotkeyHandler, useClipboard, useId } from '@mantine/hooks';
 import { type PolymorphicComponentProps } from '@mantine/utils';
 import debounce from 'lodash/debounce';
@@ -476,7 +481,6 @@ const BaseCell = (
                                 multiline
                                 label={withTooltip}
                                 openDelay={500}
-                                variant="xs"
                             >
                                 <Text span inherit>
                                     {children}

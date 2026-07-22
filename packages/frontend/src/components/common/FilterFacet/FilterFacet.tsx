@@ -234,7 +234,7 @@ const FilterFacet = ({
         <Popover position="bottom-start" withArrow shadow="md" radius="md">
             <Popover.Target>
                 {tooltipLabel ? (
-                    <Tooltip withinPortal variant="xs" label={tooltipLabel}>
+                    <Tooltip withinPortal label={tooltipLabel}>
                         {trigger}
                     </Tooltip>
                 ) : (

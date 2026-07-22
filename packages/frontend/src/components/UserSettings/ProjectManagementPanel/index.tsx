@@ -653,11 +653,7 @@ const ProjectManagementPanel: FC = () => {
                 wrap="nowrap"
             >
                 <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-                    <Tooltip
-                        withinPortal
-                        variant="xs"
-                        label="Search by project name"
-                    >
+                    <Tooltip withinPortal label="Search by project name">
                         <ContentTableSearchInput
                             placeholder="Search projects..."
                             value={search}
@@ -741,11 +737,7 @@ const ProjectManagementPanel: FC = () => {
                     {/* Warehouse filter */}
                     <Popover width={220} position="bottom-start">
                         <Popover.Target>
-                            <Tooltip
-                                withinPortal
-                                variant="xs"
-                                label="Filter by warehouse"
-                            >
+                            <Tooltip withinPortal label="Filter by warehouse">
                                 <Button
                                     h={32}
                                     c="foreground"
@@ -842,11 +834,7 @@ const ProjectManagementPanel: FC = () => {
                     {availableCreators.length > 0 && (
                         <Popover width={250} position="bottom-start">
                             <Popover.Target>
-                                <Tooltip
-                                    withinPortal
-                                    variant="xs"
-                                    label="Filter by creator"
-                                >
+                                <Tooltip withinPortal label="Filter by creator">
                                     <Button
                                         h={32}
                                         c="foreground"

@@ -308,7 +308,6 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                                 <Tooltip
                                     withinPortal
                                     maw={400}
-                                    variant="xs"
                                     multiline
                                     label="When unchecked, choose specific tabs to include in the export."
                                 >

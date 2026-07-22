@@ -19,8 +19,9 @@ import {
     Text,
     Select,
     Switch,
+    Tooltip,
 } from '@mantine-8/core';
-import { NumberInput, Tooltip } from '@mantine/core';
+import { NumberInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconCheck, IconExclamationCircle } from '@tabler/icons-react';
 import {

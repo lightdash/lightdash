@@ -27,8 +27,7 @@ import {
     type ResultValue,
     type TableCalculation,
 } from '@lightdash/common';
-import { Group, Skeleton } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
+import { Group, Skeleton, Tooltip } from '@mantine-8/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { type CellContext } from '@tanstack/react-table';
 import omit from 'lodash/omit';

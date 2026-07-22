@@ -9,8 +9,7 @@ import {
     type Metric,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Group, Stack, SegmentedControl } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
+import { Box, Group, Stack, SegmentedControl, Tooltip } from '@mantine-8/core';
 import FieldSelect from '../../common/FieldSelect';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -45,7 +44,6 @@ export const Layout: React.FC = () => {
                     <Config.Group>
                         <Config.Heading>Groups</Config.Heading>
                         <Tooltip
-                            variant="xs"
                             disabled={
                                 !(
                                     dimensions.length === 0 ||
@@ -119,7 +117,6 @@ export const Layout: React.FC = () => {
                     <Config.Heading>Metric</Config.Heading>
 
                     <Tooltip
-                        variant="xs"
                         disabled={numericMetrics && numericMetrics.length > 0}
                         label="You must select at least one numeric metric to create a pie chart"
                     >

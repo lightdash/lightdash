@@ -19,8 +19,8 @@ import {
     LoadingOverlay,
     SegmentedControl,
     Transition,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
 import { useElementSize, useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
@@ -472,7 +472,6 @@ export const ContentPanel: FC = () => {
                                             label: (
                                                 <Tooltip
                                                     disabled={!hasUnrunChanges}
-                                                    variant="xs"
                                                     withinPortal
                                                     label="You haven't run this query yet."
                                                 >
@@ -495,7 +494,6 @@ export const ContentPanel: FC = () => {
                                                     disabled={
                                                         !!queryResults?.results
                                                     }
-                                                    variant="xs"
                                                     withinPortal
                                                     label="Run a query to see the chart"
                                                 >
@@ -565,7 +563,6 @@ export const ContentPanel: FC = () => {
                             />
                             {activeEditorTab === EditorTabs.SQL && (
                                 <Tooltip
-                                    variant="xs"
                                     label="Format SQL"
                                     withArrow
                                     position="bottom"

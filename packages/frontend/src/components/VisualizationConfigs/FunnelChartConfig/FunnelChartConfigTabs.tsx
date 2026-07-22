@@ -18,8 +18,9 @@ import {
     Tabs,
     SegmentedControl,
     Switch,
+    Tooltip,
 } from '@mantine-8/core';
-import { MantineProvider, Tooltip, useMantineColorScheme } from '@mantine/core';
+import { MantineProvider, useMantineColorScheme } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { isFunnelVisualizationConfig } from '../../LightdashVisualization/types';
@@ -121,7 +122,6 @@ export const ConfigTabs: FC = memo(() => {
                                     <Config.Heading>Data field</Config.Heading>
 
                                     <Tooltip
-                                        variant="xs"
                                         disabled={
                                             numericFields &&
                                             numericFields.length > 0

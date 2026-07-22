@@ -78,7 +78,6 @@ const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
                     position="top"
                     maw={400}
                     multiline
-                    variant="xs"
                     label={item.data.description}
                     disabled={!item.data.description}
                 >

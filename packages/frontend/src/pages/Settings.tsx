@@ -854,7 +854,7 @@ const Settings: FC = () => {
             isSidebarCollapsed={isSidebarCollapsed}
             isSidebarCollapsible
             collapsedSidebarContent={
-                <Tooltip label="Pin sidebar" position="right" variant="xs">
+                <Tooltip label="Pin sidebar" position="right">
                     <ActionIcon
                         variant="subtle"
                         color="gray"
@@ -882,7 +882,6 @@ const Settings: FC = () => {
                                     ? 'Pin sidebar'
                                     : 'Unpin sidebar'
                             }
-                            variant="xs"
                         >
                             <ActionIcon
                                 variant="subtle"
