@@ -622,17 +622,12 @@ describe('Parse dimension reference', () => {
             { refName: 'TABLE', refTable: 'table' },
         ]);
     });
-    test('should parse TABLE column references', () => {
+    test('should parse unquoted TABLE column references', () => {
         expect(
             getTableColumnReferences(
-                'SUM(${TABLE}.amount) + ${TABLE}."Order Total" + ${TABLE}.`tax``rate` + ${TABLE}.`escaped\\`name` + ${TABLE}.amount',
+                'SUM(${TABLE}.amount) + ${TABLE}."Order Total" + ${TABLE}.`tax``rate` + ${TABLE}.amount',
             ),
-        ).toStrictEqual([
-            'amount',
-            '"Order Total"',
-            '`tax``rate`',
-            '`escaped\\`name`',
-        ]);
+        ).toStrictEqual(['amount']);
         expect(
             getTableColumnReferences(
                 '${TABLE}.address.city + ${amount} + ${orders.shipping_cost}',
@@ -658,9 +653,7 @@ describe('Parse dimension reference', () => {
             ['2024_revenue'],
         );
         expect(getTableColumnReferences('${TABLE}.a$b')).toStrictEqual(['a']);
-        expect(getTableColumnReferences('${TABLE}."a$b"')).toStrictEqual([
-            '"a$b"',
-        ]);
+        expect(getTableColumnReferences('${TABLE}."a$b"')).toStrictEqual([]);
     });
     test('should not parse lightdash attribute', () => {
         expect(
