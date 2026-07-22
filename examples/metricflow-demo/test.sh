@@ -87,22 +87,58 @@ if [ -n "${DBT_CLOUD_CLI_CONFIG:-}" ]; then
         echo "DBT_CLOUD_CLI_CONFIG does not point at a readable file: $DBT_CLOUD_CLI_CONFIG"
         exit 1
     fi
+    if [ -z "${DBT_CLOUD_PROJECT_ID:-}" ]; then
+        echo "DBT_CLOUD_PROJECT_ID is required for live Cloud CLI parse (e.g. 547715)"
+        exit 1
+    fi
     mkdir -p "$HOME/.dbt"
     cp "$DBT_CLOUD_CLI_CONFIG" "$HOME/.dbt/dbt_cloud.yml"
+    chmod 600 "$HOME/.dbt/dbt_cloud.yml"
     pushd latest-spec >/dev/null
-    # Cloud CLI authenticates via ~/.dbt/dbt_cloud.yml and compiles in Cloud.
-    # The project must already have a matching dbt-cloud.project-id block.
-    ../.dbt-cloud-cli/dbt parse 2>&1 | tail -20
+    # Inject dbt-cloud.project-id for this run only (not committed).
+    if ! grep -q '^dbt-cloud:' dbt_project.yml; then
+        printf '\ndbt-cloud:\n  project-id: "%s"\n' "$DBT_CLOUD_PROJECT_ID" >> dbt_project.yml
+        trap 'git checkout -- dbt_project.yml 2>/dev/null || sed -i "/^dbt-cloud:/,/project-id:/d" dbt_project.yml' EXIT
+    fi
+    python3 - <<PY
+import yaml
+from pathlib import Path
+cfg_path = Path.home() / ".dbt" / "dbt_cloud.yml"
+cfg = yaml.safe_load(cfg_path.read_text())
+cfg["context"]["active-project"] = str("$DBT_CLOUD_PROJECT_ID")
+cfg_path.write_text(yaml.safe_dump(cfg, sort_keys=False))
+PY
+    ../.dbt-cloud-cli/dbt environment show 2>&1 | head -40
+    ../.dbt-cloud-cli/dbt parse 2>&1 | tee /tmp/metricflow-cloud-cli-parse.log | tail -40
     if [ -f target/manifest.json ]; then
         node ../assert-translation.cjs target/manifest.json
+        # Spot-check Cloud CLI expr shape on a simple metric
+        python3 - <<'PY'
+import json
+from pathlib import Path
+m = json.loads(Path("target/manifest.json").read_text())
+simple = next(
+    (v for v in m.get("metrics", {}).values() if v.get("type") == "simple"),
+    None,
+)
+if not simple:
+    raise SystemExit("no simple metrics in Cloud CLI manifest")
+tp = simple.get("type_params") or {}
+agg = tp.get("metric_aggregation_params") or {}
+print(
+    f"Cloud CLI shape check ({simple.get('name')}): "
+    f"type_params.expr={tp.get('expr')!r} "
+    f"metric_aggregation_params.expr={agg.get('expr')!r}"
+)
+PY
     else
-        echo "Cloud CLI parse did not write target/manifest.json"
+        echo "Cloud CLI parse did not write target/manifest.json — see /tmp/metricflow-cloud-cli-parse.log"
         exit 1
     fi
     popd >/dev/null
 else
     echo
-    echo "(Skipping live Cloud CLI parse — set DBT_CLOUD_CLI_CONFIG=/path/to/dbt_cloud.yml to enable)"
+    echo "(Skipping live Cloud CLI parse — set DBT_CLOUD_CLI_CONFIG and DBT_CLOUD_PROJECT_ID to enable)"
 fi
 
 echo
