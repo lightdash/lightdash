@@ -20,7 +20,7 @@ import {
     useState,
     type FC,
 } from 'react';
-import { TagInput } from '../../../components/common/TagInput/TagInput';
+import { PillTagsInput } from '../../../components/common/TagsInput/PillTagsInput';
 import useToaster from '../../../hooks/toaster/useToaster';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -33,6 +33,7 @@ import { useCreateTag, useProjectTags } from '../hooks/useProjectTags';
 import { getRandomColor } from '../utils/getRandomTagColor';
 import { CatalogCategory } from './CatalogCategory';
 import { MetricCatalogCategoryFormItem } from './MetricCatalogCategoryFormItem';
+import formClasses from './MetricsCatalogCategoryForm.module.css';
 
 type Props = {
     catalogSearchUuid: string;
@@ -276,48 +277,28 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                 </Popover.Target>
                 <Popover.Dropdown p={0}>
                     <Stack px="sm" pt="sm" gap="xs">
-                        <TagInput
+                        <PillTagsInput
                             value={categoryNames}
                             allowDuplicates={false}
                             onSearchChange={handleSearchChange}
                             searchValue={search}
-                            valueComponent={renderValueComponent}
+                            renderPill={renderValueComponent}
                             placeholder="Search"
                             size="xs"
                             mb="xs"
                             radius="md"
-                            fw={500}
-                            addOnBlur={false}
+                            acceptValueOnBlur={false}
                             onBlur={(e) => {
                                 e.stopPropagation();
                             }}
-                            onChange={async (val) => {
+                            onChange={(val) => {
                                 if (canCreateTag) {
                                     void handleAddTag(val[val.length - 1]);
                                 }
                             }}
-                            styles={(theme) => ({
-                                input: {
-                                    paddingBottom: 4,
-                                    paddingTop: 4,
-                                    paddingRight: 3,
-                                },
-                                tagInput: {
-                                    fontWeight: 500,
-                                    color: theme.colors.ldDark[9],
-                                },
-                                tagInputContainer: {
-                                    padding: `${theme.spacing.xxs}px ${theme.spacing.xs}px`,
-                                },
-                                wrapper: {
-                                    borderRadius: theme.radius.md,
-                                    backgroundColor: 'transparent',
-                                    fontWeight: 500,
-                                },
-                                values: {
-                                    rowGap: 4,
-                                },
-                            })}
+                            classNames={{
+                                input: formClasses.categoriesInput,
+                            }}
                         />
                         <Text size="xs" fw={500} c="dimmed">
                             Select a category or create a new one
