@@ -90,7 +90,8 @@ export const blockLibrary: BlockDefinition[] = [
     {
         type: 'collection',
         label: 'Collection',
-        description: 'A curated set of dashboards and charts.',
+        description:
+            'A curated set of dashboards, charts, spaces, and data apps.',
         icon: IconLayoutGrid,
         create: () => ({
             id: uuidv4(),

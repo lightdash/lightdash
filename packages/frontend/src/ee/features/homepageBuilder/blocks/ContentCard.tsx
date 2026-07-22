@@ -24,6 +24,8 @@ const contentUrl = (projectUuid: string, content: SummaryContent): string => {
             return `/projects/${projectUuid}/dashboards/${content.uuid}/view`;
         case ContentType.SPACE:
             return `/projects/${projectUuid}/spaces/${content.uuid}`;
+        case ContentType.DATA_APP:
+            return `/projects/${projectUuid}/n${content.uuid}`;
         default:
             return `/projects/${projectUuid}/saved/${content.uuid}`;
     }

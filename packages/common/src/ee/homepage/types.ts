@@ -19,7 +19,7 @@ export type HomepageAskAiHeroBlock = {
 };
 
 export type HomepageCollectionItemRef = {
-    contentType: 'chart' | 'dashboard';
+    contentType: 'chart' | 'dashboard' | 'space' | 'data_app';
     uuid: string;
 };
 
