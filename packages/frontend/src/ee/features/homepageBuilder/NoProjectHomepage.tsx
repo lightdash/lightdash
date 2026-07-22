@@ -11,6 +11,7 @@ import { useRecommendedActions } from './blocks/useRecommendedActions';
 import { DayOneAskInput } from './DayOneAskInput';
 import { getGreeting } from './greeting';
 import layout from './homepageLayout.module.css';
+import HomepageStars from './HomepageStars';
 
 const NoProjectHomepage: FC = () => {
     const { user } = useApp();
@@ -32,8 +33,9 @@ const NoProjectHomepage: FC = () => {
 
     return (
         <Box className={layout.page}>
-            <Box className={layout.heroSection}>
-                <Box className={layout.hero}>
+            <Box className={`${layout.heroSection} ${layout.heroStage}`}>
+                <HomepageStars />
+                <Box className={`${layout.hero} ${layout.heroStageContent}`}>
                     <Stack gap={16} align="center" w="100%">
                         <Text
                             component="h1"
