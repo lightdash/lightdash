@@ -15,6 +15,13 @@ type Dependencies = {
     linearClient: LinearClient | null;
 };
 
+/**
+ * Prefix marking a Linear customer external id as a Lightdash organization
+ * uuid (`lightdash:<org uuid>`). Lets the org mapping coexist with ids other
+ * systems (e.g. the CRM) store on the same customer.
+ */
+export const LIGHTDASH_ORG_EXTERNAL_ID_PREFIX = 'lightdash:';
+
 export type RoadmapSyncSummary = {
     customers: number;
     skippedCustomers: number;
@@ -56,12 +63,23 @@ export class RoadmapService extends BaseService {
 
     /**
      * Resolve a Linear customer's external ids to the single Lightdash
-     * organization it maps to. A customer with no (or multiple) org-shaped
-     * external ids can't be resolved unambiguously and is skipped.
+     * organization it maps to.
+     *
+     * Preferred convention: a `lightdash:<org uuid>` external id — explicit,
+     * and unambiguous even when other systems store their own ids on the
+     * customer. Legacy convention: the customer's only external id is the org
+     * uuid. A customer matching neither (or matching the prefix more than
+     * once) can't be resolved unambiguously and is skipped.
      */
     private static resolveOrganizationUuid(
         externalIds: string[],
     ): string | null {
+        const prefixed = externalIds
+            .filter((id) => id.startsWith(LIGHTDASH_ORG_EXTERNAL_ID_PREFIX))
+            .map((id) => id.slice(LIGHTDASH_ORG_EXTERNAL_ID_PREFIX.length));
+        if (prefixed.length > 0) {
+            return prefixed.length === 1 ? prefixed[0] : null;
+        }
         return externalIds.length === 1 ? externalIds[0] : null;
     }
 
@@ -153,7 +171,15 @@ export class RoadmapService extends BaseService {
         const items: CuratedRoadmapItem[] = [];
         let rejectedItems = 0;
         let nonPublicItems = 0;
+        // Multiple customer needs can point at the same Linear issue; mirror
+        // each issue once or the batch insert violates the per-link unique
+        // constraint on linear_issue_id.
+        const seenIssueIds = new Set<string>();
         issues.forEach((issue) => {
+            if (seenIssueIds.has(issue.id)) {
+                return;
+            }
+            seenIssueIds.add(issue.id);
             if (issue.issueUrl === null) {
                 nonPublicItems += 1;
                 this.logger.debug(
