@@ -425,7 +425,6 @@ export class SavedChartService
             customColumnWidthsCount: Object.values(
                 tableConfig?.columns ?? {},
             ).filter((column) => column.width !== undefined).length,
-            wrapColumnTitles: tableConfig?.wrapColumnTitles === true,
             tableCalculationFunctions: TABLE_CALCULATION_FUNCTIONS.filter(
                 ({ pattern }) =>
                     savedChart.metricQuery.tableCalculations.some(

@@ -613,7 +613,6 @@ type UpdateSavedChartEvent = BaseTrack & {
         hasColumnLimit: boolean;
         columnLimit: number | null;
         customColumnWidthsCount: number;
-        wrapColumnTitles: boolean;
         tableCalculationFunctions: string[];
         hasAverageDistinctAdditionalMetric: boolean;
         numCustomGroupBinCustomDimensions: number;
@@ -772,7 +771,6 @@ export type CreateSavedChartVersionEvent = BaseTrack & {
         hasColumnLimit: boolean;
         columnLimit: number | null;
         customColumnWidthsCount: number;
-        wrapColumnTitles: boolean;
         tableCalculationFunctions: string[];
         hasAverageDistinctAdditionalMetric: boolean;
     };
