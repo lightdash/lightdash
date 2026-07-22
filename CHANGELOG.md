@@ -1,3 +1,22 @@
+# [0.3454.0](https://github.com/lightdash/lightdash/compare/0.3453.0...0.3454.0) (2026-07-22)
+
+
+### Bug Fixes
+
+* show AI prompt greeting regardless of block position ([#25960](https://github.com/lightdash/lightdash/issues/25960)) ([bb5afdb](https://github.com/lightdash/lightdash/commit/bb5afdb730c56c0d913fd430444fbe7a203e32f0)), closes [/linear.app/lightdash/issue/ZAP-686/greeting-on-the-ai-prompt-doesnt-show-unless-its-at-the-top#agent-session-089dba31](https://github.com//linear.app/lightdash/issue/ZAP-686/greeting-on-the-ai-prompt-doesnt-show-unless-its-at-the-top/issues/agent-session-089dba31)
+
+
+### Features
+
+* **backend:** playground project provisioning service and endpoint ([#25945](https://github.com/lightdash/lightdash/issues/25945)) ([ad19a47](https://github.com/lightdash/lightdash/commit/ad19a47a2d79f4125a753f440bca32c0e34f312b))
+* **backend:** track playground provisioning through the project lifecycle ([#25942](https://github.com/lightdash/lightdash/issues/25942)) ([4dad6d9](https://github.com/lightdash/lightdash/commit/4dad6d9d8490e7be59ea363de4ee5d362e5c55f6))
+* **data-apps:** move auto-name off the build critical path ([#25962](https://github.com/lightdash/lightdash/issues/25962)) ([0ae4f51](https://github.com/lightdash/lightdash/commit/0ae4f51c2247f1f2aa10109f10ffc07df91e0dff))
+* **frontend:** ambient component stars on the no-warehouse homepage ([#25901](https://github.com/lightdash/lightdash/issues/25901)) ([f8b7cbb](https://github.com/lightdash/lightdash/commit/f8b7cbb80b3b02d4b10a9d5efd9341fdce70c7b5))
+* **frontend:** invite-an-expert page replacing the setup-invite modal ([#25946](https://github.com/lightdash/lightdash/issues/25946)) ([3be402e](https://github.com/lightdash/lightdash/commit/3be402e95e26a90a239deec8b6971049b293e443))
+* **frontend:** playground onboarding integration ([#25830](https://github.com/lightdash/lightdash/issues/25830)) ([b9a94a0](https://github.com/lightdash/lightdash/commit/b9a94a081c0141be57a57cba150cb3aa107e17bd))
+* playground sample-data bundle and build script ([#25944](https://github.com/lightdash/lightdash/issues/25944)) ([9660c65](https://github.com/lightdash/lightdash/commit/9660c65fa6063f6bf24569e77c85adfdc0561078))
+* **warehouses:** embedded DuckDB warehouse client, provisionable only internally ([#25943](https://github.com/lightdash/lightdash/issues/25943)) ([34f5364](https://github.com/lightdash/lightdash/commit/34f5364d5906190d3c9da782d29dc8c3c8d9306c))
+
 # [0.3453.0](https://github.com/lightdash/lightdash/compare/0.3452.0...0.3453.0) (2026-07-22)
 
 
