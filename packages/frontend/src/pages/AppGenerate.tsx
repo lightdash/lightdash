@@ -765,7 +765,8 @@ const AppGenerate: FC = () => {
     const { showToastError, showToastSuccess, showToastWarning } = useToaster();
     const { mutateAsync: uploadThumbnail } = useAppThumbnailUpload();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
-    const { user } = useApp();
+    const { user, health } = useApp();
+    const sampleDataEnabled = health.data?.dataApps.sampleDataEnabled !== false;
     const ability = useAbilityContext();
     const chatMessagesRef = useRef<HTMLDivElement>(null);
 
@@ -2718,6 +2719,9 @@ const AppGenerate: FC = () => {
                                             )}
                                             {selectedCharts.length > 0 && (
                                                 <SelectedQuerySection
+                                                    sampleDataEnabled={
+                                                        sampleDataEnabled
+                                                    }
                                                     charts={selectedCharts}
                                                     onRemove={(uuid) =>
                                                         setSelectedCharts(
@@ -2770,6 +2774,9 @@ const AppGenerate: FC = () => {
                                             )}
                                             {selectedDashboard && (
                                                 <SelectedDashboardSection
+                                                    sampleDataEnabled={
+                                                        sampleDataEnabled
+                                                    }
                                                     dashboard={
                                                         selectedDashboard
                                                     }
