@@ -14396,8 +14396,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         agentUuid: string,
         instruction: string,
     ): Promise<string> {
-        // Check user has access to the agent
-        await this.getAgent(user, agentUuid, projectUuid);
+        // Check user can manage the agent
+        await this.assertCanManageAgent(user, agentUuid, projectUuid);
 
         return this.aiAgentModel.appendInstruction({
             agentUuid,
