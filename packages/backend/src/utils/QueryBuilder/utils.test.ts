@@ -9,6 +9,8 @@ import {
     JoinRelationship,
     MetricType,
     SupportedDbtAdapter,
+    TableCalculationTotalMode,
+    TableCalculationType,
     TimeFrames,
     WeekDay,
     type TableCalculation,
@@ -36,11 +38,49 @@ import {
     getCustomBinDimensionSql,
     getCustomSqlDimensionSql,
     getJoinedTables,
+    getSumOfRowsTableCalculations,
     replaceUserAttributesAsStrings,
     replaceUserAttributesInSqlTable,
     sortDayOfWeekName,
     sortMonthName,
 } from './utils';
+
+describe('getSumOfRowsTableCalculations', () => {
+    const tableCalculation = (
+        name: string,
+        type?: TableCalculationType,
+        totalMode = TableCalculationTotalMode.SUM_OF_ROWS,
+    ): TableCalculation => ({
+        name,
+        displayName: name,
+        sql: '1',
+        type,
+        totalMode,
+    });
+
+    it('returns only numeric sum-of-rows calculations', () => {
+        const metricQuery = {
+            ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+            tableCalculations: [
+                tableCalculation('implicit-number'),
+                tableCalculation('number', TableCalculationType.NUMBER),
+                tableCalculation('string', TableCalculationType.STRING),
+                tableCalculation('date', TableCalculationType.DATE),
+                tableCalculation(
+                    'formula',
+                    TableCalculationType.NUMBER,
+                    TableCalculationTotalMode.FORMULA,
+                ),
+            ],
+        };
+
+        expect(
+            getSumOfRowsTableCalculations(metricQuery).map(
+                (calculation) => calculation.name,
+            ),
+        ).toEqual(['implicit-number', 'number']);
+    });
+});
 
 describe('replaceUserAttributes', () => {
     it('method with no user attribute should return same sqlFilter', () => {
