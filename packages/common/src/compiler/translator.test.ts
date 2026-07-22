@@ -189,8 +189,9 @@ describe('timestamp domain', () => {
         slt_week: {
             label: 'SLT Week',
             sql: "DATE_TRUNC('week', ${COLUMN})",
+            type: DimensionType.TIMESTAMP,
         },
-    };
+    } as const;
 
     it('should attach timestamp_domain as a sibling of data_type', () => {
         expect(
@@ -209,7 +210,7 @@ describe('timestamp domain', () => {
         ).not.toHaveProperty('timestamp_domain');
     });
 
-    it('should stamp timestampDomain on the dimension and its interval children', () => {
+    it('should stamp timestampDomain on standard intervals but not custom granularities', () => {
         const result = convertTable(
             SupportedDbtAdapter.POSTGRES,
             MODEL_WITH_TIMESTAMP_DOMAIN,
@@ -226,8 +227,8 @@ describe('timestamp domain', () => {
         expect(result.dimensions.user_created_day.timestampDomain).toEqual(
             'naive',
         );
-        expect(result.dimensions.user_created_slt_week.timestampDomain).toEqual(
-            'naive',
+        expect(result.dimensions.user_created_slt_week).not.toHaveProperty(
+            'timestampDomain',
         );
     });
 

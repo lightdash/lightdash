@@ -72,6 +72,7 @@ import {
     type FieldsContext,
     type ParameterDefinitions,
     type ParametersValuesMap,
+    type TimestampDomain,
     type WarehouseSqlBuilder,
     type WeekDay,
 } from '@lightdash/common';
@@ -897,6 +898,45 @@ export class MetricQueryBuilder {
             this.columnTimezone,
             timestampDomain,
         );
+    }
+
+    /**
+     * Effective timestamp domain for a filter target, resolved with the same
+     * guards as the LHS in `getTimezoneAwareDimensionSql` so literal and
+     * column decisions stay symmetric: the dim's own value, falling back to
+     * its interval base dimension. Bare targets with timezone conversion
+     * disabled keep the legacy RHS so the literal stays in the raw value
+     * space alongside the column.
+     */
+    private resolveFilterTimestampDomain(
+        dimension: CompiledDimension,
+    ): TimestampDomain | undefined {
+        if (!dimension.timeInterval) {
+            return dimension.type === DimensionType.TIMESTAMP &&
+                !dimension.skipTimezoneConversion
+                ? dimension.timestampDomain
+                : undefined;
+        }
+        const baseDimensionId = dimension.timeIntervalBaseDimensionName
+            ? `${dimension.table}_${dimension.timeIntervalBaseDimensionName}`
+            : undefined;
+        const baseDimension = baseDimensionId
+            ? (this.originalExploreDimensions[baseDimensionId] ??
+              this.exploreDimensions[baseDimensionId])
+            : undefined;
+        if (
+            !baseDimension?.compiledSql ||
+            baseDimension.type !== DimensionType.TIMESTAMP
+        ) {
+            return undefined;
+        }
+        if (
+            dimension.timeInterval === TimeFrames.RAW &&
+            baseDimension.skipTimezoneConversion
+        ) {
+            return undefined;
+        }
+        return dimension.timestampDomain ?? baseDimension.timestampDomain;
     }
 
     /**
@@ -2067,6 +2107,10 @@ export class MetricQueryBuilder {
             field.timeInterval === TimeFrames.RAW &&
             filterField.compiledSql !== field.compiledSql;
 
+        const timestampDomain = isDimension(field)
+            ? this.resolveFilterTimestampDomain(field)
+            : undefined;
+
         // For period-to-date filters on truncated dimensions, resolve the
         // base (raw) dimension SQL so EXTRACT operates on the actual date
         let baseDimensionSql: string | undefined;
@@ -2107,6 +2151,7 @@ export class MetricQueryBuilder {
                 this.args.useTimezoneAwareDateTrunc,
                 this.columnTimezone,
                 rawFilterLhsIsInstant,
+                timestampDomain,
             );
         });
 
