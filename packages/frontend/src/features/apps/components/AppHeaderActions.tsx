@@ -1,4 +1,8 @@
-import { getAppDisplayName, type AppVersionStatus } from '@lightdash/common';
+import {
+    getAppDisplayName,
+    isApiError,
+    type AppVersionStatus,
+} from '@lightdash/common';
 import { ActionIcon, Menu, Tooltip } from '@mantine-8/core';
 import {
     IconArrowsUpDown,
@@ -9,17 +13,24 @@ import {
     IconEdit,
     IconFolderPlus,
     IconFolderSymlink,
+    IconPhotoX,
     IconRefresh,
     IconSend,
     IconTrash,
 } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState, type FC, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import AppDeleteModal from '../../../components/common/modal/AppDeleteModal';
 import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useProject } from '../../../hooks/useProject';
 import { AppSchedulersModal } from '../../scheduler/components/SchedulerModals';
+import {
+    useAppThumbnailDelete,
+    useAppThumbnailUrl,
+} from '../hooks/useAppThumbnail';
 import { useCanCreateDataApp } from '../hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../hooks/useCanEditDataApp';
 import { useDuplicateApp } from '../hooks/useDuplicateApp';
@@ -111,6 +122,46 @@ const AppHeaderActions: FC<Props> = ({
     const { mutate: duplicateMutate, isLoading: isDuplicating } =
         useDuplicateApp();
 
+    // "Remove thumbnail" is builder-only (same surfaces as captureThumbnail)
+    // and only enabled when a thumbnail actually exists. The existence check
+    // is deferred until the menu first opens; invalidations from captures
+    // keep it current afterwards. The error guard matters because
+    // react-query keeps stale data when a refetch fails.
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastError } = useToaster();
+    const [menuOpened, setMenuOpened] = useState(false);
+    const thumbnailQuery = useAppThumbnailUrl(
+        projectUuid,
+        appUuid,
+        menuOpened && canEdit && captureThumbnail !== null,
+    );
+    const hasThumbnail = !thumbnailQuery.isError && !!thumbnailQuery.data;
+    const { mutateAsync: deleteThumbnail, isLoading: isDeletingThumbnail } =
+        useAppThumbnailDelete();
+    const handleRemoveThumbnail = useCallback(async () => {
+        try {
+            await deleteThumbnail({ projectUuid, appUuid });
+            // Reset (not invalidate): the refetch 404s and react-query would
+            // keep the stale signed URL as data.
+            void queryClient.resetQueries({
+                queryKey: ['app-thumbnail', projectUuid, appUuid],
+            });
+            showToastSuccess({ title: 'Thumbnail removed' });
+        } catch (err) {
+            showToastError({
+                title: 'Failed to remove thumbnail',
+                subtitle: isApiError(err) ? err.error.message : 'Unknown error',
+            });
+        }
+    }, [
+        deleteThumbnail,
+        projectUuid,
+        appUuid,
+        queryClient,
+        showToastSuccess,
+        showToastError,
+    ]);
+
     const [schedulerModalOpen, setSchedulerModalOpen] = useState(false);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
     const [isMoveToSpaceOpen, setIsMoveToSpaceOpen] = useState(false);
@@ -155,6 +206,7 @@ const AppHeaderActions: FC<Props> = ({
                 withinPortal
                 withArrow
                 arrowPosition="center"
+                onOpen={() => setMenuOpened(true)}
             >
                 <Menu.Target>
                     <ActionIcon
@@ -206,15 +258,26 @@ const AppHeaderActions: FC<Props> = ({
                         </Menu.Item>
                     )}
                     {canEdit && captureThumbnail && (
-                        <Menu.Item
-                            leftSection={
-                                <MantineIcon icon={IconCamera} size={14} />
-                            }
-                            disabled={captureThumbnail.disabled}
-                            onClick={captureThumbnail.onCapture}
-                        >
-                            Capture thumbnail
-                        </Menu.Item>
+                        <>
+                            <Menu.Item
+                                leftSection={
+                                    <MantineIcon icon={IconCamera} size={14} />
+                                }
+                                disabled={captureThumbnail.disabled}
+                                onClick={captureThumbnail.onCapture}
+                            >
+                                Capture thumbnail
+                            </Menu.Item>
+                            <Menu.Item
+                                leftSection={
+                                    <MantineIcon icon={IconPhotoX} size={14} />
+                                }
+                                disabled={!hasThumbnail || isDeletingThumbnail}
+                                onClick={() => void handleRemoveThumbnail()}
+                            >
+                                Remove thumbnail
+                            </Menu.Item>
+                        </>
                     )}
                     {canDuplicate && (
                         <Menu.Item

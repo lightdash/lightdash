@@ -301,12 +301,14 @@ preview. In addition to attaching that PNG to the next prompt as a screenshot re
 it as the app thumbnail. The builder's header overflow menu also carries a **Capture thumbnail** action that runs the same
 capture but only saves the thumbnail — nothing is attached to the chat. It's disabled until the iframe announces
 screenshot capability, and hidden in the viewer (`AppPreviewTest`), which passes `captureThumbnail={null}` to
-`AppHeaderActions`.
+`AppHeaderActions`. Alongside it sits a **Remove thumbnail** action (same builder-only gating, enabled only when a
+thumbnail exists) that deletes the stored object — the escape hatch when a captured screenshot shows live data that
+shouldn't stay in the thumbnail.
 
 Storage is intentionally simple and app-scoped: the latest manual screenshot overwrites
 `apps/{appUuid}/thumbnail.png` in the app runtime S3 bucket. There is no DB row or per-version history; the object key is
-the metadata convention. The backend exposes a signed-url endpoint for that optional object, and the My Apps settings
-table lazy-loads it on name hover to show a preview when a thumbnail exists.
+the metadata convention. The backend exposes signed-url (`GET`) and idempotent delete (`DELETE`) endpoints for that
+optional object, and the My Apps settings table lazy-loads it on name hover to show a preview when a thumbnail exists.
 
 Because the key is app-scoped, an existing thumbnail automatically travels with the app when it moves between spaces.
 The move flow (`MoveAppToSpaceModal`, shared by the app header menu, space chip, My Apps list, and browse table)
