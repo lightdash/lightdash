@@ -262,12 +262,20 @@ export const useSettingsNavigation = (
             });
         }
 
-        if (ability?.can('update', 'Organization')) {
+        if (
+            ability?.can('update', 'Organization') ||
+            ability?.can(
+                'manage',
+                subject('OrganizationColorPalette', {
+                    organizationUuid: organization?.organizationUuid,
+                }),
+            )
+        ) {
             organizationItems.push({
                 label: 'Appearance',
                 to: '/generalSettings/appearance',
                 icon: IconPalette,
-                keywords: ['theme', 'color', 'branding', 'logo'],
+                keywords: ['theme', 'color', 'branding', 'logo', 'palette'],
                 children: [],
                 exact: true,
             });

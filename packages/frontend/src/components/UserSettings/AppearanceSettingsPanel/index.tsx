@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     ActionIcon,
     Button,
@@ -16,13 +17,14 @@ import {
 } from '../../../hooks/appearance/useOrganizationAppearance';
 import useHealth from '../../../hooks/health/useHealth';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
+import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { BrandAppearanceSettings } from './BrandAppearanceSettings';
 import { CreatePaletteModal } from './CreatePaletteModal';
 import { PaletteItem } from './PaletteItem';
 
-const AppearanceColorSettings: FC = () => {
+const AppearanceColorSettings: FC<{ canManage: boolean }> = ({ canManage }) => {
     const { data: organization } = useOrganization();
     const { data: health, isLoading: isHealthLoading } = useHealth();
     const { data: palettes = [], isLoading: isPalettesLoading } =
@@ -52,16 +54,18 @@ const AppearanceColorSettings: FC = () => {
                     visualizations.
                 </Text>
 
-                <Button
-                    leftSection={<MantineIcon icon={IconPlus} />}
-                    onClick={() => setIsCreatePaletteModalOpen(true)}
-                    variant="default"
-                    size="xs"
-                    style={{ alignSelf: 'flex-end' }}
-                    disabled={hasColorPaletteOverride}
-                >
-                    Add new palette
-                </Button>
+                {canManage && (
+                    <Button
+                        leftSection={<MantineIcon icon={IconPlus} />}
+                        onClick={() => setIsCreatePaletteModalOpen(true)}
+                        variant="default"
+                        size="xs"
+                        style={{ alignSelf: 'flex-end' }}
+                        disabled={hasColorPaletteOverride}
+                    >
+                        Add new palette
+                    </Button>
+                )}
             </Group>
 
             <Stack gap="xs">
@@ -92,6 +96,7 @@ const AppearanceColorSettings: FC = () => {
                                     }}
                                     isActive={true}
                                     readOnly
+                                    canManage={canManage}
                                     onSetActive={undefined}
                                 />
                             )}
@@ -102,8 +107,9 @@ const AppearanceColorSettings: FC = () => {
                                 isActive={
                                     palette.isActive && !hasColorPaletteOverride
                                 }
+                                canManage={canManage}
                                 onSetActive={
-                                    hasColorPaletteOverride
+                                    hasColorPaletteOverride || !canManage
                                         ? undefined
                                         : handleSetActive
                                 }
@@ -125,6 +131,18 @@ const AppearanceColorSettings: FC = () => {
 };
 
 const AppearanceSettingsPanel: FC = () => {
+    const { user } = useApp();
+
+    const canManageOrgSettings =
+        user.data?.ability?.can('update', 'Organization') ?? false;
+    const canManageColorPalette =
+        user.data?.ability?.can(
+            'manage',
+            subject('OrganizationColorPalette', {
+                organizationUuid: user.data?.organizationUuid,
+            }),
+        ) ?? false;
+
     return (
         <Stack gap="sm">
             <Group gap="xxs">
@@ -146,9 +164,9 @@ const AppearanceSettingsPanel: FC = () => {
                     </ActionIcon>
                 </Tooltip>
             </Group>
-            <BrandAppearanceSettings />
+            {canManageOrgSettings && <BrandAppearanceSettings />}
             <SettingsCard mb="lg">
-                <AppearanceColorSettings />
+                <AppearanceColorSettings canManage={canManageColorPalette} />
             </SettingsCard>
         </Stack>
     );
