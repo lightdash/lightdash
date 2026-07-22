@@ -624,9 +624,9 @@ describe('Parse dimension reference', () => {
     test('should parse unquoted TABLE column references', () => {
         expect(
             getTableColumnReferences(
-                'SUM(${TABLE}.amount) + ${TABLE}."Order Total" + ${TABLE}.`tax``rate` + ${TABLE}.amount',
+                'SUM(${TABLE}.amount) + ${TABLE}."Order Total" + ${TABLE}.`tax``rate` + ${TABLE}.some_other_name + ${TABLE}.amount',
             ),
-        ).toStrictEqual(['amount']);
+        ).toStrictEqual(['amount', 'some_other_name']);
         expect(
             getTableColumnReferences(
                 '${TABLE}.address.city + ${amount} + ${orders.shipping_cost}',
