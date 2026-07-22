@@ -2,17 +2,34 @@ import {
     ChartAsCode,
     CustomBinDimension,
     DashboardAsCode,
+    PromotionAction,
     SEED_PROJECT,
     SqlChartAsCode,
+    type PromotionChanges,
 } from '@lightdash/common';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
+import { randomUUID } from 'node:crypto';
 import * as path from 'path';
-import { beforeAll, describe, expect, it } from 'vitest';
-import { ApiClient } from '../helpers/api-client';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ApiClient, type Body } from '../helpers/api-client';
 import { login } from '../helpers/auth';
 
 const projectUuid = SEED_PROJECT.project_uuid;
+
+type CodeChange =
+    | PromotionChanges['charts'][number]
+    | PromotionChanges['dashboards'][number];
+
+const getCreatedUuid = (changes: CodeChange[], label: string) => {
+    expect(changes).toHaveLength(1);
+    const [change] = changes;
+    if (change === undefined) {
+        throw new Error(`${label} create response is empty`);
+    }
+    expect(change.action).toBe(PromotionAction.CREATE);
+    return change.data.uuid;
+};
 
 // Load YAML fixtures
 const fixturesDir = path.resolve(__dirname, '../fixtures');
@@ -26,10 +43,38 @@ function loadYamlFixture<T>(filename: string): T {
 describe('Charts as Code API', () => {
     let admin: ApiClient;
     let chartAsCode: ChartAsCode;
+    let chartUuid: string | null = null;
 
     beforeAll(async () => {
         admin = await login();
-        chartAsCode = loadYamlFixture<ChartAsCode>('chartAsCode.yml');
+        const fixture = loadYamlFixture<ChartAsCode>('chartAsCode.yml');
+        const uniqueId = randomUUID();
+        chartAsCode = {
+            ...fixture,
+            name: `${fixture.name} [${uniqueId}]`,
+            slug: `content-as-code-chart-${uniqueId}`,
+        };
+        const response = await admin.post<
+            Body<Pick<PromotionChanges, 'charts'>>
+        >(
+            `/api/v1/projects/${projectUuid}/code/charts/${chartAsCode.slug}`,
+            chartAsCode,
+        );
+        expect(response.status).toBe(200);
+        chartUuid = getCreatedUuid(
+            response.body.results.charts,
+            'chart as code fixture',
+        );
+    });
+
+    afterAll(async () => {
+        if (chartUuid === null) return;
+        const deleteResponse = await admin.delete(`/api/v1/saved/${chartUuid}`);
+        expect(deleteResponse.status).toBe(200);
+        const getResponse = await admin.get(`/api/v1/saved/${chartUuid}`, {
+            failOnStatusCode: false,
+        });
+        expect(getResponse.status).toBe(404);
     });
 
     it('make sure the chart is loaded from YML', () => {
@@ -125,12 +170,41 @@ describe('Charts as Code API', () => {
 describe('Dashboards as Code API', () => {
     let admin: ApiClient;
     let dashboardAsCode: DashboardAsCode;
+    let dashboardUuid: string | null = null;
 
     beforeAll(async () => {
         admin = await login();
-        dashboardAsCode = loadYamlFixture<DashboardAsCode>(
-            'dashboardAsCode.yml',
+        const fixture = loadYamlFixture<DashboardAsCode>('dashboardAsCode.yml');
+        const uniqueId = randomUUID();
+        dashboardAsCode = {
+            ...fixture,
+            name: `${fixture.name} [${uniqueId}]`,
+            slug: `content-as-code-dashboard-${uniqueId}`,
+        };
+        const response = await admin.post<
+            Body<Pick<PromotionChanges, 'dashboards'>>
+        >(
+            `/api/v1/projects/${projectUuid}/code/dashboards/${dashboardAsCode.slug}`,
+            dashboardAsCode,
         );
+        expect(response.status).toBe(200);
+        dashboardUuid = getCreatedUuid(
+            response.body.results.dashboards,
+            'dashboard as code fixture',
+        );
+    });
+
+    afterAll(async () => {
+        if (dashboardUuid === null) return;
+        const deleteResponse = await admin.delete(
+            `/api/v1/dashboards/${dashboardUuid}`,
+        );
+        expect(deleteResponse.status).toBe(200);
+        const getResponse = await admin.get(
+            `/api/v1/dashboards/${dashboardUuid}`,
+            { failOnStatusCode: false },
+        );
+        expect(getResponse.status).toBe(404);
     });
 
     it('make sure the dashboard is loaded from YML', () => {

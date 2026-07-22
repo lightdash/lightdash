@@ -182,6 +182,7 @@ const ResultsCard: FC = memo(() => {
                                 <Popover.Target>
                                     <ActionIcon
                                         data-testid="export-csv-button"
+                                        aria-label="Export results"
                                         {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
                                         disabled={disabled}
                                     >
@@ -189,7 +190,7 @@ const ResultsCard: FC = memo(() => {
                                     </ActionIcon>
                                 </Popover.Target>
 
-                                <Popover.Dropdown>
+                                <Popover.Dropdown aria-label="Export results">
                                     <ExportSelector
                                         projectUuid={projectUuid}
                                         totalResults={totalResults}

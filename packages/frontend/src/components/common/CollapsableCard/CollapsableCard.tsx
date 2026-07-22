@@ -54,6 +54,7 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
     return (
         <Card
             component={Flex}
+            data-testid={`${title}-card`}
             p="xxs"
             style={{
                 display: 'flex',
@@ -84,6 +85,7 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                 >
                     <Button
                         data-testid={`${title}-card-expand`}
+                        aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${title}`}
                         variant="subtle"
                         color="gray"
                         w="xxl"

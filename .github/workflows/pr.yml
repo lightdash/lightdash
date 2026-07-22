@@ -243,7 +243,7 @@ jobs:
                 name: 'Frontend E2E Tests',
                 selected: ${{ needs.files-changed.outputs.frontend }},
                 trigger: 'test-frontend',
-                description: 'Runs Cypress app tests'
+                description: 'Runs Playwright app tests'
               },
               {
                 name: 'Backend API Tests',
@@ -406,35 +406,6 @@ jobs:
   # Stage 3: E2E and CLI tests (only after preview is up)
   # ============================================================================
 
-  # Build cypress e2e image (only when E2E tests that use it will run)
-  build-cypress-e2e-image:
-    runs-on: depot-ubuntu-24.04-4
-    needs: files-changed
-    if: needs.files-changed.outputs.frontend == 'true' || needs.files-changed.outputs.timezone == 'true'
-    name: Build E2E Image
-    steps:
-      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
-        with:
-          egress-policy: audit
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
-      - name: GitHub Registry Login
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
-        with:
-          file: ./packages/e2e/dockerfile
-          context: .
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          tags: ghcr.io/lightdash/lightdash-cypress-e2e:latest
-          push: true
-
   api-tests:
     if: needs.files-changed.outputs.backend == 'true'
     timeout-minutes: 25
@@ -469,7 +440,7 @@ jobs:
         with:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}
-          dir: "./packages/e2e/cypress/fixtures/"
+          dir: "./packages/api-tests/fixtures/"
       - name: Run API tests
         run: pnpm -F api-tests test:api
         env:
@@ -492,112 +463,235 @@ jobs:
     if: needs.files-changed.outputs.frontend == 'true'
     timeout-minutes: 30
     runs-on: depot-ubuntu-24.04-4
-    needs: [preview, files-changed, build-cypress-e2e-image]
+    needs: [preview, files-changed]
     container:
-      image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
-      options: --user 1001
-    strategy:
-      fail-fast: false
-      matrix:
-        containers: [1, 2, 3, 4, 5]
-    name: "E2E: App (${{ matrix.containers }}/${{ strategy.job-total }})"
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+    name: "E2E: App"
     env:
       NODE_OPTIONS: "--max-old-space-size=8192"
+      TZ: "UTC"
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Setup Node, PNPM, and Cypress
-        uses: ./.github/workflows/_setup_node_pnpm_cypress
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+          cache-dependency-path: "pnpm-lock.yaml"
+      - name: Install packages
+        run: sfw pnpm install --frozen-lockfile --prefer-offline
       - name: Build packages/common module
         run: pnpm common-build:fast
-      - name: create-json
-        id: create-json
+      - name: Typecheck Playwright tests
+        run: pnpm -F e2e typecheck
+      - name: Run non-mutating Playwright tests
+        run: pnpm -F e2e exec playwright test --project=firefox --grep-invert @mutating
+        env:
+          HOME: /root
+          PLAYWRIGHT_BASE_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        id: playwright_artifacts
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: |
+            packages/e2e/playwright-report
+            packages/e2e/playwright-results
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Add Playwright artifact summary
+        if: ${{ !cancelled() && steps.playwright_artifacts.outputs.artifact-url != '' }}
+        env:
+          ARTIFACT_URL: ${{ steps.playwright_artifacts.outputs.artifact-url }}
+        run: |
+          video_count=0
+          if [ -d packages/e2e/playwright-results ]; then
+            video_count="$(find packages/e2e/playwright-results -type f -name 'video.webm' | wc -l | tr -d ' ')"
+          fi
+          {
+            echo "## Playwright artifacts"
+            echo
+            echo "Captured **${video_count}** videos at 1600x900."
+            echo
+            echo "[Download videos, traces, screenshots, and HTML report](${ARTIFACT_URL})"
+            echo
+            echo "Artifacts expire after 7 days."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # API and CLI tests can share preview state with mutating browser tests.
+  playwright-mutating:
+    if: |
+      !cancelled() &&
+      needs.files-changed.outputs.frontend == 'true' &&
+      needs.app-tests.result == 'success' &&
+      (needs.api-tests.result == 'success' || needs.api-tests.result == 'skipped') &&
+      (needs.cli-tests-without-dbt.result == 'success' || needs.cli-tests-without-dbt.result == 'skipped') &&
+      (needs.cli-tests.result == 'success' || needs.cli-tests.result == 'skipped') &&
+      (needs.cli-dbt-tests.result == 'success' || needs.cli-dbt-tests.result == 'skipped')
+    timeout-minutes: 60
+    runs-on: depot-ubuntu-24.04-4
+    needs:
+      - api-tests
+      - app-tests
+      - cli-dbt-tests
+      - cli-tests
+      - cli-tests-without-dbt
+      - files-changed
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+    name: "E2E: Playwright mutating"
+    env:
+      NODE_OPTIONS: "--max-old-space-size=8192"
+      TZ: "UTC"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+          cache-dependency-path: "pnpm-lock.yaml"
+      - name: Install packages
+        run: sfw pnpm install --frozen-lockfile --prefer-offline
+      - name: Build packages/common module
+        run: pnpm common-build:fast
+      - name: Typecheck Playwright tests
+        run: pnpm -F e2e typecheck
+      - name: Create BigQuery credentials file
         uses: jsdaniell/create-json@b8e77fa01397ca39cc4a6198cc29a3be5481afef # v1.2.3
         with:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}
-          dir: "./packages/e2e/cypress/fixtures/"
-      - name: Run Cypress
-        uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
-        with:
-          install: false
-          browser: firefox
-          working-directory: packages/e2e
-          config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,specPattern=cypress/e2e/app/**/*.cy.{js,jsx,ts,tsx},video=false"
+          dir: "./packages/e2e/playwright/fixtures/"
+      - name: Run mutating Playwright tests
+        run: pnpm -F e2e exec playwright test --project=firefox --grep @mutating --workers=1
         env:
-          SPLIT: ${{ strategy.job-total }}
-          SPLIT_INDEX: ${{ strategy.job-index }}
-          CYPRESS_PGHOST: ${{ secrets.PGHOST }}
-          CYPRESS_PGPASSWORD: ${{ secrets.PGPASSWORD }}
-          CYPRESS_DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          CYPRESS_DATABRICKS_PATH: ${{ secrets.DATABRICKS_PATH }}
-          CYPRESS_DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          CYPRESS_SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-          CYPRESS_SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
-          CYPRESS_SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
-          CYPRESS_TRINO_HOST: ${{ secrets.TRINO_HOST }}
-          CYPRESS_TRINO_PORT: ${{ secrets.TRINO_PORT }}
-          CYPRESS_TRINO_USER: ${{ secrets.TRINO_USER }}
-          CYPRESS_TRINO_PASSWORD: ${{ secrets.TRINO_PASSWORD }}
+          HOME: /root
+          PLAYWRIGHT_BASE_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
+          PGHOST: ${{ secrets.PGHOST }}
+          PGUSER: postgres
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
           TZ: "UTC"
-          CYPRESS_TZ: "UTC"
+          DBT_PROJECT_DIR: /usr/app/dbt
+          GCP_CREDENTIALS_PATH: ${{ github.workspace }}/packages/e2e/playwright/fixtures/credentials.json
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
-        if: failure()
+        id: playwright_artifacts
+        if: ${{ !cancelled() }}
         with:
-          name: cypress-screenshots-and-videos-${{ strategy.job-index }}
+          name: playwright-mutating-report
           path: |
-            packages/e2e/cypress/screenshots
-            packages/e2e/cypress/videos
+            packages/e2e/playwright-report
+            packages/e2e/playwright-results
           if-no-files-found: ignore
+          retention-days: 7
+      - name: Add Playwright artifact summary
+        if: ${{ !cancelled() && steps.playwright_artifacts.outputs.artifact-url != '' }}
+        env:
+          ARTIFACT_URL: ${{ steps.playwright_artifacts.outputs.artifact-url }}
+        run: |
+          video_count=0
+          if [ -d packages/e2e/playwright-results ]; then
+            video_count="$(find packages/e2e/playwright-results -type f -name 'video.webm' | wc -l | tr -d ' ')"
+          fi
+          {
+            echo "## Playwright mutating artifacts"
+            echo
+            echo "Captured **${video_count}** videos at 1600x900."
+            echo
+            echo "[Download videos, traces, screenshots, and HTML report](${ARTIFACT_URL})"
+            echo
+            echo "Artifacts expire after 7 days."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   timezone-tests:
     if: needs.files-changed.outputs.timezone == 'true'
     timeout-minutes: 30
     runs-on: depot-ubuntu-24.04-4
-    needs: [preview, files-changed, build-cypress-e2e-image]
+    needs: [preview, files-changed]
     container:
-      image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
-      options: --user 1001
-    strategy:
-      fail-fast: false
-      matrix:
-        timezone: ["America/New_York", "Europe/Madrid", "Asia/Tokyo"]
-    name: "E2E: Timezone (${{ matrix.timezone }})"
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+    name: "E2E: Timezones"
     env:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Setup Node, PNPM, and Cypress
-        uses: ./.github/workflows/_setup_node_pnpm_cypress
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+          cache-dependency-path: "pnpm-lock.yaml"
+      - name: Install packages
+        run: sfw pnpm install --frozen-lockfile --prefer-offline
       - name: Build packages/common module
         run: pnpm common-build:fast
-      - name: create-json
-        id: create-json
-        uses: jsdaniell/create-json@b8e77fa01397ca39cc4a6198cc29a3be5481afef # v1.2.3
-        with:
-          name: "credentials.json"
-          json: ${{ secrets.GCP_CREDENTIALS }}
-          dir: "./packages/e2e/cypress/fixtures/"
-      - name: Run Cypress
-        uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
-        with:
-          install: false
-          browser: firefox
-          working-directory: packages/e2e
-          spec: cypress/e2e/app/dates.cy.ts
-          config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,video=false"
+      - name: Typecheck Playwright tests
+        run: pnpm -F e2e typecheck
+      - name: Run Playwright dates tests sequentially
+        run: |
+          exit_code=0
+          for timezone in UTC Europe/Madrid America/New_York Asia/Tokyo; do
+            output_name="$(printf '%s' "${timezone}" | tr '/' '-')"
+            echo "::group::Timezone: ${timezone}"
+            if ! TZ="${timezone}" \
+              PLAYWRIGHT_HTML_OUTPUT_DIR="playwright-report/${output_name}" \
+              pnpm -F e2e exec playwright test playwright/app/dates.spec.ts \
+                --project=firefox --workers=1 \
+                --output="playwright-results/${output_name}"; then
+              exit_code=1
+            fi
+            echo "::endgroup::"
+          done
+          exit "${exit_code}"
         env:
-          TZ: ${{ matrix.timezone }}
-          CYPRESS_TZ: ${{ matrix.timezone }}
+          HOME: /root
+          PLAYWRIGHT_BASE_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
-        if: failure()
+        id: playwright_artifacts
+        if: ${{ !cancelled() }}
         with:
-          name: cypress-screenshots-and-videos-timezone-${{ strategy.job-index }}
+          name: playwright-report-timezones
           path: |
-            packages/e2e/cypress/screenshots
-            packages/e2e/cypress/videos
+            packages/e2e/playwright-report
+            packages/e2e/playwright-results
           if-no-files-found: ignore
+          retention-days: 7
+      - name: Add Playwright artifact summary
+        if: ${{ !cancelled() && steps.playwright_artifacts.outputs.artifact-url != '' }}
+        env:
+          ARTIFACT_URL: ${{ steps.playwright_artifacts.outputs.artifact-url }}
+        run: |
+          video_count=0
+          if [ -d packages/e2e/playwright-results ]; then
+            video_count="$(find packages/e2e/playwright-results -type f -name 'video.webm' | wc -l | tr -d ' ')"
+          fi
+          {
+            echo "## Playwright timezone artifacts"
+            echo
+            echo "Captured **${video_count}** videos at 1600x900."
+            echo
+            echo "[Download videos, traces, screenshots, and HTML report](${ARTIFACT_URL})"
+            echo
+            echo "Artifacts expire after 7 days."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # CLI tests without dbt
   cli-tests-without-dbt:
@@ -614,8 +708,8 @@ jobs:
           egress-policy: audit
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Setup Node, PNPM, and Cypress
-        uses: ./.github/workflows/_setup_node_pnpm_cypress
+      - name: Setup Node and PNPM
+        uses: ./.github/workflows/_setup_node_pnpm
       - name: Build packages/common module
         run: pnpm common-build:fast
       - name: Build packages/warehouses module
@@ -627,14 +721,13 @@ jobs:
           lightdash_version=$(lightdash --version)
           package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
-      - name: Run Cypress
-        uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
-        with:
-          install: false
-          working-directory: packages/e2e
-          spec: cypress/cli/api,cypress/cli/yaml-only
-          config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
-
+      - name: Run CLI Node integration tests
+        run: |
+          if [ -d packages/cli/integration/no-dbt ]; then
+            pnpm -F @lightdash/cli test:integration integration/no-dbt
+          fi
+        env:
+          SITE_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
   # CLI tests with dbt
   cli-tests:
     if: needs.files-changed.outputs.cli == 'true'
@@ -650,8 +743,8 @@ jobs:
           egress-policy: audit
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Setup Node, PNPM, and Cypress
-        uses: ./.github/workflows/_setup_node_pnpm_cypress
+      - name: Setup Node and PNPM
+        uses: ./.github/workflows/_setup_node_pnpm
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.10.x"
@@ -689,18 +782,19 @@ jobs:
           lightdash_version=$(lightdash --version)
           package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
-      - name: Run Cypress
-        uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
-        with:
-          install: false
-          working-directory: packages/e2e
-          spec: cypress/cli/integration/*
-          config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
+      - name: Run CLI Node integration tests
+        run: |
+          if [ -d packages/cli/integration/backend-dbt ]; then
+            pnpm -F @lightdash/cli test:integration integration/backend-dbt
+          fi
         env:
-          CYPRESS_PGHOST: ${{ secrets.PGHOST }}
-          CYPRESS_PGPASSWORD: ${{ secrets.PGPASSWORD }}
-          CYPRESS_SEED_SCHEMA: jaffle_cli_tests_${{ github.run_id }}
-
+          SITE_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
+          PGHOST: ${{ secrets.PGHOST }}
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          PGDATABASE: postgres
+          SEED_SCHEMA: jaffle_cli_node_${{ github.run_id }}_${{ github.run_attempt }}
   # CLI dbt version tests
   cli-dbt-tests:
     if: needs.files-changed.outputs.cli == 'true'
@@ -720,8 +814,8 @@ jobs:
           egress-policy: audit
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Setup Node, PNPM, and Cypress
-        uses: ./.github/workflows/_setup_node_pnpm_cypress
+      - name: Setup Node and PNPM
+        uses: ./.github/workflows/_setup_node_pnpm
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.10.x"
@@ -764,18 +858,19 @@ jobs:
           lightdash_version=$(lightdash --version)
           package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
-      - name: Run Cypress
-        uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
-        with:
-          install: false
-          working-directory: packages/e2e
-          spec: cypress/cli/dbt/*
-          config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
+      - name: Run CLI Node integration tests
+        run: |
+          if [ -d packages/cli/integration/dbt-version ]; then
+            pnpm -F @lightdash/cli test:integration integration/dbt-version
+          fi
         env:
-          CYPRESS_PGHOST: ${{ secrets.PGHOST }}
-          CYPRESS_PGPASSWORD: ${{ secrets.PGPASSWORD }}
-          CYPRESS_SEED_SCHEMA: jaffle_dbt_tests_${{ github.run_id }}_${{ strategy.job-index }}
-
+          SITE_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
+          PGHOST: ${{ secrets.PGHOST }}
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          PGDATABASE: postgres
+          SEED_SCHEMA: jaffle_dbt_node_${{ github.run_id }}_${{ strategy.job-index }}_${{ github.run_attempt }}
   # Cleanup job to drop all schemas created during CLI tests
   cleanup-schemas:
     if: always() && needs.files-changed.outputs.cli == 'true'
@@ -788,7 +883,7 @@ jobs:
           egress-policy: audit
       - name: Drop test schemas
         run: |
-          PATTERN="^(jaffle_cli_tests_${{ github.run_id }}|jaffle_dbt_tests_${{ github.run_id }}_[0-9]+)$"
+          PATTERN="^(jaffle_cli_tests_${{ github.run_id }}|jaffle_dbt_tests_${{ github.run_id }}_[0-9]+|jaffle_cli_node_${{ github.run_id }}_[0-9]+|jaffle_dbt_node_${{ github.run_id }}_[0-9]+_[0-9]+)$"
           SCHEMAS=$(psql -t -c "SELECT schema_name FROM information_schema.schemata WHERE schema_name ~ '$PATTERN';")
           for schema in $SCHEMAS; do
               if [ -n "$schema" ]; then

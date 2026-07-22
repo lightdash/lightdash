@@ -18,6 +18,7 @@ const MarkdownTileForm = ({ form }: MarkdownTileFormProps) => {
             />
 
             <MDEditor
+                textareaProps={{ 'aria-label': 'Markdown content' }}
                 preview="edit"
                 maxHeight={300}
                 minHeight={100}

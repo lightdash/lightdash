@@ -1,4 +1,10 @@
-import { BinType, CustomDimensionType } from '@lightdash/common';
+import {
+    BinType,
+    CustomDimensionType,
+    DimensionType,
+    FieldType,
+    MetricType,
+} from '@lightdash/common';
 import {
     bigqueryClientMock,
     EXPLORE,
@@ -133,5 +139,55 @@ describe('MetricQueryBuilder snapshot: custom dimension queries', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_CUSTOM_SQL_DIMENSION,
             }),
         ).toMatchSnapshot();
+    });
+
+    test('inlines an additional metric derived from an unselected custom SQL dimension', () => {
+        const query = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: {
+                ...METRIC_QUERY_WITH_CUSTOM_SQL_DIMENSION,
+                dimensions: ['table1_dim1'],
+                metrics: ['table1_discounted_amount_max_of_discounted_amount'],
+                sorts: [],
+                additionalMetrics: [
+                    {
+                        type: MetricType.MAX,
+                        table: 'table1',
+                        name: 'discounted_amount_max_of_discounted_amount',
+                        sql: '${table1.dim1} / 10',
+                    },
+                ],
+                compiledAdditionalMetrics: [
+                    {
+                        type: MetricType.MAX,
+                        fieldType: FieldType.METRIC,
+                        table: 'table1',
+                        tableLabel: 'table1',
+                        name: 'discounted_amount_max_of_discounted_amount',
+                        label: 'Max of discounted amount',
+                        sql: '${table1.dim1} / 10',
+                        compiledSql: 'MAX(("table1".dim1) / 10)',
+                        tablesReferences: ['table1'],
+                        hidden: false,
+                    },
+                ],
+                compiledCustomDimensions: [
+                    {
+                        id: 'discounted_amount',
+                        name: 'Discounted amount',
+                        type: CustomDimensionType.SQL,
+                        table: 'table1',
+                        sql: '${table1.dim1} / 10',
+                        dimensionType: DimensionType.NUMBER,
+                        compiledSql: '("table1".dim1) / 10',
+                        tablesReferences: ['table1'],
+                    },
+                ],
+            },
+        });
+
+        expect(query).toContain('MAX(("table1".dim1) / 10)');
+        expect(query).not.toContain('AS "discounted_amount"');
+        expect(query).toMatchSnapshot();
     });
 });

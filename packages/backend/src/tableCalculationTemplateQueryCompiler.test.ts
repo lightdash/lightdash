@@ -479,6 +479,21 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
         );
     });
 
+    it('Should compile RANK_IN_COLUMN in ascending order', () => {
+        const template: TableCalculationTemplate = {
+            type: TableCalculationTemplateType.RANK_IN_COLUMN,
+            fieldId: 'table_revenue',
+        };
+
+        const result = compileTableCalculationFromTemplate(
+            template,
+            warehouseClientMock,
+            [],
+        );
+
+        expect(result).toBe('RANK() OVER (ORDER BY "table_revenue" ASC)');
+    });
+
     describe('RUNNING_TOTAL sort fields', () => {
         it('Should compile RUNNING_TOTAL with single ascending sort field', () => {
             const template: TableCalculationTemplate = {

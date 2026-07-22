@@ -76,7 +76,6 @@ onlyBuiltDependencies:
   - core-js
   - core-js-pure
   - cpu-features
-  - cypress
   - duckdb
   - esbuild
   - lz4

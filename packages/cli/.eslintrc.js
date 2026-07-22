@@ -10,6 +10,14 @@ module.exports = {
         'prettier',
         'plugin:json/recommended',
     ],
+    overrides: [
+        {
+            files: ['vitest.integration.config.ts', 'integration/**/*.ts'],
+            parserOptions: {
+                project: './tsconfig.eslint.json',
+            },
+        },
+    ],
     rules: {
         'no-console': 'off',
         'import/prefer-default-export': 'off',

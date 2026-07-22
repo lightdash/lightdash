@@ -124,11 +124,12 @@
         "sdk-typecheck": "pnpm -F frontend typecheck-sdk",
         "sdk-build": "pnpm common-build && pnpm frontend-build-sdk",
         "sdk-build:fast": "pnpm common-build:fast && pnpm frontend-build-sdk:fast",
-        "e2e-open": "pnpm -F e2e cypress:open",
-        "e2e-open-native": "pnpm -F e2e cypress:open:native",
-        "e2e-run": "pnpm -F e2e cypress:run",
+        "e2e-open": "pnpm -F e2e playwright:open",
+        "e2e-run": "pnpm -F e2e playwright:run",
+        "e2e-list": "pnpm -F e2e playwright:list",
         "e2e-lint": "pnpm -F e2e lint",
         "e2e-format": "pnpm -F e2e format",
+        "e2e-typecheck": "pnpm -F e2e typecheck",
         "e2e-fix-lint": "pnpm -F e2e fix-lint",
         "e2e-fix-format": "pnpm -F e2e fix-format",
         "api-test": "pnpm -F api-tests test:api",
@@ -219,8 +220,15 @@
             "pnpm -F common run linter --fix",
             "pnpm -F common run formatter"
         ],
-        "packages/e2e/cypress/**/*.(ts|json)": [
+        "packages/e2e/playwright/**/*.(ts|json)": [
             "pnpm -F e2e run linter --fix",
+            "pnpm -F e2e run formatter"
+        ],
+        "packages/e2e/playwright.config.ts": [
+            "pnpm -F e2e run linter --fix",
+            "pnpm -F e2e run formatter"
+        ],
+        "packages/e2e/tsconfig.json": [
             "pnpm -F e2e run formatter"
         ],
         "packages/cli/src/**/*.(ts|tsx|json)": [

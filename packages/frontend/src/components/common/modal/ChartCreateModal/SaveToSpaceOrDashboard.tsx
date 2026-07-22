@@ -600,6 +600,8 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
 
     return (
         <form
+            aria-busy={isLoading}
+            data-testid="ChartCreateModal/Form"
             onSubmit={(e) => {
                 if (
                     currentStep === ModalStep.InitialInfo &&

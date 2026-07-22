@@ -81,6 +81,7 @@ const TreeItem: React.FC<Props> = ({
             {isRoot ? null : (
                 <ActionIcon
                     data-has-children={hasChildren}
+                    aria-label={`${expanded ? 'Collapse' : 'Expand'} ${stringLabel}`}
                     className={classes.actionIcon}
                     onClick={(e) => {
                         e.stopPropagation();

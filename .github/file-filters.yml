@@ -8,12 +8,14 @@ preview:
 
 cli:
   - "packages/cli/**/*"
-  - "packages/e2e/cypress/cli/**/*"
   - "packages/common/**/*"
 
 frontend:
   - "packages/frontend/**/*"
-  - "packages/e2e/cypress/e2e/app/**/*"
+  - "packages/e2e/playwright/**/*"
+  - "packages/e2e/playwright.config.ts"
+  - "packages/e2e/tsconfig.json"
+  - "packages/e2e/package.json"
   - "packages/common/**/*"
 
 backend:
@@ -29,3 +31,4 @@ api_schema:
 timezone:
   - "packages/frontend/src/components/common/TimeZonePicker/index.tsx"
   - "packages/common/src/types/timezone.ts"
+  - "packages/e2e/playwright/app/dates.spec.ts"
