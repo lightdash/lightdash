@@ -1,3 +1,4 @@
+import { type AiWritebackWorkstream } from '@lightdash/common';
 import { Knex } from 'knex';
 import { PullRequestsTableName } from '../../database/entities/pullRequests';
 import {
@@ -107,6 +108,26 @@ export class AiWritebackThreadModel {
                 `${AiWritebackThreadTableName}.pull_request_uuid`,
             )
             .where(`${AiWritebackThreadTableName}.ai_thread_uuid`, aiThreadUuid)
+            .where(`${PullRequestsTableName}.pr_url`, prUrl)
+            .select<AiWritebackThreadWithPrUrl>(
+                `${AiWritebackThreadTableName}.*`,
+                `${PullRequestsTableName}.pr_url`,
+            )
+            .first();
+        return row ?? null;
+    }
+
+    async findByProjectUuidAndPrUrl(
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<AiWritebackThreadWithPrUrl | null> {
+        const row = await this.database(AiWritebackThreadTableName)
+            .innerJoin(
+                PullRequestsTableName,
+                `${PullRequestsTableName}.pull_request_uuid`,
+                `${AiWritebackThreadTableName}.pull_request_uuid`,
+            )
+            .where(`${PullRequestsTableName}.project_uuid`, projectUuid)
             .where(`${PullRequestsTableName}.pr_url`, prUrl)
             .select<AiWritebackThreadWithPrUrl>(
                 `${AiWritebackThreadTableName}.*`,
@@ -231,6 +252,7 @@ export class AiWritebackThreadModel {
         // dbt connection. Binds the thread to one repo across resumes.
         projectDbtSourceUuid: string | null;
         targetRepo: string;
+        workstream: AiWritebackWorkstream;
     }): Promise<DbAiWritebackThread> {
         const [row] = await this.database<AiWritebackThreadTable>(
             AiWritebackThreadTableName,
@@ -241,6 +263,7 @@ export class AiWritebackThreadModel {
                 pull_request_uuid: data.pullRequestUuid,
                 project_dbt_source_uuid: data.projectDbtSourceUuid,
                 target_repo: data.targetRepo,
+                workstream: data.workstream,
             })
             .returning('*');
         return row;

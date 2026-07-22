@@ -1820,6 +1820,7 @@ describe('AiWritebackService.mergePullRequest', () => {
                 pullNumber: 7,
                 mergeCommitSha: 'sha-7',
                 compileScheduled: true,
+                workstream: 'dbt-writeback',
             },
         });
     });
