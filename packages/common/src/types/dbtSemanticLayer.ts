@@ -119,8 +119,8 @@ export type DbtSemanticMetricInput = {
 /**
  * dbt Fusion / latest-spec / dbt Cloud CLI manifests inline the aggregation on
  * simple metrics (`type_params.measure` is null) instead of referencing a
- * measure. Cloud CLI may leave `expr` null here and put the column on
- * `type_params.expr` instead.
+ * measure. Official DSI / dbt Core 1.12 omit `expr` here and put the column on
+ * `type_params.expr` instead; Fusion duplicates it onto both.
  */
 export type DbtSemanticMetricAggregationParams = {
     semantic_model: string;

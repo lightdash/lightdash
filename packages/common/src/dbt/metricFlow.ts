@@ -378,10 +378,11 @@ export const translateMetricFlowMetrics = ({
     // Resolve a simple metric definition to the semantic model + measure it
     // aggregates, collecting any filters defined on the metric or its measure
     // reference along the way. Legacy manifests (dbt Core) reference a measure
-    // by name; Fusion / latest-spec / dbt Cloud CLI manifests inline the
-    // aggregation as `metric_aggregation_params`. Cloud CLI may leave
-    // `metric_aggregation_params.expr` null and put the column on
-    // `type_params.expr` instead — fall back to that when building the measure.
+    // by name; Fusion / latest-spec / dbt Core 1.12 manifests inline the
+    // aggregation as `metric_aggregation_params`. Core 1.12 (official DSI)
+    // leaves `metric_aggregation_params.expr` absent/null and puts the column
+    // on `type_params.expr` instead — fall back to that when building the measure.
+    // Fusion duplicates expr onto both fields.
     const resolveSimpleMetricMeasure = (
         metric: DbtSemanticMetric,
     ):
