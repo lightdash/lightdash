@@ -66,7 +66,6 @@ const makeHomepage = (
     draftConfig,
     publishedConfig: null,
     isDefault: true,
-    allowPersonal: false,
     createdByUserUuid: USER_UUID,
     createdAt: NOW,
     updatedAt: NOW,
@@ -213,11 +212,9 @@ describe('provisionOnboardingHomepage', () => {
             draftConfig: buildOnboardingHomepageConfig(),
             createdByUserUuid: USER_UUID,
         });
-        expect(mocks.publishHomepage).toHaveBeenCalledWith(
-            HOMEPAGE_UUID,
-            { type: 'everyone' },
-            true,
-        );
+        expect(mocks.publishHomepage).toHaveBeenCalledWith(HOMEPAGE_UUID, {
+            type: 'everyone',
+        });
         expect(mocks.track).toHaveBeenCalledWith({
             event: 'onboarding_homepage.provisioned',
             userId: USER_UUID,

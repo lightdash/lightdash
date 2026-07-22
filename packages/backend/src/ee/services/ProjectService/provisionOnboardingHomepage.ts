@@ -71,11 +71,9 @@ export const provisionOnboardingHomepage = async ({
         draftConfig: buildOnboardingHomepageConfig(),
         createdByUserUuid: user.userUuid,
     });
-    await projectHomepageModel.publish(
-        homepage.homepageUuid,
-        { type: 'everyone' },
-        true,
-    );
+    await projectHomepageModel.publish(homepage.homepageUuid, {
+        type: 'everyone',
+    });
     analytics.track({
         event: 'onboarding_homepage.provisioned',
         userId: user.userUuid,

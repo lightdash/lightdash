@@ -12,7 +12,6 @@ import {
     Group,
     SegmentedControl,
     Stack,
-    Switch,
     Text,
 } from '@mantine-8/core';
 import {
@@ -39,7 +38,7 @@ import {
 } from './hooks/useProjectHomepage';
 import classes from './PublishModal.module.css';
 
-const RESOLUTION_STEPS = ['Personal', 'Group priority', 'Role', 'Org default'];
+const RESOLUTION_STEPS = ['Group priority', 'Role', 'Org default'];
 
 const ROLE_DESCRIPTIONS: Record<ProjectMemberRole, string> = {
     [ProjectMemberRole.VIEWER]: 'Read-only consumers of dashboards',
@@ -64,8 +63,7 @@ type Props = {
     homepageUuid: string;
     homepageName: string;
     isPublishing: boolean;
-    initialAllowPersonal: boolean;
-    onPublish: (audience: HomepageAudience, allowPersonal: boolean) => void;
+    onPublish: (audience: HomepageAudience) => void;
 };
 
 // Thin loader: PublishModal itself stays mounted for the lifetime of the
@@ -123,7 +121,6 @@ const PublishModalBody: FC<BodyProps> = ({
     homepageUuid,
     homepageName,
     isPublishing,
-    initialAllowPersonal,
     onPublish,
     groups,
     assignments,
@@ -152,7 +149,6 @@ const PublishModalBody: FC<BodyProps> = ({
           : 'everyone';
 
     const [mode, setMode] = useState<string>(initialMode);
-    const [allowPersonal, setAllowPersonal] = useState(initialAllowPersonal);
     const [selectedGroups, setSelectedGroups] = useState<string[]>(() =>
         ownAssignments
             .filter((a) => a.targetType === 'group')
@@ -198,14 +194,11 @@ const PublishModalBody: FC<BodyProps> = ({
 
     const handlePublish = () => {
         if (mode === 'groups') {
-            onPublish(
-                { type: 'groups', groupUuids: selectedGroups },
-                allowPersonal,
-            );
+            onPublish({ type: 'groups', groupUuids: selectedGroups });
         } else if (mode === 'roles') {
-            onPublish({ type: 'roles', roles: selectedRoles }, allowPersonal);
+            onPublish({ type: 'roles', roles: selectedRoles });
         } else {
-            onPublish({ type: 'everyone' }, allowPersonal);
+            onPublish({ type: 'everyone' });
         }
     };
 
@@ -282,8 +275,7 @@ const PublishModalBody: FC<BodyProps> = ({
                                     starting point
                                 </Text>{' '}
                                 everyone lands on — unless a group they’re in
-                                has its own homepage, or they’ve set a personal
-                                one.
+                                has its own homepage.
                             </Text>
                         </Group>
                     </Box>
@@ -467,8 +459,7 @@ const PublishModalBody: FC<BodyProps> = ({
                             ))}
                         </div>
                         <Text fz={12} c="dimmed" lh={1.45}>
-                            A group assignment always wins over a role, and a
-                            personal choice wins over both.
+                            A group assignment always wins over a role.
                         </Text>
                     </>
                 )}
@@ -504,17 +495,6 @@ const PublishModalBody: FC<BodyProps> = ({
                         </Group>
                     ))}
                 </Group>
-
-                <Box p="11px 13px" className={classes.borderedPanel}>
-                    <Switch
-                        label="Allow personal customization"
-                        description="Viewers can favorite items or set a dashboard as their own homepage."
-                        checked={allowPersonal}
-                        onChange={(e) =>
-                            setAllowPersonal(e.currentTarget.checked)
-                        }
-                    />
-                </Box>
             </Stack>
         </MantineModal>
     );

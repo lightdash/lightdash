@@ -167,9 +167,6 @@ export type ProjectHomepageServiceArguments = {
         | 'getPublishedDefault'
         | 'getRecentlyViewed'
         | 'getAssignments'
-        | 'getPersonalOverride'
-        | 'setPersonalOverride'
-        | 'deletePersonalOverride'
         | 'updateGroupPriorities'
         | 'resolvePublished'
         | 'list'
@@ -304,35 +301,18 @@ export class ProjectHomepageService extends BaseService {
         return homepage;
     }
 
-    // Resolution: personal → group priority → role → project default
+    // Resolution: group priority → role → project default
     private async resolveForViewer(
         projectUuid: string,
         viewer: {
             groupUuids: string[];
             role: ProjectMemberRole | undefined;
-            personalOverride: string | undefined;
         },
     ): Promise<HomepageViewAsResult> {
         const published = await this.projectHomepageModel.resolvePublished(
             projectUuid,
             { groupUuids: viewer.groupUuids, role: viewer.role },
         );
-        // Personal choice wins unless the audience homepage disallows it
-        if (
-            viewer.personalOverride &&
-            (published?.homepage.allowPersonal ?? true)
-        ) {
-            return {
-                resolved: {
-                    type: 'dashboard',
-                    dashboardUuid: viewer.personalOverride,
-                },
-                reason: {
-                    type: 'personal',
-                    dashboardUuid: viewer.personalOverride,
-                },
-            };
-        }
         if (published) {
             return {
                 resolved: { type: 'homepage', homepage: published.homepage },
@@ -349,13 +329,8 @@ export class ProjectHomepageService extends BaseService {
     ): Promise<{
         groupUuids: string[];
         role: ProjectMemberRole | undefined;
-        personalOverride: string | undefined;
     }> {
-        const [override, groups, membership] = await Promise.all([
-            this.projectHomepageModel.getPersonalOverride(
-                userUuid,
-                projectUuid,
-            ),
+        const [groups, membership] = await Promise.all([
             organizationUuid
                 ? this.groupsModel.findUserGroups({
                       userUuid,
@@ -367,7 +342,6 @@ export class ProjectHomepageService extends BaseService {
         return {
             groupUuids: groups.map((group) => group.uuid),
             role: membership?.role,
-            personalOverride: override,
         };
     }
 
@@ -406,56 +380,15 @@ export class ProjectHomepageService extends BaseService {
                 return this.resolveForViewer(projectUuid, {
                     groupUuids: [target.groupUuid],
                     role: undefined,
-                    personalOverride: undefined,
                 });
             case 'role':
                 return this.resolveForViewer(projectUuid, {
                     groupUuids: [],
                     role: target.role,
-                    personalOverride: undefined,
                 });
             default:
                 return assertUnreachable(target, 'Unknown view-as target type');
         }
-    }
-
-    async setPersonalHomepage(
-        user: SessionUser,
-        projectUuid: string,
-        dashboardUuid: string,
-    ): Promise<void> {
-        await this.assertFlagEnabled(user);
-        this.assertCanView(user, projectUuid);
-        await this.projectHomepageModel.setPersonalOverride(
-            user.userUuid,
-            projectUuid,
-            dashboardUuid,
-        );
-    }
-
-    async clearPersonalHomepage(
-        user: SessionUser,
-        projectUuid: string,
-    ): Promise<void> {
-        await this.assertFlagEnabled(user);
-        this.assertCanView(user, projectUuid);
-        await this.projectHomepageModel.deletePersonalOverride(
-            user.userUuid,
-            projectUuid,
-        );
-    }
-
-    async getPersonalHomepage(
-        user: SessionUser,
-        projectUuid: string,
-    ): Promise<string | null> {
-        await this.assertFlagEnabled(user);
-        this.assertCanView(user, projectUuid);
-        const override = await this.projectHomepageModel.getPersonalOverride(
-            user.userUuid,
-            projectUuid,
-        );
-        return override ?? null;
     }
 
     async getAssignments(
@@ -581,7 +514,6 @@ export class ProjectHomepageService extends BaseService {
         projectUuid: string,
         homepageUuid: string,
         audience: HomepageAudience,
-        allowPersonal: boolean,
     ): Promise<ProjectHomepage> {
         await this.assertFlagEnabled(user);
         this.assertCanManage(user, projectUuid);
@@ -589,7 +521,6 @@ export class ProjectHomepageService extends BaseService {
         const published = await this.projectHomepageModel.publish(
             homepageUuid,
             audience,
-            allowPersonal,
         );
         const { organizationUuid } = user;
         if (organizationUuid) {

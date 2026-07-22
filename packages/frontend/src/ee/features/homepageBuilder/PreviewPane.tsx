@@ -6,9 +6,7 @@ import {
     type HomepageViewAsTarget,
 } from '@lightdash/common';
 import {
-    Anchor,
     Badge,
-    Card,
     Group,
     Loader,
     SegmentedControl,
@@ -16,10 +14,7 @@ import {
     Stack,
     Text,
 } from '@mantine-8/core';
-import { IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { Link } from 'react-router';
-import MantineIcon from '../../../components/common/MantineIcon';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import classes from './HomepageEditor.module.css';
@@ -33,8 +28,6 @@ const reasonLabel = (
     groupNames: Map<string, string>,
 ): string => {
     switch (reason.type) {
-        case 'personal':
-            return 'their personal pick';
         case 'group':
             return `via group ${groupNames.get(reason.groupUuid) ?? 'unknown'} (priority ${reason.priority})`;
         case 'role':
@@ -194,29 +187,6 @@ export const PreviewPane: FC<{
                     day-one default.
                 </Text>
             </Stack>
-        );
-    }
-    if (result.data.resolved.type === 'dashboard') {
-        const { dashboardUuid } = result.data.resolved;
-        return (
-            <Card withBorder p="md" maw={640} mx="auto" mt="xl">
-                <Group gap="xs">
-                    <Text size="sm">
-                        This viewer lands directly on a dashboard.
-                    </Text>
-                    <Anchor
-                        component={Link}
-                        to={`/projects/${projectUuid}/dashboards/${dashboardUuid}/view`}
-                        target="_blank"
-                        size="sm"
-                    >
-                        <Group gap={4} wrap="nowrap">
-                            Open dashboard
-                            <MantineIcon icon={IconExternalLink} size="sm" />
-                        </Group>
-                    </Anchor>
-                </Group>
-            </Card>
         );
     }
     return (
