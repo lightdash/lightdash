@@ -468,7 +468,7 @@ const FilterConfiguration: FC<Props> = ({
                                     allowDeselect={false}
                                     size="xs"
                                     label={
-                                        <Text>
+                                        <Text fw={500} fz="sm">
                                             Select a column to filter{' '}
                                             <Text c="red" span>
                                                 *
