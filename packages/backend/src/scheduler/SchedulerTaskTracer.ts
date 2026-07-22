@@ -257,6 +257,12 @@ const getTagsForTask: {
     [SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: () => ({}),
     [SCHEDULER_TASKS.SWEEP_STALE_AI_WRITEBACK_RUNS]: () => ({}),
     [SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS]: () => ({}),
+    [SCHEDULER_TASKS.SWEEP_AI_AGENT_MEMORY_THREADS]: () => ({}),
+    [SCHEDULER_TASKS.AI_AGENT_MEMORY_DISTILL]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'project.uuid': payload.projectUuid,
+        'ai_agent_memory.thread_uuid': payload.threadUuid,
+    }),
     [SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: () => ({}),
     [SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
