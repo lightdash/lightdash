@@ -5,10 +5,24 @@
 
 .page {
     --homepage-favbar-height: 48px;
+    /* Read by anything positioned relative to the hero — see HomepageStars. */
+    --homepage-hero-width: 720px;
+    --homepage-page-padding-x: 24px;
 
     display: flex;
     flex-direction: column;
-    padding: 24px 24px 48px;
+    padding: 24px var(--homepage-page-padding-x) 48px;
+}
+
+/* Anything absolutely positioned behind the hero (see HomepageStars) needs
+ * this pair: the section is its containing block, the hero sits above it. */
+.heroStage {
+    position: relative;
+}
+
+.heroStageContent {
+    position: relative;
+    z-index: 1;
 }
 
 .heroSection {
@@ -68,7 +82,7 @@
 
 .hero {
     width: 100%;
-    max-width: 720px;
+    max-width: var(--homepage-hero-width);
     display: flex;
     flex-direction: column;
     align-items: center;
