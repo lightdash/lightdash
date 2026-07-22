@@ -1,3 +1,16 @@
+# [0.3456.0](https://github.com/lightdash/lightdash/compare/0.3455.0...0.3456.0) (2026-07-22)
+
+
+### Bug Fixes
+
+* re-render metric timestamp filters with query-time domain context ([#25948](https://github.com/lightdash/lightdash/issues/25948)) ([fe921c2](https://github.com/lightdash/lightdash/commit/fe921c2161410db0d6b2f423a11c850962ebb2ab))
+* support dbt Cloud CLI in MetricFlow integration ([#25898](https://github.com/lightdash/lightdash/issues/25898)) ([61cdf23](https://github.com/lightdash/lightdash/commit/61cdf23cde64a394ef0bdb9bef7d5eee70c39656))
+
+
+### Features
+
+* confirm before admin self-downgrades org role ([#25879](https://github.com/lightdash/lightdash/issues/25879)) ([6611e45](https://github.com/lightdash/lightdash/commit/6611e45fbcfe9a6813a2f10d7bf05d7f5ab73909))
+
 # [0.3455.0](https://github.com/lightdash/lightdash/compare/0.3454.0...0.3455.0) (2026-07-22)
 
 
