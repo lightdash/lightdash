@@ -4,7 +4,11 @@ import type { PullRequestProvider } from '../../types/gitIntegration';
 import type { MetricQuery } from '../../types/metricQuery';
 import type { QueryHistoryStatus } from '../../types/queryHistory';
 import type { AiAgentDocumentStructuredSummary } from './documentTypes';
-import { projectContextEntryKinds } from './projectContext';
+import {
+    aiProjectContextTypedObjectRefSchema,
+    projectContextEntryKinds,
+    type AiProjectContextObjectRef,
+} from './projectContext';
 import type { AiAgentReviewClassifierEventType } from './requestTypes';
 
 export type AiAgentReviewClassifierSubject = {
@@ -475,7 +479,7 @@ export const aiAgentJudgeProjectContextEntrySchema = z
         kind: z.enum(projectContextEntryKinds),
         content: z.string(),
         terms: z.array(z.string()),
-        objects: z.array(z.string()),
+        objects: z.array(aiProjectContextTypedObjectRefSchema),
     })
     .superRefine((entry, ctx) => {
         if (entry.op === 'update' && !entry.id) {
@@ -487,16 +491,15 @@ export const aiAgentJudgeProjectContextEntrySchema = z
         }
     });
 
-// Concrete type (not z.infer) so tsoa can resolve it where it surfaces in API
-// responses (AiAgentReviewItemSummary). Kept structurally in sync with
-// aiAgentJudgeProjectContextEntrySchema above.
+// Concrete type (not z.infer) so tsoa can resolve it in API responses. The
+// string union preserves persisted findings written before typed refs.
 export type AiAgentJudgeProjectContextEntry = {
     op: 'create' | 'update';
     id: string | null;
     kind: 'definition' | 'context';
     content: string;
     terms: string[];
-    objects: string[];
+    objects: AiProjectContextObjectRef[];
 };
 
 // Signals that describe a healthy turn — mutually exclusive with promotion.

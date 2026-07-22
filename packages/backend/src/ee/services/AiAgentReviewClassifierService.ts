@@ -1669,7 +1669,7 @@ Set projectContextEntry ONLY when primaryRootCause=project_context and a single 
 - kind: definition | context. Use "definition" for acronyms and business vocabulary ("X means Y"); use "context" for everything else (routing/join rules, guidance, durable object-scoped facts).
 - content: a single self-contained sentence stating the fact (e.g. '"HR" = the high-risk diabetes cohort, not human resources.').
 - terms: the prompt-facing trigger words/phrases that should surface this entry (e.g. ["HR","high risk"]). Required for definitions.
-- objects: the semantic objects this fact concerns, from targetRefs — explore names and/or field ids in the \`table_field\` form shown as fieldId in field results (e.g. "payments_total_amount"); [] when purely prompt-driven.
+- objects: typed semantic object refs derived from targetRefs. For an explore use {"type":"explore","name":"payments"}. For a field use {"type":"field","explore":"payments","fieldId":"payments_total_amount"}; the owning explore is required and must be one where that field exists. Use [] when purely prompt-driven.
 
 Existing review items — dedup rules. The evidence packet field existingReviewItems lists this project's existing review items (key, title, status, dismissedReason, primaryRootCause, objectSummary). Apply these rules when promoting:
 - If the finding's underlying user need matches an existing item — even when you would assign a DIFFERENT root cause or blame a DIFFERENT object — set matchedExistingItemKey to that item's key. The test is "would a human say this is the same problem?", not "same technical label". A timeout, a missing field, and a routing gap that all block the same user question are ONE problem.

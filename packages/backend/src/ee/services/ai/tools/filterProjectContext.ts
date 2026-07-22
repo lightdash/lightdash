@@ -1,4 +1,7 @@
-import type { ProjectContextEntry } from '@lightdash/common';
+import {
+    serializeAiProjectContextObjectRef,
+    type ProjectContextEntry,
+} from '@lightdash/common';
 import { compileMatcher } from './grepFieldsIndex';
 
 /**
@@ -20,7 +23,7 @@ export const filterProjectContext = (
                 entry.id,
                 entry.kind,
                 ...entry.terms,
-                ...entry.objects,
+                ...entry.objects.map(serializeAiProjectContextObjectRef),
                 entry.content,
             ]
                 .join('\n')

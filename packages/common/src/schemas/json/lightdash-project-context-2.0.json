@@ -16,7 +16,7 @@
             "properties": {
                 "version": {
                     "type": "number",
-                    "const": 1
+                    "const": 2
                 },
                 "entries": {
                     "$ref": "#/definitions/entries"
@@ -60,7 +60,7 @@
                 "objects": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/objectRef"
                     },
                     "description": "Semantic objects this fact concerns.",
                     "default": []
@@ -68,6 +68,29 @@
             },
             "required": ["kind", "content"],
             "additionalProperties": true
+        },
+        "objectRef": {
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "type": { "const": "explore" },
+                        "name": { "type": "string", "minLength": 1 }
+                    },
+                    "required": ["type", "name"],
+                    "additionalProperties": false
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "type": { "const": "field" },
+                        "explore": { "type": "string", "minLength": 1 },
+                        "fieldId": { "type": "string", "minLength": 1 }
+                    },
+                    "required": ["type", "explore", "fieldId"],
+                    "additionalProperties": false
+                }
+            ]
         }
     }
 }

@@ -21,7 +21,18 @@ const entries: ProjectContextEntry[] = [
         id: 'sao-def',
         content: 'A sales accepted opportunity',
         terms: ['sao'],
-        objects: ['rpt_gtm_mission_control'],
+        objects: [
+            {
+                type: 'field',
+                explore: 'rpt_gtm_mission_control',
+                fieldId: 'opportunities_sao_date',
+            },
+        ],
+    }),
+    entry({
+        id: 'legacy-ref',
+        content: 'Legacy project context entry',
+        objects: ['legacy_orders'],
     }),
     entry({ id: 'unrelated', content: 'onboarding checklist steps' }),
 ];
@@ -40,6 +51,14 @@ describe('filterProjectContext', () => {
     it('matches on terms and objects', () => {
         expect(
             filterProjectContext(entries, ['mission_control']).map((e) => e.id),
+        ).toEqual(['sao-def']);
+        expect(
+            filterProjectContext(entries, ['legacy_orders']).map((e) => e.id),
+        ).toEqual(['legacy-ref']);
+        expect(
+            filterProjectContext(entries, ['opportunities_sao_date']).map(
+                (e) => e.id,
+            ),
         ).toEqual(['sao-def']);
     });
 

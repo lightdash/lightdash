@@ -1,5 +1,7 @@
 import {
+    formatAiProjectContextObjectRef,
     loadProjectContextToolDefinition,
+    serializeAiProjectContextObjectRef,
     type ProjectContextEntry,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -20,7 +22,7 @@ const renderEntries = (entries: ProjectContextEntry[]): string => {
                     : '';
             const refs =
                 entry.objects.length > 0
-                    ? ` refs: ${entry.objects.join(', ')};`
+                    ? ` refs: ${entry.objects.map(formatAiProjectContextObjectRef).join(', ')};`
                     : '';
             const prefix = `- id: ${entry.id}; kind: ${entry.kind};${terms}${refs}`;
             return `${prefix} content: ${entry.content}`;
@@ -78,7 +80,9 @@ export const getLoadProjectContext = ({
                             e.content.length +
                             e.id.length +
                             e.terms.join(' ').length +
-                            e.objects.join(' ').length +
+                            e.objects
+                                .map(serializeAiProjectContextObjectRef)
+                                .join(' ').length +
                             32,
                         0,
                     ) / 4,

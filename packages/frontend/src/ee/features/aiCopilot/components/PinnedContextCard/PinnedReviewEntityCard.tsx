@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    formatAiProjectContextObjectRef,
     type AiAgentReviewItemPrState,
 } from '@lightdash/common';
 import {
@@ -90,12 +91,21 @@ const ProposedChangeRow: FC<{
         payload.changeKind === 'project_context'
             ? payload.entry.content
             : payload.recommendation.title;
+    const objectRefs =
+        payload.changeKind === 'project_context'
+            ? payload.entry.objects.map(formatAiProjectContextObjectRef)
+            : [];
     return (
         <Row icon={IconPencil}>
             <Text className={styles.eyebrow}>Proposed change</Text>
             <Text fz="xs" c="ldGray.8">
                 {summary}
             </Text>
+            {objectRefs.length > 0 && (
+                <Text fz={11} c="dimmed">
+                    {objectRefs.join(', ')}
+                </Text>
+            )}
         </Row>
     );
 };

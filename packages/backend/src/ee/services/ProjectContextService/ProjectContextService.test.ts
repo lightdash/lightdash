@@ -7,6 +7,7 @@ import {
     type ProjectContextEntry,
     type SessionUser,
 } from '@lightdash/common';
+import { ZodError } from 'zod';
 import {
     createBranch,
     createPullRequest,
@@ -256,6 +257,23 @@ describe('ProjectContextService.writebackEntry', () => {
             html_url: 'https://github.com/acme/analytics/pull/7',
             number: 7,
         });
+    });
+
+    test('rejects writeback from a persisted legacy string ref', async () => {
+        const { service } = makeService({});
+
+        const error = await service
+            .writebackEntry({
+                projectUuid: PROJECT_UUID,
+                entry: { ...judgeEntry, objects: ['orders'] },
+                branchTimestamp: 1000,
+                sourceThread: null,
+            })
+            .catch((caught: unknown) => caught);
+
+        expect(error).toBeInstanceOf(ZodError);
+        expect((error as ZodError).issues[0].path).toEqual(['objects', 0]);
+        expect(mockGetFileContent).not.toHaveBeenCalled();
     });
 
     test('creates the file and opens a PR when it does not yet exist', async () => {

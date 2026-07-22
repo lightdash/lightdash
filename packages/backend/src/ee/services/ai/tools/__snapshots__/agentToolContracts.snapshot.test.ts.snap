@@ -4234,9 +4234,51 @@ Parameters:
           "type": "string",
         },
         "objects": {
-          "description": "The semantic objects this fact concerns — explore names and/or field ids in the table_field form (e.g. "payments_total_amount"); [] when purely prompt-driven.",
+          "description": "The semantic objects this fact concerns. Use {type:"explore",name} for explores and {type:"field",explore,fieldId} for fields; [] when purely prompt-driven.",
           "items": {
-            "type": "string",
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "type": {
+                    "const": "explore",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "type",
+                  "name",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "explore": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "fieldId": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "type": {
+                    "const": "field",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "type",
+                  "explore",
+                  "fieldId",
+                ],
+                "type": "object",
+              },
+            ],
           },
           "type": "array",
         },
