@@ -164,7 +164,7 @@ describe('useRecommendedActions', () => {
     });
 
     describe('add-semantic-layer destination', () => {
-        it('links to the agent setup flow when both flags are enabled', () => {
+        it('links to the current project agent setup flow when both flags are enabled', () => {
             vi.mocked(useServerFeatureFlag).mockImplementation(
                 () =>
                     ({
@@ -178,7 +178,7 @@ describe('useRecommendedActions', () => {
 
             expect(
                 result.current.statuses['add-semantic-layer'].url,
-            ).toStrictEqual('/createProject/agent');
+            ).toStrictEqual('/projects/project-uuid/onboarding/agent');
         });
 
         it('keeps the settings link when coding-agent onboarding is disabled', () => {

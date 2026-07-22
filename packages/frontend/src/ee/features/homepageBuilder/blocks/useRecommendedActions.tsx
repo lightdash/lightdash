@@ -98,7 +98,7 @@ const useActionStatuses = (
                 : null,
             doneIcon: null,
             url: hasAgentSemanticLayerEntry
-                ? '/createProject/agent'
+                ? `/projects/${projectUuid}/onboarding/agent`
                 : `/generalSettings/projectManagement/${projectUuid}/settings`,
         },
         'connect-source-control': {
