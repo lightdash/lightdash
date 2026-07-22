@@ -100,12 +100,15 @@ where every simple metric has `type_params.expr` set and
 translator behaviour without needing dbt Cloud credentials.
 
 For a live Cloud CLI parse (local CLI, compile/parse runs in dbt Cloud), set
-`DBT_CLOUD_CLI_CONFIG` to a `dbt_cloud.yml` credentials file and ensure
-`latest-spec/dbt_project.yml` has a matching `dbt-cloud.project-id` block:
+`DBT_CLOUD_CLI_CONFIG` to a `dbt_cloud.yml` credentials file and
+`DBT_CLOUD_PROJECT_ID` to the Cloud project id. The project's **Development**
+environment must have warehouse credentials configured for the token's user,
+and a dbt version that supports the latest metrics spec (e.g. `fusion-stable`):
 
 ```bash
-# downloads the Cloud CLI binary into .dbt-cloud-cli/ on first run
-DBT_CLOUD_CLI_CONFIG=~/.dbt/dbt_cloud.yml ./examples/metricflow-demo/test.sh
+DBT_CLOUD_CLI_CONFIG=~/.dbt/dbt_cloud.yml \
+DBT_CLOUD_PROJECT_ID=547715 \
+./examples/metricflow-demo/test.sh
 ```
 
 `test.sh` installs the [dbt Cloud CLI](https://docs.getdbt.com/docs/cloud/cloud-cli-installation)
