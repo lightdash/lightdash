@@ -608,6 +608,14 @@ type UpdateSavedChartEvent = BaseTrack & {
         savedQueryId: string;
         dashboardId: string | undefined;
         virtualViewId: string | undefined;
+        hasRowLimit: boolean;
+        rowLimitCount: number | null;
+        hasColumnLimit: boolean;
+        columnLimit: number | null;
+        customColumnWidthsCount: number;
+        tableCalculationFunctions: string[];
+        hasAverageDistinctAdditionalMetric: boolean;
+        numCustomGroupBinCustomDimensions: number;
     };
 };
 type DeleteSavedChartEvent = BaseTrack & {
@@ -755,8 +763,16 @@ export type CreateSavedChartVersionEvent = BaseTrack & {
         numFixedWidthBinCustomDimensions: number;
         numFixedBinsBinCustomDimensions: number;
         numCustomRangeBinCustomDimensions: number;
+        numCustomGroupBinCustomDimensions: number;
         numCustomSqlDimensions: number;
         parametersCount: number;
+        hasRowLimit: boolean;
+        rowLimitCount: number | null;
+        hasColumnLimit: boolean;
+        columnLimit: number | null;
+        customColumnWidthsCount: number;
+        tableCalculationFunctions: string[];
+        hasAverageDistinctAdditionalMetric: boolean;
     };
 };
 
