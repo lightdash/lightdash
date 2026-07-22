@@ -354,10 +354,11 @@ const renderDateOrTimestampFilterSql = ({
     // A truncated sub-day LHS round-trips through the project tz into a UTC
     // instant; sharing `isTimezoneRoundTripNoOp` with the SELECT side keeps
     // both sides of the comparison symmetric by construction.
+    const subDayLhs =
+        timeInterval !== undefined && SUB_DAY_TIME_FRAMES.has(timeInterval);
     const lhsWrapped =
         domainDirected &&
-        timeInterval !== undefined &&
-        SUB_DAY_TIME_FRAMES.has(timeInterval) &&
+        subDayLhs &&
         !isTimezoneRoundTripNoOp(
             adapterType,
             timezone,
@@ -368,6 +369,13 @@ const renderDateOrTimestampFilterSql = ({
     if (domainDirected) {
         if (lhsWrapped) {
             literalMode = 'wrapped';
+        } else if (subDayLhs) {
+            // Equal-zones no-op: the LHS is the legacy unwrapped trunc (a
+            // naive value), so a typed instant literal would lean on session
+            // coercion — keep the legacy literal, which matches it exactly.
+            // Known-naive columns never reach this state: their round trip
+            // is never a no-op.
+            literalMode = 'legacy';
         } else {
             literalMode =
                 effectiveDomain === 'naive' ? 'naiveWall' : 'awareInstant';

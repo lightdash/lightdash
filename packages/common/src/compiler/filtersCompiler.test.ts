@@ -3396,6 +3396,25 @@ describe('domain-directed timestamp filter literals', () => {
             );
         });
 
+        test('Trino known-aware sub-day at display == data keeps the legacy literal (unwrapped LHS)', () => {
+            // Equal-zones no-op: the LHS is the legacy naive trunc, so a
+            // typed instant literal would lean on session coercion.
+            expect(
+                renderTimestamp(
+                    SupportedDbtAdapter.TRINO,
+                    equalsInstantFilter,
+                    {
+                        timezone: 'Asia/Tokyo',
+                        sourceTimezone: 'Asia/Tokyo',
+                        timestampDomain: 'aware',
+                        timeInterval: TimeFrames.HOUR,
+                    },
+                ),
+            ).toStrictEqual(
+                `(${DimensionSqlMock}) = CAST('2024-01-14 17:00:00+00:00' AS timestamp)`,
+            );
+        });
+
         test('Databricks freezes the wrapped literal as TIMESTAMP_NTZ to match the frozen LHS', () => {
             expect(
                 renderTimestamp(
