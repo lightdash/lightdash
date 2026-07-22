@@ -330,6 +330,86 @@ describe('AiAgentMemoryModel integration', () => {
         );
     });
 
+    it('increments citation telemetry only for active memories', async () => {
+        const activeThreadUuid = await createThread();
+        const retiredThreadUuid = await createThread();
+        const active = await model.upsertSourceThreadMemory(
+            memoryInput(activeThreadUuid),
+        );
+        const retired = await model.upsertSourceThreadMemory(
+            memoryInput(retiredThreadUuid),
+        );
+        await database(AiAgentMemoryTableName)
+            .where('ai_agent_memory_uuid', retired.ai_agent_memory_uuid)
+            .update({ status: 'retired' });
+
+        const updatedSlugs = await model.incrementCitedForActiveMemories({
+            projectUuid: SEED_PROJECT.project_uuid,
+            slugs: [active.slug, active.slug, retired.slug, 'unknown-memory'],
+        });
+
+        const rows = await database(AiAgentMemoryTableName)
+            .whereIn('ai_agent_memory_uuid', [
+                active.ai_agent_memory_uuid,
+                retired.ai_agent_memory_uuid,
+            ])
+            .orderBy('slug');
+        const activeRow = rows.find(
+            (row) => row.ai_agent_memory_uuid === active.ai_agent_memory_uuid,
+        );
+        const retiredRow = rows.find(
+            (row) => row.ai_agent_memory_uuid === retired.ai_agent_memory_uuid,
+        );
+
+        expect(updatedSlugs).toEqual([active.slug]);
+        expect(activeRow).toMatchObject({
+            cited_count: 1,
+            pulled_count: 0,
+            last_pulled_at: null,
+        });
+        expect(activeRow?.last_cited_at).not.toBeNull();
+        expect(retiredRow).toMatchObject({
+            cited_count: 0,
+            last_cited_at: null,
+            pulled_count: 0,
+        });
+    });
+
+    it('ranks active memories by latest citation then generation time', async () => {
+        const olderThreadUuid = await createThread();
+        const newerThreadUuid = await createThread();
+        const citedThreadUuid = await createThread();
+        const older = await model.upsertSourceThreadMemory(
+            memoryInput(olderThreadUuid, {
+                generatedAt: new Date('2026-07-20T10:00:00Z'),
+            }),
+        );
+        const newer = await model.upsertSourceThreadMemory(
+            memoryInput(newerThreadUuid, {
+                generatedAt: new Date('2026-07-21T10:00:00Z'),
+            }),
+        );
+        const cited = await model.upsertSourceThreadMemory(
+            memoryInput(citedThreadUuid, {
+                generatedAt: new Date('2026-07-19T10:00:00Z'),
+            }),
+        );
+        await database(AiAgentMemoryTableName)
+            .where('ai_agent_memory_uuid', cited.ai_agent_memory_uuid)
+            .update({ last_cited_at: new Date('2026-07-22T10:00:00Z') });
+
+        const rows = await model.findActiveForProject({
+            projectUuid: SEED_PROJECT.project_uuid,
+        });
+        const testMemorySlugs = new Set([older.slug, newer.slug, cited.slug]);
+
+        expect(
+            rows
+                .filter((row) => testMemorySlugs.has(row.slug))
+                .map((row) => row.slug),
+        ).toEqual([cited.slug, newer.slug, older.slug]);
+    });
+
     it('upserts one ledger row and clears stale outcome details', async () => {
         const aiThreadUuid = await createThread();
         const memory = await model.upsertSourceThreadMemory(
@@ -399,7 +479,7 @@ describe('AiAgentMemoryModel integration', () => {
         expect(Number(ledgerCount?.count)).toBe(1);
     });
 
-    it('returns only active project memories in generated-at order', async () => {
+    it('returns only active project memories in citation then generation order', async () => {
         const [firstThread, secondThread, thirdThread, retiredThread] =
             await Promise.all([
                 createThread(),
@@ -439,8 +519,8 @@ describe('AiAgentMemoryModel integration', () => {
         });
 
         expect(rows.map((row) => row.ai_agent_memory_uuid)).toEqual([
-            second.ai_agent_memory_uuid,
             first.ai_agent_memory_uuid,
+            second.ai_agent_memory_uuid,
             third.ai_agent_memory_uuid,
         ]);
     });

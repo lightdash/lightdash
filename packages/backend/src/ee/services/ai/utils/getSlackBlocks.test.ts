@@ -131,6 +131,15 @@ describe('Slack AI agent blocks', () => {
         });
     });
 
+    it('strips memory citations from Slack markdown', () => {
+        const blocks = getMarkdownBlocks(
+            'Answer.<ld-mem-cite id="memory-one"></ld-mem-cite> Next.<ld-mem-cite id="memory-two" />',
+        );
+
+        expect(blocks).toEqual([{ type: 'markdown', text: 'Answer. Next.' }]);
+        expect(JSON.stringify(blocks)).not.toContain('ld-mem-cite');
+    });
+
     it('keeps project picker option values within Slack limits', () => {
         const blocks = getProjectSelectionBlocks(
             Array.from({ length: 20 }, (_, index) => ({

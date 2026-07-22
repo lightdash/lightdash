@@ -328,6 +328,10 @@ import {
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
 import {
+    parseMemoryCitations,
+    stripMemoryCitations,
+} from '../ai/utils/memoryCitation';
+import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
 } from '../ai/utils/populateCustomMetricsSQL';
@@ -6907,7 +6911,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 ) {
                     messages.push({
                         role: 'assistant',
-                        content: message.response,
+                        content: stripMemoryCitations(message.response),
                     } satisfies AssistantModelMessage);
                 }
 
@@ -8170,6 +8174,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         // the agent's stream starts pulling.
         const stepProgressEmitter =
             stream && !isSlackPrompt(prompt) ? new EventEmitter() : undefined;
+        const { enabled: aiAgentMemoryEnabled } =
+            await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AiAgentMemory,
+            });
 
         const {
             listExplores,
@@ -8413,12 +8422,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 writebackAttribution = null;
             }
         }
-
-        const { enabled: aiAgentMemoryEnabled } =
-            await this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.AiAgentMemory,
-            });
 
         const projectContextEnabled =
             aiWritebackEnabled &&
@@ -8714,6 +8717,45 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             ) => {
                 const updatePromise =
                     this.aiAgentModel.updateModelResponse(update);
+                const updateWithCitationTelemetryPromise =
+                    aiAgentMemoryEnabled &&
+                    update.response !== undefined &&
+                    update.tokenUsage !== undefined
+                        ? updatePromise.then(async () => {
+                              const { slugs, malformedCount } =
+                                  parseMemoryCitations(update.response ?? '');
+                              if (malformedCount > 0) {
+                                  this.logger.warn(
+                                      `Dropped ${malformedCount} malformed memory citation marker(s) for prompt ${update.promptUuid}`,
+                                  );
+                              }
+                              if (slugs.length === 0) return;
+
+                              try {
+                                  const citedSlugs =
+                                      await this.aiAgentMemoryModel.incrementCitedForActiveMemories(
+                                          {
+                                              projectUuid: prompt.projectUuid,
+                                              slugs,
+                                          },
+                                      );
+                                  const cited = new Set(citedSlugs);
+                                  const dropped = slugs.filter(
+                                      (slug) => !cited.has(slug),
+                                  );
+                                  if (dropped.length > 0) {
+                                      this.logger.warn(
+                                          `Dropped ${dropped.length} unknown or inactive memory citation(s) for prompt ${update.promptUuid}`,
+                                      );
+                                  }
+                              } catch (error) {
+                                  this.logger.error(
+                                      `Failed to update memory citation telemetry for prompt ${update.promptUuid}`,
+                                      error,
+                                  );
+                              }
+                          })
+                        : updatePromise;
 
                 if (
                     update.errorMessage !== undefined ||
@@ -8739,7 +8781,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         });
                 }
 
-                return updatePromise;
+                return updateWithCitationTelemetryPromise;
             },
             trackEvent: (
                 event:
@@ -10113,9 +10155,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 user,
                 slackPrompt,
             );
-            const slackResponse = AiAgentService.applySqlRunnerLinkForSlack(
-                response,
-                sqlRunnerUrl,
+            const slackResponse = stripMemoryCitations(
+                AiAgentService.applySqlRunnerLinkForSlack(
+                    response,
+                    sqlRunnerUrl,
+                ),
             );
             const slackifiedMarkdown = slackifyMarkdown(slackResponse).replace(
                 /\\\n/g,
