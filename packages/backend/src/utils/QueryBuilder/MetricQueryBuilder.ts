@@ -1034,23 +1034,53 @@ export class MetricQueryBuilder {
     }
 
     /**
-     * Metric YAML filters that use relative date operators (inThePast/inTheNext/
-     * inTheCurrent/...) have their boundaries baked in at explore compile time,
-     * so the window is frozen to the last deploy. Re-render each such predicate
-     * against "now" in the query timezone — exactly like UI filters do — and swap
-     * it into the given metric SQL (compiledSql or compiledValueSql; the baked
-     * predicate is a substring of both).
+     * Metric filters are baked into the metric SQL at compile time, which
+     * freezes two things that must resolve at query time: relative date
+     * boundaries (inThePast/... windows frozen to the last deploy) and
+     * absolute timestamp literals (baked with no data-timezone or domain
+     * context). Re-render each recorded predicate — exactly like UI filters —
+     * and swap it into the given metric SQL (compiledSql or compiledValueSql;
+     * the baked predicate is a substring of both).
      */
     private swapRelativeDateMetricFilters(
         metric: CompiledMetric,
         baseSql: string,
     ): string {
-        const relativeDateFilters = metric.compiledRelativeDateFilters;
-        if (!relativeDateFilters || relativeDateFilters.length === 0) {
+        // getFilterRuleSQL resolves dimension filters against the
+        // access-filtered explore, so a target restricted away from this user
+        // cannot be re-rendered — leave its baked predicate untouched.
+        const resolveRenderableDimension = (fieldId: string) =>
+            this.originalExploreDimensions[fieldId] ??
+            this.exploreDimensions[fieldId];
+        const renderableRelativeDateFilters = (
+            metric.compiledRelativeDateFilters ?? []
+        ).filter(
+            (stored) =>
+                resolveRenderableDimension(stored.fieldId) !== undefined,
+        );
+        // Absolute timestamp predicates were baked with no domain context;
+        // re-render them only when the target is classified so unknown-domain
+        // and opted-out columns stay byte-identical to the compiled SQL.
+        const classifiedTimestampFilters = (
+            metric.compiledTimestampFilters ?? []
+        ).filter((stored) => {
+            const dimension = resolveRenderableDimension(stored.fieldId);
+            return (
+                dimension !== undefined &&
+                this.resolveFilterTimestampDomain(dimension) !== undefined
+            );
+        });
+        const recordedFilters = [
+            ...renderableRelativeDateFilters,
+            ...classifiedTimestampFilters,
+        ];
+        if (recordedFilters.length === 0) {
             return baseSql;
         }
-        return relativeDateFilters.reduce((sql, stored) => {
-            const rule = metric.filters?.find((f) => f.id === stored.id);
+        return recordedFilters.reduce((sql, stored) => {
+            const rule =
+                metric.filters?.find((f) => f.id === stored.id) ??
+                this.findReferencedMetricFilterRule(stored.id);
             if (!rule) {
                 return sql;
             }
@@ -1065,8 +1095,36 @@ export class MetricQueryBuilder {
             if (!freshPredicate) {
                 return sql;
             }
+            if (!sql.includes(stored.compiledSql)) {
+                // Anchor drift: the recorded predicate no longer appears in the
+                // metric SQL, so the stale baked predicate executes unswapped.
+                Logger.warn('metric_filter_rewrite.anchor_missing', {
+                    metric: metric.name,
+                    table: metric.table,
+                    filterId: stored.id,
+                    fieldId: stored.fieldId,
+                });
+                return sql;
+            }
             return sql.split(stored.compiledSql).join(freshPredicate);
         }, baseSql);
+    }
+
+    /**
+     * A derived metric inlines its referenced metrics' baked predicates and
+     * carries their filter records, but the rules live on the referenced
+     * metric definitions — resolve a record's rule across the explore metrics.
+     */
+    private findReferencedMetricFilterRule(
+        filterId: string,
+    ): MetricFilterRule | undefined {
+        for (const exploreMetric of Object.values(this.availableMetrics)) {
+            const rule = exploreMetric.filters?.find((f) => f.id === filterId);
+            if (rule) {
+                return rule;
+            }
+        }
+        return undefined;
     }
 
     /**

@@ -1848,3 +1848,160 @@ describe('relative date metric filters are baked at compile time', () => {
         expect(stored.compiledSql).toContain("'2026-05-05");
     });
 });
+
+describe('absolute timestamp metric filters are recorded for query-time re-rendering', () => {
+    const buildTable = (
+        dimensionType: DimensionType,
+        filter: Record<string, unknown>,
+    ): Record<string, Table> => ({
+        table1: {
+            name: 'table1',
+            label: 'table1',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: '"db"."schema"."table1"',
+            sqlWhere: undefined,
+            dimensions: {
+                created_at: {
+                    type: dimensionType,
+                    name: 'created_at',
+                    label: 'created_at',
+                    table: 'table1',
+                    tableLabel: 'table1',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.created_at',
+                    hidden: false,
+                },
+            },
+            metrics: {
+                filtered_count: {
+                    type: MetricType.COUNT,
+                    fieldType: FieldType.METRIC,
+                    table: 'table1',
+                    tableLabel: 'table1',
+                    name: 'filtered_count',
+                    label: 'filtered_count',
+                    sql: '${TABLE}.created_at',
+                    hidden: false,
+                    filters: [filter as never],
+                },
+            },
+            lineageGraph: {},
+            groupLabel: undefined,
+        },
+    });
+
+    const compileFor = (
+        dimensionType: DimensionType,
+        filter: Record<string, unknown>,
+    ) => {
+        const tables = buildTable(dimensionType, filter);
+        return compiler.compileMetric(
+            tables.table1.metrics.filtered_count,
+            tables,
+            [],
+        );
+    };
+
+    test('an absolute TIMESTAMP predicate is recorded with its swap anchor', () => {
+        const compiled = compileFor(DimensionType.TIMESTAMP, {
+            id: 'f1',
+            target: { fieldRef: 'created_at' },
+            operator: FilterOperator.EQUALS,
+            values: ['2024-01-14T17:00:00.000Z'],
+        });
+        expect(compiled.compiledTimestampFilters).toHaveLength(1);
+        const [stored] = compiled.compiledTimestampFilters!;
+        expect(stored.id).toBe('f1');
+        expect(stored.fieldId).toBe('table1_created_at');
+        expect(compiled.compiledSql).toContain(stored.compiledSql);
+        expect(compiled.compiledRelativeDateFilters).toBeUndefined();
+    });
+
+    test('a relative operator stays in the relative list only', () => {
+        const compiled = compileFor(DimensionType.TIMESTAMP, {
+            id: 'f1',
+            target: { fieldRef: 'created_at' },
+            operator: FilterOperator.IN_THE_PAST,
+            values: [30],
+            settings: { unitOfTime: UnitOfTime.days, completed: false },
+        });
+        expect(compiled.compiledRelativeDateFilters).toHaveLength(1);
+        expect(compiled.compiledTimestampFilters).toBeUndefined();
+    });
+
+    const withDerivedMetric = (tables: Record<string, Table>) => {
+        // eslint-disable-next-line no-param-reassign
+        tables.table1.metrics.derived = {
+            type: MetricType.NUMBER,
+            fieldType: FieldType.METRIC,
+            table: 'table1',
+            tableLabel: 'table1',
+            name: 'derived',
+            label: 'derived',
+            sql: '${table1.filtered_count}',
+            hidden: false,
+        };
+        return tables;
+    };
+
+    test('a derived metric carries the referenced metric recorded timestamp filters', () => {
+        const tables = withDerivedMetric(
+            buildTable(DimensionType.TIMESTAMP, {
+                id: 'f1',
+                target: { fieldRef: 'created_at' },
+                operator: FilterOperator.EQUALS,
+                values: ['2024-01-14T17:00:00.000Z'],
+            }),
+        );
+        const compiled = compiler.compileMetric(
+            tables.table1.metrics.derived,
+            tables,
+            [],
+        );
+        expect(compiled.compiledTimestampFilters).toHaveLength(1);
+        const [stored] = compiled.compiledTimestampFilters!;
+        expect(stored.id).toBe('f1');
+        expect(stored.fieldId).toBe('table1_created_at');
+        expect(compiled.compiledSql).toContain(stored.compiledSql);
+    });
+
+    test('a derived metric carries the referenced metric recorded relative date filters', () => {
+        const tables = withDerivedMetric(
+            buildTable(DimensionType.TIMESTAMP, {
+                id: 'f1',
+                target: { fieldRef: 'created_at' },
+                operator: FilterOperator.IN_THE_PAST,
+                values: [30],
+                settings: { unitOfTime: UnitOfTime.days, completed: false },
+            }),
+        );
+        const compiled = compiler.compileMetric(
+            tables.table1.metrics.derived,
+            tables,
+            [],
+        );
+        expect(compiled.compiledRelativeDateFilters).toHaveLength(1);
+        const [stored] = compiled.compiledRelativeDateFilters!;
+        expect(stored.fieldId).toBe('table1_created_at');
+        expect(compiled.compiledSql).toContain(stored.compiledSql);
+    });
+
+    test('DATE targets and value-less operators are not recorded', () => {
+        const onDate = compileFor(DimensionType.DATE, {
+            id: 'f1',
+            target: { fieldRef: 'created_at' },
+            operator: FilterOperator.EQUALS,
+            values: ['2024-01-14'],
+        });
+        expect(onDate.compiledTimestampFilters).toBeUndefined();
+
+        const nullCheck = compileFor(DimensionType.TIMESTAMP, {
+            id: 'f1',
+            target: { fieldRef: 'created_at' },
+            operator: FilterOperator.NOT_NULL,
+            values: [],
+        });
+        expect(nullCheck.compiledTimestampFilters).toBeUndefined();
+    });
+});

@@ -301,6 +301,18 @@ const compileAdditionalMetric = ({
         ...metric,
         compiledSql: compiledMetric.sql,
         tablesReferences: Array.from(compiledMetric.tablesReferences),
+        ...(compiledMetric.compiledRelativeDateFilters
+            ? {
+                  compiledRelativeDateFilters:
+                      compiledMetric.compiledRelativeDateFilters,
+              }
+            : {}),
+        ...(compiledMetric.compiledTimestampFilters
+            ? {
+                  compiledTimestampFilters:
+                      compiledMetric.compiledTimestampFilters,
+              }
+            : {}),
     };
 };
 
