@@ -3786,6 +3786,7 @@ export class AsyncQueryService extends ProjectService {
                             },
                             cacheKey,
                             pivotConfiguration: pivotConfiguration ?? null,
+                            originalColumns: originalColumns ?? null,
                         });
                     const historyCreateMs = Date.now() - historyCreateStart;
                     this.prometheusMetrics?.trackQueryStateTransition(

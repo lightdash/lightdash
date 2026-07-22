@@ -134,7 +134,6 @@ export class QueryHistoryModel {
             | 'resultsUpdatedAt'
             | 'resultsExpiresAt'
             | 'columns'
-            | 'originalColumns'
             | 'preAggregateCompiledSql'
             | 'processingStartedAt'
             | 'createdByAccount'
@@ -176,7 +175,11 @@ export class QueryHistoryModel {
                 results_updated_at: null,
                 results_expires_at: null,
                 columns: null,
-                original_columns: null,
+                // Persist original (pre-pivot) columns up front. The NATS
+                // worker rebuilds its args from this row, so a null here would
+                // drop the columns for pivoted queries (Bar/Line/Pie SQL charts
+                // read pivotDetails.originalColumns for dashboard filters).
+                original_columns: queryHistory.originalColumns,
                 pre_aggregate_compiled_sql: null,
                 processing_started_at: null,
             })

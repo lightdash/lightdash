@@ -2760,6 +2760,18 @@ describe('AsyncQueryService', () => {
                     originalColumns: mockOriginalColumns,
                 }),
             );
+
+            // Verify that original columns are persisted at creation time too,
+            // so the NATS worker path (which rebuilds args from the history
+            // row) doesn't lose them for pivoted charts.
+            expect(
+                serviceWithCache.queryHistoryModel.create,
+            ).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    originalColumns: mockOriginalColumns,
+                }),
+            );
         });
     });
 
