@@ -13,7 +13,6 @@ import {
     ExploreCompiler,
     getTableColumnReferences,
     parseAllReferences,
-    replaceTableColumnReferences,
     sqlAggregationWrapsReferences,
     sqlContainsAggregation,
     type UncompiledExplore,
@@ -638,12 +637,6 @@ describe('Parse dimension reference', () => {
         expect(getTableColumnReferences('${TABLE}.a${amount}')).toStrictEqual([
             'a',
         ]);
-        expect(
-            replaceTableColumnReferences(
-                '${TABLE}.a${amount} + ${TABLE}.tax',
-                (fullMatch, columnReference) => `[${columnReference}]`,
-            ),
-        ).toStrictEqual('[a]${amount} + [tax]');
     });
     test('should parse unquoted TABLE column references with legacy \\w+ semantics', () => {
         expect(
