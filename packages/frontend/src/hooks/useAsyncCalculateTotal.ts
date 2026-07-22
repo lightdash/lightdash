@@ -73,12 +73,11 @@ const startCalculateTotalQuery = ({
 export type AsyncTotalsMap = Record<string, number>;
 
 const fetchTotals = async (
-    args: Omit<StartCalculateTotalArgs, 'kind'>,
+    args: Omit<StartCalculateTotalArgs, 'kind'> & {
+        kind: Extract<CalculateTotalKind, 'columnTotal' | 'grandTotal'>;
+    },
 ): Promise<AsyncTotalsMap> => {
-    const { queryUuid } = await startCalculateTotalQuery({
-        ...args,
-        kind: 'columnTotal',
-    });
+    const { queryUuid } = await startCalculateTotalQuery(args);
 
     // Polling endpoint defaults to page=1, so the READY response already
     // contains the single totals row — no separate stream fetch needed.
@@ -119,20 +118,23 @@ export const useColumnTotalsEnabledByDefault = (
     return projectQuery.data?.projectDefaults?.column_totals !== false;
 };
 
-export const useAsyncCalculateTotal = ({
+const useAsyncCalculateSingleRowTotal = ({
     projectUuid,
     sourceQueryUuid,
+    kind,
     enabled,
     invalidateCache,
 }: {
     projectUuid: string | undefined;
     sourceQueryUuid: string | undefined;
+    kind: Extract<CalculateTotalKind, 'columnTotal' | 'grandTotal'>;
     enabled: boolean;
     invalidateCache?: boolean;
 }) =>
     useQuery<AsyncTotalsMap, ApiError>({
         queryKey: [
             'calculate_async_total',
+            kind,
             projectUuid,
             sourceQueryUuid,
             invalidateCache,
@@ -148,12 +150,21 @@ export const useAsyncCalculateTotal = ({
             return fetchTotals({
                 projectUuid,
                 sourceQueryUuid,
+                kind,
                 invalidateCache,
             });
         },
         enabled: enabled && !!projectUuid && !!sourceQueryUuid,
         retry: false,
     });
+
+export const useAsyncCalculateTotal = (
+    args: Omit<Parameters<typeof useAsyncCalculateSingleRowTotal>[0], 'kind'>,
+) => useAsyncCalculateSingleRowTotal({ ...args, kind: 'columnTotal' });
+
+export const useAsyncCalculateGrandTotal = (
+    args: Omit<Parameters<typeof useAsyncCalculateSingleRowTotal>[0], 'kind'>,
+) => useAsyncCalculateSingleRowTotal({ ...args, kind: 'grandTotal' });
 
 // Row totals re-run the source query collapsed across the pivot columns, so the
 // result is one flat row per index-value combination (index dims + metrics),

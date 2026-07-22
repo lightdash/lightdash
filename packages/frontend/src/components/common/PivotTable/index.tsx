@@ -183,6 +183,8 @@ type PivotTableProps = BoxProps & // TODO: remove this
         isColumnTotalsLoading?: boolean;
         /** Row-total cells render a loading skeleton while their async query is in flight. */
         isRowTotalsLoading?: boolean;
+        /** Grand-total intersection cells render a loading skeleton while their async query is in flight. */
+        isGrandTotalsLoading?: boolean;
         /** Subtotal cells render a loading skeleton while their async query is in flight. */
         isSubtotalsLoading?: boolean;
         columnProperties?: Record<string, ColumnProperties>;
@@ -218,6 +220,7 @@ const PivotTable: FC<PivotTableProps> = ({
     showRowGrouping = false,
     isColumnTotalsLoading = false,
     isRowTotalsLoading = false,
+    isGrandTotalsLoading = false,
     isSubtotalsLoading = false,
     columnProperties = {},
     isMinimal = false,
@@ -756,6 +759,33 @@ const PivotTable: FC<PivotTableProps> = ({
             };
         },
         [data.columnTotalFields, getField, parameters],
+    );
+
+    const getGrandTotalValueFromAxis = useCallback(
+        (total: unknown, metricIndex: number): ResultValue | null => {
+            const totalField = data.pivotConfig.metricsAsRows
+                ? last(data.columnTotalFields?.[metricIndex])
+                : last(data.rowTotalFields)?.[metricIndex];
+            if (!totalField?.fieldId) throw new Error('Invalid pivot data');
+            if (total === null || total === undefined) return null;
+
+            return {
+                raw: total,
+                formatted: formatItemValue(
+                    getField(totalField.fieldId),
+                    total,
+                    false,
+                    parameters,
+                ),
+            };
+        },
+        [
+            data.columnTotalFields,
+            data.pivotConfig.metricsAsRows,
+            data.rowTotalFields,
+            getField,
+            parameters,
+        ],
     );
 
     const getUnderlyingFieldValues = useCallback(
@@ -2238,12 +2268,66 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                 {hasRowTotals
                                     ? data.rowTotalFields?.[0].map(
-                                          (_, index) => (
-                                              <Table.Cell
-                                                  key={`footer-empty-${totalRowIndex}-${index}`}
-                                                  isMinimal={isMinimal}
-                                              />
-                                          ),
+                                          (_, index) => {
+                                              const metricIndex = data
+                                                  .pivotConfig.metricsAsRows
+                                                  ? totalRowIndex
+                                                  : index;
+                                              const value =
+                                                  getGrandTotalValueFromAxis(
+                                                      data.grandTotals?.[
+                                                          metricIndex
+                                                      ],
+                                                      metricIndex,
+                                                  );
+                                              return value ? (
+                                                  <Table.CellHead
+                                                      key={`grand-total-${totalRowIndex}-${index}`}
+                                                      withAlignRight
+                                                      isMinimal={isMinimal}
+                                                      withBoldFont
+                                                      withInteractions
+                                                      withValue={
+                                                          value.formatted
+                                                      }
+                                                      withMenu={(
+                                                          {
+                                                              isOpen,
+                                                              onClose,
+                                                              onCopy,
+                                                          }: MenuCallbackProps,
+                                                          render: RenderCallback,
+                                                      ) => (
+                                                          <TotalCellMenu
+                                                              opened={isOpen}
+                                                              onClose={onClose}
+                                                              onCopy={onCopy}
+                                                          >
+                                                              {render()}
+                                                          </TotalCellMenu>
+                                                      )}
+                                                  >
+                                                      {value.formatted}
+                                                  </Table.CellHead>
+                                              ) : isGrandTotalsLoading ? (
+                                                  <Table.CellHead
+                                                      key={`grand-total-${totalRowIndex}-${index}`}
+                                                      withAlignRight
+                                                      isMinimal={isMinimal}
+                                                  >
+                                                      <Skeleton
+                                                          height={16}
+                                                          width="min(60%, 50px)"
+                                                          ml="auto"
+                                                      />
+                                                  </Table.CellHead>
+                                              ) : (
+                                                  <Table.Cell
+                                                      key={`footer-empty-${totalRowIndex}-${index}`}
+                                                      isMinimal={isMinimal}
+                                                  />
+                                              );
+                                          },
                                       )
                                     : null}
                             </Table.Row>

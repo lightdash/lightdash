@@ -457,6 +457,71 @@ describe('convertSqlPivotedRowsToPivotData', () => {
         ]);
     });
 
+    it.each([false, true])(
+        'maps warehouse grand totals for every visible metric when metricsAsRows is %s',
+        (metricsAsRows) => {
+            const result = convertSqlPivotedRowsToPivotData({
+                rows: COMPLEX_SQL_PIVOTED_ROWS,
+                pivotDetails: COMPLEX_SQL_PIVOT_DETAILS,
+                pivotConfig: {
+                    rowTotals: true,
+                    columnTotals: true,
+                    metricsAsRows,
+                    columnOrder: [
+                        'payments_payment_method',
+                        'orders_order_date_year',
+                        'orders_is_completed',
+                        'orders_promo_code',
+                        'payments_total_revenue',
+                        'orders_average_order_size',
+                        'orders_total_order_amount',
+                    ],
+                },
+                getField: getFieldMock,
+                getFieldLabel: (fieldId) => fieldId,
+                groupedSubtotals: undefined,
+                warehouseGrandTotals: {
+                    payments_total_revenue: 1000,
+                    orders_average_order_size_any: 42.5,
+                    orders_total_order_amount: 2000,
+                },
+            });
+
+            expect(result.grandTotals).toEqual([1000, 42.5, 2000]);
+        },
+    );
+
+    it.each([
+        { rowTotals: true, columnTotals: false },
+        { rowTotals: false, columnTotals: true },
+    ])(
+        'does not expose grand totals with only one total axis enabled: $rowTotals/$columnTotals',
+        ({ rowTotals, columnTotals }) => {
+            const result = convertSqlPivotedRowsToPivotData({
+                rows: SQL_PIVOTED_ROWS,
+                pivotDetails: SQL_PIVOT_DETAILS,
+                pivotConfig: {
+                    rowTotals,
+                    columnTotals,
+                    metricsAsRows: false,
+                    columnOrder: [
+                        'payments_payment_method',
+                        'orders_order_date_year',
+                        'payments_total_revenue',
+                    ],
+                },
+                getField: getFieldMock,
+                getFieldLabel: (fieldId) => fieldId,
+                groupedSubtotals: undefined,
+                warehouseGrandTotals: {
+                    payments_total_revenue: 999,
+                },
+            });
+
+            expect(result.grandTotals).toBeUndefined();
+        },
+    );
+
     it('leaves column totals null (no client-side fallback) without warehouse values', () => {
         const result = convertSqlPivotedRowsToPivotData({
             rows: SQL_PIVOTED_ROWS,
