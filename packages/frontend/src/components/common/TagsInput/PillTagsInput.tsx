@@ -1,5 +1,6 @@
 import {
     CloseButton,
+    Pill,
     PillsInput,
     type MantineRadius,
     type MantineSize,
@@ -7,6 +8,7 @@ import {
 import { useUncontrolled } from '@mantine-8/hooks';
 import uniq from 'lodash/uniq';
 import {
+    Fragment,
     type FC,
     type FocusEventHandler,
     type KeyboardEventHandler,
@@ -159,36 +161,38 @@ export const PillTagsInput: FC<PillTagsInputProps> = ({
                 )
             }
         >
-            {value.map((tag) =>
-                renderPill ? (
-                    <span key={tag}>
-                        {renderPill({
-                            value: tag,
-                            onRemove: () => handleRemove(tag),
-                        })}
-                    </span>
-                ) : (
-                    <TagPill
-                        key={tag}
-                        label={tag}
-                        size={pillSize}
-                        disabled={disabled}
-                        onRemove={() => handleRemove(tag)}
-                    />
-                ),
-            )}
+            <Pill.Group size={size}>
+                {value.map((tag) =>
+                    renderPill ? (
+                        <Fragment key={tag}>
+                            {renderPill({
+                                value: tag,
+                                onRemove: () => handleRemove(tag),
+                            })}
+                        </Fragment>
+                    ) : (
+                        <TagPill
+                            key={tag}
+                            label={tag}
+                            size={pillSize}
+                            disabled={disabled}
+                            onRemove={() => handleRemove(tag)}
+                        />
+                    ),
+                )}
 
-            <PillsInput.Field
-                value={search}
-                placeholder={placeholder}
-                disabled={disabled}
-                data-autofocus={dataAutofocus}
-                onChange={(event) =>
-                    handleSearchChange(event.currentTarget.value)
-                }
-                onKeyDown={handleKeyDown}
-                onBlur={handleBlur}
-            />
+                <PillsInput.Field
+                    value={search}
+                    placeholder={placeholder}
+                    disabled={disabled}
+                    data-autofocus={dataAutofocus}
+                    onChange={(event) =>
+                        handleSearchChange(event.currentTarget.value)
+                    }
+                    onKeyDown={handleKeyDown}
+                    onBlur={handleBlur}
+                />
+            </Pill.Group>
         </PillsInput>
     );
 };

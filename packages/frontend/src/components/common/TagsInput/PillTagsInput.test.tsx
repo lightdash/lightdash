@@ -109,5 +109,10 @@ describe('PillTagsInput', () => {
             />,
         );
         expect(screen.getByTestId('custom-pill')).toHaveTextContent('custom-x');
+        // custom pills must be direct children of the pill group — a wrapper
+        // element collapses them inside PillsInput's flex layout
+        expect(
+            screen.getByTestId('custom-pill').parentElement?.className,
+        ).toContain('PillGroup-group');
     });
 });
