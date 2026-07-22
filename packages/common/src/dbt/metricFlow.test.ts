@@ -241,11 +241,8 @@ describe('translateMetricFlowMetrics', () => {
         });
     });
 
-    // dbt Core 1.12 / official DSI leaves expr only on type_params;
-    // metric_aggregation_params has no expr key (or null). Fusion duplicates
-    // expr onto both. Without falling back to type_params.expr, SQL resolves
-    // to the metric name (the PROD-9093 customer bug).
-    it('falls back to type_params.expr when metric_aggregation_params.expr is null (Core 1.12 / DSI)', () => {
+    // Core 1.12: expr only on type_params. Fusion: also on metric_aggregation_params.
+    it('falls back to type_params.expr when metric_aggregation_params.expr is null', () => {
         const result = translateMetricFlowMetrics({
             semanticModels: {
                 sm: {

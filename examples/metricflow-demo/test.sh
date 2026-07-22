@@ -1,17 +1,13 @@
 #!/usr/bin/env bash
-# Reproducible end-to-end test: MetricFlow definitions → Lightdash metrics.
+# MetricFlow → Lightdash translation checks.
 #
-# Covers three latest-spec producers of the same YAML:
-#   1) legacy-spec via dbt Core 1.9 (measure-reference manifest shape)
-#   2) latest-spec via dbt Fusion (nested metric_aggregation_params.expr populated)
-#   3) latest-spec via dbt Core 1.12 (type_params.expr set, nested expr ABSENT —
-#      the customer bug shape / official DSI shape)
+# latest-spec must be verified with both Fusion and Core 1.12 — they write
+# different manifest shapes for the same YAML (see README).
 #
-# Requirements: uv (https://docs.astral.sh/uv/), node, and for the legacy
-# project a running postgres (defaults to localhost:5432; override with
-# PGHOST/PGPORT/PGUSER/PGPASSWORD/PGDATABASE). See README.md for details.
+# Requires: uv, node; legacy-spec also needs Postgres
+# (PGHOST/PGPORT/PGUSER/PGPASSWORD/PGDATABASE, default localhost:5432).
 #
-# Optional live Cloud CLI verification (compiles in dbt Cloud):
+# Optional Cloud CLI (runs in Cloud against the Dev env's release track):
 #   DBT_CLOUD_CLI_CONFIG=/path/to/dbt_cloud.yml \
 #   DBT_CLOUD_PROJECT_ID=<id> ./test.sh
 set -euo pipefail
@@ -46,9 +42,8 @@ install_cloud_cli() {
     "$CLOUD_CLI" --version
 }
 
-assert_customer_bug_shape() {
-    # Fail if the manifest does not exhibit type_params.expr set with nested
-    # metric_aggregation_params.expr absent/null (the PROD-9093 customer shape).
+# Core 1.12 latest-spec: type_params.expr set, metric_aggregation_params.expr absent.
+assert_core112_expr_shape() {
     local manifest_path="$1"
     python3 - "$manifest_path" <<'PY'
 import json, sys
@@ -59,20 +54,18 @@ for metric in (m.get("metrics") or {}).values():
         continue
     tp = metric.get("type_params") or {}
     agg = tp.get("metric_aggregation_params")
-    if not isinstance(agg, dict):
-        continue
-    if tp.get("expr") and agg.get("expr") is None:
+    if isinstance(agg, dict) and tp.get("expr") and agg.get("expr") is None:
         shaped += 1
 if shaped < 5:
     raise SystemExit(
-        f"{sys.argv[1]}: expected >=5 simple metrics with type_params.expr set "
-        f"and metric_aggregation_params.expr absent/null, got {shaped}"
+        f"{sys.argv[1]}: expected Core 1.12 shape "
+        f"(type_params.expr set, nested expr absent) on >=5 simple metrics, got {shaped}"
     )
-print(f"  ✓ customer-bug shape: {shaped} simple metrics with nested expr absent/null")
+print(f"  ✓ Core 1.12 expr shape ({shaped} simple metrics)")
 PY
 }
 
-echo "═══ 1/3 Legacy spec (dbt-core 1.9, top-level semantic_models + metrics) ═══"
+echo "═══ 1/3 Legacy spec (dbt-core 1.9) ═══"
 pushd legacy-spec >/dev/null
 if [ ! -x .venv/bin/dbt ]; then
     echo "— creating python venv with dbt-core"
@@ -88,7 +81,7 @@ node ../assert-translation.cjs target/manifest.json
 popd >/dev/null
 
 echo
-echo "═══ 2/3 Latest spec (dbt Fusion — nested expr populated) ═══"
+echo "═══ 2/3 Latest spec (Fusion — nested expr populated) ═══"
 pushd latest-spec >/dev/null
 if [ ! -x "../.fusion/dbt" ]; then
     echo "— installing dbt Fusion into examples/metricflow-demo/.fusion"
@@ -105,10 +98,7 @@ node ../assert-translation.cjs target/manifest.json
 popd >/dev/null
 
 echo
-echo "═══ 3/3 Latest spec (dbt-core 1.12 — customer bug: nested expr absent) ═══"
-# Official DSI / Core 1.12 leaves expr only on type_params; Fusion duplicates it
-# onto metric_aggregation_params. Without the translator fallback, Core 1.12
-# manifests resolve SQL to the metric name instead of the column.
+echo "═══ 3/3 Latest spec (Core 1.12 — nested expr absent) ═══"
 if [ ! -x "$CORE112_VENV/bin/dbt" ]; then
     echo "— creating python venv with dbt-core 1.12 + dbt-duckdb"
     uv venv "$CORE112_VENV" --python 3.12 -q
@@ -118,28 +108,27 @@ pushd latest-spec >/dev/null
 mkdir -p warehouse
 rm -rf target
 ../.venv-core112/bin/dbt parse --profiles-dir profiles -q
-assert_customer_bug_shape target/manifest.json
+assert_core112_expr_shape target/manifest.json
 node "$CLI" compile --project-dir . --profiles-dir profiles --skip-dbt-compile --no-warehouse-credentials 2>&1 \
     | grep -E "Translated|Compiled" || true
 node ../assert-translation.cjs target/manifest.json
 popd >/dev/null
 
-# Also lock the checked-in Core 1.12 fixture (no network / no venv needed for CI spot-checks)
 echo
-echo "═══ Fixture lock-in (checked-in Core 1.12 manifest) ═══"
-assert_customer_bug_shape fixtures/core112-latest-spec-manifest.json
+echo "═══ Fixture (checked-in Core 1.12 manifest) ═══"
+assert_core112_expr_shape fixtures/core112-latest-spec-manifest.json
 node assert-translation.cjs fixtures/core112-latest-spec-manifest.json
 
 if [ -n "${DBT_CLOUD_CLI_CONFIG:-}" ]; then
     echo
-    echo "═══ Live Cloud CLI (DBT_CLOUD_CLI_CONFIG set) ═══"
+    echo "═══ Live Cloud CLI ═══"
     install_cloud_cli
     if [ ! -f "$DBT_CLOUD_CLI_CONFIG" ]; then
         echo "DBT_CLOUD_CLI_CONFIG does not point at a readable file: $DBT_CLOUD_CLI_CONFIG"
         exit 1
     fi
     if [ -z "${DBT_CLOUD_PROJECT_ID:-}" ]; then
-        echo "DBT_CLOUD_PROJECT_ID is required for live Cloud CLI parse (e.g. 547715)"
+        echo "DBT_CLOUD_PROJECT_ID is required for live Cloud CLI parse"
         exit 1
     fi
     mkdir -p "$HOME/.dbt"
@@ -175,7 +164,7 @@ if not simple:
 tp = simple.get("type_params") or {}
 agg = tp.get("metric_aggregation_params") or {}
 print(
-    f"Cloud CLI shape check ({simple.get('name')}): "
+    f"shape ({simple.get('name')}): "
     f"dbt_version={m.get('metadata', {}).get('dbt_version')!r} "
     f"type_params.expr={tp.get('expr')!r} "
     f"metric_aggregation_params.expr={agg.get('expr')!r}"
@@ -188,7 +177,7 @@ PY
     popd >/dev/null
 else
     echo
-    echo "(Skipping live Cloud CLI parse — set DBT_CLOUD_CLI_CONFIG and DBT_CLOUD_PROJECT_ID to enable)"
+    echo "(Skipping live Cloud CLI — set DBT_CLOUD_CLI_CONFIG and DBT_CLOUD_PROJECT_ID to enable)"
 fi
 
 echo

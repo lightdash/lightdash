@@ -4,7 +4,7 @@
     "dbt_version": "1.12.0",
     "generated_at": "2026-07-22T00:00:00.000000Z",
     "adapter_type": "duckdb",
-    "note": "Real dbt-core 1.12.0 parse of examples/metricflow-demo/latest-spec. Latest-spec simple metrics have type_params.expr set but metric_aggregation_params has no expr key (official DSI shape). Fusion duplicates expr onto metric_aggregation_params; Core 1.12 does not. This is the customer-reported bug shape for PROD-9093."
+    "note": "dbt-core 1.12.0 parse of examples/metricflow-demo/latest-spec. Latest-spec: type_params.expr set; metric_aggregation_params has no expr key. Fusion sets expr on both."
   },
   "nodes": {
     "model.metricflow_latest_demo.metricflow_time_spine": {

@@ -6,33 +6,19 @@ metrics with MetricFlow in your dbt project, Lightdash can read them straight
 from the dbt manifest and turn them into Lightdash metrics.
 
 The example projects define the *same* metrics over the same tiny orders
-dataset, authored in each MetricFlow YAML spec. Verification covers manifests
-produced by **dbt Core (legacy)**, **dbt Fusion**, and **dbt Core 1.12**
-(latest-spec / official DSI shape — the customer bug):
+dataset, authored in each MetricFlow YAML spec. **latest-spec must be checked
+with both Fusion and Core 1.12** — same YAML, different manifest shapes:
 
-| Source | Metrics spec | dbt engine | Warehouse | Nested `metric_aggregation_params.expr` |
+| Source | Metrics spec | dbt engine | Warehouse | `metric_aggregation_params.expr` |
 |---|---|---|---|---|
-| `legacy-spec/` | Legacy: top-level `semantic_models:` + `metrics:` with `type_params` ([docs](https://docs.getdbt.com/docs/build/sl-getting-started)) | dbt Core ≥ 1.6 (python) | Postgres | n/a (measure references) |
-| `latest-spec/` via Fusion | Latest: inline `semantic_model:` on the model ([docs](https://docs.getdbt.com/docs/build/latest-metrics-spec)) | dbt Fusion 2.0 | DuckDB | **populated** (duplicates `type_params.expr`) |
-| `latest-spec/` via Core 1.12 + `fixtures/core112-latest-spec-manifest.json` | Same latest-spec YAML | dbt Core 1.12 | DuckDB | **absent** (expr only on `type_params`) |
+| `legacy-spec/` | Legacy: top-level `semantic_models:` + `metrics:` ([docs](https://docs.getdbt.com/docs/build/sl-getting-started)) | dbt Core ≥ 1.6 | Postgres | n/a (measure references) |
+| `latest-spec/` via Fusion | Latest: inline `semantic_model:` ([docs](https://docs.getdbt.com/docs/build/latest-metrics-spec)) | dbt Fusion 2.0 | DuckDB | set (same as `type_params.expr`) |
+| `latest-spec/` via Core 1.12 + `fixtures/core112-latest-spec-manifest.json` | Same latest-spec YAML | dbt Core 1.12 | DuckDB | absent (column only on `type_params.expr`) |
 
-All three feed the same manifest sections (`semantic_models` + `metrics`), which
-is what Lightdash reads.
-
-Manifest shape notes:
-
-- **dbt Core legacy** writes simple metrics that reference a measure by name
-  (`type_params.measure`).
-- **Fusion** inlines the aggregation as `type_params.metric_aggregation_params`
-  and duplicates the column onto both `type_params.expr` and
-  `metric_aggregation_params.expr`.
-- **dbt Core 1.12** (official DSI) also inlines `metric_aggregation_params`, but
-  leaves **`expr` only on `type_params`** — the nested object has no `expr` key.
-  Without a fallback, Lightdash resolved SQL to the metric name
-  (`${TABLE}.total_revenue` instead of `${TABLE}.amount`). That is the
-  PROD-9093 customer bug. The dbt Cloud CLI runs whatever dbt version the
-  Cloud development environment is set to; Fusion-track Cloud CLI matches the
-  Fusion column above, Core-track matches Core 1.12.
+All three feed `semantic_models` + `metrics` in the manifest. Translator note:
+fall back to `type_params.expr` when the nested `expr` is missing. Cloud CLI
+uses whatever release track the Cloud Dev environment is on (Fusion-track vs
+Core/`compatible`-track).
 
 ## Quick start
 
@@ -44,11 +30,9 @@ pnpm -F @lightdash/common build && pnpm -F @lightdash/warehouses build && pnpm -
 ./examples/metricflow-demo/test.sh
 ```
 
-`test.sh` seeds/runs/parses each dbt project, runs `lightdash compile` on the
-manifest, and verifies which metrics translate — names, metric types, SQL,
-percentile value — and that unsupported ones are skipped **with warnings**. It
-also asserts the checked-in Core 1.12 customer-bug fixture. Optional live Cloud CLI
-parse (compiles in dbt Cloud) when `DBT_CLOUD_CLI_CONFIG` is set — see below.
+`test.sh` seeds/runs/parses each path, runs `lightdash compile`, and checks
+translated metrics (and that unsupported ones are skipped with warnings).
+Optional live Cloud CLI when `DBT_CLOUD_CLI_CONFIG` is set — see below.
 
 ## Environment setup
 
@@ -94,22 +78,17 @@ Why DuckDB here: Fusion's postgres adapter is experimental
 execution** (parse works). DuckDB is officially supported by Fusion and by
 Lightdash, and keeps this example fully self-contained.
 
-### Cloud CLI / Core 1.12 shape — live parse + fixture
+### Core 1.12 + optional Cloud CLI
 
-`test.sh` step 3 parses `latest-spec/` with **dbt Core 1.12** (DuckDB) and
-asserts the customer-bug shape: `type_params.expr` set,
-`metric_aggregation_params.expr` absent. It also asserts the checked-in fixture
-`fixtures/core112-latest-spec-manifest.json` (a slim real Core 1.12 manifest).
+`test.sh` step 3 parses `latest-spec/` with **dbt Core 1.12** and asserts the
+Core shape (`type_params.expr` set, nested `expr` absent), plus the checked-in
+fixture `fixtures/core112-latest-spec-manifest.json`.
 
-Optional live **dbt Cloud CLI** parse (local CLI, runs in Cloud) when
-`DBT_CLOUD_CLI_CONFIG` + `DBT_CLOUD_PROJECT_ID` are set. The Cloud development
-environment's dbt version decides the shape (Fusion-track populates nested
-expr; Core-track matches Core 1.12). The project's Development environment must
-have warehouse credentials for the token's user:
+Optional live Cloud CLI (Dev env release track picks Fusion vs Core):
 
 ```bash
 DBT_CLOUD_CLI_CONFIG=~/.dbt/dbt_cloud.yml \
-DBT_CLOUD_PROJECT_ID=547715 \
+DBT_CLOUD_PROJECT_ID=<project-id> \
 ./examples/metricflow-demo/test.sh
 ```
 
@@ -205,10 +184,10 @@ coexist.
 ```
 metricflow-demo/
 ├── README.md                  ← you are here
-├── test.sh                    ← runs Core + Fusion + Cloud CLI fixture (optional live Cloud CLI)
+├── test.sh                    ← legacy Core + latest Fusion + latest Core 1.12
 ├── assert-translation.cjs     ← checks manifest → Lightdash metric translation
 ├── fixtures/
-│   └── core112-latest-spec-manifest.json  ← real Core 1.12 customer-bug shape
+│   └── core112-latest-spec-manifest.json  ← Core 1.12 latest-spec shape
 ├── legacy-spec/
 │   ├── dbt_project.yml
 │   ├── profiles/profiles.yml  ← postgres
