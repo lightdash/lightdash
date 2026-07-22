@@ -1,3 +1,10 @@
+# [0.3460.0](https://github.com/lightdash/lightdash/compare/0.3459.0...0.3460.0) (2026-07-22)
+
+
+### Features
+
+* **analytics:** add funnel join keys ([#26005](https://github.com/lightdash/lightdash/issues/26005)) ([a920a92](https://github.com/lightdash/lightdash/commit/a920a92309070573c517d6508dc529b505d3744d))
+
 # [0.3459.0](https://github.com/lightdash/lightdash/compare/0.3458.0...0.3459.0) (2026-07-22)
 
 
