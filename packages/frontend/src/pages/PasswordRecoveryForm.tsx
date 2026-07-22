@@ -7,8 +7,8 @@ import {
     Title,
     Button,
     Anchor,
+    List,
 } from '@mantine-8/core';
-import { List } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { type FC } from 'react';
 import { Link } from 'react-router';

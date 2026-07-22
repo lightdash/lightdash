@@ -42,13 +42,9 @@ import {
     Stack,
     Text,
     Badge,
-} from '@mantine-8/core';
-import {
     HoverCard,
-    Portal,
-    Tooltip,
-    useMantineColorScheme,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { Portal, Tooltip, useMantineColorScheme } from '@mantine/core';
 import { useClipboard, useElementSize } from '@mantine/hooks';
 import {
     IconAlertCircle,

@@ -1,0 +1,11 @@
+.root {
+    overflow-y: auto;
+}
+
+.itemWrapper {
+    width: 100%;
+
+    &:hover {
+        background-color: var(--mantine-color-blue-1);
+    }
+}
