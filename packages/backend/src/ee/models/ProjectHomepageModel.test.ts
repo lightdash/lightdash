@@ -31,7 +31,6 @@ const draftConfig: HomepageConfig = {
 
 const makeDbHomepage = (overrides: Partial<Record<string, unknown>> = {}) => ({
     homepage_uuid: HOMEPAGE_UUID,
-    allow_personal: true,
     project_uuid: PROJECT_UUID,
     name: 'Team homepage',
     draft_config: draftConfig,
@@ -108,7 +107,7 @@ describe('ProjectHomepageModel', () => {
             tracker.on.select(HomepagesTableName).responseOnce([]);
 
             await expect(
-                model.publish(HOMEPAGE_UUID, { type: 'everyone' }, true),
+                model.publish(HOMEPAGE_UUID, { type: 'everyone' }),
             ).rejects.toThrow(NotFoundError);
         });
 
@@ -124,11 +123,9 @@ describe('ProjectHomepageModel', () => {
                     makeDbHomepage({ published_config: draftConfig }),
                 ]);
 
-            const result = await model.publish(
-                HOMEPAGE_UUID,
-                { type: 'everyone' },
-                true,
-            );
+            const result = await model.publish(HOMEPAGE_UUID, {
+                type: 'everyone',
+            });
 
             expect(tracker.history.update).toHaveLength(2);
             const unsetQuery = tracker.history.update[0];
@@ -154,11 +151,10 @@ describe('ProjectHomepageModel', () => {
                 .responseOnce([{ max: 1 }]);
             tracker.on.insert('homepage_assignments').responseOnce([]);
 
-            const result = await model.publish(
-                HOMEPAGE_UUID,
-                { type: 'groups', groupUuids: ['group-a', 'group-b'] },
-                true,
-            );
+            const result = await model.publish(HOMEPAGE_UUID, {
+                type: 'groups',
+                groupUuids: ['group-a', 'group-b'],
+            });
 
             // publish update must not set is_default for group audiences
             const publishQuery = tracker.history.update[0];

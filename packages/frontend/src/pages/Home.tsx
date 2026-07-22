@@ -2,7 +2,7 @@ import { subject } from '@casl/ability';
 import { DbtProjectType, ProjectType } from '@lightdash/common';
 import { Stack } from '@mantine-8/core';
 import { type FC } from 'react';
-import { Navigate, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
@@ -103,18 +103,6 @@ const Home: FC = () => {
 
     if (
         isHomepageBuilderEnabled &&
-        resolvedHomepage.data?.type === 'dashboard'
-    ) {
-        return (
-            <Navigate
-                to={`/projects/${project.data.projectUuid}/dashboards/${resolvedHomepage.data.dashboardUuid}/view`}
-                replace
-            />
-        );
-    }
-
-    if (
-        isHomepageBuilderEnabled &&
         resolvedHomepage.data?.type === 'homepage'
     ) {
         const { homepage } = resolvedHomepage.data;
@@ -132,7 +120,7 @@ const Home: FC = () => {
                     config={homepage.config}
                     projectUuid={project.data.projectUuid}
                     topBar={
-                        homepage.allowPersonal && !hasFavoritesBlock ? (
+                        !hasFavoritesBlock ? (
                             <PersonalFavoritesBar
                                 projectUuid={project.data.projectUuid}
                             />

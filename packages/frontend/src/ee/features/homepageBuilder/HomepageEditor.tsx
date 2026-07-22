@@ -1228,10 +1228,9 @@ export const HomepageEditor: FC<Props> = ({
                 homepageUuid={homepage.homepageUuid}
                 homepageName={homepage.name}
                 isPublishing={publishMutation.isLoading}
-                initialAllowPersonal={homepage.allowPersonal}
-                onPublish={(audience, allowPersonal) =>
+                onPublish={(audience) =>
                     publishMutation.mutate(
-                        { audience, allowPersonal },
+                        { audience },
                         {
                             onSuccess: () => setIsPublishModalOpen(false),
                         },

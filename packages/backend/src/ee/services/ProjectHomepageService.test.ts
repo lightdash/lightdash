@@ -44,7 +44,6 @@ const makeHomepage = (
     draftConfig: validConfig,
     publishedConfig: null,
     isDefault: true,
-    allowPersonal: true,
     createdByUserUuid: USER_UUID,
     createdAt: NOW,
     updatedAt: NOW,
@@ -139,9 +138,6 @@ const makeService = ({
             getPublishedDefault: vi.fn().mockResolvedValue(undefined),
             getRecentlyViewed: vi.fn().mockResolvedValue([]),
             getAssignments: vi.fn().mockResolvedValue([]),
-            getPersonalOverride: vi.fn().mockResolvedValue(undefined),
-            setPersonalOverride: vi.fn().mockResolvedValue(undefined),
-            deletePersonalOverride: vi.fn().mockResolvedValue(undefined),
             updateGroupPriorities: vi.fn().mockResolvedValue(undefined),
             resolvePublished: vi.fn().mockResolvedValue(undefined),
             list: vi.fn().mockResolvedValue([]),
@@ -335,14 +331,11 @@ describe('ProjectHomepageService', () => {
             PROJECT_UUID,
             HOMEPAGE_UUID,
             { type: 'everyone' },
-            true,
         );
 
-        expect(publish).toHaveBeenCalledWith(
-            HOMEPAGE_UUID,
-            { type: 'everyone' },
-            true,
-        );
+        expect(publish).toHaveBeenCalledWith(HOMEPAGE_UUID, {
+            type: 'everyone',
+        });
         expect(result.publishedConfig).toEqual(validConfig);
     });
 
@@ -385,7 +378,6 @@ describe('ProjectHomepageService', () => {
             PROJECT_UUID,
             HOMEPAGE_UUID,
             { type: 'everyone' },
-            true,
         );
 
         expect(publishProjectDraftAnnouncements).toHaveBeenCalledWith(
@@ -441,7 +433,6 @@ describe('ProjectHomepageService', () => {
             PROJECT_UUID,
             HOMEPAGE_UUID,
             { type: 'everyone' },
-            true,
         );
 
         expect(postMessage).toHaveBeenCalledTimes(2);
@@ -502,7 +493,6 @@ describe('ProjectHomepageService', () => {
                 homepageUuid: HOMEPAGE_UUID,
                 name: 'Sales homepage',
                 config: validConfig,
-                allowPersonal: true,
             },
             source: { type: 'group', groupUuid: 'group-1', priority: 1 },
         });
@@ -559,13 +549,11 @@ describe('ProjectHomepageService', () => {
                 homepageUuid: HOMEPAGE_UUID,
                 name: 'Editors homepage',
                 config: validConfig,
-                allowPersonal: true,
             },
             source: { type: 'role', role: 'editor' },
         });
-        const getPersonalOverride = vi.fn();
         const service = makeService({
-            projectHomepageModel: { resolvePublished, getPersonalOverride },
+            projectHomepageModel: { resolvePublished },
         });
 
         const result = await service.viewAsHomepage(
@@ -578,34 +566,10 @@ describe('ProjectHomepageService', () => {
             groupUuids: [],
             role: 'editor',
         });
-        // group/role targets never consult the target's personal override
-        expect(getPersonalOverride).not.toHaveBeenCalled();
         expect(result.reason).toEqual({ type: 'role', role: 'editor' });
         expect(result.resolved).toEqual(
             expect.objectContaining({ type: 'homepage' }),
         );
-    });
-
-    it("viewAsHomepage for a user target applies the target's personal override", async () => {
-        const service = makeService({
-            projectHomepageModel: {
-                getPersonalOverride: vi
-                    .fn()
-                    .mockResolvedValue('dashboard-uuid-1'),
-                resolvePublished: vi.fn().mockResolvedValue(undefined),
-            },
-        });
-
-        const result = await service.viewAsHomepage(
-            makeAdminUser(),
-            PROJECT_UUID,
-            { type: 'user', userUuid: USER_UUID },
-        );
-
-        expect(result).toEqual({
-            resolved: { type: 'dashboard', dashboardUuid: 'dashboard-uuid-1' },
-            reason: { type: 'personal', dashboardUuid: 'dashboard-uuid-1' },
-        });
     });
 
     describe('announcements', () => {
