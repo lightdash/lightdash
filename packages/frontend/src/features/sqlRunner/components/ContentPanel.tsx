@@ -21,8 +21,8 @@ import {
     Transition,
     Tooltip,
 } from '@mantine-8/core';
+import { notifications } from '@mantine-8/notifications';
 import { useElementSize, useHotkeys } from '@mantine/hooks';
-import { notifications } from '@mantine/notifications';
 import {
     IconAlertCircle,
     IconChartHistogram,
