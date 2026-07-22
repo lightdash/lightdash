@@ -839,6 +839,28 @@ const PRIVATE_ROUTES: RouteObject[] = [
                 },
             },
             {
+                path: '/onboarding/invite-expert',
+                handle: { hideAILauncher: true },
+                lazy: async () => {
+                    const OnboardingInviteExpert = await loadLazyRouteDefault(
+                        './pages/OnboardingInviteExpert',
+                        () => import('./pages/OnboardingInviteExpert'),
+                    );
+                    return {
+                        Component: () => (
+                            <>
+                                <NavBar />
+                                <TrackPage
+                                    name={PageName.ONBOARDING_INVITE_EXPERT}
+                                >
+                                    <OnboardingInviteExpert />
+                                </TrackPage>
+                            </>
+                        ),
+                    };
+                },
+            },
+            {
                 path: '/onboarding/project-ready/:projectUuid',
                 handle: { hideAILauncher: true },
                 lazy: async () => {

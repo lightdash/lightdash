@@ -51,6 +51,7 @@ export enum PageName {
     JOIN_ORGANIZATION = 'join_organization',
     ORGANIZATION_SETUP = 'organization_setup',
     ONBOARDING_DATA_SOURCE = 'onboarding_data_source',
+    ONBOARDING_INVITE_EXPERT = 'onboarding_invite_expert',
     ONBOARDING_PROJECT_READY = 'onboarding_project_ready',
     AGENT_ONBOARDING_RUN = 'agent_onboarding_run',
     NO_PROJECT_HOMEPAGE = 'no_project_homepage',
