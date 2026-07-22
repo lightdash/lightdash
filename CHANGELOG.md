@@ -1,3 +1,10 @@
+# [0.3444.0](https://github.com/lightdash/lightdash/compare/0.3443.0...0.3444.0) (2026-07-22)
+
+
+### Features
+
+* **ai-agents:** move Content as code into agent settings page ([#25896](https://github.com/lightdash/lightdash/issues/25896)) ([cc0539e](https://github.com/lightdash/lightdash/commit/cc0539ec038ce27509b10decd6da2f707f6a1745)), closes [/linear.app/lightdash/issue/PROD-9092/move-content-as-code-menu-to-agent-settings-page#agent-session-764cd194](https://github.com//linear.app/lightdash/issue/PROD-9092/move-content-as-code-menu-to-agent-settings-page/issues/agent-session-764cd194) [/linear.app/lightdash/issue/PROD-9092/move-content-as-code-menu-to-agent-settings-page#agent-session-764cd194](https://github.com//linear.app/lightdash/issue/PROD-9092/move-content-as-code-menu-to-agent-settings-page/issues/agent-session-764cd194)
+
 # [0.3443.0](https://github.com/lightdash/lightdash/compare/0.3442.0...0.3443.0) (2026-07-22)
 
 
