@@ -134,7 +134,9 @@ export const PillTagsInput: FC<PillTagsInputProps> = ({
         onChange(value.filter((current) => current !== tag));
     };
 
-    const showClearButton = clearable && !disabled && value.length > 0;
+    // Custom rightSection wins over the clear button, matching the legacy TagInput
+    const showClearButton =
+        !rightSection && clearable && !disabled && value.length > 0;
 
     return (
         <PillsInput

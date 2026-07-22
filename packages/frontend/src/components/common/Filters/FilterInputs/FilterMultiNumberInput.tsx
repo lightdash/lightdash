@@ -25,6 +25,9 @@ type Props = {
     disabled?: boolean;
     placeholder?: string;
     autoFocus?: boolean;
+    /** Notify the hosting popover so it doesn't close while the modal is open */
+    onModalOpen?: () => void;
+    onModalClose?: () => void;
 };
 
 const FilterMultiNumberInput: FC<Props> = ({
@@ -33,9 +36,22 @@ const FilterMultiNumberInput: FC<Props> = ({
     disabled,
     placeholder,
     autoFocus,
+    onModalOpen,
+    onModalClose,
 }) => {
-    const [opened, { open, close }] = useDisclosure(false);
+    const [opened, { open: openInternal, close: closeInternal }] =
+        useDisclosure(false);
     const { ref, hovered } = useHover();
+
+    const open = useCallback(() => {
+        openInternal();
+        onModalOpen?.();
+    }, [openInternal, onModalOpen]);
+
+    const close = useCallback(() => {
+        closeInternal();
+        onModalClose?.();
+    }, [closeInternal, onModalClose]);
 
     const isSummaryMode = values.length > SUMMARY_MODE_THRESHOLD;
     const hiddenCount = computeHiddenCount(values);

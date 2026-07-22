@@ -136,6 +136,8 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                                 autoFocus
                                 disabled={disabled}
                                 placeholder={placeholder}
+                                onModalOpen={popoverProps?.onOpen}
+                                onModalClose={popoverProps?.onClose}
                                 values={rule.values?.map(String) ?? []}
                                 onChange={(values) =>
                                     onChange({ ...rule, values })
