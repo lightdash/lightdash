@@ -57,6 +57,7 @@ import { getListWarehouseTables } from '../tools/listWarehouseTables';
 import { getListWorkstreams } from '../tools/listWorkstreams';
 import { getLoadProjectContext } from '../tools/loadProjectContext';
 import { getLoadSkill } from '../tools/loadSkill';
+import { getProjectContextSearchEntries } from '../tools/memoryProjectContext';
 import { getReadContent } from '../tools/readContent';
 import { getReadPinnedThread } from '../tools/readPinnedThread';
 import { getResolveUrl } from '../tools/resolveUrl';
@@ -626,11 +627,30 @@ export const getAgentTools = (
         getProjectInfo: dependencies.getProjectInfo,
     });
 
-    const loadProjectContext = args.projectContextEnabled
-        ? getLoadProjectContext({
-              getDocument: dependencies.getProjectContextDocument,
-          })
-        : null;
+    const loadProjectContext =
+        args.projectContextEnabled || args.aiAgentMemoryEnabled
+            ? getLoadProjectContext({
+                  getDocument: async () => {
+                      const [projectContext, memories] = await Promise.all([
+                          args.projectContextEnabled
+                              ? dependencies.getProjectContextDocument()
+                              : Promise.resolve([]),
+                          args.aiAgentMemoryEnabled
+                              ? dependencies.getAiAgentMemoryContextEntries()
+                              : Promise.resolve([]),
+                      ]);
+                      return getProjectContextSearchEntries({
+                          projectContext,
+                          memories,
+                          memoryEnabled: args.aiAgentMemoryEnabled,
+                      });
+                  },
+                  includeMemories: args.aiAgentMemoryEnabled,
+                  onEntriesLoaded: args.aiAgentMemoryEnabled
+                      ? dependencies.incrementAiAgentMemoryPulls
+                      : undefined,
+              })
+            : null;
 
     const enableContentTools = args.enableDataAccess && args.enableContentTools;
 
@@ -790,6 +810,7 @@ const getAgentMessages = (
             availableSkills: args.availableSkills,
             knowledgeDocuments: args.knowledgeDocuments,
             hasProjectContext,
+            enableAiAgentMemory: args.aiAgentMemoryEnabled,
             enableDataAccess: args.enableDataAccess,
             enableAiWriteback: args.enableAiWriteback,
             writebackAttribution: args.writebackAttribution,
