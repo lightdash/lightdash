@@ -150,3 +150,6 @@ AGENTS.md
 # Superpowers brainstorm scratch
 .superpowers/
 docs/superpowers/
+
+# Playground bundle builder venv
+scripts/playground-bundle/.venv/
