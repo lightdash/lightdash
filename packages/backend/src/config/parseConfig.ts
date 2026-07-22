@@ -18,6 +18,7 @@ import {
     isLightdashMode,
     isOrganizationMemberRole,
     isSchedulerTaskName,
+    isWeekDay,
     LightdashMode,
     OrganizationMemberRole,
     ParameterError,
@@ -350,6 +351,41 @@ const parseEnum = <T>(
     return value as T;
 };
 
+// WeekDay is a numeric enum, so a generic Object.values check would accept the
+// day names as-is and never convert them to the numeric value the app expects.
+const parseWeekDay = (value: unknown): WeekDay => {
+    if (isWeekDay(value)) return value;
+    if (typeof value === 'string' && value.trim() !== '') {
+        const numeric = Number(value);
+        if (isWeekDay(numeric)) return numeric;
+        const day = WeekDay[value.toUpperCase() as keyof typeof WeekDay];
+        if (isWeekDay(day)) return day;
+    }
+    throw new ParameterError(
+        `Invalid start of week value "${value}". Must be one of ${Object.values(
+            WeekDay,
+        )
+            .filter((day): day is string => typeof day === 'string')
+            .join(', ')} or a number from 0 (Monday) to 6 (Sunday)`,
+    );
+};
+
+const startOfWeekSchema = z
+    .union([z.number(), z.string()])
+    .nullish()
+    .transform((value, ctx) => {
+        if (value === null || value === undefined) return value;
+        try {
+            return parseWeekDay(value);
+        } catch (e) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: getErrorMessage(e),
+            });
+            return z.NEVER;
+        }
+    });
+
 const multiProjectSetupEntrySchema = z.object({
     name: z.string().min(1, 'Project name cannot be empty'),
     warehouseConnection: z
@@ -359,6 +395,7 @@ const multiProjectSetupEntrySchema = z.object({
                     message: `Invalid warehouse type. Must be one of: ${Object.values(WarehouseTypes).join(', ')}`,
                 }),
             }),
+            startOfWeek: startOfWeekSchema,
         })
         .passthrough(),
     dbtConnection: z
@@ -460,8 +497,9 @@ export const getMultiProjectSetupConfig = ():
         );
     }
 
-    // Zod validates structure; the full type comes from the original parsed JSON
-    return parsed as MultiProjectSetupEntry[];
+    // Both connection objects are passthrough schemas, so unvalidated fields
+    // survive; returning the zod output applies transforms like startOfWeek.
+    return result.data as unknown as MultiProjectSetupEntry[];
 };
 
 const userAttributeSetupEntrySchema = z.object({
@@ -655,10 +693,9 @@ const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
                         httpPath: process.env.LD_SETUP_PROJECT_HTTP_PATH!,
                         personalAccessToken: projectPat,
                         requireUserCredentials: undefined,
-                        startOfWeek: parseEnum<WeekDay>(
-                            process.env.LD_SETUP_START_OF_WEEK,
-                            WeekDay,
-                        ),
+                        startOfWeek: process.env.LD_SETUP_START_OF_WEEK
+                            ? parseWeekDay(process.env.LD_SETUP_START_OF_WEEK)
+                            : undefined,
                         compute: parseCompute(),
                     },
                     dbtConnection: {
