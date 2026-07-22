@@ -26,7 +26,9 @@ RUN sed -i 's|"workspace:[*]"|"file:lightdash-query-sdk.tgz"|' package.json && \
 # Copy starter source files (overwritten by Claude during generation)
 COPY template/src/ ./src/
 
-# Bootstrap shadcn/ui (generates src/components/ui/ and src/lib/)
+# Bootstrap shadcn/ui (generates src/components/ui/ and src/lib/).
+# Keep in sync with template/scripts/bootstrap.sh; every Radix package these
+# components import must be declared in template/package.json.
 RUN npx shadcn@2.3.0 init --defaults --force
 RUN npx shadcn@2.3.0 add --overwrite --yes \
     button badge card table dialog tabs select input label popover tooltip separator \

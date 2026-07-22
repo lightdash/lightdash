@@ -15,12 +15,18 @@ export const TEMPLATE_SCRIPTS: Record<string, string> = {
 // templateDependencies.test.ts asserts this stays in sync with the template.
 export const TEMPLATE_DEPENDENCIES: Record<string, string> = {
     '@lightdash/query-sdk': 'workspace:*',
+    '@radix-ui/react-avatar': '1.2.2',
+    '@radix-ui/react-checkbox': '1.3.7',
     '@radix-ui/react-dialog': '1.1.15',
+    '@radix-ui/react-dropdown-menu': '2.1.20',
     '@radix-ui/react-label': '2.1.8',
     '@radix-ui/react-popover': '1.1.15',
+    '@radix-ui/react-progress': '1.1.12',
+    '@radix-ui/react-scroll-area': '1.2.14',
     '@radix-ui/react-select': '2.2.6',
     '@radix-ui/react-separator': '1.1.8',
     '@radix-ui/react-slot': '1.2.4',
+    '@radix-ui/react-switch': '1.3.3',
     '@radix-ui/react-tabs': '1.1.13',
     '@radix-ui/react-tooltip': '1.2.8',
     '@tanstack/react-query': '5.64.2',
