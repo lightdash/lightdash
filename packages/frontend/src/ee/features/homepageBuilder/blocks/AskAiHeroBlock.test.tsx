@@ -41,11 +41,25 @@ describe('AskAiHeroBlockView', () => {
         expect(screen.getByTestId('ask-input')).toBeInTheDocument();
     });
 
-    it('renders inline mid-page without the greeting, even when toggled on', () => {
+    it('greets inline mid-page when toggled on', () => {
         wrap(
             <AskAiHeroBlockView
                 itemSpan={null}
                 block={block}
+                projectUuid="p1"
+            />,
+        );
+        expect(
+            screen.getByText(/What do you want to know/),
+        ).toBeInTheDocument();
+        expect(screen.getByTestId('ask-input')).toBeInTheDocument();
+    });
+
+    it('does not greet when the toggle is off', () => {
+        wrap(
+            <AskAiHeroBlockView
+                itemSpan={null}
+                block={{ ...block, config: { showGreeting: false } }}
                 projectUuid="p1"
             />,
         );
