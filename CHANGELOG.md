@@ -1,3 +1,10 @@
+# [0.3452.0](https://github.com/lightdash/lightdash/compare/0.3451.0...0.3452.0) (2026-07-22)
+
+
+### Features
+
+* add instance-level env var to disable data app sample data ([#25949](https://github.com/lightdash/lightdash/issues/25949)) ([e8c3b6c](https://github.com/lightdash/lightdash/commit/e8c3b6c3664f9baca65eca5c8b26bcd343faa2b1))
+
 # [0.3451.0](https://github.com/lightdash/lightdash/compare/0.3450.0...0.3451.0) (2026-07-22)
 
 
