@@ -2333,6 +2333,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         data: CreateProjectOptionalCredentials,
         method: RequestMethod,
+        internalProvisioning?: { source: 'playground' },
     ): Promise<ApiCreateProjectResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -2404,6 +2405,7 @@ export class ProjectService extends BaseService {
                     createProject.upstreamProjectUuid,
                     createProject.expiresInHours,
                 ),
+                internalProvisioning?.source,
             );
 
         const onboardingFlow = await this.getOnboardingFlow(user);
@@ -3810,7 +3812,25 @@ export class ProjectService extends BaseService {
             );
         }
 
-        await this.projectModel.delete(projectUuid);
+        if (project.provisioningSource === 'playground') {
+            await this.onboardingModel.runInPlaygroundProvisioningLock(
+                project.organizationUuid,
+                async (trx) => {
+                    await this.onboardingModel.getByOrganizationUuid(
+                        project.organizationUuid,
+                        trx,
+                    );
+                    await this.onboardingModel.update(
+                        project.organizationUuid,
+                        { playgroundProjectDeletedAt: new Date() },
+                        trx,
+                    );
+                    await this.projectModel.delete(projectUuid, trx);
+                },
+            );
+        } else {
+            await this.projectModel.delete(projectUuid);
+        }
 
         this.analytics.track({
             event: 'project.deleted',

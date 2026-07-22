@@ -426,6 +426,7 @@ export class ProjectModel {
                 `projects.copied_from_project_uuid`,
                 `projects.created_by_user_uuid`,
                 'projects.expires_at',
+                'projects.provisioning_source',
                 `${WarehouseCredentialTableName}.warehouse_type`,
                 this.database.raw(
                     "TRIM(CONCAT(users.first_name, ' ', users.last_name)) as created_by_user_name",
@@ -467,6 +468,7 @@ export class ProjectModel {
                 copied_from_project_uuid,
                 warehouse_type,
                 expires_at,
+                provisioning_source,
             }) => ({
                 name,
                 projectUuid: project_uuid,
@@ -480,8 +482,18 @@ export class ProjectModel {
                         ? (warehouse_type as WarehouseTypes)
                         : undefined,
                 expiresAt: expires_at ?? null,
+                provisioningSource: provisioning_source ?? null,
             }),
         );
+    }
+
+    async setProvisioningSource(
+        projectUuid: string,
+        provisioningSource: string,
+    ): Promise<void> {
+        await this.database('projects')
+            .where('project_uuid', projectUuid)
+            .update({ provisioning_source: provisioningSource });
     }
 
     private async upsertWarehouseConnection(
@@ -563,6 +575,7 @@ export class ProjectModel {
         organizationUuid: string,
         data: CreateProjectOptionalCredentials,
         expiresAt?: Date | null,
+        provisioningSource?: string,
     ): Promise<string> {
         const orgs = await this.database('organizations')
             .where('organization_uuid', organizationUuid)
@@ -611,6 +624,7 @@ export class ProjectModel {
                     created_by_user_uuid: userUuid,
                     organization_warehouse_credentials_uuid:
                         data.organizationWarehouseCredentialsUuid ?? null,
+                    provisioning_source: provisioningSource ?? null,
                     ...(expiresAt !== undefined
                         ? { expires_at: expiresAt }
                         : {}),
@@ -816,11 +830,14 @@ export class ProjectModel {
         }));
     }
 
-    async delete(projectUuid: string): Promise<void> {
+    async delete(
+        projectUuid: string,
+        transaction?: Transaction,
+    ): Promise<void> {
         // Invalidate warehouse credentials cache
         warehouseCredentialsCache?.del(projectUuid);
 
-        await this.database.transaction(async (trx) => {
+        const deleteInTransaction = async (trx: Transaction): Promise<void> => {
             const [project] = await trx('projects')
                 .select('project_id')
                 .where('project_uuid', projectUuid);
@@ -851,7 +868,13 @@ export class ProjectModel {
 
             // Finally, delete the project and everything else in cascade
             await trx('projects').where('project_uuid', projectUuid).delete();
-        });
+        };
+
+        if (transaction) {
+            await deleteInTransaction(transaction);
+        } else {
+            await this.database.transaction(deleteInTransaction);
+        }
     }
 
     async getWithSensitiveFields(
@@ -880,6 +903,7 @@ export class ProjectModel {
                   project_defaults: ProjectDefaults | null;
                   color_palette_uuid: string | null;
                   expires_at: Date | null;
+                  provisioning_source: string | null;
               }
             | {
                   name: string;
@@ -903,6 +927,7 @@ export class ProjectModel {
                   project_defaults: ProjectDefaults | null;
                   color_palette_uuid: string | null;
                   expires_at: Date | null;
+                  provisioning_source: string | null;
               }
         )[];
         return wrapSentryTransaction(
@@ -987,6 +1012,9 @@ export class ProjectModel {
                         this.database
                             .ref('expires_at')
                             .withSchema(ProjectTableName),
+                        this.database
+                            .ref('provisioning_source')
+                            .withSchema(ProjectTableName),
                     ])
                     .select<QueryResult>()
                     .where('projects.project_uuid', projectUuid);
@@ -1039,6 +1067,7 @@ export class ProjectModel {
                     projectDefaults: project.project_defaults ?? undefined,
                     colorPaletteUuid: project.color_palette_uuid ?? null,
                     expiresAt: project.expires_at ?? null,
+                    provisioningSource: project.provisioning_source ?? null,
                 };
 
                 // If project uses organization warehouse credentials, load them
@@ -1095,6 +1124,7 @@ export class ProjectModel {
                     | 'project_type'
                     | 'copied_from_project_uuid'
                     | 'created_by_user_uuid'
+                    | 'provisioning_source'
                 > &
                     Pick<DbOrganization, 'organization_uuid'>
             >([
@@ -1104,6 +1134,7 @@ export class ProjectModel {
                 `${ProjectTableName}.copied_from_project_uuid`,
                 `${ProjectTableName}.project_type`,
                 `${ProjectTableName}.created_by_user_uuid`,
+                `${ProjectTableName}.provisioning_source`,
             ])
             .where('projects.project_uuid', projectUuid)
             .first();
@@ -1119,6 +1150,7 @@ export class ProjectModel {
             type: project.project_type,
             upstreamProjectUuid: project.copied_from_project_uuid || undefined,
             createdByUserUuid: project.created_by_user_uuid,
+            provisioningSource: project.provisioning_source,
         };
     }
 
@@ -1268,6 +1300,7 @@ export class ProjectModel {
             projectDefaults: project.projectDefaults,
             colorPaletteUuid: project.colorPaletteUuid ?? null,
             expiresAt: project.expiresAt,
+            provisioningSource: project.provisioningSource ?? null,
         };
     }
 

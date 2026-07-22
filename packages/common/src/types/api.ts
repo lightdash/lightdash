@@ -760,6 +760,7 @@ export type CreateProject = Omit<
     | 'hasDefaultUserSpaces'
     | 'colorPaletteUuid'
     | 'expiresAt'
+    | 'provisioningSource'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
     copyWarehouseConnectionFromUpstreamProject?: boolean;

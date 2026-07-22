@@ -119,6 +119,7 @@ export const expectedProject: Project = {
     hasDefaultUserSpaces: false,
     colorPaletteUuid: null,
     expiresAt: null,
+    provisioningSource: null,
 };
 
 const metricFilter: MetricFilterRule = {

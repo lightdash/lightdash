@@ -3080,7 +3080,9 @@ export class AsyncQueryService extends ProjectService {
         const warehouseCredentialsOverrides =
             await this.deriveWarehouseCredentialsOverrides(query);
         const displayTimezone = query.metricQuery.timezone ?? null;
-        const isPreviewProject = await this.isProjectPreview(query.projectUuid);
+        const isPreviewProject = await this.isExcludedFromUsage(
+            query.projectUuid,
+        );
         const onboardingFlow = await this.getOnboardingFlow({
             userUuid: actor.userUuid,
             organizationUuid: query.organizationUuid,
@@ -3107,12 +3109,18 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    private async isProjectPreview(
+    // Preview and sample-data queries are both kept out of the usage event
+    // stream. Every path that reports usage has to agree, or the numbers are
+    // silently inconsistent rather than uniformly excluded.
+    private async isExcludedFromUsage(
         projectUuid: string | null,
     ): Promise<boolean> {
         if (!projectUuid) return false;
         const summary = await this.projectModel.getSummary(projectUuid);
-        return summary.type === ProjectType.PREVIEW;
+        return (
+            summary.type === ProjectType.PREVIEW ||
+            summary.provisioningSource === 'playground'
+        );
     }
 
     private async buildPreAggregateQueryArgs(
@@ -3133,7 +3141,9 @@ export class AsyncQueryService extends ProjectService {
         const warehouseCredentialsOverrides =
             await this.deriveWarehouseCredentialsOverrides(query);
         const displayTimezone = query.metricQuery.timezone ?? null;
-        const isPreviewProject = await this.isProjectPreview(query.projectUuid);
+        const isPreviewProject = await this.isExcludedFromUsage(
+            query.projectUuid,
+        );
         const onboardingFlow = await this.getOnboardingFlow({
             userUuid: actor.userUuid,
             organizationUuid: query.organizationUuid,
@@ -4238,8 +4248,12 @@ export class AsyncQueryService extends ProjectService {
         );
         const organizationUuid =
             args.organizationUuid ?? projectSummary.organizationUuid;
-        // Preview project queries are excluded from the usage event stream
-        const isPreviewProject = projectSummary.type === ProjectType.PREVIEW;
+        // Preview and sample-data queries are excluded from the usage event
+        // stream while the query.completed product analytics event is retained.
+        const isPreviewProject =
+            projectSummary.type === ProjectType.PREVIEW ||
+            projectSummary.provisioningSource === 'playground';
+
         const exploreName = args.queryComposer.getExplore().name;
         const auditedAbility = this.createAuditedAbility(args.account);
         const isForbidden =
@@ -6702,7 +6716,8 @@ export class AsyncQueryService extends ProjectService {
                 {
                     account,
                     projectUuid,
-                    isPreviewProject: await this.isProjectPreview(projectUuid),
+                    isPreviewProject:
+                        await this.isExcludedFromUsage(projectUuid),
                     context,
                     queryTags: queryTagsWithUserAttributes,
                     invalidateCache,

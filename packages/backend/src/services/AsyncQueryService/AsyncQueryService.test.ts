@@ -755,6 +755,39 @@ describe('AsyncQueryService', () => {
             );
         });
 
+        test('marks playground queries for exclusion from the usage event stream', async () => {
+            projectModel.getSummary.mockResolvedValueOnce({
+                ...projectSummary,
+                provisioningSource: 'playground',
+            });
+            (
+                serviceWithCache.queryHistoryModel
+                    .create as import('vitest').Mock
+            ).mockResolvedValue({ queryUuid: 'test-query-uuid' });
+            const runAsyncWarehouseQuerySpy = vi
+                .spyOn(serviceWithCache, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
+
+            await serviceWithCache['executeAsyncQuery'](
+                {
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.EXPLORE,
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    invalidateCache: false,
+                    queryComposer: createQueryComposerMock(),
+                    warehouseCredentials: warehouseCredentialsMock,
+                },
+                { query: metricQueryMock },
+            );
+
+            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledWith(
+                expect.objectContaining({ isPreviewProject: true }),
+            );
+        });
+
         // Regression: persisted metric_query.timezone must follow the gated
         // displayTimezone, not the ungated resolvedTimezone — otherwise
         // downstream readers (formatTimestamp, downloads, worker re-exec)
