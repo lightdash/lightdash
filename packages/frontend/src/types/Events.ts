@@ -199,6 +199,7 @@ export enum EventName {
     BIGQUERY_SSO_SIGNIN_COMPLETED = 'bigquery_sso.signin_completed',
     SNOWFLAKE_CLI_SSO_COMMAND_COPIED = 'snowflake_cli_sso.command_copied',
     SETUP_INVITE_SENT = 'setup_invite.sent',
+    PLAYGROUND_PROJECT_ENTERED = 'playground_project.entered',
     ONBOARDING_PROJECT_READY_START_EXPLORING_CLICKED = 'onboarding_project_ready.start_exploring_clicked',
     HOMEPAGE_ASK_SUBMITTED = 'homepage_ask.submitted',
     HOMEPAGE_RECOMMENDED_ACTION_IMPRESSION = 'homepage_recommended_action.impression',
