@@ -17,6 +17,7 @@ export const BaseResponse: HealthState = {
     signupUrl: undefined,
     helpMenuUrl: undefined,
     hasEmailClient: false,
+    hasPlaygroundProjects: false,
     hasEmailWhitelabel: false,
     hasExtendedUsageAnalytics: false,
     hasMicrosoftTeams: false,

@@ -501,6 +501,11 @@ export type HealthState = {
     requiresOrgRegistration: boolean;
     hasEmailClient: boolean;
     /**
+     * Instance can provision the sample-data playground project (enterprise
+     * builds only).
+     */
+    hasPlaygroundProjects: boolean;
+    /**
      * Instance has a Postmark account token, so email whitelabelling can be
      * offered (the org still needs the EmailWhitelabel feature flag).
      */
