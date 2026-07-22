@@ -130,6 +130,22 @@ describe('getModel', () => {
         expect(keyManagement).toBe('lightdash-managed');
     });
 
+    it('stamps self-managed when the resolved provider is instance self-managed', () => {
+        const { keyManagement } = getModel({
+            ...copilotConfigWithStreaming(true),
+            selfManagedProviders: ['openai'],
+        });
+        expect(keyManagement).toBe('self-managed');
+    });
+
+    it('stamps lightdash-managed when a different provider is instance self-managed', () => {
+        const { keyManagement } = getModel({
+            ...copilotConfigWithStreaming(true),
+            selfManagedProviders: ['anthropic'],
+        });
+        expect(keyManagement).toBe('lightdash-managed');
+    });
+
     it('wraps the model with simulateStreamingMiddleware when the provider does not support streaming', () => {
         const { model } = getModel(copilotConfigWithStreaming(false));
 
