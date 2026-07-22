@@ -2662,116 +2662,85 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * After a successful first build, ask Claude (with --continue so it has
-     * full context) for a short name and description for the app.
-     * Returns null if parsing fails — callers should treat this as non-fatal.
+     * Generates the app's display name/description from the user's prompt via
+     * a fast backend LLM call — no sandbox involvement, so it can run
+     * concurrently with the build instead of gating `ready`. Config resolution
+     * mirrors the clarify flow (org-resolved copilot config, BYO-key-aware
+     * fast model). Returns a null name when no provider is configured or the
+     * response is unusable — the app keeps its "Untitled" fallback.
      */
-    private async generateAppMetadata(
-        sandbox: SandboxHandle,
+    private async generateAppMetadataFromPrompt(
         appUuid: string,
-        version: number,
-        claudeCodeEnv: Record<string, string>,
-        claudeModel: DataAppClaudeModel,
-        onTelemetry?: (telemetry: ClaudeGenerationTelemetry) => void,
-    ): Promise<{
-        name: string | null;
-        description: string;
-        durationMs: number;
-        usage: ClaudeGenerationUsage;
-    }> {
-        const start = performance.now();
-        const metadataPrompt =
-            'Respond with ONLY a JSON object (no markdown, no explanation) ' +
-            'containing a short "name" (3-6 words, title case, no quotes around it) ' +
-            'and a one-sentence "description" for the app you just built. ' +
-            'Example: {"name": "Weekly Sales Dashboard", "description": "Interactive dashboard showing weekly sales trends by region and product category."}';
-
-        await sandbox.commands.run('rm -f /tmp/prompt.txt 2>/dev/null; true', {
-            timeoutMs: 10_000,
-        });
-        await sandbox.files.write('/tmp/prompt.txt', `${metadataPrompt}\n`);
-
-        const generation = await this.runClaudeGeneration(
-            sandbox,
-            appUuid,
-            version,
-            true, // --continue: Claude remembers what it just built
-            claudeCodeEnv,
-            claudeModel,
-            null, // metadata run collects no structured schema
-            onTelemetry,
-        );
-
-        const durationMs = AppGenerateService.elapsed(start);
-
-        if (!generation.responseText) {
-            this.logger.warn(
-                `App ${appUuid}: metadata generation returned no text`,
+        prompt: string,
+        organizationUuid: string,
+        projectUuid: string,
+        userUuid: string,
+    ): Promise<{ name: string | null; description: string }> {
+        const copilot =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                organizationUuid,
             );
-            return {
-                name: null,
-                description: '',
-                durationMs,
-                usage: generation.usage,
-            };
-        }
-
-        // Extract JSON from the response (Claude may wrap it in markdown code fences)
-        const jsonMatch = generation.responseText.match(/\{[\s\S]*\}/) ?? null;
-        if (!jsonMatch) {
-            this.logger.warn(
-                `App ${appUuid}: could not find JSON in metadata response`,
-            );
-            return {
-                name: null,
-                description: '',
-                durationMs,
-                usage: generation.usage,
-            };
-        }
-
+        let modelOptions;
         try {
-            const parsed = JSON.parse(jsonMatch[0]);
-            const stripHtml = (s: string) => s.replace(/<[^>]*>/g, '').trim();
-            const name =
-                typeof parsed.name === 'string'
-                    ? stripHtml(parsed.name).slice(0, 255)
-                    : null;
-            const description =
-                typeof parsed.description === 'string'
-                    ? stripHtml(parsed.description).slice(0, 1024)
-                    : null;
-            if (!name) {
-                this.logger.warn(
-                    `App ${appUuid}: metadata missing "name" field`,
+            modelOptions =
+                await this.orgAiCopilotConfigResolver.resolveFastModel(
+                    copilot,
+                    { enableReasoning: false },
                 );
-                return {
-                    name: null,
-                    description: description ?? '',
-                    durationMs,
-                    usage: generation.usage,
-                };
-            }
-            return {
-                name,
-                description: description ?? '',
-                durationMs,
-                usage: generation.usage,
-            };
-        } catch {
-            const safeLog = generation.responseText
-                .replace(/[\n\r]/g, ' ')
-                .slice(0, 200);
-            this.logger.warn(
-                `App ${appUuid}: failed to parse metadata JSON: ${safeLog}`,
+        } catch (err) {
+            this.logger.info(
+                `App ${appUuid}: skipping auto-name — no LLM provider configured (${getErrorMessage(err)})`,
             );
-            return {
-                name: null,
-                description: '',
-                durationMs,
-                usage: generation.usage,
-            };
+            return { name: null, description: '' };
         }
+
+        const metadataSchema = z.object({
+            name: z
+                .string()
+                .describe(
+                    'Short display name for the app: 3-6 words, title case, no quotes',
+                ),
+            description: z
+                .string()
+                .describe('One-sentence description of what the app shows'),
+        });
+
+        const METADATA_TIMEOUT_MS = 15_000;
+        const telemetry = getAiCallTelemetry({
+            functionId: 'nameApp',
+            feature: 'data-app',
+            organizationUuid,
+            projectUuid,
+            userUuid,
+            ...getLanguageModelAttribution(modelOptions.model),
+        });
+        const result = await generateObject({
+            model: modelOptions.model,
+            ...modelOptions.callOptions,
+            providerOptions: modelOptions.providerOptions,
+            experimental_telemetry: telemetry,
+            schema: metadataSchema,
+            abortSignal: AbortSignal.timeout(METADATA_TIMEOUT_MS),
+            messages: [
+                {
+                    role: 'system',
+                    content:
+                        'You write display metadata for a data app that is being generated from the prompt the user provides. Respond with a short name (3-6 words, title case) and a one-sentence description of the app.',
+                },
+                { role: 'user', content: prompt },
+            ],
+        });
+
+        const stripHtml = (s: string) => s.replace(/<[^>]*>/g, '').trim();
+        const name = stripHtml(result.object.name).slice(0, 255);
+        const description = stripHtml(result.object.description).slice(0, 1024);
+        if (!name) {
+            this.logger.warn(
+                `App ${appUuid}: auto-name returned an empty name`,
+            );
+            return { name: null, description };
+        }
+        return { name, description };
     }
 
     private async runBuild(
@@ -3490,6 +3459,48 @@ export class AppGenerateService extends BaseService {
         const shouldRun = (stage: AppVersionStatus) =>
             AppGenerateService.shouldRunStage(currentStatus, stage);
 
+        // Auto-name (first version only): a fast prompt-based LLM call that
+        // runs concurrently with the build so it never gates `ready`. The
+        // write is race-safe (setMetadataIfUnset) and the status poller picks
+        // the name up mid-build. Resolves to its duration; never rejects.
+        let metadataPromise: Promise<number> | null = null;
+        if (version === 1) {
+            const metadataStart = performance.now();
+            metadataPromise = this.generateAppMetadataFromPrompt(
+                appUuid,
+                prompt,
+                payload.organizationUuid,
+                projectUuid,
+                payload.userUuid,
+            )
+                .then(async (metadata) => {
+                    if (metadata.name) {
+                        // Only fills fields the user hasn't already set — the
+                        // build is async, so the user may have renamed the app
+                        // while it was building.
+                        await this.appModel.setMetadataIfUnset(
+                            appUuid,
+                            projectUuid,
+                            {
+                                name: metadata.name,
+                                description: metadata.description,
+                            },
+                        );
+                        this.logger.info(
+                            `App ${appUuid}: auto-named "${metadata.name}"`,
+                        );
+                    }
+                    return AppGenerateService.elapsed(metadataStart);
+                })
+                .catch((error) => {
+                    // Non-fatal — the app works fine without a name
+                    this.logger.warn(
+                        `App ${appUuid}: failed to auto-generate name: ${getErrorMessage(error)}`,
+                    );
+                    return AppGenerateService.elapsed(metadataStart);
+                });
+        }
+
         // Theme (org design) copy + system-prompt assembly. Runs
         // unconditionally on every pipeline execution — including
         // resumed/iterated runs — so a new sandbox or a switched theme
@@ -3872,56 +3883,6 @@ export class AppGenerateService extends BaseService {
             }
         }
 
-        // --- Auto-name: first version only ---
-        if (version === 1) {
-            const metadataStart = performance.now();
-            let metadataUsage = ZERO_CLAUDE_USAGE;
-            try {
-                const metadata = await this.generateAppMetadata(
-                    sandbox,
-                    appUuid,
-                    version,
-                    claudeCodeEnv,
-                    claudeModel,
-                    (telemetry) => {
-                        metadataUsage = telemetry.usage;
-                    },
-                );
-                durations.metadataMs = metadata.durationMs;
-                generationUsage = addClaudeUsage(
-                    generationUsage,
-                    metadata.usage,
-                );
-                if (metadata.name) {
-                    // Only fills fields the user hasn't already set — the
-                    // build is async, so by the time we get here the user
-                    // may have renamed the app themselves.
-                    await this.appModel.setMetadataIfUnset(
-                        appUuid,
-                        projectUuid,
-                        {
-                            name: metadata.name,
-                            description: metadata.description,
-                        },
-                    );
-                    this.logger.info(
-                        `App ${appUuid}: auto-named "${metadata.name}"`,
-                    );
-                }
-            } catch (error) {
-                durations.metadataMs =
-                    AppGenerateService.elapsed(metadataStart);
-                generationUsage = addClaudeUsage(
-                    generationUsage,
-                    metadataUsage,
-                );
-                // Non-fatal — the app works fine without a name
-                this.logger.warn(
-                    `App ${appUuid}: failed to auto-generate name: ${getErrorMessage(error)}`,
-                );
-            }
-        }
-
         // --- Stage: packaging ---
         if (shouldRun('packaging')) {
             try {
@@ -4020,6 +3981,11 @@ export class AppGenerateService extends BaseService {
         }
 
         const totalMs = AppGenerateService.elapsed(overallStart);
+        // Normally resolved long before `ready` — awaited only so the
+        // completed event records its duration.
+        if (metadataPromise) {
+            durations.metadataMs = await metadataPromise;
+        }
         this.logger.info(
             `App ${appUuid}: generation completed successfully in ${totalMs}ms (model=${claudeModel}, ${Object.entries(
                 durations,
