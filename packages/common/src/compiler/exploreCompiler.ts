@@ -10,6 +10,7 @@ import {
     type Table,
 } from '../types/explore';
 import {
+    DimensionType,
     friendlyName,
     isCustomBinDimension,
     isNonAggregateMetric,
@@ -20,6 +21,7 @@ import {
     type CompiledDimension,
     type CompiledMetric,
     type CompiledMetricRelativeDateFilter,
+    type CompiledMetricTimestampFilter,
     type CustomDimension,
     type CustomSqlDimension,
     type Dimension,
@@ -80,6 +82,13 @@ type Reference = {
  * Matches: sum(, count(, avg(, etc. with word boundary to avoid false positives
  * like "summary" matching "sum".
  */
+// Diamond metric references repeat the same recorded filter predicate
+const uniqByFilterId = <T extends { id: string }>(filters: T[]): T[] =>
+    filters.filter(
+        (filter, index) =>
+            filters.findIndex((other) => other.id === filter.id) === index,
+    );
+
 const SQL_AGGREGATION_FUNCTIONS_PATTERN =
     /\b(sum|count_if|countif|count|avg|average|max_by|min_by|min|max|median|stddev|stddev_pop|stddev_samp|variance|var_pop|var_samp|percentile|percentile_cont|percentile_disc|count_distinct|approx_count_distinct|any_value|array_agg|string_agg|group_concat|listagg|corr|covar_pop|covar_samp|mode|approx_percentile)\s*\(/i;
 
@@ -1039,6 +1048,12 @@ export class ExploreCompiler {
                           compiledMetric.compiledRelativeDateFilters,
                   }
                 : {}),
+            ...(compiledMetric.compiledTimestampFilters
+                ? {
+                      compiledTimestampFilters:
+                          compiledMetric.compiledTimestampFilters,
+                  }
+                : {}),
         };
     }
 
@@ -1052,6 +1067,7 @@ export class ExploreCompiler {
         valueSql?: string;
         compiledDistinctKeys?: string[];
         compiledRelativeDateFilters?: CompiledMetricRelativeDateFilter[];
+        compiledTimestampFilters?: CompiledMetricTimestampFilter[];
     } {
         // Metric might have references to other dimensions
         if (!tables[metric.table]) {
@@ -1064,6 +1080,13 @@ export class ExploreCompiler {
         const currentShortRef = metric.name;
         let tablesReferences = new Set([metric.table]);
         let relativeDateFilters: CompiledMetricRelativeDateFilter[] | undefined;
+        let timestampFilters: CompiledMetricTimestampFilter[] | undefined;
+        // Referenced metrics inline their baked filter predicates into this
+        // metric's SQL — carry their records too so the query-time rewrite
+        // reaches derived metrics.
+        const referencedRelativeDateFilters: CompiledMetricRelativeDateFilter[] =
+            [];
+        const referencedTimestampFilters: CompiledMetricTimestampFilter[] = [];
         if (metric.sql === undefined || metric.sql === null) {
             throw new CompileError(
                 `Metric "${metric.name}" in table "${metric.table}" is missing a sql definition`,
@@ -1111,6 +1134,8 @@ export class ExploreCompiler {
                 let compiledReference: {
                     sql: string;
                     tablesReferences: Set<string>;
+                    compiledRelativeDateFilters?: CompiledMetricRelativeDateFilter[];
+                    compiledTimestampFilters?: CompiledMetricTimestampFilter[];
                 };
 
                 if (isPostCalc) {
@@ -1176,6 +1201,12 @@ export class ExploreCompiler {
                     ...tablesReferences,
                     ...compiledReference.tablesReferences,
                 ]);
+                referencedRelativeDateFilters.push(
+                    ...(compiledReference.compiledRelativeDateFilters ?? []),
+                );
+                referencedTimestampFilters.push(
+                    ...(compiledReference.compiledTimestampFilters ?? []),
+                );
                 return compiledReference.sql;
             },
         );
@@ -1190,6 +1221,8 @@ export class ExploreCompiler {
             }
 
             const compiledRelativeDateFilters: CompiledMetricRelativeDateFilter[] =
+                [];
+            const compiledTimestampFilters: CompiledMetricTimestampFilter[] =
                 [];
             const conditions = metric.filters.map((filter) => {
                 const fieldRef =
@@ -1251,6 +1284,19 @@ export class ExploreCompiler {
                         fieldId: getItemId(compiledDimension),
                         compiledSql: conditionSql,
                     });
+                } else if (
+                    compiledDimension.type === DimensionType.TIMESTAMP &&
+                    filter.values !== undefined &&
+                    filter.values.length > 0
+                ) {
+                    // Absolute timestamp predicate: baked with no domain
+                    // context — record it so the query builder can re-render
+                    // it against a classified column at query time.
+                    compiledTimestampFilters.push({
+                        id: filter.id,
+                        fieldId: getItemId(compiledDimension),
+                        compiledSql: conditionSql,
+                    });
                 }
                 return conditionSql;
             });
@@ -1261,6 +1307,21 @@ export class ExploreCompiler {
             if (compiledRelativeDateFilters.length > 0) {
                 relativeDateFilters = compiledRelativeDateFilters;
             }
+            if (compiledTimestampFilters.length > 0) {
+                timestampFilters = compiledTimestampFilters;
+            }
+        }
+        if (referencedRelativeDateFilters.length > 0) {
+            relativeDateFilters = uniqByFilterId([
+                ...(relativeDateFilters ?? []),
+                ...referencedRelativeDateFilters,
+            ]);
+        }
+        if (referencedTimestampFilters.length > 0) {
+            timestampFilters = uniqByFilterId([
+                ...(timestampFilters ?? []),
+                ...referencedTimestampFilters,
+            ]);
         }
         if (
             metric.type === MetricType.SUM_DISTINCT ||
@@ -1294,6 +1355,7 @@ export class ExploreCompiler {
                 valueSql: renderedSql,
                 compiledDistinctKeys: compiledKeys,
                 compiledRelativeDateFilters: relativeDateFilters,
+                compiledTimestampFilters: timestampFilters,
             };
         }
 
@@ -1307,6 +1369,7 @@ export class ExploreCompiler {
             tablesReferences,
             valueSql: renderedSql,
             compiledRelativeDateFilters: relativeDateFilters,
+            compiledTimestampFilters: timestampFilters,
         };
     }
 
@@ -1525,7 +1588,12 @@ export class ExploreCompiler {
         currentTable: string,
         availableParameters: string[],
         fieldContext?: FieldContext,
-    ): { sql: string; tablesReferences: Set<string> } {
+    ): {
+        sql: string;
+        tablesReferences: Set<string>;
+        compiledRelativeDateFilters?: CompiledMetricRelativeDateFilter[];
+        compiledTimestampFilters?: CompiledMetricTimestampFilter[];
+    } {
         // Reference to current table
         if (ref === 'TABLE') {
             const fieldQuoteChar = this.warehouseClient.getFieldQuoteChar();
@@ -1565,6 +1633,9 @@ export class ExploreCompiler {
                 referencedTable?.name || refTableName,
                 ...compiledMetric.tablesReferences,
             ]),
+            compiledRelativeDateFilters:
+                compiledMetric.compiledRelativeDateFilters,
+            compiledTimestampFilters: compiledMetric.compiledTimestampFilters,
         };
     }
 

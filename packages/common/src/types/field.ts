@@ -819,6 +819,12 @@ type CompiledProperties = {
     // these boundaries at query time by swapping the stored predicate for a
     // freshly rendered one, so the window is no longer frozen to compile time.
     compiledRelativeDateFilters?: CompiledMetricRelativeDateFilter[];
+    // Metric-only: compile-time SQL for each metric filter with an absolute
+    // operator targeting a TIMESTAMP dimension. Baked without any data
+    // timezone or timestamp-domain context, so the query builder re-renders
+    // the predicate with the query-time domain context and swaps it in when
+    // the target is classified.
+    compiledTimestampFilters?: CompiledMetricTimestampFilter[];
 };
 
 export type CompiledMetricRelativeDateFilter = {
@@ -826,6 +832,8 @@ export type CompiledMetricRelativeDateFilter = {
     fieldId: string; // resolved dimension id the filter targets
     compiledSql: string; // compile-time predicate, used as the query-time swap anchor
 };
+
+export type CompiledMetricTimestampFilter = CompiledMetricRelativeDateFilter;
 export type CompiledDimension = Dimension & CompiledProperties;
 export type CompiledMetric = Metric & CompiledProperties;
 
