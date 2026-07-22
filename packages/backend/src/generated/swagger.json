@@ -20547,11 +20547,56 @@
                 "type": "string",
                 "enum": ["open", "merged", "closed"]
             },
+            "AiProjectContextTypedObjectRef": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["explore"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "type": "string"
+                            },
+                            "explore": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["field"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["fieldId", "explore", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AiProjectContextObjectRef": {
+                "anyOf": [
+                    {
+                        "type": "string"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AiProjectContextTypedObjectRef"
+                    }
+                ]
+            },
             "AiAgentJudgeProjectContextEntry": {
                 "properties": {
                     "objects": {
                         "items": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/AiProjectContextObjectRef"
                         },
                         "type": "array"
                     },
@@ -49066,7 +49111,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3448.0",
+        "version": "0.3449.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

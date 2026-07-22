@@ -1,3 +1,15 @@
+# [0.3449.0](https://github.com/lightdash/lightdash/compare/0.3448.0...0.3449.0) (2026-07-22)
+
+
+### Bug Fixes
+
+* declare Radix deps for all scaffolded shadcn components in data-app template ([#25925](https://github.com/lightdash/lightdash/issues/25925)) ([101b99b](https://github.com/lightdash/lightdash/commit/101b99b55d04fde75e5ff94d2723be9fec815e27))
+
+
+### Features
+
+* domain-aware timestamp filter literals ([#25820](https://github.com/lightdash/lightdash/issues/25820)) ([1238012](https://github.com/lightdash/lightdash/commit/12380128d2d6783cd0cbe1538290f3cf28392e2e))
+
 # [0.3448.0](https://github.com/lightdash/lightdash/compare/0.3447.3...0.3448.0) (2026-07-22)
 
 
