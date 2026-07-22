@@ -131,6 +131,7 @@ describe('emitAiUsage', () => {
             promptId: 'prompt-1',
             model: 'claude-sonnet-5',
             provider: 'anthropic',
+            keyManagement: null,
             ...tokens,
         };
 
@@ -153,6 +154,40 @@ describe('emitAiUsage', () => {
             userId: 'user-1',
             properties: expectedProperties,
         });
+    });
+
+    it('reads keyManagement from metadata and drops unknown values', () => {
+        const track = vi.fn<(event: AiUsageEvent) => void>();
+        registerAiUsageTracker(track);
+
+        emitAiUsage(
+            {
+                functionId: 'generateAgentResponse',
+                metadata: {
+                    feature: 'agent',
+                    organizationUuid: 'org-1',
+                    keyManagement: 'self-managed',
+                },
+            },
+            tokens,
+        );
+        expect(track.mock.calls[0][0].properties.keyManagement).toBe(
+            'self-managed',
+        );
+
+        track.mockClear();
+        emitAiUsage(
+            {
+                functionId: 'generateAgentResponse',
+                metadata: {
+                    feature: 'agent',
+                    organizationUuid: 'org-1',
+                    keyManagement: 'bogus',
+                },
+            },
+            tokens,
+        );
+        expect(track.mock.calls[0][0].properties.keyManagement).toBeNull();
     });
 
     it('falls back to an anonymous id when no user is attributed', () => {

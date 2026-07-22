@@ -31,6 +31,25 @@ export type AiCallFeature =
     | 'managed-agent';
 
 /**
+ * Whether the AI call ran on Lightdash's own (instance) provider key or the
+ * customer's self-managed (bring-your-own) key. Lets analytics/CS tell who is
+ * on a Lightdash-managed key — e.g. to follow up on upgrades, or spot orgs
+ * using our key when they shouldn't. Null when the origin isn't known for the
+ * call (e.g. embeddings/instance-only paths).
+ */
+export type AiKeyManagement = 'lightdash-managed' | 'self-managed';
+
+const AI_KEY_MANAGEMENT_VALUES: readonly AiKeyManagement[] = [
+    'lightdash-managed',
+    'self-managed',
+];
+
+const parseKeyManagement = (value: string | null): AiKeyManagement | null =>
+    value !== null && (AI_KEY_MANAGEMENT_VALUES as string[]).includes(value)
+        ? (value as AiKeyManagement)
+        : null;
+
+/**
  * Token counts for a single AI call, normalized across providers and call
  * kinds (LLM text/object generation, embeddings). Null means the provider
  * did not report that class of tokens.
@@ -91,6 +110,7 @@ export type AiUsageEvent = BaseTrack & {
         promptId: string | null;
         model: string | null;
         provider: string | null;
+        keyManagement: AiKeyManagement | null;
     } & AiUsageTokens;
 };
 
@@ -151,6 +171,9 @@ export const emitAiUsage = (
             promptId: getMetadataString(metadata, 'promptUuid'),
             model: getMetadataString(metadata, 'model'),
             provider: getMetadataString(metadata, 'provider'),
+            keyManagement: parseKeyManagement(
+                getMetadataString(metadata, 'keyManagement'),
+            ),
             ...tokens,
         };
 
@@ -159,7 +182,7 @@ export const emitAiUsage = (
         // all metadata, so log-based consumers would otherwise see a bare
         // `AI usage` line with no token data.
         Logger.info(
-            `AI usage: feature=${properties.feature} provider=${properties.provider} model=${properties.model} ` +
+            `AI usage: feature=${properties.feature} provider=${properties.provider} keyManagement=${properties.keyManagement} model=${properties.model} ` +
                 `inputTokens=${properties.inputTokens} outputTokens=${properties.outputTokens} ` +
                 `cacheReadTokens=${properties.cacheReadTokens} cacheWriteTokens=${properties.cacheWriteTokens} ` +
                 `reasoningTokens=${properties.reasoningTokens} totalTokens=${properties.totalTokens} ` +

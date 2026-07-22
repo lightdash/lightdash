@@ -11476,7 +11476,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     await this.orgAiCopilotConfigResolver.getCopilotConfig(
                         organizationUuid,
                     );
-                const { model } = getModel(copilotConfig);
+                const { model, keyManagement } = getModel(copilotConfig);
                 const routedProjectUuid = await routeProjectForSlack(
                     model,
                     candidateProjects.map((project) => ({
@@ -11484,7 +11484,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         name: project.name,
                     })),
                     promptText,
-                    { organizationUuid, userUuid },
+                    { organizationUuid, userUuid, keyManagement },
                 );
                 if (routedProjectUuid) {
                     return await resolveAgentForProject(routedProjectUuid);
@@ -11594,13 +11594,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             await this.orgAiCopilotConfigResolver.getCopilotConfig(
                 organizationUuid,
             );
-        const { model } = getModel(copilotConfig);
+        const { model, keyManagement } = getModel(copilotConfig);
 
         const decision = await selectAgent({
             model,
             candidates: availableAgents,
             prompt: messageText,
-            telemetry: { organizationUuid, userUuid },
+            telemetry: { organizationUuid, userUuid, keyManagement },
         });
 
         const selectedAgent =

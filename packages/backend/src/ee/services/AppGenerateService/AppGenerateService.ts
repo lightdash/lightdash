@@ -88,6 +88,7 @@ import { z } from 'zod';
 import {
     emitAiUsage,
     languageModelUsageToTokens,
+    type AiKeyManagement,
 } from '../../../analytics/aiUsage';
 import {
     LightdashAnalytics,
@@ -127,10 +128,11 @@ import {
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
-import { getModel } from '../ai/models';
+import { getModel, resolveKeyManagement } from '../ai/models';
 import {
     OrgAiCopilotConfigResolver,
     type CopilotConfig,
+    type ResolvedCopilotConfig,
 } from '../ai/OrgAiCopilotConfigResolver';
 import {
     getAiCallTelemetry,
@@ -263,6 +265,7 @@ type GenerateAppResult = {
 type DataAppVersionFailureTelemetry = {
     wasResumed?: boolean;
     claudeProvider?: 'anthropic' | 'bedrock';
+    keyManagement?: AiKeyManagement;
     schedulerWaitMs?: number;
     generationUsage?: ClaudeGenerationUsage;
     generationAttemptCount?: number;
@@ -1350,6 +1353,7 @@ export class AppGenerateService extends BaseService {
         payload: AppGeneratePipelineJobPayload,
         model: DataAppClaudeModel,
         provider: 'anthropic' | 'bedrock',
+        keyManagement: AiKeyManagement,
         usage: ClaudeGenerationUsage,
     ): void {
         emitAiUsage(
@@ -1361,6 +1365,7 @@ export class AppGenerateService extends BaseService {
                 userUuid: payload.userUuid,
                 model,
                 provider,
+                keyManagement,
                 extra: {
                     appUuid: payload.appUuid,
                     appVersion: payload.version,
@@ -1418,6 +1423,7 @@ export class AppGenerateService extends BaseService {
                 payload,
                 claudeModel,
                 telemetry.claudeProvider ?? 'anthropic',
+                telemetry.keyManagement ?? 'lightdash-managed',
                 generationUsage,
             );
         }
@@ -2713,6 +2719,7 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             userUuid,
             ...getLanguageModelAttribution(modelOptions.model),
+            keyManagement: modelOptions.keyManagement,
         });
         const result = await generateObject({
             model: modelOptions.model,
@@ -3175,7 +3182,7 @@ export class AppGenerateService extends BaseService {
         }
 
         let claudeCodeEnv: Record<string, string>;
-        let copilot: CopilotConfig;
+        let copilot: ResolvedCopilotConfig;
         let s3Client: S3Client;
         let bucket: string;
         try {
@@ -3411,6 +3418,7 @@ export class AppGenerateService extends BaseService {
                         currentStatus,
                         wasResumed,
                         { ...claudeCodeEnv, ...otelEnv },
+                        copilot,
                         imageIds,
                         chartReferences,
                         versionDeps,
@@ -3434,6 +3442,7 @@ export class AppGenerateService extends BaseService {
         currentStatus: AppVersionStatus,
         wasResumed: boolean,
         claudeCodeEnv: Record<string, string>,
+        copilot: ResolvedCopilotConfig,
         imageIds: string[] | undefined,
         chartReferences: ChartReference[] | undefined,
         versionDeps: AppVersionDependencies | null,
@@ -3455,6 +3464,10 @@ export class AppGenerateService extends BaseService {
             claudeCodeEnv.CLAUDE_CODE_USE_BEDROCK === '1'
                 ? 'bedrock'
                 : 'anthropic';
+        const claudeKeyManagement = resolveKeyManagement(
+            copilot,
+            claudeProvider,
+        );
         const durations: Record<string, number> = { ...extraDurations };
         const shouldRun = (stage: AppVersionStatus) =>
             AppGenerateService.shouldRunStage(currentStatus, stage);
@@ -3591,6 +3604,7 @@ export class AppGenerateService extends BaseService {
         const failureTelemetry = (): DataAppVersionFailureTelemetry => ({
             wasResumed,
             claudeProvider,
+            keyManagement: claudeKeyManagement,
             schedulerWaitMs,
             buildFixGenerationMs,
             ...(generationAttemptCount > 0
@@ -4003,6 +4017,7 @@ export class AppGenerateService extends BaseService {
             payload,
             claudeModel,
             claudeProvider,
+            claudeKeyManagement,
             generationUsage,
         );
 
@@ -4383,6 +4398,7 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             userUuid: user.userUuid,
             ...getLanguageModelAttribution(modelOptions.model),
+            keyManagement: modelOptions.keyManagement,
         });
         let result;
         try {

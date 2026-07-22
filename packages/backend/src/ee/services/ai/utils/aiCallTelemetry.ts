@@ -1,5 +1,8 @@
 import type { LanguageModel } from 'ai';
-import type { AiCallFeature } from '../../../../analytics/aiUsage';
+import type {
+    AiCallFeature,
+    AiKeyManagement,
+} from '../../../../analytics/aiUsage';
 
 export type { AiCallFeature };
 
@@ -18,6 +21,8 @@ export type AiCallAttribution = {
     userUuid?: string | null;
     model?: string | null;
     provider?: string | null;
+    // Whether the call ran on a Lightdash-managed key or the org's own key.
+    keyManagement?: AiKeyManagement | null;
 };
 
 /**
@@ -74,6 +79,7 @@ const ATTRIBUTION_KEYS: (keyof AiCallAttribution)[] = [
     'userUuid',
     'model',
     'provider',
+    'keyManagement',
 ];
 
 /**
@@ -125,7 +131,14 @@ export const getAiCallTelemetry = ({
  * avoid an import cycle with the models package.
  */
 export const getGeneratorTelemetry = (
-    modelOptions: { model?: LanguageModel; telemetry?: AiCallAttribution },
+    modelOptions: {
+        model?: LanguageModel;
+        telemetry?: AiCallAttribution;
+        // Stamped by the model builder (getModel/getFastModelForAccessibleKey)
+        // so generator calls report managed-vs-BYO without threading it through
+        // every call site's telemetry attribution.
+        keyManagement?: AiKeyManagement | null;
+    },
     functionId: string,
     feature: AiCallFeature,
 ) =>
@@ -134,6 +147,9 @@ export const getGeneratorTelemetry = (
         feature,
         ...(modelOptions.model != null
             ? getLanguageModelAttribution(modelOptions.model)
+            : {}),
+        ...(modelOptions.keyManagement != null
+            ? { keyManagement: modelOptions.keyManagement }
             : {}),
         ...(modelOptions.telemetry ?? {}),
     });

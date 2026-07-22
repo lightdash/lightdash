@@ -88,6 +88,30 @@ describe('overlayOrgProviderApiKeys', () => {
         expect(result.defaultProvider).toBe('openai');
     });
 
+    it('records byoProviders for each overlaid org key', () => {
+        expect(
+            overlayOrgProviderApiKeys(bothProvidersConfig, {
+                anthropic: 'org-anthropic-key',
+            }).byoProviders,
+        ).toEqual(['anthropic']);
+        expect(
+            overlayOrgProviderApiKeys(bothProvidersConfig, {
+                anthropic: 'org-anthropic-key',
+                openai: 'org-openai-key',
+            }).byoProviders.sort(),
+        ).toEqual(['anthropic', 'openai']);
+    });
+
+    it('omits from byoProviders any key the instance has not configured', () => {
+        // baseConfig has no anthropic provider, so an anthropic org key is not
+        // overlaid and must not count as self-managed.
+        expect(
+            overlayOrgProviderApiKeys(baseConfig, {
+                anthropic: 'org-anthropic-key',
+            }).byoProviders,
+        ).toEqual([]);
+    });
+
     it('replaces the apiKey of an instance-configured provider, keeping other settings', () => {
         const result = overlayOrgProviderApiKeys(baseConfig, {
             openai: 'org-openai-key',
