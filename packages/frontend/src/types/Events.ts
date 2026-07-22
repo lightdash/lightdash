@@ -125,6 +125,7 @@ export enum EventName {
     EMBED_DOWNLOAD_CSV_CLICKED = 'embed_download_csv.clicked',
     EMBED_DOWNLOAD_IMAGE_CLICKED = 'embed_download_image.clicked',
 
+    // Misspelt since 2024; kept so the warehouse history stays in one piece.
     DOWNLOAD_IMAGE_CLICKED = 'ownload_image.clicked',
     CUSTOM_AXIS_RANGE_TOGGLE_CLICKED = 'custom_axis_range_toggle_clicked',
     CREATE_PROJECT_ACCESS_BUTTON_CLICKED = 'create_project_access.clicked',
