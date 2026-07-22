@@ -13,7 +13,7 @@ with both Fusion and Core 1.12** — same YAML, different manifest shapes:
 |---|---|---|---|---|
 | `legacy-spec/` | Legacy: top-level `semantic_models:` + `metrics:` ([docs](https://docs.getdbt.com/docs/build/sl-getting-started)) | dbt Core ≥ 1.6 | Postgres | n/a (measure references) |
 | `latest-spec/` via Fusion | Latest: inline `semantic_model:` ([docs](https://docs.getdbt.com/docs/build/latest-metrics-spec)) | dbt Fusion 2.0 | DuckDB | set (same as `type_params.expr`) |
-| `latest-spec/` via Core 1.12 + `fixtures/core112-latest-spec-manifest.json` | Same latest-spec YAML | dbt Core 1.12 | DuckDB | absent (column only on `type_params.expr`) |
+| `latest-spec/` via Core 1.12 | Same latest-spec YAML | dbt Core 1.12 | DuckDB | absent (column only on `type_params.expr`) |
 
 All three feed `semantic_models` + `metrics` in the manifest. Translator note:
 fall back to `type_params.expr` when the nested `expr` is missing. Cloud CLI
@@ -81,8 +81,7 @@ Lightdash, and keeps this example fully self-contained.
 ### Core 1.12 + optional Cloud CLI
 
 `test.sh` step 3 parses `latest-spec/` with **dbt Core 1.12** and asserts the
-Core shape (`type_params.expr` set, nested `expr` absent), plus the checked-in
-fixture `fixtures/core112-latest-spec-manifest.json`.
+Core shape (`type_params.expr` set, nested `expr` absent).
 
 Optional live Cloud CLI (Dev env release track picks Fusion vs Core):
 
@@ -118,8 +117,8 @@ explore the result in the Lightdash UI).
 
 ## What translates (and what doesn't)
 
-Both specs (and the Core 1.12 fixture) produce the identical result: **14
-translated, 1 skipped (with a warning)**.
+Both specs (Fusion and Core 1.12 on latest-spec) produce the identical result:
+**14 translated, 1 skipped (with a warning)**.
 
 ### Supported → Lightdash metrics
 
@@ -186,8 +185,6 @@ metricflow-demo/
 ├── README.md                  ← you are here
 ├── test.sh                    ← legacy Core + latest Fusion + latest Core 1.12
 ├── assert-translation.cjs     ← checks manifest → Lightdash metric translation
-├── fixtures/
-│   └── core112-latest-spec-manifest.json  ← Core 1.12 latest-spec shape
 ├── legacy-spec/
 │   ├── dbt_project.yml
 │   ├── profiles/profiles.yml  ← postgres

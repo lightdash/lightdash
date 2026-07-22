@@ -114,11 +114,6 @@ node "$CLI" compile --project-dir . --profiles-dir profiles --skip-dbt-compile -
 node ../assert-translation.cjs target/manifest.json
 popd >/dev/null
 
-echo
-echo "═══ Fixture (checked-in Core 1.12 manifest) ═══"
-assert_core112_expr_shape fixtures/core112-latest-spec-manifest.json
-node assert-translation.cjs fixtures/core112-latest-spec-manifest.json
-
 if [ -n "${DBT_CLOUD_CLI_CONFIG:-}" ]; then
     echo
     echo "═══ Live Cloud CLI ═══"
