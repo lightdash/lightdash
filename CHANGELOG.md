@@ -1,3 +1,11 @@
+## [0.3447.3](https://github.com/lightdash/lightdash/compare/0.3447.2...0.3447.3) (2026-07-22)
+
+
+### Bug Fixes
+
+* deliver Slack alerts without requiring a public image URL ([#25813](https://github.com/lightdash/lightdash/issues/25813)) ([a1d7071](https://github.com/lightdash/lightdash/commit/a1d7071f31ac796499b48a62d4f546aaeb7098f5))
+* thumbnail checkbox state handling in move-to-space modal ([#25877](https://github.com/lightdash/lightdash/issues/25877)) ([ebc8ec9](https://github.com/lightdash/lightdash/commit/ebc8ec9f96443dbdacd095b5fff60fb2aa9d025e))
+
 ## [0.3447.2](https://github.com/lightdash/lightdash/compare/0.3447.1...0.3447.2) (2026-07-22)
 
 
