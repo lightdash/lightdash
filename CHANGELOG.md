@@ -1,3 +1,11 @@
+## [0.3457.1](https://github.com/lightdash/lightdash/compare/0.3457.0...0.3457.1) (2026-07-22)
+
+
+### Bug Fixes
+
+* **frontend:** inherit table font size in pivot table cells ([#25985](https://github.com/lightdash/lightdash/issues/25985)) ([1ebf1c8](https://github.com/lightdash/lightdash/commit/1ebf1c8070deb695f233a516c50f53fbe44c3d1a))
+* gate email-only signup enrollment on SMTP capability ([#25968](https://github.com/lightdash/lightdash/issues/25968)) ([63ee28f](https://github.com/lightdash/lightdash/commit/63ee28f3d7617a0d83ab20c77f877afb0ecbe2fb))
+
 # [0.3457.0](https://github.com/lightdash/lightdash/compare/0.3456.0...0.3457.0) (2026-07-22)
 
 
