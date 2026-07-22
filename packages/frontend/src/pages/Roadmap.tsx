@@ -19,6 +19,7 @@ import {
     IconBrandGithub,
     IconGitPullRequest,
     IconRoad,
+    IconRoadOff,
 } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { useMemo, type FC } from 'react';
@@ -173,7 +174,7 @@ const Roadmap: FC = () => {
     const roadmapQuery = useOrgRoadmap(flagQuery.data?.enabled === true);
 
     const sections = useMemo(() => {
-        const items = roadmapQuery.data ?? [];
+        const items = roadmapQuery.data?.items ?? [];
         return STATUS_ORDER.map((status) => ({
             status,
             items: items.filter((item) => item.status === status),
@@ -206,6 +207,12 @@ const Roadmap: FC = () => {
                         icon={IconAlertCircle}
                         title="Could not load your roadmap"
                         description="Something went wrong fetching your roadmap. Try again in a few minutes, or contact support if it keeps happening."
+                    />
+                ) : roadmapQuery.data?.mapped === false ? (
+                    <SuboptimalState
+                        icon={IconRoadOff}
+                        title="Your roadmap isn't connected yet"
+                        description="Your organization's feature requests haven't been linked to this page. Contact your Lightdash team and we'll get it set up."
                     />
                 ) : sections.length === 0 ? (
                     <SuboptimalState

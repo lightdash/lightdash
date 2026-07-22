@@ -103,13 +103,16 @@ describe('RoadmapProxyService', () => {
         fetchMock.mockResolvedValueOnce({
             ok: true,
             status: 200,
-            json: async () => ({ status: 'ok', results: [curatedItem] }),
+            json: async () => ({
+                status: 'ok',
+                results: { mapped: true, items: [curatedItem] },
+            }),
         });
         const service = buildService(createFeatureFlagService(true));
 
-        const items = await service.getRoadmapForUser(user);
+        const result = await service.getRoadmapForUser(user);
 
-        expect(items).toEqual([curatedItem]);
+        expect(result).toEqual({ mapped: true, items: [curatedItem] });
         expect(fetchMock).toHaveBeenCalledWith(
             `https://roadmap.lightdash.com/api/v1/roadmap/organizations/${organizationUuid}`,
             { headers: { 'lightdash-license-key': 'license-key' } },
@@ -122,12 +125,15 @@ describe('RoadmapProxyService', () => {
             status: 200,
             json: async () => ({
                 status: 'ok',
-                results: [{ ...curatedItem, id: 'leak', sortOrder: 3 }],
+                results: {
+                    mapped: true,
+                    items: [{ ...curatedItem, id: 'leak', sortOrder: 3 }],
+                },
             }),
         });
         const service = buildService(createFeatureFlagService(true));
 
-        const items = await service.getRoadmapForUser(user);
+        const { items } = await service.getRoadmapForUser(user);
 
         expect(items).toEqual([curatedItem]);
         expect(Object.keys(items[0]).sort()).toEqual([
@@ -145,15 +151,18 @@ describe('RoadmapProxyService', () => {
             status: 200,
             json: async () => ({
                 status: 'ok',
-                results: [
-                    curatedItem,
-                    { ...curatedItem, title: 'Leaky', arr: 100000 },
-                ],
+                results: {
+                    mapped: true,
+                    items: [
+                        curatedItem,
+                        { ...curatedItem, title: 'Leaky', arr: 100000 },
+                    ],
+                },
             }),
         });
         const service = buildService(createFeatureFlagService(true));
 
-        const items = await service.getRoadmapForUser(user);
+        const { items } = await service.getRoadmapForUser(user);
 
         expect(items).toEqual([curatedItem]);
     });
@@ -172,18 +181,48 @@ describe('RoadmapProxyService', () => {
         expect(error.message).not.toContain('SECRET_DETAIL');
     });
 
-    it('throws when the response has no results array', async () => {
+    it('passes through mapped:false for an unmapped org', async () => {
         fetchMock.mockResolvedValueOnce({
             ok: true,
             status: 200,
-            json: async () => ({ status: 'ok' }),
+            json: async () => ({
+                status: 'ok',
+                results: { mapped: false, items: [] },
+            }),
         });
         const service = buildService(createFeatureFlagService(true));
 
-        await expect(service.getRoadmapForUser(user)).rejects.toThrow(
-            UnexpectedServerError,
-        );
+        const result = await service.getRoadmapForUser(user);
+
+        expect(result).toEqual({ mapped: false, items: [] });
     });
+
+    it.each([
+        ['no results', { status: 'ok' }],
+        ['results is an array (old shape)', { status: 'ok', results: [] }],
+        [
+            'mapped is not a boolean',
+            { status: 'ok', results: { mapped: 'yes', items: [] } },
+        ],
+        [
+            'items is not an array',
+            { status: 'ok', results: { mapped: true, items: {} } },
+        ],
+    ])(
+        'throws when the response shape is invalid: %s',
+        async (_label, body) => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: async () => body,
+            });
+            const service = buildService(createFeatureFlagService(true));
+
+            await expect(service.getRoadmapForUser(user)).rejects.toThrow(
+                UnexpectedServerError,
+            );
+        },
+    );
 
     it('throws when the roadmap service is unreachable', async () => {
         fetchMock.mockRejectedValueOnce(new Error('ECONNREFUSED'));

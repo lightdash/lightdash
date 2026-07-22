@@ -223,19 +223,24 @@ export class RoadmapService extends BaseService {
     }
 
     /**
-     * Serve the curated roadmap for an organization from the mirror. Returns an
-     * empty list when the org has no mapped customer or no items. Runs the
-     * stored items through the redaction checkpoint as a final defensive
-     * boundary before they leave the service.
+     * Serve the curated roadmap for an organization from the mirror. An org
+     * with no mapped Linear customer gets `mapped: false` and no items — and
+     * the fetch is logged, because a licensed instance asking for an unmapped
+     * roadmap usually means an enterprise onboarding gap someone should fix.
+     * Runs the stored items through the redaction checkpoint as a final
+     * defensive boundary before they leave the service.
      */
     async getRoadmapForOrg(params: {
         organizationUuid: string;
-    }): Promise<RoadmapItem[]> {
+    }): Promise<{ mapped: boolean; items: RoadmapItem[] }> {
         const { organizationUuid } = params;
         const link =
             await this.roadmapModel.findCustomerLinkForOrg(organizationUuid);
         if (link === null) {
-            return [];
+            this.logger.warn(
+                `Roadmap: organization ${organizationUuid} fetched its roadmap but has no mapped Linear customer — likely an enterprise onboarding gap`,
+            );
+            return { mapped: false, items: [] };
         }
 
         const stored =
@@ -248,6 +253,6 @@ export class RoadmapService extends BaseService {
                 `Roadmap redaction rejected ${rejected.length} stored item(s) for organization ${organizationUuid}`,
             );
         }
-        return items;
+        return { mapped: true, items };
     }
 }

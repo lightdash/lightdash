@@ -40,9 +40,13 @@ export class RoadmapProxyService extends BaseService {
      * Fetch the curated roadmap for the user's organization from the central
      * roadmap service. Gated by the Roadmap feature flag. The response is run
      * through the redaction checkpoint again before it reaches the browser —
-     * fail closed even if the upstream service misbehaves.
+     * fail closed even if the upstream service misbehaves. `mapped: false`
+     * means the org has no roadmap channel set up yet (onboarding gap), as
+     * opposed to a connected org with no requests.
      */
-    async getRoadmapForUser(user: SessionUser): Promise<RoadmapItem[]> {
+    async getRoadmapForUser(
+        user: SessionUser,
+    ): Promise<{ mapped: boolean; items: RoadmapItem[] }> {
         const { userUuid, organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('User is not part of an organization');
@@ -108,15 +112,24 @@ export class RoadmapProxyService extends BaseService {
             );
             throw new UnexpectedServerError('Roadmap service request failed');
         }
-        if (!Array.isArray(results)) {
+        if (
+            typeof results !== 'object' ||
+            results === null ||
+            typeof (results as { mapped?: unknown }).mapped !== 'boolean' ||
+            !Array.isArray((results as { items?: unknown }).items)
+        ) {
             this.logger.error(
-                'Roadmap proxy: roadmap service response has no results array',
+                'Roadmap proxy: roadmap service response has an unexpected shape',
             );
             throw new UnexpectedServerError('Roadmap service request failed');
         }
+        const { mapped, items: rawItems } = results as {
+            mapped: boolean;
+            items: unknown[];
+        };
 
         const { items, rejected } = redactRoadmapItems(
-            results as ReadonlyArray<Record<string, unknown>>,
+            rawItems as ReadonlyArray<Record<string, unknown>>,
         );
         if (rejected.length > 0) {
             // The central service should only ever serve curated fields —
@@ -126,6 +139,6 @@ export class RoadmapProxyService extends BaseService {
                 `Roadmap proxy: redaction rejected ${rejected.length} item(s) from the roadmap service for organization ${organizationUuid}`,
             );
         }
-        return items;
+        return { mapped, items };
     }
 }
