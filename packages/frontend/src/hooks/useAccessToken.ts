@@ -42,6 +42,7 @@ const rotateAccessToken = async (tokenUuid: string, expiresAt: string) =>
         url: `/user/me/personal-access-tokens/${tokenUuid}/rotate`,
         method: 'PATCH',
         body: JSON.stringify({ expiresAt }),
+        sensitive: true,
     });
 
 export const useAccessToken = (

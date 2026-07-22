@@ -155,6 +155,7 @@ const createUserQuery = async (data: ActivateUserWithInviteCode) =>
         url: `/user`,
         method: 'POST',
         body: JSON.stringify(data),
+        sensitive: true,
     });
 
 const Invite: FC = () => {

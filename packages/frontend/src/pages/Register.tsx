@@ -37,6 +37,7 @@ const registerQuery = async (data: CreateUserArgs | CreateEmailOnlyUserArgs) =>
         url: `/user`,
         method: 'POST',
         body: JSON.stringify(data),
+        sensitive: true,
     });
 
 const Register: FC = () => {
