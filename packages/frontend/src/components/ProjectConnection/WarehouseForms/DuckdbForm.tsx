@@ -374,6 +374,8 @@ const DuckdbForm: FC<{
             ? (warehouse.connectionType ?? DuckdbConnectionType.MOTHERDUCK)
             : DuckdbConnectionType.MOTHERDUCK;
 
+    if (connectionType === DuckdbConnectionType.EMBEDDED) return null;
+
     return (
         <Stack mt="sm">
             <SegmentedControl

@@ -4,6 +4,7 @@ import {
     DbtVersionOptionLatest,
     defineUserAbility,
     DimensionType,
+    DuckdbConnectionType,
     FeatureFlags,
     FilterOperator,
     ForbiddenError,
@@ -499,6 +500,68 @@ describe('ProjectService', () => {
             copyAccessSpy.mockRestore();
             copyContentSpy.mockRestore();
         }
+    });
+
+    test('rejects externally supplied embedded DuckDB credentials', async () => {
+        await expect(
+            service.createWithoutCompile(
+                {
+                    ...user,
+                    organizationUuid:
+                        projectWithSensitiveFields.organizationUuid,
+                    organizationName: 'Organization',
+                    organizationCreatedAt: new Date(),
+                },
+                {
+                    name: 'Embedded project',
+                    type: ProjectType.DEFAULT,
+                    dbtConnection: { type: DbtProjectType.NONE },
+                    dbtVersion: projectWithSensitiveFields.dbtVersion,
+                    warehouseConnection: {
+                        type: WarehouseTypes.DUCKDB,
+                        connectionType: DuckdbConnectionType.EMBEDDED,
+                        dataset: 'jaffle_shop',
+                    },
+                },
+                RequestMethod.WEB_APP,
+            ),
+        ).rejects.toThrow(
+            'Embedded DuckDB connections can only be provisioned internally',
+        );
+    });
+
+    test('rejects embedded DuckDB credentials inherited from an upstream preview', async () => {
+        projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce({
+            type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.EMBEDDED,
+            dataset: 'jaffle_shop',
+        });
+
+        await expect(
+            service.createWithoutCompile(
+                {
+                    ...user,
+                    ability: new Ability<PossibleAbilities>([
+                        { subject: 'Project', action: ['view', 'create'] },
+                    ]),
+                    organizationUuid:
+                        projectWithSensitiveFields.organizationUuid,
+                    organizationName: 'Organization',
+                    organizationCreatedAt: new Date(),
+                },
+                {
+                    name: 'Preview of the playground',
+                    type: ProjectType.PREVIEW,
+                    upstreamProjectUuid: projectUuid,
+                    copyWarehouseConnectionFromUpstreamProject: true,
+                    dbtConnection: { type: DbtProjectType.NONE },
+                    dbtVersion: projectWithSensitiveFields.dbtVersion,
+                },
+                RequestMethod.WEB_APP,
+            ),
+        ).rejects.toThrow(
+            'Embedded DuckDB connections can only be provisioned internally',
+        );
     });
 
     test('deletes a playground and records its tombstone in the provisioning lock transaction', async () => {
