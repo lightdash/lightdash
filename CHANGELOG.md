@@ -1,3 +1,10 @@
+## [0.3447.2](https://github.com/lightdash/lightdash/compare/0.3447.1...0.3447.2) (2026-07-22)
+
+
+### Bug Fixes
+
+* populate dashboard filter columns for pivoted SQL runner charts ([#25915](https://github.com/lightdash/lightdash/issues/25915)) ([808d87f](https://github.com/lightdash/lightdash/commit/808d87f2625050f2de1a2db0eb1ab7c5684c16d5)), closes [/linear.app/lightdash/issue/PROD-9098/dashboard-filters-filter-column-picker-is-empty-for-sql-runner-charts#agent-session-3ca27740](https://github.com//linear.app/lightdash/issue/PROD-9098/dashboard-filters-filter-column-picker-is-empty-for-sql-runner-charts/issues/agent-session-3ca27740)
+
 ## [0.3447.1](https://github.com/lightdash/lightdash/compare/0.3447.0...0.3447.1) (2026-07-22)
 
 
