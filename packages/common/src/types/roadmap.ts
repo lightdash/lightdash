@@ -7,9 +7,10 @@ import { ParameterError } from './errors';
  * them per org, and serves a read-only view to enterprise customers. The
  * types and constants here are the contract between that service and the
  * Lightdash app, and they encode the curation boundary: only `title`,
- * `description` and a customer-friendly `status` are ever exposed. Internal
- * data (comments, ARR/priority weighting, other accounts' identities) must
- * never cross this boundary.
+ * `description`, a customer-friendly `status`, and links to the public
+ * GitHub issue and pull request are ever exposed. Internal data (comments,
+ * ARR/priority weighting, other accounts' identities) must never cross this
+ * boundary.
  */
 
 /**
@@ -36,12 +37,17 @@ export const isRoadmapItemStatus = (
  * A single curated roadmap item, exactly as exposed to customers. These are
  * the only fields allowed across the curation boundary — the subset already
  * synced to the public GitHub issue. `description` is nullable because a Linear
- * issue may have an empty body.
+ * issue may have an empty body. `issueUrl`/`pullRequestUrl` link to the public
+ * GitHub issue and its delivering pull request; they are only ever
+ * github.com URLs (see {@link sanitizeRoadmapLink}) and null when no public
+ * link exists.
  */
 export type RoadmapItem = {
     title: string;
     description: string | null;
     status: RoadmapItemStatus;
+    issueUrl: string | null;
+    pullRequestUrl: string | null;
 };
 
 /**
@@ -53,7 +59,30 @@ export const ROADMAP_ITEM_ALLOWED_FIELDS = [
     'title',
     'description',
     'status',
+    'issueUrl',
+    'pullRequestUrl',
 ] as const satisfies ReadonlyArray<keyof RoadmapItem>;
+
+/**
+ * Prefix a roadmap link must have to be considered public. Linear issues
+ * carry attachments to internal systems too (support tickets, Slack threads,
+ * PRs in private repos like lightdash-cloud — a bare `github.com/` check
+ * would let those through, leaking private repo names). Only the public
+ * open-source repo qualifies; anything else is withheld.
+ */
+export const PUBLIC_ROADMAP_LINK_PREFIX =
+    'https://github.com/lightdash/lightdash/';
+
+/**
+ * Sanitize a candidate roadmap link. Returns the URL only when it is a string
+ * pointing at the public Lightdash repo; anything else (internal tools, other
+ * hosts, private repos, malformed values) becomes null — the link is
+ * withheld, never served.
+ */
+export const sanitizeRoadmapLink = (value: unknown): string | null =>
+    typeof value === 'string' && value.startsWith(PUBLIC_ROADMAP_LINK_PREFIX)
+        ? value
+        : null;
 
 /**
  * Known internal/sensitive field names that must never appear on a curated
@@ -64,7 +93,7 @@ export const ROADMAP_ITEM_ALLOWED_FIELDS = [
  *
  * This list is intentionally NOT exhaustive and is not the security boundary —
  * the allowlist reconstruction in {@link redactRoadmapItem} is what actually
- * guarantees nothing but `title`/`description`/`status` is served. This denylist
+ * guarantees nothing beyond {@link ROADMAP_ITEM_ALLOWED_FIELDS} is served. This denylist
  * only exists to turn a known curation regression into a loud failure; adding a
  * new sensitive field here is a defence-in-depth nicety, not a requirement.
  */
@@ -179,6 +208,8 @@ export const buildRoadmapItem = (input: {
     title: string;
     description: string | null;
     state: LinearWorkflowState;
+    issueUrl?: string | null;
+    pullRequestUrl?: string | null;
 }): RoadmapItem => {
     const status = mapLinearStateToRoadmapStatus(input.state);
     if (status === null) {
@@ -190,6 +221,8 @@ export const buildRoadmapItem = (input: {
         title: input.title,
         description: input.description,
         status,
+        issueUrl: sanitizeRoadmapLink(input.issueUrl),
+        pullRequestUrl: sanitizeRoadmapLink(input.pullRequestUrl),
     };
 };
 
@@ -229,7 +262,7 @@ export const redactRoadmapItem = (
         );
     }
 
-    const { title, description, status } = raw;
+    const { title, description, status, issueUrl, pullRequestUrl } = raw;
 
     if (typeof title !== 'string') {
         throw new ParameterError('Roadmap item is missing a valid "title"');
@@ -246,7 +279,15 @@ export const redactRoadmapItem = (
     }
 
     // Reconstruct from the allowlist only — no other key can leak through.
-    return { title, description, status };
+    // Links are re-sanitized here rather than rejected: a non-GitHub URL is
+    // withheld (null) so the rest of the item can still be served.
+    return {
+        title,
+        description,
+        status,
+        issueUrl: sanitizeRoadmapLink(issueUrl),
+        pullRequestUrl: sanitizeRoadmapLink(pullRequestUrl),
+    };
 };
 
 /**

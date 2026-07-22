@@ -1275,6 +1275,13 @@ export type LightdashConfig = {
     license: {
         licenseKey: string | null;
     };
+    /**
+     * Customer-facing roadmap. `serviceUrl` is the only setting a customer
+     * instance configures (where its backend proxy fetches curated roadmap
+     * data from). Everything else — `enabled`, `syncCron`, `linear.*` —
+     * configures the Lightdash-hosted central roadmap service and is never
+     * set on a customer deployment.
+     */
     roadmap: {
         enabled: boolean;
         syncCron: string;
@@ -2435,9 +2442,16 @@ export const parseConfig = (): LightdashConfig => {
             licenseKey,
         },
         roadmap: {
+            // Internal — Lightdash-hosted roadmap service only, not a
+            // customer setting. Docs: do not document as self-hosted config.
             enabled: process.env.ROADMAP_ENABLED === 'true',
+            // Internal — central roadmap service only.
             syncCron: process.env.ROADMAP_SYNC_CRON || '17 * * * *',
+            // Customer-facing: points a deployment's roadmap proxy at the
+            // Lightdash-hosted roadmap service.
             serviceUrl: process.env.ROADMAP_SERVICE_URL || null,
+            // Internal — central roadmap service only. The Linear API key
+            // never exists on customer deployments.
             linear: {
                 apiKey: process.env.ROADMAP_LINEAR_API_KEY || null,
                 apiUrl:

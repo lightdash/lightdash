@@ -7,19 +7,26 @@ import {
 import {
     Accordion,
     Badge,
+    Button,
     Group,
     Stack,
     Text,
     Title,
     useMantineTheme,
 } from '@mantine-8/core';
-import { IconAlertCircle, IconRoad } from '@tabler/icons-react';
+import {
+    IconAlertCircle,
+    IconBrandGithub,
+    IconGitPullRequest,
+    IconRoad,
+} from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { useMemo, type FC } from 'react';
 import { Navigate } from 'react-router';
 import rehypeExternalLinks from 'rehype-external-links';
 import rehypeSanitize from 'rehype-sanitize';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
+import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { useOrgRoadmap } from '../hooks/useOrgRoadmap';
@@ -50,28 +57,66 @@ const getStatusColor = (status: RoadmapItemStatus): string => {
     }
 };
 
-const RoadmapItemPanel: FC<{ item: RoadmapItem }> = ({ item }) => {
-    const theme = useMantineTheme();
-    if (!item.description) {
-        return (
-            <Text c="ldGray.6" fz="sm">
-                No further detail on this request yet.
-            </Text>
-        );
+const RoadmapItemLinks: FC<{ item: RoadmapItem }> = ({ item }) => {
+    if (!item.issueUrl && !item.pullRequestUrl) {
+        return null;
     }
     return (
-        <MarkdownPreview
-            source={item.description}
-            rehypePlugins={[
-                rehypeSanitize,
-                [rehypeExternalLinks, { target: '_blank' }],
-            ]}
-            style={{
-                fontSize: theme.fontSizes.sm,
-                backgroundColor: 'inherit',
-                color: 'inherit',
-            }}
-        />
+        <Group gap="xs">
+            {item.issueUrl && (
+                <Button
+                    component="a"
+                    href={item.issueUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    variant="default"
+                    size="compact-xs"
+                    leftSection={<MantineIcon icon={IconBrandGithub} />}
+                >
+                    View issue
+                </Button>
+            )}
+            {item.pullRequestUrl && (
+                <Button
+                    component="a"
+                    href={item.pullRequestUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    variant="default"
+                    size="compact-xs"
+                    leftSection={<MantineIcon icon={IconGitPullRequest} />}
+                >
+                    View pull request
+                </Button>
+            )}
+        </Group>
+    );
+};
+
+const RoadmapItemPanel: FC<{ item: RoadmapItem }> = ({ item }) => {
+    const theme = useMantineTheme();
+    return (
+        <Stack gap="sm">
+            {item.description ? (
+                <MarkdownPreview
+                    source={item.description}
+                    rehypePlugins={[
+                        rehypeSanitize,
+                        [rehypeExternalLinks, { target: '_blank' }],
+                    ]}
+                    style={{
+                        fontSize: theme.fontSizes.sm,
+                        backgroundColor: 'inherit',
+                        color: 'inherit',
+                    }}
+                />
+            ) : (
+                <Text c="ldGray.6" fz="sm">
+                    No further detail on this request yet.
+                </Text>
+            )}
+            <RoadmapItemLinks item={item} />
+        </Stack>
     );
 };
 

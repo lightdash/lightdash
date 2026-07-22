@@ -1,4 +1,4 @@
-import { LinearClient } from './LinearClient';
+import { classifyGithubAttachmentUrls, LinearClient } from './LinearClient';
 
 const buildResponse = (data: unknown) => ({
     ok: true,
@@ -21,6 +21,7 @@ const needsPage = (
         description: string | null;
         labels: string[];
         state: { name: string; type: string };
+        attachmentUrls?: string[];
     } | null>,
     hasNextPage = false,
     endCursor: string | null = null,
@@ -38,6 +39,11 @@ const needsPage = (
                               nodes: issue.labels.map((name) => ({ name })),
                           },
                           state: issue.state,
+                          attachments: {
+                              nodes: (issue.attachmentUrls ?? []).map(
+                                  (url) => ({ url }),
+                              ),
+                          },
                       },
                   },
         ),
@@ -116,8 +122,61 @@ describe('LinearClient', () => {
                 title: 'Dark mode',
                 description: 'please',
                 state: { name: 'In Progress', type: 'started' },
+                issueUrl: null,
+                pullRequestUrl: null,
             },
         ]);
+    });
+
+    it('classifies GitHub attachment urls and ignores internal ones', async () => {
+        fetchMock.mockResolvedValueOnce(
+            buildResponse(
+                needsPage([
+                    {
+                        id: 'i1',
+                        title: 'i18n',
+                        description: null,
+                        labels: [],
+                        state: { name: 'Todo', type: 'unstarted' },
+                        attachmentUrls: [
+                            'https://app.usepylon.com/issues?issueNumber=13539',
+                            'https://lightdash.slack.com/archives/C1/p1',
+                            'https://github.com/lightdash/lightdash/issues/5026',
+                            'https://github.com/lightdash/lightdash/pull/9001',
+                        ],
+                    },
+                ]),
+            ),
+        );
+
+        const client = buildClient();
+        const issues = await client.getCustomerFeatureRequests('c1');
+
+        expect(issues[0].issueUrl).toBe(
+            'https://github.com/lightdash/lightdash/issues/5026',
+        );
+        expect(issues[0].pullRequestUrl).toBe(
+            'https://github.com/lightdash/lightdash/pull/9001',
+        );
+    });
+
+    it('classifyGithubAttachmentUrls returns nulls when nothing matches', () => {
+        expect(
+            classifyGithubAttachmentUrls([
+                'https://linear.app/lightdash/issue/PROD-1',
+                'https://github.com/lightdash/lightdash', // repo root, not an issue
+            ]),
+        ).toEqual({ issueUrl: null, pullRequestUrl: null });
+    });
+
+    it('classifyGithubAttachmentUrls ignores private-repo issue/PR urls', () => {
+        expect(
+            classifyGithubAttachmentUrls([
+                'https://github.com/lightdash/lightdash-cloud/issues/100',
+                'https://github.com/lightdash/lightdash-cloud/pull/2873',
+                'https://github.com/other-org/lightdash/pull/1',
+            ]),
+        ).toEqual({ issueUrl: null, pullRequestUrl: null });
     });
 
     it('filters by label when a feature-request label is configured', async () => {
