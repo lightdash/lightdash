@@ -118,7 +118,7 @@ explore the result in the Lightdash UI).
 
 ## What translates (and what doesn't)
 
-Both specs (and the Cloud CLI fixture) produce the identical result: **14
+Both specs (and the Core 1.12 fixture) produce the identical result: **14
 translated, 1 skipped (with a warning)**.
 
 ### Supported → Lightdash metrics
