@@ -6,9 +6,9 @@ import {
     isTableCalculation,
     type BaseFilterRule,
 } from '@lightdash/common';
+import { TagsInput } from '@mantine-8/core';
 import isString from 'lodash/isString';
 import { type FilterInputsProps } from '.';
-import { TagInput } from '../../TagInput/TagInput';
 import useFiltersContext from '../useFiltersContext';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import FilterMultiNumberInput from './FilterMultiNumberInput';
@@ -146,7 +146,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                 case FilterType.BOOLEAN:
                 case FilterType.DATE:
                     return (
-                        <TagInput
+                        <TagsInput
                             w="100%"
                             clearable
                             data-autofocus
@@ -154,6 +154,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                             disabled={disabled}
                             placeholder={placeholder}
                             allowDuplicates={false}
+                            splitChars={[',']}
                             value={rule.values?.map(String)}
                             onChange={(values) => onChange({ ...rule, values })}
                         />
