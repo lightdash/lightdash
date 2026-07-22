@@ -595,7 +595,7 @@ export class AiWritebackService extends BaseService {
                 args.user,
                 args.projectUuid,
             );
-            this.trackMerged(args.user, args.projectUuid, {
+            await this.trackMerged(args.user, args.projectUuid, {
                 prUrl: args.prUrl,
                 mergeCommitSha: result.sha,
                 compileScheduled,
@@ -610,7 +610,7 @@ export class AiWritebackService extends BaseService {
      * throws back into the merge flow. Owner/repo/pullNumber are parsed from the
      * PR URL where possible (github.com links), and left null otherwise.
      */
-    private trackMerged(
+    private async trackMerged(
         user: SessionUser,
         projectUuid: string,
         properties: {
@@ -618,7 +618,7 @@ export class AiWritebackService extends BaseService {
             mergeCommitSha: string | null;
             compileScheduled: boolean;
         },
-    ): void {
+    ): Promise<void> {
         let parsed: {
             owner: string;
             repo: string;
@@ -628,6 +628,17 @@ export class AiWritebackService extends BaseService {
             parsed = parsePullRequestUrl(properties.prUrl);
         } catch {
             parsed = null;
+        }
+        let workstream: CodingAgentConfig['mode'] = 'dbt-writeback';
+        try {
+            const thread =
+                await this.aiWritebackThreadModel.findByProjectUuidAndPrUrl(
+                    projectUuid,
+                    properties.prUrl,
+                );
+            workstream = thread?.workstream ?? workstream;
+        } catch {
+            workstream = 'dbt-writeback';
         }
         this.analytics.track({
             event: 'ai_writeback.merged',
@@ -641,6 +652,7 @@ export class AiWritebackService extends BaseService {
                 pullNumber: parsed?.pullNumber ?? null,
                 mergeCommitSha: properties.mergeCommitSha,
                 compileScheduled: properties.compileScheduled,
+                workstream,
             },
         });
     }
@@ -1943,7 +1955,12 @@ export class AiWritebackService extends BaseService {
             throw error;
         }
 
-        const tracker = this.startTracking({ user, projectUuid, turn });
+        const tracker = this.startTracking({
+            user,
+            projectUuid,
+            turn,
+            workstream: config.mode,
+        });
 
         let failureStage: AiWritebackFailureStage = 'install';
         let stageStartedAt = Date.now();
@@ -3021,10 +3038,12 @@ export class AiWritebackService extends BaseService {
         user,
         projectUuid,
         turn,
+        workstream,
     }: {
         user: SessionUser;
         projectUuid: string;
         turn: TurnContext;
+        workstream: CodingAgentConfig['mode'];
     }) {
         const eventBase = {
             organizationId: turn.organizationUuid,
@@ -3032,6 +3051,7 @@ export class AiWritebackService extends BaseService {
             owner: turn.gitConnection.owner,
             repo: turn.gitConnection.repo,
             isResume: turn.isResume,
+            workstream,
         };
         const startedAt = Date.now();
 
@@ -4227,6 +4247,7 @@ export class AiWritebackService extends BaseService {
                 projectDbtSourceUuid: turn.projectDbtSourceUuid,
                 // Record the repo so a thread can resume its latest PR per repo.
                 targetRepo: `${turn.gitConnection.owner}/${turn.gitConnection.repo}`,
+                workstream: config.mode,
             });
         }
     }

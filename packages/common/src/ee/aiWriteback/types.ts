@@ -127,6 +127,8 @@ export type AiWritebackSource =
     | 'admin_review'
     | 'changeset';
 
+export type AiWritebackWorkstream = 'dbt-writeback' | 'general';
+
 export const AI_WRITEBACK_STAGES = [
     'install',
     'sandbox',
