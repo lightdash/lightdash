@@ -43,8 +43,9 @@ import {
     Text,
     Badge,
     HoverCard,
+    Portal,
 } from '@mantine-8/core';
-import { Portal, Tooltip, useMantineColorScheme } from '@mantine/core';
+import { Tooltip, useMantineColorScheme } from '@mantine/core';
 import { useClipboard, useElementSize } from '@mantine/hooks';
 import {
     IconAlertCircle,

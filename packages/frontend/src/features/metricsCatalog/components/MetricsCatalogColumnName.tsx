@@ -6,8 +6,9 @@ import {
     Button,
     ActionIcon,
     Highlight,
+    Portal,
 } from '@mantine-8/core';
-import { getDefaultZIndex, Portal } from '@mantine/core';
+import { getDefaultZIndex } from '@mantine/core';
 import { useClickOutside } from '@mantine/hooks';
 import { IconTrash } from '@tabler/icons-react';
 import EmojiPicker, {

@@ -1,17 +1,14 @@
 import {
     ActionIcon,
+    Box,
     Burger,
     Divider,
+    Drawer,
     Group,
     Stack,
     Title,
 } from '@mantine-8/core';
-import {
-    Drawer,
-    getDefaultZIndex,
-    Header,
-    MantineProvider,
-} from '@mantine/core';
+import { getDefaultZIndex, Header, MantineProvider } from '@mantine/core';
 import {
     IconChartAreaLine,
     IconFolders,
@@ -41,6 +38,7 @@ import { loadLazyRouteDefault } from './features/chunkErrorHandler';
 import { useActiveProjectUuid } from './hooks/useActiveProject';
 import useLogoutMutation from './hooks/user/useUserLogoutMutation';
 import { getMantineThemeOverride } from './mantineTheme';
+import Mantine8Provider from './providers/Mantine8Provider';
 import { TrackPage } from './providers/Tracking/TrackingProvider';
 import Logo from './svgs/logo-icon.svg?react';
 import { PageName } from './types/Events';
@@ -48,6 +46,9 @@ import { PageName } from './types/Events';
 const MobileAiAgentsNavLink = lazy(
     () => import('./components/Mobile/MobileAiAgentsNavLink'),
 );
+
+const getMobileNavBarRootElement = () =>
+    document.getElementById('mobile-navbar') ?? undefined;
 
 const RedirectToResource: FC = () => {
     const { projectUuid, savedQueryUuid, dashboardUuid } = useParams();
@@ -93,102 +94,115 @@ export const MobileNavBar: FC = () => {
     }, []);
 
     return (
-        <MantineProvider theme={darkTheme}>
-            <Header
-                height={50}
-                display="flex"
-                px="md"
-                zIndex={getDefaultZIndex('app')}
-                sx={{
-                    alignItems: 'center',
-                    boxShadow: 'lg',
-                }}
+        <Box id="mobile-navbar" data-mantine-color-scheme="dark">
+            <Mantine8Provider
+                forceColorScheme="dark"
+                cssVariablesSelector="#mobile-navbar"
+                getRootElement={getMobileNavBarRootElement}
             >
-                <Group align="center" justify="space-between" flex={1}>
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        component={Link}
-                        to={'/'}
-                        title="Home"
-                        size="lg"
+                <MantineProvider theme={darkTheme}>
+                    <Header
+                        height={50}
+                        display="flex"
+                        px="md"
+                        zIndex={getDefaultZIndex('app')}
+                        sx={{
+                            alignItems: 'center',
+                            boxShadow: 'lg',
+                        }}
                     >
-                        <Logo />
-                    </ActionIcon>
-                    <Burger
-                        opened={isMenuOpen}
-                        onClick={toggleMenu}
-                        color="white"
-                        aria-label={
-                            isMenuOpen
-                                ? 'Close navigation menu'
-                                : 'Open navigation menu'
-                        }
-                        aria-expanded={isMenuOpen}
-                        aria-controls="mobile-navigation"
-                    />
-                </Group>
-            </Header>
+                        <Group align="center" justify="space-between" flex={1}>
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                component={Link}
+                                to={'/'}
+                                title="Home"
+                                size="lg"
+                            >
+                                <Logo />
+                            </ActionIcon>
+                            <Burger
+                                opened={isMenuOpen}
+                                onClick={toggleMenu}
+                                color="white"
+                                aria-label={
+                                    isMenuOpen
+                                        ? 'Close navigation menu'
+                                        : 'Open navigation menu'
+                                }
+                                aria-expanded={isMenuOpen}
+                                aria-controls="mobile-navigation"
+                            />
+                        </Group>
+                    </Header>
 
-            <Drawer
-                id="mobile-navigation"
-                title={<ThemeSwitcher />}
-                opened={isMenuOpen}
-                onClose={toggleMenu}
-                size="75%"
-            >
-                <Title order={6} fw={600} mb="xs">
-                    Project
-                </Title>
-                <ProjectSwitcher />
-                <Divider my="lg" />
-                <RouterNavLink
-                    exact
-                    label="Home"
-                    to={`/`}
-                    leftSection={<MantineIcon icon={IconHome} />}
-                    onClick={toggleMenu}
-                />
-                <RouterNavLink
-                    exact
-                    label="Spaces"
-                    to={`/projects/${activeProjectUuid}/spaces`}
-                    leftSection={<MantineIcon icon={IconFolders} />}
-                    onClick={toggleMenu}
-                />
-                <RouterNavLink
-                    exact
-                    label="Dashboards"
-                    to={`/projects/${activeProjectUuid}/dashboards`}
-                    leftSection={<MantineIcon icon={IconLayoutDashboard} />}
-                    onClick={toggleMenu}
-                />
-                <RouterNavLink
-                    exact
-                    label="Charts"
-                    to={`/projects/${activeProjectUuid}/saved`}
-                    leftSection={<MantineIcon icon={IconChartAreaLine} />}
-                    onClick={toggleMenu}
-                />
-                {isMenuOpen && (
-                    <Suspense fallback={null}>
-                        <MobileAiAgentsNavLink
-                            activeProjectUuid={activeProjectUuid}
+                    <Drawer
+                        id="mobile-navigation"
+                        title={<ThemeSwitcher />}
+                        opened={isMenuOpen}
+                        onClose={toggleMenu}
+                        size="75%"
+                        portalProps={{ target: '#mobile-navbar' }}
+                    >
+                        <Title order={6} fw={600} mb="xs">
+                            Project
+                        </Title>
+                        <ProjectSwitcher />
+                        <Divider my="lg" />
+                        <RouterNavLink
+                            exact
+                            label="Home"
+                            to={`/`}
+                            leftSection={<MantineIcon icon={IconHome} />}
                             onClick={toggleMenu}
                         />
-                    </Suspense>
-                )}
-                <Divider my="lg" />
+                        <RouterNavLink
+                            exact
+                            label="Spaces"
+                            to={`/projects/${activeProjectUuid}/spaces`}
+                            leftSection={<MantineIcon icon={IconFolders} />}
+                            onClick={toggleMenu}
+                        />
+                        <RouterNavLink
+                            exact
+                            label="Dashboards"
+                            to={`/projects/${activeProjectUuid}/dashboards`}
+                            leftSection={
+                                <MantineIcon icon={IconLayoutDashboard} />
+                            }
+                            onClick={toggleMenu}
+                        />
+                        <RouterNavLink
+                            exact
+                            label="Charts"
+                            to={`/projects/${activeProjectUuid}/saved`}
+                            leftSection={
+                                <MantineIcon icon={IconChartAreaLine} />
+                            }
+                            onClick={toggleMenu}
+                        />
+                        {isMenuOpen && (
+                            <Suspense fallback={null}>
+                                <MobileAiAgentsNavLink
+                                    activeProjectUuid={activeProjectUuid}
+                                    onClick={toggleMenu}
+                                />
+                            </Suspense>
+                        )}
+                        <Divider my="lg" />
 
-                <RouterNavLink
-                    exact
-                    label="Logout"
-                    to={`/`}
-                    leftSection={<MantineIcon icon={IconLogout} />}
-                    onClick={() => logout()}
-                />
-            </Drawer>
-        </MantineProvider>
+                        <RouterNavLink
+                            exact
+                            label="Logout"
+                            to={`/`}
+                            leftSection={<MantineIcon icon={IconLogout} />}
+                            onClick={() => logout()}
+                        />
+                    </Drawer>
+                </MantineProvider>
+            </Mantine8Provider>
+        </Box>
     );
 };
 
