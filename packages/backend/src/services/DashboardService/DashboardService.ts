@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AbilityAction,
+    assertRegisteredAccount,
     BulkActionable,
     ContentType,
     CreateDashboard,
@@ -23,6 +24,7 @@ import {
     isDashboardScheduler,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
+    isJwtUser,
     isUserWithOrg,
     isValidFrequency,
     isValidTimezone,
@@ -162,7 +164,7 @@ export class DashboardService
     contentVerificationModel: ContentVerificationModel;
 
     async scheduleExportContent(
-        user: SessionUser,
+        account: Account,
         dashboardUuidOrSlug: UuidOrSlug,
         data: ExportContentRequest,
     ) {
@@ -179,11 +181,14 @@ export class DashboardService
             throw new ParameterError('Unsupported export format');
         }
 
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (data.format === SchedulerFormat.IMAGE) {
+            // Image export renders the dashboard in a headless browser using a
+            // real session, so it is not available to embed/JWT callers.
+            assertRegisteredAccount(account);
             const { inheritsFromOrgOrProject, access } =
                 await this.spacePermissionService.getSpaceAccessContext(
-                    user.userUuid,
+                    account.user.userUuid,
                     dashboard.spaceUuid,
                 );
 
@@ -220,6 +225,13 @@ export class DashboardService
             throw new ForbiddenError();
         }
 
+        // Embed/JWT callers have no DB user; carry the encoded token so the
+        // scheduler worker can rebuild the anonymous account to run the tile
+        // queries under the same access it was granted.
+        const encodedJwt = isJwtUser(account)
+            ? account.authentication.source
+            : undefined;
+
         const payload: ExportContentPayload = {
             resourceType: SchedulerResourceType.DASHBOARD,
             resourceUuid: dashboard.uuid,
@@ -231,7 +243,8 @@ export class DashboardService
             selectedTabs: data.selectedTabs ?? null,
             organizationUuid: dashboard.organizationUuid,
             projectUuid: dashboard.projectUuid,
-            userUuid: user.userUuid,
+            userUuid: account.user.id,
+            encodedJwt,
             schedulerUuid: undefined,
         };
 

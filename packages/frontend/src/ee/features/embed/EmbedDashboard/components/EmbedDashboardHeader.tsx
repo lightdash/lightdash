@@ -7,6 +7,7 @@ import {
 import { Box } from '@mantine-8/core';
 import { type FC, type ReactNode } from 'react';
 import { embedContractClass } from '../../styles/embedClassContract';
+import EmbedDashboardExportAll from './EmbedDashboardExportAll';
 import EmbedDashboardExportPdf from './EmbedDashboardExportPdf';
 import EmbedDashboardFilterBar from './EmbedDashboardFilterBar';
 import styles from './EmbedDashboardHeader.module.css';
@@ -24,7 +25,11 @@ const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid, tabs }) => {
         isParameterInteractivityEnabled(dashboard.parameterInteractivity) ||
         isFilterInteractivityEnabled(dashboard.dashboardFiltersInteractivity);
 
-    if (!hasFilterBar && !tabs && !dashboard.canExportPagePdf) {
+    const hasHeaderActions = Boolean(
+        dashboard.canExportPagePdf || dashboard.canExportDashboardCsv,
+    );
+
+    if (!hasFilterBar && !tabs && !hasHeaderActions) {
         return null;
     }
 
@@ -53,12 +58,20 @@ const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid, tabs }) => {
             data-has-tabs={Boolean(tabs)}
         >
             <Box className={styles.primary}>{tabs ?? filterBar}</Box>
-            {dashboard.canExportPagePdf && (
+            {hasHeaderActions && (
                 <Box className={styles.actions}>
-                    <EmbedDashboardExportPdf
-                        dashboard={dashboard}
-                        projectUuid={projectUuid}
-                    />
+                    {dashboard.canExportDashboardCsv && (
+                        <EmbedDashboardExportAll
+                            dashboard={dashboard}
+                            projectUuid={projectUuid}
+                        />
+                    )}
+                    {dashboard.canExportPagePdf && (
+                        <EmbedDashboardExportPdf
+                            dashboard={dashboard}
+                            projectUuid={projectUuid}
+                        />
+                    )}
                 </Box>
             )}
             {tabs && filterBar && (

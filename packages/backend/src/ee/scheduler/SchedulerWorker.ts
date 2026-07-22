@@ -757,6 +757,58 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     },
                 );
             },
+            [SCHEDULER_TASKS.EXPORT_CONTENT]: async (payload, helpers) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.EXPORT_CONTENT,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            const { encodedJwt } = payload;
+                            if (encodedJwt) {
+                                // Embed export: rebuild the anonymous account
+                                // from the JWT so the tile queries run under the
+                                // token's access instead of a DB user.
+                                const account =
+                                    await this.embedService.getAccountFromJwt(
+                                        payload.projectUuid,
+                                        encodedJwt,
+                                    );
+                                await this.exportContent(
+                                    helpers.job.id,
+                                    helpers.job.run_at,
+                                    payload,
+                                    account,
+                                );
+                            } else {
+                                await this.exportContent(
+                                    helpers.job.id,
+                                    helpers.job.run_at,
+                                    payload,
+                                );
+                            }
+                        },
+                    ),
+                    helpers.job,
+                    this.lightdashConfig.scheduler.jobTimeout,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: SCHEDULER_TASKS.EXPORT_CONTENT,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                userUuid: payload.userUuid,
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                error: getErrorMessage(e),
+                                createdByUserUuid: payload.userUuid,
+                            },
+                        });
+                    },
+                );
+            },
         };
     }
 }
