@@ -48,6 +48,7 @@ describe('AiAgentMemoryModel integration', () => {
     let schedulerClient: CommercialSchedulerClient;
     const originalFlags = new Map<string, DbFeatureFlag | undefined>();
     const threadUuids = new Set<string>();
+    const memoryUuids = new Set<string>();
 
     const setFeatureFlag = async (flagId: string, enabled: boolean) => {
         await database<FeatureFlagsTable>(FeatureFlagsTableName)
@@ -113,6 +114,12 @@ describe('AiAgentMemoryModel integration', () => {
 
     afterEach(async () => {
         await setFeatureFlag(FeatureFlags.AiAgentMemory, true);
+        if (memoryUuids.size > 0) {
+            await database(AiAgentMemoryTableName)
+                .whereIn('ai_agent_memory_uuid', [...memoryUuids])
+                .delete();
+            memoryUuids.clear();
+        }
         if (threadUuids.size === 0) {
             return;
         }
@@ -240,11 +247,13 @@ describe('AiAgentMemoryModel integration', () => {
         distillCall: AiAgentMemoryDistillCall,
         projectModel: Pick<
             ProjectModel,
-            'findExploresFromCache'
+            'findExploresFromCache' | 'getSummary'
         > = getTestContext().app.getModels().getProjectModel(),
     ) =>
         new AiAgentMemoryService({
             aiAgentMemoryModel: model,
+            aiAgentModel: getTestContext().app.getModels().getAiAgentModel(),
+            groupsModel: getTestContext().app.getModels().getGroupsModel(),
             projectModel,
             featureFlagService,
             schedulerClient,
@@ -523,6 +532,102 @@ describe('AiAgentMemoryModel integration', () => {
             second.ai_agent_memory_uuid,
             third.ai_agent_memory_uuid,
         ]);
+    });
+
+    it('reads distilled and nested consolidated provenance with the final replacement', async () => {
+        const [firstThread, secondThread] = await Promise.all([
+            createThread(),
+            createThread(),
+        ]);
+        await Promise.all([
+            database(AiThreadTableName)
+                .where('ai_thread_uuid', firstThread)
+                .update({ title: 'Revenue convention' }),
+            database(AiThreadTableName)
+                .where('ai_thread_uuid', secondThread)
+                .update({ title: 'Refund correction' }),
+        ]);
+        const [first, second] = await Promise.all([
+            model.upsertSourceThreadMemory(memoryInput(firstThread)),
+            model.upsertSourceThreadMemory(
+                memoryInput(secondThread, {
+                    rawMemory: 'Subtract refunds.',
+                    threadSummary: 'The user corrected refund handling.',
+                }),
+            ),
+        ]);
+        const [winner] = await database(AiAgentMemoryTableName)
+            .insert({
+                organization_uuid: SEED_ORG_1.organization_uuid,
+                project_uuid: SEED_PROJECT.project_uuid,
+                agent_uuid: null,
+                user_uuid: null,
+                source_thread_uuid: null,
+                slug: `winner-${crypto.randomUUID().slice(0, 8)}`,
+                title: 'Net revenue after refunds',
+                raw_memory: 'Use net revenue after refunds.',
+                thread_summary: null,
+                terms: JSON.stringify(['net revenue']),
+                objects: JSON.stringify([]),
+                unresolved_objects: JSON.stringify([]),
+                generated_at: new Date('2026-07-22T14:00:00Z'),
+            } as never)
+            .returning('*');
+        memoryUuids.add(winner.ai_agent_memory_uuid);
+        const [merged] = await database(AiAgentMemoryTableName)
+            .insert({
+                organization_uuid: SEED_ORG_1.organization_uuid,
+                project_uuid: SEED_PROJECT.project_uuid,
+                agent_uuid: null,
+                user_uuid: null,
+                source_thread_uuid: null,
+                slug: `merged-${crypto.randomUUID().slice(0, 8)}`,
+                title: 'Net revenue',
+                raw_memory: 'Use net revenue.',
+                thread_summary: null,
+                terms: JSON.stringify(['revenue']),
+                objects: JSON.stringify([]),
+                unresolved_objects: JSON.stringify([]),
+                status: 'superseded',
+                superseded_by_uuid: winner.ai_agent_memory_uuid,
+                generated_at: new Date('2026-07-22T13:00:00Z'),
+            } as never)
+            .returning('*');
+        memoryUuids.add(merged.ai_agent_memory_uuid);
+        await database(AiAgentMemoryTableName)
+            .whereIn('ai_agent_memory_uuid', [
+                first.ai_agent_memory_uuid,
+                second.ai_agent_memory_uuid,
+            ])
+            .update({
+                status: 'superseded',
+                superseded_by_uuid: merged.ai_agent_memory_uuid,
+            });
+
+        const result = await model.findByProjectAndSlug({
+            projectUuid: SEED_PROJECT.project_uuid,
+            slug: winner.slug,
+        });
+        const superseded = await model.findByProjectAndSlug({
+            projectUuid: SEED_PROJECT.project_uuid,
+            slug: merged.slug,
+        });
+
+        expect(
+            result?.sources
+                .map((source) => ({
+                    slug: source.slug,
+                    threadTitle: source.thread_title,
+                }))
+                .sort((a, b) => a.slug.localeCompare(b.slug)),
+        ).toEqual(
+            [
+                { slug: first.slug, threadTitle: 'Revenue convention' },
+                { slug: second.slug, threadTitle: 'Refund correction' },
+            ].sort((a, b) => a.slug.localeCompare(b.slug)),
+        );
+        expect(result?.replacement).toBeNull();
+        expect(superseded?.replacement).toEqual({ slug: winner.slug });
     });
 
     it('selects only idle, recent, supported threads due by watermark', async () => {
@@ -876,8 +981,10 @@ describe('AiAgentMemoryModel integration', () => {
         const findExploresFromCache = vi
             .fn<ProjectModel['findExploresFromCache']>()
             .mockRejectedValue(new Error('catalog unavailable'));
+        const projectModel = getTestContext().app.getModels().getProjectModel();
         const service = buildService(distillCall, {
             findExploresFromCache,
+            getSummary: projectModel.getSummary.bind(projectModel),
         });
 
         await expect(

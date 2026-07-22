@@ -345,6 +345,7 @@ import type { AiWritebackSource } from '../AiWritebackService/types';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
+import { canAccessAiAgent, canAccessAiAgentThread } from './aiAgentAccess';
 import { canGeneratePostResponseSuggestions } from './suggestionAccess';
 
 type ThreadMessageContext = Array<
@@ -1143,65 +1144,10 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         agent: AiAgent,
     ): Promise<boolean> {
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.can(
-                'manage',
-                subject('AiAgent', {
-                    organizationUuid: agent.organizationUuid,
-                    projectUuid: agent.projectUuid,
-                    metadata: {
-                        agentUuid: agent.uuid,
-                        agentName: agent.name,
-                    },
-                }),
-            )
-        ) {
-            return true;
-        }
-
-        // Admin-only agents are visible to admins/developers only (granted by
-        // the manage check above); everyone else is denied regardless of the
-        // user/group access lists below.
-        if (agent.adminOnly) {
-            return false;
-        }
-
-        // Check if open access (no restrictions)
-        const hasGroupAccess =
-            agent.groupAccess && agent.groupAccess.length > 0;
-        const hasUserAccess = agent.userAccess && agent.userAccess.length > 0;
-
-        if (!hasGroupAccess && !hasUserAccess) {
-            return auditedAbility.can(
-                'view',
-                subject('Project', {
-                    organizationUuid: agent.organizationUuid,
-                    projectUuid: agent.projectUuid,
-                }),
-            );
-        }
-
-        // Check user access first (direct access)
-        if (hasUserAccess && agent.userAccess.includes(user.userUuid)) {
-            return true;
-        }
-
-        // Check group access
-        if (hasGroupAccess) {
-            const groupUuids = agent.groupAccess;
-            const userGroups = await this.groupsModel.findUserInGroups({
-                userUuid: user.userUuid,
-                organizationUuid: agent.organizationUuid,
-                groupUuids,
-            });
-
-            if (userGroups.length > 0) {
-                return true;
-            }
-        }
-
-        return false;
+        return canAccessAiAgent(user, agent, {
+            auditedAbility: this.createAuditedAbility(user),
+            groupsModel: this.groupsModel,
+        });
     }
 
     /**
@@ -1412,33 +1358,10 @@ export class AiAgentService extends BaseService {
         agent: AiAgent,
         threadUserUuid: string,
     ): Promise<boolean> {
-        const hasAccess = await this.checkAgentAccess(user, agent);
-        if (!hasAccess) {
-            return false;
-        }
-
-        if (threadUserUuid === user.userUuid) {
-            return true;
-        }
-
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.can(
-                'manage',
-                subject('AiAgent', {
-                    organizationUuid: agent.organizationUuid,
-                    projectUuid: agent.projectUuid,
-                    metadata: {
-                        agentUuid: agent.uuid,
-                        agentName: agent.name,
-                    },
-                }),
-            )
-        ) {
-            return true;
-        }
-
-        return false;
+        return canAccessAiAgentThread(user, agent, threadUserUuid, {
+            auditedAbility: this.createAuditedAbility(user),
+            groupsModel: this.groupsModel,
+        });
     }
 
     private static getEmbedAiAgentContext(

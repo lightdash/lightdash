@@ -69,6 +69,7 @@ import {
 } from './memoryCitationConfig';
 import { MessageModelIndicator } from './MessageModelIndicator';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
+import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
 import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
 import { AiEditRepoToolCall } from './ToolCalls/AiEditRepoToolCall';
 import { ImproveContextToolCall } from './ToolCalls/ImproveContextToolCall';
@@ -606,7 +607,10 @@ const AssistantBubbleContent: FC<{
                                     ? styles.streamingNarration
                                     : undefined
                             }
-                            rehypePlugins={[rehypeAiAgentContentLinks]}
+                            rehypePlugins={[
+                                rehypeAiAgentContentLinks,
+                                rehypeMemoryCitationIndices,
+                            ]}
                             plugins={markdownPlugins}
                             components={{
                                 ...MEMORY_CITATION_COMPONENTS,
@@ -794,7 +798,10 @@ const AssistantBubbleContent: FC<{
                             <AiMarkdown
                                 className={styles.persistedAnswer}
                                 allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
-                                rehypePlugins={[rehypeAiAgentContentLinks]}
+                                rehypePlugins={[
+                                    rehypeAiAgentContentLinks,
+                                    rehypeMemoryCitationIndices,
+                                ]}
                                 plugins={markdownPlugins}
                                 components={{
                                     ...MEMORY_CITATION_COMPONENTS,

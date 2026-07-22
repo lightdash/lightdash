@@ -15,6 +15,7 @@ import type {
     ToolVerticalBarArgs,
 } from '../..';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
+import { type AiProjectContextTypedObjectRef } from './projectContext';
 import {
     type AiAgentModelConfig,
     type AiPromptContext,
@@ -334,6 +335,36 @@ export type ApiAiAgentResponse = {
     status: 'ok';
     results: AiAgent;
 };
+
+export type AiAgentMemorySource = {
+    slug: string;
+} & (
+    | { hasThreadAccess: false }
+    | {
+          hasThreadAccess: true;
+          agentUuid: string | null;
+          threadUuid: string;
+          threadTitle: string | null;
+          threadSummary: string;
+      }
+);
+
+export type AiAgentMemory = {
+    slug: string;
+    title: string;
+    rawMemory: string;
+    terms: string[];
+    objects: AiProjectContextTypedObjectRef[];
+    status: 'active' | 'superseded' | 'retired';
+    generatedAt: string;
+    citedCount: number;
+    provenance:
+        | { type: 'source_thread'; source: AiAgentMemorySource }
+        | { type: 'consolidated'; sources: AiAgentMemorySource[] };
+    replacementSlug: string | null;
+};
+
+export type ApiAiAgentMemoryResponse = ApiSuccess<AiAgentMemory>;
 
 export type ApiAiAgentAvatarUploadResponse = ApiSuccess<AiAgent>;
 

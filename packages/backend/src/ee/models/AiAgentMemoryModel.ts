@@ -102,6 +102,19 @@ export type AiAgentMemoryThread = AiAgentMemoryThreadCandidate & {
     }>;
 };
 
+export type AiAgentMemoryLineageSource = Pick<
+    DbAiAgentMemory,
+    'slug' | 'agent_uuid' | 'source_thread_uuid' | 'thread_summary'
+> & {
+    thread_title: string | null;
+};
+
+export type AiAgentMemoryWithLineage = {
+    memory: DbAiAgentMemory;
+    sources: AiAgentMemoryLineageSource[];
+    replacement: Pick<DbAiAgentMemory, 'slug'> | null;
+};
+
 export class AiAgentMemoryModel {
     private readonly database: Knex;
 
@@ -419,6 +432,132 @@ export class AiAgentMemoryModel {
         }
 
         return query;
+    }
+
+    async findByProjectAndSlug(args: {
+        projectUuid: string;
+        slug: string;
+    }): Promise<AiAgentMemoryWithLineage | undefined> {
+        const memory = await this.database<AiAgentMemoryTable>(
+            AiAgentMemoryTableName,
+        )
+            .where('project_uuid', args.projectUuid)
+            .where('slug', args.slug)
+            .first();
+        if (!memory) return undefined;
+
+        const lineageRows =
+            memory.source_thread_uuid && memory.thread_summary
+                ? [memory]
+                : (
+                      await this.database.raw<{
+                          rows: DbAiAgentMemory[];
+                      }>(
+                          `
+                            WITH RECURSIVE lineage AS (
+                                SELECT child.*, ARRAY[?::uuid, child.ai_agent_memory_uuid] AS lineage_path
+                                FROM ${AiAgentMemoryTableName} AS child
+                                WHERE child.project_uuid = ?
+                                  AND child.superseded_by_uuid = ?
+
+                                UNION ALL
+
+                                SELECT child.*, lineage.lineage_path || child.ai_agent_memory_uuid
+                                FROM ${AiAgentMemoryTableName} AS child
+                                INNER JOIN lineage
+                                    ON child.superseded_by_uuid = lineage.ai_agent_memory_uuid
+                                WHERE child.project_uuid = ?
+                                  AND NOT child.ai_agent_memory_uuid = ANY(lineage.lineage_path)
+                            )
+                            SELECT * FROM lineage
+                            WHERE source_thread_uuid IS NOT NULL
+                              AND thread_summary IS NOT NULL
+                          `,
+                          [
+                              memory.ai_agent_memory_uuid,
+                              args.projectUuid,
+                              memory.ai_agent_memory_uuid,
+                              args.projectUuid,
+                          ],
+                      )
+                  ).rows;
+
+        const threadUuids = lineageRows.flatMap((row) =>
+            row.source_thread_uuid ? [row.source_thread_uuid] : [],
+        );
+        const threadTitles = new Map(
+            threadUuids.length === 0
+                ? []
+                : (
+                      await this.database(AiThreadTableName)
+                          .whereIn(
+                              `${AiThreadTableName}.ai_thread_uuid`,
+                              threadUuids,
+                          )
+                          .select<
+                              Array<{
+                                  ai_thread_uuid: string;
+                                  title: string | null;
+                              }>
+                          >(
+                              `${AiThreadTableName}.ai_thread_uuid`,
+                              `${AiThreadTableName}.title`,
+                          )
+                  ).map(
+                      (thread) =>
+                          [thread.ai_thread_uuid, thread.title] as const,
+                  ),
+        );
+        const sources = lineageRows.map((row) => ({
+            slug: row.slug,
+            agent_uuid: row.agent_uuid,
+            source_thread_uuid: row.source_thread_uuid,
+            thread_summary: row.thread_summary,
+            thread_title: row.source_thread_uuid
+                ? (threadTitles.get(row.source_thread_uuid) ?? null)
+                : null,
+        }));
+
+        const replacement = memory.superseded_by_uuid
+            ? ((
+                  await this.database.raw<{
+                      rows: Array<Pick<DbAiAgentMemory, 'slug'>>;
+                  }>(
+                      `
+                        WITH RECURSIVE replacements AS (
+                            SELECT next.ai_agent_memory_uuid, next.slug, next.superseded_by_uuid,
+                                   ARRAY[?::uuid, next.ai_agent_memory_uuid] AS replacement_path,
+                                   1 AS depth
+                            FROM ${AiAgentMemoryTableName} AS next
+                            WHERE next.project_uuid = ?
+                              AND next.ai_agent_memory_uuid = ?
+
+                            UNION ALL
+
+                            SELECT next.ai_agent_memory_uuid, next.slug, next.superseded_by_uuid,
+                                   replacements.replacement_path || next.ai_agent_memory_uuid,
+                                   replacements.depth + 1
+                            FROM ${AiAgentMemoryTableName} AS next
+                            INNER JOIN replacements
+                                ON next.ai_agent_memory_uuid = replacements.superseded_by_uuid
+                            WHERE next.project_uuid = ?
+                              AND NOT next.ai_agent_memory_uuid = ANY(replacements.replacement_path)
+                        )
+                        SELECT slug FROM replacements
+                        ORDER BY depth DESC
+                        LIMIT 1
+                      `,
+                      [
+                          memory.ai_agent_memory_uuid,
+                          args.projectUuid,
+                          memory.superseded_by_uuid,
+                          args.projectUuid,
+                      ],
+                  )
+              ).rows[0] ?? null)
+            : null;
+
+        return { memory, sources, replacement };
     }
 
     async incrementPulledForActiveMemories(args: {

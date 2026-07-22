@@ -1,0 +1,70 @@
+.marker {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    margin: 0 2px;
+    padding: 0 3px;
+    border: 1px solid var(--mantine-color-gray-3);
+    border-radius: var(--mantine-radius-xs);
+    background: var(--mantine-color-gray-0);
+    color: var(--mantine-color-gray-6);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    text-decoration: none;
+    vertical-align: super;
+    transition:
+        border-color 120ms ease,
+        color 120ms ease,
+        background-color 120ms ease;
+}
+
+.marker:hover {
+    border-color: var(--mantine-color-indigo-4);
+    background: var(--mantine-color-indigo-0);
+    color: var(--mantine-color-indigo-7);
+}
+
+.marker:focus-visible {
+    outline: 2px solid var(--mantine-color-indigo-5);
+    outline-offset: 2px;
+}
+
+.card {
+    border-color: var(--mantine-color-gray-3);
+}
+
+.preview {
+    max-height: 156px;
+    overflow: hidden;
+    padding-left: 0;
+    color: var(--mantine-color-ldGray-7);
+}
+
+.preview p,
+.preview li {
+    color: var(--mantine-color-ldGray-7);
+    font-size: 13px;
+}
+
+.detailsButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--mantine-color-indigo-6);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.detailsButton:hover {
+    color: var(--mantine-color-indigo-8);
+}
+
+.detailsButton:focus-visible {
+    border-radius: var(--mantine-radius-xs);
+    outline: 2px solid var(--mantine-color-indigo-5);
+    outline-offset: 2px;
+}

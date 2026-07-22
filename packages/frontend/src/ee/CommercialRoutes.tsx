@@ -302,6 +302,16 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
                 },
             },
             {
+                path: ':agentUuid/memories/:slug',
+                lazy: async () => {
+                    const AiAgentMemoryPage = await loadLazyRouteDefault(
+                        './pages/AiAgents/AiAgentMemoryPage',
+                        () => import('./pages/AiAgents/AiAgentMemoryPage'),
+                    );
+                    return { Component: AiAgentMemoryPage };
+                },
+            },
+            {
                 path: ':agentUuid/edit',
                 lazy: async () => {
                     const ProjectAiAgentEditPage = await loadLazyRouteDefault(
