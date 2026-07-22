@@ -73,6 +73,7 @@ import {
     DbDashboardTabs,
 } from '../../database/entities/dashboards';
 import { GroupMembershipTableName } from '../../database/entities/groupMemberships';
+import { GroupTableName } from '../../database/entities/groups';
 import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
 import {
     DbOrganization,
@@ -1794,6 +1795,155 @@ export class ProjectModel {
             lastName: membership.last_name,
             roleUuid: membership.role_uuid || undefined,
         }));
+    }
+
+    async copyProjectAccess(
+        upstreamProjectUuid: string,
+        previewProjectUuid: string,
+    ): Promise<{
+        userAccessCount: number;
+        skippedUserAccessCount: number;
+        groupAccessCount: number;
+    }> {
+        return this.database.transaction(async (trx) => {
+            const projects = await trx(ProjectTableName)
+                .select<
+                    Pick<
+                        DbProject,
+                        'project_id' | 'project_uuid' | 'organization_id'
+                    >[]
+                >('project_id', 'project_uuid', 'organization_id')
+                .whereIn('project_uuid', [
+                    upstreamProjectUuid,
+                    previewProjectUuid,
+                ]);
+            const upstreamProject = projects.find(
+                ({ project_uuid }) => project_uuid === upstreamProjectUuid,
+            );
+            const previewProject = projects.find(
+                ({ project_uuid }) => project_uuid === previewProjectUuid,
+            );
+
+            if (!upstreamProject || !previewProject) {
+                throw new NotFoundError(
+                    'Upstream or preview project not found',
+                );
+            }
+            if (
+                upstreamProject.organization_id !==
+                previewProject.organization_id
+            ) {
+                throw new ParameterError(
+                    'Upstream and preview projects must be in the same organization',
+                );
+            }
+
+            type ProjectAccessRow = Pick<
+                DbProjectMembership,
+                'user_id' | 'role' | 'role_uuid'
+            > & {
+                is_internal: boolean;
+                organization_id: number | null;
+            };
+            const projectAccesses = await trx(ProjectMembershipsTableName)
+                .innerJoin(
+                    UserTableName,
+                    `${ProjectMembershipsTableName}.user_id`,
+                    `${UserTableName}.user_id`,
+                )
+                .leftJoin(
+                    OrganizationMembershipsTableName,
+                    function joinPreviewOrganizationMembership() {
+                        this.on(
+                            `${OrganizationMembershipsTableName}.user_id`,
+                            '=',
+                            `${ProjectMembershipsTableName}.user_id`,
+                        ).andOnVal(
+                            `${OrganizationMembershipsTableName}.organization_id`,
+                            previewProject.organization_id,
+                        );
+                    },
+                )
+                .select<ProjectAccessRow[]>({
+                    user_id: `${ProjectMembershipsTableName}.user_id`,
+                    role: `${ProjectMembershipsTableName}.role`,
+                    role_uuid: `${ProjectMembershipsTableName}.role_uuid`,
+                    is_internal: `${UserTableName}.is_internal`,
+                    organization_id: `${OrganizationMembershipsTableName}.organization_id`,
+                })
+                .where(
+                    `${ProjectMembershipsTableName}.project_id`,
+                    upstreamProject.project_id,
+                );
+            const eligibleProjectAccesses = projectAccesses.filter(
+                ({ is_internal, organization_id }) =>
+                    !is_internal &&
+                    organization_id === previewProject.organization_id,
+            );
+            const groupAccesses = await trx(ProjectGroupAccessTableName)
+                .innerJoin(
+                    GroupTableName,
+                    `${ProjectGroupAccessTableName}.group_uuid`,
+                    `${GroupTableName}.group_uuid`,
+                )
+                .select<
+                    {
+                        group_uuid: string;
+                        role: ProjectMemberRole;
+                        role_uuid: string | null;
+                    }[]
+                >(
+                    `${ProjectGroupAccessTableName}.group_uuid`,
+                    `${ProjectGroupAccessTableName}.role`,
+                    `${ProjectGroupAccessTableName}.role_uuid`,
+                )
+                .where(
+                    `${ProjectGroupAccessTableName}.project_uuid`,
+                    upstreamProjectUuid,
+                )
+                .andWhere(
+                    `${GroupTableName}.organization_id`,
+                    previewProject.organization_id,
+                );
+
+            if (eligibleProjectAccesses.length > 0) {
+                await trx(ProjectMembershipsTableName)
+                    .insert(
+                        eligibleProjectAccesses.map(
+                            ({ user_id, role, role_uuid }) => ({
+                                user_id,
+                                project_id: previewProject.project_id,
+                                role,
+                                role_uuid,
+                            }),
+                        ),
+                    )
+                    .onConflict(['user_id', 'project_id'])
+                    .merge(['role', 'role_uuid']);
+            }
+            if (groupAccesses.length > 0) {
+                await trx(ProjectGroupAccessTableName)
+                    .insert(
+                        groupAccesses.map(
+                            ({ group_uuid, role, role_uuid }) => ({
+                                group_uuid,
+                                project_uuid: previewProjectUuid,
+                                role,
+                                role_uuid,
+                            }),
+                        ),
+                    )
+                    .onConflict(['project_uuid', 'group_uuid'])
+                    .merge(['role', 'role_uuid']);
+            }
+
+            return {
+                userAccessCount: eligibleProjectAccesses.length,
+                skippedUserAccessCount:
+                    projectAccesses.length - eligibleProjectAccesses.length,
+                groupAccessCount: groupAccesses.length,
+            };
+        });
     }
 
     async createProjectAccess(

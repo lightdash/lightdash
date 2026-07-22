@@ -198,6 +198,10 @@ const projectModel = {
         async (_projectUuid: string, onLockAcquired: () => Promise<void>) =>
             onLockAcquired(),
     ),
+    createWithOptionalCredentials: vi.fn(
+        async () => 'created-preview-project-uuid',
+    ),
+    delete: vi.fn(async () => undefined),
 };
 const preAggregateModel = {
     upsertPreAggregateDefinitions: vi.fn(),
@@ -380,6 +384,114 @@ describe('ProjectService', () => {
                 'new',
             ),
         ).toMatchObject({ onboardingFlow: 'new' });
+    });
+
+    test('does not compile and removes a preview when copying fails', async () => {
+        const previewProjectUuid = 'failed-preview-project-uuid';
+        (
+            projectModel.getWithSensitiveFields as import('vitest').Mock
+        ).mockResolvedValueOnce({
+            ...projectWithSensitiveFields,
+            warehouseConnection: warehouseClientMock.credentials,
+        });
+        const createWithoutCompileSpy = vi
+            .spyOn(service, 'createWithoutCompile')
+            .mockResolvedValueOnce({
+                project: {
+                    ...projectWithSensitiveFields,
+                    projectUuid: previewProjectUuid,
+                    type: ProjectType.PREVIEW,
+                },
+                hasContentCopy: false,
+                accessCopyError: 'access copy failed',
+            });
+        const scheduleCompileProjectSpy = vi.spyOn(
+            service,
+            'scheduleCompileProject',
+        );
+
+        await expect(
+            service.createPreview(
+                user,
+                projectUuid,
+                { name: 'Failed preview', copyContent: true },
+                RequestMethod.WEB_APP,
+            ),
+        ).rejects.toThrow('Failed to copy preview project');
+
+        expect(projectModel.delete).toHaveBeenCalledWith(previewProjectUuid);
+        expect(scheduleCompileProjectSpy).not.toHaveBeenCalled();
+        createWithoutCompileSpy.mockRestore();
+        scheduleCompileProjectSpy.mockRestore();
+    });
+
+    test('attempts content copying when preview access copying fails', async () => {
+        const upstreamProjectUuid = 'upstream-project-uuid';
+        const previewProjectUuid = 'created-preview-project-uuid';
+        const previewUser: SessionUser = {
+            ...user,
+            organizationUuid: projectWithSensitiveFields.organizationUuid,
+            organizationName: 'Test organization',
+            organizationCreatedAt: new Date(),
+        };
+        const validateSpy = vi
+            .spyOn(
+                service as unknown as {
+                    validateProjectCreationPermissions: () => Promise<true>;
+                },
+                'validateProjectCreationPermissions',
+            )
+            .mockResolvedValue(true);
+        const expirationSpy = vi
+            .spyOn(service, 'getPreviewExpiresAt')
+            .mockResolvedValue(null);
+        const copyAccessSpy = vi
+            .spyOn(service, 'copyUserAccessOnPreview')
+            .mockRejectedValue(new Error('access copy failed'));
+        const copyContentSpy = vi
+            .spyOn(service, 'copyContentOnPreview')
+            .mockResolvedValue();
+        (projectModel.get as import('vitest').Mock)
+            .mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                projectUuid: upstreamProjectUuid,
+            })
+            .mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                projectUuid: previewProjectUuid,
+                type: ProjectType.PREVIEW,
+            });
+
+        try {
+            const result = await service.createWithoutCompile(
+                previewUser,
+                {
+                    name: 'Preview with failed access copy',
+                    type: ProjectType.PREVIEW,
+                    dbtConnection: { type: DbtProjectType.NONE },
+                    upstreamProjectUuid,
+                    copyContent: true,
+                    dbtVersion: projectWithSensitiveFields.dbtVersion,
+                },
+                RequestMethod.WEB_APP,
+            );
+
+            expect(copyContentSpy).toHaveBeenCalledWith(
+                upstreamProjectUuid,
+                previewProjectUuid,
+                previewUser,
+            );
+            expect(result).toMatchObject({
+                hasContentCopy: true,
+                accessCopyError: 'access copy failed',
+                contentCopyError: undefined,
+            });
+        } finally {
+            validateSpy.mockRestore();
+            expirationSpy.mockRestore();
+            copyAccessSpy.mockRestore();
+            copyContentSpy.mockRestore();
+        }
     });
 
     describe('refreshTablesAndProjectConfig for a CLI/NONE preview', () => {

@@ -2491,6 +2491,7 @@ export class ProjectService extends BaseService {
         }
 
         let hasContentCopy = false;
+        let accessCopyError: string | undefined;
         let contentCopyError: string | undefined;
 
         if (data.type === ProjectType.PREVIEW && data.upstreamProjectUuid) {
@@ -2499,8 +2500,22 @@ export class ProjectService extends BaseService {
                     data.upstreamProjectUuid,
                     projectUuid,
                 );
+            } catch (e) {
+                Sentry.captureException(e);
+                accessCopyError = getErrorMessage(e);
+                this.logger.error(
+                    `Unable to copy access on preview from ${data.upstreamProjectUuid} to ${projectUuid}`,
+                    {
+                        error: accessCopyError,
+                        stack: e instanceof Error ? e.stack : undefined,
+                        errorData:
+                            e instanceof LightdashError ? e.data : undefined,
+                    },
+                );
+            }
 
-                if (data.copyContent ?? true) {
+            if (data.copyContent ?? true) {
+                try {
                     await this.copyContentOnPreview(
                         data.upstreamProjectUuid,
                         projectUuid,
@@ -2508,19 +2523,21 @@ export class ProjectService extends BaseService {
                     );
 
                     hasContentCopy = true;
+                } catch (e) {
+                    Sentry.captureException(e);
+                    contentCopyError = getErrorMessage(e);
+                    this.logger.error(
+                        `Unable to copy content on preview from ${data.upstreamProjectUuid} to ${projectUuid}`,
+                        {
+                            error: contentCopyError,
+                            stack: e instanceof Error ? e.stack : undefined,
+                            errorData:
+                                e instanceof LightdashError
+                                    ? e.data
+                                    : undefined,
+                        },
+                    );
                 }
-            } catch (e) {
-                Sentry.captureException(e);
-                contentCopyError = e instanceof Error ? e.message : String(e);
-                this.logger.error(
-                    `Unable to copy content on preview from ${data.upstreamProjectUuid} to ${projectUuid}`,
-                    {
-                        error: contentCopyError,
-                        stack: e instanceof Error ? e.stack : undefined,
-                        errorData:
-                            e instanceof LightdashError ? e.data : undefined,
-                    },
-                );
             }
         }
 
@@ -2561,6 +2578,7 @@ export class ProjectService extends BaseService {
         return {
             hasContentCopy,
             project,
+            accessCopyError,
             contentCopyError,
         };
     }
@@ -8530,6 +8548,32 @@ export class ProjectService extends BaseService {
             });
     }
 
+    private async throwIfPreviewCopyFailed(
+        previewProject: ApiCreateProjectResults,
+    ): Promise<void> {
+        if (
+            !previewProject.accessCopyError &&
+            !previewProject.contentCopyError
+        ) {
+            return;
+        }
+
+        try {
+            await this.projectModel.delete(previewProject.project.projectUuid);
+        } catch (e) {
+            Sentry.captureException(e);
+            this.logger.error(
+                `Failed to clean up preview project ${previewProject.project.projectUuid} after copy failure`,
+                {
+                    error: getErrorMessage(e),
+                    stack: e instanceof Error ? e.stack : undefined,
+                },
+            );
+        }
+
+        throw new UnexpectedServerError('Failed to copy preview project');
+    }
+
     async createPreview(
         user: SessionUser,
         projectUuid: string,
@@ -8578,6 +8622,7 @@ export class ProjectService extends BaseService {
             previewData,
             context,
         );
+        await this.throwIfPreviewCopyFailed(previewProject);
 
         // Since the project is new, and we have copied some permissions,
         // it is possible that the user `abilities` are not uptodate
@@ -8616,43 +8661,21 @@ export class ProjectService extends BaseService {
                 upstreamProjectUuid,
             },
             async () => {
-                const projectAccesses =
-                    await this.projectModel.getProjectAccess(
-                        upstreamProjectUuid,
-                    );
-                const groupAccesses =
-                    await this.projectModel.getProjectGroupAccesses(
-                        upstreamProjectUuid,
-                    );
-
-                this.logger.info(
-                    `Copying ${projectAccesses.length} user access on ${previewProjectUuid}`,
-                );
-                this.logger.info(
-                    `Copying ${groupAccesses.length} group access on ${previewProjectUuid}`,
-                );
-                const insertProjectAccessPromises = projectAccesses.map(
-                    (projectAccess) =>
-                        this.projectModel.createProjectAccess(
-                            previewProjectUuid,
-                            projectAccess.email,
-                            projectAccess.role,
-                            projectAccess.roleUuid,
-                        ),
-                );
-                const insertGroupAccessPromises = groupAccesses.map(
-                    (groupAccess) =>
-                        this.groupsModel.addProjectAccess({
-                            groupUuid: groupAccess.groupUuid,
-                            projectUuid: previewProjectUuid,
-                            role: groupAccess.role,
-                        }),
+                const {
+                    userAccessCount,
+                    skippedUserAccessCount,
+                    groupAccessCount,
+                } = await this.projectModel.copyProjectAccess(
+                    upstreamProjectUuid,
+                    previewProjectUuid,
                 );
 
-                await Promise.all([
-                    ...insertGroupAccessPromises,
-                    ...insertProjectAccessPromises,
-                ]);
+                this.logger.info(
+                    `Copied ${userAccessCount} user access grants on ${previewProjectUuid}; skipped ${skippedUserAccessCount} ineligible grants`,
+                );
+                this.logger.info(
+                    `Copied ${groupAccessCount} group access grants on ${previewProjectUuid}`,
+                );
             },
         );
     }
@@ -9843,6 +9866,7 @@ export class ProjectService extends BaseService {
                 previewData,
                 RequestMethod.WEB_APP, // TODO: fix context
             );
+            await this.throwIfPreviewCopyFailed(newPreview);
             projectToSetExplores = newPreview.project.projectUuid;
         }
 
