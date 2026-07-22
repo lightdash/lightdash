@@ -7393,11 +7393,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     await this.aiAgentMemoryModel.findActiveForProject({
                         projectUuid,
                     });
+                const now = Date.now();
                 return memories.map((memory) => ({
                     slug: memory.slug,
                     content: memory.raw_memory,
                     terms: memory.terms,
                     objects: memory.objects,
+                    ageDays: Math.max(
+                        0,
+                        Math.floor(
+                            (now - memory.generated_at.getTime()) /
+                                (24 * 60 * 60 * 1000),
+                        ),
+                    ),
                 }));
             };
         const incrementAiAgentMemoryPulls: AiAgentDependencies['incrementAiAgentMemoryPulls'] =

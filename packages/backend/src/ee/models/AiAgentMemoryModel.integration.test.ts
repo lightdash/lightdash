@@ -399,7 +399,7 @@ describe('AiAgentMemoryModel integration', () => {
         expect(Number(ledgerCount?.count)).toBe(1);
     });
 
-    it('returns only active project memories in citation ranking order', async () => {
+    it('returns only active project memories in generated-at order', async () => {
         const [firstThread, secondThread, thirdThread, retiredThread] =
             await Promise.all([
                 createThread(),
@@ -439,8 +439,8 @@ describe('AiAgentMemoryModel integration', () => {
         });
 
         expect(rows.map((row) => row.ai_agent_memory_uuid)).toEqual([
-            first.ai_agent_memory_uuid,
             second.ai_agent_memory_uuid,
+            first.ai_agent_memory_uuid,
             third.ai_agent_memory_uuid,
         ]);
     });
