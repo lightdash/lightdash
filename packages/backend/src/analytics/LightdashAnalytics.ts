@@ -830,6 +830,16 @@ type OnboardingHomepageProvisionedEvent = BaseTrack & {
     };
 };
 
+type PlaygroundProjectProvisionedEvent = BaseTrack & {
+    event: 'playground_project.provisioned';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        trigger: 'invite_expert';
+    };
+};
+
 type ProjectDeletedEvent = BaseTrack & {
     event: 'project.deleted';
     userId: string;
@@ -2692,6 +2702,7 @@ type TypedEvent =
     | ApiErrorEvent
     | ProjectEvent
     | OnboardingHomepageProvisionedEvent
+    | PlaygroundProjectProvisionedEvent
     | ProjectDeletedEvent
     | ProjectCompiledEvent
     | UpdatedDashboardEvent

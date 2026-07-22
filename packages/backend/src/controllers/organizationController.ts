@@ -3,6 +3,7 @@ import {
     ApiColorPalettesResponse,
     ApiCreatedColorPaletteResponse,
     ApiCreateGroupResponse,
+    ApiEnsurePlaygroundProjectResponse,
     ApiErrorPayload,
     ApiGroupListResponse,
     ApiImpersonationOrganizationSettingsResponse,
@@ -777,6 +778,31 @@ export class OrganizationController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    /**
+     * Return the organization's existing project or provision its sample-data
+     * playground when the new onboarding flow is available.
+     * @summary Ensure playground project
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Post('/playground-projects/ensure')
+    @OperationId('EnsurePlaygroundProject')
+    async ensurePlaygroundProject(
+        @Request() req: express.Request,
+    ): Promise<ApiEnsurePlaygroundProjectResponse> {
+        assertRegisteredAccount(req.account);
+        const user = toSessionUser(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .ensurePlaygroundProject(user),
         };
     }
 

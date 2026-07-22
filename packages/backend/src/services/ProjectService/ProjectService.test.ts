@@ -279,7 +279,12 @@ const projectCompileLogModel = {
 
 const getMockedProjectService = (
     lightdashConfig: LightdashConfig,
-    overrides: { spacePermissionService?: SpacePermissionService } = {},
+    overrides: Partial<
+        Pick<
+            ConstructorParameters<typeof ProjectService>[0],
+            'spacePermissionService' | 'provisionPlaygroundProject'
+        >
+    > = {},
 ) =>
     new ProjectService({
         lightdashConfig,
@@ -343,6 +348,7 @@ const getMockedProjectService = (
         } as unknown as AdminNotificationService,
         spacePermissionService:
             overrides.spacePermissionService ?? ({} as SpacePermissionService),
+        provisionPlaygroundProject: overrides.provisionPlaygroundProject,
         organizationSettingsModel: {
             get: vi.fn(async () => ({
                 queryLimit: null,
@@ -375,6 +381,32 @@ describe('ProjectService', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    describe('ensurePlaygroundProject', () => {
+        test('throws ForbiddenError without invoking the provisioner when the user cannot create invite links', async () => {
+            const provisionPlaygroundProject = vi.fn(async () => ({
+                projectUuid: 'project-uuid',
+                created: true,
+            }));
+            const serviceWithProvisioner = getMockedProjectService(
+                lightdashConfigMock,
+                { provisionPlaygroundProject },
+            );
+            const userWithoutInviteLinkPermission: SessionUser = {
+                ...user,
+                organizationUuid: 'organization-uuid',
+                ability: new Ability<PossibleAbilities>([]),
+            };
+
+            await expect(
+                serviceWithProvisioner.ensurePlaygroundProject(
+                    userWithoutInviteLinkPermission,
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+
+            expect(provisionPlaygroundProject).not.toHaveBeenCalled();
+        });
     });
 
     test('includes onboarding flow in project analytics properties', () => {

@@ -90,6 +90,7 @@ import { PreviewDeploySetupService } from './services/PreviewDeploySetupService/
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
 import { ProjectHomepageService } from './services/ProjectHomepageService';
 import { provisionOnboardingHomepage } from './services/ProjectService/provisionOnboardingHomepage';
+import { provisionPlaygroundProject } from './services/ProjectService/provisionPlaygroundProject';
 import { SchedulerAiAugmentationService } from './services/SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 import { ScimService } from './services/ScimService/ScimService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
@@ -741,6 +742,22 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             projectModel: models.getProjectModel(),
                             projectHomepageModel:
                                 models.getProjectHomepageModel<ProjectHomepageModel>(),
+                            analytics: context.lightdashAnalytics,
+                        }),
+                    provisionPlaygroundProject: ({
+                        user,
+                        projectService,
+                        canViewProject,
+                    }) =>
+                        provisionPlaygroundProject({
+                            user,
+                            projectService,
+                            canViewProject,
+                            featureFlagService:
+                                repository.getFeatureFlagService(),
+                            projectModel: models.getProjectModel(),
+                            onboardingModel: models.getOnboardingModel(),
+                            catalogService: repository.getCatalogService(),
                             analytics: context.lightdashAnalytics,
                         }),
                 }),

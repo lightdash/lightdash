@@ -64,6 +64,7 @@ import {
     DefaultSupportedDbtVersion,
     DownloadFileType,
     DuckdbConnectionType,
+    EnsurePlaygroundProjectResults,
     Explore,
     ExploreError,
     ExploreType,
@@ -189,6 +190,7 @@ import {
     type CreateDatabricksCredentials,
     type DataTimezonePreviewRequest,
     type Metric,
+    type OrganizationProject,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type RunQueryTags,
@@ -362,6 +364,11 @@ export type ProjectServiceArguments = {
         projectUuid: string;
         projectType: ProjectType;
     }) => Promise<void>;
+    provisionPlaygroundProject?: (args: {
+        user: SessionUser;
+        projectService: ProjectService;
+        canViewProject: (project: OrganizationProject) => boolean;
+    }) => Promise<EnsurePlaygroundProjectResults>;
 };
 
 const isValidDbtCloudWebhookSignature = (
@@ -476,6 +483,8 @@ export class ProjectService extends BaseService {
 
     onProjectCreated: ProjectServiceArguments['onProjectCreated'];
 
+    provisionPlaygroundProject: ProjectServiceArguments['provisionPlaygroundProject'];
+
     constructor({
         lightdashConfig,
         analytics,
@@ -520,6 +529,7 @@ export class ProjectService extends BaseService {
         getAppGenerateService,
         getAiAgentService,
         onProjectCreated,
+        provisionPlaygroundProject,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -567,6 +577,46 @@ export class ProjectService extends BaseService {
         this.getAppGenerateService = getAppGenerateService;
         this.getAiAgentService = getAiAgentService;
         this.onProjectCreated = onProjectCreated;
+        this.provisionPlaygroundProject = provisionPlaygroundProject;
+    }
+
+    async ensurePlaygroundProject(
+        user: SessionUser,
+    ): Promise<EnsurePlaygroundProjectResults> {
+        if (!this.provisionPlaygroundProject) {
+            throw new NotFoundError('Playground projects are not available');
+        }
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'create',
+                subject('InviteLink', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User does not have permission to create invite links',
+            );
+        }
+        return this.provisionPlaygroundProject({
+            user,
+            projectService: this,
+            canViewProject: (project) =>
+                auditedAbility.can(
+                    'view',
+                    subject('Project', {
+                        organizationUuid,
+                        projectUuid: project.projectUuid,
+                        type: project.type,
+                        upstreamProjectUuid:
+                            project.upstreamProjectUuid ?? undefined,
+                        createdByUserUuid: project.createdByUserUuid,
+                    }),
+                ),
+        });
     }
 
     protected async getOnboardingFlow(
