@@ -382,6 +382,9 @@ export class OnboardingAgentService extends BaseService {
                         .sandboxAgentOnboardingDockerImage,
                 lambdaMicroVm: null,
                 azureSandboxes: null,
+                // Onboarding on Cloud Run would need its own gateway service
+                // (toolchain baked into the gateway image); unsupported for now.
+                gcpCloudRun: null,
                 snapshotStore:
                     sandboxProvider === 'docker'
                         ? new S3SnapshotStore({
