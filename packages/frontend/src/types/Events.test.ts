@@ -154,6 +154,7 @@ const SHIPPED_PAGE_NAMES = [
     'social_login_settings',
     'appearance_settings',
     'access_tokens',
+    'agent_onboarding_run',
     'no_access',
     'no_project_access',
     'space',
