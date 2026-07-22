@@ -1,3 +1,27 @@
+# [0.3459.0](https://github.com/lightdash/lightdash/compare/0.3458.0...0.3459.0) (2026-07-22)
+
+
+### Bug Fixes
+
+* **analytics:** queue events until tracking is ready ([#25997](https://github.com/lightdash/lightdash/issues/25997)) ([df808ed](https://github.com/lightdash/lightdash/commit/df808ed6e55f963013bcafc7f7ca3681304c3d74))
+* **frontend:** close metrics catalog category popover on outside click ([#26000](https://github.com/lightdash/lightdash/issues/26000)) ([6c4f393](https://github.com/lightdash/lightdash/commit/6c4f3934b1d77c772167b247625c3fefe6ae1173))
+* **frontend:** remove recommended actions homepage toggle ([#26002](https://github.com/lightdash/lightdash/issues/26002)) ([bc67a3b](https://github.com/lightdash/lightdash/commit/bc67a3bea2ccaca4aa4fb6f1e59d299b32ebce95))
+* mark credential-bearing API requests as sensitive for network history redaction ([#25990](https://github.com/lightdash/lightdash/issues/25990)) ([8d312ef](https://github.com/lightdash/lightdash/commit/8d312ef3f02da5c2d8fff9f85fa7e9246bc72821))
+
+
+### Features
+
+* **analytics:** attribute ai writeback events to their workstream ([#25994](https://github.com/lightdash/lightdash/issues/25994)) ([3443e91](https://github.com/lightdash/lightdash/commit/3443e91f883d54a61aa1d3b1381c3dab8aa3137d))
+* **analytics:** count metric vs dimension dashboard filters and fire filter-lock events ([#25991](https://github.com/lightdash/lightdash/issues/25991)) ([6691350](https://github.com/lightdash/lightdash/commit/6691350c21bcd1f18feef08a54ef686918a342d3))
+* **analytics:** describe row/column limits, column customization and table-calc functions on chart save events ([#25996](https://github.com/lightdash/lightdash/issues/25996)) ([7758ce9](https://github.com/lightdash/lightdash/commit/7758ce9e03c76cd13b5ea85eaaa31557047b843f))
+* **analytics:** re-land persistent download file lifecycle events ([#25995](https://github.com/lightdash/lightdash/issues/25995)) ([b3c9e70](https://github.com/lightdash/lightdash/commit/b3c9e7067cd441dcd0cdeea49f20944aea467e82))
+* **analytics:** track chart explore remaps, org leaves, admin notification sends + Redshift auth type ([#25993](https://github.com/lightdash/lightdash/issues/25993)) ([9df31db](https://github.com/lightdash/lightdash/commit/9df31dbbb5a39d8611a375bf24f371b6d82b5aa1))
+* **analytics:** track dbt source count on compiles and source add/remove events ([#25992](https://github.com/lightdash/lightdash/issues/25992)) ([9685c70](https://github.com/lightdash/lightdash/commit/9685c7094e5e32ef51dba4b0ea0308939e7d688e))
+* **frontend:** add Mantine 8 TagPill ([#25998](https://github.com/lightdash/lightdash/issues/25998)) ([bbd0a33](https://github.com/lightdash/lightdash/commit/bbd0a330ec5e0164f44be2dc6f823717aa2a5d1b)), closes [#25999](https://github.com/lightdash/lightdash/issues/25999)
+* **frontend:** add PillTagsInput on Mantine 8 primitives ([#25999](https://github.com/lightdash/lightdash/issues/25999)) ([3e43f82](https://github.com/lightdash/lightdash/commit/3e43f82593e16b76034070ae9be614c34dd1db23)), closes [#25998](https://github.com/lightdash/lightdash/issues/25998) [#25485](https://github.com/lightdash/lightdash/issues/25485)
+* **frontend:** migrate notifications from Mantine 6 to Mantine 8 ([#26003](https://github.com/lightdash/lightdash/issues/26003)) ([42c9d92](https://github.com/lightdash/lightdash/commit/42c9d92d0444dcec1be8831a78d0e75932fdf272))
+* homepage semantic-layer action lands on agent onboarding for the current project ([#25982](https://github.com/lightdash/lightdash/issues/25982)) ([da5758a](https://github.com/lightdash/lightdash/commit/da5758a35aa48fc9b54c38c6f488e7a4a679c2c5))
+
 # [0.3458.0](https://github.com/lightdash/lightdash/compare/0.3457.2...0.3458.0) (2026-07-22)
 
 
