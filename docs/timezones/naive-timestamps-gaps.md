@@ -2,6 +2,8 @@
 
 The gaps in how Lightdash handles naive (timezone-less) timestamp columns, discovered while fixing the raw-time-frame display bug ([#25614](https://github.com/lightdash/lightdash/issues/25614), fixed by [#25649](https://github.com/lightdash/lightdash/pull/25649)). Each gap shows a concrete example with the actual result and, where it explains the failure, the compiled SQL — all reproduced against live warehouses, not derived from reading code. The closing section states the constraints any fix should respect.
 
+The fix for these gaps is designed — see [`timestamp-domains-design.md`](./timestamp-domains-design.md) for the chosen solution, which gaps it closes, and why.
+
 Companion to [`timezone-handling.md`](./timezone-handling.md) (how timezones work today) and [`timezones-v2-design.md`](./timezones-v2-design.md) (design principles). Each gap has a slug (`gap-...`, same convention as the v2 design doc) for cross-referencing from tickets:
 
 | Slug | Gap |
