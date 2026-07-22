@@ -896,6 +896,17 @@ type ProjectCompiledEvent = BaseTrack & {
         modelsWithSqlFiltersCount: number;
         columnAccessFiltersCount: number;
         additionalDimensionsCount: number;
+        dbtSourceCount: number;
+    };
+};
+
+type DbtSourceEvent = BaseTrack & {
+    event: 'dbt_source_added' | 'dbt_source_removed';
+    userId?: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        dbtSourceCount: number;
     };
 };
 
@@ -2785,6 +2796,7 @@ type TypedEvent =
     | PlaygroundProjectProvisionedEvent
     | ProjectDeletedEvent
     | ProjectCompiledEvent
+    | DbtSourceEvent
     | UpdatedDashboardEvent
     | DeletedDashboardEvent
     | RestoredDashboardEvent
