@@ -120,10 +120,14 @@ const buildService = (overrides: Record<string, AnyType> = {}) =>
             getValidUserToken: vi.fn().mockResolvedValue(undefined),
         } as AnyType,
         gitlabAppInstallationsModel: {} as AnyType,
-        aiWritebackThreadModel: { findByAiThreadUuid: vi.fn() } as AnyType,
+        aiWritebackThreadModel: {
+            findByAiThreadUuid: vi.fn(),
+            findByProjectUuidAndPrUrl: vi.fn().mockResolvedValue(null),
+        } as AnyType,
         aiWritebackRunModel: {
             create: vi.fn(),
             findByUuid: vi.fn(),
+            findLatestByProjectUuidAndPrUrl: vi.fn().mockResolvedValue(null),
             updateStageIfInProgress: vi.fn().mockResolvedValue(undefined),
             markReady: vi.fn().mockResolvedValue(true),
             markError: vi.fn().mockResolvedValue(true),
@@ -1805,7 +1809,19 @@ describe('AiWritebackService.mergePullRequest', () => {
 
     it('tracks ai_writeback.merged with the parsed PR context on a successful git merge', async () => {
         const track = vi.fn();
-        const { service } = setup({ analytics: { track } as AnyType });
+        const { service } = setup({
+            analytics: { track } as AnyType,
+            aiWritebackThreadModel: {
+                findByProjectUuidAndPrUrl: vi
+                    .fn()
+                    .mockResolvedValue(threadRow(PR_7)),
+            } as AnyType,
+            aiWritebackRunModel: {
+                findLatestByProjectUuidAndPrUrl: vi.fn().mockResolvedValue({
+                    prompt_uuid: 'prompt-1',
+                }),
+            } as AnyType,
+        });
         await service.mergePullRequest({ ...mergeArgs, user: userWithOrg });
         expect(track).toHaveBeenCalledTimes(1);
         expect(track).toHaveBeenCalledWith({
@@ -1814,6 +1830,8 @@ describe('AiWritebackService.mergePullRequest', () => {
             properties: {
                 organizationId: ORG,
                 projectId: 'p1',
+                threadId: 'thread-1',
+                promptId: 'prompt-1',
                 prUrl: PR_7,
                 owner: 'acme',
                 repo: 'analytics',

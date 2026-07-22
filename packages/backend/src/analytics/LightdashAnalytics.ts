@@ -1728,6 +1728,8 @@ export type AiWritebackStartedEvent = BaseTrack & {
     properties: {
         organizationId: string;
         projectId: string;
+        threadId: string | null;
+        promptId: string | null;
         owner: string;
         repo: string;
         workstream: AiWritebackWorkstream;
@@ -1743,6 +1745,8 @@ export type AiWritebackCompletedEvent = BaseTrack & {
     properties: {
         organizationId: string;
         projectId: string;
+        threadId: string | null;
+        promptId: string | null;
         owner: string;
         repo: string;
         workstream: AiWritebackWorkstream;
@@ -1777,6 +1781,8 @@ export type AiWritebackFailedEvent = BaseTrack & {
     properties: {
         organizationId: string;
         projectId: string;
+        threadId: string | null;
+        promptId: string | null;
         owner: string;
         repo: string;
         workstream: AiWritebackWorkstream;
@@ -1797,6 +1803,8 @@ export type AiWritebackMergedEvent = BaseTrack & {
     properties: {
         organizationId: string;
         projectId: string;
+        threadId: string | null;
+        promptId: string | null;
         prUrl: string;
         // Parsed from the PR URL; null when it isn't a recognised
         // github.com/owner/repo/pull/N link (e.g. a GitLab MR).

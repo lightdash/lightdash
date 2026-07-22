@@ -629,6 +629,8 @@ export class AiWritebackService extends BaseService {
         } catch {
             parsed = null;
         }
+        let threadId: string | null = null;
+        let promptId: string | null = null;
         let workstream: CodingAgentConfig['mode'] = 'dbt-writeback';
         try {
             const thread =
@@ -637,6 +639,13 @@ export class AiWritebackService extends BaseService {
                     properties.prUrl,
                 );
             workstream = thread?.workstream ?? workstream;
+            threadId = thread?.ai_thread_uuid ?? null;
+            const run =
+                await this.aiWritebackRunModel.findLatestByProjectUuidAndPrUrl(
+                    projectUuid,
+                    properties.prUrl,
+                );
+            promptId = run?.prompt_uuid ?? null;
         } catch {
             workstream = 'dbt-writeback';
         }
@@ -646,6 +655,8 @@ export class AiWritebackService extends BaseService {
             properties: {
                 organizationId: user.organizationUuid ?? '',
                 projectId: projectUuid,
+                threadId,
+                promptId,
                 prUrl: properties.prUrl,
                 owner: parsed?.owner ?? null,
                 repo: parsed?.repo ?? null,
@@ -1960,6 +1971,8 @@ export class AiWritebackService extends BaseService {
             projectUuid,
             turn,
             workstream: config.mode,
+            aiThreadUuid,
+            promptUuid: args.promptUuid,
         });
 
         let failureStage: AiWritebackFailureStage = 'install';
@@ -3040,15 +3053,21 @@ export class AiWritebackService extends BaseService {
         projectUuid,
         turn,
         workstream,
+        aiThreadUuid,
+        promptUuid,
     }: {
         user: SessionUser;
         projectUuid: string;
         turn: TurnContext;
         workstream: CodingAgentConfig['mode'];
+        aiThreadUuid: string | undefined;
+        promptUuid: string | undefined;
     }) {
         const eventBase = {
             organizationId: turn.organizationUuid,
             projectId: projectUuid,
+            threadId: aiThreadUuid ?? null,
+            promptId: promptUuid ?? null,
             owner: turn.gitConnection.owner,
             repo: turn.gitConnection.repo,
             isResume: turn.isResume,
