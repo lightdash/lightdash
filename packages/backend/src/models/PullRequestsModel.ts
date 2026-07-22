@@ -7,6 +7,7 @@ import {
     UnexpectedDatabaseError,
     type AiAgentReviewItemStatus,
     type AiAgentRootCause,
+    type AiWritebackWorkstream,
     type PullRequestReviewContext,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -43,6 +44,17 @@ type CreatePullRequest = {
 };
 
 type AiThreadInfo = { aiThreadUuid: string; aiAgentUuid: string | null };
+export type AiWritebackMergedAnalyticsContext = {
+    organizationUuid: string;
+    projectUuid: string;
+    createdByUserUuid: string | null;
+    provider: PullRequestProvider;
+    owner: string;
+    repo: string;
+    prNumber: number;
+    prUrl: string;
+    workstream: AiWritebackWorkstream;
+};
 type ReviewSourceInfo = {
     reviewItemTitle: string | null;
     primaryRootCause: AiAgentRootCause | null;
@@ -623,6 +635,118 @@ export class PullRequestsModel {
                 reviewContext.byPrUrl.get(row.pr_url) ??
                 null,
         );
+    }
+
+    private async claimAiWritebackMergedAnalytics(
+        filter:
+            | { projectUuid: string; prUrl: string }
+            | {
+                  provider: PullRequestProvider;
+                  owner: string;
+                  repo: string;
+                  prNumber: number;
+              },
+    ): Promise<AiWritebackMergedAnalyticsContext | null> {
+        if (this.aiWritebackTableExists === undefined) {
+            this.aiWritebackTableExists = await this.database.schema.hasTable(
+                AiWritebackThreadTableName,
+            );
+        }
+        if (!this.aiWritebackTableExists) {
+            return null;
+        }
+
+        const query = this.database(PullRequestsTableName)
+            .innerJoin(
+                AiWritebackThreadTableName,
+                `${AiWritebackThreadTableName}.pull_request_uuid`,
+                `${PullRequestsTableName}.pull_request_uuid`,
+            )
+            .where(`${PullRequestsTableName}.source`, PullRequestSource.AI_AGENT)
+            .whereNull(
+                `${PullRequestsTableName}.merged_analytics_emitted_at`,
+            );
+
+        if ('projectUuid' in filter) {
+            void query
+                .where(
+                    `${PullRequestsTableName}.project_uuid`,
+                    filter.projectUuid,
+                )
+                .where(`${PullRequestsTableName}.pr_url`, filter.prUrl);
+        } else {
+            void query
+                .where(`${PullRequestsTableName}.provider`, filter.provider)
+                .where(`${PullRequestsTableName}.owner`, filter.owner)
+                .where(`${PullRequestsTableName}.repo`, filter.repo)
+                .where(
+                    `${PullRequestsTableName}.pr_number`,
+                    filter.prNumber,
+                );
+        }
+
+        const candidate = await query
+            .orderBy(`${AiWritebackThreadTableName}.created_at`, 'desc')
+            .select<
+                Array<
+                    DbPullRequest & {
+                        workstream: AiWritebackWorkstream;
+                    }
+                >
+            >(
+                `${PullRequestsTableName}.*`,
+                `${AiWritebackThreadTableName}.workstream`,
+            )
+            .first();
+
+        if (!candidate) {
+            return null;
+        }
+
+        const claimed = await this.database(PullRequestsTableName)
+            .where('pull_request_uuid', candidate.pull_request_uuid)
+            .whereNull('merged_analytics_emitted_at')
+            .update({
+                merged_analytics_emitted_at:
+                    this.database.fn.now() as unknown as Date,
+            });
+
+        if (claimed === 0) {
+            return null;
+        }
+
+        return {
+            organizationUuid: candidate.organization_uuid,
+            projectUuid: candidate.project_uuid,
+            createdByUserUuid: candidate.created_by_user_uuid,
+            provider: candidate.provider,
+            owner: candidate.owner,
+            repo: candidate.repo,
+            prNumber: candidate.pr_number,
+            prUrl: candidate.pr_url,
+            workstream: candidate.workstream,
+        };
+    }
+
+    async claimAiWritebackMergedAnalyticsByProjectAndUrl(
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<AiWritebackMergedAnalyticsContext | null> {
+        return this.claimAiWritebackMergedAnalytics({ projectUuid, prUrl });
+    }
+
+    async claimAiWritebackMergedAnalyticsByProvider(
+        provider: PullRequestProvider,
+        owner: string,
+        repo: string,
+        prNumber: number,
+    ): Promise<AiWritebackMergedAnalyticsContext | null> {
+        return this.claimAiWritebackMergedAnalytics({
+            provider,
+            owner,
+            repo,
+            prNumber,
+        });
     }
 
     async delete(pullRequestUuid: string): Promise<void> {

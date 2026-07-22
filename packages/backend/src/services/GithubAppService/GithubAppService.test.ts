@@ -10,6 +10,7 @@ import { getOrRefreshToken } from '../../clients/github/Github';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import type { GitUserCredentialsModel } from '../../models/GitUserCredentials/GitUserCredentialsModel';
+import type { PullRequestsModel } from '../../models/PullRequestsModel';
 import type { UserModel } from '../../models/UserModel';
 import { GithubAppService } from './GithubAppService';
 
@@ -52,6 +53,7 @@ const buildService = ({
             updateTokens,
         } as unknown as GitUserCredentialsModel,
         userModel: {} as unknown as UserModel,
+        pullRequestsModel: {} as unknown as PullRequestsModel,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
     });

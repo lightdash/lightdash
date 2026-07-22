@@ -15,6 +15,7 @@ export type DbPullRequest = {
     pr_number: number;
     pr_url: string;
     summary: string | null;
+    merged_analytics_emitted_at: Date | null;
     created_at: Date;
 };
 
@@ -34,5 +35,5 @@ export type PullRequestsTable = Knex.CompositeTableType<
         | 'pr_url'
     > &
         Partial<Pick<DbPullRequest, 'summary'>>,
-    Pick<DbPullRequest, 'summary'>
+    Pick<DbPullRequest, 'summary' | 'merged_analytics_emitted_at'>
 >;
