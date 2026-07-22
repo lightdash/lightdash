@@ -214,6 +214,13 @@ const onboardingModel = {
         ranQueryAt: new Date(),
         shownSuccessAt: new Date(),
     })),
+    update: vi.fn(async () => undefined),
+    runInPlaygroundProvisioningLock: vi.fn(
+        async (
+            _organizationUuid: string,
+            callback: (transaction: object) => Promise<unknown>,
+        ) => callback({}),
+    ),
 };
 const savedChartModel = {
     getAllSpaces: vi.fn(async () => spacesWithSavedCharts),
@@ -492,6 +499,44 @@ describe('ProjectService', () => {
             copyAccessSpy.mockRestore();
             copyContentSpy.mockRestore();
         }
+    });
+
+    test('deletes a playground and records its tombstone in the provisioning lock transaction', async () => {
+        const transaction = {};
+        const deletingUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: 'delete' },
+            ]),
+        };
+        projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+            ...projectWithSensitiveFields,
+            provisioningSource: 'playground',
+        });
+        onboardingModel.runInPlaygroundProvisioningLock.mockImplementationOnce(
+            async (_organizationUuid, callback) => callback(transaction),
+        );
+
+        await service.delete(projectUuid, deletingUser);
+
+        expect(
+            onboardingModel.runInPlaygroundProvisioningLock,
+        ).toHaveBeenCalledWith(
+            projectWithSensitiveFields.organizationUuid,
+            expect.any(Function),
+        );
+        expect(onboardingModel.update).toHaveBeenCalledWith(
+            projectWithSensitiveFields.organizationUuid,
+            { playgroundProjectDeletedAt: expect.any(Date) },
+            transaction,
+        );
+        expect(projectModel.delete).toHaveBeenCalledWith(
+            projectUuid,
+            transaction,
+        );
+        expect(onboardingModel.update.mock.invocationCallOrder[0]).toBeLessThan(
+            projectModel.delete.mock.invocationCallOrder[0],
+        );
     });
 
     describe('refreshTablesAndProjectConfig for a CLI/NONE preview', () => {

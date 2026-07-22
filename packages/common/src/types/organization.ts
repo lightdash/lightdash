@@ -89,6 +89,7 @@ export type OrganizationProject = {
     upstreamProjectUuid: string | null;
     warehouseType?: WarehouseTypes;
     expiresAt: Date | null;
+    provisioningSource?: string | null;
 };
 
 /**
@@ -102,6 +103,7 @@ export type ApiOrganizationProjects = {
 export type OnbordingRecord = {
     ranQueryAt: Date | null;
     shownSuccessAt: Date | null;
+    playgroundProjectDeletedAt?: Date | null;
 };
 
 export type OnboardingStatus = {

@@ -1097,6 +1097,7 @@ export type Project = {
     projectDefaults?: ProjectDefaults;
     colorPaletteUuid: string | null;
     expiresAt: Date | null;
+    provisioningSource?: string | null;
 };
 
 export type ProjectSummary = Pick<
@@ -1107,6 +1108,7 @@ export type ProjectSummary = Pick<
     | 'type'
     | 'upstreamProjectUuid'
     | 'createdByUserUuid'
+    | 'provisioningSource'
 >;
 
 export type ApiProjectResponse = {
