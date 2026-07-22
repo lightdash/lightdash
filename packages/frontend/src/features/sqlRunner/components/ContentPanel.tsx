@@ -18,8 +18,9 @@ import {
     Indicator,
     LoadingOverlay,
     SegmentedControl,
+    Transition,
 } from '@mantine-8/core';
-import { Tooltip, Transition } from '@mantine/core';
+import { Tooltip } from '@mantine/core';
 import { useElementSize, useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
