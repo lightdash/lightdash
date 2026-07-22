@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
     formatRelativeReviewDate,
     getIssueTitle,
+    getReviewReasoningText,
     getTargetAnchor,
 } from './reviewItemDetails';
 
@@ -61,6 +62,26 @@ describe('getIssueTitle', () => {
             latestFinding: { recommendation: null },
         });
         expect(getIssueTitle(item)).toBe('No metric for weekly active users');
+    });
+});
+
+describe('getReviewReasoningText', () => {
+    it('formats a persisted legacy string ref', () => {
+        const item = makeItem({
+            primaryRootCause: 'project_context',
+            latestFinding: {
+                projectContextEntry: {
+                    op: 'create',
+                    id: null,
+                    kind: 'context',
+                    content: 'Use the orders explore.',
+                    terms: [],
+                    objects: ['orders'],
+                },
+            },
+        });
+
+        expect(getReviewReasoningText(item)).toContain('Objects: orders.');
     });
 });
 

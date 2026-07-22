@@ -1,4 +1,5 @@
 import {
+    formatAiProjectContextObjectRef,
     type AiAgentRecommendationAction,
     type AiAgentReviewItemPriority,
     type AiAgentReviewItemSummary,
@@ -237,9 +238,14 @@ export const getReviewReasoningText = (
     const contextEntry = reviewItem.latestFinding?.projectContextEntry ?? null;
 
     if (contextEntry) {
+        const objectRefs = contextEntry.objects
+            .map(formatAiProjectContextObjectRef)
+            .join(', ');
         return `${
             contextEntry.op === 'update' ? 'Updates' : 'Adds'
-        } project context: ${contextEntry.content}`;
+        } project context: ${contextEntry.content}${
+            objectRefs ? ` Objects: ${objectRefs}.` : ''
+        }`;
     }
 
     return getWhyText(reviewItem);

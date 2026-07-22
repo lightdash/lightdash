@@ -1,9 +1,12 @@
 import { ParseError } from '../../types/errors';
 import {
     applyProjectContextWriteback,
+    formatAiProjectContextObjectRef,
     loadProjectContextFile,
     mergeProjectContextEntry,
     PROJECT_CONTEXT_FILE_HEADER,
+    projectContextEntrySchema,
+    serializeAiProjectContextObjectRef,
     serializeProjectContextFile,
     type ProjectContextEntry,
 } from './projectContext';
@@ -18,6 +21,26 @@ const entry = (
     ...overrides,
 });
 
+describe('legacy object refs', () => {
+    test('remain readable in persisted project context entries', () => {
+        const parsed = projectContextEntrySchema.parse({
+            id: 'legacy',
+            kind: 'context',
+            content: 'Use orders.',
+            terms: [],
+            objects: ['orders'],
+        });
+
+        expect(parsed.objects).toEqual(['orders']);
+        expect(serializeAiProjectContextObjectRef(parsed.objects[0])).toBe(
+            'orders',
+        );
+        expect(formatAiProjectContextObjectRef(parsed.objects[0])).toBe(
+            'orders',
+        );
+    });
+});
+
 describe('loadProjectContextFile', () => {
     test('parses a fully-specified entry', () => {
         const yaml = `
@@ -25,7 +48,10 @@ describe('loadProjectContextFile', () => {
   kind: definition
   content: '"HR" = the high-risk diabetes cohort, not human resources.'
   terms: [HR, high risk]
-  objects: [patient_health_scores.diabetes_risk_category]
+  objects:
+    - type: field
+      explore: patient_health_scores
+      fieldId: patient_health_scores_diabetes_risk_category
 `;
         expect(loadProjectContextFile(yaml)).toEqual([
             {
@@ -34,7 +60,13 @@ describe('loadProjectContextFile', () => {
                 content:
                     '"HR" = the high-risk diabetes cohort, not human resources.',
                 terms: ['HR', 'high risk'],
-                objects: ['patient_health_scores.diabetes_risk_category'],
+                objects: [
+                    {
+                        type: 'field',
+                        explore: 'patient_health_scores',
+                        fieldId: 'patient_health_scores_diabetes_risk_category',
+                    },
+                ],
             },
         ]);
     });
@@ -91,6 +123,16 @@ describe('loadProjectContextFile', () => {
 - id: broken
   kind: nonsense
   content: 'whatever'
+`;
+        expect(() => loadProjectContextFile(yaml)).toThrow(ParseError);
+    });
+
+    test('rejects legacy string object refs in v2 files', () => {
+        const yaml = `
+- id: routing
+  kind: context
+  content: Use payments.
+  objects: [payments]
 `;
         expect(() => loadProjectContextFile(yaml)).toThrow(ParseError);
     });
@@ -163,7 +205,7 @@ describe('mergeProjectContextEntry', () => {
             kind: 'context',
             content: 'Attribute payments via customer_order_payments.',
             terms: [],
-            objects: ['payments'],
+            objects: [{ type: 'explore', name: 'payments' }],
         });
         expect(result.entryId).toBe('patient-routing');
         expect(result.entries).toHaveLength(1);
@@ -277,13 +319,13 @@ describe('serializeProjectContextFile', () => {
         const output = serializeProjectContextFile([
             entry({ id: 'hr', kind: 'definition', content: 'x' }),
         ]);
-        expect(output).toContain('version: 1');
+        expect(output).toContain('version: 2');
         expect(output).toContain('entries:');
     });
 
     test('parses the versioned { version, entries } shape', () => {
         const yaml = `
-version: 1
+version: 2
 entries:
   - id: hr
     kind: definition
@@ -301,9 +343,9 @@ entries:
         ]);
     });
 
-    test('throws on unsupported document versions', () => {
+    test('rejects v1 documents', () => {
         const yaml = `
-version: 2
+version: 1
 entries:
   - id: hr
     kind: definition
@@ -325,7 +367,7 @@ describe('applyProjectContextWriteback', () => {
         });
         expect(op).toBe('create');
         expect(entryId).toBe('mrr');
-        expect(content).toContain('version: 1');
+        expect(content).toContain('version: 2');
         expect(content.startsWith(PROJECT_CONTEXT_FILE_HEADER)).toBe(true);
         expect(loadProjectContextFile(content)).toEqual([
             {
@@ -362,7 +404,7 @@ describe('applyProjectContextWriteback', () => {
     });
 
     test('appends a new entry, preserving existing comments and entries verbatim', () => {
-        const existing = `version: 1
+        const existing = `version: 2
 entries:
   # Curated by the data team — do not reorder.
   - id: hr
@@ -391,7 +433,7 @@ entries:
     });
 
     test('updates an existing entry in place by id', () => {
-        const existing = `version: 1
+        const existing = `version: 2
 entries:
   - id: mrr
     kind: definition

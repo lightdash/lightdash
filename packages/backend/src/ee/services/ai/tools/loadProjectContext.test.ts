@@ -15,7 +15,13 @@ const entries: ProjectContextEntry[] = [
         kind: 'context',
         content: 'A sales accepted opportunity',
         terms: ['sao'],
-        objects: [],
+        objects: [
+            {
+                type: 'field',
+                explore: 'rpt_gtm_mission_control',
+                fieldId: 'opportunities_sao_date',
+            },
+        ],
     },
     {
         id: 'unrelated',
@@ -23,6 +29,13 @@ const entries: ProjectContextEntry[] = [
         content: 'onboarding',
         terms: [],
         objects: [],
+    },
+    {
+        id: 'legacy-ref',
+        kind: 'context',
+        content: 'Use the legacy orders reference',
+        terms: [],
+        objects: ['legacy_orders'],
     },
 ];
 
@@ -47,6 +60,7 @@ describe('loadProjectContext tool', () => {
             'arr-def',
             'sao-def',
             'unrelated',
+            'legacy-ref',
         ]);
     });
 
@@ -55,6 +69,18 @@ describe('loadProjectContext tool', () => {
         expect(res.metadata.entryIds).toEqual(['arr-def']);
         expect(res.result).toContain('ARR means annual recurring revenue');
         expect(res.result).not.toContain('onboarding');
+    });
+
+    it('renders typed refs with owning explores', async () => {
+        const res = await run(['opportunities_sao_date']);
+        expect(res.result).toContain(
+            'field "opportunities_sao_date" in explore "rpt_gtm_mission_control"',
+        );
+    });
+
+    it('renders legacy string refs', async () => {
+        const res = await run(['legacy_orders']);
+        expect(res.result).toContain('refs: legacy_orders');
     });
 
     it('lists available entries when nothing matches', async () => {

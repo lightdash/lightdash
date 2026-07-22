@@ -924,7 +924,7 @@ describe('getAiAgentReviewItemWritebackEligibility', () => {
                             kind: 'context',
                             content: 'Use orders for revenue questions.',
                             terms: ['revenue'],
-                            objects: ['orders'],
+                            objects: [{ type: 'explore', name: 'orders' }],
                         },
                         createdAt: NOW,
                     },

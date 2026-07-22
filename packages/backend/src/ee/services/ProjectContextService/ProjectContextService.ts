@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    aiAgentJudgeProjectContextEntrySchema,
     applyProjectContextWriteback,
     DbtProjectType,
     ForbiddenError,
@@ -66,6 +67,9 @@ type ProjectContextServiceDeps = {
     githubAppInstallationsModel: GithubAppInstallationsModel;
     projectContextModel: ProjectContextModel;
 };
+
+const parseWritebackEntry = (entry: AiAgentJudgeProjectContextEntry) =>
+    aiAgentJudgeProjectContextEntrySchema.parse(entry);
 
 export class ProjectContextService extends BaseService {
     private readonly projectModel: ProjectModel;
@@ -218,6 +222,7 @@ export class ProjectContextService extends BaseService {
         op: 'create' | 'update';
         entryId: string;
     }> {
+        const entry = parseWritebackEntry(args.entry);
         const access = await this.resolveGithubAccess(args.projectUuid);
         if (!access) {
             throw new NotFoundError(
@@ -247,7 +252,7 @@ export class ProjectContextService extends BaseService {
             content: after,
             entryId,
             op,
-        } = applyProjectContextWriteback(before, args.entry);
+        } = applyProjectContextWriteback(before, entry);
         return { fileName, before, after, op, entryId };
     }
 
@@ -263,6 +268,7 @@ export class ProjectContextService extends BaseService {
             threadUuid: string;
         } | null;
     }): Promise<ProjectContextWritebackResult> {
+        const entry = parseWritebackEntry(args.entry);
         const access = await this.resolveGithubAccess(args.projectUuid);
         if (!access) {
             throw new NotFoundError(
@@ -293,7 +299,7 @@ export class ProjectContextService extends BaseService {
             content: serialized,
             entryId,
             op,
-        } = applyProjectContextWriteback(existingContent, args.entry);
+        } = applyProjectContextWriteback(existingContent, entry);
 
         const lastCommit = await getLastCommit({
             owner,
@@ -346,9 +352,9 @@ export class ProjectContextService extends BaseService {
                 op === 'create' ? 'adds a new' : 'updates an'
             } project context entry from an AI agent review finding.`,
             `- id: \`${entryId}\``,
-            `- kind: \`${args.entry.kind}\``,
+            `- kind: \`${entry.kind}\``,
             '',
-            args.entry.content,
+            entry.content,
         ];
         if (args.sourceThread) {
             bodyLines.push(

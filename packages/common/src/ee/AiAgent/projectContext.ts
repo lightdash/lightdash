@@ -4,8 +4,9 @@ import betterAjvErrors from 'better-ajv-errors';
 import * as yaml from 'js-yaml';
 import { isMap, isSeq, parseDocument } from 'yaml';
 import { z } from 'zod';
-import lightdashProjectContextSchema from '../../schemas/json/lightdash-project-context-1.0.json';
+import lightdashProjectContextSchema from '../../schemas/json/lightdash-project-context-2.0.json';
 import { ParseError } from '../../types/errors';
+import assertUnreachable from '../../utils/assertUnreachable';
 
 // Two kinds, by retrieval intent: `definition` is term-triggered (acronyms,
 // vocabulary, "X means Y"); `context` is the object-scoped catch-all
@@ -15,7 +16,73 @@ export const projectContextEntryKinds = ['definition', 'context'] as const;
 
 // Top-level file version. The file is `{ version, entries }`; bumping this is
 // the escape hatch for a future hard schema break, without per-entry churn.
-export const PROJECT_CONTEXT_FILE_VERSION = 1;
+export const PROJECT_CONTEXT_FILE_VERSION = 2;
+
+export type AiProjectContextTypedObjectRef =
+    | { type: 'explore'; name: string }
+    | { type: 'field'; explore: string; fieldId: string };
+
+export type AiProjectContextObjectRef = string | AiProjectContextTypedObjectRef;
+
+export const aiProjectContextTypedObjectRefSchema: z.ZodType<AiProjectContextTypedObjectRef> =
+    z.discriminatedUnion('type', [
+        z
+            .object({
+                type: z.literal('explore'),
+                name: z.string().min(1),
+            })
+            .strict(),
+        z
+            .object({
+                type: z.literal('field'),
+                explore: z.string().min(1),
+                fieldId: z.string().min(1),
+            })
+            .strict(),
+    ]);
+
+export const aiProjectContextObjectRefSchema: z.ZodType<AiProjectContextObjectRef> =
+    z.union([z.string().min(1), aiProjectContextTypedObjectRefSchema]);
+
+export const serializeAiProjectContextObjectRef = (
+    ref: AiProjectContextObjectRef,
+): string => {
+    if (typeof ref === 'string') {
+        return ref;
+    }
+
+    switch (ref.type) {
+        case 'explore':
+            return ref.name;
+        case 'field':
+            return `${ref.explore}\n${ref.fieldId}`;
+        default:
+            return assertUnreachable(
+                ref,
+                'Unknown AI project context object ref type',
+            );
+    }
+};
+
+export const formatAiProjectContextObjectRef = (
+    ref: AiProjectContextObjectRef,
+): string => {
+    if (typeof ref === 'string') {
+        return ref;
+    }
+
+    switch (ref.type) {
+        case 'explore':
+            return `explore "${ref.name}"`;
+        case 'field':
+            return `field "${ref.fieldId}" in explore "${ref.explore}"`;
+        default:
+            return assertUnreachable(
+                ref,
+                'Unknown AI project context object ref type',
+            );
+    }
+};
 
 // Canonical, post-ingest entry: `id` is always present (derived if the file
 // omitted it). This is what selection, the cache, and the API speak.
@@ -24,7 +91,7 @@ export const projectContextEntrySchema = z.object({
     kind: z.enum(projectContextEntryKinds),
     content: z.string().min(1),
     terms: z.array(z.string()).default([]),
-    objects: z.array(z.string()).default([]),
+    objects: z.array(aiProjectContextObjectRefSchema).default([]),
 });
 
 export type ProjectContextEntry = z.infer<typeof projectContextEntrySchema>;
@@ -39,7 +106,7 @@ type ProjectContextFileEntry = Omit<
 > & {
     id?: string;
     terms?: string[];
-    objects?: string[];
+    objects?: AiProjectContextObjectRef[];
     [key: string]: unknown;
 };
 
@@ -52,7 +119,7 @@ export type ProjectContextWritebackEntry = {
     kind: ProjectContextEntry['kind'];
     content: string;
     terms: string[];
-    objects: string[];
+    objects: AiProjectContextTypedObjectRef[];
 };
 
 const slugifyId = (value: string): string =>

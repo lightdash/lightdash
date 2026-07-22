@@ -321,9 +321,28 @@ describe('aiAgentJudgeProjectContextEntrySchema', () => {
             kind: 'definition',
             content: 'updated definition',
             terms: ['HR'],
-            objects: ['patient_health_scores'],
+            objects: [
+                { type: 'explore', name: 'patient_health_scores' },
+                {
+                    type: 'field',
+                    explore: 'patient_health_scores',
+                    fieldId: 'patient_health_scores_diabetes_risk_category',
+                },
+            ],
         });
         expect(result.success).toBe(true);
+    });
+
+    test('rejects legacy string object refs from new judge output', () => {
+        const result = aiAgentJudgeProjectContextEntrySchema.safeParse({
+            op: 'create',
+            id: null,
+            kind: 'context',
+            content: 'Use the payments explore.',
+            terms: [],
+            objects: ['payments'],
+        });
+        expect(result.success).toBe(false);
     });
 
     test('rejects an update entry without an id', () => {
