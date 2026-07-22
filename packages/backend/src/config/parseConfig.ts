@@ -1711,10 +1711,17 @@ export type AppRuntimeConfig = {
      * (dev / self-host testbed — see docs/sandbox-runtime.md);
      * `lambda-microvm` runs AWS Lambda MicroVMs (native suspend/resume);
      * `azure-sandboxes` runs Azure Container Apps Sandboxes (native
-     * suspend/resume — the Azure analog of E2B / Lambda MicroVMs).
+     * suspend/resume — the Azure analog of E2B / Lambda MicroVMs);
+     * `gcp-cloud-run` runs Google Cloud Run Sandboxes behind a gateway service
+     * deployed with `--sandbox-launcher` (object-store snapshots, like Docker).
      * Later: kubernetes | ecs | microsandbox.
      */
-    sandboxProvider: 'e2b' | 'docker' | 'lambda-microvm' | 'azure-sandboxes';
+    sandboxProvider:
+        | 'e2b'
+        | 'docker'
+        | 'lambda-microvm'
+        | 'azure-sandboxes'
+        | 'gcp-cloud-run';
     /**
      * OCI image the `docker` sandbox provider launches data-app containers
      * from. Built locally from sandboxes/data-apps (e.g. `lightdash-sandbox:local`).
@@ -1805,6 +1812,16 @@ export type AppRuntimeConfig = {
     /** Disk image the AI writeback pipeline launches (decoupled from the data-app
      * image). Required only when `azure-sandboxes`. */
     azureSandboxesAiWritebackDiskImage: string | null;
+    /**
+     * Config for the `gcp-cloud-run` provider: URL + shared secret of the
+     * sandbox gateway Cloud Run service (deployed with `--sandbox-launcher`,
+     * data-app toolchain image baked in). Required only when
+     * `sandboxProvider === 'gcp-cloud-run'`.
+     */
+    gcpCloudRun: {
+        sandboxUrl: string | null;
+        sandboxSecret: string | null;
+    };
     /** E2B template used by managed project onboarding. */
     e2bAgentOnboardingTemplateName: string;
     e2bAgentOnboardingTemplateTag: string;
@@ -2094,6 +2111,7 @@ const parseSandboxProvider = (
     if (value === 'docker') return 'docker';
     if (value === 'lambda-microvm') return 'lambda-microvm';
     if (value === 'azure-sandboxes') return 'azure-sandboxes';
+    if (value === 'gcp-cloud-run') return 'gcp-cloud-run';
     return 'e2b';
 };
 
@@ -2239,6 +2257,10 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             process.env.AZURE_SANDBOXES_DATA_APP_GROUP || null,
         azureSandboxesDataAppDiskImage:
             process.env.AZURE_SANDBOXES_DATA_APP_DISK_IMAGE || null,
+        gcpCloudRun: {
+            sandboxUrl: process.env.GCP_CLOUD_RUN_SANDBOX_URL || null,
+            sandboxSecret: process.env.GCP_CLOUD_RUN_SANDBOX_SECRET || null,
+        },
         azureSandboxesAiWritebackGroup:
             process.env.AZURE_SANDBOXES_AI_WRITEBACK_GROUP || null,
         azureSandboxesAiWritebackDiskImage:

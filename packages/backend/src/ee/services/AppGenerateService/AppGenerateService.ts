@@ -146,6 +146,7 @@ import {
     SandboxCommandError,
     SandboxManager,
     type AzureSandboxesConfig,
+    type CloudRunSandboxesConfig,
     type PersistentWorkspace,
     type SandboxHandle,
     type SandboxSpec,
@@ -619,11 +620,17 @@ export class AppGenerateService extends BaseService {
                     sandboxProvider === 'azure-sandboxes'
                         ? this.getAzureSandboxesConfig()
                         : null,
-                // Object-store snapshots are only for the Docker backend (no
-                // native pause); native-pause providers (E2B, Lambda, Azure
-                // Sandboxes) never touch S3, so don't construct a client.
+                gcpCloudRun:
+                    sandboxProvider === 'gcp-cloud-run'
+                        ? this.getCloudRunSandboxesConfig()
+                        : null,
+                // Object-store snapshots are only for the backends with no
+                // native pause (Docker, GCP Cloud Run); native-pause providers
+                // (E2B, Lambda, Azure Sandboxes) never touch S3, so don't
+                // construct a client.
                 snapshotStore:
-                    sandboxProvider === 'docker'
+                    sandboxProvider === 'docker' ||
+                    sandboxProvider === 'gcp-cloud-run'
                         ? new S3SnapshotStore({
                               lightdashConfig: this.lightdashConfig,
                           })
@@ -665,6 +672,12 @@ export class AppGenerateService extends BaseService {
             }
             return diskImage;
         }
+        if (sandboxProvider === 'gcp-cloud-run') {
+            // The toolchain image is baked into the gateway service deployment
+            // — per-sandbox image selection is not possible, so the gateway URL
+            // stands in as the template ref for logs/telemetry.
+            return this.getCloudRunSandboxesConfig().sandboxUrl;
+        }
         // E2B treats `name` and `name:default` interchangeably, so an empty
         // tag is fine — it just resolves to the implicit `default` build.
         return e2bTemplateTag
@@ -698,6 +711,20 @@ export class AppGenerateService extends BaseService {
             tokenScope: azureSandboxes.tokenScope,
             resourceTier: azureSandboxes.resourceTier,
             autoSuspendIdleSeconds: Math.floor(sandboxIdleTimeoutMs / 1000),
+        };
+    }
+
+    /** Assemble the `gcp-cloud-run` provider config (gateway URL + secret). */
+    private getCloudRunSandboxesConfig(): CloudRunSandboxesConfig {
+        const { gcpCloudRun } = this.lightdashConfig.appRuntime;
+        if (!gcpCloudRun.sandboxUrl || !gcpCloudRun.sandboxSecret) {
+            throw new MissingConfigError(
+                'GCP Cloud Run sandboxes are not configured (GCP_CLOUD_RUN_SANDBOX_URL / GCP_CLOUD_RUN_SANDBOX_SECRET)',
+            );
+        }
+        return {
+            sandboxUrl: gcpCloudRun.sandboxUrl,
+            sandboxSecret: gcpCloudRun.sandboxSecret,
         };
     }
 
