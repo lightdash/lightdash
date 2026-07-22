@@ -1364,6 +1364,9 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
     };
 };
 
+/** Reasoning-effort level passed via --effort to the claude CLI. */
+export type DataAppClaudeEffort = 'low' | 'high';
+
 export type DataAppCreatedEvent = BaseTrack & {
     event: 'data_app.created';
     userId: string;
@@ -1379,6 +1382,7 @@ export type DataAppCreatedEvent = BaseTrack & {
         samplesRequested: number;
         samplesAvailable: number;
         clarificationCount: number;
+        claudeEffort: DataAppClaudeEffort;
     };
 };
 
@@ -1396,6 +1400,7 @@ export type DataAppIteratedEvent = BaseTrack & {
         claudeModel: DataAppClaudeModel;
         themeChanged: boolean;
         designUuid: string | null;
+        claudeEffort: DataAppClaudeEffort;
         previousVersionStatus: string | null;
         msSinceLastVersion: number | null;
         samplesRequested: number;
@@ -1428,6 +1433,7 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         claudeModel: DataAppClaudeModel;
         claudeProvider: 'anthropic' | 'bedrock';
         schedulerWaitMs: number;
+        claudeEffort: DataAppClaudeEffort;
         wasResumed: boolean;
         totalDurationMs: number;
         sandboxMs?: number;
@@ -1480,6 +1486,7 @@ export type DataAppVersionFailedEvent = BaseTrack & {
         claudeModel: DataAppClaudeModel;
         claudeProvider?: 'anthropic' | 'bedrock';
         schedulerWaitMs?: number;
+        claudeEffort: DataAppClaudeEffort;
         failureStage:
             | 'sandbox'
             | 'catalog'

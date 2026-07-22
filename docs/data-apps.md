@@ -194,6 +194,8 @@ How it flows through the stack:
 
 The shared enum + default live in `packages/common/src/ee/apps/types.ts` (`DATA_APP_CLAUDE_MODELS`, `DataAppClaudeModel`, `DEFAULT_DATA_APP_CLAUDE_MODEL`) so the frontend picker, the request body, and the backend validation stay in sync.
 
+Reasoning effort follows the version, not the user: first builds (`version === 1`) run `--effort low` — benchmarked ~40% faster with no regressions on the build/render/query-validity gates — while iterations (v2+) run `--effort high` (the CLI default, passed explicitly), since they make targeted edits to existing code where deeper reasoning matters more than blank-page latency. The resolved level is tracked as `claudeEffort` on the data-app analytics events. The benchmark harness behind that decision lives in `sandboxes/data-apps/benchmark/`.
+
 ### Cancellation
 
 Users can cancel a building version. This atomically marks it as `status='error'` in the database and pauses the sandbox

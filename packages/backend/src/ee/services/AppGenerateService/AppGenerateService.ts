@@ -990,6 +990,17 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * Reasoning-effort policy for the claude CLI: first builds run low —
+     * benchmarked ~40% faster with no quality-gate regressions — while
+     * iterations run high (the CLI default, now passed explicitly), since
+     * they make targeted edits to existing code where deeper reasoning
+     * matters more than blank-page latency.
+     */
+    private static resolveClaudeEffort(version: number): 'low' | 'high' {
+        return version === 1 ? 'low' : 'high';
+    }
+
+    /**
      * Read the first few bytes of a stream, validate image magic bytes,
      * then return a new Readable that replays those bytes followed by
      * the rest of the original stream.
@@ -1425,6 +1436,9 @@ export class AppGenerateService extends BaseService {
                 claudeModel,
                 claudeProvider: telemetry.claudeProvider,
                 schedulerWaitMs: telemetry.schedulerWaitMs,
+                claudeEffort: AppGenerateService.resolveClaudeEffort(
+                    payload.version,
+                ),
                 failureStage,
                 errorMessage: AppGenerateService.truncateEnd(
                     getErrorMessage(error),
@@ -2407,6 +2421,10 @@ export class AppGenerateService extends BaseService {
             ? '--json-schema "$(cat /tmp/output-schema.json)" '
             : '';
 
+        const effortFlag = `--effort ${AppGenerateService.resolveClaudeEffort(
+            version,
+        )} `;
+
         // When the sandbox was resumed from a previous iteration, use
         // --continue so Claude has the full conversation history of what
         // it built before. For fresh sandboxes, start a new session.
@@ -2440,7 +2458,7 @@ export class AppGenerateService extends BaseService {
             const result = await sandbox.commands
                 .run(
                     `cat /tmp/prompt.txt | claude ${sessionFlags} ` +
-                        `--model ${claudeModel} ` +
+                        `--model ${claudeModel} ${effortFlag}` +
                         `--verbose --output-format stream-json --include-partial-messages ` +
                         `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Read(//tmp/external-data/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Glob(//tmp/external-data/**),Grep(//app/**),Grep(//tmp/dbt-repo/**),Grep(//tmp/external-data/**)" ` +
                         `${jsonSchemaFlag}--append-system-prompt-file ${AppGenerateService.EFFECTIVE_SKILL_PATH}`,
@@ -2540,7 +2558,9 @@ export class AppGenerateService extends BaseService {
             onTelemetry?.(telemetry);
             const durationMs = AppGenerateService.elapsed(start);
             this.logger.info(
-                `App ${appUuid}: Claude code generation completed (model=${claudeModel}, exit=${result.exitCode}, toolCalls=${toolCallCount}, turns=${usage?.numTurns ?? 0}, outputTokens=${usage?.outputTokens ?? 0}, cacheReadTokens=${usage?.cacheReadInputTokens ?? 0}, ${durationMs}ms, attempt ${attempt}/${AppGenerateService.MAX_GENERATION_ATTEMPTS})`,
+                `App ${appUuid}: Claude code generation completed (model=${claudeModel}, effort=${AppGenerateService.resolveClaudeEffort(
+                    version,
+                )}, exit=${result.exitCode}, toolCalls=${toolCallCount}, turns=${usage?.numTurns ?? 0}, outputTokens=${usage?.outputTokens ?? 0}, cacheReadTokens=${usage?.cacheReadInputTokens ?? 0}, ${durationMs}ms, attempt ${attempt}/${AppGenerateService.MAX_GENERATION_ATTEMPTS})`,
             );
             this.logger.info(
                 `App ${appUuid}: claude turn timeline (ttft=${timeToFirstTokenMs ?? 'n/a'}ms, turnsMs=[${turnDurationsMs.join(', ')}])`,
@@ -4034,6 +4054,7 @@ export class AppGenerateService extends BaseService {
                 claudeModel,
                 claudeProvider,
                 schedulerWaitMs,
+                claudeEffort: AppGenerateService.resolveClaudeEffort(version),
                 wasResumed,
                 totalDurationMs: totalMs,
                 sandboxMs: durations.sandboxMs,
@@ -4791,6 +4812,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 imageCount: imageIds.length,
                 template: template ?? null,
                 claudeModel,
+                claudeEffort: AppGenerateService.resolveClaudeEffort(version),
                 samplesRequested: sampleStats.requested,
                 samplesAvailable: sampleStats.available,
                 clarificationCount: clarifications?.length ?? 0,
@@ -5011,6 +5033,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 promptLength: prompt.length,
                 imageCount: imageIds.length,
                 claudeModel,
+                claudeEffort:
+                    AppGenerateService.resolveClaudeEffort(newVersion),
                 themeChanged: isThemeChange,
                 designUuid: effectiveDesignUuid,
                 previousVersionStatus: latestVersion?.status ?? null,
