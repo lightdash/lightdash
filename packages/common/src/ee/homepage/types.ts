@@ -34,7 +34,8 @@ export type HomepageResourceKind =
     | 'doc'
     | 'link'
     | 'claude'
-    | 'youtube';
+    | 'youtube'
+    | 'data-app';
 
 export type HomepageResourceItem = {
     title: string;
@@ -43,6 +44,10 @@ export type HomepageResourceItem = {
     // Optional for back-compat with already-stored items; new items always set them.
     description?: string;
     imageUrl?: string;
+    // Set only for `kind: 'data-app'` items. The referenced app's uuid is used
+    // to fetch its live thumbnail — data app thumbnails are short-lived signed
+    // URLs, so they're resolved at render time rather than baked into `imageUrl`.
+    appUuid?: string;
 };
 
 export type HomepageResourcesLayout = 'card' | 'list';
