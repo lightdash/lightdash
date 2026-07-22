@@ -110,11 +110,14 @@ export async function seed(knex: Knex): Promise<void> {
             role: seedUserRole,
         });
 
-        await knex(OnboardingTableName).insert({
-            organization_id: organizationId,
-            ranQuery_at: new Date(),
-            shownSuccess_at: new Date(),
-        });
+        await knex(OnboardingTableName)
+            .insert({
+                organization_id: organizationId,
+                ranQuery_at: new Date(),
+                shownSuccess_at: new Date(),
+            })
+            .onConflict('organization_id')
+            .ignore();
 
         return { organizationId, user, organizationUuid };
     };
