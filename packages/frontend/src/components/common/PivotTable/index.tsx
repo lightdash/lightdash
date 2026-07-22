@@ -577,7 +577,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                 }
 
                                 return (
-                                    <Text span fw={600}>
+                                    <Text span inherit fw={600}>
                                         {formatItemValue(
                                             item,
                                             subtotalValue,
