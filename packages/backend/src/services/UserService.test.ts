@@ -416,9 +416,31 @@ describe('UserService', () => {
 
         test('registers an email-only user when the feature is enabled', async () => {
             const featureFlagModel = createFeatureFlagModel(true);
-            const service = createUserService(lightdashConfigMock, {
-                featureFlagModel,
-            });
+            const service = createUserService(
+                {
+                    ...lightdashConfigMock,
+                    smtp: {
+                        host: 'localhost',
+                        port: 587,
+                        secure: false,
+                        allowInvalidCertificate: false,
+                        useAuth: false,
+                        auth: {
+                            user: '',
+                            pass: undefined,
+                            accessToken: undefined,
+                        },
+                        sender: {
+                            name: 'Lightdash',
+                            email: 'lightdash@example.com',
+                        },
+                        inlineImageCid: false,
+                    },
+                },
+                {
+                    featureFlagModel,
+                },
+            );
             const loginMethodAllowedSpy = vi
                 .spyOn(service, 'isLoginMethodAllowed')
                 .mockResolvedValue(true);
@@ -462,6 +484,28 @@ describe('UserService', () => {
                     isOrganizationCreator: true,
                 },
             });
+        });
+
+        test('rejects an email-only user without an email server', async () => {
+            const featureFlagModel = createFeatureFlagModel(true);
+            const service = createUserService(
+                { ...lightdashConfigMock, smtp: undefined },
+                {
+                    featureFlagModel,
+                },
+            );
+
+            await expect(
+                service.registerOrActivateUser({
+                    email: 'email-only@example.com',
+                }),
+            ).rejects.toThrow(
+                new ForbiddenError(
+                    'Email-only signup requires an email server to be configured',
+                ),
+            );
+
+            expect(userModel.createUser).not.toHaveBeenCalled();
         });
 
         test('rejects an email-only user when the feature is disabled', async () => {

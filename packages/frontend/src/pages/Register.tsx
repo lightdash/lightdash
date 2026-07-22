@@ -85,7 +85,9 @@ const Register: FC = () => {
         return <PageSpinner />;
     }
 
-    const isEmailOnlySignup = emailOnlySignupFlag.data?.enabled ?? false;
+    const isEmailOnlySignup =
+        (emailOnlySignupFlag.data?.enabled ?? false) &&
+        !!health.data?.hasEmailClient;
 
     const ssoAvailable =
         health.data?.auth.google.enabled ||
