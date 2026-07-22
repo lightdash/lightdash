@@ -3,6 +3,7 @@ import utc from 'dayjs/plugin/utc';
 import { z } from 'zod';
 import { type AnyType } from './types/any';
 import { LightdashMode } from './types/api';
+import { NotFoundError, ParameterError } from './types/errors';
 import { type Explore } from './types/explore';
 import {
     DimensionType,
@@ -333,6 +334,7 @@ export * from './utils/exportTabs';
 export * from './utils/fields';
 export * from './utils/filters';
 export * from './utils/formatting';
+export * from './utils/labelValueMap';
 export * from './utils/github';
 export * from './utils/i18n/chartAsCode';
 export * from './utils/i18n/dashboardAsCode';
@@ -585,6 +587,32 @@ export const findFieldByIdInExplore = (
 ): Field | undefined =>
     getFields(explore).find((field) => getItemId(field) === id);
 
+export const resolveLabelDimensionId = (
+    field: Dimension,
+    explore: Pick<Explore, 'tables'>,
+): FieldId | null => {
+    const labelDimension = field.filterAutocomplete?.labelDimension;
+    if (!labelDimension) return null;
+    const candidateLabelFieldId = getItemId({
+        table: field.table,
+        name: labelDimension,
+    });
+    if (candidateLabelFieldId === getItemId(field)) return null;
+    const table = explore.tables[field.table];
+    const labelMetric = table?.metrics[labelDimension];
+    if (labelMetric) {
+        throw new ParameterError(
+            `Label field must be a dimension, but ${candidateLabelFieldId} is a ${labelMetric.type}`,
+        );
+    }
+    if (!table?.dimensions[labelDimension]) {
+        throw new NotFoundError(
+            `Can't find label dimension '${labelDimension}' in table '${field.table}'`,
+        );
+    }
+    return candidateLabelFieldId;
+};
+
 export const snakeCaseName = (text: string): string =>
     text
         .replace(/\W+/g, ' ')
@@ -768,6 +796,7 @@ export function getItemMap(
 export const getFieldsFromMetricQuery = (
     metricQuery: MetricQuery,
     explore: Explore,
+    excludeFieldIds?: Set<FieldId>,
 ): ItemsMap => {
     const itemsMap = getItemMap(
         explore,
@@ -781,6 +810,7 @@ export const getFieldsFromMetricQuery = (
         ...(metricQuery.tableCalculations || []).map(getItemId),
     ];
     return itemIdsInMetricQuery.reduce<ItemsMap>((acc, id) => {
+        if (excludeFieldIds?.has(id)) return acc;
         const item = itemsMap[id];
         if (item) acc[id] = item;
         return acc;

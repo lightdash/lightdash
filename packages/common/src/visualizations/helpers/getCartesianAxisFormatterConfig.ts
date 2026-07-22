@@ -8,6 +8,11 @@ import {
 } from '../../types/field';
 import { TimeFrames } from '../../types/timeFrames';
 import { formatItemValue, hasFormatting } from '../../utils/formatting';
+import { getItemId } from '../../utils/item';
+import {
+    getLabelForValue,
+    type LabelValueMap,
+} from '../../utils/labelValueMap';
 import { isTimeInterval, timeFrameConfigs } from '../../utils/timeFrames';
 
 /**
@@ -29,6 +34,7 @@ export const getCartesianAxisFormatterConfig = ({
     parameters,
     timezone,
     displayTimezone,
+    labelValueMap,
 }: {
     axisItem: ItemsMap[string] | undefined;
     longestLabelWidth?: number;
@@ -38,6 +44,7 @@ export const getCartesianAxisFormatterConfig = ({
     parameters?: Record<string, unknown>;
     timezone?: string;
     displayTimezone?: string;
+    labelValueMap?: LabelValueMap;
 }) => {
     // Remove axis labels, lines, and ticks if the axis is not shown
     // This is done to prevent the grid from disappearing when the axis is not shown
@@ -198,6 +205,52 @@ export const getCartesianAxisFormatterConfig = ({
             default:
         }
     }
+    // Only categorical axes are labelled — a label dimension on a
+    // date/time-interval axis keeps its native (min-interval/rich) formatting.
+    const isCategoricalAxis =
+        !isTimestamp &&
+        !(isDimension(axisItem) && axisItem.timeInterval !== undefined);
+    const axisFieldId =
+        axisItem && isField(axisItem) && isCategoricalAxis
+            ? getItemId(axisItem)
+            : undefined;
+    const axisLabels = axisFieldId ? labelValueMap?.[axisFieldId] : undefined;
+    if (axisFieldId && axisLabels) {
+        axisConfig.axisLabel = {
+            formatter: (value: AnyType) =>
+                getLabelForValue(labelValueMap, axisFieldId, value) ??
+                formatItemValue(
+                    axisItem,
+                    value,
+                    true,
+                    parameters,
+                    timezone,
+                    displayTimezone,
+                ),
+        };
+        axisConfig.axisPointer = {
+            label: {
+                formatter: (value: unknown) => {
+                    const raw =
+                        value && typeof value === 'object' && 'value' in value
+                            ? value.value
+                            : value;
+                    return (
+                        getLabelForValue(labelValueMap, axisFieldId, raw) ??
+                        formatItemValue(
+                            axisItem,
+                            raw,
+                            true,
+                            parameters,
+                            timezone,
+                            displayTimezone,
+                        )
+                    );
+                },
+            },
+        };
+    }
+
     if (axisMinInterval) {
         axisConfig.minInterval = axisMinInterval;
     }

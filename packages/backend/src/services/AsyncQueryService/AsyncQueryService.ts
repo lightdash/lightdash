@@ -58,6 +58,7 @@ import {
     isCustomBinDimension,
     isCustomDimension,
     isDateItem,
+    isDimension,
     isExploreError,
     isField,
     isJwtUser,
@@ -2115,12 +2116,39 @@ export class AsyncQueryService extends ProjectService {
                                         displayTimezone ?? undefined,
                                     )
                                   : String(rawValue);
+                              const labelDimension =
+                                  field && isField(field) && isDimension(field)
+                                      ? field.filterAutocomplete?.labelDimension
+                                      : undefined;
+                              let label: string | undefined;
+                              if (labelDimension && isField(field)) {
+                                  // Companion label rides along as a passthrough
+                                  // dim, so its value is on this warehouse row.
+                                  const labelFieldId = getItemId({
+                                      table: field.table,
+                                      name: labelDimension,
+                                  });
+                                  const labelRawValue = row[labelFieldId];
+                                  if (labelRawValue !== undefined) {
+                                      const labelField = itemsMap[labelFieldId];
+                                      label = labelField
+                                          ? formatItemValue(
+                                                labelField,
+                                                labelRawValue,
+                                                false,
+                                                undefined,
+                                                displayTimezone ?? undefined,
+                                            )
+                                          : String(labelRawValue);
+                                  }
+                              }
                               return {
                                   referenceField: c.reference,
                                   // value needs to be raw formatted so that dates match the subtotals and the formatted rows
                                   value: rawValue,
                                   // formatted value to match the display value in the frontend
                                   formatted: formattedValue,
+                                  ...(label !== undefined ? { label } : {}),
                               };
                           }) ?? [];
 
@@ -3470,6 +3498,9 @@ export class AsyncQueryService extends ProjectService {
         const fields = getFieldsFromMetricQuery(
             compiledMetricQuery,
             exploreWithOverride,
+            compiledMetricQuery.companionLabelDimensionIds
+                ? new Set(compiledMetricQuery.companionLabelDimensionIds)
+                : undefined,
         );
 
         return { fields, dateZoomApplied };

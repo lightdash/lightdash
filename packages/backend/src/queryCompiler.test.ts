@@ -1,10 +1,15 @@
 import {
     BinType,
+    CompiledDimension,
     CompiledMetricQuery,
     CompileError,
     CustomDimensionType,
     DimensionType,
+    Explore,
+    FieldType,
+    MetricQuery,
     MetricType,
+    SupportedDbtAdapter,
     TableCalculation,
     TableCalculationTemplateType,
     VizIndexType,
@@ -28,7 +33,10 @@ import {
     METRIC_QUERY_WITH_ADDITIONAL_METRICS_COMPILED,
     METRIC_QUERY_WITH_INVALID_ADDITIONAL_METRIC,
 } from './queryCompiler.mock';
-import { warehouseClientMock } from './utils/QueryBuilder/MetricQueryBuilder.mock';
+import {
+    emptyTable,
+    warehouseClientMock,
+} from './utils/QueryBuilder/MetricQueryBuilder.mock';
 
 test('Should compile without table calculations', () => {
     const expected: CompiledMetricQuery = {
@@ -1343,5 +1351,138 @@ describe('compilePostCalculationMetric', () => {
         expect(result).toBe(
             '(CAST("metric" AS FLOAT) / CAST(NULLIF(LAG("metric") OVER(PARTITION BY "employee"ORDER BY "week"), 0) AS FLOAT)) - 1',
         );
+    });
+});
+
+describe('compileMetricQuery label dimensions', () => {
+    const makeDimension = (
+        name: string,
+        filterAutocomplete?: {
+            fetchFromWarehouse: boolean;
+            labelDimension: string;
+        },
+    ): CompiledDimension => ({
+        name,
+        fieldType: FieldType.DIMENSION,
+        type: DimensionType.STRING,
+        table: 'table1',
+        label: name,
+        tableLabel: 'table1',
+        hidden: false,
+        sql: `\${TABLE}.${name}`,
+        compiledSql: `\`table1\`.\`${name}\``,
+        tablesReferences: ['table1'],
+        ...(filterAutocomplete ? { filterAutocomplete } : {}),
+    });
+
+    const exploreWithLabelDimension: Pick<
+        Explore,
+        'targetDatabase' | 'tables'
+    > = {
+        targetDatabase: SupportedDbtAdapter.POSTGRES,
+        tables: {
+            table1: {
+                ...emptyTable('table1'),
+                dimensions: {
+                    customer_id: makeDimension('customer_id', {
+                        fetchFromWarehouse: true,
+                        labelDimension: 'customer_name',
+                    }),
+                    customer_name: makeDimension('customer_name'),
+                },
+            },
+        },
+    };
+
+    const baseMetricQuery: MetricQuery = {
+        exploreName: 'table1',
+        dimensions: ['table1_customer_id'],
+        metrics: [],
+        filters: {},
+        sorts: [],
+        limit: 500,
+        tableCalculations: [],
+    };
+
+    test('injects the companion label dimension and echoes the mapping', () => {
+        const result = compileMetricQuery({
+            explore: exploreWithLabelDimension,
+            metricQuery: baseMetricQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            availableParameters: [],
+        });
+
+        expect(result.labelDimensionMap).toEqual({
+            table1_customer_id: 'table1_customer_name',
+        });
+        expect(result.companionLabelDimensionIds).toEqual([
+            'table1_customer_name',
+        ]);
+        expect(result.dimensions).toEqual([
+            'table1_customer_id',
+            'table1_customer_name',
+        ]);
+    });
+
+    test('leaves the query untouched when no dimension has a label dimension', () => {
+        const result = compileMetricQuery({
+            explore: EXPLORE,
+            metricQuery: METRIC_QUERY_NO_CALCS,
+            warehouseSqlBuilder: warehouseClientMock,
+            availableParameters: [],
+        });
+
+        expect(result.labelDimensionMap).toBeUndefined();
+        expect(result.companionLabelDimensionIds).toBeUndefined();
+        expect(result.dimensions).toEqual(METRIC_QUERY_NO_CALCS.dimensions);
+    });
+
+    test('does not throw when the label dimension is misconfigured', () => {
+        const exploreWithBadLabel: Pick<Explore, 'targetDatabase' | 'tables'> =
+            {
+                targetDatabase: SupportedDbtAdapter.POSTGRES,
+                tables: {
+                    table1: {
+                        ...emptyTable('table1'),
+                        dimensions: {
+                            customer_id: makeDimension('customer_id', {
+                                fetchFromWarehouse: true,
+                                labelDimension: 'does_not_exist',
+                            }),
+                        },
+                    },
+                },
+            };
+
+        let result: CompiledMetricQuery | undefined;
+        expect(() => {
+            result = compileMetricQuery({
+                explore: exploreWithBadLabel,
+                metricQuery: baseMetricQuery,
+                warehouseSqlBuilder: warehouseClientMock,
+                availableParameters: [],
+            });
+        }).not.toThrow();
+        expect(result?.labelDimensionMap).toBeUndefined();
+        expect(result?.companionLabelDimensionIds).toBeUndefined();
+        expect(result?.dimensions).toEqual(['table1_customer_id']);
+    });
+
+    test('does not duplicate a label dimension already selected', () => {
+        const result = compileMetricQuery({
+            explore: exploreWithLabelDimension,
+            metricQuery: {
+                ...baseMetricQuery,
+                dimensions: ['table1_customer_id', 'table1_customer_name'],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            availableParameters: [],
+        });
+
+        expect(result.companionLabelDimensionIds).toEqual([]);
+        expect(result.dimensions).toEqual([
+            'table1_customer_id',
+            'table1_customer_name',
+        ]);
     });
 });

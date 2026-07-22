@@ -1,5 +1,6 @@
 import {
     CustomFormatType,
+    Explore,
     FilterOperator,
     MetricQuery,
     PivotConfiguration,
@@ -262,5 +263,59 @@ describe('QueryComposer', () => {
                 expect(sql).toMatchSnapshot();
             });
         });
+    });
+});
+
+describe('getPivotConfiguration with label dimensions', () => {
+    const exploreWithLabel: Explore = {
+        ...EXPLORE,
+        tables: {
+            ...EXPLORE.tables,
+            table1: {
+                ...EXPLORE.tables.table1,
+                dimensions: {
+                    ...EXPLORE.tables.table1.dimensions,
+                    dim1: {
+                        ...EXPLORE.tables.table1.dimensions.dim1,
+                        filterAutocomplete: {
+                            fetchFromWarehouse: true,
+                            labelDimension: 'shared',
+                        },
+                    },
+                },
+            },
+        },
+    };
+
+    const metricQuery: MetricQuery = {
+        exploreName: 'table1',
+        dimensions: ['table1_dim1'],
+        metrics: ['table1_metric1'],
+        filters: {},
+        sorts: [{ fieldId: 'table1_dim1', descending: false }],
+        limit: 500,
+        tableCalculations: [],
+    };
+
+    it('folds the companion label dimension into passthroughDimensions', () => {
+        const composer = new QueryComposer(
+            { metricQuery, pivotConfiguration: PIVOT_CONFIGURATION },
+            { ...CONTEXT, explore: exploreWithLabel },
+        );
+
+        expect(composer.getPivotConfiguration()?.passthroughDimensions).toEqual(
+            [{ reference: 'table1_shared' }],
+        );
+    });
+
+    it('leaves passthroughDimensions untouched when no label dimension is set', () => {
+        const composer = new QueryComposer(
+            { metricQuery, pivotConfiguration: PIVOT_CONFIGURATION },
+            CONTEXT,
+        );
+
+        expect(
+            composer.getPivotConfiguration()?.passthroughDimensions,
+        ).toBeUndefined();
     });
 });

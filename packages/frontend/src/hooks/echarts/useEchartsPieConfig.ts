@@ -87,7 +87,7 @@ const useEchartsPieConfig = (
                     sortedGroupLabels.indexOf(nameA) -
                     sortedGroupLabels.indexOf(nameB),
             )
-            .map(({ name, value, meta }) => {
+            .map(({ name, displayName, value, meta }) => {
                 const valueLabel =
                     groupValueOptionOverrides?.[name]?.valueLabel ??
                     valueLabelDefault;
@@ -110,7 +110,8 @@ const useEchartsPieConfig = (
                 const borderRadius = isDonut
                     ? calculateBorderRadiusForSlice(percent)
                     : 0;
-                const labelOverride = groupLabelOverrides?.[name] ?? name;
+                const labelOverride =
+                    groupLabelOverrides?.[name] ?? displayName ?? name;
                 const config: PieSeriesDataPoint = {
                     id: name,
                     groupId: name,
