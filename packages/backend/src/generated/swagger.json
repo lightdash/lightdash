@@ -10983,6 +10983,14 @@
                     "hasSecret": {
                         "type": "boolean"
                     },
+                    "customHeaders": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Record_string.string_"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "oauthScopes": {
                         "items": {
                             "type": "string"
@@ -11066,6 +11074,7 @@
                     "updatedByUserUuid",
                     "createdByUserUuid",
                     "hasSecret",
+                    "customHeaders",
                     "oauthScopes",
                     "apiKeyLocation",
                     "apiKeyName",
@@ -11105,6 +11114,14 @@
                 "properties": {
                     "secret": {
                         "type": "string",
+                        "nullable": true
+                    },
+                    "customHeaders": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Record_string.string_"
+                            }
+                        ],
                         "nullable": true
                     },
                     "oauthScopes": {
@@ -11273,6 +11290,14 @@
                         "type": "array",
                         "nullable": true
                     },
+                    "customHeaders": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Record_string.string_"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "secret": {
                         "type": "string",
                         "nullable": true
@@ -11392,21 +11417,24 @@
                 "type": "object"
             },
             "ApiTestExternalConnectionConfigRequest": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/ApiTestExternalConnectionRequest"
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/CreateExternalConnection"
                     },
-                    {
-                        "properties": {
-                            "config": {
-                                "$ref": "#/components/schemas/CreateExternalConnection"
-                            }
-                        },
-                        "required": ["config"],
-                        "type": "object"
+                    "body": {},
+                    "query": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "path": {
+                        "type": "string"
+                    },
+                    "method": {
+                        "$ref": "#/components/schemas/ExternalConnectionMethod"
                     }
-                ],
-                "description": "Test an unsaved connection config (incl. plaintext secret) before creating\nit. Runs through the same SSRF-guarded proxy core, persisting nothing."
+                },
+                "required": ["config", "path"],
+                "type": "object",
+                "description": "Test an unsaved connection config (incl. plaintext secret) before creating\nit. Runs through the same SSRF-guarded proxy core, persisting nothing.\nDeliberately a flat object, NOT `ApiTestExternalConnectionRequest & {...}`:\nTSOA validates intersection bodies in remove-extras mode, which empties\nRecord<string, string> fields (query, config.customHeaders)."
             },
             "ExternalConnectionSampleRequest": {
                 "properties": {
@@ -49111,7 +49139,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3449.1",
+        "version": "0.3450.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

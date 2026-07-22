@@ -1,3 +1,15 @@
+# [0.3450.0](https://github.com/lightdash/lightdash/compare/0.3449.1...0.3450.0) (2026-07-22)
+
+
+### Bug Fixes
+
+* show a message when and app was updated locally ([#25938](https://github.com/lightdash/lightdash/issues/25938)) ([41fd41b](https://github.com/lightdash/lightdash/commit/41fd41b8825d1a214fd4fb5fae1272643a5cd55e))
+
+
+### Features
+
+* **data-apps:** connection-level custom request headers for the external connections proxy ([#25934](https://github.com/lightdash/lightdash/issues/25934)) ([6cd2542](https://github.com/lightdash/lightdash/commit/6cd25424641ab12f3f69cc22e142c3e32a838e35))
+
 ## [0.3449.1](https://github.com/lightdash/lightdash/compare/0.3449.0...0.3449.1) (2026-07-22)
 
 

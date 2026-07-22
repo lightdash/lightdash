@@ -10387,6 +10387,14 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 hasSecret: { dataType: 'boolean', required: true },
+                customHeaders: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'Record_string.string_' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 oauthScopes: {
                     dataType: 'union',
                     subSchemas: [
@@ -10480,6 +10488,13 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                customHeaders: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'Record_string.string_' },
                         { dataType: 'enum', enums: [null] },
                     ],
                 },
@@ -10683,6 +10698,14 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                customHeaders: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'Record_string.string_' },
+                        { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 secret: {
                     dataType: 'union',
                     subSchemas: [
@@ -10796,19 +10819,14 @@ const models: TsoaRoute.Models = {
     ApiTestExternalConnectionConfigRequest: {
         dataType: 'refAlias',
         type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'ApiTestExternalConnectionRequest' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        config: {
-                            ref: 'CreateExternalConnection',
-                            required: true,
-                        },
-                    },
-                },
-            ],
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                config: { ref: 'CreateExternalConnection', required: true },
+                body: { dataType: 'any' },
+                query: { ref: 'Record_string.string_' },
+                path: { dataType: 'string', required: true },
+                method: { ref: 'ExternalConnectionMethod' },
+            },
             validators: {},
         },
     },
