@@ -709,9 +709,10 @@ export class PullRequestsModel {
             .update({
                 merged_analytics_emitted_at:
                     this.database.fn.now() as unknown as Date,
-            });
+            })
+            .returning('pull_request_uuid');
 
-        if (claimed === 0) {
+        if (claimed.length === 0) {
             return null;
         }
 
