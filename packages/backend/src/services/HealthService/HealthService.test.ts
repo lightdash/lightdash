@@ -72,6 +72,29 @@ describe('health', () => {
             isAuthenticated: true,
         });
     });
+
+    it('advertises playground projects only when a license key is configured', async () => {
+        expect(
+            (await healthService.getHealthState(undefined))
+                .hasPlaygroundProjects,
+        ).toBe(false);
+
+        const licensedService = new HealthService({
+            organizationModel:
+                organizationModel as unknown as OrganizationModel,
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                license: { licenseKey: 'test-license-key' },
+            },
+            migrationModel: migrationModel as unknown as MigrationModel,
+            organizationSettingsModel:
+                organizationSettingsModel as unknown as OrganizationSettingsModel,
+        });
+        expect(
+            (await licensedService.getHealthState(undefined))
+                .hasPlaygroundProjects,
+        ).toBe(true);
+    });
     it('Should return localDbtEnabled false when in cloud beta mode', async () => {
         const service = new HealthService({
             organizationModel:
