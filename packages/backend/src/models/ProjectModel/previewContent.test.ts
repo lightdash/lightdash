@@ -1,4 +1,4 @@
-import { omitProjectUuid } from './previewContent';
+import { omitProjectUuid, replaceProjectUuid } from './previewContent';
 
 describe('omitProjectUuid', () => {
     it.each([
@@ -23,4 +23,18 @@ describe('omitProjectUuid', () => {
             expect(row).toHaveProperty('project_uuid', 'source-project-uuid');
         },
     );
+});
+
+describe('replaceProjectUuid', () => {
+    it('sets destination ownership without mutating the source row', () => {
+        const row = {
+            dashboard_uuid: 'dashboard-uuid',
+            project_uuid: 'source-project-uuid',
+        };
+
+        const result = replaceProjectUuid(row, 'destination-project-uuid');
+
+        expect(result.project_uuid).toBe('destination-project-uuid');
+        expect(row.project_uuid).toBe('source-project-uuid');
+    });
 });

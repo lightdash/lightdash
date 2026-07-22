@@ -166,6 +166,7 @@ export const savedChartEntry: SavedChartTable['base'] = {
 export const dashboardEntry: DashboardTable['base'] = {
     dashboard_id: 0,
     dashboard_uuid: 'my_dashboard_uuid',
+    project_uuid: projectEntry.project_uuid,
     name: 'name',
     slug: 'name',
 
