@@ -807,9 +807,8 @@ export const convertTable = (
                                 ...(dim.skipTimezoneConversion
                                     ? { skipTimezoneConversion: true }
                                     : {}),
-                                ...(dim.timestampDomain
-                                    ? { timestampDomain: dim.timestampDomain }
-                                    : {}),
+                                // Custom granularity SQL may change the base
+                                // column's domain, so keep its output unknown.
                             } satisfies Dimension,
                         };
                     }, {});
