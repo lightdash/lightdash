@@ -1,4 +1,8 @@
-import { ProjectType, type OrganizationProject } from '@lightdash/common';
+import {
+    FeatureFlags,
+    ProjectType,
+    type OrganizationProject,
+} from '@lightdash/common';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useGithubConfig } from '../../../../components/common/GithubIntegration/hooks/useGithubIntegration';
 import { useGitlabRepositories } from '../../../../components/common/GitlabIntegration/hooks/useGitlabIntegration';
@@ -6,6 +10,7 @@ import { useOrganization } from '../../../../hooks/organization/useOrganization'
 import { useGetSlack } from '../../../../hooks/slack/useSlack';
 import { useProject } from '../../../../hooks/useProject';
 import { useProjects } from '../../../../hooks/useProjects';
+import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../providers/App/useApp';
 import { useRecommendedActions } from './useRecommendedActions';
 
@@ -20,6 +25,7 @@ vi.mock('../../../../hooks/slack/useSlack');
 vi.mock('../../../../hooks/useProject');
 vi.mock('../../../../hooks/useProjects');
 vi.mock('../../../../providers/App/useApp');
+vi.mock('../../../../hooks/useServerOrClientFeatureFlag');
 
 const organizationProject = (
     overrides: Partial<OrganizationProject>,
@@ -64,6 +70,9 @@ describe('useRecommendedActions', () => {
             data: undefined,
             isSuccess: false,
         } as ReturnType<typeof useGetSlack>);
+        vi.mocked(useServerFeatureFlag).mockReturnValue({
+            data: undefined,
+        } as ReturnType<typeof useServerFeatureFlag>);
         localStorage.clear();
     });
 
@@ -151,6 +160,66 @@ describe('useRecommendedActions', () => {
             expect(
                 result.current.statuses['connect-warehouse'].isComplete,
             ).toBe(true);
+        });
+    });
+
+    describe('add-semantic-layer destination', () => {
+        it('links to the agent setup flow when both flags are enabled', () => {
+            vi.mocked(useServerFeatureFlag).mockImplementation(
+                () =>
+                    ({
+                        data: { enabled: true },
+                    }) as ReturnType<typeof useServerFeatureFlag>,
+            );
+
+            const { result } = renderHook(() =>
+                useRecommendedActions('project-uuid'),
+            );
+
+            expect(
+                result.current.statuses['add-semantic-layer'].url,
+            ).toStrictEqual('/createProject/agent');
+        });
+
+        it('keeps the settings link when coding-agent onboarding is disabled', () => {
+            vi.mocked(useServerFeatureFlag).mockImplementation(
+                (flag) =>
+                    ({
+                        data: { enabled: flag === FeatureFlags.NewOnboarding },
+                    }) as ReturnType<typeof useServerFeatureFlag>,
+            );
+
+            const { result } = renderHook(() =>
+                useRecommendedActions('project-uuid'),
+            );
+
+            expect(
+                result.current.statuses['add-semantic-layer'].url,
+            ).toStrictEqual(
+                '/generalSettings/projectManagement/project-uuid/settings',
+            );
+        });
+
+        it('keeps the settings link when new-onboarding is disabled', () => {
+            vi.mocked(useServerFeatureFlag).mockImplementation(
+                (flag) =>
+                    ({
+                        data: {
+                            enabled:
+                                flag === FeatureFlags.CodingAgentOnboarding,
+                        },
+                    }) as ReturnType<typeof useServerFeatureFlag>,
+            );
+
+            const { result } = renderHook(() =>
+                useRecommendedActions('project-uuid'),
+            );
+
+            expect(
+                result.current.statuses['add-semantic-layer'].url,
+            ).toStrictEqual(
+                '/generalSettings/projectManagement/project-uuid/settings',
+            );
         });
     });
 });
