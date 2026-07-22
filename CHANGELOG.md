@@ -1,3 +1,15 @@
+# [0.3445.0](https://github.com/lightdash/lightdash/compare/0.3444.0...0.3445.0) (2026-07-22)
+
+
+### Bug Fixes
+
+* omit agent card hero image when the chart image URL is unreachable ([#25888](https://github.com/lightdash/lightdash/issues/25888)) ([2fc39eb](https://github.com/lightdash/lightdash/commit/2fc39eb7e5c16456898914ca249e3c588993ce2e))
+
+
+### Features
+
+* add managed onboarding run experience ([#25902](https://github.com/lightdash/lightdash/issues/25902)) ([b04242c](https://github.com/lightdash/lightdash/commit/b04242c61194bc485491e366bc303d4d7ec35435))
+
 # [0.3444.0](https://github.com/lightdash/lightdash/compare/0.3443.0...0.3444.0) (2026-07-22)
 
 
