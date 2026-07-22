@@ -13381,7 +13381,8 @@
                     "FIELD_ERROR",
                     "SET_VALIDATION_ERROR",
                     "INVALID_PARAMETER",
-                    "DUPLICATE_FIELD_NAME"
+                    "DUPLICATE_FIELD_NAME",
+                    "WAREHOUSE_COLUMN_ERROR"
                 ],
                 "type": "string"
             },
@@ -14167,7 +14168,7 @@
                             "$ref": "#/components/schemas/InlineError"
                         },
                         "type": "array",
-                        "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
+                        "description": "Non-fatal compilation or validation warnings (e.g. fields that failed to\ncompile, warehouse-rejected column references). The explore is still usable."
                     },
                     "preAggregateSource": {
                         "$ref": "#/components/schemas/PreAggregateSource"
@@ -40054,7 +40055,7 @@
                             "$ref": "#/components/schemas/InlineError"
                         },
                         "type": "array",
-                        "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
+                        "description": "Non-fatal compilation or validation warnings (e.g. fields that failed to\ncompile, warehouse-rejected column references). The explore is still usable."
                     }
                 },
                 "type": "object",
@@ -43920,7 +43921,7 @@
                             "$ref": "#/components/schemas/InlineError"
                         },
                         "type": "array",
-                        "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
+                        "description": "Non-fatal compilation or validation warnings (e.g. fields that failed to\ncompile, warehouse-rejected column references). The explore is still usable."
                     }
                 },
                 "required": ["name", "label", "tags"],
@@ -44157,7 +44158,7 @@
                             "$ref": "#/components/schemas/InlineError"
                         },
                         "type": "array",
-                        "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
+                        "description": "Non-fatal compilation or validation warnings (e.g. fields that failed to\ncompile, warehouse-rejected column references). The explore is still usable."
                     }
                 },
                 "required": [
@@ -49230,7 +49231,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3456.0",
+        "version": "0.3457.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -1,3 +1,11 @@
+# [0.3457.0](https://github.com/lightdash/lightdash/compare/0.3456.0...0.3457.0) (2026-07-22)
+
+
+### Features
+
+* **ai:** record managed vs self-managed key in token usage analytics ([#25980](https://github.com/lightdash/lightdash/issues/25980)) ([1656101](https://github.com/lightdash/lightdash/commit/16561015ae53f65cf03838f25083580e2c2cc82f))
+* **cli:** validate physical column references in warehouse ([#25824](https://github.com/lightdash/lightdash/issues/25824)) ([7428ec4](https://github.com/lightdash/lightdash/commit/7428ec4d2c018cc726d6460129dff5817dfb91eb))
+
 # [0.3456.0](https://github.com/lightdash/lightdash/compare/0.3455.0...0.3456.0) (2026-07-22)
 
 
