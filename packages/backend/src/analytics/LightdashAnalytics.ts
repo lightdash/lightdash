@@ -1,6 +1,7 @@
 /// <reference path="../@types/rudder-sdk-node.d.ts" />
 import {
     Account,
+    AdminNotificationType,
     AI_WRITEBACK_STAGES,
     AnyType,
     CacheMetadata,
@@ -284,6 +285,15 @@ type UserJoinOrganizationEvent = BaseTrack & {
         organizationId: string;
         role: OrganizationMemberRole;
         projectIds: string[];
+    };
+};
+
+type UserLeftOrganizationEvent = BaseTrack & {
+    event: 'user.left_organization';
+    userId: string;
+    properties: {
+        organizationId: string;
+        wasOrganizationAdmin: boolean;
     };
 };
 
@@ -616,6 +626,16 @@ type UpdateSavedChartEvent = BaseTrack & {
         tableCalculationFunctions: string[];
         hasAverageDistinctAdditionalMetric: boolean;
         numCustomGroupBinCustomDimensions: number;
+    };
+};
+
+type SavedChartExploreChangedEvent = BaseTrack & {
+    event: 'saved_chart.explore_changed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        savedChartId: string;
     };
 };
 type DeleteSavedChartEvent = BaseTrack & {
@@ -2437,6 +2457,16 @@ export type RenameResourceEvent = BaseTrack & {
     };
 };
 
+type AdminNotificationSentEvent = BaseTrack & {
+    event: 'admin_notification.sent';
+    userId?: string;
+    properties: {
+        organizationId: string;
+        projectId: string | undefined;
+        notificationType: AdminNotificationType;
+    };
+};
+
 export type SupportShareEvent = BaseTrack & {
     event: 'support.share';
     userId: string;
@@ -2753,6 +2783,7 @@ type TypedEvent =
     | OnboardingStepCompletedEvent
     | SetupInviteAcceptedEvent
     | UserJoinOrganizationEvent
+    | UserLeftOrganizationEvent
     | QueryExecutionEvent
     | QueryReadyEvent
     | QueryErrorEvent
@@ -2766,6 +2797,7 @@ type TypedEvent =
     | ResultsCacheDeleteEvent
     | ModeDashboardChartEvent
     | UpdateSavedChartEvent
+    | SavedChartExploreChangedEvent
     | DeleteSavedChartEvent
     | RestoredSavedChartEvent
     | FormulaTableCalculationSavedEvent
@@ -2840,6 +2872,7 @@ type TypedEvent =
     | GroupCreateAndUpdateEvent
     | GroupDeleteEvent
     | ConditionalFormattingRuleSavedEvent
+    | AdminNotificationSentEvent
     | ViewSqlChart
     | CreateSqlChartEvent
     | UpdateSqlChartEvent
