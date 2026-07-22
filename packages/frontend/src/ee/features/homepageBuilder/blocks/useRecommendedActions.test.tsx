@@ -103,6 +103,31 @@ describe('useRecommendedActions', () => {
         });
     });
 
+    it('shows no source-control annotation when nothing is connected', () => {
+        vi.mocked(useApp).mockReturnValue({
+            health: { data: { hasGitlab: true } },
+            user: {
+                data: {
+                    ability: { can: () => true },
+                },
+            },
+        } as unknown as ReturnType<typeof useApp>);
+
+        const { result } = renderHook(() =>
+            useRecommendedActions('project-uuid'),
+        );
+
+        expect(
+            result.current.statuses['connect-source-control'].isVisible,
+        ).toBe(true);
+        expect(
+            result.current.statuses['connect-source-control'].isComplete,
+        ).toBe(false);
+        expect(
+            result.current.statuses['connect-source-control'].annotation,
+        ).toBeNull();
+    });
+
     describe('on a playground project', () => {
         beforeEach(() => {
             vi.mocked(useOrganization).mockReturnValue({

@@ -104,7 +104,11 @@ const useActionStatuses = (
         'connect-source-control': {
             isVisible: hasGithub || hasGitlab,
             isComplete: isGithubConnected || isGitlabConnected,
-            annotation: isGithubConnected ? 'GitHub' : 'GitLab',
+            annotation: isGithubConnected
+                ? 'GitHub'
+                : isGitlabConnected
+                  ? 'GitLab'
+                  : null,
             doneIcon: null,
             url: '/generalSettings/integrations',
         },
