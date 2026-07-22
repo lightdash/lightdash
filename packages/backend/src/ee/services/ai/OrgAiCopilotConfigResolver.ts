@@ -17,6 +17,16 @@ import { keyGrantsModel } from './models/presets';
 
 export type CopilotConfig = AiCopilotConfigSchemaType;
 
+/**
+ * A copilot config resolved for a specific org, annotated with which providers
+ * are served by the org's own self-managed (BYO) key. `byoProviders` is empty
+ * for the instance (Lightdash-managed) config. The model builders read it to
+ * stamp `keyManagement` onto usage analytics.
+ */
+export type ResolvedCopilotConfig = CopilotConfig & {
+    byoProviders: ByoAiProvider[];
+};
+
 // Review turns run on a fast Anthropic model; a BYO Anthropic key must be able
 // to serve it for reviews to run on the org's own key instead of being paused.
 const REVIEW_JUDGE_ANTHROPIC_MODEL = 'claude-haiku-4-5';
@@ -55,7 +65,7 @@ export const resolveEffectiveModelVisibility = (
 export const overlayOrgProviderApiKeys = (
     config: CopilotConfig,
     orgKeys: AiOrgProviderApiKeys,
-): CopilotConfig => {
+): ResolvedCopilotConfig => {
     const providers = { ...config.providers };
 
     if (orgKeys.anthropic && providers.anthropic) {
@@ -86,7 +96,12 @@ export const overlayOrgProviderApiKeys = (
             ? usableByoProviders[0]
             : config.defaultProvider;
 
-    return { ...config, providers, defaultProvider };
+    return {
+        ...config,
+        providers,
+        defaultProvider,
+        byoProviders: usableByoProviders,
+    };
 };
 
 type Dependencies = {
@@ -126,15 +141,16 @@ export class OrgAiCopilotConfigResolver {
 
     async getCopilotConfig(
         organizationUuid: string | null | undefined,
-    ): Promise<CopilotConfig> {
+    ): Promise<ResolvedCopilotConfig> {
         const base = this.lightdashConfig.ai.copilot;
-        if (!organizationUuid) return base;
-        if (!(await this.isEnabled(organizationUuid))) return base;
+        const managed: ResolvedCopilotConfig = { ...base, byoProviders: [] };
+        if (!organizationUuid) return managed;
+        if (!(await this.isEnabled(organizationUuid))) return managed;
         const orgKeys =
             await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
                 organizationUuid,
             );
-        if (!orgKeys) return base;
+        if (!orgKeys) return managed;
         return overlayOrgProviderApiKeys(base, orgKeys);
     }
 
@@ -151,15 +167,16 @@ export class OrgAiCopilotConfigResolver {
      */
     async getClaudeCodeConfig(
         organizationUuid: string | null | undefined,
-    ): Promise<CopilotConfig> {
+    ): Promise<ResolvedCopilotConfig> {
         const base = this.lightdashConfig.ai.copilot;
-        if (!organizationUuid) return base;
-        if (!(await this.isEnabled(organizationUuid))) return base;
+        const managed: ResolvedCopilotConfig = { ...base, byoProviders: [] };
+        if (!organizationUuid) return managed;
+        if (!(await this.isEnabled(organizationUuid))) return managed;
         const orgKeys =
             await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
                 organizationUuid,
             );
-        if (!orgKeys) return base;
+        if (!orgKeys) return managed;
         const overlaid = overlayOrgProviderApiKeys(base, orgKeys);
         return {
             ...overlaid,

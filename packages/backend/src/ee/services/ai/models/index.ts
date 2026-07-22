@@ -7,6 +7,7 @@ import {
     type ByoAiProvider,
 } from '@lightdash/common';
 import { simulateStreamingMiddleware, wrapLanguageModel } from 'ai';
+import type { AiKeyManagement } from '../../../../analytics/aiUsage';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import Logger from '../../../../logging/logger';
 import { getAnthropicModel } from './anthropic-claude';
@@ -24,6 +25,33 @@ import {
 import { AiModel, AiProvider } from './types';
 
 export { MODEL_PRESETS };
+
+/**
+ * Copilot config as consumed by the model builders. `byoProviders` is stamped
+ * by the resolver (OrgAiCopilotConfigResolver) listing the providers whose
+ * apiKey came from the org's own self-managed key; absent/empty for the
+ * instance (Lightdash-managed) config. Optional so the raw instance config is
+ * still a valid input (it resolves to Lightdash-managed).
+ */
+export type CopilotConfigForModel = LightdashConfig['ai']['copilot'] & {
+    byoProviders?: ByoAiProvider[];
+};
+
+export const resolveKeyManagement = (
+    config: CopilotConfigForModel,
+    provider: AiProvider,
+): AiKeyManagement =>
+    isByoAiProvider(provider) && (config.byoProviders ?? []).includes(provider)
+        ? 'self-managed'
+        : 'lightdash-managed';
+
+const withKeyManagement = <P extends AiProvider>(
+    modelProperties: AiModel<P>,
+    keyManagement: AiKeyManagement,
+): AiModel<P> & { keyManagement: AiKeyManagement } => ({
+    ...modelProperties,
+    keyManagement,
+});
 
 // Fast models for lightweight tasks (text generation, summaries, etc.)
 // These are cheaper and faster than default models
@@ -268,7 +296,7 @@ export const applyStreamingCapability = <P extends AiProvider>(
 };
 
 export const getModel = (
-    config: LightdashConfig['ai']['copilot'],
+    config: CopilotConfigForModel,
     options?: {
         enableReasoning?: boolean;
         modelName?: string;
@@ -281,6 +309,7 @@ export const getModel = (
     },
 ) => {
     const provider = options?.provider ?? config.defaultProvider;
+    const keyManagement = resolveKeyManagement(config, provider);
 
     // Resolve model name: explicit > fast > default
     const resolveModelName = (
@@ -296,11 +325,14 @@ export const getModel = (
                 config,
                 resolveModelName('openai'),
             );
-            return applyStreamingCapability(
-                getOpenaiGptmodel(openaiConfig, preset, {
-                    enableReasoning: options?.enableReasoning,
-                }),
-                openaiConfig.supportsStreaming,
+            return withKeyManagement(
+                applyStreamingCapability(
+                    getOpenaiGptmodel(openaiConfig, preset, {
+                        enableReasoning: options?.enableReasoning,
+                    }),
+                    openaiConfig.supportsStreaming,
+                ),
+                keyManagement,
             );
         }
         case 'azure': {
@@ -309,9 +341,12 @@ export const getModel = (
                 throw new ParameterError('Azure configuration is required');
             }
             // Azure doesn't use presets - uses deployment name directly
-            return applyStreamingCapability(
-                getAzureGpt41Model(azureConfig),
-                azureConfig.supportsStreaming,
+            return withKeyManagement(
+                applyStreamingCapability(
+                    getAzureGpt41Model(azureConfig),
+                    azureConfig.supportsStreaming,
+                ),
+                keyManagement,
             );
         }
         case 'anthropic': {
@@ -320,11 +355,14 @@ export const getModel = (
                 config,
                 resolveModelName('anthropic'),
             );
-            return applyStreamingCapability(
-                getAnthropicModel(anthropicConfig, preset, {
-                    enableReasoning: options?.enableReasoning,
-                }),
-                anthropicConfig.supportsStreaming,
+            return withKeyManagement(
+                applyStreamingCapability(
+                    getAnthropicModel(anthropicConfig, preset, {
+                        enableReasoning: options?.enableReasoning,
+                    }),
+                    anthropicConfig.supportsStreaming,
+                ),
+                keyManagement,
             );
         }
         case 'openrouter': {
@@ -335,9 +373,12 @@ export const getModel = (
                 );
             }
             // OpenRouter doesn't use presets - uses model name directly
-            return applyStreamingCapability(
-                getOpenRouterModel(openrouterConfig),
-                openrouterConfig.supportsStreaming,
+            return withKeyManagement(
+                applyStreamingCapability(
+                    getOpenRouterModel(openrouterConfig),
+                    openrouterConfig.supportsStreaming,
+                ),
+                keyManagement,
             );
         }
         case 'bedrock': {
@@ -346,11 +387,14 @@ export const getModel = (
                 config,
                 resolveModelName('bedrock'),
             );
-            return applyStreamingCapability(
-                getBedrockModel(bedrockConfig, preset, {
-                    enableReasoning: options?.enableReasoning,
-                }),
-                bedrockConfig.supportsStreaming,
+            return withKeyManagement(
+                applyStreamingCapability(
+                    getBedrockModel(bedrockConfig, preset, {
+                        enableReasoning: options?.enableReasoning,
+                    }),
+                    bedrockConfig.supportsStreaming,
+                ),
+                keyManagement,
             );
         }
         default:
@@ -364,7 +408,7 @@ export const getModel = (
 // Otherwise fall back to the standard fast-model selection. Never resolves to a
 // provider the org didn't supply (defaultProvider is already switched upstream).
 export const getFastModelForAccessibleKey = (
-    config: LightdashConfig['ai']['copilot'],
+    config: CopilotConfigForModel,
     accessibleModelIds: string[] | null,
     options?: { enableReasoning?: boolean },
 ) => {
@@ -372,11 +416,14 @@ export const getFastModelForAccessibleKey = (
     if (anthropic?.apiKey) {
         const preset = pickAmbientAnthropicPreset(accessibleModelIds);
         if (preset) {
-            return applyStreamingCapability(
-                getAnthropicModel(anthropic, preset, {
-                    enableReasoning: options?.enableReasoning,
-                }),
-                anthropic.supportsStreaming,
+            return withKeyManagement(
+                applyStreamingCapability(
+                    getAnthropicModel(anthropic, preset, {
+                        enableReasoning: options?.enableReasoning,
+                    }),
+                    anthropic.supportsStreaming,
+                ),
+                resolveKeyManagement(config, 'anthropic'),
             );
         }
     }

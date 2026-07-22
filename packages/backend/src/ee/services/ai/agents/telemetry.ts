@@ -31,6 +31,7 @@ export const getAgentTelemetryConfig = (
         userId,
         telemetryEnabled,
         model,
+        keyManagement,
     }: Pick<
         AiAgentArgs,
         | 'agentSettings'
@@ -40,6 +41,7 @@ export const getAgentTelemetryConfig = (
         | 'userId'
         | 'telemetryEnabled'
         | 'model'
+        | 'keyManagement'
     >,
     feature: AiCallFeature = 'agent',
 ) =>
@@ -53,5 +55,6 @@ export const getAgentTelemetryConfig = (
         promptUuid,
         userUuid: userId,
         ...getLanguageModelAttribution(model),
+        keyManagement,
         recordIO: telemetryEnabled,
     });

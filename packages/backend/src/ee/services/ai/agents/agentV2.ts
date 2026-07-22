@@ -361,6 +361,7 @@ export const getAgentTools = (
                 userId: args.userId,
                 telemetryEnabled: args.telemetryEnabled,
                 model: args.model,
+                keyManagement: args.keyManagement,
             },
         },
         {

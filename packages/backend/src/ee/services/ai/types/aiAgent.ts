@@ -10,6 +10,7 @@ import {
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
 import { ModelMessage } from 'ai';
+import { AiKeyManagement } from '../../../../analytics/aiUsage';
 import type { AiMcpCredentialPayload } from '../../../models/AiAgentModel';
 import { AiModel, AiProvider } from '../models/types';
 import { AiAgentSkillReference } from '../skills/types';
@@ -101,6 +102,9 @@ export type AiAgentRequestingUser = {
 };
 
 export type AiAgentArgs = AnyAiModel & {
+    // Whether this turn runs on a Lightdash-managed or self-managed (BYO) key.
+    // Stamped by the model builder and carried through for usage analytics.
+    keyManagement: AiKeyManagement;
     agentSettings: AiAgent;
     requestingUser: AiAgentRequestingUser | null;
     knowledgeDocuments: AiAgentDocumentContext[];
