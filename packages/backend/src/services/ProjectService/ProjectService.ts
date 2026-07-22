@@ -3484,20 +3484,18 @@ export class ProjectService extends BaseService {
                         // combined explore set as "Refresh dbt".
                         let compileAdapter = primaryAdapter;
                         try {
-                            const resolvedCompileAdapter =
-                                await this.resolveCompileAdapter({
-                                    projectUuid,
-                                    organizationUuid: user.organizationUuid,
-                                    userUuid: user.userUuid,
-                                    primary: {
-                                        adapter: primaryAdapter,
-                                        warehouseCredentials,
-                                        cachedWarehouse,
-                                        dbtVersionOption,
-                                    },
-                                    manifestFetchAdapters,
-                                });
-                            compileAdapter = resolvedCompileAdapter.adapter;
+                            compileAdapter = await this.resolveCompileAdapter({
+                                projectUuid,
+                                organizationUuid: user.organizationUuid,
+                                userUuid: user.userUuid,
+                                primary: {
+                                    adapter: primaryAdapter,
+                                    warehouseCredentials,
+                                    cachedWarehouse,
+                                    dbtVersionOption,
+                                },
+                                manifestFetchAdapters,
+                            });
                             const trackingParams = {
                                 projectUuid,
                                 organizationUuid: user.organizationUuid,
@@ -4391,6 +4389,7 @@ export class ProjectService extends BaseService {
         userUuid,
         primary,
         manifestFetchAdapters,
+        onDbtSourceCount,
     }: {
         projectUuid: string;
         organizationUuid: string | undefined;
@@ -4402,30 +4401,31 @@ export class ProjectService extends BaseService {
             dbtVersionOption: DbtVersionOption;
         };
         manifestFetchAdapters: ProjectAdapter[];
-    }): Promise<{ adapter: ProjectAdapter; dbtSourceCount: number }> {
+        onDbtSourceCount?: (dbtSourceCount: number) => void;
+    }): Promise<ProjectAdapter> {
         const { enabled: multiDbtSourcesEnabled } =
             await this.featureFlagModel.get({
                 featureFlagId: FeatureFlags.MultiDbtSources,
                 user: { userUuid, organizationUuid },
             });
         if (!multiDbtSourcesEnabled) {
-            return { adapter: primary.adapter, dbtSourceCount: 1 };
+            onDbtSourceCount?.(1);
+            return primary.adapter;
         }
         const sources =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         if (sources.length === 0) {
-            return { adapter: primary.adapter, dbtSourceCount: 1 };
+            onDbtSourceCount?.(1);
+            return primary.adapter;
         }
-        return {
-            adapter: await this.buildMergedManifestAdapter({
-                projectUuid,
-                organizationUuid,
-                primary,
-                sources,
-                manifestFetchAdapters,
-            }),
-            dbtSourceCount: sources.length + 1,
-        };
+        onDbtSourceCount?.(sources.length + 1);
+        return this.buildMergedManifestAdapter({
+            projectUuid,
+            organizationUuid,
+            primary,
+            sources,
+            manifestFetchAdapters,
+        });
     }
 
     /**
@@ -6442,14 +6442,17 @@ export class ProjectService extends BaseService {
             // compiling, so cross-source ref()/joins resolve and the explore set is
             // the union of all sources. A project with zero registered sources runs
             // the unchanged single-source path (N=0 short-circuit / regression firewall).
-            const resolvedCompileAdapter = await this.resolveCompileAdapter({
+            let dbtSourceCount = 1;
+            adapter = await this.resolveCompileAdapter({
                 projectUuid,
                 organizationUuid: project.organizationUuid,
                 userUuid: user.userUuid,
                 primary: buildResult,
                 manifestFetchAdapters,
+                onDbtSourceCount: (count) => {
+                    dbtSourceCount = count;
+                },
             });
-            adapter = resolvedCompileAdapter.adapter;
             const packages = await adapter.getDbtPackages();
             const trackingParams = {
                 projectUuid,
@@ -6586,7 +6589,7 @@ export class ProjectService extends BaseService {
                         },
                         0,
                     ),
-                    dbtSourceCount: resolvedCompileAdapter.dbtSourceCount,
+                    dbtSourceCount,
                 },
             });
 
