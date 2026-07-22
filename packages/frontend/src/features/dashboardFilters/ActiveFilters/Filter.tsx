@@ -113,7 +113,7 @@ const Filter: FC<Props> = ({
                 properties: {
                     action: isLocked ? 'unlock' : 'lock',
                     dashboardUuid: dashboard?.uuid,
-                    tabUuid: hasTabs ? (activeTabUuid ?? null) : null,
+                    tabUuid: hasTabs ? activeTabUuid : undefined,
                     fieldId: filterRule.target.fieldId,
                     tableName: filterRule.target.tableName,
                 },

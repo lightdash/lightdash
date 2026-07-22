@@ -576,7 +576,7 @@ type DashboardFilterLockToggledEvent = {
     properties: {
         action: 'lock' | 'unlock';
         dashboardUuid: string | undefined;
-        tabUuid: string | null;
+        tabUuid: string | undefined;
         fieldId: string;
         tableName: string;
     };
