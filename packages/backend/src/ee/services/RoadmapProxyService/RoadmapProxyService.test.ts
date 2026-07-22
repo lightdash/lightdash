@@ -116,6 +116,29 @@ describe('RoadmapProxyService', () => {
         );
     });
 
+    it('serves exactly the allowlisted fields when upstream adds extras', async () => {
+        fetchMock.mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            json: async () => ({
+                status: 'ok',
+                results: [{ ...curatedItem, id: 'leak', sortOrder: 3 }],
+            }),
+        });
+        const service = buildService(createFeatureFlagService(true));
+
+        const items = await service.getRoadmapForUser(user);
+
+        expect(items).toEqual([curatedItem]);
+        expect(Object.keys(items[0]).sort()).toEqual([
+            'description',
+            'issueUrl',
+            'pullRequestUrl',
+            'status',
+            'title',
+        ]);
+    });
+
     it('excludes items the redaction checkpoint rejects', async () => {
         fetchMock.mockResolvedValueOnce({
             ok: true,
