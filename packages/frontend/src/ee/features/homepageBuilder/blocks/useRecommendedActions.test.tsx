@@ -1,8 +1,4 @@
-import {
-    FeatureFlags,
-    ProjectType,
-    type OrganizationProject,
-} from '@lightdash/common';
+import { ProjectType, type OrganizationProject } from '@lightdash/common';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useGithubConfig } from '../../../../components/common/GithubIntegration/hooks/useGithubIntegration';
 import { useGitlabRepositories } from '../../../../components/common/GitlabIntegration/hooks/useGitlabIntegration';
@@ -164,28 +160,11 @@ describe('useRecommendedActions', () => {
     });
 
     describe('add-semantic-layer destination', () => {
-        it('links to the agent setup flow when both flags are enabled', () => {
+        it('links to the project settings page even with all flags enabled', () => {
             vi.mocked(useServerFeatureFlag).mockImplementation(
                 () =>
                     ({
                         data: { enabled: true },
-                    }) as ReturnType<typeof useServerFeatureFlag>,
-            );
-
-            const { result } = renderHook(() =>
-                useRecommendedActions('project-uuid'),
-            );
-
-            expect(
-                result.current.statuses['add-semantic-layer'].url,
-            ).toStrictEqual('/createProject/agent');
-        });
-
-        it('keeps the settings link when coding-agent onboarding is disabled', () => {
-            vi.mocked(useServerFeatureFlag).mockImplementation(
-                (flag) =>
-                    ({
-                        data: { enabled: flag === FeatureFlags.NewOnboarding },
                     }) as ReturnType<typeof useServerFeatureFlag>,
             );
 
@@ -200,14 +179,11 @@ describe('useRecommendedActions', () => {
             );
         });
 
-        it('keeps the settings link when new-onboarding is disabled', () => {
+        it('links to the project settings page with flags disabled', () => {
             vi.mocked(useServerFeatureFlag).mockImplementation(
-                (flag) =>
+                () =>
                     ({
-                        data: {
-                            enabled:
-                                flag === FeatureFlags.CodingAgentOnboarding,
-                        },
+                        data: { enabled: false },
                     }) as ReturnType<typeof useServerFeatureFlag>,
             );
 

@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    FeatureFlags,
     DbtProjectType,
     DbtProjectTypeLabels,
     ProjectType,
@@ -17,7 +16,6 @@ import { useOrganization } from '../../../../hooks/organization/useOrganization'
 import { useGetSlack } from '../../../../hooks/slack/useSlack';
 import { useProject } from '../../../../hooks/useProject';
 import { useProjects } from '../../../../hooks/useProjects';
-import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../providers/App/useApp';
 import { isPlaygroundProvisioningSource } from '../../../../utils/playgroundProject';
 import {
@@ -43,13 +41,6 @@ const useActionStatuses = (
     const { data: projects } = useProjects();
     const { data: githubConfig } = useGithubConfig();
     const { data: slack, isSuccess: isSlackSuccess } = useGetSlack();
-    const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
-    const codingAgentOnboardingFlag = useServerFeatureFlag(
-        FeatureFlags.CodingAgentOnboarding,
-    );
-    const hasAgentSemanticLayerEntry =
-        newOnboardingFlag.data?.enabled === true &&
-        codingAgentOnboardingFlag.data?.enabled === true;
 
     const hasGithub = !!health.data?.hasGithub;
     const hasGitlab = !!health.data?.hasGitlab;
@@ -97,9 +88,10 @@ const useActionStatuses = (
                 ? DbtProjectTypeLabels[dbtConnection.type]
                 : null,
             doneIcon: null,
-            url: hasAgentSemanticLayerEntry
-                ? '/createProject/agent'
-                : `/generalSettings/projectManagement/${projectUuid}/settings`,
+            // Always the settings page: /createProject/agent cannot serve an
+            // existing project — it re-asks for a warehouse and provisions a
+            // new project instead of attaching the semantic layer (PROD-9156).
+            url: `/generalSettings/projectManagement/${projectUuid}/settings`,
         },
         'connect-source-control': {
             isVisible: hasGithub || hasGitlab,
