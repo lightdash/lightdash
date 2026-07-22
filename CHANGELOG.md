@@ -1,3 +1,16 @@
+# [0.3453.0](https://github.com/lightdash/lightdash/compare/0.3452.0...0.3453.0) (2026-07-22)
+
+
+### Bug Fixes
+
+* prevent empty previews when access copy fails ([#25931](https://github.com/lightdash/lightdash/issues/25931)) ([77aa8e3](https://github.com/lightdash/lightdash/commit/77aa8e36d497f635de3b160321cd83c8a5ab9910))
+
+
+### Features
+
+* allow adding data apps and spaces to collection block ([#25918](https://github.com/lightdash/lightdash/issues/25918)) ([7d7ce11](https://github.com/lightdash/lightdash/commit/7d7ce111f3b77ab54dcd85ee66a3e12c3373bdda)), closes [/linear.app/lightdash/issue/ZAP-683/collection-block-allow-adding-data-apps-and-spaces#agent-session-573c6642](https://github.com//linear.app/lightdash/issue/ZAP-683/collection-block-allow-adding-data-apps-and-spaces/issues/agent-session-573c6642)
+* **backend:** playground provisioning schema and unique onboarding rows ([#25941](https://github.com/lightdash/lightdash/issues/25941)) ([c4eae40](https://github.com/lightdash/lightdash/commit/c4eae40fb67b2c93e120e7741d4520a9be62379f))
+
 # [0.3452.0](https://github.com/lightdash/lightdash/compare/0.3451.0...0.3452.0) (2026-07-22)
 
 

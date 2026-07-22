@@ -8878,6 +8878,8 @@ const models: TsoaRoute.Models = {
                     subSchemas: [
                         { dataType: 'enum', enums: ['chart'] },
                         { dataType: 'enum', enums: ['dashboard'] },
+                        { dataType: 'enum', enums: ['space'] },
+                        { dataType: 'enum', enums: ['data_app'] },
                     ],
                     required: true,
                 },
@@ -42121,6 +42123,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 contentCopyError: { dataType: 'string' },
+                accessCopyError: { dataType: 'string' },
                 hasContentCopy: { dataType: 'boolean', required: true },
                 project: { ref: 'Project', required: true },
             },

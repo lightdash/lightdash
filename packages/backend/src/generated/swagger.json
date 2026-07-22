@@ -9516,7 +9516,7 @@
                     },
                     "contentType": {
                         "type": "string",
-                        "enum": ["chart", "dashboard"]
+                        "enum": ["chart", "dashboard", "space", "data_app"]
                     }
                 },
                 "required": ["uuid", "contentType"],
@@ -42235,6 +42235,9 @@
                     "contentCopyError": {
                         "type": "string"
                     },
+                    "accessCopyError": {
+                        "type": "string"
+                    },
                     "hasContentCopy": {
                         "type": "boolean"
                     },
@@ -49139,7 +49142,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3452.0",
+        "version": "0.3453.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
