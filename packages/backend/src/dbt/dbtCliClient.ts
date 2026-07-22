@@ -16,53 +16,12 @@ import {
 import * as Sentry from '@sentry/node';
 import execa, { ExecaError, ExecaReturnValue } from 'execa';
 import * as fs from 'fs/promises';
-import yaml, { dump as dumpYaml, load as loadYaml } from 'js-yaml';
+import yaml from 'js-yaml';
+import os from 'os';
 import path from 'path';
 import Logger from '../logging/logger';
 import { traceSpan } from '../tracing/tracing';
 import { DbtClient } from '../types';
-
-type DbtProjectConfig = {
-    targetDir: string;
-};
-
-type RawDbtProjectConfig = {
-    'target-path'?: string;
-    'target-dir'?: string;
-};
-
-const isRawDbtConfig = (raw: AnyType): raw is RawDbtProjectConfig =>
-    typeof raw === 'object' &&
-    raw !== null &&
-    (raw['target-dir'] === undefined || typeof raw['target-dir'] === 'string');
-
-export const getDbtConfig = async (
-    dbtProjectDirectory: string,
-): Promise<DbtProjectConfig> => {
-    let config;
-    const configPath = path.join(dbtProjectDirectory, 'dbt_project.yml');
-    try {
-        config = loadYaml(await fs.readFile(configPath, 'utf-8'));
-    } catch (e) {
-        throw new ParseError(
-            `dbt_project.yml was not found or isn't a valid yaml document: ${getErrorMessage(
-                e,
-            )}`,
-            {},
-        );
-    }
-    if (!isRawDbtConfig(config)) {
-        throw new Error('dbt_project.yml not valid');
-    }
-    const updatedConfig = {
-        ...config,
-        'target-path': 'target',
-    };
-    await fs.writeFile(configPath, dumpYaml(updatedConfig), 'utf-8');
-    return {
-        targetDir: '/target',
-    };
-};
 
 type DbtCliArgs = {
     dbtProjectDirectory: string;
@@ -126,12 +85,28 @@ export class DbtCliClient implements DbtClient {
         return this.selector;
     }
 
+    // Each client gets its own dbt target directory so that concurrent
+    // compilations of different projects — which share the same on-disk
+    // project dir — cannot overwrite each other's manifest.json. The path is
+    // passed to dbt via DBT_TARGET_PATH (see _runDbtCommand); the shared
+    // dbt_project.yml is never mutated.
     private async _getTargetDirectory(): Promise<string> {
         if (!this.targetDirectory) {
-            const config = await getDbtConfig(this.dbtProjectDirectory);
-            this.targetDirectory = config.targetDir;
+            this.targetDirectory = await fs.mkdtemp(
+                path.join(os.tmpdir(), 'dbt_target_'),
+            );
         }
         return this.targetDirectory;
+    }
+
+    async cleanup(): Promise<void> {
+        if (this.targetDirectory) {
+            await fs.rm(this.targetDirectory, {
+                recursive: true,
+                force: true,
+            });
+            this.targetDirectory = undefined;
+        }
     }
 
     static parseDbtJsonLogs(logs: string | undefined): DbtLog[] {
@@ -183,6 +158,7 @@ export class DbtCliClient implements DbtClient {
         stdout: string;
     }> {
         const dbtExec = this.getDbtExec();
+        const targetPath = await this._getTargetDirectory();
         const dbtArgs = [
             '--no-use-colors',
             '--log-format',
@@ -213,6 +189,7 @@ export class DbtCliClient implements DbtClient {
                 env: {
                     DBT_PARTIAL_PARSE: 'false', // Disable dbt from storing manifest and doing partial parses. https://docs.getdbt.com/reference/parsing#partial-parsing
                     DBT_SEND_ANONYMOUS_USAGE_STATS: 'false', // Disable sending usage stats. https://docs.getdbt.com/reference/global-configs/usage-stats
+                    DBT_TARGET_PATH: targetPath,
                     ...this.environment,
                 },
             });
@@ -385,11 +362,7 @@ export class DbtCliClient implements DbtClient {
     private async loadDbtTargetArtifact(filename: string): Promise<AnyType> {
         const targetDir = await this._getTargetDirectory();
 
-        const fullPath = path.join(
-            this.dbtProjectDirectory,
-            targetDir,
-            filename,
-        );
+        const fullPath = path.join(targetDir, filename);
         return DbtCliClient.loadDbtFile(fullPath);
     }
 

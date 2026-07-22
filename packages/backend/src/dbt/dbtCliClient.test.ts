@@ -3,10 +3,8 @@ import execa from 'execa';
 import * as fs from 'fs/promises';
 import { DbtCliClient } from './dbtCliClient';
 import {
-    catalogMock,
     cliArgs as cliArgsWithoutVersion,
     cliMockImplementation,
-    dbtProjectYml,
     expectedCommandOptions,
     expectedDbtOptions,
     expectedPackages,
@@ -19,6 +17,8 @@ const execaMock = execa as unknown as import('vitest').Mock;
 vi.mock('fs/promises', () => ({
     readFile: vi.fn(),
     writeFile: vi.fn(),
+    mkdtemp: vi.fn(),
+    rm: vi.fn(),
 }));
 vi.mock('execa');
 
@@ -30,6 +30,9 @@ Object.values(SupportedDbtVersions).map((dbtVersion) => {
     return describe(`DbtCliClient ${dbtVersion}`, () => {
         beforeEach(() => {
             vi.resetAllMocks();
+            vi.mocked(fs.mkdtemp).mockResolvedValue(
+                '/tmp/dbt_target_test' as never,
+            );
         });
         it('should install dependencies with success', async () => {
             execaMock.mockImplementationOnce(cliMockImplementation.success);
@@ -54,9 +57,6 @@ Object.values(SupportedDbtVersions).map((dbtVersion) => {
         });
         it('should get manifest with success', async () => {
             execaMock.mockImplementationOnce(cliMockImplementation.success);
-            vi.spyOn(fs, 'readFile').mockImplementationOnce(
-                async () => dbtProjectYml,
-            );
             vi.spyOn(fs, 'readFile').mockImplementationOnce(async () =>
                 JSON.stringify(manifestMock),
             );
