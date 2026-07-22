@@ -193,7 +193,6 @@ export const ItemDetailPreview: FC<{
                                 SQL
                             </Text>
                             <Tooltip
-                                variant="xs"
                                 position="right"
                                 label={
                                     showCompiled

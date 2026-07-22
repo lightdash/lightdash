@@ -739,11 +739,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                 className={classes.toolbar}
             >
                 <Group gap="xs" wrap="nowrap" flex={1} miw={0}>
-                    <Tooltip
-                        withinPortal
-                        variant="xs"
-                        label="Search by description"
-                    >
+                    <Tooltip withinPortal label="Search by description">
                         <TextInput
                             size="xs"
                             radius="md"
@@ -822,7 +818,6 @@ export const ServiceAccountsTable: FC<Props> = ({
                                 <Popover.Target>
                                     <Tooltip
                                         withinPortal
-                                        variant="xs"
                                         label="Filter by creator"
                                     >
                                         <Button

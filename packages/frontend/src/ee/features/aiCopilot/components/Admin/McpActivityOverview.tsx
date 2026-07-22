@@ -248,7 +248,6 @@ const RecentErrorsCard: FC<{
                             </Group>
                             <Tooltip
                                 withinPortal
-                                variant="xs"
                                 label={formatToolCallTimeFull(item.createdAt)}
                             >
                                 <Text

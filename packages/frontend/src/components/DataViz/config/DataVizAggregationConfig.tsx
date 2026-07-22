@@ -3,8 +3,7 @@ import {
     VizAggregationOptions,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
-import { Box, Group, Text, Select } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
+import { Box, Group, Text, Select, Tooltip } from '@mantine-8/core';
 import {
     IconAsterisk,
     IconMathFunction,
@@ -87,7 +86,7 @@ export const DataVizAggregationConfig: FC<Props> = ({
     }));
 
     return (
-        <Tooltip label="Aggregation type" variant="xs" withinPortal>
+        <Tooltip label="Aggregation type" withinPortal>
             <Select
                 allowDeselect={false}
                 comboboxProps={{ withinPortal: true }}

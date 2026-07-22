@@ -8,8 +8,9 @@ import {
     ActionIcon,
     Anchor,
     Modal,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip, useMantineTheme } from '@mantine/core';
+import { useMantineTheme } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { IconCheck, IconCopy, IconSpeakerphone } from '@tabler/icons-react';
 import { defaultContext } from '@tanstack/react-query';

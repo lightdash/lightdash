@@ -14,8 +14,15 @@ import {
     type ConditionalFormattingRowFields,
     type ResultRow,
 } from '@lightdash/common';
-import { Center, Group, Loader, Skeleton, Button } from '@mantine-8/core';
-import { Tooltip, useMantineColorScheme } from '@mantine/core';
+import {
+    Center,
+    Group,
+    Loader,
+    Skeleton,
+    Button,
+    Tooltip,
+} from '@mantine-8/core';
+import { useMantineColorScheme } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { flexRender, type Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';

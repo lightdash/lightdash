@@ -235,7 +235,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                             ? 'Review details'
                             : 'Thread preview'}
                     </Title>
-                    <Tooltip label="Open Thread" variant="xs" position="right">
+                    <Tooltip label="Open Thread" position="right">
                         <ActionIcon
                             variant="subtle"
                             color="gray"
@@ -256,11 +256,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                             variant="pill"
                         />
                     )}
-                    <Tooltip
-                        label="Open Agent Settings"
-                        variant="xs"
-                        position="right"
-                    >
+                    <Tooltip label="Open Agent Settings" position="right">
                         <ActionIcon
                             variant="subtle"
                             color="gray"

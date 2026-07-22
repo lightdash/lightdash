@@ -48,7 +48,6 @@ export const McpActivityDetail: FC<{ toolCall: McpActivityItem }> = ({
             value: (
                 <Tooltip
                     withinPortal
-                    variant="xs"
                     label={formatToolCallTimeFull(toolCall.createdAt)}
                 >
                     <Text fz="sm" display="inline-block">

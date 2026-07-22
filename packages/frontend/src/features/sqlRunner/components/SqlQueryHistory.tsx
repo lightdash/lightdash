@@ -6,8 +6,9 @@ import {
     UnstyledButton,
     HoverCard,
     Popover,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip, useMantineTheme } from '@mantine/core';
+import { useMantineTheme } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { Editor } from '@monaco-editor/react';
 import {
@@ -133,7 +134,7 @@ export const SqlQueryHistory: FC = () => {
     return (
         <Popover withinPortal>
             <Popover.Target>
-                <Tooltip variant="xs" label="SQL Query history">
+                <Tooltip label="SQL Query history">
                     <ActionIcon
                         variant="default"
                         size={32}

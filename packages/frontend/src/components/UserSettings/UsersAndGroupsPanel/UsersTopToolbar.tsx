@@ -42,7 +42,6 @@ export const UsersTopToolbar: FC<UsersTopToolbarProps> = memo(
                 <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
                     <Tooltip
                         withinPortal
-                        variant="xs"
                         label="Search by name, email, or role"
                     >
                         <TextInput

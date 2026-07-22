@@ -664,7 +664,6 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                 <Group gap="xs" wrap="nowrap">
                     <Tooltip
                         withinPortal
-                        variant="xs"
                         label="Search by name, email, or role"
                     >
                         <TextInput

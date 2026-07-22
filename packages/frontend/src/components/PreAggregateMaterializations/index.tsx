@@ -104,7 +104,7 @@ const StatusFilter: FC<{
     return (
         <Popover width={250} position="bottom-start">
             <Popover.Target>
-                <Tooltip withinPortal variant="xs" label="Filter by status">
+                <Tooltip withinPortal label="Filter by status">
                     <Button
                         h={32}
                         c="foreground"

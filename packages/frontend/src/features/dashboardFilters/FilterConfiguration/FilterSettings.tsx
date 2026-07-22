@@ -18,8 +18,9 @@ import {
     Text,
     Select,
     Switch,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip, type PopoverProps } from '@mantine/core';
+import { type PopoverProps } from '@mantine/core';
 import { IconHelpCircle, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
@@ -226,7 +227,6 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                 variant={'light'}
                                 rightSection={
                                     <Tooltip
-                                        variant="xs"
                                         label={
                                             filterRule.singleValue
                                                 ? 'Prevent selection of multiple values'

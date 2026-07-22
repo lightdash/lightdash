@@ -23,7 +23,6 @@ export const Display: React.FC = () => {
                         <Tooltip
                             withinPortal={true}
                             maw={350}
-                            variant="xs"
                             multiline
                             label="Any sections smaller than this will not be displayed. You can zoom in to see smaller sections."
                         >
@@ -50,7 +49,6 @@ export const Display: React.FC = () => {
                         <Tooltip
                             withinPortal={true}
                             maw={350}
-                            variant="xs"
                             multiline
                             label="The maximum depth of the treemap. If set, deeper levels can be viewed by clicking on nodes."
                         >

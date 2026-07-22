@@ -9,8 +9,9 @@ import {
     Group,
     SegmentedControl,
     Stack,
+    Tooltip,
 } from '@mantine-8/core';
-import { NumberInput, Tooltip } from '@mantine/core';
+import { NumberInput } from '@mantine/core';
 import { memo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
@@ -125,7 +126,6 @@ export const GaugeDisplayConfig: FC = memo(() => {
                                         <Tooltip
                                             label="Set the maximum value"
                                             withinPortal
-                                            variant="xs"
                                         >
                                             <Center>Value</Center>
                                         </Tooltip>
@@ -137,7 +137,6 @@ export const GaugeDisplayConfig: FC = memo(() => {
                                         <Tooltip
                                             label="Select a field to use as the maximum value"
                                             withinPortal
-                                            variant="xs"
                                         >
                                             <Center>Field</Center>
                                         </Tooltip>

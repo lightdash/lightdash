@@ -34,7 +34,6 @@ export const FeedbackFilter = ({
             value: 'thumbs_up',
             label: (
                 <Tooltip
-                    variant="xs"
                     label="Show only threads with positive feedback"
                     withinPortal
                     maw={200}
@@ -49,7 +48,6 @@ export const FeedbackFilter = ({
             value: 'thumbs_down',
             label: (
                 <Tooltip
-                    variant="xs"
                     label="Show only threads with negative feedback"
                     withinPortal
                     maw={200}

@@ -7,8 +7,7 @@ import {
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
 } from '@lightdash/common';
-import { Box, Group, Stack, ActionIcon } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
+import { Box, Group, Stack, ActionIcon, Tooltip } from '@mantine-8/core';
 import { IconMinus, IconPlus, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
@@ -104,7 +103,7 @@ const YFieldsAxisConfig: FC<{
                                     )
                                 }
                             />
-                            <Tooltip variant="xs" label="Remove Y axis">
+                            <Tooltip label="Remove Y axis">
                                 <ActionIcon
                                     color="ldGray.6"
                                     variant="subtle"
@@ -180,7 +179,7 @@ const XFieldAxisConfig = ({
                     )
                 }
             />
-            <Tooltip variant="xs" label="Remove X axis">
+            <Tooltip label="Remove X axis">
                 <ActionIcon
                     color="ldGray.6"
                     variant="subtle"
@@ -318,7 +317,7 @@ export const CartesianChartFieldConfiguration = ({
                 <Config.Section>
                     <Config.Group>
                         <Config.Heading>{`Y-axis`}</Config.Heading>
-                        <Tooltip variant="xs" label="Add Y axis">
+                        <Tooltip label="Add Y axis">
                             <ActionIcon
                                 color="ldGray.6"
                                 variant="subtle"

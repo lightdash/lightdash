@@ -1,5 +1,4 @@
-import { Button, Card, List } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
+import { Button, Card, List, Tooltip } from '@mantine-8/core';
 import { type SuggestionProps } from '@tiptap/suggestion';
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { type SuggestionsItem } from '../../types';

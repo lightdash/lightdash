@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags, isCustomSqlDimension } from '@lightdash/common';
-import { Button, Group, Text, ActionIcon } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
+import { Button, Group, Text, ActionIcon, Tooltip } from '@mantine-8/core';
 import { IconCode, IconPlus } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import {
@@ -166,7 +165,6 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
                 {showAddButton && (
                     <Tooltip
                         label="Add a custom dimension with SQL"
-                        variant="xs"
                         position="left"
                     >
                         <Button

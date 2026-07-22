@@ -8,8 +8,8 @@ import {
     ActionIcon,
     HoverCard,
     Menu,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
 import {
     IconArrowBack,
     IconDots,
@@ -236,7 +236,6 @@ export const HeaderEdit: FC = () => {
                             </Button>
                         ) : (
                             <Tooltip
-                                variant="xs"
                                 label="Back to view page"
                                 position="bottom"
                             >

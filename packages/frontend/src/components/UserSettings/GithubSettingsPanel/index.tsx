@@ -9,8 +9,8 @@ import {
     Title,
     Button,
     Avatar,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
 import {
     IconAlertCircle,
     IconClock,

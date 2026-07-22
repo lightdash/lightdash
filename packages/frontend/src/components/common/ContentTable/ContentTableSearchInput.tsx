@@ -90,7 +90,7 @@ const ContentTableSearchInputComponent = ({
     }
 
     return (
-        <Tooltip withinPortal variant="xs" label={tooltipLabel}>
+        <Tooltip withinPortal label={tooltipLabel}>
             {input}
         </Tooltip>
     );

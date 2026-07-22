@@ -1,0 +1,7 @@
+.header {
+    align-items: center;
+    box-sizing: border-box;
+    background-color: var(--mantine-color-dark-7);
+    border-bottom: 1px solid var(--mantine-color-dark-5);
+    box-shadow: var(--mantine-shadow-lg);
+}

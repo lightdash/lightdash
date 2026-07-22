@@ -13,8 +13,8 @@ import {
     ActionIcon,
     Highlight,
     ScrollArea,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
 import {
     IconChevronDown,
@@ -108,12 +108,11 @@ const TableItem: FC<TableItemProps> = memo(
                 >
                     <Tooltip
                         withinPortal
-                        variant="xs"
                         label={table}
                         disabled={!isTruncated}
                         multiline
                         maw={300}
-                        sx={{
+                        style={{
                             wordBreak: 'break-word',
                         }}
                     >
@@ -147,7 +146,6 @@ const TableItem: FC<TableItemProps> = memo(
                     <CopyButton value={`${quotedTable}`}>
                         {({ copied, copy }) => (
                             <Tooltip
-                                variant="xs"
                                 label={copied ? 'Copied to clipboard' : 'Copy'}
                                 withArrow
                                 position="right"

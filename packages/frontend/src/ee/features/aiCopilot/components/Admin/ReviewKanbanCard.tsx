@@ -146,7 +146,6 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                         </Stack>
                         <Group gap={8} wrap="nowrap" align="center">
                             <Tooltip
-                                variant="xs"
                                 position="top"
                                 label={`First seen ${formatReviewDate(
                                     item.firstSeenAt,

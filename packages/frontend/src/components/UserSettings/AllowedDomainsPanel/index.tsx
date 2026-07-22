@@ -15,8 +15,8 @@ import {
     ActionIcon,
     Group,
     Select,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';

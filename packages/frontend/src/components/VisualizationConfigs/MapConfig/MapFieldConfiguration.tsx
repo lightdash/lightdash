@@ -1,6 +1,5 @@
 import { getItemLabelWithoutTableName } from '@lightdash/common';
-import { TextInput, Box, Group, ActionIcon } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
+import { TextInput, Box, Group, ActionIcon, Tooltip } from '@mantine-8/core';
 import { useDebouncedState } from '@mantine/hooks';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';

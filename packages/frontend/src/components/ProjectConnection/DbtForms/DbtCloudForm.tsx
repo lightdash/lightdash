@@ -9,8 +9,8 @@ import {
     Stack,
     PasswordInput,
     Text,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
 import {
     IconCheck,
     IconCopy,

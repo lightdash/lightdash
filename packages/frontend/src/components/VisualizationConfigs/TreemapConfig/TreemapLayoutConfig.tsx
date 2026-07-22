@@ -8,8 +8,16 @@ import {
     type Metric,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Grid, Group, Stack, Switch, Text } from '@mantine-8/core';
-import { NumberInput, Tooltip } from '@mantine/core';
+import {
+    Box,
+    Grid,
+    Group,
+    Stack,
+    Switch,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
+import { NumberInput } from '@mantine/core';
 import { IconHelpCircle } from '@tabler/icons-react';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
@@ -108,7 +116,6 @@ export const Layout: React.FC = () => {
                         <Tooltip
                             withinPortal={true}
                             maw={350}
-                            variant="xs"
                             multiline
                             label="Drag and drop your dimensions to order them hierarchically."
                         >
@@ -151,7 +158,6 @@ export const Layout: React.FC = () => {
                         <Tooltip
                             withinPortal={true}
                             maw={350}
-                            variant="xs"
                             multiline
                             label="Determines how large each block is."
                         >
@@ -192,7 +198,6 @@ export const Layout: React.FC = () => {
                         <Tooltip
                             withinPortal={true}
                             maw={350}
-                            variant="xs"
                             multiline
                             label="Dynamically set the color of the nodes based on a metric. If not set, the treemap will use a default color scheme."
                         >

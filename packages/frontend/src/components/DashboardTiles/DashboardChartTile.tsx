@@ -44,8 +44,9 @@ import {
     Badge,
     HoverCard,
     Portal,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip, useMantineColorScheme } from '@mantine/core';
+import { useMantineColorScheme } from '@mantine/core';
 import { useClipboard, useElementSize } from '@mantine/hooks';
 import {
     IconAlertCircle,
@@ -1516,7 +1517,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                 <Tooltip
                                     disabled={!isEditMode}
                                     label="Finish editing dashboard to use these actions"
-                                    variant="xs"
                                 >
                                     <Box>
                                         <Tooltip
@@ -1525,7 +1525,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                             }
                                             label={editButtonTooltipLabel}
                                             position="top-start"
-                                            variant="xs"
                                         >
                                             <Box>
                                                 <EditChartMenuItem
@@ -1545,7 +1544,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                         'This chart contains custom dimensions, you will not be able to run custom SQL on explore.'
                                                     }
                                                     position="top-start"
-                                                    variant="xs"
                                                     disabled={
                                                         !cannotUseCustomDimensions
                                                     }

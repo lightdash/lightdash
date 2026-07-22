@@ -7,8 +7,7 @@ import {
     isMetric,
     type FilterableField,
 } from '@lightdash/common';
-import { UnstyledButton, ActionIcon } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
+import { UnstyledButton, ActionIcon, Tooltip } from '@mantine-8/core';
 import { IconFilter } from '@tabler/icons-react';
 import {
     Fragment,
