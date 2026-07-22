@@ -591,6 +591,16 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
         const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'create',
+                subject('InviteLink', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User does not have permission to create invite links',
+            );
+        }
         return this.provisionPlaygroundProject({
             user,
             projectService: this,

@@ -1,4 +1,3 @@
-import { subject } from '@casl/ability';
 import {
     ApiColorPaletteResponse,
     ApiColorPalettesResponse,
@@ -21,7 +20,6 @@ import {
     CreateColorPalette,
     CreateGroup,
     CreateOrganization,
-    ForbiddenError,
     getRequestMethod,
     KnexPaginateArgs,
     LightdashRequestMethodHeader,
@@ -800,18 +798,6 @@ export class OrganizationController extends BaseController {
     ): Promise<ApiEnsurePlaygroundProjectResponse> {
         assertRegisteredAccount(req.account);
         const user = toSessionUser(req.account);
-        if (
-            user.ability.cannot(
-                'create',
-                subject('InviteLink', {
-                    organizationUuid: user.organizationUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'User does not have permission to create invite links',
-            );
-        }
         return {
             status: 'ok',
             results: await this.services
