@@ -384,16 +384,18 @@ export class DashboardService
     static getCreateEventProperties(
         dashboard: DashboardDAO,
     ): CreateDashboardOrVersionEvent['properties'] {
+        const dimensionFilterCount = dashboard.filters?.dimensions?.length ?? 0;
+        const metricFilterCount = dashboard.filters?.metrics?.length ?? 0;
+
         return {
             title: dashboard.name,
             description: dashboard.description,
 
             projectId: dashboard.projectUuid,
             dashboardId: dashboard.uuid,
-            filtersCount: dashboard.filters
-                ? dashboard.filters.metrics.length +
-                  dashboard.filters.dimensions.length
-                : 0,
+            filtersCount: dimensionFilterCount + metricFilterCount,
+            dimensionFilterCount,
+            metricFilterCount,
             tilesCount: dashboard.tiles.length,
             chartTilesCount: dashboard.tiles.filter(
                 ({ type }) => type === DashboardTileTypes.SAVED_CHART,
@@ -1497,8 +1499,18 @@ export class DashboardService
                         (tile) => tile.type === DashboardTileTypes.LOOM,
                     ).length,
                     filtersCount:
-                        updatedDashboard.filters.dimensions.length +
-                        updatedDashboard.filters.metrics.length,
+                        (updatedDashboard.filters?.dimensions?.length ?? 0) +
+                        (updatedDashboard.filters?.metrics?.length ?? 0),
+                    dimensionFilterCount:
+                        updatedDashboard.filters?.dimensions?.length ?? 0,
+                    metricFilterCount:
+                        updatedDashboard.filters?.metrics?.length ?? 0,
+                    lockedFilterCount: [
+                        ...(updatedDashboard.filters?.dimensions ?? []),
+                        ...(updatedDashboard.filters?.metrics ?? []),
+                    ].filter(
+                        (filter) => (filter.lockedTabUuids?.length ?? 0) > 0,
+                    ).length,
                 },
             });
         }

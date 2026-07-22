@@ -926,6 +926,9 @@ type UpdatedDashboardEvent = BaseTrack & {
         markdownTilesCount: number;
         loomTilesCount: number;
         filtersCount: number;
+        dimensionFilterCount: number;
+        metricFilterCount: number;
+        lockedFilterCount: number;
     };
 };
 
@@ -937,6 +940,8 @@ export type CreateDashboardOrVersionEvent = BaseTrack & {
         projectId: string;
         dashboardId: string;
         filtersCount: number;
+        dimensionFilterCount: number;
+        metricFilterCount: number;
         tilesCount: number;
         chartTilesCount: number;
         sqlChartTilesCount: number;

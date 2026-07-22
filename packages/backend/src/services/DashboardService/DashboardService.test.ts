@@ -356,6 +356,22 @@ describe('DashboardService', () => {
             }),
         );
     });
+    test('should include dashboard filter counts in create analytics', () => {
+        expect(
+            DashboardService.getCreateEventProperties({
+                ...dashboard,
+                filters: {
+                    dimensions: [{} as DashboardFilterRule],
+                    metrics: [{} as DashboardFilterRule],
+                    tableCalculations: [],
+                },
+            }),
+        ).toMatchObject({
+            filtersCount: 2,
+            dimensionFilterCount: 1,
+            metricFilterCount: 1,
+        });
+    });
     test('should create dashboard with tile ids', async () => {
         const result = await service.create(
             user,
@@ -382,6 +398,17 @@ describe('DashboardService', () => {
         );
     });
     test('should update dashboard details', async () => {
+        (dashboardModel.update as import('vitest').Mock).mockResolvedValueOnce({
+            ...dashboard,
+            filters: {
+                dimensions: [
+                    { lockedTabUuids: ['tab-uuid'] } as DashboardFilterRule,
+                ],
+                metrics: [{} as DashboardFilterRule],
+                tableCalculations: [],
+            },
+        });
+
         const result = await service.update(
             user,
             dashboardUuid,
@@ -398,6 +425,12 @@ describe('DashboardService', () => {
         expect(analyticsMock.track).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: 'dashboard.updated',
+                properties: expect.objectContaining({
+                    filtersCount: 2,
+                    dimensionFilterCount: 1,
+                    metricFilterCount: 1,
+                    lockedFilterCount: 1,
+                }),
             }),
         );
     });
