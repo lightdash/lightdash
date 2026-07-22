@@ -1,4 +1,5 @@
 import {
+    DbtVersionOptionLatest,
     DimensionType,
     InlineErrorType,
     isExploreError,
@@ -141,6 +142,9 @@ const SKIP_WARNING =
 const YML_SKIP_WARNING =
     'Skipping warehouse column validation because it is not supported for Lightdash YAML projects';
 
+const DBT_CLOUD_SKIP_WARNING =
+    'Skipping warehouse column validation because dbt Cloud CLI cannot run warehouse queries';
+
 const setupWarehouseClient = () => {
     const credentials: CreatePostgresCredentials = {
         type: WarehouseTypes.POSTGRES,
@@ -266,7 +270,9 @@ describe('compile warehouse column validation', () => {
         );
         expect(result.filter(isExploreError)).toEqual([]);
         expect(errorOutput).not.toEqual(
-            expect.arrayContaining([expect.stringContaining(SKIP_WARNING)]),
+            expect.arrayContaining([
+                expect.stringContaining('Skipping warehouse column validation'),
+            ]),
         );
     });
 
@@ -426,6 +432,75 @@ describe('compile warehouse column validation', () => {
                     expect.stringContaining('Skipped metric "id"'),
                 ]),
             );
+        });
+    });
+
+    describe('dbt cloud cli', () => {
+        beforeEach(() => {
+            vi.mocked(tryGetDbtVersion).mockResolvedValue({
+                success: true,
+                version: {
+                    verboseVersion: 'dbt Cloud CLI - 0.38.0',
+                    versionOption: DbtVersionOptionLatest.LATEST,
+                    isDbtCloudCLI: true,
+                    isDbtFusion: false,
+                },
+            });
+        });
+
+        test('skips column probing and warns when validation was requested', async () => {
+            const warehouseClient = setupWarehouseClient();
+
+            const result = await compile({
+                ...baseOptions(tempDir),
+                validateWarehouseColumns: true,
+            });
+
+            // Catalog fetching required by dbt Cloud CLI is preserved
+            expect(getWarehouseClient).toHaveBeenCalledWith(
+                expect.objectContaining({ isDbtCloudCLI: true }),
+            );
+            expect(warehouseClient.getCatalog).toHaveBeenCalledTimes(1);
+            expect(validateWarehouseColumnReferences).not.toHaveBeenCalled();
+            expect(result.filter(isExploreError)).toEqual([]);
+            expect(result.map((explore) => explore.name)).toEqual(['my_model']);
+            expect(errorOutput).toEqual(
+                expect.arrayContaining([
+                    expect.stringContaining(DBT_CLOUD_SKIP_WARNING),
+                ]),
+            );
+        });
+
+        test('does not warn or probe when validation was not requested', async () => {
+            const warehouseClient = setupWarehouseClient();
+
+            await compile(baseOptions(tempDir));
+
+            expect(warehouseClient.getCatalog).toHaveBeenCalledTimes(1);
+            expect(validateWarehouseColumnReferences).not.toHaveBeenCalled();
+            expect(errorOutput).not.toEqual(
+                expect.arrayContaining([
+                    expect.stringContaining(
+                        'Skipping warehouse column validation',
+                    ),
+                ]),
+            );
+        });
+
+        test('prefers the skip-warehouse-catalog warning when both apply', async () => {
+            await compile({
+                ...baseOptions(tempDir),
+                skipWarehouseCatalog: true,
+                validateWarehouseColumns: true,
+            });
+
+            expect(getWarehouseClient).not.toHaveBeenCalled();
+            expect(validateWarehouseColumnReferences).not.toHaveBeenCalled();
+            const skipWarnings = errorOutput.filter((line) =>
+                line.includes('Skipping warehouse column validation'),
+            );
+            expect(skipWarnings).toHaveLength(1);
+            expect(skipWarnings[0]).toContain(SKIP_WARNING);
         });
     });
 

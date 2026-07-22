@@ -408,16 +408,27 @@ export const compile = async (options: CompileHandlerOptions) => {
         let catalog: WarehouseCatalog = {};
         let validationWarehouseClient: WarehouseClient | null = null;
         if (!options.skipWarehouseCatalog) {
+            const isDbtCloudCLI =
+                dbtVersionResult.success &&
+                dbtVersionResult.version.isDbtCloudCLI;
             const { warehouseClient } = await getWarehouseClient({
-                isDbtCloudCLI: dbtVersionResult.success
-                    ? dbtVersionResult.version.isDbtCloudCLI
-                    : false,
+                isDbtCloudCLI,
                 profilesDir: options.profilesDir,
                 profile: options.profile || context.profileName,
                 target: options.target,
                 startOfWeek: options.startOfWeek,
             });
-            validationWarehouseClient = warehouseClient;
+            // dbt Cloud CLI clients stub runQuery, so column probing would
+            // silently pass instead of validating anything
+            if (!isDbtCloudCLI) {
+                validationWarehouseClient = warehouseClient;
+            } else if (options.validateWarehouseColumns === true) {
+                console.error(
+                    styles.warning(
+                        '> Skipping warehouse column validation because dbt Cloud CLI cannot run warehouse queries',
+                    ),
+                );
+            }
             GlobalState.debug('> Fetching warehouse catalog');
             catalog = await warehouseClient.getCatalog(
                 getSchemaStructureFromDbtModels(validModels),
