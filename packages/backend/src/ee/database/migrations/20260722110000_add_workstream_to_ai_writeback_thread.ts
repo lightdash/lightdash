@@ -9,9 +9,12 @@ export async function up(knex: Knex): Promise<void> {
             table.text(ColumnName);
         });
     }
-    await knex(TableName).whereNull(ColumnName).update({
-        [ColumnName]: 'dbt-writeback',
-    });
+    await knex.raw(`UPDATE ?? SET ?? = ? WHERE ?? IS NULL`, [
+        TableName,
+        ColumnName,
+        'dbt-writeback',
+        ColumnName,
+    ]);
     await knex.schema.alterTable(TableName, (table) => {
         table.text(ColumnName).notNullable().defaultTo('dbt-writeback').alter();
     });

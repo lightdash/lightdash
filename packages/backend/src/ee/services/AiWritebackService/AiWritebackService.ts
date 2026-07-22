@@ -2153,6 +2153,7 @@ export class AiWritebackService extends BaseService {
                 prTitle,
                 prDescription,
                 prSummary,
+                workstream: config.mode,
                 // The general agent must never commit CI/workflow files (R3);
                 // dbt writeback may (preview-deploy setup). Secrets are denied
                 // in both regardless.
@@ -4044,6 +4045,7 @@ export class AiWritebackService extends BaseService {
         prTitle,
         prDescription,
         prSummary,
+        workstream,
         denyCiPaths,
     }: {
         sandbox: SandboxHandle;
@@ -4059,6 +4061,7 @@ export class AiWritebackService extends BaseService {
         prTitle: string | null;
         prDescription: string | null;
         prSummary: string | null;
+        workstream: CodingAgentConfig['mode'];
         /** Reject the commit if it touches CI/workflow paths (general agent). */
         denyCiPaths: boolean;
     }): Promise<AppliedChanges> {
@@ -4117,6 +4120,7 @@ export class AiWritebackService extends BaseService {
                     sandboxUuid,
                     prUrl: targetPrUrl,
                     summary: prSummary,
+                    workstream,
                 });
             }
 
@@ -4159,6 +4163,7 @@ export class AiWritebackService extends BaseService {
             sandboxUuid,
             prUrl,
             summary: prSummary,
+            workstream,
         });
 
         return {
@@ -4215,6 +4220,7 @@ export class AiWritebackService extends BaseService {
         sandboxUuid,
         prUrl,
         summary,
+        workstream,
     }: {
         turn: TurnContext;
         projectUuid: string;
@@ -4223,6 +4229,7 @@ export class AiWritebackService extends BaseService {
         sandboxUuid: string;
         prUrl: string;
         summary: string | null;
+        workstream: CodingAgentConfig['mode'];
     }): Promise<void> {
         const pullRequest = await this.pullRequestsModel.findOrCreate({
             organizationUuid: turn.organizationUuid,
@@ -4247,7 +4254,7 @@ export class AiWritebackService extends BaseService {
                 projectDbtSourceUuid: turn.projectDbtSourceUuid,
                 // Record the repo so a thread can resume its latest PR per repo.
                 targetRepo: `${turn.gitConnection.owner}/${turn.gitConnection.repo}`,
-                workstream: config.mode,
+                workstream,
             });
         }
     }
