@@ -5,6 +5,17 @@ import { renderWithProviders } from '../../../../testing/testUtils';
 import FilterMultiStringInput from './FilterMultiStringInput';
 
 describe('FilterMultiStringInput', () => {
+    it('does not add a clear-all control', () => {
+        const { container } = renderWithProviders(
+            <FilterMultiStringInput
+                values={['one', 'two']}
+                onChange={vi.fn()}
+            />,
+        );
+
+        expect(container.querySelectorAll('button')).toHaveLength(2);
+    });
+
     it('adds a custom value on Enter', async () => {
         const user = userEvent.setup();
         const onChange = vi.fn();
@@ -27,7 +38,10 @@ describe('FilterMultiStringInput', () => {
         const onChange = vi.fn();
 
         renderWithProviders(
-            <FilterMultiStringInput values={['existing']} onChange={onChange} />,
+            <FilterMultiStringInput
+                values={['existing']}
+                onChange={onChange}
+            />,
         );
 
         const input = screen.getByRole('textbox');

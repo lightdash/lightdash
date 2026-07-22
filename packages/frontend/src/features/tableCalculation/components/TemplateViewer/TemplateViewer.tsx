@@ -180,6 +180,7 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
                         placeholder="No partitioning (all rows)"
                         searchable
                         clearable
+                        maxDropdownHeight={220}
                         hidePickedOptions
                     />
                 </Stack>

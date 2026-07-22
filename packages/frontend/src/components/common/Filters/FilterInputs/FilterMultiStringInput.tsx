@@ -15,6 +15,7 @@ import {
     MultiSelectCombobox,
     type MultiSelectComboboxOption,
 } from '../../MultiSelectCombobox/MultiSelectCombobox';
+import classes from './FilterMultiStringInput.module.css';
 import MultiValuePastePopover from './MultiValuePastePopover';
 import { formatDisplayValue } from './utils';
 
@@ -152,13 +153,13 @@ const FilterMultiStringInput: FC<Props> = ({
                 disabled={disabled}
                 options={options}
                 value={values}
+                classNames={{ input: classes.multiSelectInput }}
                 hidePickedOptions
                 searchValue={search}
                 onSearchChange={setSearch}
                 onPaste={handlePaste}
                 onOptionSubmit={handleAdd}
                 onValueRemove={handleRemove}
-                onClear={() => handleChange([])}
                 onCreate={(value) => {
                     handleAdd(value);
                     handleResetSearch();

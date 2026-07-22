@@ -310,6 +310,7 @@ const AddChartTilesModal: FC<Props> = ({
                     searchValue={searchQuery}
                     onSearchChange={setSearchQuery}
                     maxDropdownHeight={300}
+                    maxValues={maxSelectedValues}
                     value={selectedChartUuids}
                     selectedValues={selectedChartUuids}
                     onClear={() => {
@@ -317,7 +318,9 @@ const AddChartTilesModal: FC<Props> = ({
                         setSearchQuery('');
                     }}
                     rightSection={
-                        isFetching && <Loader size="xs" color="gray" />
+                        isFetching ? (
+                            <Loader size="xs" color="gray" />
+                        ) : undefined
                     }
                     rightSectionPointerEvents={isFetching ? 'none' : 'all'}
                     comboboxProps={{

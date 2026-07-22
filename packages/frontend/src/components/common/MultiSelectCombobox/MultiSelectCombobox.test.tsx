@@ -40,6 +40,77 @@ describe('MultiSelectCombobox', () => {
         ).not.toBeInTheDocument();
     });
 
+    it('limits filtered options', () => {
+        renderWithProviders(
+            <MultiSelectCombobox
+                {...defaultProps}
+                options={[
+                    { value: 'one', label: 'One' },
+                    { value: 'two', label: 'Two' },
+                    { value: 'three', label: 'Three' },
+                ]}
+                limit={2}
+            />,
+        );
+
+        fireEvent.focus(screen.getByRole('textbox'));
+
+        expect(screen.getAllByRole('option', { hidden: true })).toHaveLength(2);
+    });
+
+    it('does not render a clear button while disabled', () => {
+        const onClear = vi.fn();
+        const { container } = renderWithProviders(
+            <MultiSelectCombobox
+                {...defaultProps}
+                value={['chart-1']}
+                disabled
+                onClear={onClear}
+            />,
+        );
+
+        expect(container.querySelector('button')).not.toBeInTheDocument();
+        expect(onClear).not.toHaveBeenCalled();
+    });
+
+    it('uses the clear fallback when rightSection is false', async () => {
+        const user = userEvent.setup();
+        const onClear = vi.fn();
+        const { container } = renderWithProviders(
+            <MultiSelectCombobox
+                {...defaultProps}
+                value={['chart-1']}
+                rightSection={false}
+                onClear={onClear}
+            />,
+        );
+
+        const clearButton = container.querySelector(
+            'button[aria-hidden="true"]',
+        );
+        expect(clearButton).toBeInTheDocument();
+        await user.click(clearButton!);
+        expect(onClear).toHaveBeenCalledOnce();
+    });
+
+    it('blocks the input and dropdown at the value limit', () => {
+        renderWithProviders(
+            <MultiSelectCombobox
+                {...defaultProps}
+                value={['chart-1']}
+                maxValues={1}
+            />,
+        );
+
+        const textbox = screen.getByRole('textbox');
+        fireEvent.focus(textbox);
+
+        expect(textbox).toHaveAttribute('readonly');
+        expect(
+            screen.queryByRole('option', { name: 'Chart one' }),
+        ).not.toBeInTheDocument();
+    });
+
     it('keeps an action footer usable without closing the dropdown', async () => {
         const user = userEvent.setup();
         const onLoadMore = vi.fn();

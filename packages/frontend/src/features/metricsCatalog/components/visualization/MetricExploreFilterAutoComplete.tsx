@@ -239,6 +239,7 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
                     )
                 }
                 options={data}
+                limit={MAX_AUTOCOMPLETE_RESULTS}
                 value={values}
                 onDropdownOpen={onDropdownOpen}
                 onDropdownClose={() => {

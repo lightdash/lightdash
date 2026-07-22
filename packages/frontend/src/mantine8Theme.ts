@@ -105,34 +105,6 @@ const paperDottedStyles = (theme: MantineTheme) => ({
     background: 'inherit',
 });
 
-const comboboxOptionStyles = (theme: MantineTheme) => ({
-    option: {
-        fontFamily: theme.fontFamily,
-        fontSize: theme.fontSizes.sm,
-        padding: `${theme.spacing.xxs} ${theme.spacing.sm}`,
-        '&[data-combobox-active]': {
-            backgroundColor: 'var(--mantine-color-ldGray-5)',
-            color: 'var(--mantine-color-ldGray-7)',
-            fontWeight: 500,
-        },
-        '&[data-combobox-active]:hover': {
-            backgroundColor: 'var(--mantine-color-ldGray-0)',
-        },
-        '&[data-combobox-selected]': {
-            backgroundColor: 'var(--mantine-color-ldGray-5)',
-            color: 'var(--mantine-color-ldGray-7)',
-            fontWeight: 500,
-        },
-        '&:hover': {
-            backgroundColor: 'var(--mantine-color-ldGray-0)',
-        },
-    },
-    groupLabel: {
-        fontFamily: theme.fontFamily,
-        fontSize: theme.fontSizes.sm,
-    },
-});
-
 export const getMantine8ThemeOverride = (
     colorScheme: ColorScheme,
     overrides?: Partial<MantineThemeOverride>,
@@ -187,28 +159,18 @@ export const getMantine8ThemeOverride = (
                 }),
             }),
             Pill: Pill.extend({
-                styles: (theme, props) => ({
-                    remove: {
-                        color: `${theme.colors.ldGray[6]} !important`,
-                    },
-                    ...(props.variant === 'outline'
+                styles: (theme, props) =>
+                    props.variant === 'outline'
                         ? {
-                            root: {
-                                border: `1px solid ${theme.colors.ldGray[2]}`,
-                                color: theme.colors.ldGray[7],
-                                '&:hover': {
-                                    backgroundColor: theme.colors.ldGray[1],
-                                },
-                                '&:focus': {
-                                    backgroundColor: theme.colors.ldGray[1],
-                                },
-                                '&:active': {
-                                    backgroundColor: theme.colors.ldGray[4],
-                                },
-                            },
-                        }
-                        : {}),
-                }),
+                              root: {
+                                  border: `1px solid ${theme.colors.ldGray[2]}`,
+                                  color: theme.colors.ldGray[7],
+                                  '&:hover': {
+                                      backgroundColor: theme.colors.ldGray[1],
+                                  },
+                              },
+                          }
+                        : {},
             }),
             Button: Button.extend({
                 vars: (theme, props) => {
@@ -354,10 +316,6 @@ export const getMantine8ThemeOverride = (
                 },
             }),
             TagsInput: TagsInput.extend({
-                defaultProps: {
-                    radius: 'md',
-                },
-                styles: (theme) => comboboxOptionStyles(theme),
                 vars: (theme, props) => {
                     if (props.variant === 'subtle')
                         return subtleInputStyles(theme);
@@ -365,9 +323,6 @@ export const getMantine8ThemeOverride = (
                 },
             }),
             PillsInput: PillsInput.extend({
-                defaultProps: {
-                    radius: 'md',
-                },
                 vars: (theme, props) => {
                     if (props.variant === 'subtle') {
                         return subtleInputStyles(theme);
@@ -376,7 +331,6 @@ export const getMantine8ThemeOverride = (
                 },
             }),
             MultiSelect: MultiSelect.extend({
-                styles: (theme) => comboboxOptionStyles(theme),
                 vars: (theme, props) => {
                     if (props.variant === 'subtle')
                         return subtleInputStyles(theme);

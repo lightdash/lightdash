@@ -45,7 +45,9 @@ type Props = Omit<PillsInputProps, 'onChange'> & {
     onCreate?: (value: string) => void;
     shouldCreate?: (value: string) => boolean;
     filterOptions?: boolean;
+    limit?: number;
     hidePickedOptions?: boolean;
+    maxValues?: number;
     maxDropdownHeight?: number;
     topContent?: ReactNode;
     footer?: ReactNode;
@@ -92,8 +94,10 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
             onCreate,
             shouldCreate = (query) => query.trim().length > 0,
             filterOptions = true,
+            limit = Infinity,
             hidePickedOptions = false,
-            maxDropdownHeight = 250,
+            maxValues,
+            maxDropdownHeight = 220,
             topContent,
             footer,
             comboboxProps,
@@ -127,16 +131,35 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                 new Map(options.map((option) => [option.value, option.label])),
             [options],
         );
+        const selectedValuesSet = useMemo(
+            () => new Set(selectedValues),
+            [selectedValues],
+        );
         const normalizedSearch = searchValue.trim().toLowerCase();
-        const visibleOptions = options.filter(
-            (option) =>
-                (!hidePickedOptions ||
-                    !selectedValues.includes(option.value)) &&
-                (!filterOptions ||
-                    option.label
-                        .trim()
-                        .toLowerCase()
-                        .includes(normalizedSearch)),
+        const atMaxValues =
+            maxValues !== undefined && selectedValues.length >= maxValues;
+        const visibleOptions = useMemo(
+            () =>
+                options
+                    .filter(
+                        (option) =>
+                            (!hidePickedOptions ||
+                                !selectedValuesSet.has(option.value)) &&
+                            (!filterOptions ||
+                                option.label
+                                    .trim()
+                                    .toLowerCase()
+                                    .includes(normalizedSearch)),
+                    )
+                    .slice(0, limit),
+            [
+                filterOptions,
+                hidePickedOptions,
+                limit,
+                normalizedSearch,
+                options,
+                selectedValuesSet,
+            ],
         );
         const groups = useMemo(() => {
             const grouped = new Map<string, MultiSelectComboboxOption[]>();
@@ -174,10 +197,13 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
         }, [visibleOptions]);
         const trimmedSearch = searchValue.trim();
         const canCreate =
+            !atMaxValues &&
             !!onCreate &&
             shouldCreate(trimmedSearch) &&
             !options.some((option) => option.value === trimmedSearch);
         const hasOptions = visibleOptions.length > 0 || canCreate;
+        const clearable =
+            !!onClear && value.length > 0 && !disabled && !readOnly;
 
         const submitCreate = () => {
             if (!canCreate) return;
@@ -189,6 +215,7 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
         const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
             if (
                 event.key === 'Enter' &&
+                !event.nativeEvent.isComposing &&
                 canCreate &&
                 combobox.getSelectedOptionIndex() === -1
             ) {
@@ -196,6 +223,9 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                 submitCreate();
             } else if (
                 event.key === 'Backspace' &&
+                !event.nativeEvent.isComposing &&
+                !disabled &&
+                !readOnly &&
                 searchValue.length === 0 &&
                 value.length > 0
             ) {
@@ -211,14 +241,25 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                     withinPortal
                     size={pillsInputProps.size}
                     {...comboboxProps}
+                    readOnly={readOnly || atMaxValues}
                     onOptionSubmit={(nextValue) => {
                         if (nextValue === CREATE_VALUE) {
                             submitCreate();
                             return;
                         }
+                        const isSelected = selectedValuesSet.has(nextValue);
+                        if (!isSelected && atMaxValues) return;
+
                         onOptionSubmit(nextValue);
                         onSearchChange('');
                         combobox.resetSelectedOption();
+                        if (
+                            !isSelected &&
+                            maxValues !== undefined &&
+                            selectedValues.length + 1 >= maxValues
+                        ) {
+                            combobox.closeDropdown();
+                        }
                     }}
                 >
                     <Combobox.DropdownTarget>
@@ -226,19 +267,17 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                             {...pillsInputProps}
                             disabled={disabled}
                             rightSection={
-                                pillsInputProps.rightSection ??
-                                (onClear && value.length > 0 ? (
+                                pillsInputProps.rightSection ||
+                                (clearable ? (
                                     <Combobox.ClearButton onClear={onClear} />
                                 ) : undefined)
                             }
                             rightSectionPointerEvents={
                                 pillsInputProps.rightSectionPointerEvents ??
-                                (onClear && value.length > 0
-                                    ? 'all'
-                                    : undefined)
+                                (clearable ? 'all' : undefined)
                             }
                             onClick={() => {
-                                if (!disabled && !readOnly) {
+                                if (!disabled && !readOnly && !atMaxValues) {
                                     combobox.openDropdown();
                                 }
                             }}
@@ -288,7 +327,7 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                                                 : placeholder
                                         }
                                         disabled={disabled}
-                                        readOnly={readOnly}
+                                        readOnly={readOnly || atMaxValues}
                                         onChange={(event) => {
                                             onSearchChange(
                                                 event.currentTarget.value,
@@ -297,7 +336,13 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                                             combobox.updateSelectedOptionIndex();
                                         }}
                                         onFocus={(event) => {
-                                            combobox.openDropdown();
+                                            if (
+                                                !disabled &&
+                                                !readOnly &&
+                                                !atMaxValues
+                                            ) {
+                                                combobox.openDropdown();
+                                            }
                                             onFocus?.(event);
                                         }}
                                         onBlur={(event) => {
@@ -312,7 +357,9 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                         </PillsInput>
                     </Combobox.DropdownTarget>
 
-                    <Combobox.Dropdown hidden={disabled || readOnly}>
+                    <Combobox.Dropdown
+                        hidden={disabled || readOnly || atMaxValues}
+                    >
                         <Combobox.Options>
                             <ScrollArea.Autosize
                                 mah={maxDropdownHeight}
@@ -326,7 +373,7 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                                     const children = group.options.map(
                                         (option) => {
                                             const selected =
-                                                selectedValues.includes(
+                                                selectedValuesSet.has(
                                                     option.value,
                                                 );
                                             return (

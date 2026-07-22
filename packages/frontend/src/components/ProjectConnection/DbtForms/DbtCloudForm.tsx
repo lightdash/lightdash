@@ -5,15 +5,22 @@ import {
     Alert,
     Anchor,
     CopyButton,
+    Group,
     Stack,
     PasswordInput,
-    TagsInput,
+    Text,
 } from '@mantine-8/core';
 import { Tooltip } from '@mantine/core';
-import { IconCheck, IconCopy, IconInfoCircle } from '@tabler/icons-react';
-import { type FC } from 'react';
+import {
+    IconCheck,
+    IconCopy,
+    IconInfoCircle,
+    IconPlus,
+} from '@tabler/icons-react';
+import { useState, type FC } from 'react';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
+import { MultiSelectCombobox } from '../../common/MultiSelectCombobox/MultiSelectCombobox';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { useFormContext } from '../formContext';
 import DbtVersionSelect from '../Inputs/DbtVersion';
@@ -28,6 +35,8 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const form = useFormContext();
 
     const dbtTagsField = form.getInputProps('dbt.tags');
+    const dbtTags = dbtTagsField.value || [];
+    const [tagsSearch, setTagsSearch] = useState('');
 
     const webhookUrl = savedProject?.projectUuid
         ? `${health?.data?.siteUrl}/api/v1/projects/${savedProject.projectUuid}/dbt-cloud/webhook`
@@ -162,22 +171,58 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 placeholder="https://metadata.cloud.getdbt.com/graphql"
                 disabled={disabled}
             />
-            <TagsInput
+            <MultiSelectCombobox
                 name="dbt.tags"
-                {...form.getInputProps('dbt.tags')}
-                {...dbtTagsField}
                 label="Tags"
                 disabled={disabled}
+                error={dbtTagsField.error}
                 description={
                     <p>
                         Only models with <b>all</b> these tags will be synced.
                     </p>
                 }
                 placeholder="e.g lightdash, prod"
-                clearable
-                acceptValueOnBlur={false}
-                splitChars={[]}
-                data={dbtTagsField.value || []}
+                options={dbtTags.map((tag: string) => ({
+                    value: tag,
+                    label: tag,
+                }))}
+                value={dbtTags}
+                hidePickedOptions
+                searchValue={tagsSearch}
+                onSearchChange={setTagsSearch}
+                onBlur={dbtTagsField.onBlur}
+                onDropdownClose={() => setTagsSearch('')}
+                onValueRemove={(tag) => {
+                    form.setFieldValue(
+                        'dbt.tags',
+                        dbtTags.filter((value: string) => value !== tag),
+                    );
+                }}
+                onOptionSubmit={(tag) => {
+                    form.setFieldValue(
+                        'dbt.tags',
+                        dbtTags.filter((value: string) => value !== tag),
+                    );
+                }}
+                onClear={() => {
+                    form.setFieldValue('dbt.tags', []);
+                    setTagsSearch('');
+                }}
+                onCreate={(tag) => {
+                    form.setFieldValue('dbt.tags', [...dbtTags, tag]);
+                    setTagsSearch('');
+                }}
+                shouldCreate={(query) =>
+                    query.trim().length > 0 && !dbtTags.includes(query.trim())
+                }
+                createLabel={
+                    <Group gap="xxs">
+                        <MantineIcon icon={IconPlus} color="blue.7" size="sm" />
+                        <Text c="blue.7" fz="sm" fw={500}>
+                            Add "{tagsSearch.trim()}"
+                        </Text>
+                    </Group>
+                }
             />
         </Stack>
     );

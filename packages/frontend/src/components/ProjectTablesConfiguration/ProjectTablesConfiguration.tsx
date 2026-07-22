@@ -265,6 +265,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                         }
                                         placeholder="e.g lightdash, prod"
                                         searchable
+                                        maxDropdownHeight={220}
                                         hidePickedOptions
                                         searchValue={search}
                                         onSearchChange={setSearch}
@@ -333,6 +334,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                         disabled={disabled}
                                         placeholder="e.g users, orders"
                                         searchable
+                                        maxDropdownHeight={220}
                                         hidePickedOptions
                                         searchValue={search}
                                         onSearchChange={setSearch}

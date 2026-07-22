@@ -512,6 +512,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                                 ) : null
                             }
                             options={data}
+                            limit={MAX_AUTOCOMPLETE_RESULTS}
                             selectedValues={
                                 showNull && includeNull
                                     ? [...values, NULL_VALUE_TOKEN]
