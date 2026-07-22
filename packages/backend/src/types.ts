@@ -67,6 +67,8 @@ export interface DbtClient {
     getSelector(): string | undefined;
 
     test(): Promise<void>;
+
+    cleanup?(): Promise<void>;
 }
 
 export type CachedWarehouse = {

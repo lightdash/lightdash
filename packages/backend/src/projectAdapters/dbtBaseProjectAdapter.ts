@@ -78,9 +78,9 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         this.analytics = analytics;
     }
 
-    // eslint-disable-next-line class-methods-use-this
     async destroy(): Promise<void> {
         Logger.debug(`Destroy base project adapter`);
+        await this.dbtClient.cleanup?.();
     }
 
     public async test(): Promise<void> {
