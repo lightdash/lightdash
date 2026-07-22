@@ -22,7 +22,7 @@ import {
     type FilterRule,
 } from '../types/filter';
 import { type WarehouseTypes } from '../types/projects';
-import { type TimeFrames } from '../types/timeFrames';
+import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from '../utils/assertUnreachable';
 import { convertToBooleanValue } from '../utils/booleanConverter';
 import { formatDate } from '../utils/formatting';
@@ -30,7 +30,6 @@ import { getItemId } from '../utils/item';
 import { getMomentDateWithCustomStartOfWeek } from '../utils/time';
 import {
     dateTruncTimezoneConversions,
-    isTimezoneRoundTripNoOp,
     SUB_DAY_TIME_FRAMES,
     WeekDay,
 } from '../utils/timeFrames';
@@ -92,7 +91,62 @@ const formatTimestampAsWallClock =
     (date: Date): string =>
         moment(date).tz(zone).format('YYYY-MM-DD HH:mm:ss');
 
-type TimestampLiteralMode = 'legacy' | 'wrapped' | 'naiveWall' | 'awareInstant';
+export type TimestampFilterContext =
+    | { mode: 'legacy'; instantLhs: boolean }
+    | { mode: 'wrapped' }
+    | { mode: 'naiveWall'; wallClockTimezone: string }
+    | { mode: 'awareInstant' };
+
+export type TimestampFilterLhsMode = 'legacy' | 'instant' | 'wrapped';
+
+const legacyTimestampFilterContext: TimestampFilterContext = {
+    mode: 'legacy',
+    instantLhs: false,
+};
+
+export const resolveTimestampFilterContext = ({
+    adapterType,
+    useTimezoneAwareDateTrunc,
+    sourceTimezone,
+    timestampDomain,
+    timeInterval,
+    lhsMode,
+}: {
+    adapterType: SupportedDbtAdapter;
+    useTimezoneAwareDateTrunc?: boolean;
+    sourceTimezone?: string;
+    timestampDomain?: TimestampDomain;
+    timeInterval?: TimeFrames;
+    lhsMode: TimestampFilterLhsMode;
+}): TimestampFilterContext => {
+    const legacyContext: TimestampFilterContext = {
+        mode: 'legacy',
+        instantLhs: timeInterval === TimeFrames.RAW && lhsMode === 'instant',
+    };
+    const domainZone = sourceTimezone ?? 'UTC';
+    const effectiveDomain =
+        timestampDomain === 'naive' &&
+        dateTruncTimezoneConversions[adapterType].castNaiveToInstant === null
+            ? 'aware'
+            : timestampDomain;
+
+    if (
+        !useTimezoneAwareDateTrunc ||
+        effectiveDomain === undefined ||
+        domainZone === 'UTC' ||
+        adapterType === SupportedDbtAdapter.SNOWFLAKE
+    ) {
+        return legacyContext;
+    }
+
+    if (timeInterval !== undefined && SUB_DAY_TIME_FRAMES.has(timeInterval)) {
+        return lhsMode === 'wrapped' ? { mode: 'wrapped' } : legacyContext;
+    }
+
+    return effectiveDomain === 'naive'
+        ? { mode: 'naiveWall', wallClockTimezone: domainZone }
+        : { mode: 'awareInstant' };
+};
 
 /**
  * Cast a date/timestamp string to warehouse-specific SQL literal.
@@ -296,6 +350,155 @@ export const renderNumberFilterSql = (
     }
 };
 
+const getAwareInstantFormatter = (
+    adapterType: SupportedDbtAdapter,
+): ((date: Date) => string) | null => {
+    switch (adapterType) {
+        case SupportedDbtAdapter.BIGQUERY:
+        case SupportedDbtAdapter.CLICKHOUSE:
+        case SupportedDbtAdapter.TRINO:
+        case SupportedDbtAdapter.ATHENA:
+            return formatTimestampAsWallClock('UTC');
+        case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.SPARK:
+        case SupportedDbtAdapter.SNOWFLAKE:
+        case SupportedDbtAdapter.REDSHIFT:
+        case SupportedDbtAdapter.POSTGRES:
+        case SupportedDbtAdapter.DUCKDB:
+            return null;
+        default:
+            return assertUnreachable(
+                adapterType,
+                `Unknown adapter ${adapterType}`,
+            );
+    }
+};
+
+const castWrappedTimestampLiteral = (
+    value: string,
+    adapterType: SupportedDbtAdapter,
+    timezone: string,
+): string => {
+    const { toUTC, freezeInstantOutput } =
+        dateTruncTimezoneConversions[adapterType];
+    let naiveLiteral: string;
+
+    switch (adapterType) {
+        case SupportedDbtAdapter.BIGQUERY:
+            return `TIMESTAMP('${value}', '${timezone}')`;
+        case SupportedDbtAdapter.TRINO:
+        case SupportedDbtAdapter.ATHENA:
+            naiveLiteral = `CAST('${value}' AS timestamp)`;
+            break;
+        case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.SPARK:
+            naiveLiteral = `'${value}'`;
+            break;
+        case SupportedDbtAdapter.CLICKHOUSE:
+            naiveLiteral = `toDateTime('${value}', '${timezone}')`;
+            break;
+        case SupportedDbtAdapter.SNOWFLAKE:
+        case SupportedDbtAdapter.REDSHIFT:
+        case SupportedDbtAdapter.POSTGRES:
+        case SupportedDbtAdapter.DUCKDB:
+            naiveLiteral = `'${value}'::timestamp`;
+            break;
+        default:
+            return assertUnreachable(
+                adapterType,
+                `Unknown adapter ${adapterType}`,
+            );
+    }
+
+    const wrapped = toUTC(naiveLiteral, timezone);
+    return freezeInstantOutput ? freezeInstantOutput(wrapped) : wrapped;
+};
+
+const castNaiveWallTimestampLiteral = (
+    value: string,
+    adapterType: SupportedDbtAdapter,
+): string => {
+    switch (adapterType) {
+        case SupportedDbtAdapter.BIGQUERY:
+            return `DATETIME '${value}'`;
+        case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.SPARK:
+            return `TIMESTAMP_NTZ '${value}'`;
+        case SupportedDbtAdapter.TRINO:
+        case SupportedDbtAdapter.ATHENA:
+            return `TIMESTAMP '${value}'`;
+        case SupportedDbtAdapter.REDSHIFT:
+        case SupportedDbtAdapter.POSTGRES:
+        case SupportedDbtAdapter.DUCKDB:
+            return `('${value}'::timestamp)`;
+        case SupportedDbtAdapter.SNOWFLAKE:
+            return `('${value}'::timestamp_ntz)`;
+        case SupportedDbtAdapter.CLICKHOUSE:
+            throw new CompileError(
+                'ClickHouse does not support naive timestamp filter literals',
+            );
+        default:
+            return assertUnreachable(
+                adapterType,
+                `Unknown adapter ${adapterType}`,
+            );
+    }
+};
+
+const castAwareInstantTimestampLiteral = (
+    value: string,
+    adapterType: SupportedDbtAdapter,
+): string => {
+    switch (adapterType) {
+        case SupportedDbtAdapter.CLICKHOUSE:
+            return `toDateTime64('${value}', 3, 'UTC')`;
+        case SupportedDbtAdapter.BIGQUERY:
+            return `TIMESTAMP '${value}+00'`;
+        case SupportedDbtAdapter.TRINO:
+        case SupportedDbtAdapter.ATHENA:
+            return `TIMESTAMP '${value} UTC'`;
+        case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.SPARK:
+        case SupportedDbtAdapter.SNOWFLAKE:
+        case SupportedDbtAdapter.REDSHIFT:
+        case SupportedDbtAdapter.POSTGRES:
+        case SupportedDbtAdapter.DUCKDB:
+            return `('${value}')`;
+        default:
+            return assertUnreachable(
+                adapterType,
+                `Unknown adapter ${adapterType}`,
+            );
+    }
+};
+
+const castLegacyTimestampLiteral = (
+    value: string,
+    adapterType: SupportedDbtAdapter,
+    instantLhs: boolean,
+): string => {
+    switch (adapterType) {
+        case SupportedDbtAdapter.BIGQUERY:
+            return instantLhs ? `TIMESTAMP('${value}', 'UTC')` : `('${value}')`;
+        case SupportedDbtAdapter.TRINO:
+        case SupportedDbtAdapter.ATHENA:
+            return `CAST('${value}' AS timestamp)`;
+        case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.SPARK:
+        case SupportedDbtAdapter.SNOWFLAKE:
+        case SupportedDbtAdapter.REDSHIFT:
+        case SupportedDbtAdapter.POSTGRES:
+        case SupportedDbtAdapter.DUCKDB:
+        case SupportedDbtAdapter.CLICKHOUSE:
+            return `('${value}')`;
+        default:
+            return assertUnreachable(
+                adapterType,
+                `Unknown adapter ${adapterType}`,
+            );
+    }
+};
+
 /**
  * Shared filter SQL for date and timestamp dimensions.
  * literalFormatter handles user-provided values; boundaryFormatter handles computed boundaries.
@@ -309,11 +512,7 @@ const renderDateOrTimestampFilterSql = ({
     boundaryFormatter: baseBoundaryFormatter,
     startOfWeek,
     baseDimensionSql,
-    useTimezoneAwareDateTrunc,
-    sourceTimezone,
-    instantLhs,
-    timestampDomain,
-    timeInterval,
+    timestampFilterContext = legacyTimestampFilterContext,
 }: {
     dimensionSql: string;
     filter: FilterRule<FilterOperator, unknown>;
@@ -323,88 +522,29 @@ const renderDateOrTimestampFilterSql = ({
     boundaryFormatter: (date: Date) => string;
     startOfWeek?: WeekDay | null;
     baseDimensionSql?: string;
-    useTimezoneAwareDateTrunc?: boolean;
-    sourceTimezone?: string;
-    instantLhs?: boolean;
-    timestampDomain?: TimestampDomain;
-    timeInterval?: TimeFrames;
+    timestampFilterContext?: TimestampFilterContext;
 }): string => {
     // When startOfWeek is not explicitly configured, use the warehouse's default
     // to ensure JS-side week boundaries match the warehouse's DATE_TRUNC behavior.
     const effectiveStartOfWeek =
         startOfWeek ?? getDefaultStartOfWeek(adapterType);
 
-    // Domain-directed literal rendering: when the column's naive/aware domain
-    // is known, render the literal in the same domain the LHS compares in.
-    // Unknown domain, flag off, UTC data timezone, and Snowflake (compile-time
-    // wrap) keep today's literals byte-identical.
-    const domainZone = sourceTimezone ?? 'UTC';
-    // Adapters with no naive representation (ClickHouse) treat known-naive
-    // like aware, mirroring the LHS fallback to `castToInstant`.
-    const effectiveDomain =
-        timestampDomain === 'naive' &&
-        dateTruncTimezoneConversions[adapterType].castNaiveToInstant === null
-            ? 'aware'
-            : timestampDomain;
-    const domainDirected =
-        !!useTimezoneAwareDateTrunc &&
-        effectiveDomain !== undefined &&
-        domainZone !== 'UTC' &&
-        adapterType !== SupportedDbtAdapter.SNOWFLAKE;
-    // A truncated sub-day LHS round-trips through the project tz into a UTC
-    // instant; sharing `isTimezoneRoundTripNoOp` with the SELECT side keeps
-    // both sides of the comparison symmetric by construction.
-    const subDayLhs =
-        timeInterval !== undefined && SUB_DAY_TIME_FRAMES.has(timeInterval);
-    const lhsWrapped =
-        domainDirected &&
-        subDayLhs &&
-        !isTimezoneRoundTripNoOp(
-            adapterType,
-            timezone,
-            sourceTimezone,
-            timestampDomain,
-        );
-    let literalMode: TimestampLiteralMode = 'legacy';
-    if (domainDirected) {
-        if (lhsWrapped) {
-            literalMode = 'wrapped';
-        } else if (subDayLhs) {
-            // Equal-zones no-op: the LHS is the legacy unwrapped trunc (a
-            // naive value), so a typed instant literal would lean on session
-            // coercion — keep the legacy literal, which matches it exactly.
-            // Known-naive columns never reach this state: their round trip
-            // is never a no-op.
-            literalMode = 'legacy';
-        } else {
-            literalMode =
-                effectiveDomain === 'naive' ? 'naiveWall' : 'awareInstant';
-        }
-    }
-
     const domainFormatter = ((): ((date: Date) => string) | null => {
-        switch (literalMode) {
+        switch (timestampFilterContext.mode) {
             case 'wrapped':
                 return formatTimestampAsWallClock(timezone);
             case 'naiveWall':
-                return formatTimestampAsWallClock(domainZone);
+                return formatTimestampAsWallClock(
+                    timestampFilterContext.wallClockTimezone,
+                );
             case 'awareInstant':
-                switch (adapterType) {
-                    case SupportedDbtAdapter.BIGQUERY:
-                    case SupportedDbtAdapter.CLICKHOUSE:
-                    case SupportedDbtAdapter.TRINO:
-                    case SupportedDbtAdapter.ATHENA:
-                        return formatTimestampAsWallClock('UTC');
-                    default:
-                        // Offset-bearing legacy literal is already an instant.
-                        return null;
-                }
+                return getAwareInstantFormatter(adapterType);
             case 'legacy':
                 return null;
             default:
                 return assertUnreachable(
-                    literalMode,
-                    `Unknown literal mode ${literalMode}`,
+                    timestampFilterContext,
+                    'Unknown timestamp filter context',
                 );
         }
     })();
@@ -412,90 +552,27 @@ const renderDateOrTimestampFilterSql = ({
     const boundaryFormatter = domainFormatter ?? baseBoundaryFormatter;
 
     const castValue = (value: string): string => {
-        switch (literalMode) {
-            case 'wrapped': {
-                // Column is a UTC instant (round-trip through project TZ).
-                // Convert the project-TZ wall-clock literal the same way so
-                // coercion aligns with the column.
-                if (adapterType === SupportedDbtAdapter.BIGQUERY) {
-                    // TIMESTAMP(s, tz) already yields the UTC instant,
-                    // independent of the job timezone — no outer toUTC.
-                    return `TIMESTAMP('${value}', '${timezone}')`;
-                }
-                const { toUTC, freezeInstantOutput } =
-                    dateTruncTimezoneConversions[adapterType];
-                const naive = (() => {
-                    switch (adapterType) {
-                        case SupportedDbtAdapter.TRINO:
-                        case SupportedDbtAdapter.ATHENA:
-                            return `CAST('${value}' AS timestamp)`;
-                        case SupportedDbtAdapter.DATABRICKS:
-                        case SupportedDbtAdapter.SPARK:
-                            return `'${value}'`;
-                        case SupportedDbtAdapter.CLICKHOUSE:
-                            return `toDateTime('${value}', '${timezone}')`;
-                        default:
-                            return `'${value}'::timestamp`;
-                    }
-                })();
-                const wrapped = toUTC(naive, timezone);
-                // The truncated LHS is frozen as TIMESTAMP_NTZ on
-                // Databricks/Spark — freeze the literal identically so the
-                // comparison never relies on session coercion.
-                return freezeInstantOutput
-                    ? freezeInstantOutput(wrapped)
-                    : wrapped;
-            }
+        switch (timestampFilterContext.mode) {
+            case 'wrapped':
+                return castWrappedTimestampLiteral(
+                    value,
+                    adapterType,
+                    timezone,
+                );
             case 'naiveWall':
-                // Bare naive column: compare wall clocks in the data timezone.
-                switch (adapterType) {
-                    case SupportedDbtAdapter.BIGQUERY:
-                        return `DATETIME '${value}'`;
-                    case SupportedDbtAdapter.DATABRICKS:
-                    case SupportedDbtAdapter.SPARK:
-                        return `TIMESTAMP_NTZ '${value}'`;
-                    case SupportedDbtAdapter.TRINO:
-                    case SupportedDbtAdapter.ATHENA:
-                        return `TIMESTAMP '${value}'`;
-                    default:
-                        return `('${value}'::timestamp)`;
-                }
+                return castNaiveWallTimestampLiteral(value, adapterType);
             case 'awareInstant':
-                // Bare aware column: typed instant literal, immune to the
-                // session/job timezone.
-                switch (adapterType) {
-                    case SupportedDbtAdapter.CLICKHOUSE:
-                        return `toDateTime64('${value}', 3, 'UTC')`;
-                    case SupportedDbtAdapter.BIGQUERY:
-                        return `TIMESTAMP '${value}+00'`;
-                    case SupportedDbtAdapter.TRINO:
-                    case SupportedDbtAdapter.ATHENA:
-                        return `TIMESTAMP '${value} UTC'`;
-                    default:
-                        return `('${value}')`;
-                }
+                return castAwareInstantTimestampLiteral(value, adapterType);
             case 'legacy':
-                // The LHS is a flag-rebased instant; BigQuery's offset-less
-                // literal would otherwise be parsed in the job-level
-                // time_zone — pin it to UTC.
-                if (
-                    instantLhs &&
-                    adapterType === SupportedDbtAdapter.BIGQUERY
-                ) {
-                    return `TIMESTAMP('${value}', 'UTC')`;
-                }
-                switch (adapterType) {
-                    case SupportedDbtAdapter.TRINO:
-                    case SupportedDbtAdapter.ATHENA: {
-                        return `CAST('${value}' AS timestamp)`;
-                    }
-                    default:
-                        return `('${value}')`;
-                }
+                return castLegacyTimestampLiteral(
+                    value,
+                    adapterType,
+                    timestampFilterContext.instantLhs,
+                );
             default:
                 return assertUnreachable(
-                    literalMode,
-                    `Unknown literal mode ${literalMode}`,
+                    timestampFilterContext,
+                    'Unknown timestamp filter context',
                 );
         }
     };
@@ -785,8 +862,6 @@ export const renderDateFilterSql = ({
     boundaryDateFormatter,
     startOfWeek,
     baseDimensionSql,
-    useTimezoneAwareDateTrunc,
-    sourceTimezone,
 }: {
     dimensionSql: string;
     filter: FilterRule<FilterOperator, unknown>;
@@ -795,8 +870,6 @@ export const renderDateFilterSql = ({
     boundaryDateFormatter?: (date: Date) => string;
     startOfWeek?: WeekDay | null;
     baseDimensionSql?: string;
-    useTimezoneAwareDateTrunc?: boolean;
-    sourceTimezone?: string;
 }): string => {
     const effectiveTimezone = boundaryDateFormatter ? timezone : 'UTC';
     const effectiveFormatter =
@@ -811,8 +884,6 @@ export const renderDateFilterSql = ({
         boundaryFormatter: effectiveFormatter,
         startOfWeek,
         baseDimensionSql,
-        useTimezoneAwareDateTrunc,
-        sourceTimezone,
     });
 };
 
@@ -825,11 +896,7 @@ export const renderTimestampFilterSql = ({
     timestampFormatter,
     startOfWeek,
     baseDimensionSql,
-    useTimezoneAwareDateTrunc,
-    sourceTimezone,
-    instantLhs,
-    timestampDomain,
-    timeInterval,
+    timestampFilterContext,
 }: {
     dimensionSql: string;
     filter: FilterRule<FilterOperator, unknown>;
@@ -838,11 +905,7 @@ export const renderTimestampFilterSql = ({
     timestampFormatter: (date: Date) => string;
     startOfWeek?: WeekDay | null;
     baseDimensionSql?: string;
-    useTimezoneAwareDateTrunc?: boolean;
-    sourceTimezone?: string;
-    instantLhs?: boolean;
-    timestampDomain?: TimestampDomain;
-    timeInterval?: TimeFrames;
+    timestampFilterContext?: TimestampFilterContext;
 }): string =>
     renderDateOrTimestampFilterSql({
         dimensionSql,
@@ -853,11 +916,7 @@ export const renderTimestampFilterSql = ({
         boundaryFormatter: timestampFormatter,
         startOfWeek,
         baseDimensionSql,
-        useTimezoneAwareDateTrunc,
-        sourceTimezone,
-        instantLhs,
-        timestampDomain,
-        timeInterval,
+        timestampFilterContext,
     });
 
 export const renderBooleanFilterSql = (
@@ -976,10 +1035,7 @@ export const renderFilterRuleSql = (
     baseDimensionSql?: string,
     useTimezoneAwareDateTrunc?: boolean,
     baseTimeIntervalDimensionType?: DimensionType,
-    sourceTimezone?: string,
-    instantLhs?: boolean,
-    timestampDomain?: TimestampDomain,
-    timeInterval?: TimeFrames,
+    timestampFilterContext?: TimestampFilterContext,
 ): string => {
     if (filterRule.disabled) {
         return `1=1`; // When filter is disabled, we want to return all rows
@@ -1028,12 +1084,6 @@ export const renderFilterRuleSql = (
                     : undefined,
                 startOfWeek,
                 baseDimensionSql,
-                // GLITCH-452: day-or-coarser dims now compile to a real DATE
-                // (CAST(... AS DATE)), so the literal stays a bare date —
-                // wrapping it as a timestamptz would re-introduce the tz drift
-                // the cast removes (and break BigQuery's DATE vs TIMESTAMP check).
-                useTimezoneAwareDateTrunc: false,
-                sourceTimezone,
             });
         }
         case DimensionType.TIMESTAMP:
@@ -1050,11 +1100,7 @@ export const renderFilterRuleSql = (
                         : formatTimestampAsUTC,
                 startOfWeek,
                 baseDimensionSql,
-                useTimezoneAwareDateTrunc,
-                sourceTimezone,
-                instantLhs,
-                timestampDomain,
-                timeInterval,
+                timestampFilterContext,
             });
         }
         case DimensionType.BOOLEAN:
@@ -1083,9 +1129,7 @@ export const renderFilterRuleSqlFromField = (
     exploreCaseSensitive: boolean = DEFAULT_FILTER_CASE_SENSITIVE,
     baseDimensionSql?: string,
     useTimezoneAwareDateTrunc?: boolean,
-    sourceTimezone?: string,
-    instantLhs?: boolean,
-    timestampDomain?: TimestampDomain,
+    timestampFilterContext?: TimestampFilterContext,
 ): string => {
     const fieldType = isCompiledCustomSqlDimension(field)
         ? field.dimensionType
@@ -1112,11 +1156,6 @@ export const renderFilterRuleSqlFromField = (
             ? field.timeIntervalBaseDimensionType
             : undefined;
 
-    const timeInterval =
-        !isCompiledCustomSqlDimension(field) && !isMetric(field)
-            ? field.timeInterval
-            : undefined;
-
     return renderFilterRuleSql(
         filterRule,
         fieldType,
@@ -1130,9 +1169,6 @@ export const renderFilterRuleSqlFromField = (
         baseDimensionSql,
         useTimezoneAwareDateTrunc,
         baseTimeIntervalDimensionType,
-        sourceTimezone,
-        instantLhs,
-        timestampDomain,
-        timeInterval,
+        timestampFilterContext,
     );
 };
