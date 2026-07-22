@@ -145,9 +145,15 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
         },
     );
 
-    // Find fallback project: first try ProjectType.DEFAULT, then first available
+    // Find fallback project: first try a non-playground ProjectType.DEFAULT,
+    // then any DEFAULT, then first available
     const fallbackProject = shouldFetchFallbackProjects
-        ? projects?.find(({ type }) => type === ProjectType.DEFAULT) ||
+        ? projects?.find(
+              ({ type, provisioningSource }) =>
+                  type === ProjectType.DEFAULT &&
+                  provisioningSource !== 'playground',
+          ) ||
+          projects?.find(({ type }) => type === ProjectType.DEFAULT) ||
           projects?.[0]
         : undefined;
 

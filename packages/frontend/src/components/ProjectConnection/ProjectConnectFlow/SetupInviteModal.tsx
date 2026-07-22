@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     getEmailSchema,
     InviteLinkPurpose,
     OrganizationMemberRole,
@@ -9,22 +10,35 @@ import {
     Button,
     CopyButton,
     Group,
+    Loader,
     Stack,
     Text,
     TextInput,
     Tooltip,
 } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
+import { captureException } from '@sentry/react';
 import { IconCheck, IconCopy, IconUserPlus } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
+import { useNavigate } from 'react-router';
 import { z } from 'zod';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
+import { useEnsurePlaygroundProject } from '../../../hooks/useEnsurePlaygroundProject';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import { useUserUpdateMutation } from '../../../hooks/user/useUserUpdateMutation';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import Callout from '../../common/Callout';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
+import {
+    getPlaygroundSetupFailure,
+    isRetryablePlaygroundSetupFailure,
+    PLAYGROUND_SETUP_FAILURE_MESSAGES,
+    type PlaygroundSetupFailure,
+} from './playgroundSetupFailure';
 
 type SetupInviteFormValues = {
     firstName: string;
@@ -68,11 +82,42 @@ const SetupInviteModal: FC<{
     const { mutateAsync: updateUserAsync, isLoading: isUpdatingUser } =
         useUserUpdateMutation();
     const { track } = useTracking();
+    const navigate = useNavigate();
+
+    const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
+    const { data: organization } = useOrganization();
+    const [playgroundFailure, setPlaygroundFailure] =
+        useState<PlaygroundSetupFailure | null>(null);
+    const {
+        mutateAsync: ensurePlaygroundAsync,
+        isLoading: isPreparingPlayground,
+    } = useEnsurePlaygroundProject();
+
+    // The flag says the flow exists, not that a playground can be provisioned:
+    // an org that already has a project would be sent into that project instead
+    const canOfferPlayground =
+        newOnboardingFlag.data?.enabled === true &&
+        organization?.needsProject === true &&
+        playgroundFailure === null;
 
     const handleClose = () => {
         form.reset();
         reset();
+        setPlaygroundFailure(null);
         onClose();
+    };
+
+    const preparePlayground = async () => {
+        try {
+            const { projectUuid } = await ensurePlaygroundAsync();
+            track({ name: EventName.PLAYGROUND_PROJECT_ENTERED });
+            void navigate(`/projects/${projectUuid}/home`);
+        } catch (error) {
+            setPlaygroundFailure(getPlaygroundSetupFailure(error));
+            captureException(error, {
+                tags: { feature: 'playground-onboarding' },
+            });
+        }
     };
 
     const handleSubmit = async (values: SetupInviteFormValues) => {
@@ -88,6 +133,10 @@ const SetupInviteModal: FC<{
             purpose: InviteLinkPurpose.Setup,
         });
         track({ name: EventName.SETUP_INVITE_SENT });
+
+        if (canOfferPlayground) {
+            await preparePlayground();
+        }
     };
 
     const isSubmitting = isLoading || isUpdatingUser;
@@ -99,10 +148,26 @@ const SetupInviteModal: FC<{
             title="Invite someone to set this up"
             icon={IconUserPlus}
             size="lg"
-            cancelLabel={inviteLink ? false : 'Cancel'}
+            cancelLabel={inviteLink || isPreparingPlayground ? false : 'Cancel'}
             actions={
-                inviteLink ? (
-                    <Button onClick={handleClose}>Done</Button>
+                isPreparingPlayground ? null : inviteLink ? (
+                    <Group gap="xs">
+                        {playgroundFailure &&
+                            isRetryablePlaygroundSetupFailure(
+                                playgroundFailure,
+                            ) && (
+                                <Button
+                                    variant="default"
+                                    onClick={() => {
+                                        setPlaygroundFailure(null);
+                                        void preparePlayground();
+                                    }}
+                                >
+                                    Try again
+                                </Button>
+                            )}
+                        <Button onClick={handleClose}>Done</Button>
+                    </Group>
                 ) : (
                     <Button
                         loading={isSubmitting}
@@ -114,54 +179,92 @@ const SetupInviteModal: FC<{
                 )
             }
         >
-            {inviteLink ? (
-                <Alert icon={<IconCheck />} color="green" title="Invite ready">
-                    <Stack gap="sm">
-                        <Text size="sm">
-                            {health.data?.hasEmailClient ? (
-                                <>
-                                    Invite sent to <b>{inviteLink.email}</b> —
-                                    we'll take them straight to warehouse setup.
-                                </>
-                            ) : (
-                                <>
-                                    Share this link with{' '}
-                                    <b>{inviteLink.email}</b> to take them
-                                    straight to warehouse setup.
-                                </>
-                            )}
+            {isPreparingPlayground ? (
+                <Group gap="md" wrap="nowrap">
+                    <Loader size="sm" />
+                    <Stack gap={2}>
+                        <Text size="sm" fw={500}>
+                            Preparing a sample project…
                         </Text>
-                        <TextInput
-                            readOnly
-                            className="sentry-block ph-no-capture"
-                            value={inviteLink.inviteUrl}
-                            rightSection={
-                                <CopyButton value={inviteLink.inviteUrl}>
-                                    {({ copied, copy }) => (
-                                        <Tooltip
-                                            label={copied ? 'Copied' : 'Copy'}
-                                            withArrow
-                                            position="right"
-                                        >
-                                            <ActionIcon
-                                                color={copied ? 'teal' : 'gray'}
-                                                onClick={copy}
-                                            >
-                                                <MantineIcon
-                                                    icon={
-                                                        copied
-                                                            ? IconCheck
-                                                            : IconCopy
-                                                    }
-                                                />
-                                            </ActionIcon>
-                                        </Tooltip>
-                                    )}
-                                </CopyButton>
-                            }
-                        />
+                        <Text size="sm" c="dimmed">
+                            Explore sample data while your expert connects your
+                            warehouse.
+                        </Text>
                     </Stack>
-                </Alert>
+                </Group>
+            ) : inviteLink ? (
+                <Stack gap="sm">
+                    {playgroundFailure && (
+                        <Callout
+                            variant="warning"
+                            title="We couldn't set up a sample project"
+                        >
+                            <Text size="sm">
+                                {
+                                    PLAYGROUND_SETUP_FAILURE_MESSAGES[
+                                        playgroundFailure
+                                    ]
+                                }
+                            </Text>
+                        </Callout>
+                    )}
+                    <Alert
+                        icon={<IconCheck />}
+                        color="green"
+                        title="Invite ready"
+                    >
+                        <Stack gap="sm">
+                            <Text size="sm">
+                                {health.data?.hasEmailClient ? (
+                                    <>
+                                        Invite sent to <b>{inviteLink.email}</b>{' '}
+                                        — we'll take them straight to warehouse
+                                        setup.
+                                    </>
+                                ) : (
+                                    <>
+                                        Share this link with{' '}
+                                        <b>{inviteLink.email}</b> to take them
+                                        straight to warehouse setup.
+                                    </>
+                                )}
+                            </Text>
+                            <TextInput
+                                readOnly
+                                className="sentry-block ph-no-capture"
+                                value={inviteLink.inviteUrl}
+                                rightSection={
+                                    <CopyButton value={inviteLink.inviteUrl}>
+                                        {({ copied, copy }) => (
+                                            <Tooltip
+                                                label={
+                                                    copied ? 'Copied' : 'Copy'
+                                                }
+                                                withArrow
+                                                position="right"
+                                            >
+                                                <ActionIcon
+                                                    color={
+                                                        copied ? 'teal' : 'gray'
+                                                    }
+                                                    onClick={copy}
+                                                >
+                                                    <MantineIcon
+                                                        icon={
+                                                            copied
+                                                                ? IconCheck
+                                                                : IconCopy
+                                                        }
+                                                    />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        )}
+                                    </CopyButton>
+                                }
+                            />
+                        </Stack>
+                    </Alert>
+                </Stack>
             ) : (
                 <form
                     id="setup_invite"

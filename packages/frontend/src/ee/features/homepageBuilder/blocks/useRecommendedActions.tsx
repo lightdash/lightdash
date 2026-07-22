@@ -2,9 +2,10 @@ import { subject } from '@casl/ability';
 import {
     DbtProjectType,
     DbtProjectTypeLabels,
+    ProjectType,
     type HomepageRecommendedActionKey,
 } from '@lightdash/common';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useGithubConfig } from '../../../../components/common/GithubIntegration/hooks/useGithubIntegration';
 import { useGitlabRepositories } from '../../../../components/common/GitlabIntegration/hooks/useGitlabIntegration';
 import {
@@ -14,7 +15,9 @@ import {
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import { useGetSlack } from '../../../../hooks/slack/useSlack';
 import { useProject } from '../../../../hooks/useProject';
+import { useProjects } from '../../../../hooks/useProjects';
 import useApp from '../../../../providers/App/useApp';
+import { isPlaygroundProvisioningSource } from '../../../../utils/playgroundProject';
 import {
     RECOMMENDED_ACTION_KEYS,
     readSkippedActions,
@@ -35,6 +38,7 @@ const useActionStatuses = (
     const { health } = useApp();
     const { data: organization } = useOrganization();
     const { data: project } = useProject(projectUuid ?? undefined);
+    const { data: projects } = useProjects();
     const { data: githubConfig } = useGithubConfig();
     const { data: slack, isSuccess: isSlackSuccess } = useGetSlack();
 
@@ -51,12 +55,26 @@ const useActionStatuses = (
     const isSlackConnected =
         isSlackSuccess && !!slack && slack.hasRequiredScopes !== false;
 
-    const warehouseType = project?.warehouseConnection?.type;
+    // A playground is a project, so `needsProject` alone would report the
+    // warehouse step as done on sample data
+    const hasRealWarehouseProject =
+        organization?.needsProject === false &&
+        (projects?.some(
+            ({ type, provisioningSource }) =>
+                type === ProjectType.DEFAULT &&
+                !isPlaygroundProvisioningSource(provisioningSource),
+        ) ??
+            false);
+    const warehouseType =
+        hasRealWarehouseProject &&
+        !isPlaygroundProvisioningSource(project?.provisioningSource)
+            ? project?.warehouseConnection?.type
+            : undefined;
 
     return {
         'connect-warehouse': {
             isVisible: true,
-            isComplete: organization?.needsProject === false,
+            isComplete: hasRealWarehouseProject,
             annotation: warehouseType ? getWarehouseLabel(warehouseType) : null,
             doneIcon: warehouseType
                 ? getWarehouseIcon(warehouseType, 'sm')
@@ -92,6 +110,10 @@ const useActionStatuses = (
 export const useRecommendedActions = (projectUuid: string | null) => {
     const { user } = useApp();
     const statuses = useActionStatuses(projectUuid);
+    const { data: project } = useProject(projectUuid ?? undefined);
+    const isPlaygroundProject = isPlaygroundProvisioningSource(
+        project?.provisioningSource,
+    );
     const [skippedActions, setSkippedActions] = useState<
         HomepageRecommendedActionKey[]
     >(() => readSkippedActions(projectUuid));
@@ -105,9 +127,15 @@ export const useRecommendedActions = (projectUuid: string | null) => {
             }),
         ) ?? false;
 
-    const visibleActions = RECOMMENDED_ACTION_KEYS.filter(
-        (key) => statuses[key].isVisible,
-    );
+    useEffect(() => {
+        setSkippedActions(readSkippedActions(projectUuid));
+    }, [projectUuid]);
+
+    // On sample data the only step worth offering is the way out — the rest
+    // point at the playground's own settings
+    const visibleActions = isPlaygroundProject
+        ? (['connect-warehouse'] as HomepageRecommendedActionKey[])
+        : RECOMMENDED_ACTION_KEYS.filter((key) => statuses[key].isVisible);
     const hasPendingActions =
         canManageProject &&
         visibleActions.some(

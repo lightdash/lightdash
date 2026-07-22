@@ -78,6 +78,7 @@ type GenericEvent = {
         | EventName.BIGQUERY_SSO_SIGNIN_CLICKED
         | EventName.SNOWFLAKE_CLI_SSO_COMMAND_COPIED
         | EventName.SETUP_INVITE_SENT
+        | EventName.PLAYGROUND_PROJECT_ENTERED
         | EventName.AGENT_SETUP_PROMPT_COPIED;
     properties?: {};
 };

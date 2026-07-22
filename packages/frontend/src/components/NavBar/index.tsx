@@ -10,11 +10,13 @@ import { useProject } from '../../hooks/useProject';
 import { useImpersonation } from '../../hooks/user/useImpersonation';
 import useFullscreen from '../../providers/Fullscreen/useFullscreen';
 import Mantine8Provider from '../../providers/Mantine8Provider';
+import { isPlaygroundProvisioningSource } from '../../utils/playgroundProject';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../common/Page/constants';
 import { DashboardExplorerBanner } from './DashboardExplorerBanner';
 import { ImpersonationBanner } from './ImpersonationBanner';
 import classes from './index.module.css';
 import { MainNavBarContent } from './MainNavBarContent';
+import { PlaygroundBanner } from './PlaygroundBanner';
 import { PreviewBanner } from './PreviewBanner';
 import { TrialWarningBanner } from './TrialWarningBanner';
 
@@ -70,6 +72,9 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
     const { data: project } = useProject(activeProjectUuid);
 
     const isCurrentProjectPreview = project?.type === ProjectType.PREVIEW;
+    const isCurrentProjectPlayground = isPlaygroundProvisioningSource(
+        project?.provisioningSource,
+    );
     const upstreamProjectUuid = isCurrentProjectPreview
         ? project?.upstreamProjectUuid
         : undefined;
@@ -82,13 +87,17 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
     const showTrialWarning =
         !isImpersonating &&
         !isCurrentProjectPreview &&
+        !isCurrentProjectPlayground &&
         (organizationAccess?.status ===
             OrganizationAccessStatus.TRIAL_WARNING ||
             organizationAccess?.status ===
                 OrganizationAccessStatus.TRIAL_EXPIRED);
 
     const hasBanner =
-        isImpersonating || isCurrentProjectPreview || showTrialWarning;
+        isImpersonating ||
+        isCurrentProjectPreview ||
+        isCurrentProjectPlayground ||
+        showTrialWarning;
 
     // Calculate placeholder height: navbar + banner.
     const headerContainerHeight =
@@ -119,6 +128,8 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                                 : null
                         }
                     />
+                ) : isCurrentProjectPlayground ? (
+                    <PlaygroundBanner />
                 ) : (
                     organizationAccess && (
                         <TrialWarningBanner access={organizationAccess} />
