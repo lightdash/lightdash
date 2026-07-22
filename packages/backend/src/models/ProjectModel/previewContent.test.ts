@@ -1,0 +1,26 @@
+import { omitProjectUuid } from './previewContent';
+
+describe('omitProjectUuid', () => {
+    it.each([
+        {
+            row: {
+                saved_query_uuid: 'chart-uuid',
+                project_uuid: 'source-project-uuid',
+            },
+        },
+        {
+            row: {
+                dashboard_uuid: 'dashboard-uuid',
+                project_uuid: 'source-project-uuid',
+            },
+        },
+    ])(
+        'omits ownership from preview rows without mutating the source',
+        ({ row }) => {
+            const result = omitProjectUuid(row);
+
+            expect(result).not.toHaveProperty('project_uuid');
+            expect(row).toHaveProperty('project_uuid', 'source-project-uuid');
+        },
+    );
+});

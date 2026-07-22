@@ -132,7 +132,7 @@ export const generateUniqueSlugScopedToProject = async (
                     `${SpaceTableName}.project_id`,
                     `${ProjectTableName}.project_id`,
                 )
-                .where('project_uuid', projectUuid)
+                .where(`${ProjectTableName}.project_uuid`, projectUuid)
                 .select(`${SavedChartsTableName}.slug`)
                 .where(`${SavedChartsTableName}.slug`, 'like', `${baseSlug}%`)
                 .pluck(`${SavedChartsTableName}.slug`);
@@ -149,7 +149,7 @@ export const generateUniqueSlugScopedToProject = async (
                     `${SpaceTableName}.project_id`,
                     `${ProjectTableName}.project_id`,
                 )
-                .where('project_uuid', projectUuid)
+                .where(`${ProjectTableName}.project_uuid`, projectUuid)
                 .select(`${DashboardsTableName}.slug`)
                 .where(`${DashboardsTableName}.slug`, 'like', `${baseSlug}%`)
                 .pluck(`${DashboardsTableName}.slug`);
