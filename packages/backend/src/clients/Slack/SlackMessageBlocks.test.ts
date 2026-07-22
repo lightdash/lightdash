@@ -4,6 +4,7 @@ import {
     getChartAndDashboardBlocks,
     getChartCsvResultsBlocks,
     getDashboardCsvResultsBlocks,
+    replaceImageBlocksWithNotice,
 } from './SlackMessageBlocks';
 
 const SLACK_MAX_BLOCKS = 50;
@@ -243,7 +244,7 @@ describe('SlackMessageBlocks', () => {
                 name: 'Chart',
                 description: 'Chart desc',
                 ctaUrl: 'https://app.lightdash.com/chart/abc',
-                imageUrl: 'not-a-url',
+                image: { source: 'url', url: 'not-a-url' },
             });
 
             const sectionTexts = findBlocks(blocks, 'section')
@@ -311,7 +312,7 @@ describe('SlackMessageBlocks', () => {
                 name: 'Chart',
                 description: 'Chart desc',
                 ctaUrl: 'https://app.lightdash.com/chart/abc',
-                imageUrl: longImage,
+                image: { source: 'url', url: longImage },
             });
 
             expect(findBlocks(blocks, 'image')).toHaveLength(0);
@@ -323,10 +324,54 @@ describe('SlackMessageBlocks', () => {
                 name: 'Chart',
                 description: 'Chart desc',
                 ctaUrl: 'https://app.lightdash.com/chart/abc',
-                imageUrl: 'https://s3.example.com/img.png',
+                image: { source: 'url', url: 'https://s3.example.com/img.png' },
             });
 
             expect(findBlocks(blocks, 'image')).toHaveLength(1);
+        });
+
+        it('references Slack-hosted files by id instead of image_url', () => {
+            const blocks = getChartAndDashboardBlocks({
+                title: 'Chart',
+                name: 'Chart',
+                description: 'Chart desc',
+                ctaUrl: 'https://app.lightdash.com/chart/abc',
+                image: { source: 'slackFile', fileId: 'F12345' },
+            });
+
+            const images = findBlocks(blocks, 'image');
+            expect(images).toHaveLength(1);
+            expect(images[0]).toEqual(
+                expect.objectContaining({ slack_file: { id: 'F12345' } }),
+            );
+            expect(images[0]).not.toHaveProperty('image_url');
+        });
+    });
+
+    describe('replaceImageBlocksWithNotice', () => {
+        it('swaps only the blocks at the given indices and keeps everything else', () => {
+            const blocks = getChartAndDashboardBlocks({
+                title: 'Chart',
+                name: 'Chart',
+                description: 'Chart desc',
+                ctaUrl: 'https://app.lightdash.com/chart/abc',
+                image: { source: 'url', url: 'https://s3.example.com/img.png' },
+                footerMarkdown: 'sent by scheduler',
+            });
+            const imageIndex = blocks.findIndex((b) => b.type === 'image');
+
+            const replaced = replaceImageBlocksWithNotice(blocks, [
+                imageIndex,
+            ]) as KnownBlock[];
+
+            expect(replaced).toHaveLength(blocks.length);
+            expect(findBlocks(replaced, 'image')).toHaveLength(0);
+            expect(findBlocks(replaced, 'header')).toHaveLength(1);
+            expect(findBlocks(replaced, 'context')).toHaveLength(1);
+            const sectionTexts = findBlocks(replaced, 'section')
+                .map((s) => s.text?.text ?? '')
+                .join('\n');
+            expect(sectionTexts).toMatch(/preview unavailable/i);
         });
     });
 
@@ -375,7 +420,7 @@ describe('SlackMessageBlocks', () => {
                 name: 'My chart',
                 description: 'A description',
                 message: 'Custom message',
-                imageUrl: 'https://s3.example.com/img.png',
+                image: { source: 'url', url: 'https://s3.example.com/img.png' },
                 ctaUrl: 'https://app.lightdash.com/chart/abc',
                 footerMarkdown: 'sent by scheduler',
             });
