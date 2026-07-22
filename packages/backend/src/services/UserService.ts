@@ -1764,6 +1764,11 @@ export class UserService extends BaseService {
             if (onboardingFlow !== 'new') {
                 throw new ForbiddenError('Email-only signup is not enabled');
             }
+            if (!this.lightdashConfig.smtp) {
+                throw new ForbiddenError(
+                    'Email-only signup requires an email server to be configured',
+                );
+            }
 
             await this.checkNewUserRegistrationAllowed(undefined, user.email);
 
