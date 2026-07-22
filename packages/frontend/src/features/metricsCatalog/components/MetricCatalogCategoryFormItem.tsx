@@ -82,6 +82,8 @@ const EditPopover: FC<EditPopoverProps> = ({
             opened={opened}
             closeOnClickOutside
             width={200}
+            // Controlled v8 Popovers signal outside-click/Escape via onDismiss, not onClose
+            onDismiss={handleClose}
             onClose={handleClose}
             trapFocus={opened}
             shadow="sm"

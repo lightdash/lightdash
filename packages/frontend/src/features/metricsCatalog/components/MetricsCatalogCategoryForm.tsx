@@ -247,6 +247,12 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
         return (
             <Popover
                 opened={opened}
+                // Controlled v8 Popovers signal outside-click/Escape via onDismiss, not onClose
+                onDismiss={() => {
+                    if (!hasOpenSubPopover) {
+                        onClose?.();
+                    }
+                }}
                 onClose={() => {
                     // Only close the main popover if no sub-popovers are open
                     if (!hasOpenSubPopover) {
