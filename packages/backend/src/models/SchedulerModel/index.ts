@@ -78,6 +78,7 @@ import {
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
 import KnexPaginate from '../../database/pagination';
+import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
 
 type SelectScheduler = SchedulerDb & {
     created_by_name: string | null;
@@ -588,9 +589,36 @@ export class SchedulerModel {
     }
 
     async getAllSchedulers(): Promise<SchedulerAndTargets[]> {
+        // `service_accounts` is an EE-only table, absent in unlicensed
+        // deployments, so only reference it when it actually exists.
+        // `to_regclass` returns NULL for a missing table instead of erroring.
+        const [row] = await this.database.select<
+            { has_service_accounts: boolean }[]
+        >(
+            this.database.raw(
+                'to_regclass(?) is not null as has_service_accounts',
+                [ServiceAccountsTableName],
+            ),
+        );
+        const hasServiceAccounts = row?.has_service_accounts ?? false;
         const schedulers = SchedulerModel.getBaseSchedulerQuery(this.database)
             .where(`${SchedulerTableName}.enabled`, true)
-            .where(`${UserTableName}.is_active`, true);
+            .where(function activeUserOrServiceAccount() {
+                // Human creators run only while their account is active.
+                void this.where(`${UserTableName}.is_active`, true);
+                // Service accounts are backed by an always-inactive internal
+                // user, so gate them on the service account still existing
+                // instead — deleting the account (tombstone) stops delivery.
+                if (hasServiceAccounts) {
+                    void this.orWhereExists(function serviceAccountExists() {
+                        void this.select('*')
+                            .from(ServiceAccountsTableName)
+                            .whereRaw(
+                                `${ServiceAccountsTableName}.service_account_user_uuid = ${SchedulerTableName}.created_by`,
+                            );
+                    });
+                }
+            });
         return this.getSchedulersWithTargets(await schedulers);
     }
 
