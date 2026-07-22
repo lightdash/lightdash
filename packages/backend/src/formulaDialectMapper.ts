@@ -39,6 +39,8 @@ export const mapAdapterToFormulaDialect = (
             return 'athena';
         case SupportedDbtAdapter.TRINO:
             return 'trino';
+        case SupportedDbtAdapter.DORIS:
+            return 'doris';
         default:
             return assertUnreachable(adapter, `Unknown adapter: ${adapter}`);
     }

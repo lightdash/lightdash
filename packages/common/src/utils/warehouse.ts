@@ -82,6 +82,7 @@ export const getFieldQuoteChar = (
         switch (warehouseType) {
             case WarehouseTypes.BIGQUERY:
             case WarehouseTypes.DATABRICKS:
+            case WarehouseTypes.DORIS:
                 return '`';
             case WarehouseTypes.SNOWFLAKE:
             case WarehouseTypes.REDSHIFT:
@@ -117,6 +118,7 @@ export const getAggregatedField = (
         case SupportedDbtAdapter.TRINO:
         case SupportedDbtAdapter.ATHENA:
         case SupportedDbtAdapter.DUCKDB:
+        case SupportedDbtAdapter.DORIS:
             const aggregationFunction =
                 aggregation === VizAggregationOptions.ANY
                     ? 'ANY_VALUE'

@@ -7,6 +7,7 @@ import BigQueryForm from './WarehouseForms/BigQueryForm';
 import ClickhouseForm from './WarehouseForms/ClickhouseForm';
 import DatabricksForm from './WarehouseForms/DatabricksForm';
 import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
+import DorisForm from './WarehouseForms/DorisForm';
 import DuckdbForm from './WarehouseForms/DuckdbForm';
 import PostgresForm from './WarehouseForms/PostgresForm';
 import RedshiftForm from './WarehouseForms/RedshiftForm';
@@ -24,6 +25,7 @@ const WarehouseTypeLabels = {
     [WarehouseTypes.CLICKHOUSE]: 'ClickHouse',
     [WarehouseTypes.ATHENA]: 'Athena',
     [WarehouseTypes.DUCKDB]: 'DuckDB',
+    [WarehouseTypes.DORIS]: 'Apache Doris',
 };
 
 const WarehouseTypeForms = {
@@ -36,6 +38,7 @@ const WarehouseTypeForms = {
     [WarehouseTypes.CLICKHOUSE]: ClickhouseForm,
     [WarehouseTypes.ATHENA]: AthenaForm,
     [WarehouseTypes.DUCKDB]: DuckdbForm,
+    [WarehouseTypes.DORIS]: DorisForm,
 };
 
 interface WarehouseSettingsFormProps {

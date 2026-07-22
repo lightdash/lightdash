@@ -40,6 +40,7 @@ export const warehouseTypeToSkillKey = (
             return 'trino';
         case WarehouseTypes.CLICKHOUSE:
         case WarehouseTypes.DUCKDB:
+        case WarehouseTypes.DORIS:
             // No dedicated skill file yet — fall back to shared.md only.
             return null;
         default:

@@ -13,6 +13,7 @@ import type {
     CreateBigqueryCredentials,
     CreateClickhouseCredentials,
     CreateDatabricksCredentials,
+    CreateDorisCredentials,
     CreateDuckdbCredentials,
     CreateDuckdbDucklakeCredentials,
     CreateDuckdbMotherduckCredentials,
@@ -173,6 +174,20 @@ export const ClickhouseDefaultValues: CreateClickhouseCredentials = {
     timeoutSeconds: 300,
 };
 
+export const DorisDefaultValues: CreateDorisCredentials = {
+    type: WarehouseTypes.DORIS,
+    schema: '',
+    host: '',
+    user: '',
+    password: '',
+    requireUserCredentials: false,
+    port: 9030,
+    startOfWeek: undefined,
+    dataTimezone: undefined,
+    timeoutSeconds: 300,
+    ssl: false,
+};
+
 export const AthenaDefaultValues: CreateAthenaCredentials = {
     type: WarehouseTypes.ATHENA,
     authenticationType: AthenaAuthenticationType.ACCESS_KEY,
@@ -235,4 +250,5 @@ export const warehouseDefaultValues = {
     [WarehouseTypes.CLICKHOUSE]: ClickhouseDefaultValues,
     [WarehouseTypes.ATHENA]: AthenaDefaultValues,
     [WarehouseTypes.DUCKDB]: DuckdbDefaultValues,
+    [WarehouseTypes.DORIS]: DorisDefaultValues,
 };

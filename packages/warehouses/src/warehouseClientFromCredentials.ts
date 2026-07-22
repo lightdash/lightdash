@@ -9,6 +9,7 @@ import { AthenaWarehouseClient } from './warehouseClients/AthenaWarehouseClient'
 import { BigqueryWarehouseClient } from './warehouseClients/BigqueryWarehouseClient';
 import { ClickhouseWarehouseClient } from './warehouseClients/ClickhouseWarehouseClient';
 import { DatabricksWarehouseClient } from './warehouseClients/DatabricksWarehouseClient';
+import { DorisWarehouseClient } from './warehouseClients/DorisWarehouseClient';
 import { DuckdbWarehouseClient } from './warehouseClients/DuckdbWarehouseClient';
 import { PostgresWarehouseClient } from './warehouseClients/PostgresWarehouseClient';
 import { RedshiftWarehouseClient } from './warehouseClients/RedshiftWarehouseClient';
@@ -37,6 +38,8 @@ export const warehouseClientFromCredentials = (
             return new AthenaWarehouseClient(credentials);
         case WarehouseTypes.DUCKDB:
             return new DuckdbWarehouseClient(credentials);
+        case WarehouseTypes.DORIS:
+            return new DorisWarehouseClient(credentials);
         default:
             return assertUnreachable(
                 credentials,

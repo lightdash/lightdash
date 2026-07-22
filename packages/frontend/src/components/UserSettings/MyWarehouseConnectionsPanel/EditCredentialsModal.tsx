@@ -44,6 +44,7 @@ const getCredentialsWithPlaceholders = (
                 personalAccessToken: '',
             };
         case WarehouseTypes.CLICKHOUSE:
+        case WarehouseTypes.DORIS:
             return {
                 ...credentials,
                 password: '',

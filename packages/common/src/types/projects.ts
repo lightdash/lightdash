@@ -28,6 +28,7 @@ export enum WarehouseTypes {
     CLICKHOUSE = 'clickhouse',
     ATHENA = 'athena',
     DUCKDB = 'duckdb',
+    DORIS = 'doris',
 }
 
 export enum DuckdbConnectionType {
@@ -197,6 +198,27 @@ export type CreateClickhouseCredentials = {
 };
 export type ClickhouseCredentials = Omit<
     CreateClickhouseCredentials,
+    SensitiveCredentialsFieldNames
+>;
+
+// Doris speaks the MySQL wire protocol, so the connection shape mirrors a
+// MySQL/ClickHouse-style host/port/user/password credential. `schema` holds the
+// Doris database name (Doris addresses tables as `database.table`).
+export type CreateDorisCredentials = {
+    type: WarehouseTypes.DORIS;
+    host: string;
+    user: string;
+    password: string;
+    requireUserCredentials?: boolean;
+    port: number;
+    schema: string;
+    startOfWeek?: WeekDay | null;
+    dataTimezone?: string;
+    timeoutSeconds?: number;
+    ssl?: boolean;
+};
+export type DorisCredentials = Omit<
+    CreateDorisCredentials,
     SensitiveCredentialsFieldNames
 >;
 
@@ -550,7 +572,8 @@ export type CreateWarehouseCredentials =
     | CreateTrinoCredentials
     | CreateClickhouseCredentials
     | CreateAthenaCredentials
-    | CreateDuckdbCredentials;
+    | CreateDuckdbCredentials
+    | CreateDorisCredentials;
 export type WarehouseCredentials =
     | SnowflakeCredentials
     | RedshiftCredentials
@@ -560,7 +583,8 @@ export type WarehouseCredentials =
     | TrinoCredentials
     | ClickhouseCredentials
     | AthenaCredentials
-    | DuckdbCredentials;
+    | DuckdbCredentials
+    | DorisCredentials;
 
 // Returns the timezone the column data is in when the query runs.
 // Snowflake's dbt translator wraps timestamps with CONVERT_TIMEZONE('UTC', col),
