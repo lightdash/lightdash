@@ -3595,4 +3595,148 @@ describe('domain-directed timestamp filter literals', () => {
             );
         });
     });
+
+    describe('RAW instant LHS pins the legacy literal (flag-gated rebase companion)', () => {
+        test.each([
+            [
+                SupportedDbtAdapter.BIGQUERY,
+                `(${DimensionSqlMock}) = TIMESTAMP('2024-01-14 17:00:00', 'UTC')`,
+            ],
+            [
+                SupportedDbtAdapter.POSTGRES,
+                `(${DimensionSqlMock}) = ('2024-01-14 17:00:00+00:00')`,
+            ],
+        ])(
+            'RAW equals with an instant LHS on %s (only BigQuery pins to UTC)',
+            (adapter, expected) => {
+                expect(
+                    renderTimestamp(adapter, equalsInstantFilter, {
+                        sourceTimezone: 'Asia/Tokyo',
+                        timeInterval: TimeFrames.RAW,
+                        lhsMode: 'instant',
+                    }),
+                ).toStrictEqual(expected);
+            },
+        );
+    });
+});
+
+describe('resolveTimestampFilterContext', () => {
+    const base = {
+        adapterType: SupportedDbtAdapter.POSTGRES,
+        useTimezoneAwareDateTrunc: true,
+        sourceTimezone: 'Asia/Tokyo',
+        timestampDomain: 'naive' as TimestampDomain,
+        timeInterval: TimeFrames.DAY,
+        lhsMode: 'legacy' as TimestampFilterLhsMode,
+    };
+
+    describe('falls back to the legacy context', () => {
+        test('when the timezone-aware flag is off', () => {
+            expect(
+                resolveTimestampFilterContext({
+                    ...base,
+                    useTimezoneAwareDateTrunc: false,
+                }),
+            ).toStrictEqual({ mode: 'legacy', instantLhs: false });
+        });
+
+        test('when the domain is unknown (undefined)', () => {
+            expect(
+                resolveTimestampFilterContext({
+                    ...base,
+                    timestampDomain: undefined,
+                }),
+            ).toStrictEqual({ mode: 'legacy', instantLhs: false });
+        });
+
+        test('when the data timezone resolves to UTC', () => {
+            expect(
+                resolveTimestampFilterContext({
+                    ...base,
+                    sourceTimezone: 'UTC',
+                }),
+            ).toStrictEqual({ mode: 'legacy', instantLhs: false });
+        });
+
+        test('when the data timezone is omitted (defaults to UTC)', () => {
+            expect(
+                resolveTimestampFilterContext({
+                    ...base,
+                    sourceTimezone: undefined,
+                }),
+            ).toStrictEqual({ mode: 'legacy', instantLhs: false });
+        });
+
+        test('on Snowflake, whose dimension SQL is wrapped at compile time', () => {
+            expect(
+                resolveTimestampFilterContext({
+                    ...base,
+                    adapterType: SupportedDbtAdapter.SNOWFLAKE,
+                }),
+            ).toStrictEqual({ mode: 'legacy', instantLhs: false });
+        });
+    });
+
+    test('carries instantLhs on a RAW frame with an instant LHS even in the legacy context', () => {
+        expect(
+            resolveTimestampFilterContext({
+                ...base,
+                // undefined domain forces the legacy short-circuit
+                timestampDomain: undefined,
+                timeInterval: TimeFrames.RAW,
+                lhsMode: 'instant',
+            }),
+        ).toStrictEqual({ mode: 'legacy', instantLhs: true });
+    });
+
+    test('resolves a naive domain to a data-timezone wall-clock context', () => {
+        expect(resolveTimestampFilterContext(base)).toStrictEqual({
+            mode: 'naiveWall',
+            wallClockTimezone: 'Asia/Tokyo',
+        });
+    });
+
+    test('resolves an aware domain to an instant context', () => {
+        expect(
+            resolveTimestampFilterContext({
+                ...base,
+                timestampDomain: 'aware',
+            }),
+        ).toStrictEqual({ mode: 'awareInstant' });
+    });
+
+    test('coerces a naive domain to aware when the adapter has no naive representation (ClickHouse)', () => {
+        expect(
+            resolveTimestampFilterContext({
+                ...base,
+                adapterType: SupportedDbtAdapter.CLICKHOUSE,
+            }),
+        ).toStrictEqual({ mode: 'awareInstant' });
+    });
+
+    describe('sub-day truncation', () => {
+        test('wraps the literal when the LHS is wrapped', () => {
+            expect(
+                resolveTimestampFilterContext({
+                    ...base,
+                    timeInterval: TimeFrames.HOUR,
+                    lhsMode: 'wrapped',
+                }),
+            ).toStrictEqual({ mode: 'wrapped' });
+        });
+
+        test.each<TimestampFilterLhsMode>(['legacy', 'instant'])(
+            'falls back to the legacy context when the LHS is %s (not wrapped)',
+            (lhsMode) => {
+                expect(
+                    resolveTimestampFilterContext({
+                        ...base,
+                        timeInterval: TimeFrames.HOUR,
+                        lhsMode,
+                    }),
+                ).toStrictEqual({ mode: 'legacy', instantLhs: false });
+            },
+        );
+    });
 });

@@ -7184,6 +7184,44 @@ describe('Naive timestamp domain — explicit, session-independent conversion', 
             );
         });
 
+        test('bare known-naive column (no time interval) compares data-timezone wall clocks (Postgres)', () => {
+            const { query } = buildQuery({
+                explore: buildNaiveExplore(
+                    SupportedDbtAdapter.POSTGRES,
+                    'naive',
+                ),
+                compiledMetricQuery: filteredQuery('events_occurred_at'),
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: 'Asia/Tokyo',
+                useTimezoneAwareDateTrunc: true,
+                columnTimezone: 'Asia/Tokyo',
+            });
+            const whereClause = query.slice(query.indexOf('WHERE'));
+            expect(whereClause).toContain(`('2024-01-15 02:00:00'::timestamp)`);
+            expect(whereClause).not.toContain('2024-01-14 17:00:00+00:00');
+        });
+
+        test('bare known-aware column (no time interval) keeps the instant literal (Postgres)', () => {
+            const { query } = buildQuery({
+                explore: buildNaiveExplore(
+                    SupportedDbtAdapter.POSTGRES,
+                    'aware',
+                ),
+                compiledMetricQuery: filteredQuery('events_occurred_at'),
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: 'Asia/Tokyo',
+                useTimezoneAwareDateTrunc: true,
+                columnTimezone: 'Asia/Tokyo',
+            });
+            const whereClause = query.slice(query.indexOf('WHERE'));
+            expect(whereClause).toContain(`('2024-01-14 17:00:00+00:00')`);
+            expect(whereClause).not.toContain(
+                `'2024-01-15 02:00:00'::timestamp`,
+            );
+        });
+
         test.each(['events_occurred_at', 'events_occurred_at_raw'])(
             'convert_timezone: false keeps the known-naive %s filter literal in the raw value space',
             (fieldId) => {
