@@ -2354,6 +2354,10 @@
                     "description": "The name of the explore to query",
                     "type": "string"
                 },
+                "labelDimensionMap": {
+                    "$ref": "#/$defs/Record_string.string_",
+                    "description": "Maps a dimension field id to the dimension field id whose value labels\nit in charts (sourced from the dimension's filter_autocomplete)."
+                },
                 "limit": {
                     "description": "Maximum number of rows to return",
                     "format": "double",

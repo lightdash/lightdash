@@ -1,5 +1,7 @@
 import {
+    buildLabelValueMap,
     formatItemValue,
+    getLabelForValue,
     isField,
     isHexCodeColor,
     isMetric,
@@ -10,6 +12,7 @@ import {
     type Dimension,
     type ItemsMap,
     type Metric,
+    type MetricQuery,
     type ParametersValuesMap,
     type PieChart,
     type PieChartLegendPosition,
@@ -77,6 +80,7 @@ type PieChartConfig = {
     legendMaxItemLengthChange: (length: number | undefined) => void;
     data: {
         name: string;
+        displayName: string;
         value: number;
         meta: {
             value: ResultValue;
@@ -87,7 +91,10 @@ type PieChartConfig = {
 
 export type PieChartConfigFn = (
     resultsData:
-        | (InfiniteQueryResults & { resolvedTimezone?: string })
+        | (InfiniteQueryResults & {
+              resolvedTimezone?: string;
+              metricQuery?: MetricQuery;
+          })
         | undefined,
     pieChartConfig: PieChart | undefined,
     itemsMap: ItemsMap | undefined,
@@ -245,6 +252,15 @@ const usePieChartConfig: PieChartConfigFn = (
         );
     }, [groupValueOptionOverrides]);
 
+    const labelValueMap = useMemo(
+        () =>
+            buildLabelValueMap(
+                resultsData?.rows ?? [],
+                resultsData?.metricQuery?.labelDimensionMap,
+            ),
+        [resultsData?.rows, resultsData?.metricQuery?.labelDimensionMap],
+    );
+
     const data = useMemo(() => {
         if (
             !metricId ||
@@ -271,9 +287,21 @@ const usePieChartConfig: PieChartConfigFn = (
                 .filter(Boolean)
                 .join(' - ');
 
+            const displayName = groupFieldIds
+                .map(
+                    (groupFieldId) =>
+                        getLabelForValue(
+                            labelValueMap,
+                            groupFieldId,
+                            row[groupFieldId]?.value?.raw,
+                        ) ?? row[groupFieldId]?.value?.formatted,
+                )
+                .filter(Boolean)
+                .join(' - ');
+
             const value = Number(row[metricId].value.raw);
 
-            return { name, value, row };
+            return { name, displayName, value, row };
         });
 
         return Object.entries(
@@ -282,21 +310,24 @@ const usePieChartConfig: PieChartConfigFn = (
                     string,
                     {
                         value: number;
+                        displayName: string;
                         rows: ResultRow[];
                     }
                 >
-            >((acc, { name, value, row }) => {
+            >((acc, { name, displayName, value, row }) => {
                 return {
                     ...acc,
                     [name]: {
                         value: (acc[name]?.value ?? 0) + value,
+                        displayName: acc[name]?.displayName ?? displayName,
                         rows: [...(acc[name]?.rows ?? []), row],
                     },
                 };
             }, {}),
         )
-            .map(([name, { value, rows }]) => ({
+            .map(([name, { value, displayName, rows }]) => ({
                 name,
+                displayName,
                 value,
                 meta: {
                     value: {
@@ -313,7 +344,14 @@ const usePieChartConfig: PieChartConfigFn = (
                 },
             }))
             .sort((a, b) => b.value - a.value);
-    }, [resultsData, groupFieldIds, selectedMetric, metricId, parameters]);
+    }, [
+        resultsData,
+        groupFieldIds,
+        selectedMetric,
+        metricId,
+        parameters,
+        labelValueMap,
+    ]);
 
     const groupLabels = useMemo(() => {
         return data.map(({ name }) => name);

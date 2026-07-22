@@ -25,6 +25,9 @@ import {
     getBarTotalLabelStyle,
     getCustomFormatFromLegacy,
     getDateGroupLabel,
+    buildLabelValueMap,
+    buildLabelValueMapFromPivotValues,
+    mergeLabelValueMaps,
     getFormatExpressionLocale,
     getFormattedValue,
     getFormatterTimezone,
@@ -68,6 +71,7 @@ import {
     type GranularityMap,
     type Item,
     type ItemsMap,
+    type LabelValueMap,
     type MarkLine,
     type MarkLineData,
     type ParametersValuesMap,
@@ -782,6 +786,7 @@ type GetPivotSeriesArg = {
     parameters?: ParametersValuesMap;
     isStack100?: boolean;
     resolvedTimezone?: string;
+    labelValueMap?: LabelValueMap;
 };
 
 const seriesValueFormatter = (
@@ -1015,6 +1020,7 @@ const getPivotSeries = ({
     parameters,
     isStack100,
     resolvedTimezone,
+    labelValueMap,
 }: GetPivotSeriesArg): EChartsSeries => {
     const pivotLabel = pivotReference.pivotValues.reduce(
         (acc, { field, value }) => {
@@ -1026,6 +1032,8 @@ const getPivotSeries = ({
                 pivotValuesColumnsMap,
                 parameters,
                 resolvedTimezone,
+                undefined,
+                labelValueMap,
             );
             return acc ? `${acc} - ${formattedValue}` : formattedValue;
         },
@@ -1346,6 +1354,7 @@ const getEchartsSeriesFromPivotedData = (
     parameters?: ParametersValuesMap,
     backgroundColor?: string,
     resolvedTimezone?: string,
+    labelValueMap?: LabelValueMap,
 ): EChartsSeries[] => {
     // Check if 100% stacking is enabled
     const isStack100 = cartesianChart.layout.stack === StackType.PERCENT;
@@ -1412,6 +1421,7 @@ const getEchartsSeriesFromPivotedData = (
                     parameters,
                     isStack100,
                     resolvedTimezone,
+                    labelValueMap,
                 });
             }
 
@@ -1847,6 +1857,7 @@ const getEchartAxes = ({
     resolvedTimezone,
     displayTimezone,
     isTimeAxisShifted,
+    labelValueMap,
 }: {
     validCartesianConfig: CartesianChart;
     itemsMap: ItemsMap;
@@ -1858,6 +1869,7 @@ const getEchartAxes = ({
     resolvedTimezone?: string;
     displayTimezone?: string;
     isTimeAxisShifted?: boolean;
+    labelValueMap?: LabelValueMap;
 }) => {
     const xAxisItemId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.yField?.[0]
@@ -2165,6 +2177,7 @@ const getEchartAxes = ({
         parameters,
         timezone: resolvedTimezone,
         displayTimezone,
+        labelValueMap,
     });
     // `bottom` (vertical) and `left` (horizontal) value labels render at the
     // value=0 baseline, overlapping the category-axis tick labels there.
@@ -2220,6 +2233,7 @@ const getEchartAxes = ({
         parameters,
         timezone: resolvedTimezone,
         displayTimezone,
+        labelValueMap,
     });
     const topAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -2241,6 +2255,7 @@ const getEchartAxes = ({
         parameters,
         timezone: resolvedTimezone,
         displayTimezone,
+        labelValueMap,
     });
     const leftAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -2276,6 +2291,7 @@ const getEchartAxes = ({
         parameters,
         timezone: resolvedTimezone,
         displayTimezone,
+        labelValueMap,
     });
     const rightAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -3226,6 +3242,24 @@ const useEchartsCartesianConfig = (
         return visualizationConfig.chartConfig.validConfig;
     }, [visualizationConfig]);
 
+    const labelValueMap = useMemo(
+        () =>
+            mergeLabelValueMaps(
+                buildLabelValueMap(
+                    resultsData?.rows ?? [],
+                    resultsData?.metricQuery?.labelDimensionMap,
+                ),
+                buildLabelValueMapFromPivotValues(
+                    resultsData?.pivotDetails?.valuesColumns,
+                ),
+            ),
+        [
+            resultsData?.rows,
+            resultsData?.metricQuery?.labelDimensionMap,
+            resultsData?.pivotDetails?.valuesColumns,
+        ],
+    );
+
     const { timeAxisField, axisTimezone, axisDisplayTimezone } = useMemo(
         () =>
             resolveAxisTimezone({
@@ -3293,6 +3327,7 @@ const useEchartsCartesianConfig = (
             parameters,
             undefined,
             resolvedTimezone,
+            labelValueMap,
         );
 
         return filterSeriesWithNoData(
@@ -3309,6 +3344,7 @@ const useEchartsCartesianConfig = (
         parameters,
         resultsAndMinsAndMaxes.results,
         resolvedTimezone,
+        labelValueMap,
     ]);
 
     const axes = useMemo(() => {
@@ -3331,6 +3367,7 @@ const useEchartsCartesianConfig = (
             resolvedTimezone: axisTimezone,
             displayTimezone: axisDisplayTimezone,
             isTimeAxisShifted: timeAxisField !== undefined,
+            labelValueMap,
         });
     }, [
         itemsMap,
@@ -3342,6 +3379,7 @@ const useEchartsCartesianConfig = (
         parameters,
         axisTimezone,
         axisDisplayTimezone,
+        labelValueMap,
         timeAxisField,
     ]);
 
@@ -3969,6 +4007,7 @@ const useEchartsCartesianConfig = (
                 rows: dataToRender,
                 timezone: axisTimezone,
                 displayTimezone: axisDisplayTimezone,
+                labelValueMap,
             }),
         };
     }, [
@@ -3987,6 +4026,7 @@ const useEchartsCartesianConfig = (
         isTouchDevice,
         axisTimezone,
         axisDisplayTimezone,
+        labelValueMap,
     ]);
 
     // Calculate max stack label padding for 100% stacking grid

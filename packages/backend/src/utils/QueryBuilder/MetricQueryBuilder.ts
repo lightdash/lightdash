@@ -117,6 +117,8 @@ export type CompiledQuery = {
     missingParameterReferences: Set<string>;
     usedParameters: ParametersValuesMap;
     compilationErrors: string[];
+    companionLabelDimensionIds?: string[];
+    labelDimensionMap?: Record<string, string>;
 };
 
 export type BuildQueryProps = {
@@ -4986,7 +4988,13 @@ export class MetricQueryBuilder {
         warnings: QueryWarning[];
     } {
         const { explore, compiledMetricQuery } = this.args;
-        const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
+        const fields = getFieldsFromMetricQuery(
+            compiledMetricQuery,
+            explore,
+            compiledMetricQuery.companionLabelDimensionIds
+                ? new Set(compiledMetricQuery.companionLabelDimensionIds)
+                : undefined,
+        );
         const usedFieldCompilationErrors = this.getUsedFieldCompilationErrors();
 
         if (usedFieldCompilationErrors.length > 0) {
@@ -5694,6 +5702,9 @@ export class MetricQueryBuilder {
             missingParameterReferences,
             usedParameters,
             compilationErrors: this.compilationErrors,
+            companionLabelDimensionIds:
+                this.args.compiledMetricQuery.companionLabelDimensionIds,
+            labelDimensionMap: this.args.compiledMetricQuery.labelDimensionMap,
         };
     }
 }

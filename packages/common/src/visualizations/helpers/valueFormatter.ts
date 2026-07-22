@@ -2,6 +2,10 @@ import { type AnyType } from '../../types/any';
 import { type ItemsMap } from '../../types/field';
 import { type ParametersValuesMap } from '../../types/parameters';
 import { formatItemValue } from '../../utils/formatting';
+import {
+    getLabelForValue,
+    type LabelValueMap,
+} from '../../utils/labelValueMap';
 import { type PivotValuesColumn } from '../types';
 
 export const getFormattedValue = (
@@ -13,9 +17,15 @@ export const getFormattedValue = (
     parameters?: ParametersValuesMap,
     timezone?: string,
     displayTimezone?: string,
+    labelValueMap?: LabelValueMap,
 ): string => {
     const pivotValuesColumn = pivotValuesColumnsMap?.[key];
-    const item = itemsMap[pivotValuesColumn?.referenceField ?? key];
+    const fieldId = pivotValuesColumn?.referenceField ?? key;
+    const label = getLabelForValue(labelValueMap, fieldId, value);
+    if (label !== undefined) {
+        return label;
+    }
+    const item = itemsMap[fieldId];
     return formatItemValue(
         item,
         value,

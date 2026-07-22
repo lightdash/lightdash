@@ -13,6 +13,7 @@ type RequiredMetricQueryKeys = keyof Omit<
     | 'timezone'
     | 'pivotDimensions'
     | 'metadata'
+    | 'labelDimensionMap'
 >;
 
 const TOOL_CHART_AS_CODE_METRIC_QUERY_DESCRIPTION =

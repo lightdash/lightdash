@@ -133,6 +133,7 @@ export type PivotValuesColumn = {
         referenceField: string;
         value: unknown;
         formatted?: string;
+        label?: string;
     }[];
     columnIndex?: number;
 };

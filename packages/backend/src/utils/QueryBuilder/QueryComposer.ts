@@ -3,6 +3,7 @@ import {
     getMetricOverridesWithPopInheritance,
     mergeReservedDefinitions,
     mergeReservedValues,
+    normalizeIndexColumns,
     resolveReservedParameterValues,
     type DateZoom,
     type Explore,
@@ -199,18 +200,66 @@ export class QueryComposer {
 
     /** The effective (totals-collapsed) metric query the composer compiles. */
     getMetricQuery(): MetricQuery {
-        if (this.definition.totalConfiguration) {
-            return this.getQueryBuilder().getEffectiveMetricQuery();
+        const metricQuery = this.definition.totalConfiguration
+            ? this.getQueryBuilder().getEffectiveMetricQuery()
+            : this.definition.metricQuery;
+        const { labelDimensionMap } = this.compile();
+        if (!labelDimensionMap) {
+            return metricQuery;
         }
-        return this.definition.metricQuery;
+        return {
+            ...metricQuery,
+            labelDimensionMap,
+        };
     }
 
-    /** The effective (totals-collapsed) pivot configuration, if any. */
+    /**
+     * The effective pivot configuration with companion label dimensions folded
+     * in as passthrough dimensions, so their values are carried through the
+     * pivot pipeline onto each row (the pivot would otherwise drop any base
+     * dimension that isn't an index/group-by/value column).
+     */
     getPivotConfiguration(): PivotConfiguration | undefined {
-        if (this.definition.totalConfiguration) {
-            return this.getQueryBuilder().getEffectivePivotConfiguration();
+        const pivotConfiguration = this.definition.totalConfiguration
+            ? this.getQueryBuilder().getEffectivePivotConfiguration()
+            : this.definition.pivotConfiguration;
+        if (!pivotConfiguration) {
+            return undefined;
         }
-        return this.definition.pivotConfiguration;
+        const { companionLabelDimensionIds } = this.compile();
+        if (
+            !companionLabelDimensionIds ||
+            companionLabelDimensionIds.length === 0
+        ) {
+            return pivotConfiguration;
+        }
+        const existingReferences = new Set<string>([
+            ...normalizeIndexColumns(pivotConfiguration.indexColumn).map(
+                (col) => col.reference,
+            ),
+            ...(pivotConfiguration.groupByColumns ?? []).map(
+                (col) => col.reference,
+            ),
+            ...(pivotConfiguration.sortOnlyDimensions ?? []).map(
+                (col) => col.reference,
+            ),
+            ...(pivotConfiguration.passthroughDimensions ?? []).map(
+                (col) => col.reference,
+            ),
+        ]);
+        const labelPassthroughs = companionLabelDimensionIds
+            .filter((reference) => !existingReferences.has(reference))
+            .map((reference) => ({ reference }));
+        if (labelPassthroughs.length === 0) {
+            return pivotConfiguration;
+        }
+        return {
+            ...pivotConfiguration,
+            passthroughDimensions: [
+                ...(pivotConfiguration.passthroughDimensions ?? []),
+                ...labelPassthroughs,
+            ],
+        };
     }
 
     /**

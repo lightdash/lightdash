@@ -23,6 +23,7 @@ import {
     type MetricFilterRule,
     type TimestampDomain,
 } from '@lightdash/common';
+import { compileMetricQuery } from '../../queryCompiler';
 import {
     BuildQueryProps,
     CompiledQuery,
@@ -7524,5 +7525,93 @@ describe('Known-naive domains survive PoP and fanout metric paths', () => {
             `MAX((("customers".created_at) AT TIME ZONE 'Asia/Tokyo'))`,
         );
         expect(query).not.toMatch(/MAX\("customers"\.created_at\)/);
+    });
+});
+
+describe('label dimension companion in a joined query (fan-out safety)', () => {
+    const exploreWithLabel: Explore = {
+        ...EXPLORE,
+        tables: {
+            ...EXPLORE.tables,
+            table1: {
+                ...EXPLORE.tables.table1,
+                dimensions: {
+                    ...EXPLORE.tables.table1.dimensions,
+                    dim1: {
+                        ...EXPLORE.tables.table1.dimensions.dim1,
+                        filterAutocomplete: {
+                            fetchFromWarehouse: true,
+                            labelDimension: 'shared',
+                        },
+                    },
+                },
+            },
+        },
+    };
+
+    const metricQuery = {
+        exploreName: 'table1',
+        dimensions: ['table1_dim1'],
+        metrics: ['table2_metric3'],
+        filters: {},
+        sorts: [],
+        limit: 500,
+        tableCalculations: [],
+    };
+
+    const compile = (explore: Explore) =>
+        compileMetricQuery({
+            explore,
+            metricQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            availableParameters: [],
+        });
+
+    test('selects and groups by the companion without disturbing the joined metric', () => {
+        const compiled = compile(exploreWithLabel);
+        expect(compiled.companionLabelDimensionIds).toEqual(['table1_shared']);
+
+        const query = replaceWhitespace(
+            buildQuery({
+                explore: exploreWithLabel,
+                compiledMetricQuery: compiled,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
+        );
+
+        // Companion column is selected and grouped
+        expect(query).toContain('"table1".shared AS "table1_shared"');
+        // The joined SUM metric SQL is unchanged by the companion injection
+        expect(query).toContain('SUM("table2".number_column)');
+        // The table2 join is still present
+        expect(query).toContain('table2');
+    });
+
+    test('the base metric SQL is identical with and without the label dimension', () => {
+        const withLabel = replaceWhitespace(
+            buildQuery({
+                explore: exploreWithLabel,
+                compiledMetricQuery: compile(exploreWithLabel),
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
+        );
+        const withoutLabel = replaceWhitespace(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: compile(EXPLORE),
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
+        );
+
+        // Same aggregate + join; the only difference is the extra companion column
+        expect(withoutLabel).not.toContain('"table1_shared"');
+        expect(withLabel).toContain('SUM("table2".number_column)');
+        expect(withoutLabel).toContain('SUM("table2".number_column)');
     });
 });

@@ -7,6 +7,7 @@ import {
     isFilterRule,
     NotFoundError,
     ParameterError,
+    resolveLabelDimensionId,
     type AndFilterGroup,
     type Dimension,
     type Explore,
@@ -109,31 +110,7 @@ export async function getFieldValuesMetricQuery({
         );
     }
 
-    let labelFieldId: string | null = null;
-    const labelDimension = field.filterAutocomplete?.labelDimension;
-    if (labelDimension) {
-        const candidateLabelFieldId = getItemId({
-            table: field.table,
-            name: labelDimension,
-        });
-        if (candidateLabelFieldId !== getItemId(field)) {
-            const resolvedLabelField = findFieldByIdInExplore(
-                explore,
-                candidateLabelFieldId,
-            );
-            if (!resolvedLabelField) {
-                throw new NotFoundError(
-                    `Can't find label dimension '${labelDimension}' in table '${field.table}'`,
-                );
-            }
-            if (!isDimension(resolvedLabelField)) {
-                throw new ParameterError(
-                    `Label field must be a dimension, but ${candidateLabelFieldId} is a ${resolvedLabelField.type}`,
-                );
-            }
-            labelFieldId = candidateLabelFieldId;
-        }
-    }
+    const labelFieldId = resolveLabelDimensionId(field, explore);
 
     // Autocomplete ignores the field's caseSensitive setting.
     const searchFilter: FilterGroupItem = labelFieldId

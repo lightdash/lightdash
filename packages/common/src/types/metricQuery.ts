@@ -203,11 +203,16 @@ export type MetricQuery = {
     metadata?: {
         hasADateDimension: Pick<CompiledDimension, 'label' | 'name' | 'table'>;
     };
+    /** Maps a dimension field id to the dimension field id whose value labels
+     * it in charts (sourced from the dimension's filter_autocomplete). */
+    labelDimensionMap?: Record<FieldId, FieldId>;
 };
 export type CompiledMetricQuery = Omit<MetricQuery, 'customDimensions'> & {
     compiledTableCalculations: CompiledTableCalculation[];
     compiledAdditionalMetrics: CompiledMetric[];
     compiledCustomDimensions: CompiledCustomDimension[];
+    companionLabelDimensionIds?: FieldId[];
+    labelDimensionMap?: Record<FieldId, FieldId>;
 };
 /**
  * Coordinates of a single pivot column, used to anchor a row sort to that
@@ -260,6 +265,7 @@ export type MetricQueryResponse = {
     metadata?: {
         hasADateDimension: Pick<CompiledDimension, 'label' | 'name' | 'table'>;
     };
+    labelDimensionMap?: Record<FieldId, FieldId>;
 };
 
 export const countCustomDimensionsInMetricQuery = (
