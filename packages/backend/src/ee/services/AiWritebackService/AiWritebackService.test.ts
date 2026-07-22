@@ -1898,6 +1898,48 @@ describe('AiWritebackService.mergePullRequest', () => {
     });
 });
 
+describe('AiWritebackService.startTracking', () => {
+    it('assembles explicit thread and prompt properties for agent and API runs', () => {
+        const track = vi.fn();
+        const service = buildService({ analytics: { track } as AnyType });
+        const startTracking = (service as AnyType).startTracking.bind(service);
+
+        startTracking({
+            user: { userUuid: 'u1' },
+            projectUuid: 'p1',
+            turn: turnContext(),
+            workstream: 'dbt-writeback',
+            aiThreadUuid: 'thread-1',
+            promptUuid: 'prompt-1',
+        });
+        expect(track).toHaveBeenLastCalledWith({
+            event: 'ai_writeback.started',
+            userId: 'u1',
+            properties: expect.objectContaining({
+                threadId: 'thread-1',
+                promptId: 'prompt-1',
+            }),
+        });
+
+        startTracking({
+            user: { userUuid: 'u1' },
+            projectUuid: 'p1',
+            turn: turnContext(),
+            workstream: 'dbt-writeback',
+            aiThreadUuid: undefined,
+            promptUuid: undefined,
+        });
+        expect(track).toHaveBeenLastCalledWith({
+            event: 'ai_writeback.started',
+            userId: 'u1',
+            properties: expect.objectContaining({
+                threadId: null,
+                promptId: null,
+            }),
+        });
+    });
+});
+
 describe('mergeSourceCodeRepoAccess', () => {
     const u = (owner: string, repo: string) => ({
         owner,
