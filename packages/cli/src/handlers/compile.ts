@@ -56,6 +56,7 @@ export type CompileHandlerOptions = DbtCompileOptions & {
     warehouseCredentials?: boolean;
     disableTimestampConversion?: boolean;
     validateWarehouseColumns?: boolean;
+    partialCompilation?: boolean;
 };
 
 export const hasBlockingCompileError = (
@@ -93,23 +94,26 @@ const getDisplayableDiagnostics = (explore: Explore) => {
         (diagnostic) =>
             diagnostic.type === InlineErrorType.WAREHOUSE_COLUMN_ERROR,
     );
-    const warnings =
-        process.env.PARTIAL_COMPILATION_ENABLED !== 'false'
-            ? diagnostics.filter(
-                  (diagnostic) =>
-                      diagnostic.type !==
-                      InlineErrorType.WAREHOUSE_COLUMN_ERROR,
-              )
-            : [];
+    const warnings = diagnostics.filter(
+        (diagnostic) =>
+            diagnostic.type !== InlineErrorType.WAREHOUSE_COLUMN_ERROR,
+    );
     return { errors, warnings };
 };
 
-const getExploresFromLightdashYmlProject = async (
-    projectDir: string,
-    lightdashProjectConfig: LightdashProjectConfig,
-    startOfWeek?: number,
-    disableTimestampConversion?: boolean,
-): Promise<(Explore | ExploreError)[] | null> => {
+const getExploresFromLightdashYmlProject = async ({
+    projectDir,
+    lightdashProjectConfig,
+    startOfWeek,
+    disableTimestampConversion,
+    allowPartialCompilation,
+}: {
+    projectDir: string;
+    lightdashProjectConfig: LightdashProjectConfig;
+    startOfWeek: number | undefined;
+    disableTimestampConversion: boolean | undefined;
+    allowPartialCompilation: boolean;
+}): Promise<(Explore | ExploreError)[] | null> => {
     // Try to load Lightdash YAML models
     const lightdashModels = await loadLightdashModels(projectDir);
 
@@ -156,8 +160,7 @@ const getExploresFromLightdashYmlProject = async (
         lightdashProjectConfig,
         {
             disableTimestampConversion,
-            allowPartialCompilation:
-                process.env.PARTIAL_COMPILATION_ENABLED !== 'false',
+            allowPartialCompilation,
             postProcessors: [preAggregatePostProcessor],
         },
     );
@@ -305,6 +308,7 @@ export const compile = async (options: CompileHandlerOptions) => {
     const dbtVersionResult = await tryGetDbtVersion();
     const executionId = uuidv4();
     const startTime = Date.now();
+    const allowPartialCompilation = options.partialCompilation !== false;
 
     await LightdashAnalytics.track({
         event: 'compile.started',
@@ -331,12 +335,13 @@ export const compile = async (options: CompileHandlerOptions) => {
     let explores: (Explore | ExploreError)[] | null = null;
     let dbtMetrics: DbtManifest['metrics'] | null = null;
 
-    explores = await getExploresFromLightdashYmlProject(
-        absoluteProjectPath,
+    explores = await getExploresFromLightdashYmlProject({
+        projectDir: absoluteProjectPath,
         lightdashProjectConfig,
-        options.startOfWeek,
-        options.disableTimestampConversion,
-    );
+        startOfWeek: options.startOfWeek,
+        disableTimestampConversion: options.disableTimestampConversion,
+        allowPartialCompilation,
+    });
 
     if (explores !== null && options.validateWarehouseColumns === true) {
         console.error(
@@ -526,8 +531,7 @@ export const compile = async (options: CompileHandlerOptions) => {
             lightdashProjectConfig,
             {
                 disableTimestampConversion: options.disableTimestampConversion,
-                allowPartialCompilation:
-                    process.env.PARTIAL_COMPILATION_ENABLED !== 'false',
+                allowPartialCompilation,
                 postProcessors: [preAggregatePostProcessor],
             },
         );

@@ -1,15 +1,42 @@
+import { isExploreError } from '@lightdash/common';
 import fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import type { Mock } from 'vitest';
-import * as styles from '../styles';
-import { compile } from './compile';
+import { compile, type CompileHandlerOptions } from './compile';
 
 vi.mock('execa');
 vi.mock('../analytics/analytics');
 vi.mock('../config', () => ({
     getConfig: vi.fn().mockResolvedValue({ user: null, context: null }),
 }));
+
+const getCompileOptions = (projectDir: string): CompileHandlerOptions => ({
+    projectDir,
+    profilesDir: '',
+    target: undefined,
+    profile: undefined,
+    vars: undefined,
+    verbose: false,
+    startOfWeek: 0,
+    skipWarehouseCatalog: true,
+    skipDbtCompile: true,
+    useDbtList: false,
+    select: undefined,
+    models: undefined,
+    threads: undefined,
+    noVersionCheck: false,
+    exclude: undefined,
+    selector: undefined,
+    state: undefined,
+    fullRefresh: false,
+    defer: false,
+    targetPath: undefined,
+    favorState: false,
+    combineManifest: undefined,
+    warehouseCredentials: false,
+    disableTimestampConversion: false,
+});
 
 describe('compile', () => {
     let tempDir: string;
@@ -50,6 +77,7 @@ dimensions:
     });
 
     afterEach(async () => {
+        vi.restoreAllMocks();
         await fs.rm(tempDir, { recursive: true, force: true });
     });
 
@@ -58,32 +86,7 @@ dimensions:
         const { LightdashAnalytics } = await import('../analytics/analytics');
         (LightdashAnalytics.track as Mock).mockResolvedValue(undefined);
 
-        const result = await compile({
-            projectDir: tempDir,
-            profilesDir: '',
-            target: undefined,
-            profile: undefined,
-            vars: undefined,
-            verbose: false,
-            startOfWeek: 0,
-            skipWarehouseCatalog: true,
-            skipDbtCompile: true,
-            useDbtList: false,
-            select: undefined,
-            models: undefined,
-            threads: undefined,
-            noVersionCheck: false,
-            exclude: undefined,
-            selector: undefined,
-            state: undefined,
-            fullRefresh: false,
-            defer: false,
-            targetPath: undefined,
-            favorState: false,
-            combineManifest: undefined,
-            warehouseCredentials: false,
-            disableTimestampConversion: false,
-        });
+        const result = await compile(getCompileOptions(tempDir));
 
         // Should succeed even though dbt is not installed
         expect(result).toBeDefined();
@@ -111,158 +114,73 @@ dimensions:
         const startedCall = trackCalls.find(
             (call) => call[0].event === 'compile.started',
         );
-        expect(startedCall).toBeDefined();
-        expect(startedCall![0].properties.dbtVersion).toBeUndefined();
+        if (startedCall === undefined) {
+            throw new Error('Expected compile.started analytics event');
+        }
+        expect(startedCall[0].properties.dbtVersion).toBeUndefined();
     });
 
-    test('should display PARTIAL_SUCCESS with warning messages', () => {
-        // Mock console.error to capture output
-        const consoleSpy = vi
-            .spyOn(console, 'error')
-            .mockImplementation(() => {});
+    test('should allow partial compilation by default and allow it to be disabled explicitly', async () => {
+        await fs.writeFile(
+            path.join(tempDir, 'lightdash', 'models', 'test_model.yml'),
+            `
+version: 1
+type: model
+name: test_model
+description: Test model
+sql_from: "SELECT * FROM test_table"
+dimensions:
+  - name: id
+    description: ID column
+    type: number
+    sql: id
+metrics:
+  broken_metric:
+    type: sum
+    sql: \${missing_dimension}
+            `,
+        );
 
-        // Partial compilation is now enabled by default
-        const originalEnv = process.env.PARTIAL_COMPILATION_ENABLED;
-        // No need to set to 'true' as it's enabled by default
+        const errorOutput: string[] = [];
+        vi.spyOn(console, 'error').mockImplementation((...args) => {
+            errorOutput.push(args.map(String).join(' '));
+        });
 
-        try {
-            // Create mock explores array with different statuses
-            const mockExplores = [
-                {
-                    name: 'successful_explore',
-                    label: 'Successful Explore',
-                    tags: [],
-                    baseTable: 'table1',
-                    // No warnings or errors - should be SUCCESS
-                },
-                {
-                    name: 'explore_with_warnings',
-                    label: 'Explore with Warnings',
-                    tags: [],
-                    baseTable: 'table2',
-                    warnings: [
-                        {
-                            type: 'MISSING_TABLE',
-                            message:
-                                'Join to table "missing_table" was skipped',
-                        },
-                        {
-                            type: 'FIELD_ERROR',
-                            message: 'Field compilation warning',
-                        },
-                    ],
-                },
-                {
-                    name: 'failed_explore',
-                    label: 'Failed Explore',
-                    tags: [],
-                    errors: [
-                        {
-                            type: 'NO_DIMENSIONS_FOUND',
-                            message: 'No dimensions found in model',
-                        },
-                    ],
-                },
-            ];
+        const partialResult = await compile(getCompileOptions(tempDir));
+        expect(partialResult.filter(isExploreError)).toHaveLength(0);
+        expect(
+            partialResult.flatMap((explore) =>
+                isExploreError(explore) ? [] : (explore.warnings ?? []),
+            ),
+        ).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    message: expect.stringContaining('broken_metric'),
+                }),
+            ]),
+        );
+        expect(errorOutput).toEqual(
+            expect.arrayContaining([
+                expect.stringContaining('- PARTIAL_SUCCESS> test_model'),
+                expect.stringContaining(
+                    'Compiled 1 explores, SUCCESS=0 PARTIAL_SUCCESS=1 ERRORS=0',
+                ),
+            ]),
+        );
 
-            // Simulate the explore display logic from compile.ts
-            let errors = 0;
-            let partialSuccess = 0;
-            let success = 0;
-
-            mockExplores.forEach((e) => {
-                let status: string;
-                let messages = '';
-
-                if ('errors' in e && e.errors) {
-                    status = styles.error('ERROR');
-                    messages = `: ${styles.error(e.errors.map((err: { message: string }) => err.message).join(', '))}`;
-                    errors += 1;
-                } else if (
-                    process.env.PARTIAL_COMPILATION_ENABLED !== 'false' &&
-                    'warnings' in e &&
-                    e.warnings &&
-                    e.warnings.length > 0
-                ) {
-                    status = styles.warning('PARTIAL_SUCCESS');
-                    messages = `: ${styles.warning(
-                        e.warnings
-                            .map(
-                                (warning: { message: string }) =>
-                                    warning.message,
-                            )
-                            .join(', '),
-                    )}`;
-                    partialSuccess += 1;
-                } else {
-                    status = styles.success('SUCCESS');
-                    success += 1;
-                }
-
-                console.error(`- ${status}> ${e.name} ${messages}`);
-            });
-            console.error('');
-
-            // Display summary
-            if (
-                process.env.PARTIAL_COMPILATION_ENABLED !== 'false' &&
-                partialSuccess > 0
-            ) {
-                console.error(
-                    `Compiled ${mockExplores.length} explores, SUCCESS=${success} PARTIAL_SUCCESS=${partialSuccess} ERRORS=${errors}`,
-                );
-            } else {
-                console.error(
-                    `Compiled ${mockExplores.length} explores, SUCCESS=${success} ERRORS=${errors}`,
-                );
-            }
-
-            // Verify the output
-            const calls = consoleSpy.mock.calls.map((call) => call[0]);
-
-            // Check that PARTIAL_SUCCESS status is displayed
-            const partialSuccessCall = calls.find(
-                (call) =>
-                    typeof call === 'string' &&
-                    call.includes('PARTIAL_SUCCESS> explore_with_warnings'),
-            );
-            expect(partialSuccessCall).toBeDefined();
-            expect(partialSuccessCall).toContain(
-                'Join to table "missing_table" was skipped',
-            );
-            expect(partialSuccessCall).toContain('Field compilation warning');
-
-            // Check that SUCCESS status is displayed
-            const successCall = calls.find(
-                (call) =>
-                    typeof call === 'string' &&
-                    call.includes('SUCCESS> successful_explore'),
-            );
-            expect(successCall).toBeDefined();
-
-            // Check that ERROR status is displayed
-            const errorCall = calls.find(
-                (call) =>
-                    typeof call === 'string' &&
-                    call.includes('ERROR> failed_explore'),
-            );
-            expect(errorCall).toBeDefined();
-
-            // Check the summary includes PARTIAL_SUCCESS count
-            const summaryCall = calls.find(
-                (call) =>
-                    typeof call === 'string' &&
-                    call.includes('Compiled') &&
-                    call.includes('PARTIAL_SUCCESS='),
-            );
-            expect(summaryCall).toBeDefined();
-            expect(summaryCall).toContain(
-                'SUCCESS=1 PARTIAL_SUCCESS=1 ERRORS=1',
-            );
-        } finally {
-            // Clean up
-            consoleSpy.mockRestore();
-            process.env.PARTIAL_COMPILATION_ENABLED = originalEnv;
-        }
+        errorOutput.length = 0;
+        const strictResult = await compile({
+            ...getCompileOptions(tempDir),
+            partialCompilation: false,
+        });
+        expect(strictResult.filter(isExploreError)).toHaveLength(1);
+        expect(errorOutput).toEqual(
+            expect.arrayContaining([
+                expect.stringContaining('- ERROR> test_model'),
+                expect.stringContaining(
+                    'Compiled 1 explores, SUCCESS=0 ERRORS=1',
+                ),
+            ]),
+        );
     });
 });

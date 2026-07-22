@@ -192,7 +192,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     public async compileAllExplores(
         trackingParams?: TrackingParams,
         loadSources: boolean = false,
-        allowPartialCompilation: boolean = false,
+        allowPartialCompilation: boolean = true,
     ): Promise<(Explore | ExploreError)[]> {
         Logger.debug('Install dependencies');
         // Install dependencies for dbt and fetch the manifest - may raise error meaning no explores compile

@@ -242,7 +242,6 @@ describe('compile warehouse column validation', () => {
     });
 
     afterEach(async () => {
-        vi.unstubAllEnvs();
         vi.restoreAllMocks();
         await fs.rm(tempDir, { recursive: true, force: true });
     });
@@ -305,8 +304,7 @@ describe('compile warehouse column validation', () => {
         const WAREHOUSE_WARNING =
             'Warehouse rejected column reference TABLE.rolling_30d_avg_sales in model "my_model"';
 
-        test('renders ERROR for a warehouse rejection when partial compilation is enabled', async () => {
-            vi.stubEnv('PARTIAL_COMPILATION_ENABLED', 'true');
+        test('renders ERROR for a warehouse rejection by default', async () => {
             setupWarehouseClient();
             mockProberToAppendWarning(WAREHOUSE_WARNING);
 
@@ -328,13 +326,13 @@ describe('compile warehouse column validation', () => {
         });
 
         test('renders ERROR for a warehouse rejection when partial compilation is disabled', async () => {
-            vi.stubEnv('PARTIAL_COMPILATION_ENABLED', 'false');
             setupWarehouseClient();
             mockProberToAppendWarning(WAREHOUSE_WARNING);
 
             const result = await compile({
                 ...baseOptions(tempDir),
                 validateWarehouseColumns: true,
+                partialCompilation: false,
             });
 
             expect(errorOutput).toEqual(
@@ -418,8 +416,7 @@ describe('compile warehouse column validation', () => {
             );
         });
 
-        test('keeps generic warnings hidden when partial compilation is disabled', async () => {
-            vi.stubEnv('PARTIAL_COMPILATION_ENABLED', 'false');
+        test('renders non-fatal warnings when partial compilation is disabled', async () => {
             vi.mocked(validateDbtModel).mockResolvedValue({
                 valid: [modelWithDuplicateMetricName],
                 invalid: [],
@@ -429,30 +426,21 @@ describe('compile warehouse column validation', () => {
             await compile({
                 ...baseOptions(tempDir),
                 skipWarehouseCatalog: true,
+                partialCompilation: false,
             });
 
             expect(errorOutput).toEqual(
                 expect.arrayContaining([
-                    expect.stringContaining('- SUCCESS> my_model'),
-                    expect.stringContaining(
-                        'Compiled 1 explores, SUCCESS=1 ERRORS=0',
-                    ),
-                ]),
-            );
-            expect(errorOutput).not.toEqual(
-                expect.arrayContaining([
-                    expect.stringContaining('PARTIAL_SUCCESS'),
-                ]),
-            );
-            expect(errorOutput).not.toEqual(
-                expect.arrayContaining([
+                    expect.stringContaining('- PARTIAL_SUCCESS> my_model'),
                     expect.stringContaining('Skipped metric "id"'),
+                    expect.stringContaining(
+                        'Compiled 1 explores, SUCCESS=0 PARTIAL_SUCCESS=1 ERRORS=0',
+                    ),
                 ]),
             );
         });
 
-        test('renders generic warnings when partial compilation is enabled', async () => {
-            vi.stubEnv('PARTIAL_COMPILATION_ENABLED', 'true');
+        test('renders generic warnings by default', async () => {
             vi.mocked(validateDbtModel).mockResolvedValue({
                 valid: [modelWithDuplicateMetricName],
                 invalid: [],
@@ -475,8 +463,7 @@ describe('compile warehouse column validation', () => {
             );
         });
 
-        test('renders the warehouse error and generic warnings when partial compilation is enabled', async () => {
-            vi.stubEnv('PARTIAL_COMPILATION_ENABLED', 'true');
+        test('renders the warehouse error and generic warnings by default', async () => {
             vi.mocked(validateDbtModel).mockResolvedValue({
                 valid: [modelWithDuplicateMetricName],
                 invalid: [],
@@ -514,8 +501,7 @@ describe('compile warehouse column validation', () => {
             ).toEqual([InlineErrorType.DUPLICATE_FIELD_NAME]);
         });
 
-        test('renders only the warehouse error when partial compilation is disabled and generic warnings exist', async () => {
-            vi.stubEnv('PARTIAL_COMPILATION_ENABLED', 'false');
+        test('renders the warehouse error and non-fatal warnings when partial compilation is disabled', async () => {
             vi.mocked(validateDbtModel).mockResolvedValue({
                 valid: [modelWithDuplicateMetricName],
                 invalid: [],
@@ -527,6 +513,7 @@ describe('compile warehouse column validation', () => {
             await compile({
                 ...baseOptions(tempDir),
                 validateWarehouseColumns: true,
+                partialCompilation: false,
             });
 
             expect(errorOutput).toEqual(
@@ -534,14 +521,10 @@ describe('compile warehouse column validation', () => {
                     expect.stringContaining(
                         `- ERROR> my_model : ${WAREHOUSE_WARNING}`,
                     ),
+                    expect.stringContaining('Skipped metric "id"'),
                     expect.stringContaining(
                         'Compiled 1 explores, SUCCESS=0 ERRORS=1',
                     ),
-                ]),
-            );
-            expect(errorOutput).not.toEqual(
-                expect.arrayContaining([
-                    expect.stringContaining('Skipped metric "id"'),
                 ]),
             );
         });

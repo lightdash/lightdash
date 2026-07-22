@@ -67,6 +67,7 @@ type DeployHandlerOptions = DbtCompileOptions & {
     gzip?: boolean;
     disableTimestampConversion?: boolean;
     validateWarehouseColumns: boolean;
+    partialCompilation?: boolean;
 };
 
 type DeployArgs = DeployHandlerOptions & {

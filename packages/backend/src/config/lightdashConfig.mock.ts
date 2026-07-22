@@ -337,9 +337,6 @@ export const lightdashConfigMock: LightdashConfig = {
     editYamlInUi: {
         enabled: false,
     },
-    partialCompilation: {
-        enabled: true,
-    },
     funnelBuilder: {
         enabled: false,
     },
