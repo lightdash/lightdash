@@ -1,3 +1,10 @@
+## [0.3447.1](https://github.com/lightdash/lightdash/compare/0.3447.0...0.3447.1) (2026-07-22)
+
+
+### Bug Fixes
+
+* convert startOfWeek env values to numeric WeekDay in setup config ([#25916](https://github.com/lightdash/lightdash/issues/25916)) ([08f8d82](https://github.com/lightdash/lightdash/commit/08f8d82d023b44dcd37fee04bdd94ad3c209d55a))
+
 # [0.3447.0](https://github.com/lightdash/lightdash/compare/0.3446.0...0.3447.0) (2026-07-22)
 
 
