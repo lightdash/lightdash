@@ -662,10 +662,11 @@ export class PullRequestsModel {
                 `${AiWritebackThreadTableName}.pull_request_uuid`,
                 `${PullRequestsTableName}.pull_request_uuid`,
             )
-            .where(`${PullRequestsTableName}.source`, PullRequestSource.AI_AGENT)
-            .whereNull(
-                `${PullRequestsTableName}.merged_analytics_emitted_at`,
-            );
+            .where(
+                `${PullRequestsTableName}.source`,
+                PullRequestSource.AI_AGENT,
+            )
+            .whereNull(`${PullRequestsTableName}.merged_analytics_emitted_at`);
 
         if ('projectUuid' in filter) {
             void query
@@ -679,10 +680,7 @@ export class PullRequestsModel {
                 .where(`${PullRequestsTableName}.provider`, filter.provider)
                 .where(`${PullRequestsTableName}.owner`, filter.owner)
                 .where(`${PullRequestsTableName}.repo`, filter.repo)
-                .where(
-                    `${PullRequestsTableName}.pr_number`,
-                    filter.prNumber,
-                );
+                .where(`${PullRequestsTableName}.pr_number`, filter.prNumber);
         }
 
         const candidate = await query

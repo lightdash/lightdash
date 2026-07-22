@@ -50,9 +50,7 @@ import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
 import { type ExternalConnectionEvent } from '../ee/analytics';
-import type {
-    AiWritebackMergedAnalyticsContext,
-} from '../models/PullRequestsModel';
+import type { AiWritebackMergedAnalyticsContext } from '../models/PullRequestsModel';
 import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { VERSION } from '../version';
 import type { AiUsageEvent } from './aiUsage';

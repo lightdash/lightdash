@@ -709,23 +709,19 @@ export default class App {
             next();
         });
 
-        expressApp.post(
-            '/api/v1/github/webhook',
-            async (req, res, next) => {
-                try {
-                    await req.services.getGithubAppService().handleWebhook({
-                        rawBody: req.rawBody ?? null,
-                        signature:
-                            req.header('x-hub-signature-256') ?? null,
-                        eventName: req.header('x-github-event') ?? null,
-                        body: req.body,
-                    });
-                    res.status(200).send({ status: 'ok' });
-                } catch (error) {
-                    next(error);
-                }
-            },
-        );
+        expressApp.post('/api/v1/github/webhook', async (req, res, next) => {
+            try {
+                await req.services.getGithubAppService().handleWebhook({
+                    rawBody: req.rawBody ?? null,
+                    signature: req.header('x-hub-signature-256') ?? null,
+                    eventName: req.header('x-github-event') ?? null,
+                    body: req.body,
+                });
+                res.status(200).send({ status: 'ok' });
+            } catch (error) {
+                next(error);
+            }
+        });
 
         // Add JWT parsing here so we can get services off the request
         // We'll also be able to add the user to Sentry for embedded users.
