@@ -64,6 +64,7 @@ describe('RoadmapService', () => {
                 skippedCustomers: 0,
                 syncedItems: 0,
                 rejectedItems: 0,
+                nonPublicItems: 0,
             });
             expect(linearClient.listCustomers).not.toHaveBeenCalled();
             expect(roadmapModel.replaceCustomerMirror).not.toHaveBeenCalled();
@@ -103,6 +104,15 @@ describe('RoadmapService', () => {
                     title: 'Unmappable',
                     description: null,
                     state: { name: 'Mystery', type: 'mystery' },
+                    issueUrl: 'https://github.com/lightdash/lightdash/issues/2',
+                    pullRequestUrl: null,
+                },
+                // Internal Linear task — no public GitHub issue, never mirrored.
+                {
+                    id: 'issue-3',
+                    title: 'Set up SSO for a customer',
+                    description: 'internal admin task',
+                    state: { name: 'In Progress', type: 'started' },
                     issueUrl: null,
                     pullRequestUrl: null,
                 },
@@ -116,6 +126,7 @@ describe('RoadmapService', () => {
                 skippedCustomers: 0,
                 syncedItems: 1,
                 rejectedItems: 1,
+                nonPublicItems: 1,
             });
             expect(roadmapModel.replaceCustomerMirror).toHaveBeenCalledWith({
                 organizationUuid,

@@ -20,6 +20,12 @@ export type RoadmapSyncSummary = {
     skippedCustomers: number;
     syncedItems: number;
     rejectedItems: number;
+    /**
+     * Issues excluded because they have no public GitHub issue. The public
+     * GitHub sync defines the public surface, so an issue without one is
+     * internal and never mirrored.
+     */
+    nonPublicItems: number;
 };
 
 /**
@@ -71,6 +77,7 @@ export class RoadmapService extends BaseService {
             skippedCustomers: 0,
             syncedItems: 0,
             rejectedItems: 0,
+            nonPublicItems: 0,
         };
 
         if (!this.isSyncEnabled() || this.linearClient === null) {
@@ -106,6 +113,7 @@ export class RoadmapService extends BaseService {
                 );
                 summary.syncedItems += result.syncedItems;
                 summary.rejectedItems += result.rejectedItems;
+                summary.nonPublicItems += result.nonPublicItems;
             } catch (error) {
                 summary.skippedCustomers += 1;
                 this.logger.error(
@@ -121,14 +129,21 @@ export class RoadmapService extends BaseService {
     /**
      * Fetch, curate and store the feature requests for one already-resolved
      * customer. Issues whose status can't be mapped are excluded (counted in
-     * `rejectedItems`) rather than served with a wrong status.
+     * `rejectedItems`) rather than served with a wrong status. Issues with no
+     * public GitHub issue are excluded (counted in `nonPublicItems`): the
+     * GitHub sync defines the public surface, so an issue without one is an
+     * internal Linear task and must never be mirrored.
      */
     private async syncCustomer(
         customer: { id: string; name: string },
         organizationUuid: string,
-    ): Promise<{ syncedItems: number; rejectedItems: number }> {
+    ): Promise<{
+        syncedItems: number;
+        rejectedItems: number;
+        nonPublicItems: number;
+    }> {
         if (this.linearClient === null) {
-            return { syncedItems: 0, rejectedItems: 0 };
+            return { syncedItems: 0, rejectedItems: 0, nonPublicItems: 0 };
         }
 
         const issues = await this.linearClient.getCustomerFeatureRequests(
@@ -137,7 +152,15 @@ export class RoadmapService extends BaseService {
 
         const items: CuratedRoadmapItem[] = [];
         let rejectedItems = 0;
+        let nonPublicItems = 0;
         issues.forEach((issue) => {
+            if (issue.issueUrl === null) {
+                nonPublicItems += 1;
+                this.logger.debug(
+                    `Roadmap sync: excluding Linear issue ${issue.id} for customer ${customer.id}: no public GitHub issue`,
+                );
+                return;
+            }
             try {
                 const built = buildRoadmapItem({
                     title: issue.title,
@@ -170,7 +193,7 @@ export class RoadmapService extends BaseService {
             items,
         });
 
-        return { syncedItems: items.length, rejectedItems };
+        return { syncedItems: items.length, rejectedItems, nonPublicItems };
     }
 
     /**
