@@ -187,9 +187,7 @@ const UserCompletionModalWithUser = () => {
 
     if (orgSetupPageFlag.data?.enabled) {
         const shouldSetup =
-            user.data &&
-            !user.data.isSetupComplete &&
-            health.data?.rudder.writeKey !== undefined;
+            user.data && !user.data.isSetupComplete && health.isSuccess;
         // Keyed by pathname so the redirect re-fires if a competing route
         // redirect (e.g. AppRoute's needsProject -> /createProject) wins the
         // same render commit.
