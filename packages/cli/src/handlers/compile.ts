@@ -536,15 +536,17 @@ export const compile = async (options: CompileHandlerOptions) => {
                 getDisplayableDiagnostics(e);
             if (warehouseErrors.length > 0) {
                 status = styles.error('ERROR');
-                messages = `\n${[
-                    ...warehouseErrors.map(
-                        (error) => `    ${styles.error(`✖ ${error.message}`)}`,
-                    ),
-                    ...warnings.map(
-                        (warning) =>
-                            `    ${styles.warning(`⚠ ${warning.message}`)}`,
-                    ),
-                ].join('\n')}`;
+                messages = `: ${styles.error(
+                    warehouseErrors.map((error) => error.message).join(', '),
+                )}`;
+                if (warnings.length > 0) {
+                    messages += `\n${warnings
+                        .map(
+                            (warning) =>
+                                `    ${styles.warning(`⚠ ${warning.message}`)}`,
+                        )
+                        .join('\n')}`;
+                }
                 errors += 1;
             } else if (warnings.length > 0) {
                 status = styles.warning('PARTIAL_SUCCESS');

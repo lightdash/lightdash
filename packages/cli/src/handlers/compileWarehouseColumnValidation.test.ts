@@ -306,8 +306,9 @@ describe('compile warehouse column validation', () => {
 
             expect(errorOutput).toEqual(
                 expect.arrayContaining([
-                    expect.stringContaining('- ERROR> my_model'),
-                    expect.stringContaining(`✖ ${WAREHOUSE_WARNING}`),
+                    expect.stringContaining(
+                        `- ERROR> my_model : ${WAREHOUSE_WARNING}`,
+                    ),
                     expect.stringContaining(
                         'Compiled 1 explores, SUCCESS=0 ERRORS=1',
                     ),
@@ -327,8 +328,9 @@ describe('compile warehouse column validation', () => {
 
             expect(errorOutput).toEqual(
                 expect.arrayContaining([
-                    expect.stringContaining('- ERROR> my_model'),
-                    expect.stringContaining(`✖ ${WAREHOUSE_WARNING}`),
+                    expect.stringContaining(
+                        `- ERROR> my_model : ${WAREHOUSE_WARNING}`,
+                    ),
                     expect.stringContaining(
                         'Compiled 1 explores, SUCCESS=0 ERRORS=1',
                     ),
@@ -420,8 +422,9 @@ describe('compile warehouse column validation', () => {
 
             expect(errorOutput).toEqual(
                 expect.arrayContaining([
-                    expect.stringContaining('- ERROR> my_model'),
-                    expect.stringContaining(`✖ ${WAREHOUSE_WARNING}`),
+                    expect.stringContaining(
+                        `- ERROR> my_model : ${WAREHOUSE_WARNING}`,
+                    ),
                     expect.stringContaining('Skipped metric "id"'),
                     expect.stringContaining(
                         'Compiled 1 explores, SUCCESS=0 ERRORS=1',
@@ -447,8 +450,9 @@ describe('compile warehouse column validation', () => {
 
             expect(errorOutput).toEqual(
                 expect.arrayContaining([
-                    expect.stringContaining('- ERROR> my_model'),
-                    expect.stringContaining(`✖ ${WAREHOUSE_WARNING}`),
+                    expect.stringContaining(
+                        `- ERROR> my_model : ${WAREHOUSE_WARNING}`,
+                    ),
                     expect.stringContaining(
                         'Compiled 1 explores, SUCCESS=0 ERRORS=1',
                     ),
