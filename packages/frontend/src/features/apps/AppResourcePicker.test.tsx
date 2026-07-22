@@ -19,6 +19,7 @@ it('calls onToggleLink when the Link live button is clicked', () => {
                 onRemove={() => {}}
                 onToggleSampleData={() => {}}
                 onToggleLink={onToggleLink}
+                sampleDataEnabled
             />
         </MantineProvider>,
     );
@@ -34,9 +35,26 @@ it('hides the sample-data control when the chart is linked', () => {
                 onRemove={() => {}}
                 onToggleSampleData={() => {}}
                 onToggleLink={() => {}}
+                sampleDataEnabled
             />
         </MantineProvider>,
     );
     expect(screen.queryByLabelText('Include sample data')).toBeNull();
     expect(screen.getByLabelText('Linked: on')).toBeInTheDocument();
+});
+
+it('hides the sample-data controls when the instance disables sample data', () => {
+    render(
+        <MantineProvider>
+            <SelectedQuerySection
+                charts={[baseChart]}
+                onRemove={() => {}}
+                onToggleSampleData={() => {}}
+                onToggleLink={() => {}}
+                sampleDataEnabled={false}
+            />
+        </MantineProvider>,
+    );
+    expect(screen.queryByLabelText('Include sample data')).toBeNull();
+    expect(screen.getByLabelText('Link live')).toBeInTheDocument();
 });

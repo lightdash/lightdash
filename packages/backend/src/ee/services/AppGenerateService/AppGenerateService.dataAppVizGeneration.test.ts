@@ -30,7 +30,9 @@ function buildService(
         appGeneratePipeline: vi.fn().mockResolvedValue(undefined),
     };
     const service = new AppGenerateService({
-        lightdashConfig: {} as never,
+        lightdashConfig: {
+            appRuntime: { sampleDataEnabled: true },
+        } as never,
         analytics: { track: vi.fn() } as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,

@@ -655,6 +655,12 @@ export type HealthState = {
          * previews are served same-origin (dev / pre-cutover).
          */
         previewOrigin: string | null;
+        /**
+         * Whether app authors may attach chart row samples during app
+         * generation. When false the instance never runs sample queries and
+         * the frontend hides the per-chart "include sample data" opt-in.
+         */
+        sampleDataEnabled: boolean;
     };
 };
 

@@ -1877,6 +1877,13 @@ export type AppRuntimeConfig = {
      * `false` to keep uploading custom-dependency apps.
      */
     dependencyMalwareCheckEnabled: boolean;
+    /**
+     * When false, app generation never runs chart sample queries, so no
+     * warehouse row values are sent to the sandbox or the LLM — the per-chart
+     * "include sample data" opt-in is disabled instance-wide and hidden in
+     * the UI. Env var `LIGHTDASH_APP_SAMPLE_DATA_ENABLED`; defaults to `true`.
+     */
+    sampleDataEnabled: boolean;
 };
 
 export type DataAppOtelConfig = {
@@ -2283,6 +2290,8 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         dependencyMalwareCheckEnabled:
             process.env.LIGHTDASH_APP_DEPENDENCY_MALWARE_CHECK_ENABLED !==
             'false',
+        sampleDataEnabled:
+            process.env.LIGHTDASH_APP_SAMPLE_DATA_ENABLED !== 'false',
     };
 };
 

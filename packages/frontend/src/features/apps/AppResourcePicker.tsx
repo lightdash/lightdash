@@ -619,8 +619,16 @@ export const SelectedQuerySection: FC<{
     onRemove: (uuid: string) => void;
     onToggleSampleData: (uuid: string) => void;
     onToggleLink: (uuid: string) => void;
+    sampleDataEnabled: boolean;
     disabled?: boolean;
-}> = ({ charts, onRemove, onToggleSampleData, onToggleLink, disabled }) => {
+}> = ({
+    charts,
+    onRemove,
+    onToggleSampleData,
+    onToggleLink,
+    sampleDataEnabled,
+    disabled,
+}) => {
     if (charts.length === 0) return null;
 
     return (
@@ -656,6 +664,7 @@ export const SelectedQuerySection: FC<{
                                 disabled={disabled}
                             />
                         ) : (
+                            sampleDataEnabled &&
                             chart.includeSampleData && (
                                 <InlineDataToggle
                                     onClick={() =>
@@ -676,12 +685,14 @@ export const SelectedQuerySection: FC<{
                             <MantineIcon icon={IconX} size={10} />
                         </ActionIcon>
                     </Box>
-                    {!chart.linkLive && !chart.includeSampleData && (
-                        <AddDataButton
-                            onClick={() => onToggleSampleData(chart.uuid)}
-                            disabled={disabled}
-                        />
-                    )}
+                    {sampleDataEnabled &&
+                        !chart.linkLive &&
+                        !chart.includeSampleData && (
+                            <AddDataButton
+                                onClick={() => onToggleSampleData(chart.uuid)}
+                                disabled={disabled}
+                            />
+                        )}
                     {!chart.linkLive && (
                         <AddLinkButton
                             onClick={() => onToggleLink(chart.uuid)}
@@ -1188,56 +1199,65 @@ export const SelectedDashboardSection: FC<{
     dashboard: SelectedDashboard;
     onRemove: () => void;
     onToggleSampleData: () => void;
+    sampleDataEnabled: boolean;
     disabled?: boolean;
-}> = ({ dashboard, onRemove, onToggleSampleData, disabled }) => (
-    <Box className={classes.selectedQueryList}>
-        <Box className={classes.selectedQueryItemRow}>
-            <Box
-                className={`${classes.selectedQueryItem} ${
-                    dashboard.includeSampleData
-                        ? classes.selectedQueryItemActive
-                        : ''
-                }`}
-            >
-                <Box className={classes.selectedQueryItemIcon}>
-                    <MantineIcon
-                        icon={IconLayoutDashboard}
-                        size={12}
-                        color="green.6"
-                    />
-                </Box>
-                <Text
-                    fw={500}
-                    truncate
-                    className={classes.selectedQueryItemName}
+}> = ({
+    dashboard,
+    onRemove,
+    onToggleSampleData,
+    sampleDataEnabled,
+    disabled,
+}) => {
+    return (
+        <Box className={classes.selectedQueryList}>
+            <Box className={classes.selectedQueryItemRow}>
+                <Box
+                    className={`${classes.selectedQueryItem} ${
+                        dashboard.includeSampleData
+                            ? classes.selectedQueryItemActive
+                            : ''
+                    }`}
                 >
-                    {dashboard.name}
-                </Text>
-                {dashboard.includeSampleData && (
-                    <InlineDataToggle
+                    <Box className={classes.selectedQueryItemIcon}>
+                        <MantineIcon
+                            icon={IconLayoutDashboard}
+                            size={12}
+                            color="green.6"
+                        />
+                    </Box>
+                    <Text
+                        fw={500}
+                        truncate
+                        className={classes.selectedQueryItemName}
+                    >
+                        {dashboard.name}
+                    </Text>
+                    {sampleDataEnabled && dashboard.includeSampleData && (
+                        <InlineDataToggle
+                            onClick={onToggleSampleData}
+                            disabled={disabled}
+                            tooltipSuffix=" Applies to every chart in this dashboard."
+                        />
+                    )}
+                    <ActionIcon
+                        size="xs"
+                        variant="subtle"
+                        color="gray"
+                        radius="xl"
+                        onClick={onRemove}
+                        disabled={disabled}
+                    >
+                        <MantineIcon icon={IconX} size={10} />
+                    </ActionIcon>
+                </Box>
+                {sampleDataEnabled && !dashboard.includeSampleData && (
+                    <AddDataButton
                         onClick={onToggleSampleData}
                         disabled={disabled}
                         tooltipSuffix=" Applies to every chart in this dashboard."
                     />
                 )}
-                <ActionIcon
-                    size="xs"
-                    variant="subtle"
-                    color="gray"
-                    radius="xl"
-                    onClick={onRemove}
-                    disabled={disabled}
-                >
-                    <MantineIcon icon={IconX} size={10} />
-                </ActionIcon>
             </Box>
-            {!dashboard.includeSampleData && (
-                <AddDataButton
-                    onClick={onToggleSampleData}
-                    disabled={disabled}
-                    tooltipSuffix=" Applies to every chart in this dashboard."
-                />
-            )}
         </Box>
-    </Box>
-);
+    );
+};

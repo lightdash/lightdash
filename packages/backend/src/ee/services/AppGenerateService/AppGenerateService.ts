@@ -4233,11 +4233,13 @@ export class AppGenerateService extends BaseService {
     }> {
         // Dedupe by uuid; if any duplicate asks for sample data or link mode,
         // the union wins so the user gets the data they opted into.
+        const { sampleDataEnabled } = this.lightdashConfig.appRuntime;
         const dedup = new Map<string, { sample: boolean; link: boolean }>();
         for (const ref of chartRefs) {
             const prev = dedup.get(ref.uuid) ?? { sample: false, link: false };
             dedup.set(ref.uuid, {
-                sample: prev.sample || ref.includeSampleData,
+                sample:
+                    sampleDataEnabled && (prev.sample || ref.includeSampleData),
                 link: prev.link || (ref.linkLive ?? false),
             });
         }
