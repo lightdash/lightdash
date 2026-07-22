@@ -1,3 +1,10 @@
+# [0.3451.0](https://github.com/lightdash/lightdash/compare/0.3450.0...0.3451.0) (2026-07-22)
+
+
+### Features
+
+* add bulk delete for theme files (PROD-7939) ([#25861](https://github.com/lightdash/lightdash/issues/25861)) ([86cfa13](https://github.com/lightdash/lightdash/commit/86cfa13cd12f725233c21fcfac4ad95aa9b9a708))
+
 # [0.3450.0](https://github.com/lightdash/lightdash/compare/0.3449.1...0.3450.0) (2026-07-22)
 
 
