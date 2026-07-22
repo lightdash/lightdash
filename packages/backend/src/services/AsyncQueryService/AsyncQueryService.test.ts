@@ -2586,46 +2586,46 @@ describe('AsyncQueryService', () => {
         });
     });
 
-    describe('prepareQueuedQueryForExecution', () => {
-        const createMockQueryHistory = (
-            status: QueryHistoryStatus,
-            createdAt: Date = new Date(),
-        ): QueryHistory => ({
-            createdAt,
-            organizationUuid: sessionAccount.organization.organizationUuid!,
-            createdByUserUuid: sessionAccount.user.id,
-            createdBy: sessionAccount.user.id,
-            createdByAccount: null,
-            createdByActorType: 'session',
-            queryUuid: 'test-query-uuid',
-            projectUuid,
-            status,
-            error: null,
-            erroredAt: null,
-            metricQuery: metricQueryMock,
-            context: QueryExecutionContext.EXPLORE,
-            fields: validExplore.tables.a.dimensions,
-            compiledSql: 'SELECT * FROM test.table',
-            warehouseQueryId: 'test-warehouse-query-id',
-            warehouseQueryMetadata: null,
-            requestParameters: {} as ExecuteAsyncQueryRequestParams,
-            totalRowCount: null,
-            warehouseExecutionTimeMs: null,
-            defaultPageSize: 10,
-            cacheKey: 'test-query-key',
-            pivotConfiguration: null,
-            pivotTotalColumnCount: null,
-            pivotValuesColumns: null,
-            resultsFileName: null,
-            resultsCreatedAt: null,
-            resultsUpdatedAt: null,
-            resultsExpiresAt: null,
-            columns: null,
-            originalColumns: null,
-            preAggregateCompiledSql: null,
-            processingStartedAt: null,
-        });
+    const createMockQueryHistory = (
+        status: QueryHistoryStatus,
+        createdAt: Date = new Date(),
+    ): QueryHistory => ({
+        createdAt,
+        organizationUuid: sessionAccount.organization.organizationUuid!,
+        createdByUserUuid: sessionAccount.user.id,
+        createdBy: sessionAccount.user.id,
+        createdByAccount: null,
+        createdByActorType: 'session',
+        queryUuid: 'test-query-uuid',
+        projectUuid,
+        status,
+        error: null,
+        erroredAt: null,
+        metricQuery: metricQueryMock,
+        context: QueryExecutionContext.EXPLORE,
+        fields: validExplore.tables.a.dimensions,
+        compiledSql: 'SELECT * FROM test.table',
+        warehouseQueryId: 'test-warehouse-query-id',
+        warehouseQueryMetadata: null,
+        requestParameters: {} as ExecuteAsyncQueryRequestParams,
+        totalRowCount: null,
+        warehouseExecutionTimeMs: null,
+        defaultPageSize: 10,
+        cacheKey: 'test-query-key',
+        pivotConfiguration: null,
+        pivotTotalColumnCount: null,
+        pivotValuesColumns: null,
+        resultsFileName: null,
+        resultsCreatedAt: null,
+        resultsUpdatedAt: null,
+        resultsExpiresAt: null,
+        columns: null,
+        originalColumns: null,
+        preAggregateCompiledSql: null,
+        processingStartedAt: null,
+    });
 
+    describe('prepareQueuedQueryForExecution', () => {
         test('transitions queued queries to executing', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             (
@@ -2682,6 +2682,38 @@ describe('AsyncQueryService', () => {
             expect(
                 service.queryHistoryModel.updateStatusToExecuting,
             ).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('runAsyncWarehouseQueryFromHistory', () => {
+        test('rebuilds originalColumns from the query history row', async () => {
+            const mockOriginalColumns: ResultColumns = {
+                user_id: { reference: 'user_id', type: DimensionType.STRING },
+                amount: { reference: 'amount', type: DimensionType.NUMBER },
+            };
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            (
+                service.queryHistoryModel
+                    .getByQueryUuid as import('vitest').Mock
+            ).mockResolvedValue({
+                ...createMockQueryHistory(QueryHistoryStatus.QUEUED),
+                originalColumns: mockOriginalColumns,
+            });
+            const runAsyncWarehouseQuerySpy = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
+
+            const ran = await service.runAsyncWarehouseQueryFromHistory(
+                'test-query-uuid',
+                'worker-1',
+            );
+
+            expect(ran).toBe(true);
+            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    originalColumns: mockOriginalColumns,
+                }),
+            );
         });
     });
 
@@ -2771,6 +2803,66 @@ describe('AsyncQueryService', () => {
                 expect.objectContaining({
                     originalColumns: mockOriginalColumns,
                 }),
+            );
+        });
+
+        test('cache hit against a row with null originalColumns keeps the current originalColumns', async () => {
+            const createdAt = new Date();
+            const updatedAt = new Date();
+            const expiresAt = new Date(
+                createdAt.getTime() + 1000 * 60 * 60 * 24,
+            );
+            // Cached row predates persisting original columns at creation
+            const mockCacheResult: CacheHitCacheResult = {
+                cacheHit: true,
+                cacheKey: 'test-cache-key',
+                totalRowCount: 10,
+                createdAt,
+                updatedAt,
+                expiresAt,
+                fileName: 'file-name',
+                columns: expectedColumns,
+                originalColumns: null,
+                pivotValuesColumns: null,
+                pivotTotalColumnCount: null,
+            };
+
+            (
+                serviceWithCache.findResultsCache as import('vitest').Mock
+            ).mockResolvedValueOnce(mockCacheResult);
+            (
+                serviceWithCache.queryHistoryModel
+                    .create as import('vitest').Mock
+            ).mockResolvedValue({
+                queryUuid: 'test-query-uuid',
+            });
+
+            await serviceWithCache['executeAsyncQuery'](
+                {
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.SQL_RUNNER,
+                    queryTags: {
+                        query_context: QueryExecutionContext.SQL_RUNNER,
+                    },
+                    invalidateCache: false,
+                    queryComposer: createQueryComposerMock(),
+                    originalColumns: mockOriginalColumns,
+                    warehouseCredentials: warehouseCredentialsMock,
+                },
+                { query: metricQueryMock },
+            );
+
+            expect(
+                serviceWithCache.queryHistoryModel.update,
+            ).toHaveBeenCalledWith(
+                'test-query-uuid',
+                projectUuid,
+                expect.objectContaining({
+                    status: QueryHistoryStatus.READY,
+                    original_columns: mockOriginalColumns,
+                }),
+                sessionAccount,
             );
         });
     });

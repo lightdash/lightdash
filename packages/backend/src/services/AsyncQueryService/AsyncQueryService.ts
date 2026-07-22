@@ -1523,9 +1523,7 @@ export class AsyncQueryService extends ProjectService {
                     error: getErrorMessage(error),
                 });
                 throw new ParseError(
-                    `Failed to parse JSON from first line: ${getErrorMessage(
-                        error,
-                    )}`,
+                    `Failed to parse JSON from first line: ${getErrorMessage(error)}`,
                 );
             }
         }
@@ -3891,7 +3889,11 @@ export class AsyncQueryService extends ProjectService {
                                 error: null,
                                 total_row_count: resultsCache.totalRowCount,
                                 columns: resultsCache.columns,
-                                original_columns: resultsCache.originalColumns,
+                                // Cached rows created before original columns were persisted at creation may hold null — don't clobber the value this row was created with
+                                original_columns:
+                                    resultsCache.originalColumns ??
+                                    originalColumns ??
+                                    null,
                                 results_file_name: resultsCache.fileName,
                                 results_created_at: resultsCache.createdAt,
                                 results_updated_at: resultsCache.updatedAt,
@@ -3936,9 +3938,7 @@ export class AsyncQueryService extends ProjectService {
                         await this.queryHistoryModel.updateStatusToError(
                             queryHistoryUuid,
                             projectUuid,
-                            `Missing parameters: ${missingParameterReferences.join(
-                                ', ',
-                            )}`,
+                            `Missing parameters: ${missingParameterReferences.join(', ')}`,
                             account,
                         );
                         this.prometheusMetrics?.trackQueryStateTransition(
@@ -4749,7 +4749,9 @@ export class AsyncQueryService extends ProjectService {
         const savedChart = await this.savedChartModel.get(
             chartUuid,
             versionUuid,
-            { projectUuid },
+            {
+                projectUuid,
+            },
         );
         const {
             uuid: savedChartUuid,
@@ -6079,9 +6081,7 @@ export class AsyncQueryService extends ProjectService {
         const totalTime = performance.now() - startTime;
 
         this.logger.info(
-            `prepareSqlChartAsyncQueryArgs completed in ${totalTime.toFixed(
-                2,
-            )}`,
+            `prepareSqlChartAsyncQueryArgs completed in ${totalTime.toFixed(2)}`,
             {
                 event: 'prepare_sql_chart_async_query_args.completed',
                 projectUuid,
@@ -7342,7 +7342,9 @@ export class AsyncQueryService extends ProjectService {
 
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             dashboardUuid,
-            { projectUuid },
+            {
+                projectUuid,
+            },
         );
 
         const auditedAbility = this.createAuditedAbility(account);
