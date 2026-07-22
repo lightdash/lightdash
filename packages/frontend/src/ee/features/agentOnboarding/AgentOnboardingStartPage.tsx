@@ -1,5 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Stack, Text } from '@mantine-8/core';
+import { Box, Stack, Text } from '@mantine-8/core';
 import { type FC } from 'react';
 import { Navigate, useParams } from 'react-router';
 import Page from '../../../components/common/Page/Page';
@@ -44,7 +44,7 @@ const AgentOnboardingStartPage: FC = () => {
     return (
         <Page title="Project setup" withFixedContent withPaddedContent>
             <Stack w="100%" maw={960} mx="auto" mt="xl">
-                <div>
+                <Box>
                     <OnboardingTitle>
                         Set up your semantic layer
                     </OnboardingTitle>
@@ -52,7 +52,7 @@ const AgentOnboardingStartPage: FC = () => {
                         Turn your warehouse tables into metrics and dimensions
                         your team can explore.
                     </Text>
-                </div>
+                </Box>
             </Stack>
             <AgentOnboardingLaunchPanel
                 project={project}
