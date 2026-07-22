@@ -414,7 +414,8 @@ const renderDateOrTimestampFilterSql = ({
                     // independent of the job timezone — no outer toUTC.
                     return `TIMESTAMP('${value}', '${timezone}')`;
                 }
-                const { toUTC } = dateTruncTimezoneConversions[adapterType];
+                const { toUTC, freezeInstantOutput } =
+                    dateTruncTimezoneConversions[adapterType];
                 const naive = (() => {
                     switch (adapterType) {
                         case SupportedDbtAdapter.TRINO:
@@ -429,7 +430,13 @@ const renderDateOrTimestampFilterSql = ({
                             return `'${value}'::timestamp`;
                     }
                 })();
-                return toUTC(naive, timezone);
+                const wrapped = toUTC(naive, timezone);
+                // The truncated LHS is frozen as TIMESTAMP_NTZ on
+                // Databricks/Spark — freeze the literal identically so the
+                // comparison never relies on session coercion.
+                return freezeInstantOutput
+                    ? freezeInstantOutput(wrapped)
+                    : wrapped;
             }
             case 'naiveWall':
                 // Bare naive column: compare wall clocks in the data timezone.

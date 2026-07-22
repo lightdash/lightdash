@@ -3395,6 +3395,23 @@ describe('domain-directed timestamp filter literals', () => {
                 `(${DimensionSqlMock}) = ('2024-01-15 02:00:00'::timestamp) AT TIME ZONE 'Asia/Tokyo'`,
             );
         });
+
+        test('Databricks freezes the wrapped literal as TIMESTAMP_NTZ to match the frozen LHS', () => {
+            expect(
+                renderTimestamp(
+                    SupportedDbtAdapter.DATABRICKS,
+                    equalsInstantFilter,
+                    {
+                        timezone: 'Asia/Tokyo',
+                        sourceTimezone: 'Asia/Tokyo',
+                        timestampDomain: 'naive',
+                        timeInterval: TimeFrames.HOUR,
+                    },
+                ),
+            ).toStrictEqual(
+                `(${DimensionSqlMock}) = CAST(to_utc_timestamp('2024-01-15 02:00:00', 'Asia/Tokyo') AS TIMESTAMP_NTZ)`,
+            );
+        });
     });
 
     describe('unknown domain stays byte-identical (the flag-gated LHS rebase owns this case)', () => {
