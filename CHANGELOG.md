@@ -1,3 +1,15 @@
+# [0.3443.0](https://github.com/lightdash/lightdash/compare/0.3442.0...0.3443.0) (2026-07-22)
+
+
+### Bug Fixes
+
+* prepare content for project ownership columns ([#25868](https://github.com/lightdash/lightdash/issues/25868)) ([6e7d86f](https://github.com/lightdash/lightdash/commit/6e7d86f30afd608c82b385ea47aa46ff5901bcbe))
+
+
+### Features
+
+* run first data-app builds at low reasoning effort ([#25907](https://github.com/lightdash/lightdash/issues/25907)) ([71df453](https://github.com/lightdash/lightdash/commit/71df453fc2505a83fd3a3ce77ed8eb8f3a9b50c6))
+
 # [0.3442.0](https://github.com/lightdash/lightdash/compare/0.3441.2...0.3442.0) (2026-07-21)
 
 
