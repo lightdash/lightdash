@@ -285,6 +285,17 @@ export const exploreWithNonWarehouseWarnings: Explore = {
     ],
 };
 
+export const exploreWithMixedWarnings: Explore = {
+    ...explore,
+    warnings: [
+        ...(exploreWithNonWarehouseWarnings.warnings ?? []),
+        {
+            type: InlineErrorType.WAREHOUSE_COLUMN_ERROR,
+            message: 'Warehouse rejected ${TABLE}.missing_column',
+        },
+    ],
+};
+
 export const exploreWithJoin: Explore = {
     targetDatabase: SupportedDbtAdapter.POSTGRES,
     name: 'joined_explore',

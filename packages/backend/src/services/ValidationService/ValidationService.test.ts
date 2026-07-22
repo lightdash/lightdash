@@ -32,6 +32,7 @@ import {
     explore,
     exploreError,
     exploreWithJoin,
+    exploreWithMixedWarnings,
     exploreWithNonWarehouseWarnings,
     exploreWithoutDimension,
     exploreWithoutMetric,
@@ -251,6 +252,20 @@ describe('validation', () => {
             await validationService.generateValidation('projectUuid');
 
         expect(errors).toEqual([]);
+    });
+
+    it('Should promote only the warehouse column warning when mixed with generic warnings', async () => {
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            [exploreWithMixedWarnings],
+        );
+
+        expect(errors.map((error) => error.error)).toEqual([
+            'Warehouse rejected ${TABLE}.missing_column',
+        ]);
+        expect(errors.map((error) => error.errorType)).toEqual([
+            ValidationErrorType.Model,
+        ]);
     });
 
     it('Should validate project with table errors', async () => {

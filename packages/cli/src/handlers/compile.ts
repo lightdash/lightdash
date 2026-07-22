@@ -11,6 +11,7 @@ import {
     getErrorMessage,
     getModelsFromManifest,
     getSchemaStructureFromDbtModels,
+    InlineErrorType,
     isExploreError,
     isSupportedDbtAdapter,
     LightdashProjectConfig,
@@ -19,6 +20,7 @@ import {
     QueryExecutionContext,
     translateMetricFlowMetrics,
     WarehouseCatalog,
+    type InlineError,
     type WarehouseClient,
 } from '@lightdash/common';
 import {
@@ -55,6 +57,18 @@ export type CompileHandlerOptions = DbtCompileOptions & {
     warehouseCredentials?: boolean;
     disableTimestampConversion?: boolean;
     validateWarehouseColumns?: boolean;
+};
+
+// Warehouse column warnings come from explicit `--validate-warehouse-columns`
+// probing, not partial compilation, so the env gate must never hide them.
+const getDisplayableWarnings = (explore: Explore): InlineError[] => {
+    const warnings = explore.warnings ?? [];
+    if (process.env.PARTIAL_COMPILATION_ENABLED !== 'false') {
+        return warnings;
+    }
+    return warnings.filter(
+        (warning) => warning.type === InlineErrorType.WAREHOUSE_COLUMN_ERROR,
+    );
 };
 
 const getExploresFromLightdashYmlProject = async (
@@ -291,6 +305,14 @@ export const compile = async (options: CompileHandlerOptions) => {
         options.disableTimestampConversion,
     );
 
+    if (explores !== null && options.validateWarehouseColumns === true) {
+        console.error(
+            styles.warning(
+                '> Skipping warehouse column validation because it is not supported for Lightdash YAML projects',
+            ),
+        );
+    }
+
     // Load dbt Project
     if (explores === null) {
         if (!dbtVersionResult.success) {
@@ -494,33 +516,28 @@ export const compile = async (options: CompileHandlerOptions) => {
             status = styles.error('ERROR');
             messages = `: ${styles.error(e.errors.map((err) => err.message).join(', '))}`;
             errors += 1;
-        } else if (
-            process.env.PARTIAL_COMPILATION_ENABLED !== 'false' &&
-            'warnings' in e &&
-            e.warnings &&
-            e.warnings.length > 0
-        ) {
-            status = styles.warning('PARTIAL_SUCCESS');
-            messages = `\n${e.warnings
-                .map(
-                    (warning) =>
-                        `    ${styles.warning(`⚠ ${warning.message}`)}`,
-                )
-                .join('\n')}`;
-            partialSuccess += 1;
         } else {
-            status = styles.success('SUCCESS');
-            success += 1;
+            const warnings = getDisplayableWarnings(e);
+            if (warnings.length > 0) {
+                status = styles.warning('PARTIAL_SUCCESS');
+                messages = `\n${warnings
+                    .map(
+                        (warning) =>
+                            `    ${styles.warning(`⚠ ${warning.message}`)}`,
+                    )
+                    .join('\n')}`;
+                partialSuccess += 1;
+            } else {
+                status = styles.success('SUCCESS');
+                success += 1;
+            }
         }
 
         console.error(`- ${status}> ${e.name} ${messages}`);
     });
     console.error('');
 
-    if (
-        process.env.PARTIAL_COMPILATION_ENABLED !== 'false' &&
-        partialSuccess > 0
-    ) {
+    if (partialSuccess > 0) {
         console.error(
             `Compiled ${explores.length} explores, SUCCESS=${success} PARTIAL_SUCCESS=${partialSuccess} ERRORS=${errors}`,
         );

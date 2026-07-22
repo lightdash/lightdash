@@ -5,6 +5,7 @@ import {
     MetricType,
     SupportedDbtAdapter,
     type Explore,
+    type ExploreError,
 } from '@lightdash/common';
 import { validateWarehouseColumnReferences } from './validateWarehouseColumnReferences';
 
@@ -122,5 +123,77 @@ describe('validateWarehouseColumnReferences', () => {
 
         expect(result).toEqual([explore]);
         expect(runQuery).toHaveBeenCalledTimes(2);
+    });
+
+    it('preserves pre-existing warnings and appends warehouse warnings after them', async () => {
+        const existingWarning = {
+            type: InlineErrorType.FIELD_ERROR,
+            message: 'Dimension "broken_dimension" failed to compile',
+        };
+        const exploreWithExistingWarning: Explore = {
+            ...explore,
+            warnings: [existingWarning],
+        };
+        const runQuery = vi.fn(async (sql: string) => {
+            if (sql.includes('rolling_30d_avg_sales')) {
+                throw new Error(
+                    'column orders.rolling_30d_avg_sales does not exist',
+                );
+            }
+            return queryResult;
+        });
+
+        const [result] = await validateWarehouseColumnReferences({
+            explores: [exploreWithExistingWarning],
+            client: { getFieldQuoteChar: () => '"', runQuery },
+            tags,
+        });
+
+        expect(result).toEqual({
+            ...exploreWithExistingWarning,
+            warnings: [
+                existingWarning,
+                {
+                    type: InlineErrorType.WAREHOUSE_COLUMN_ERROR,
+                    message:
+                        // eslint-disable-next-line no-template-curly-in-string
+                        'Warehouse rejected column reference ${TABLE}.rolling_30d_avg_sales in model "orders": column orders.rolling_30d_avg_sales does not exist',
+                },
+            ],
+        });
+    });
+
+    it('skips explore errors and templated table references without probing', async () => {
+        const exploreError: ExploreError = {
+            name: 'broken_explore',
+            label: 'Broken explore',
+            errors: [
+                {
+                    type: InlineErrorType.METADATA_PARSE_ERROR,
+                    message: 'Failed to compile explore',
+                },
+            ],
+        };
+        const templatedExplore: Explore = {
+            ...explore,
+            name: 'templated_orders',
+            tables: {
+                orders: {
+                    ...explore.tables.orders,
+                    // eslint-disable-next-line no-template-curly-in-string
+                    sqlTable: '"postgres"."${ld.schema}"."orders"',
+                },
+            },
+        };
+        const runQuery = vi.fn(async () => queryResult);
+
+        const result = await validateWarehouseColumnReferences({
+            explores: [exploreError, templatedExplore],
+            client: { getFieldQuoteChar: () => '"', runQuery },
+            tags,
+        });
+
+        expect(result).toEqual([exploreError, templatedExplore]);
+        expect(runQuery).not.toHaveBeenCalled();
     });
 });
