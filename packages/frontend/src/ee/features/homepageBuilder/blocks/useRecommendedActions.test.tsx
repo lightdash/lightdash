@@ -103,6 +103,31 @@ describe('useRecommendedActions', () => {
         });
     });
 
+    it('shows no source-control annotation when nothing is connected', () => {
+        vi.mocked(useApp).mockReturnValue({
+            health: { data: { hasGitlab: true } },
+            user: {
+                data: {
+                    ability: { can: () => true },
+                },
+            },
+        } as unknown as ReturnType<typeof useApp>);
+
+        const { result } = renderHook(() =>
+            useRecommendedActions('project-uuid'),
+        );
+
+        expect(
+            result.current.statuses['connect-source-control'].isVisible,
+        ).toBe(true);
+        expect(
+            result.current.statuses['connect-source-control'].isComplete,
+        ).toBe(false);
+        expect(
+            result.current.statuses['connect-source-control'].annotation,
+        ).toBeNull();
+    });
+
     describe('on a playground project', () => {
         beforeEach(() => {
             vi.mocked(useOrganization).mockReturnValue({
@@ -164,7 +189,7 @@ describe('useRecommendedActions', () => {
     });
 
     describe('add-semantic-layer destination', () => {
-        it('links to the agent setup flow when both flags are enabled', () => {
+        it('links to the current project agent setup flow when both flags are enabled', () => {
             vi.mocked(useServerFeatureFlag).mockImplementation(
                 () =>
                     ({
@@ -178,7 +203,7 @@ describe('useRecommendedActions', () => {
 
             expect(
                 result.current.statuses['add-semantic-layer'].url,
-            ).toStrictEqual('/createProject/agent');
+            ).toStrictEqual('/projects/project-uuid/onboarding/agent');
         });
 
         it('keeps the settings link when coding-agent onboarding is disabled', () => {
