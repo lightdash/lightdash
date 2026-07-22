@@ -1398,6 +1398,7 @@ export type LightdashConfig = {
         pollInterval: number;
         jobTimeout: number;
         screenshotTimeout?: number;
+        maxAttempts: number;
         tasks: Array<SchedulerTaskName>;
         queryHistory: {
             cleanup: {
@@ -2874,6 +2875,11 @@ export const parseConfig = (): LightdashConfig => {
             screenshotTimeout: process.env.SCHEDULER_SCREENSHOT_TIMEOUT
                 ? parseInt(process.env.SCHEDULER_SCREENSHOT_TIMEOUT, 10)
                 : undefined,
+            maxAttempts: Math.max(
+                1,
+                getIntegerFromEnvironmentVariable('SCHEDULER_MAX_ATTEMPTS') ||
+                    1,
+            ),
             tasks: parseAndSanitizeSchedulerTasks(),
             queryHistory: {
                 cleanup: {
