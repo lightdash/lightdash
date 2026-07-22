@@ -29,6 +29,7 @@ const updateUserPasswordQuery = (data: UserPasswordUpdate) =>
         url: `/user/password`,
         method: 'POST',
         body: JSON.stringify(data),
+        sensitive: true,
     });
 
 export const useUserUpdatePasswordMutation = (

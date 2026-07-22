@@ -27,6 +27,7 @@ const createOrganizationWarehouseCredentials = async (
         url: `/org/warehouse-credentials`,
         method: 'POST',
         body: JSON.stringify(data),
+        sensitive: true,
     });
 
 const updateOrganizationWarehouseCredentials = async ({
@@ -40,6 +41,7 @@ const updateOrganizationWarehouseCredentials = async ({
         url: `/org/warehouse-credentials/${uuid}`,
         method: 'PATCH',
         body: JSON.stringify(data),
+        sensitive: true,
     });
 
 const deleteOrganizationWarehouseCredentials = async (uuid: string) =>
