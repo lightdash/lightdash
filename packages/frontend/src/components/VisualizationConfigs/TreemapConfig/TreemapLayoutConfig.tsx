@@ -16,12 +16,11 @@ import {
     Switch,
     Text,
     Tooltip,
-    NumberInput,
 } from '@mantine-8/core';
 import { IconHelpCircle } from '@tabler/icons-react';
-import { optionalNumber } from '../../../utils/numberInputUtils';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
+import { NumberInput } from '../../common/NumberInput';
 import { isTreemapVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
@@ -255,10 +254,8 @@ export const Layout: React.FC = () => {
                                         <NumberInput
                                             size="xs"
                                             value={startColorThreshold}
-                                            onChange={(value) =>
-                                                setStartColorThreshold(
-                                                    optionalNumber(value),
-                                                )
+                                            onNumberChange={
+                                                setStartColorThreshold
                                             }
                                             hideControls={true}
                                             decimalScale={2}
@@ -289,10 +286,8 @@ export const Layout: React.FC = () => {
                                         <NumberInput
                                             size="xs"
                                             value={endColorThreshold}
-                                            onChange={(value) =>
-                                                setEndColorThreshold(
-                                                    optionalNumber(value),
-                                                )
+                                            onNumberChange={
+                                                setEndColorThreshold
                                             }
                                             hideControls={true}
                                             decimalScale={2}

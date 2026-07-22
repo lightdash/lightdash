@@ -10,7 +10,6 @@ import {
     Alert,
     Button,
     Group,
-    NumberInput,
     Paper,
     SegmentedControl,
     Stack,
@@ -32,6 +31,7 @@ import { scheduleDownloadQuery } from '../../hooks/useQueryResults';
 import useUser from '../../hooks/user/useUser';
 import { Can } from '../../providers/Ability';
 import MantineIcon from '../common/MantineIcon';
+import { NumberInput } from '../common/NumberInput';
 import { Limit } from './types';
 
 type ExportCsvRenderProps = {

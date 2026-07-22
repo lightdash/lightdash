@@ -4,7 +4,6 @@ import {
     Code,
     Group,
     Loader,
-    NumberInput,
     Stack,
     Text,
     Title,
@@ -15,6 +14,7 @@ import {
     usePreviewExpirationSettings,
     useUpdatePreviewExpirationSettings,
 } from '../../hooks/useProjectPreviewExpirationSettings';
+import { NumberInput } from '../common/NumberInput';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 
 const formatHoursAsDays = (hours: number) => {

@@ -24,7 +24,6 @@ import {
     Accordion,
     Button,
     Group,
-    NumberInput,
     Select,
     Stack,
     Text,
@@ -48,6 +47,7 @@ import Callout from '../../common/Callout';
 import FieldIcon from '../../common/Filters/FieldIcon';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
 import MantineModal from '../../common/MantineModal';
+import { NumberInput } from '../../common/NumberInput';
 import { FormatForm } from '../FormatForm';
 import { FilterForm, type MetricFilterRuleWithFieldId } from './FilterForm';
 import { useDataForFiltersProvider } from './hooks/useDataForFiltersProvider';
@@ -612,6 +612,7 @@ export const CustomMetricModal = memo(() => {
                             w={100}
                             max={100}
                             min={0}
+                            decimalScale={2}
                             required
                             label="Percentile"
                             {...form.getInputProps('percentile')}

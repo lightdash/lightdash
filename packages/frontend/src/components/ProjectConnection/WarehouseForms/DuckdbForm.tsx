@@ -11,10 +11,10 @@ import {
     Select,
     Switch,
     PasswordInput,
-    NumberInput,
 } from '@mantine-8/core';
 import { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
+import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import FormSection from '../Inputs/FormSection';
@@ -167,7 +167,6 @@ const DucklakeFields: FC<{ disabled: boolean }> = ({ disabled }) => {
                         disabled={disabled}
                     />
                     <NumberInput
-                        decimalScale={0}
                         label="Port"
                         required
                         {...form.getInputProps('warehouse.catalog.port')}
@@ -406,7 +405,6 @@ const DuckdbForm: FC<{
             <FormSection isOpen={isOpen} name="advanced">
                 <Stack mt="sm">
                     <NumberInput
-                        decimalScale={0}
                         name="warehouse.threads"
                         label="Threads"
                         description="Number of threads for dbt to use."

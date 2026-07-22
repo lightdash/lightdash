@@ -16,7 +16,6 @@ import {
     Select,
     PasswordInput,
     Tooltip,
-    NumberInput,
 } from '@mantine-8/core';
 import { IconCheck } from '@tabler/icons-react';
 import {
@@ -39,6 +38,7 @@ import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
+import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import BooleanSwitch from '../Inputs/BooleanSwitch';
@@ -760,7 +760,6 @@ const SnowflakeForm: FC<{
                                             )}
                                         />
                                         <NumberInput
-                                            decimalScale={0}
                                             name="warehouse.timeoutSeconds"
                                             {...form.getInputProps(
                                                 'warehouse.timeoutSeconds',

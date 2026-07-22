@@ -7,13 +7,13 @@ import {
     Accordion,
     Center,
     Group,
-    NumberInput,
     SegmentedControl,
     Stack,
     Tooltip,
 } from '@mantine-8/core';
 import { memo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
+import { NumberInput } from '../../common/NumberInput';
 import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';

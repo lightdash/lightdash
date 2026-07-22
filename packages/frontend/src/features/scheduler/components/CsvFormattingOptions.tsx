@@ -3,7 +3,6 @@ import {
     Button,
     Collapse,
     Group,
-    NumberInput,
     Radio,
     SimpleGrid,
     Stack,
@@ -17,6 +16,7 @@ import {
 } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { NumberInput } from '../../../components/common/NumberInput';
 import useHealth from '../../../hooks/health/useHealth';
 import { Limit, Values } from './types';
 

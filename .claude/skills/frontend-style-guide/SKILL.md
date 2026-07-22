@@ -353,6 +353,27 @@ Both accept all props of their base component (`GroupProps` / `PaperProps`) plus
 </UnstyledButton>
 ```
 
+### NumberInput
+
+- **Always use `NumberInput` from `components/common/NumberInput`** — never Mantine's NumberInput directly
+- Mantine 8's onChange emits `number | string` (empty field, half-typed values like `-`/`12.`, unsafe-large integers). The wrapper's `onNumberChange` shields you: it fires with a `number`, or `undefined` when the field is cleared — transient strings never fire
+- **Integer-only by default** — the wrapper defaults `decimalScale={0}` (most fields are ports, counts, timeouts). Decimal fields opt in with `decimalScale={2}` etc., or `decimalScale="unlimited"` to remove the cap
+- The raw `onChange` prop remains available only for `form.getInputProps()` spreads, where the form library owns parsing
+
+```tsx
+// ✅ Good - cleared field maps to a domain decision at the call site
+<NumberInput onNumberChange={(v) => setLimit(v ?? DEFAULT)} />
+
+// ✅ Good - number-or-undefined sinks take the callback directly
+<NumberInput decimalScale={2} onNumberChange={setThreshold} />
+
+// ✅ OK - form spread owns value/onChange
+<NumberInput {...form.getInputProps('warehouse.port')} />
+
+// ❌ Avoid - hand-rolled typeof guards on the raw Mantine component
+<MantineNumberInput onChange={(v) => { if (typeof v === 'number') setX(v); }} />
+```
+
 ### EmptyStateLoader
 
 - Use `EmptyStateLoader` from `components/common/EmptyStateLoader` for **any** centered loading state: page-level guards, panels, tables, empty containers

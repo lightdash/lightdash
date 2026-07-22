@@ -1,12 +1,7 @@
 import type { RowLimit } from '@lightdash/common';
-import {
-    Group,
-    NumberInput,
-    SegmentedControl,
-    Switch,
-    Text,
-} from '@mantine-8/core';
+import { Group, SegmentedControl, Switch, Text } from '@mantine-8/core';
 import { type FC } from 'react';
+import { NumberInput } from '../../common/NumberInput';
 import compactStyles from '../mantineTheme.module.css';
 
 const MODE_OPTIONS = [
