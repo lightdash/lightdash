@@ -6,24 +6,38 @@ import PageSpinner from '../../../components/PageSpinner';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
+import { useIsCopilotEnabled } from '../aiCopilot/hooks/useIsCopilotEnabled';
 import { RecommendedActionsChecklist } from './blocks/RecommendedActionsChecklist';
 import { useRecommendedActions } from './blocks/useRecommendedActions';
 import { DayOneAskInput } from './DayOneAskInput';
 import { getGreeting } from './greeting';
 import layout from './homepageLayout.module.css';
 import HomepageStars from './HomepageStars';
+import { useHomepageBuilderFlag } from './hooks/useProjectHomepage';
 
 const NoProjectHomepage: FC = () => {
     const { user } = useApp();
     const { data: organization, isInitialLoading } = useOrganization();
     const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
+    const homepageBuilderFlag = useHomepageBuilderFlag();
+    const { isCopilotEnabled, isLoading: isCopilotLoading } =
+        useIsCopilotEnabled();
     const actions = useRecommendedActions(null);
 
-    if (isInitialLoading || orgSetupPageFlag.isLoading) {
+    if (
+        isInitialLoading ||
+        orgSetupPageFlag.isLoading ||
+        homepageBuilderFlag.isLoading ||
+        isCopilotLoading
+    ) {
         return <PageSpinner />;
     }
 
     if (!orgSetupPageFlag.data?.enabled) {
+        return <Navigate to="/" replace />;
+    }
+
+    if (!homepageBuilderFlag.isEnabled || !isCopilotEnabled) {
         return <Navigate to="/" replace />;
     }
 
