@@ -85,7 +85,6 @@ import {
     generateUniqueSlug,
 } from '../../utils/SlugUtils';
 import { ContentVerificationModel } from '../ContentVerificationModel';
-import { SpaceModel } from '../SpaceModel';
 import Transaction = Knex.Transaction;
 
 export type GetDashboardQuery = Pick<
@@ -1434,8 +1433,14 @@ export class DashboardModel {
             }
 
             const [space] = await trx(SpaceTableName)
-                .where('space_uuid', spaceUuid)
-                .select(`${SpaceTableName}.*`)
+                .innerJoin(
+                    ProjectTableName,
+                    `${ProjectTableName}.project_id`,
+                    `${SpaceTableName}.project_id`,
+                )
+                .where(`${SpaceTableName}.space_uuid`, spaceUuid)
+                .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                .select(`${SpaceTableName}.space_id`)
                 .limit(1);
             if (!space) {
                 throw new NotFoundError('Space not found');
@@ -1443,6 +1448,7 @@ export class DashboardModel {
 
             const [newDashboard] = await trx(DashboardsTableName)
                 .insert({
+                    project_uuid: projectUuid,
                     name: dashboard.name,
                     description: dashboard.description,
                     space_id: space.space_id,
@@ -1470,42 +1476,47 @@ export class DashboardModel {
         dashboardUuidOrSlug: string,
         dashboard: DashboardUnversionedFields,
     ): Promise<DashboardDAO> {
-        const withSpaceId = dashboard.spaceUuid
-            ? {
-                  space_id: (
-                      await SpaceModel.getSpaceIdAndName(
-                          this.database,
-                          dashboard.spaceUuid,
-                      )
-                  )?.spaceId,
-              }
-            : {};
+        const existingDashboard = await this.getByIdOrSlug(dashboardUuidOrSlug);
+        let withSpaceId: { space_id: number } | Record<string, never> = {};
+        if (dashboard.spaceUuid) {
+            const space = await this.database(SpaceTableName)
+                .innerJoin(
+                    ProjectTableName,
+                    `${ProjectTableName}.project_id`,
+                    `${SpaceTableName}.project_id`,
+                )
+                .select(`${SpaceTableName}.space_id`)
+                .where(`${SpaceTableName}.space_uuid`, dashboard.spaceUuid)
+                .where(
+                    `${ProjectTableName}.project_uuid`,
+                    existingDashboard.projectUuid,
+                )
+                .first();
+            if (!space) {
+                throw new NotFoundError('Space not found');
+            }
+            withSpaceId = { space_id: space.space_id };
+        }
         const withColorPalette =
             dashboard.colorPaletteUuid !== undefined
                 ? { color_palette_uuid: dashboard.colorPaletteUuid }
                 : {};
         const query = this.database(DashboardsTableName)
             .update({
+                project_uuid: existingDashboard.projectUuid,
                 name: dashboard.name,
                 description: dashboard.description,
                 ...withSpaceId,
                 ...withColorPalette,
             })
+            .where('dashboard_uuid', existingDashboard.uuid)
             .whereNull('deleted_at');
-
-        if (isValidUuid(dashboardUuidOrSlug)) {
-            void query.where((builder) => {
-                void builder
-                    .where('dashboard_uuid', dashboardUuidOrSlug)
-                    .orWhere('slug', dashboardUuidOrSlug);
-            });
-        } else {
-            void query.where('slug', dashboardUuidOrSlug);
-        }
 
         await query;
 
-        return this.getByIdOrSlug(dashboardUuidOrSlug);
+        return this.getByIdOrSlug(existingDashboard.uuid, {
+            projectUuid: existingDashboard.projectUuid,
+        });
     }
 
     async updateMultiple(
@@ -1515,31 +1526,64 @@ export class DashboardModel {
         await this.database.transaction(async (trx) => {
             await Promise.all(
                 dashboards.map(async (dashboard) => {
-                    const withSpaceId = dashboard.spaceUuid
-                        ? {
-                              space_id: (
-                                  await SpaceModel.getSpaceIdAndName(
-                                      trx,
-                                      dashboard.spaceUuid,
-                                  )
-                              )?.spaceId,
-                          }
-                        : {};
-                    await trx(DashboardsTableName)
+                    let withSpaceId:
+                        | { space_id: number }
+                        | Record<string, never> = {};
+                    if (dashboard.spaceUuid) {
+                        const space = await trx(SpaceTableName)
+                            .innerJoin(
+                                ProjectTableName,
+                                `${ProjectTableName}.project_id`,
+                                `${SpaceTableName}.project_id`,
+                            )
+                            .select(`${SpaceTableName}.space_id`)
+                            .where(
+                                `${SpaceTableName}.space_uuid`,
+                                dashboard.spaceUuid,
+                            )
+                            .where(
+                                `${ProjectTableName}.project_uuid`,
+                                projectUuid,
+                            )
+                            .first();
+                        if (!space) {
+                            throw new NotFoundError('Space not found');
+                        }
+                        withSpaceId = { space_id: space.space_id };
+                    }
+                    const updateCount = await trx(DashboardsTableName)
                         .update({
+                            project_uuid: projectUuid,
                             name: dashboard.name,
                             description: dashboard.description,
                             ...withSpaceId,
                         })
                         .where('dashboard_uuid', dashboard.uuid)
+                        .whereIn(
+                            'space_id',
+                            trx(SpaceTableName)
+                                .select(`${SpaceTableName}.space_id`)
+                                .innerJoin(
+                                    ProjectTableName,
+                                    `${ProjectTableName}.project_id`,
+                                    `${SpaceTableName}.project_id`,
+                                )
+                                .where(
+                                    `${ProjectTableName}.project_uuid`,
+                                    projectUuid,
+                                ),
+                        )
                         .whereNull('deleted_at');
+                    if (updateCount !== 1) {
+                        throw new NotFoundError('Dashboard not found');
+                    }
                 }),
             );
         });
 
         return Promise.all(
             dashboards.map(async (dashboard) =>
-                this.getByIdOrSlug(dashboard.uuid),
+                this.getByIdOrSlug(dashboard.uuid, { projectUuid }),
             ),
         );
     }
@@ -2465,8 +2509,8 @@ export class DashboardModel {
                 `${ProjectTableName}.project_id`,
                 `${SpaceTableName}.project_id`,
             )
-            .where('space_uuid', targetSpaceUuid)
-            .where('project_uuid', projectUuid)
+            .where(`${SpaceTableName}.space_uuid`, targetSpaceUuid)
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .first();
 
         if (!space) {
@@ -2474,8 +2518,22 @@ export class DashboardModel {
         }
 
         const updateCount = await tx(DashboardsTableName)
-            .update({ space_id: space.space_id })
+            .update({
+                project_uuid: projectUuid,
+                space_id: space.space_id,
+            })
             .where('dashboard_uuid', dashboardUuid)
+            .whereIn(
+                'space_id',
+                tx(SpaceTableName)
+                    .select(`${SpaceTableName}.space_id`)
+                    .innerJoin(
+                        ProjectTableName,
+                        `${ProjectTableName}.project_id`,
+                        `${SpaceTableName}.project_id`,
+                    )
+                    .where(`${ProjectTableName}.project_uuid`, projectUuid),
+            )
             .whereNull('deleted_at');
 
         if (updateCount !== 1) {

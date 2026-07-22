@@ -126,7 +126,7 @@ import Logger from '../../logging/logger';
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { generateUniqueSpaceSlug } from '../../utils/SlugUtils';
-import { omitProjectUuid } from './previewContent';
+import { omitProjectUuid, replaceProjectUuid } from './previewContent';
 import Transaction = Knex.Transaction;
 
 export type ProjectModelArguments = {
@@ -3167,7 +3167,10 @@ export class ProjectModel {
                                       dashboard_uuid?: string;
                                   };
                                   const createDashboard: CloneDashboard = {
-                                      ...omitProjectUuid(d),
+                                      ...replaceProjectUuid(
+                                          d,
+                                          previewProjectUuid,
+                                      ),
                                       search_vector: undefined,
                                       dashboard_id: undefined,
                                       dashboard_uuid: undefined,

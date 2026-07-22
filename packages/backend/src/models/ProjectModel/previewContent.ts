@@ -7,3 +7,11 @@ export const omitProjectUuid = <T extends object>(
     void projectUuid;
     return rest;
 };
+
+export const replaceProjectUuid = <T extends object>(
+    row: T,
+    projectUuid: string,
+): Omit<T, 'project_uuid'> & { project_uuid: string } => ({
+    ...omitProjectUuid(row),
+    project_uuid: projectUuid,
+});

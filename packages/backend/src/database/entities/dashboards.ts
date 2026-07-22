@@ -22,6 +22,7 @@ export const DashboardTabsTableName = 'dashboard_tabs';
 export type DbDashboard = {
     dashboard_id: number;
     dashboard_uuid: string;
+    project_uuid: string | null;
     name: string;
     description?: string;
     search_vector: string;
@@ -76,10 +77,14 @@ type DbDashboardTileChart = {
 
 export type DashboardTable = Knex.CompositeTableType<
     DbDashboard,
-    Pick<DbDashboard, 'name' | 'description' | 'space_id' | 'slug'>,
+    Pick<
+        DbDashboard,
+        'project_uuid' | 'name' | 'description' | 'space_id' | 'slug'
+    >,
     Partial<
         Pick<
             DbDashboard,
+            | 'project_uuid'
             | 'name'
             | 'description'
             | 'views_count'
