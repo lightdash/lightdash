@@ -7202,24 +7202,22 @@ describe('Naive timestamp domain — explicit, session-independent conversion', 
             expect(whereClause).not.toContain('2024-01-14 17:00:00+00:00');
         });
 
-        test('bare known-aware column (no time interval) keeps the instant literal (Postgres)', () => {
+        test('bare known-aware column (no time interval) keeps the instant literal (BigQuery)', () => {
             const { query } = buildQuery({
                 explore: buildNaiveExplore(
-                    SupportedDbtAdapter.POSTGRES,
+                    SupportedDbtAdapter.BIGQUERY,
                     'aware',
                 ),
                 compiledMetricQuery: filteredQuery('events_occurred_at'),
-                warehouseSqlBuilder: warehouseClientMock,
+                warehouseSqlBuilder: bigqueryClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                 timezone: 'Asia/Tokyo',
                 useTimezoneAwareDateTrunc: true,
                 columnTimezone: 'Asia/Tokyo',
             });
             const whereClause = query.slice(query.indexOf('WHERE'));
-            expect(whereClause).toContain(`('2024-01-14 17:00:00+00:00')`);
-            expect(whereClause).not.toContain(
-                `'2024-01-15 02:00:00'::timestamp`,
-            );
+            expect(whereClause).toContain(`TIMESTAMP '2024-01-14 17:00:00+00'`);
+            expect(whereClause).not.toContain(`('2024-01-14 17:00:00')`);
         });
 
         test.each(['events_occurred_at', 'events_occurred_at_raw'])(
