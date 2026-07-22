@@ -143,7 +143,8 @@ export type TotalQueryBuilderArgs = {
 /**
  * The source query the totals SQL embeds (once) to compute on top of the
  * original results. `MetricQueryBuilder` derives HOW from the totals
- * configuration and the two queries themselves (filter restrictions).
+ * configuration and the two queries themselves (filter restrictions,
+ * visible-page pinning).
  */
 export type TotalQuerySourceQuery = {
     // Source query verbatim; the builder embeds it without ORDER BY / LIMIT
@@ -158,7 +159,7 @@ export type TotalQueryResult = {
     metricQuery: MetricQuery;
     pivotConfiguration: PivotConfiguration | undefined;
     // Set only when the totals SQL must compute on top of the source query's
-    // results (blocking filters).
+    // results (blocking filters, subtotal page pinning).
     sourceQuery?: TotalQuerySourceQuery;
 };
 
@@ -200,10 +201,14 @@ export class TotalQueryBuilder {
     }
 
     private buildSourceQuery(): TotalQuerySourceQuery | undefined {
-        const { metricQuery, pivotConfiguration } = this.args;
-        // Blocking filters are enforced by restricting raw rows to the
-        // source groups that pass them.
-        if (!hasBlockingTotalFilters(metricQuery)) {
+        const { kind, metricQuery, pivotConfiguration } = this.args;
+        const needsSourceQuery =
+            // Blocking filters are enforced by restricting raw rows to the
+            // source groups that pass them.
+            hasBlockingTotalFilters(metricQuery) ||
+            // Subtotals pin to the grain groups on the visible page.
+            kind === 'columnSubtotal';
+        if (!needsSourceQuery) {
             return undefined;
         }
         return {
