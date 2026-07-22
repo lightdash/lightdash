@@ -574,6 +574,7 @@ export class CsvService extends BaseService {
                     organizationUuid,
                     projectUuid,
                     createdByUserUuid,
+                    source: 'analytics',
                 });
             return {
                 filename: fileName,

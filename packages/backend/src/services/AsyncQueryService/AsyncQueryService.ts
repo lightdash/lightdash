@@ -1746,6 +1746,7 @@ export class AsyncQueryService extends ProjectService {
                                 ? null
                                 : account.user.userUuid,
                             expirationSeconds: expirationSecondsOverride,
+                            source: 'async_query',
                         },
                     );
                 return {
@@ -1879,6 +1880,7 @@ export class AsyncQueryService extends ProjectService {
                     createdByUserUuid: persistentUrlContext.createdByUserUuid,
                     expirationSeconds:
                         persistentUrlContext.expirationSecondsOverride,
+                    source: 'async_query',
                 });
             return {
                 fileUrl: persistentUrl,

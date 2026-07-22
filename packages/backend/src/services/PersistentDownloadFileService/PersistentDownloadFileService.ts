@@ -8,9 +8,21 @@ import { type Readable } from 'stream';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { PersistentDownloadFileModel } from '../../models/PersistentDownloadFileModel';
+import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { BaseService } from '../BaseService';
 
+export type PersistentDownloadFileSource =
+    | 'chart'
+    | 'dashboard'
+    | 'sql_chart'
+    | 'pivot'
+    | 'analytics'
+    | 'async_query'
+    | 'scheduler'
+    | 'other';
+
 type PersistentDownloadFileServiceArguments = {
+    analytics?: LightdashAnalytics;
     lightdashConfig: LightdashConfig;
     persistentDownloadFileModel: PersistentDownloadFileModel;
     fileStorageClient: FileStorageClient;
@@ -19,6 +31,7 @@ type PersistentDownloadFileServiceArguments = {
 const PERSISTENT_URL_S3_EXPIRY_SECONDS = 300; // 5 minutes
 
 export class PersistentDownloadFileService extends BaseService {
+    private readonly analytics: LightdashAnalytics | undefined;
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly persistentDownloadFileModel: PersistentDownloadFileModel;
@@ -26,11 +39,13 @@ export class PersistentDownloadFileService extends BaseService {
     private readonly fileStorageClient: FileStorageClient;
 
     constructor({
+        analytics,
         lightdashConfig,
         persistentDownloadFileModel,
         fileStorageClient,
     }: PersistentDownloadFileServiceArguments) {
         super();
+        this.analytics = analytics;
         this.lightdashConfig = lightdashConfig;
         this.persistentDownloadFileModel = persistentDownloadFileModel;
         this.fileStorageClient = fileStorageClient;
@@ -43,6 +58,7 @@ export class PersistentDownloadFileService extends BaseService {
         projectUuid: string | null;
         createdByUserUuid: string | null;
         expirationSeconds?: number;
+        source?: PersistentDownloadFileSource;
     }): Promise<string> {
         // Use the persistent-URL system when the instance enables it
         // (PERSISTENT_DOWNLOAD_URLS_ENABLED, off by default), or transparently
@@ -72,6 +88,21 @@ export class PersistentDownloadFileService extends BaseService {
             data.expirationSeconds ??
             this.lightdashConfig.persistentDownloadUrls.expirationSeconds;
         const expiresAt = new Date(Date.now() + expirationSeconds * 1000);
+        const source = data.source ?? 'other';
+        const createStartedAt = Date.now();
+        this.analytics?.track({
+            event: 'persistent_file.generation_requested',
+            userId: data.createdByUserUuid ?? undefined,
+            properties: {
+                fileUuid: fileNanoid,
+                organizationId: data.organizationUuid,
+                projectId: data.projectUuid,
+                createdByUserUuid: data.createdByUserUuid,
+                fileType: data.fileType,
+                source,
+                expirationSeconds,
+            },
+        });
         await this.persistentDownloadFileModel.create({
             nanoid: fileNanoid,
             s3Key: data.s3Key,
@@ -80,6 +111,20 @@ export class PersistentDownloadFileService extends BaseService {
             projectUuid: data.projectUuid,
             createdByUserUuid: data.createdByUserUuid,
             expiresAt,
+        });
+        this.analytics?.track({
+            event: 'persistent_file.generation_completed',
+            userId: data.createdByUserUuid ?? undefined,
+            properties: {
+                fileUuid: fileNanoid,
+                organizationId: data.organizationUuid,
+                projectId: data.projectUuid,
+                createdByUserUuid: data.createdByUserUuid,
+                fileType: data.fileType,
+                source,
+                expirationSeconds,
+                durationMs: Date.now() - createStartedAt,
+            },
         });
 
         const url = new URL(
@@ -135,6 +180,7 @@ export class PersistentDownloadFileService extends BaseService {
         requestContext?: {
             ip: string | undefined;
             userAgent: string | undefined;
+            requestedByUserUuid: string | null;
         },
     ): Promise<string> {
         const file = await this.getValidFile(fileNanoid);
@@ -162,8 +208,38 @@ export class PersistentDownloadFileService extends BaseService {
         s3Key: string;
     }> {
         const file = await this.getValidFile(fileNanoid);
+        const requestStartedAt = Date.now();
+        this.analytics?.track({
+            event: 'persistent_file.url_requested',
+            userId: requestContext?.requestedByUserUuid ?? undefined,
+            properties: {
+                fileUuid: fileNanoid,
+                organizationId: file.organization_uuid,
+                projectId: file.project_uuid,
+                createdByUserUuid: file.created_by_user_uuid,
+                requestedByUserUuid:
+                    requestContext?.requestedByUserUuid ?? null,
+                source: 'api',
+            },
+        });
 
         const stream = await this.fileStorageClient.getFileStream(file.s3_key);
+
+        this.analytics?.track({
+            event: 'persistent_file.url_responded',
+            userId: requestContext?.requestedByUserUuid ?? undefined,
+            properties: {
+                fileUuid: fileNanoid,
+                organizationId: file.organization_uuid,
+                projectId: file.project_uuid,
+                createdByUserUuid: file.created_by_user_uuid,
+                requestedByUserUuid:
+                    requestContext?.requestedByUserUuid ?? null,
+                source: 'api',
+                statusCode: 200,
+                responseMs: Date.now() - requestStartedAt,
+            },
+        });
 
         this.logger.info(
             `Serving persistent download (stream): nanoid=${fileNanoid}, ip=${requestContext?.ip}, userAgent=${requestContext?.userAgent}`,
