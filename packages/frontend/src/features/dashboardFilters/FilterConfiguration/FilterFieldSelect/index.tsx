@@ -235,9 +235,9 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                     <InputBase
                         component="button"
                         type="button"
+                        radius="md"
                         size="xs"
                         pointer
-                        radius="md"
                         onClick={() => combobox.toggleDropdown()}
                         leftSection={
                             selectedField ? (

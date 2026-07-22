@@ -13,12 +13,13 @@ import {
     Title,
     Button,
     ActionIcon,
+    Group,
     Select,
 } from '@mantine-8/core';
-import { MultiSelect, Tooltip } from '@mantine/core';
+import { Tooltip } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
-import { useEffect, useMemo, type FC } from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
 import { z } from 'zod';
 import {
     useAllowedEmailDomains,
@@ -26,6 +27,7 @@ import {
 } from '../../../hooks/organization/useAllowedDomains';
 import { useProjects } from '../../../hooks/useProjects';
 import MantineIcon from '../../common/MantineIcon';
+import { MultiSelectCombobox } from '../../common/MultiSelectCombobox/MultiSelectCombobox';
 import styles from './AllowedDomainsPanel.module.css';
 
 const roleOptions: Array<{
@@ -91,6 +93,7 @@ const validationSchema = z.object({
 type FormValues = z.infer<typeof validationSchema>;
 
 const AllowedDomainsPanel: FC = () => {
+    const [domainSearch, setDomainSearch] = useState('');
     const form = useForm<FormValues>({
         initialValues: {
             emailDomains: [],
@@ -99,6 +102,7 @@ const AllowedDomainsPanel: FC = () => {
         },
         validate: zodResolver(validationSchema),
     });
+    const emailDomainsField = form.getInputProps('emailDomains');
 
     const { data: projects, isLoading: isLoadingProjects } = useProjects();
 
@@ -181,47 +185,87 @@ const AllowedDomainsPanel: FC = () => {
         }
     };
 
+    const handleAddEmailDomain = (value: string) => {
+        if (!isValidEmailDomain(value)) {
+            form.setFieldError(
+                'emailDomains',
+                `${value} should not contain @, eg: (lightdash.com)`,
+            );
+            return;
+        }
+
+        const validationError = validateOrganizationEmailDomains([
+            ...form.values.emailDomains,
+            value,
+        ]);
+        if (validationError) {
+            form.setFieldError('emailDomains', validationError);
+            return;
+        }
+
+        form.clearFieldError('emailDomains');
+        form.setFieldValue('emailDomains', [
+            ...form.values.emailDomains,
+            value,
+        ]);
+        setDomainSearch('');
+    };
+
     return isSuccess ? (
         <form name="allowedEmailDomains" onSubmit={handleSubmit}>
             <Stack>
-                <MultiSelect
-                    creatable
-                    searchable
+                <MultiSelectCombobox
                     name="emailDomains"
                     label="Allowed email domains"
                     placeholder="E.g. lightdash.com"
                     disabled={isLoading}
-                    data={form.values.emailDomains.map((emailDomain) => ({
-                        value: emailDomain,
-                        label: emailDomain,
+                    error={form.errors.emailDomains}
+                    options={form.values.emailDomains.map((domain) => ({
+                        value: domain,
+                        label: domain,
                     }))}
-                    onCreate={(value) => {
-                        if (!isValidEmailDomain(value)) {
-                            form.setFieldError(
-                                'emailDomains',
-                                `${value} should not contain @, eg: (lightdash.com)`,
-                            );
-                            return;
-                        }
-
-                        const isInvalidOrganizationEmailDomainMessage =
-                            validateOrganizationEmailDomains([
-                                ...form.values.emailDomains,
-                                value,
-                            ]);
-                        if (isInvalidOrganizationEmailDomainMessage) {
-                            form.setFieldError(
-                                'emailDomains',
-                                isInvalidOrganizationEmailDomainMessage,
-                            );
-                            return;
-                        }
-
-                        return value;
+                    value={form.values.emailDomains}
+                    hidePickedOptions
+                    searchValue={domainSearch}
+                    onSearchChange={setDomainSearch}
+                    onBlur={emailDomainsField.onBlur}
+                    onValueRemove={(domain) => {
+                        form.setFieldValue(
+                            'emailDomains',
+                            form.values.emailDomains.filter(
+                                (value) => value !== domain,
+                            ),
+                        );
                     }}
-                    getCreateLabel={(query: string) => `+ Add ${query} domain`}
-                    defaultValue={form.values.emailDomains}
-                    {...form.getInputProps('emailDomains')}
+                    onOptionSubmit={(domain) => {
+                        form.setFieldValue(
+                            'emailDomains',
+                            form.values.emailDomains.filter(
+                                (value) => value !== domain,
+                            ),
+                        );
+                    }}
+                    onCreate={handleAddEmailDomain}
+                    shouldCreate={(query) =>
+                        query.trim().length > 0 &&
+                        !form.values.emailDomains.some(
+                            (domain) =>
+                                domain.toLowerCase() ===
+                                query.trim().toLowerCase(),
+                        )
+                    }
+                    createLabel={
+                        <Group gap="xxs">
+                            <MantineIcon
+                                icon={IconPlus}
+                                color="blue.7"
+                                size="sm"
+                            />
+                            <Text c="blue.7" fz="sm" fw={500}>
+                                Add {domainSearch.trim()} domain
+                            </Text>
+                        </Group>
+                    }
                 />
 
                 {!!form.values.emailDomains.length && (

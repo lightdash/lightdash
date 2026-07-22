@@ -409,7 +409,7 @@ describe('FilterConfiguration', () => {
         );
 
         const input = document.querySelector(
-            'input[type="search"]',
+            'input[data-autofocus="true"]',
         ) as HTMLInputElement;
         expect(input).toBeTruthy();
         fireEvent.focus(input);

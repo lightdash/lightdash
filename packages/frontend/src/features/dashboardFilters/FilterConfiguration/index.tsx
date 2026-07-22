@@ -409,8 +409,8 @@ const FilterConfiguration: FC<Props> = ({
     };
 
     return (
-        // Make inline dropdowns flow in the panel (instead of absolute), so the
-        // panel grows with them and Apply stays visible — PROD-2395 sketch.
+        // Keep dropdowns in document flow so the panel grows and Apply stays
+        // reachable — PROD-2395.
         <Stack className={classes.inlineDropdowns}>
             <Tabs
                 value={selectedTabId}

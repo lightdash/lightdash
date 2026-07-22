@@ -388,7 +388,10 @@ const TileFilterConfiguration: FC<Props> = ({
                                     )}
                                 </Group>
                             }
-                            classNames={{ label: classes.checkboxLabel }}
+                            classNames={{
+                                body: classes.checkboxBody,
+                                label: classes.checkboxLabel,
+                            }}
                             onChange={() => {
                                 if (isIndeterminate) {
                                     onToggleAll(false, tileUuids);
@@ -483,6 +486,7 @@ const TileFilterConfiguration: FC<Props> = ({
                                             </Flex>
                                         }
                                         classNames={{
+                                            body: classes.checkboxBody,
                                             label: classes.checkboxLabel,
                                         }}
                                         checked={value.checked}
@@ -522,8 +526,11 @@ const TileFilterConfiguration: FC<Props> = ({
                                             item={value.selectedField}
                                             items={value.sortedFilters ?? []}
                                             comboboxProps={{
-                                                withinPortal:
-                                                    popoverProps?.withinPortal,
+                                                withinPortal: false,
+                                                classNames: {
+                                                    dropdown:
+                                                        classes.inlineDropdown,
+                                                },
                                             }}
                                             onDropdownOpen={
                                                 popoverProps?.onOpen
@@ -557,8 +564,11 @@ const TileFilterConfiguration: FC<Props> = ({
                                             leftSection={undefined}
                                             allowDeselect={false}
                                             comboboxProps={{
-                                                withinPortal:
-                                                    popoverProps?.withinPortal,
+                                                withinPortal: false,
+                                                classNames: {
+                                                    dropdown:
+                                                        classes.inlineDropdown,
+                                                },
                                             }}
                                             onDropdownOpen={
                                                 popoverProps?.onOpen
@@ -646,7 +656,10 @@ const TileFilterConfiguration: FC<Props> = ({
                             : ''}
                     </Text>
                 }
-                classNames={{ label: classes.checkboxLabel }}
+                classNames={{
+                    body: classes.checkboxBody,
+                    label: classes.checkboxLabel,
+                }}
                 onChange={() => {
                     const tileUuids = tileTargetList.map((v) => v.tileUuid);
                     if (isIndeterminate) {

@@ -163,7 +163,7 @@ describe('Dashboard', () => {
         cy.findByRole('option', {
             name: 'How much revenue do we have per payment method?',
         }).click();
-        cy.findByRole('dialog').get('.mantine-MultiSelect-input').click(); // Close dropdown
+        cy.findByRole('dialog').findByRole('textbox').type('{esc}');
         cy.findByText('Add').click();
         cy.findByText('How much revenue do we have per payment method?').should(
             'exist',
@@ -261,7 +261,11 @@ describe('Dashboard', () => {
         cy.get('[data-testid="DashboardFilterConfiguration/ChartTiles"]')
             .findAllByRole('checkbox')
             .eq(1)
-            .uncheck({ force: true });
+            .click({ force: true });
+        cy.get('[data-testid="DashboardFilterConfiguration/ChartTiles"]')
+            .findAllByRole('checkbox')
+            .eq(1)
+            .should('not.be.checked');
         cy.contains('button', 'Apply').click({ force: true });
 
         // Saved chart should have no filter applied
