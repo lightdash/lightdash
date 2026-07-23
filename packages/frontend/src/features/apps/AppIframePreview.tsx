@@ -15,6 +15,7 @@ import {
     type ElementSelectedEvent,
     type ExternalRequestEvent,
     type QueryEvent,
+    type SdkManifest,
 } from './hooks/useAppSdkBridge';
 import { useAppUrlStateSync } from './hooks/useAppUrlStateSync';
 import { useIframeScreenshot } from './hooks/useIframeScreenshot';
@@ -67,6 +68,10 @@ type Props = {
      *  sits during inspect mode (the toolbar button before any click; the
      *  prompt editor after each click — TipTap yanks focus back on insert). */
     onInspectorCancelled?: () => void;
+    /** Fires when the iframe SDK reports its capability manifest. Old
+     *  bundles never send one — the parent owns the silence timeout that
+     *  classifies them as legacy (see `useSdkUpgradeStatus`). */
+    onSdkManifest?: (manifest: SdkManifest) => void;
     /** When true, clicks inside the iframe are intercepted to reveal the query. */
     lineageEnabled?: boolean;
     onLineageAvailabilityChange?: (available: boolean) => void;
@@ -146,6 +151,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             capabilities,
             dataAppVizContext,
             urlStateSync,
+            onSdkManifest,
         },
         ref,
     ) => {
@@ -197,6 +203,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onExternalRequestEvent,
             dataAppVizContext,
             onUrlStateChange: urlStateSync ? handleUrlStateChange : undefined,
+            onSdkManifest,
         });
         const { captureScreenshot } = useIframeScreenshot(iframeRef);
 
