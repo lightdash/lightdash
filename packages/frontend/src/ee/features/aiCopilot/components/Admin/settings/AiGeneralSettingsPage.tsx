@@ -373,15 +373,16 @@ export const AiGeneralSettingsPage = () => {
                         >
                             <Box maw={620}>
                                 <Title order={5} mb={4}>
-                                    Require explicit Slack channel configuration
+                                    Disable adding AI agents to channels from
+                                    Slack
                                 </Title>
                                 <Text c="dimmed" fz="xs">
-                                    Treat each agent&apos;s channel list as a
-                                    strict allowlist. Mentioning the bot in an
-                                    unconfigured channel will never link an
-                                    agent to it — channels can only be added
-                                    from the agent settings page. When off,
-                                    admins can link agents directly from Slack.
+                                    When activated, AI Agents can only be added
+                                    to Slack channels from the Lightdash UI.
+                                    Mentioning the bot in an unconfigured
+                                    channel will not add the AI agent to it.
+                                    When off, admins can link agents directly
+                                    from Slack.
                                 </Text>
                             </Box>
                             <Switch
