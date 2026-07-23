@@ -8,7 +8,7 @@ import {
     DateTimePicker,
     type DateTimePickerProps,
     type DayOfWeek,
-} from '@mantine/dates';
+} from '@mantine-8/dates';
 import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
@@ -22,6 +22,11 @@ import {
     unshiftFromProjectTimezone,
 } from './FilterDateTimePicker.utils';
 import InvalidDateInput from './InvalidDateInput';
+import {
+    formatMantineDate,
+    formatMantineDateTime,
+    parseMantineDateTime,
+} from './mantineDateAdapter';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -30,10 +35,18 @@ const SUBTEXT_DATE_FORMAT = 'ddd, DD MMM YYYY HH:mm:ss';
 
 interface Props extends Omit<
     DateTimePickerProps,
-    'firstDayOfWeek' | 'getDayProps' | 'value' | 'onChange'
+    | 'firstDayOfWeek'
+    | 'getDayProps'
+    | 'value'
+    | 'defaultValue'
+    | 'onChange'
+    | 'minDate'
+    | 'maxDate'
 > {
     value: Date | null;
     onChange: (value: Date) => void;
+    minDate?: Date;
+    maxDate?: Date;
     firstDayOfWeek: DayOfWeek;
     showTimezone?: boolean;
     invalidValue?: string;
@@ -45,10 +58,14 @@ const FilterDateTimePicker: FC<Props> = ({
     firstDayOfWeek,
     showTimezone = true,
     invalidValue,
+    minDate,
+    maxDate,
     ...rest
 }) => {
     const displayFormat = 'YYYY-MM-DD HH:mm:ss';
-    const [replacementValue, setReplacementValue] = useState<Date | null>(null);
+    const [replacementValue, setReplacementValue] = useState<string | null>(
+        null,
+    );
 
     const { projectUuid, metricQueryTimezone } = useFiltersContext();
     const { data: enableTimezoneSupportFlag } = useServerFeatureFlag(
@@ -72,7 +89,8 @@ const FilterDateTimePicker: FC<Props> = ({
     }, [value, projectTimezone]);
 
     const handleChange = useCallback(
-        (date: Date | null) => {
+        (mantineValue: string | null) => {
+            const date = parseMantineDateTime(mantineValue);
             if (!date) return;
             if (!projectTimezone) {
                 onChange(date);
@@ -81,6 +99,17 @@ const FilterDateTimePicker: FC<Props> = ({
             onChange(unshiftFromProjectTimezone(date, projectTimezone));
         },
         [onChange, projectTimezone],
+    );
+
+    const formatBound = useCallback(
+        (date: Date | undefined) => {
+            if (!date) return undefined;
+            const shiftedDate = projectTimezone
+                ? shiftToProjectTimezone(date, projectTimezone)
+                : date;
+            return formatMantineDate(shiftedDate) ?? undefined;
+        },
+        [projectTimezone],
     );
 
     const browserTimezone = useMemo(() => dayjs.tz.guess(), []);
@@ -108,8 +137,6 @@ const FilterDateTimePicker: FC<Props> = ({
                     autoFocus={rest.autoFocus}
                 >
                     {({ close }) => (
-                        // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
-                        // @ts-ignore
                         <DateTimePicker
                             size="xs"
                             w="100%"
@@ -117,11 +144,11 @@ const FilterDateTimePicker: FC<Props> = ({
                             placeholder={invalidValue}
                             valueFormat={displayFormat}
                             firstDayOfWeek={firstDayOfWeek}
-                            minDate={rest.minDate}
-                            maxDate={rest.maxDate}
+                            minDate={formatBound(minDate)}
+                            maxDate={formatBound(maxDate)}
                             value={replacementValue}
                             withSeconds={rest.withSeconds}
-                            timeInputProps={rest.timeInputProps}
+                            timePickerProps={rest.timePickerProps}
                             submitButtonProps={{
                                 ...rest.submitButtonProps,
                                 onClick: (event) => {
@@ -149,8 +176,6 @@ const FilterDateTimePicker: FC<Props> = ({
 
     return (
         <Group wrap="nowrap" gap="xs" align="start" w="100%">
-            {/* // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
-            // @ts-ignore */}
             <DateTimePicker
                 size="xs"
                 w="100%"
@@ -159,7 +184,9 @@ const FilterDateTimePicker: FC<Props> = ({
                 {...rest}
                 popoverProps={{ shadow: 'sm', ...rest.popoverProps }}
                 firstDayOfWeek={firstDayOfWeek}
-                value={shiftedValue}
+                minDate={formatBound(minDate)}
+                maxDate={formatBound(maxDate)}
+                value={formatMantineDateTime(shiftedValue)}
                 onChange={handleChange}
                 inputWrapperOrder={['input', 'description']}
                 description={

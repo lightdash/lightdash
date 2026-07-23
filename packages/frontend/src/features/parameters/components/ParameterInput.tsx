@@ -1,11 +1,8 @@
 import {
     DimensionType,
     FieldType,
-    formatDate,
     getItemId,
     isLightdashParameterOption,
-    parseDate,
-    TimeFrames,
     type FilterableItem,
     type LightdashProjectParameter,
     type ParametersValuesMap,
@@ -18,7 +15,7 @@ import {
     Select,
     type ComboboxItemGroup,
 } from '@mantine-8/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DatePickerInput } from '@mantine-8/dates';
 import { IconPlus } from '@tabler/icons-react';
 import React, {
     useCallback,
@@ -28,6 +25,11 @@ import React, {
     useState,
     type FC,
 } from 'react';
+import {
+    formatMantineDate,
+    parseMantineDate,
+} from '../../../components/common/Filters/FilterInputs/mantineDateAdapter';
+import { serializeParameterDateValue } from '../../../components/common/Filters/FilterInputs/mantineDateSerialization';
 import { formatDisplayValue } from '../../../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
@@ -487,7 +489,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         // Convert current ISO string value to Date object
         const currentDate =
             currentDateValues.length > 0
-                ? parseDate(currentDateValues[0], TimeFrames.DAY)
+                ? parseMantineDate(currentDateValues[0])
                 : null;
 
         // Reasonable date range constraints
@@ -496,28 +498,25 @@ export const ParameterInput: FC<ParameterInputProps> = ({
 
         const defaultValue =
             typeof parameter.default === 'string'
-                ? new Date(parameter.default)
+                ? parseMantineDate(parameter.default)
                 : null;
 
         return (
             <DatePickerInput
-                value={currentDate || defaultValue}
-                onChange={(date: Date | null) => {
-                    if (date) {
-                        // Convert Date object to ISO string (YYYY-MM-DD)
-                        const isoString = formatDate(date, TimeFrames.DAY);
-                        onParameterChange(paramKey, isoString);
-                    } else {
-                        onParameterChange(paramKey, null);
-                    }
+                value={formatMantineDate(currentDate || defaultValue)}
+                onChange={(mantineValue) => {
+                    onParameterChange(
+                        paramKey,
+                        serializeParameterDateValue(mantineValue),
+                    );
                 }}
                 firstDayOfWeek={0}
                 size={size}
                 clearable
                 disabled={disabled}
                 error={isError}
-                minDate={minDate}
-                maxDate={maxDate}
+                minDate={formatMantineDate(minDate) ?? undefined}
+                maxDate={formatMantineDate(maxDate) ?? undefined}
                 popoverProps={{
                     shadow: 'sm',
                     withinPortal: false,

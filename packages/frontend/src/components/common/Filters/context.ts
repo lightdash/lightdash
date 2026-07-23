@@ -6,13 +6,18 @@ import {
     type ParametersValuesMap,
     type WeekDay,
 } from '@lightdash/common';
-import { type PopoverProps } from '@mantine/core';
 import { createContext } from 'react';
 
 export type DefaultFieldsMap = Record<
     string,
     ItemsMap[string] & { suggestions?: string[] }
 >;
+
+export type FilterPopoverProps = {
+    withinPortal?: boolean;
+    onOpen?: () => void;
+    onClose?: () => void;
+};
 
 export type FiltersContext<T extends DefaultFieldsMap = DefaultFieldsMap> = {
     projectUuid?: string;
@@ -24,7 +29,7 @@ export type FiltersContext<T extends DefaultFieldsMap = DefaultFieldsMap> = {
         filterId: string,
         item: FilterableItem,
     ) => AndFilterGroup | undefined;
-    popoverProps?: Omit<PopoverProps, 'children'>;
+    popoverProps?: FilterPopoverProps;
     parameterValues?: ParametersValuesMap;
     metricQueryTimezone?: string;
 };

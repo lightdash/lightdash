@@ -50,9 +50,106 @@ describe('useDateRangePicker', () => {
         expect('classNames' in config.props).toBe(true);
         expect('styles' in config.props).toBe(false);
 
-        const monday = config.props.getDayProps?.(new Date(2025, 0, 6));
-        const sunday = config.props.getDayProps?.(new Date(2025, 0, 12));
+        const monday = config.props.getDayProps?.('2025-01-06');
+        const sunday = config.props.getDayProps?.('2025-01-12');
         expect(monday).toMatchObject({ inRange: true, firstInRange: true });
         expect(sunday).toMatchObject({ inRange: true, lastInRange: true });
+    });
+
+    it('supports partial week selections and extends them by whole weeks', () => {
+        const { result } = renderHook(() =>
+            useDateRangePicker({
+                value: initialValue,
+                timeInterval: TimeFrames.WEEK,
+            }),
+        );
+        act(() => result.current.handleOpen(true));
+
+        const firstConfig = result.current.calendarConfig;
+        if (!firstConfig || firstConfig.type !== TimeFrames.WEEK) {
+            throw new Error('Expected week picker config');
+        }
+        act(() => firstConfig.props.onChange(['2025-01-15', null]));
+        expect(result.current.tempDateRange).toEqual([
+            new Date(2025, 0, 13),
+            new Date(2025, 0, 19, 23, 59, 59, 999),
+        ]);
+
+        const secondConfig = result.current.calendarConfig;
+        if (!secondConfig || secondConfig.type !== TimeFrames.WEEK) {
+            throw new Error('Expected week picker config');
+        }
+        act(() => secondConfig.props.onChange(['2025-01-22', null]));
+        expect(result.current.tempDateRange).toEqual([
+            new Date(2025, 0, 13),
+            new Date(2025, 0, 26, 23, 59, 59, 999),
+        ]);
+    });
+
+    it.each([
+        [
+            TimeFrames.MONTH,
+            ['2025-03-15', '2025-04-02'],
+            [new Date(2025, 2, 1), new Date(2025, 3, 30, 23, 59, 59, 999)],
+        ],
+        [
+            TimeFrames.YEAR,
+            ['2024-06-15', '2025-02-02'],
+            [new Date(2024, 0, 1), new Date(2025, 11, 31, 23, 59, 59, 999)],
+        ],
+    ] as const)(
+        'normalizes %s picker ranges at the domain boundary',
+        (timeInterval, mantineRange, expected) => {
+            const { result } = renderHook(() =>
+                useDateRangePicker({
+                    value: initialValue,
+                    timeInterval,
+                }),
+            );
+            act(() => result.current.handleOpen(true));
+
+            const config = result.current.calendarConfig;
+            if (!config) throw new Error('Expected picker config');
+            act(() =>
+                config.props.onChange([mantineRange[0], mantineRange[1]]),
+            );
+            expect(result.current.tempDateRange).toEqual(expected);
+        },
+    );
+
+    it('keeps preset changes temporary until apply and restores on cancel', () => {
+        const onChange = vi.fn();
+        const presetRange: [Date, Date] = [
+            new Date(2025, 3, 1),
+            new Date(2025, 3, 30),
+        ];
+        const { result } = renderHook(() =>
+            useDateRangePicker({
+                value: initialValue,
+                onChange,
+                timeInterval: TimeFrames.DAY,
+            }),
+        );
+        const preset = {
+            label: 'April',
+            controlLabel: 'April',
+            getValue: () => presetRange,
+        };
+
+        act(() => {
+            result.current.handleOpen(true);
+            result.current.handlePresetSelect(preset);
+        });
+        expect(result.current.tempDateRange).toEqual(presetRange);
+        act(() => result.current.handleOpen(false));
+        expect(onChange).not.toHaveBeenCalled();
+
+        act(() => result.current.handleOpen(true));
+        expect(result.current.tempDateRange).toEqual(initialValue);
+        act(() => {
+            result.current.handlePresetSelect(preset);
+        });
+        act(() => result.current.handleApply());
+        expect(onChange).toHaveBeenCalledWith(presetRange);
     });
 });

@@ -8,10 +8,16 @@ import {
     type DatePickerProps,
     type MonthPickerProps,
     type YearPickerProps,
-} from '@mantine/dates';
+} from '@mantine-8/dates';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+    formatMantineDateRange,
+    parseMantineDate,
+    parseMantineDateRange,
+    type MantineDateRange,
+} from '../../../components/common/Filters/FilterInputs/mantineDateAdapter';
 import { formatDate, getDateRangePresets } from '../utils/metricExploreDate';
 import styles from './useDateRangePicker.module.css';
 
@@ -32,28 +38,33 @@ interface UseDateRangePickerProps {
 }
 
 type BaseCalendarProps = {
-    value: DateRange;
-    onChange: (dates: DateRange) => void;
+    type: 'range';
+    value: MantineDateRange;
+    onChange: (dates: MantineDateRange) => void;
 };
 
 type DayPickerConfig = {
     type: TimeFrames.DAY;
-    props: BaseCalendarProps & Omit<DatePickerProps, 'value' | 'onChange'>;
+    props: BaseCalendarProps &
+        Omit<DatePickerProps<'range'>, 'type' | 'value' | 'onChange'>;
 };
 
 type WeekPickerConfig = {
     type: TimeFrames.WEEK;
-    props: BaseCalendarProps & Omit<DatePickerProps, 'value' | 'onChange'>;
+    props: BaseCalendarProps &
+        Omit<DatePickerProps<'range'>, 'type' | 'value' | 'onChange'>;
 };
 
 type MonthPickerConfig = {
     type: TimeFrames.MONTH;
-    props: BaseCalendarProps & Omit<MonthPickerProps, 'value' | 'onChange'>;
+    props: BaseCalendarProps &
+        Omit<MonthPickerProps<'range'>, 'type' | 'value' | 'onChange'>;
 };
 
 type YearPickerConfig = {
     type: TimeFrames.YEAR;
-    props: BaseCalendarProps & Omit<YearPickerProps, 'value' | 'onChange'>;
+    props: BaseCalendarProps &
+        Omit<YearPickerProps<'range'>, 'type' | 'value' | 'onChange'>;
 };
 
 type CalendarVisualizationType =
@@ -62,6 +73,15 @@ type CalendarVisualizationType =
     | MonthPickerConfig
     | YearPickerConfig
     | undefined;
+
+const parsePickerRange = (value: unknown): DateRange => {
+    if (!Array.isArray(value)) return [null, null];
+
+    return parseMantineDateRange([
+        typeof value[0] === 'string' ? value[0] : null,
+        typeof value[1] === 'string' ? value[1] : null,
+    ]);
+};
 
 /**
  * Hook to handle the date range picker for the metric peek
@@ -156,14 +176,14 @@ export const useDateRangePicker = ({
                     type: TimeFrames.YEAR,
                     props: {
                         type: 'range',
-                        value: tempDateRange,
+                        value: formatMantineDateRange(tempDateRange),
                         onChange: (dates) => {
-                            if (!Array.isArray(dates)) return;
-                            const startDate = dates[0]
-                                ? dayjs(dates[0]).startOf('year').toDate()
+                            const parsedRange = parsePickerRange(dates);
+                            const startDate = parsedRange[0]
+                                ? dayjs(parsedRange[0]).startOf('year').toDate()
                                 : null;
-                            const endDate = dates[1]
-                                ? dayjs(dates[1]).endOf('year').toDate()
+                            const endDate = parsedRange[1]
+                                ? dayjs(parsedRange[1]).endOf('year').toDate()
                                 : null;
                             handleDateRangeChange([startDate, endDate]);
                         },
@@ -176,14 +196,16 @@ export const useDateRangePicker = ({
                     type: TimeFrames.MONTH,
                     props: {
                         type: 'range',
-                        value: tempDateRange,
+                        value: formatMantineDateRange(tempDateRange),
                         onChange: (dates) => {
-                            if (!Array.isArray(dates)) return;
-                            const startDate = dates[0]
-                                ? dayjs(dates[0]).startOf('month').toDate()
+                            const parsedRange = parsePickerRange(dates);
+                            const startDate = parsedRange[0]
+                                ? dayjs(parsedRange[0])
+                                      .startOf('month')
+                                      .toDate()
                                 : null;
-                            const endDate = dates[1]
-                                ? dayjs(dates[1]).endOf('month').toDate()
+                            const endDate = parsedRange[1]
+                                ? dayjs(parsedRange[1]).endOf('month').toDate()
                                 : null;
                             handleDateRangeChange([startDate, endDate]);
                         },
@@ -196,9 +218,9 @@ export const useDateRangePicker = ({
                     type: TimeFrames.WEEK,
                     props: {
                         type: 'range',
-                        value: tempDateRange,
+                        value: formatMantineDateRange(tempDateRange),
                         onChange: (dates) => {
-                            if (!Array.isArray(dates)) return;
+                            const parsedRange = parsePickerRange(dates);
 
                             const getWeekBoundaries = (date: Date) => {
                                 const weekStart = dayjs(date)
@@ -212,8 +234,8 @@ export const useDateRangePicker = ({
 
                             // If we're starting a new selection and already had a complete range
                             if (
-                                dates[0] &&
-                                !dates[1] &&
+                                parsedRange[0] &&
+                                !parsedRange[1] &&
                                 tempDateRange[0] &&
                                 tempDateRange[1]
                             ) {
@@ -221,9 +243,9 @@ export const useDateRangePicker = ({
                             }
 
                             // Start of a new range selection
-                            if (dates[0] && !dates[1]) {
+                            if (parsedRange[0] && !parsedRange[1]) {
                                 const { weekStart, weekEnd } =
-                                    getWeekBoundaries(dates[0]);
+                                    getWeekBoundaries(parsedRange[0]);
                                 if (!initialWeek) {
                                     // Store the start of the week to use as the initial week so we can use it for the next selection
                                     setInitialWeek(weekStart);
@@ -236,8 +258,10 @@ export const useDateRangePicker = ({
                                 }
                             }
                             // Complete range selection
-                            else if (dates[0] && dates[1]) {
-                                const endWeek = getWeekBoundaries(dates[1]);
+                            else if (parsedRange[0] && parsedRange[1]) {
+                                const endWeek = getWeekBoundaries(
+                                    parsedRange[1],
+                                );
                                 if (initialWeek) {
                                     handleDateRangeChange([
                                         initialWeek,
@@ -245,7 +269,7 @@ export const useDateRangePicker = ({
                                     ]);
                                 } else {
                                     const startWeek = getWeekBoundaries(
-                                        dates[0],
+                                        parsedRange[0],
                                     );
                                     handleDateRangeChange([
                                         startWeek.weekStart,
@@ -258,7 +282,10 @@ export const useDateRangePicker = ({
                         firstDayOfWeek: 1,
                         hideOutsideDates: true,
                         // Highlight the week of the selected date
-                        getDayProps: (date) => {
+                        getDayProps: (mantineValue) => {
+                            const date = parseMantineDate(mantineValue);
+                            if (!date) return {};
+
                             const today = dayjs().endOf('day');
                             const isInFuture = dayjs(date).isAfter(today);
 
@@ -290,8 +317,9 @@ export const useDateRangePicker = ({
                     type: TimeFrames.DAY,
                     props: {
                         type: 'range',
-                        value: tempDateRange,
-                        onChange: handleDateRangeChange,
+                        value: formatMantineDateRange(tempDateRange),
+                        onChange: (dates) =>
+                            handleDateRangeChange(parsePickerRange(dates)),
                         numberOfColumns: 2,
                         classNames: styles,
                     },

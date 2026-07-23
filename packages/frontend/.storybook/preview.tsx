@@ -1,8 +1,8 @@
 import '@mantine-8/core/styles.css';
+import '@mantine-8/dates/styles.css';
 import '@mantine-8/code-highlight/styles.css';
 import '@mantine-8/notifications/styles.css';
 import '@mantine-8/tiptap/styles.css';
-
 import { ActionIcon, Group } from '@mantine-8/core';
 import { useMantineColorScheme } from '@mantine/core';
 import { IconMoon, IconSun } from '@tabler/icons-react';
@@ -31,7 +31,11 @@ const ThemeToggle = () => {
                 size="lg"
                 aria-label="Toggle color scheme"
             >
-                {colorScheme === 'dark' ? <IconSun size={20} /> : <IconMoon size={20} />}
+                {colorScheme === 'dark' ? (
+                    <IconSun size={20} />
+                ) : (
+                    <IconMoon size={20} />
+                )}
             </ActionIcon>
         </Group>
     );

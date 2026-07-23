@@ -1,18 +1,22 @@
 import { formatDate, TimeFrames } from '@lightdash/common';
 import { TextInput, Stack, Text, Popover } from '@mantine-8/core';
+import { MonthPicker } from '@mantine-8/dates';
 import { useDisclosure } from '@mantine-8/hooks';
-import { MonthPicker, type MonthPickerProps } from '@mantine/dates';
 import dayjs from 'dayjs';
 import quarterOfYear from 'dayjs/plugin/quarterOfYear';
 import { useCallback, useEffect, useState, type FC } from 'react';
+import { type FilterPopoverProps } from '../context';
 import styles from './FilterQuarterPicker.module.css';
+import { formatMantineDate, parseMantineDate } from './mantineDateAdapter';
 
 dayjs.extend(quarterOfYear);
 
-type Props = Pick<MonthPickerProps, 'value' | 'onChange'> & {
+type Props = {
+    value: Date | null;
+    onChange: (value: Date) => void;
     placeholder?: string;
     disabled?: boolean;
-    popoverProps?: any;
+    popoverProps?: FilterPopoverProps;
     autoFocus?: boolean;
     invalidValue?: string;
 };
@@ -61,12 +65,13 @@ const FilterQuarterPicker: FC<Props> = ({
     );
 
     const handleMonthSelect = useCallback(
-        (date: Date | null) => {
+        (mantineValue: string | null) => {
+            const date = parseMantineDate(mantineValue);
             if (!date) return;
 
             const startOfQuarter = getStartOfQuarter(date);
             setSelectedYear(dayjs(startOfQuarter).year());
-            onChange?.(startOfQuarter);
+            onChange(startOfQuarter);
             close();
         },
         [close, onChange, getStartOfQuarter],
@@ -77,7 +82,10 @@ const FilterQuarterPicker: FC<Props> = ({
     }, [yearValue]);
 
     const getMonthControlProps = useCallback(
-        (date: Date) => {
+        (mantineValue: string) => {
+            const date = parseMantineDate(mantineValue);
+            if (!date) return {};
+
             const month = date.getMonth();
             const year = date.getFullYear();
             const isSelected =
@@ -133,7 +141,14 @@ const FilterQuarterPicker: FC<Props> = ({
             <Popover.Dropdown>
                 <Stack gap="xs">
                     <MonthPicker
-                        defaultDate={new Date(selectedYear, 0)}
+                        date={
+                            formatMantineDate(new Date(selectedYear, 0)) ??
+                            undefined
+                        }
+                        onDateChange={(mantineValue) => {
+                            const date = parseMantineDate(mantineValue);
+                            if (date) setSelectedYear(date.getFullYear());
+                        }}
                         value={null}
                         onChange={handleMonthSelect}
                         getMonthControlProps={getMonthControlProps}
