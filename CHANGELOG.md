@@ -1,3 +1,19 @@
+# [0.3466.0](https://github.com/lightdash/lightdash/compare/0.3465.1...0.3466.0) (2026-07-23)
+
+
+### Bug Fixes
+
+* correct vega-lite custom chart template schema errors ([#26030](https://github.com/lightdash/lightdash/issues/26030)) ([01b600b](https://github.com/lightdash/lightdash/commit/01b600babedc6587342beba3dc4be62da3a4bd64))
+* order dashboard excel export sheets by tab and chart position ([#26025](https://github.com/lightdash/lightdash/issues/26025)) ([c7f4577](https://github.com/lightdash/lightdash/commit/c7f457779a2b102a7167f76aa99de3dc85019391))
+* review judge grammar-too-large — split project context entry emission into a second call ([#26053](https://github.com/lightdash/lightdash/issues/26053)) ([1bc9f12](https://github.com/lightdash/lightdash/commit/1bc9f1233b8298ebf074f8fbcfcff7b8c6468622)), closes [#25908](https://github.com/lightdash/lightdash/issues/25908) [pre-#25908](https://github.com/pre-/issues/25908) [pre-#25908](https://github.com/pre-/issues/25908)
+* tolerate legacy object refs in persisted project context writeback entries ([#26043](https://github.com/lightdash/lightdash/issues/26043)) ([ce6f00b](https://github.com/lightdash/lightdash/commit/ce6f00b435a8150678a25d6a9fbd2d54173cd5d9)), closes [#25908](https://github.com/lightdash/lightdash/issues/25908) [#25908](https://github.com/lightdash/lightdash/issues/25908) [pre-#25908](https://github.com/pre-/issues/25908) [#26037](https://github.com/lightdash/lightdash/issues/26037)
+
+
+### Features
+
+* **cli:** allow downloading data apps by URL ([#26046](https://github.com/lightdash/lightdash/issues/26046)) ([24207e4](https://github.com/lightdash/lightdash/commit/24207e405da5ffd6d812d1a6c364d4c8ae343a9b))
+* **pivot-table:** calculate row subtotals ([#26036](https://github.com/lightdash/lightdash/issues/26036)) ([821d4ac](https://github.com/lightdash/lightdash/commit/821d4ac687506c3924c43bf4d5cc759abd0e6cd2))
+
 ## [0.3465.1](https://github.com/lightdash/lightdash/compare/0.3465.0...0.3465.1) (2026-07-23)
 
 

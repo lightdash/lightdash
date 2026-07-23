@@ -31365,6 +31365,10 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        upgradesFileToV2: {
+                            dataType: 'boolean',
+                            required: true,
+                        },
                         entryId: { dataType: 'string', required: true },
                         op: {
                             dataType: 'union',
@@ -46508,6 +46512,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['columnTotal'] },
                 { dataType: 'enum', enums: ['rowTotal'] },
                 { dataType: 'enum', enums: ['columnSubtotal'] },
+                { dataType: 'enum', enums: ['rowSubtotal'] },
             ],
             validators: {},
         },

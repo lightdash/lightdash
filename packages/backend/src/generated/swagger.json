@@ -31414,6 +31414,9 @@
                 "anyOf": [
                     {
                         "properties": {
+                            "upgradesFileToV2": {
+                                "type": "boolean"
+                            },
                             "entryId": {
                                 "type": "string"
                             },
@@ -31437,6 +31440,7 @@
                             }
                         },
                         "required": [
+                            "upgradesFileToV2",
                             "entryId",
                             "op",
                             "after",
@@ -46524,7 +46528,8 @@
                     "grandTotal",
                     "columnTotal",
                     "rowTotal",
-                    "columnSubtotal"
+                    "columnSubtotal",
+                    "rowSubtotal"
                 ],
                 "description": "Kinds of totals derivable from an executed pivot query."
             },
@@ -49161,7 +49166,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3465.1",
+        "version": "0.3466.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
