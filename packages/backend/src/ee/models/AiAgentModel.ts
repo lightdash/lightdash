@@ -366,6 +366,21 @@ export class AiAgentModel {
         return db.transaction(callback);
     }
 
+    private static async bumpThreadUpdatedAt(
+        threadUuid: string,
+        promptCreatedAt: Date,
+        { trx }: { trx: Knex.Transaction },
+    ): Promise<void> {
+        await trx(AiThreadTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .update({
+                updated_at: trx.raw('GREATEST(??, ?)', [
+                    'updated_at',
+                    promptCreatedAt,
+                ]),
+            });
+    }
+
     async filterExistingProjectUuids(
         projectUuids: string[],
     ): Promise<string[]> {
@@ -4554,11 +4569,17 @@ export class AiAgentModel {
                     prompt: data.prompt,
                     model_config: data.modelConfig,
                 })
-                .returning('ai_prompt_uuid');
+                .returning(['ai_prompt_uuid', 'created_at']);
 
             if (row === undefined) {
                 throw new Error('Failed to create prompt');
             }
+
+            await AiAgentModel.bumpThreadUpdatedAt(
+                data.threadUuid,
+                row.created_at,
+                { trx },
+            );
 
             await trx(AiSlackPromptTableName).insert({
                 ai_prompt_uuid: row.ai_prompt_uuid,
@@ -5318,11 +5339,17 @@ export class AiAgentModel {
                     ...(data.modelConfig && { model_config: data.modelConfig }),
                     ...(data.hidden !== undefined && { hidden: data.hidden }),
                 })
-                .returning('ai_prompt_uuid');
+                .returning(['ai_prompt_uuid', 'created_at']);
 
             if (row === undefined) {
                 throw new Error('Failed to create prompt');
             }
+
+            await AiAgentModel.bumpThreadUpdatedAt(
+                data.threadUuid,
+                row.created_at,
+                { trx },
+            );
 
             await trx(AiWebAppPromptTableName).insert({
                 ai_prompt_uuid: row.ai_prompt_uuid,
@@ -5955,11 +5982,22 @@ export class AiAgentModel {
                             : {}),
                     })),
                 )
-                .returning('ai_prompt_uuid');
+                .returning(['ai_prompt_uuid', 'created_at']);
 
             if (promptRows.length !== promptsData.length) {
                 throw new Error('Failed to create all prompts');
             }
+
+            const latestPromptCreatedAt = promptRows.reduce(
+                (latest, row) =>
+                    row.created_at > latest ? row.created_at : latest,
+                promptRows[0].created_at,
+            );
+            await AiAgentModel.bumpThreadUpdatedAt(
+                threadUuid,
+                latestPromptCreatedAt,
+                { trx },
+            );
 
             await trx(AiSlackPromptTableName).insert(
                 promptRows.map((row, index) => ({
@@ -8369,6 +8407,20 @@ export class AiAgentModel {
                 });
                 promptMapping.set(promptToClone.ai_prompt_uuid, newPromptUuid);
             }
+
+            const lastSourcePromptUuid = promptsToClone.at(-1)!.ai_prompt_uuid;
+            const lastClonedPromptUuid =
+                promptMapping.get(lastSourcePromptUuid)!;
+            const lastClonedPrompt = await trx(AiPromptTableName)
+                .select('created_at')
+                .where('ai_prompt_uuid', lastClonedPromptUuid)
+                .first();
+            if (!lastClonedPrompt) {
+                throw new Error('Failed to find last cloned prompt');
+            }
+            await trx(AiThreadTableName)
+                .where('ai_thread_uuid', newThreadUuid)
+                .update({ updated_at: lastClonedPrompt.created_at });
 
             if (copyCompactions) {
                 await this.cloneThreadCompactions({
