@@ -21,6 +21,7 @@ import {
     FilterGroupItem,
     FilterOperator,
     FilterRule,
+    getBigQueryAwareTimestampFilterSql,
     getCustomMetricDimensionId,
     getDimensionMapFromTables,
     getDimensions,
@@ -47,6 +48,7 @@ import {
     isNonAggregateMetric,
     isPeriodOverPeriodAdditionalMetric,
     isPostCalculationMetric,
+    isSubDayTimeFrame,
     isTimezoneRoundTripNoOp,
     ItemsMap,
     lightdashVariablePattern,
@@ -186,6 +188,8 @@ export type BuildQueryProps = {
      */
     totalConfiguration?: TotalConfiguration;
 };
+
+type TimeDimensionSqlPurpose = 'projection' | 'filterRule';
 
 /**
  * Semi-joins every raw scan of this query to the distinct dimension groups of
@@ -798,6 +802,7 @@ export class MetricQueryBuilder {
         adapterType: SupportedDbtAdapter,
         startOfWeek: WeekDay | null | undefined,
         respectConvertTimezone: boolean = true,
+        purpose: TimeDimensionSqlPurpose = 'projection',
     ): { sql: string; lhsMode: TimestampFilterLhsMode } {
         const { timezone, useTimezoneAwareDateTrunc } = this.args;
 
@@ -885,6 +890,42 @@ export class MetricQueryBuilder {
             };
         }
 
+        const roundTripNoOp = isTimezoneRoundTripNoOp(
+            adapterType,
+            timezone,
+            this.columnTimezone,
+            timestampDomain,
+        );
+
+        if (isTruncatable) {
+            // Day-or-coarser projections are DATE-cast for type integrity, but
+            // a no-op filter must retain the flag-off LHS for partition pruning.
+            if (
+                purpose === 'filterRule' &&
+                roundTripNoOp &&
+                !isSubDayTimeFrame(dimension.timeInterval)
+            ) {
+                return { sql: dimension.compiledSql, lhsMode: 'legacy' };
+            }
+        }
+
+        if (
+            purpose === 'filterRule' &&
+            adapterType === SupportedDbtAdapter.BIGQUERY &&
+            timestampDomain === 'aware' &&
+            !roundTripNoOp
+        ) {
+            const sql = getBigQueryAwareTimestampFilterSql(
+                dimension.timeInterval,
+                baseDimension.compiledSql,
+                timezone,
+                startOfWeek,
+            );
+            if (sql !== undefined) {
+                return { sql, lhsMode: 'legacy' };
+            }
+        }
+
         if (isTruncatable) {
             return {
                 sql: getSqlForTruncatedDate(
@@ -900,14 +941,7 @@ export class MetricQueryBuilder {
                     // so day-or-coarser grains emit a real DATE (matches metadata).
                     true,
                 ),
-                lhsMode: isTimezoneRoundTripNoOp(
-                    adapterType,
-                    timezone,
-                    this.columnTimezone,
-                    timestampDomain,
-                )
-                    ? 'legacy'
-                    : 'wrapped',
+                lhsMode: roundTripNoOp ? 'legacy' : 'wrapped',
             };
         }
 
@@ -992,6 +1026,7 @@ export class MetricQueryBuilder {
             adapterType,
             startOfWeek,
             false,
+            'filterRule',
         );
 
         return {

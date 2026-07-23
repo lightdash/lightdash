@@ -14,10 +14,12 @@ import {
     renderFilterRuleSqlFromField,
     SortByDirection,
     SupportedDbtAdapter,
+    timeFrameConfigs,
     TimeFrames,
     UnitOfTime,
     VizAggregationOptions,
     VizIndexType,
+    WeekDay,
     type CompiledDimension,
     type CompiledMetric,
     type MetricFilterRule,
@@ -5313,6 +5315,356 @@ describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', 
         expect(query).not.toContain(`'2024-01-15'::timestamp`);
     });
 
+    const bigQueryUtcFilterParityFrames = [
+        TimeFrames.RAW,
+        TimeFrames.MILLISECOND,
+        TimeFrames.SECOND,
+        TimeFrames.MINUTE,
+        TimeFrames.HOUR,
+        TimeFrames.DAY,
+        TimeFrames.WEEK,
+        TimeFrames.MONTH,
+        TimeFrames.QUARTER,
+        TimeFrames.YEAR,
+        TimeFrames.DAY_OF_WEEK_INDEX,
+        TimeFrames.DAY_OF_MONTH_NUM,
+        TimeFrames.DAY_OF_YEAR_NUM,
+        TimeFrames.WEEK_NUM,
+        TimeFrames.MONTH_NUM,
+        TimeFrames.QUARTER_NUM,
+        TimeFrames.YEAR_NUM,
+        TimeFrames.HOUR_OF_DAY_NUM,
+        TimeFrames.MINUTE_OF_HOUR_NUM,
+        TimeFrames.DAY_OF_WEEK_NAME,
+        TimeFrames.MONTH_NAME,
+        TimeFrames.QUARTER_NAME,
+    ] as const;
+
+    const bigQueryDateProjectionFrames: ReadonlySet<TimeFrames> = new Set([
+        TimeFrames.DAY,
+        TimeFrames.WEEK,
+        TimeFrames.MONTH,
+        TimeFrames.QUARTER,
+        TimeFrames.YEAR,
+    ]);
+
+    const getWhereClause = (query: string) =>
+        query.slice(query.indexOf('WHERE'), query.indexOf('GROUP BY'));
+
+    const buildBigQueryNoOpCase = (
+        timeFrame: (typeof bigQueryUtcFilterParityFrames)[number],
+    ) => {
+        const explore = buildDayExplore(
+            DimensionType.TIMESTAMP,
+            SupportedDbtAdapter.BIGQUERY,
+        );
+        explore.tables.events.dimensions.occurred_at.timestampDomain = 'aware';
+
+        const suffix = timeFrame.toLowerCase();
+        const dimensionName = `occurred_at_${suffix}`;
+        const fieldId = `events_${dimensionName}`;
+        const compiledSql = timeFrameConfigs[timeFrame].getSql(
+            SupportedDbtAdapter.BIGQUERY,
+            timeFrame,
+            '"events".occurred_at',
+            DimensionType.TIMESTAMP,
+            undefined,
+        );
+        const dimensionType = timeFrameConfigs[timeFrame].getDimensionType(
+            DimensionType.TIMESTAMP,
+        );
+        const filterValue = (() => {
+            switch (dimensionType) {
+                case DimensionType.NUMBER:
+                    return 1;
+                case DimensionType.STRING:
+                    return 'January';
+                case DimensionType.TIMESTAMP:
+                    return '2024-01-15 01:02:03.004';
+                default:
+                    return '2024-01-15';
+            }
+        })();
+
+        explore.tables.events.dimensions[dimensionName] = {
+            ...explore.tables.events.dimensions.occurred_at_day,
+            type: dimensionType,
+            name: dimensionName,
+            label: dimensionName,
+            sql: compiledSql,
+            compiledSql,
+            timeInterval: timeFrame,
+        };
+
+        const compiledMetricQuery: CompiledMetricQuery = {
+            ...dayQuery,
+            dimensions: [fieldId],
+            filters: {
+                dimensions: {
+                    id: 'root',
+                    and: [
+                        {
+                            id: 'f1',
+                            target: { fieldId },
+                            operator: FilterOperator.EQUALS,
+                            values: [filterValue],
+                        },
+                    ],
+                },
+            },
+        };
+
+        return { compiledMetricQuery, compiledSql, explore, fieldId };
+    };
+
+    test.each(bigQueryUtcFilterParityFrames)(
+        'BigQuery %s filter: flag on + UTC no-op keeps flag-off WHERE',
+        (timeFrame) => {
+            const { compiledMetricQuery, compiledSql, explore, fieldId } =
+                buildBigQueryNoOpCase(timeFrame);
+            const commonArgs = {
+                explore,
+                compiledMetricQuery,
+                warehouseSqlBuilder: bigqueryClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            };
+
+            const flagOffQuery = buildQuery({
+                ...commonArgs,
+                useTimezoneAwareDateTrunc: false,
+            }).query;
+            const flagOnQuery = buildQuery({
+                ...commonArgs,
+                useTimezoneAwareDateTrunc: true,
+            }).query;
+            const flagOnSelectClause = flagOnQuery.slice(
+                0,
+                flagOnQuery.indexOf('FROM'),
+            );
+
+            expect(getWhereClause(flagOnQuery)).toBe(
+                getWhereClause(flagOffQuery),
+            );
+            expect(getWhereClause(flagOnQuery)).toContain(compiledSql);
+            if (bigQueryDateProjectionFrames.has(timeFrame)) {
+                expect(flagOnSelectClause).toContain(
+                    `CAST(${compiledSql} AS DATE) AS \`${fieldId}\``,
+                );
+            }
+        },
+    );
+
+    const bigQueryAwareOptimizedFrames = [
+        TimeFrames.DAY,
+        TimeFrames.WEEK,
+        TimeFrames.MONTH,
+        TimeFrames.QUARTER,
+        TimeFrames.YEAR,
+        TimeFrames.YEAR_NUM,
+    ] as const;
+
+    const getBigQueryAwareFilterLhs = (
+        timeFrame: (typeof bigQueryAwareOptimizedFrames)[number],
+        timezone: string,
+        startOfWeek?: WeekDay | null,
+    ) => {
+        const dateSql = `DATE("events".occurred_at, '${timezone}')`;
+        if (timeFrame === TimeFrames.DAY) return dateSql;
+        if (timeFrame === TimeFrames.YEAR_NUM) {
+            return `EXTRACT(YEAR FROM ${dateSql})`;
+        }
+        const datePart =
+            timeFrame === TimeFrames.WEEK && startOfWeek != null
+                ? `WEEK(${WeekDay[startOfWeek]})`
+                : timeFrame;
+        return `DATE_TRUNC(${dateSql}, ${datePart})`;
+    };
+
+    const buildBigQueryFilterCase = ({
+        timeFrame,
+        timezone,
+        columnTimezone,
+        timestampDomain = 'aware',
+        operator = FilterOperator.EQUALS,
+        values,
+        settings,
+        warehouseSqlBuilder = bigqueryClientMock,
+    }: {
+        timeFrame: (typeof bigQueryUtcFilterParityFrames)[number];
+        timezone: string;
+        columnTimezone: string;
+        timestampDomain?: TimestampDomain | null;
+        operator?: FilterOperator;
+        values?: Array<string | number>;
+        settings?: { unitOfTime: UnitOfTime; completed: boolean };
+        warehouseSqlBuilder?: typeof bigqueryClientMock;
+    }) => {
+        const { compiledMetricQuery, explore, fieldId } =
+            buildBigQueryNoOpCase(timeFrame);
+        explore.tables.events.dimensions.occurred_at.timestampDomain =
+            timestampDomain ?? undefined;
+        const { type } =
+            explore.tables.events.dimensions[fieldId.replace('events_', '')];
+        const defaultValue =
+            type === DimensionType.NUMBER ? 2024 : '2024-01-15';
+        const { query } = buildQuery({
+            explore,
+            compiledMetricQuery: {
+                ...compiledMetricQuery,
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'f1',
+                                target: { fieldId },
+                                operator,
+                                values: values ?? [defaultValue],
+                                settings,
+                            },
+                        ],
+                    },
+                },
+            },
+            warehouseSqlBuilder,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone,
+            columnTimezone,
+            useTimezoneAwareDateTrunc: true,
+        });
+        return { fieldId, query, where: getWhereClause(query) };
+    };
+
+    test.each([
+        ['America/New_York', 'UTC'],
+        ['America/New_York', 'America/New_York'],
+        ['America/New_York', 'Asia/Tokyo'],
+        ['UTC', 'Asia/Tokyo'],
+    ])(
+        'BigQuery known-aware filters use the project DATE domain for project=%s data=%s',
+        (timezone, columnTimezone) => {
+            for (const timeFrame of bigQueryAwareOptimizedFrames) {
+                const { query, where } = buildBigQueryFilterCase({
+                    timeFrame,
+                    timezone,
+                    columnTimezone,
+                });
+                const lhs = getBigQueryAwareFilterLhs(timeFrame, timezone);
+                expect(where).toContain(lhs);
+                expect(where.replaceAll(lhs, '')).not.toContain(
+                    '"events".occurred_at',
+                );
+
+                if (timeFrame !== TimeFrames.YEAR_NUM) {
+                    const selectClause = query.slice(0, query.indexOf('FROM'));
+                    expect(selectClause).toContain(
+                        `CAST(DATETIME_TRUNC(DATETIME(TIMESTAMP("events".occurred_at), '${timezone}'), ${timeFrame}) AS DATE)`,
+                    );
+                    expect(selectClause).not.toContain(lhs);
+                }
+            }
+        },
+    );
+
+    test.each([
+        ['naive', 'America/New_York', 'America/New_York'],
+        ['naive', 'America/New_York', 'Asia/Tokyo'],
+        [null, 'America/New_York', 'America/New_York'],
+        [null, 'America/New_York', 'Asia/Tokyo'],
+    ] as const)(
+        'BigQuery %s domain keeps the wrapper for project=%s data=%s',
+        (timestampDomain, timezone, columnTimezone) => {
+            const { where } = buildBigQueryFilterCase({
+                timeFrame: TimeFrames.DAY,
+                timezone,
+                columnTimezone,
+                timestampDomain,
+            });
+            expect(where).toContain('DATETIME_TRUNC(');
+            expect(where).not.toContain(
+                getBigQueryAwareFilterLhs(TimeFrames.DAY, timezone),
+            );
+        },
+    );
+
+    test.each([
+        {
+            timeFrame: TimeFrames.HOUR,
+            convertedSql: `TIMESTAMP(DATETIME_TRUNC(DATETIME(TIMESTAMP("events".occurred_at), 'America/New_York'), HOUR), 'America/New_York')`,
+        },
+        {
+            timeFrame: TimeFrames.MONTH_NUM,
+            convertedSql: `EXTRACT(MONTH FROM TIMESTAMP("events".occurred_at) AT TIME ZONE 'America/New_York')`,
+        },
+        {
+            timeFrame: TimeFrames.MONTH_NAME,
+            convertedSql: `FORMAT_TIMESTAMP('%B', TIMESTAMP("events".occurred_at), 'America/New_York')`,
+        },
+    ])(
+        'BigQuery known-aware non-UTC $timeFrame filter keeps its current LHS',
+        ({ timeFrame, convertedSql }) => {
+            const { where } = buildBigQueryFilterCase({
+                timeFrame,
+                timezone: 'America/New_York',
+                columnTimezone: 'Asia/Tokyo',
+            });
+            expect(where).toContain(convertedSql);
+        },
+    );
+
+    test('BigQuery known-aware WEEK filter reuses a non-default start day', () => {
+        const warehouseSqlBuilder = {
+            ...bigqueryClientMock,
+            getStartOfWeek: () => WeekDay.WEDNESDAY,
+        };
+        const { where } = buildBigQueryFilterCase({
+            timeFrame: TimeFrames.WEEK,
+            timezone: 'America/New_York',
+            columnTimezone: 'Asia/Tokyo',
+            warehouseSqlBuilder,
+        });
+        expect(where).toContain(
+            getBigQueryAwareFilterLhs(
+                TimeFrames.WEEK,
+                'America/New_York',
+                WeekDay.WEDNESDAY,
+            ),
+        );
+    });
+
+    test.each([
+        [FilterOperator.EQUALS, ['2024-01-15'], undefined],
+        [FilterOperator.EQUALS, ['2024-01-15', '2024-01-16'], undefined],
+        [FilterOperator.GREATER_THAN, ['2024-01-15'], undefined],
+        [FilterOperator.IN_BETWEEN, ['2024-01-15', '2024-01-16'], undefined],
+        [
+            FilterOperator.IN_THE_PAST,
+            [7],
+            { unitOfTime: UnitOfTime.days, completed: false },
+        ],
+    ] as const)(
+        'BigQuery known-aware filter operator %s uses only the DATE-domain LHS',
+        (operator, values, settings) => {
+            const { where } = buildBigQueryFilterCase({
+                timeFrame: TimeFrames.DAY,
+                timezone: 'America/New_York',
+                columnTimezone: 'Asia/Tokyo',
+                operator,
+                values: [...values],
+                settings,
+            });
+            const lhs = getBigQueryAwareFilterLhs(
+                TimeFrames.DAY,
+                'America/New_York',
+            );
+            expect(where).toContain(lhs);
+            expect(where.replaceAll(lhs, '')).not.toContain(
+                '"events".occurred_at',
+            );
+        },
+    );
+
     // GLITCH-510: Date Zoom re-grains the raw base TIMESTAMP dim in place, so the
     // zoomed dim's timeIntervalBaseDimensionName points at its own (now DATE-typed)
     // id. The base lookup must resolve from originalExplore to recover the raw
@@ -5364,6 +5716,49 @@ describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', 
         // Bug: the un-recomputed plain DATE_TRUNC must not leak into the SELECT.
         expect(query).not.toMatch(
             /DATE_TRUNC\('MONTH', "events"\.occurred_at\) AS "events_occurred_at"/,
+        );
+    });
+
+    test('BigQuery known-aware Date Zoom filter recovers the original TIMESTAMP base', () => {
+        const originalExplore = buildDayExplore(
+            DimensionType.TIMESTAMP,
+            SupportedDbtAdapter.BIGQUERY,
+        );
+        originalExplore.tables.events.dimensions.occurred_at.timestampDomain =
+            'aware';
+        const explore = buildBaseZoomedExplore();
+        explore.targetDatabase = SupportedDbtAdapter.BIGQUERY;
+        const { query } = buildQuery({
+            explore,
+            originalExplore,
+            compiledMetricQuery: {
+                ...baseZoomedQuery,
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'zoom-filter',
+                                target: { fieldId: 'events_occurred_at' },
+                                operator: FilterOperator.EQUALS,
+                                values: ['2024-01-01'],
+                            },
+                        ],
+                    },
+                },
+            },
+            warehouseSqlBuilder: bigqueryClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            columnTimezone: 'Asia/Tokyo',
+            useTimezoneAwareDateTrunc: true,
+            dateZoomFilterTargetFieldId: 'events_occurred_at',
+        });
+        expect(getWhereClause(query)).toContain(
+            `DATE_TRUNC(DATE("events".occurred_at, 'America/New_York'), MONTH)`,
+        );
+        expect(query.slice(0, query.indexOf('FROM'))).toContain(
+            `CAST(DATETIME_TRUNC(DATETIME(TIMESTAMP("events".occurred_at), 'America/New_York'), MONTH) AS DATE)`,
         );
     });
 
@@ -5433,6 +5828,97 @@ describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', 
             /DATE_TRUNC\('DAY', "events"\.occurred_at\)\s*>=/,
         );
         expect(query).not.toContain(`AT TIME ZONE`);
+    });
+
+    test('flag on + UTC no-op keeps a bare user filter but DATE-typed PoP range bounds', () => {
+        const { query } = buildQuery({
+            explore: buildDayExplore(),
+            compiledMetricQuery: {
+                ...popDayQuery,
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'day-filter',
+                                target: {
+                                    fieldId: 'events_occurred_at_day',
+                                },
+                                operator: FilterOperator.EQUALS,
+                                values: ['2024-01-15'],
+                            },
+                        ],
+                    },
+                },
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        expect(query).toContain(
+            `(DATE_TRUNC('DAY', "events".occurred_at)) = ('2024-01-15')`,
+        );
+        expect(query).not.toContain(
+            `(CAST(DATE_TRUNC('DAY', "events".occurred_at) AS DATE)) = ('2024-01-15')`,
+        );
+        expect(query).toMatch(
+            /CAST\(DATE_TRUNC\('DAY', "events"\.occurred_at\) AS DATE\) >= pop_min_max_[a-z0-9_]+\.min_date - INTERVAL '1 DAY'/,
+        );
+        expect(query).toMatch(
+            /CAST\(DATE_TRUNC\('DAY', "events"\.occurred_at\) AS DATE\) <= pop_min_max_[a-z0-9_]+\.max_date - INTERVAL '1 DAY'/,
+        );
+    });
+
+    test('BigQuery known-aware PoP keeps optimized user filter separate from projection bounds', () => {
+        const explore = buildDayExplore(
+            DimensionType.TIMESTAMP,
+            SupportedDbtAdapter.BIGQUERY,
+        );
+        explore.tables.events.dimensions.occurred_at.timestampDomain = 'aware';
+        const { query } = buildQuery({
+            explore,
+            compiledMetricQuery: {
+                ...popDayQuery,
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'day-filter',
+                                target: {
+                                    fieldId: 'events_occurred_at_day',
+                                },
+                                operator: FilterOperator.EQUALS,
+                                values: ['2024-01-15'],
+                            },
+                        ],
+                    },
+                },
+            },
+            warehouseSqlBuilder: bigqueryClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            columnTimezone: 'Asia/Tokyo',
+            useTimezoneAwareDateTrunc: true,
+        });
+
+        expect(query).toContain(
+            `(DATE("events".occurred_at, 'America/New_York')) = ('2024-01-15')`,
+        );
+        const projectionLhs = `CAST(DATETIME_TRUNC(DATETIME(TIMESTAMP("events".occurred_at), 'America/New_York'), DAY) AS DATE)`;
+        expect(query).toMatch(
+            new RegExp(
+                `DATE\\(${escapeRegExp(projectionLhs)}\\) >= DATE_SUB\\(DATE\\(pop_min_max_[a-z0-9_]+\\.min_date\\), INTERVAL 1 DAY\\)`,
+            ),
+        );
+        expect(query).toMatch(
+            new RegExp(
+                `DATE\\(${escapeRegExp(projectionLhs)}\\) <= DATE_SUB\\(DATE\\(pop_min_max_[a-z0-9_]+\\.max_date\\), INTERVAL 1 DAY\\)`,
+            ),
+        );
     });
 
     // A MIN/MAX over a day-grain DATE dim aggregates the project-tz wall-clock

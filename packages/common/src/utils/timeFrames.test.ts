@@ -5,6 +5,7 @@ import {
     dateExtractsTimezoneConversions,
     dateTruncTimezoneConversions,
     extractableTimeFrames,
+    getBigQueryAwareTimestampFilterSql,
     getDateDimension,
     getSqlForDatePart,
     getSqlForDatePartName,
@@ -18,6 +19,88 @@ import {
 } from './timeFrames';
 
 describe('TimeFrames', () => {
+    describe('getBigQueryAwareTimestampFilterSql', () => {
+        const baseSql = '${TABLE}.created';
+        const timezone = 'America/New_York';
+
+        test.each([
+            [TimeFrames.DAY, `DATE(${baseSql}, '${timezone}')`],
+            [
+                TimeFrames.MONTH,
+                `DATE_TRUNC(DATE(${baseSql}, '${timezone}'), MONTH)`,
+            ],
+            [
+                TimeFrames.QUARTER,
+                `DATE_TRUNC(DATE(${baseSql}, '${timezone}'), QUARTER)`,
+            ],
+            [
+                TimeFrames.YEAR,
+                `DATE_TRUNC(DATE(${baseSql}, '${timezone}'), YEAR)`,
+            ],
+            [
+                TimeFrames.YEAR_NUM,
+                `EXTRACT(YEAR FROM DATE(${baseSql}, '${timezone}'))`,
+            ],
+        ])('renders the aware TIMESTAMP %s filter domain', (frame, sql) => {
+            expect(
+                getBigQueryAwareTimestampFilterSql(
+                    frame,
+                    baseSql,
+                    timezone,
+                    null,
+                ),
+            ).toBe(sql);
+        });
+
+        test.each([
+            [WeekDay.MONDAY, 'MONDAY'],
+            [WeekDay.TUESDAY, 'TUESDAY'],
+            [WeekDay.WEDNESDAY, 'WEDNESDAY'],
+            [WeekDay.THURSDAY, 'THURSDAY'],
+            [WeekDay.FRIDAY, 'FRIDAY'],
+            [WeekDay.SATURDAY, 'SATURDAY'],
+            [WeekDay.SUNDAY, 'SUNDAY'],
+        ])('renders WEEK with %s as the start day', (startOfWeek, weekday) => {
+            expect(
+                getBigQueryAwareTimestampFilterSql(
+                    TimeFrames.WEEK,
+                    baseSql,
+                    timezone,
+                    startOfWeek,
+                ),
+            ).toBe(
+                `DATE_TRUNC(DATE(${baseSql}, '${timezone}'), WEEK(${weekday}))`,
+            );
+        });
+
+        test('renders WEEK without a configured start day', () => {
+            expect(
+                getBigQueryAwareTimestampFilterSql(
+                    TimeFrames.WEEK,
+                    baseSql,
+                    timezone,
+                    null,
+                ),
+            ).toBe(`DATE_TRUNC(DATE(${baseSql}, '${timezone}'), WEEK)`);
+        });
+
+        test.each([
+            TimeFrames.RAW,
+            TimeFrames.HOUR,
+            TimeFrames.MONTH_NUM,
+            TimeFrames.DAY_OF_WEEK_NAME,
+        ])('returns undefined for unsupported %s filters', (frame) => {
+            expect(
+                getBigQueryAwareTimestampFilterSql(
+                    frame,
+                    baseSql,
+                    timezone,
+                    null,
+                ),
+            ).toBeUndefined();
+        });
+    });
+
     describe('getSqlForTruncatedDate', () => {
         test('should get sql where stat of the week is Wednesday', async () => {
             expect(

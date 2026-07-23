@@ -459,6 +459,33 @@ const bigqueryStartOfWeekMap: Record<WeekDay, string> = {
     [WeekDay.SUNDAY]: 'SUNDAY',
 };
 
+export const getBigQueryAwareTimestampFilterSql = (
+    timeFrame: TimeFrames,
+    originalSql: string,
+    timezone: string,
+    startOfWeek?: WeekDay | null,
+): string | undefined => {
+    const dateSql = `DATE(${originalSql}, '${timezone}')`;
+    switch (timeFrame) {
+        case TimeFrames.DAY:
+            return dateSql;
+        case TimeFrames.WEEK: {
+            const datePart = isWeekDay(startOfWeek)
+                ? `WEEK(${bigqueryStartOfWeekMap[startOfWeek]})`
+                : TimeFrames.WEEK;
+            return `DATE_TRUNC(${dateSql}, ${datePart})`;
+        }
+        case TimeFrames.MONTH:
+        case TimeFrames.QUARTER:
+        case TimeFrames.YEAR:
+            return `DATE_TRUNC(${dateSql}, ${timeFrame})`;
+        case TimeFrames.YEAR_NUM:
+            return `EXTRACT(YEAR FROM ${dateSql})`;
+        default:
+            return undefined;
+    }
+};
+
 const bigqueryConfig: WarehouseConfig = {
     // BigQuery: on the timezone-wrapped path `toProjectTz` has already shifted
     // the value into a naive project-TZ DATETIME, so truncate with

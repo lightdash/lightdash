@@ -41,9 +41,28 @@ import {
 let admin: ApiClient;
 
 const DIMENSION_KEY = 'timezone_test_event_timestamp_day';
+const YEAR_NUM_DIMENSION_KEY = 'timezone_test_event_timestamp_year_num';
 const METRIC_KEY = 'timezone_test_count';
 const DIMENSIONS = [DIMENSION_KEY];
 const METRICS = [METRIC_KEY];
+
+const timestampFilter = (
+    fieldId: string,
+    operator: 'equals' | 'greaterThan' | 'inBetween',
+    values: Array<string | number>,
+) => ({
+    dimensions: {
+        id: 'tz-test',
+        and: [
+            {
+                id: 'tz-filter',
+                target: { fieldId },
+                operator,
+                values,
+            },
+        ],
+    },
+});
 
 describe('Data timezone', () => {
     beforeAll(async () => {
@@ -522,6 +541,102 @@ describe.skipIf(!hasBigqueryCredentials())(
                 '2024-01-16': 2,
             });
         });
+
+        it('aware DAY filter, dataTz=Asia/Tokyo, queryTz=Asia/Tokyo: equals uses the shared calendar day', async () => {
+            await updateDataTimezone(
+                bqAdmin,
+                'Asia/Tokyo',
+                bigqueryProjectUuid,
+            );
+            const rows = await runTimezoneTestQuery(bqAdmin, {
+                dimensions: [DIMENSION_KEY],
+                metrics: [METRIC_KEY],
+                filters: timestampFilter(DIMENSION_KEY, 'equals', [
+                    '2024-01-15',
+                ]),
+                timezone: 'Asia/Tokyo',
+                projectUuid: bigqueryProjectUuid,
+                maxAttempts: BIGQUERY_MAX_ATTEMPTS,
+            });
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(5);
+        });
+
+        it('aware DAY filter, dataTz=Asia/Tokyo, queryTz=UTC: equals follows the project timezone', async () => {
+            await updateDataTimezone(
+                bqAdmin,
+                'Asia/Tokyo',
+                bigqueryProjectUuid,
+            );
+            const rows = await runTimezoneTestQuery(bqAdmin, {
+                dimensions: [DIMENSION_KEY],
+                metrics: [METRIC_KEY],
+                filters: timestampFilter(DIMENSION_KEY, 'equals', [
+                    '2024-01-15',
+                ]),
+                timezone: 'UTC',
+                projectUuid: bigqueryProjectUuid,
+                maxAttempts: BIGQUERY_MAX_ATTEMPTS,
+            });
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(6);
+        });
+
+        it('aware DAY range filters, dataTz=Asia/Tokyo, queryTz=Pacific/Pago_Pago: use the optimized project calendar', async () => {
+            await updateDataTimezone(
+                bqAdmin,
+                'Asia/Tokyo',
+                bigqueryProjectUuid,
+            );
+            const greaterThanRows = await runTimezoneTestQuery(bqAdmin, {
+                dimensions: [DIMENSION_KEY],
+                metrics: [METRIC_KEY],
+                filters: timestampFilter(DIMENSION_KEY, 'greaterThan', [
+                    '2024-01-15',
+                ]),
+                timezone: 'Pacific/Pago_Pago',
+                projectUuid: bigqueryProjectUuid,
+                maxAttempts: BIGQUERY_MAX_ATTEMPTS,
+            });
+            expect(getTotalCount(greaterThanRows, METRIC_KEY)).toBe(2);
+
+            const inBetweenRows = await runTimezoneTestQuery(bqAdmin, {
+                dimensions: [DIMENSION_KEY],
+                metrics: [METRIC_KEY],
+                filters: timestampFilter(DIMENSION_KEY, 'inBetween', [
+                    '2024-01-14',
+                    '2024-01-15',
+                ]),
+                timezone: 'Pacific/Pago_Pago',
+                projectUuid: bigqueryProjectUuid,
+                maxAttempts: BIGQUERY_MAX_ATTEMPTS,
+            });
+            expect(getTotalCount(inBetweenRows, METRIC_KEY)).toBe(8);
+        });
+
+        it.each([
+            ['Asia/Tokyo', 2024],
+            ['Pacific/Pago_Pago', 2023],
+        ])(
+            'aware YEAR_NUM filter, dataTz=Asia/Tokyo, queryTz=%s: boundary instant belongs to %i',
+            async (timezone, year) => {
+                await updateDataTimezone(
+                    bqAdmin,
+                    'Asia/Tokyo',
+                    bigqueryProjectUuid,
+                );
+                const rows = await runTimezoneTestQuery(bqAdmin, {
+                    dimensions: [YEAR_NUM_DIMENSION_KEY],
+                    metrics: [METRIC_KEY],
+                    filters: timestampFilter(YEAR_NUM_DIMENSION_KEY, 'equals', [
+                        year,
+                    ]),
+                    timezone,
+                    projectUuid: bigqueryProjectUuid,
+                    maxAttempts: BIGQUERY_MAX_ATTEMPTS,
+                    eventIds: [17],
+                });
+                expect(getTotalCount(rows, METRIC_KEY)).toBe(1);
+            },
+        );
 
         it('raw frame, dataTz=Asia/Tokyo, queryTz=Asia/Tokyo: raw equals the hour bucket and shows the stored wall clock', async () => {
             await updateDataTimezone(
