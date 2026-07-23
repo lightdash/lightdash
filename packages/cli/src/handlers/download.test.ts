@@ -29,6 +29,7 @@ const {
     downloadSpaces,
     getDashboardChartSlugs,
     getFlatSpaceFileNames,
+    hasUploadFilters,
     readAiAgentFiles,
     readSpaceFiles,
     readSpaceNames,
@@ -41,6 +42,46 @@ const {
     validateSpaceIdentity,
     writeSpaceFiles,
 } = testHelpers;
+
+const makeUploadFilterOptions = (
+    overrides: Partial<Parameters<typeof hasUploadFilters>[0]> = {},
+): Parameters<typeof hasUploadFilters>[0] => ({
+    spacesOnly: false,
+    charts: [],
+    dashboards: [],
+    agents: [],
+    alerts: [],
+    googleSheets: [],
+    scheduledDeliveries: [],
+    virtualViews: [],
+    apps: [],
+    ...overrides,
+});
+
+describe('hasUploadFilters', () => {
+    it('treats explicit apps as a filtered upload', () => {
+        expect(
+            hasUploadFilters(
+                makeUploadFilterOptions({ apps: ['app-reference'] }),
+            ),
+        ).toBe(true);
+    });
+
+    it('keeps an unfiltered upload unfiltered', () => {
+        expect(hasUploadFilters(makeUploadFilterOptions())).toBe(false);
+    });
+
+    it('does not treat content selections as filters in spaces-only mode', () => {
+        expect(
+            hasUploadFilters(
+                makeUploadFilterOptions({
+                    spacesOnly: true,
+                    apps: ['app-reference'],
+                }),
+            ),
+        ).toBe(false);
+    });
+});
 
 type LooseDashboard = DashboardAsCode & { needsUpdating: boolean };
 

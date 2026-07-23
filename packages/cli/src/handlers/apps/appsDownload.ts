@@ -30,6 +30,12 @@ export const getDataAppUuidFromReference = (reference: string): string => {
     return appSegmentIndex >= 0 ? pathSegments[appSegmentIndex + 1] : reference;
 };
 
+export const getDataAppUploadFilter = (
+    references: string[],
+    includeApps: boolean,
+): Set<string> | null =>
+    includeApps ? null : new Set(references.map(getDataAppUuidFromReference));
+
 /**
  * Resolves the --apps-limit flag. Commander passes the raw string (or
  * undefined when the flag was not given, so an explicit flag is
@@ -52,7 +58,7 @@ export const resolveAppsLimit = (
         limit: parseInt(rawLimit, 10),
         noEffectWarning: includeApps
             ? null
-            : '--apps-limit only applies to --include-apps; explicit --apps UUIDs are never capped.',
+            : '--apps-limit only applies to --include-apps; explicit --apps references are never capped.',
     };
 };
 

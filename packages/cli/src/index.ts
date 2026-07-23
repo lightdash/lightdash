@@ -1009,8 +1009,8 @@ const uploadCommand = program
     .option('--validate', 'Validate charts and dashboards after upload', false)
     .option('--gzip', 'Enable gzip compression for request bodies', false)
     .option(
-        '--apps <appUuids...>',
-        'Upload specific data apps by UUID (enterprise).',
+        '--apps <appReferences...>',
+        'Upload specific data apps by UUID or URL (enterprise).',
     )
     .option(
         '--include-apps',
