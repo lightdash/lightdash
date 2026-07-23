@@ -272,7 +272,9 @@ describe('Mantine Dates v8 wrapper boundaries', () => {
 
         renderDateTimePicker(
             <FilterDateTimePicker
-                value={new Date('2024-07-01T12:00:00.000Z')}
+                value={new Date('2024-07-01T12:00:00.987Z')}
+                minDate={new Date('2024-07-01T11:00:00.000Z')}
+                maxDate={new Date('2024-07-01T13:00:00.000Z')}
                 firstDayOfWeek={1}
                 withSeconds
                 timePickerProps={{ withDropdown: true }}
@@ -283,12 +285,40 @@ describe('Mantine Dates v8 wrapper boundaries', () => {
 
         const picker = screen.getByTestId('date-time-picker');
         expect(picker).toHaveAttribute('data-value', '2024-07-01 08:00:00');
+        expect(picker).toHaveAttribute('data-min', '2024-07-01 07:00:00');
+        expect(picker).toHaveAttribute('data-max', '2024-07-01 09:00:00');
         expect(picker).toHaveAttribute('data-time-picker', 'true');
 
         fireEvent.click(picker);
         expect(onChange).toHaveBeenCalledTimes(1);
         expect(onChange.mock.calls[0][0].toISOString()).toBe(
-            '2025-05-14T14:11:12.000Z',
+            '2025-05-14T14:11:12.987Z',
+        );
+    });
+
+    it('preserves datetime bounds and fractional milliseconds', () => {
+        mocks.timezoneSupportEnabled = false;
+        mocks.project.useProjectTimezoneInFilters = false;
+        const onChange = vi.fn();
+
+        renderDateTimePicker(
+            <FilterDateTimePicker
+                value={new Date(2025, 4, 14, 10, 0, 0, 987)}
+                minDate={new Date(2025, 4, 14, 9, 0, 0)}
+                maxDate={new Date(2025, 4, 14, 10, 59, 59)}
+                firstDayOfWeek={1}
+                withSeconds
+                onChange={onChange}
+            />,
+        );
+
+        const picker = screen.getByTestId('date-time-picker');
+        expect(picker).toHaveAttribute('data-min', '2025-05-14 09:00:00');
+        expect(picker).toHaveAttribute('data-max', '2025-05-14 10:59:59');
+
+        fireEvent.click(picker);
+        expect(onChange).toHaveBeenCalledWith(
+            new Date(2025, 4, 14, 10, 11, 12, 987),
         );
     });
 

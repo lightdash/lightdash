@@ -81,6 +81,15 @@ const FilterQuarterPicker: FC<Props> = ({
         setSelectedYear(yearValue);
     }, [yearValue]);
 
+    useEffect(() => {
+        if (!value || Number.isNaN(value.getTime())) return;
+
+        const startOfQuarter = getStartOfQuarter(value);
+        if (value.getTime() !== startOfQuarter.getTime()) {
+            onChange(startOfQuarter);
+        }
+    }, [getStartOfQuarter, onChange, value]);
+
     const getMonthControlProps = useCallback(
         (mantineValue: string) => {
             const date = parseMantineDate(mantineValue);
