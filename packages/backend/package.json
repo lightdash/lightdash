@@ -121,7 +121,7 @@
         "cronstrue": "2.23.0",
         "csv-stringify": "6.5.1",
         "dockerode": "5.0.0",
-        "dompurify": "3.4.0",
+        "dompurify": "3.4.12",
         "duckdb-async": "1.4.2",
         "e2b": "2.16.0",
         "echarts": "5.6.0",
