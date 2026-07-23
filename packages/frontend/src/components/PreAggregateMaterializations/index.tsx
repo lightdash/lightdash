@@ -17,7 +17,6 @@ import {
     Stack,
     Text,
     TextInput,
-    Title,
     Tooltip,
 } from '@mantine-8/core';
 import { useDisclosure, useLocalStorage } from '@mantine-8/hooks';
@@ -61,6 +60,7 @@ import {
 } from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
+import { SettingsPage } from '../common/Settings/SettingsPage';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import MaterializationDetailDrawer from './MaterializationDetailDrawer';
 import classes from './PreAggregateMaterializations.module.css';
@@ -703,16 +703,10 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         <>
             <LoadingOverlay visible={isLoadingProject} />
 
-            <Stack gap="md">
-                <Group justify="space-between" align="flex-start">
-                    <Stack gap={2}>
-                        <Title order={5}>Pre-Aggregate Materializations</Title>
-                        <Text c="dimmed" size="xs">
-                            Overview of all pre-aggregate definitions and their
-                            current materialization status.
-                        </Text>
-                    </Stack>
-
+            <SettingsPage
+                title="Pre-aggregate materializations"
+                description="Overview of all pre-aggregate definitions and their current materialization status."
+                actions={
                     <Group gap="xs">
                         <Button
                             component="a"
@@ -740,8 +734,8 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                             Rebuild all
                         </Button>
                     </Group>
-                </Group>
-
+                }
+            >
                 {requiresUserCredentials && (
                     <Callout variant="warning">
                         <Text fz="xs">
@@ -772,7 +766,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 ) : (
                     <ContentTable table={table} />
                 )}
-            </Stack>
+            </SettingsPage>
 
             <MaterializationDetailDrawer
                 summary={selectedSummary}

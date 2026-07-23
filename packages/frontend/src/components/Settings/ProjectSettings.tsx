@@ -21,6 +21,7 @@ import { DocumentTitle } from '../common/DocumentTitle';
 import ErrorState from '../common/ErrorState';
 import PageBreadcrumbs from '../common/PageBreadcrumbs';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
+import { SettingsPageContainer } from '../common/Settings/SettingsPage';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import CompilationHistory from '../CompilationHistory';
 import { DataOps } from '../DataOps';
@@ -302,18 +303,20 @@ const ProjectSettings: FC = () => {
             <DocumentTitle title="Project Settings" />
 
             <Stack gap="xl">
-                <PageBreadcrumbs
-                    items={[
-                        {
-                            title: 'All projects',
-                            to: '/generalSettings/projectManagement',
-                        },
-                        {
-                            title: project.name,
-                            active: true,
-                        },
-                    ]}
-                />
+                <SettingsPageContainer>
+                    <PageBreadcrumbs
+                        items={[
+                            {
+                                title: 'All projects',
+                                to: '/generalSettings/projectManagement',
+                            },
+                            {
+                                title: project.name,
+                                active: true,
+                            },
+                        ]}
+                    />
+                </SettingsPageContainer>
                 {routesElements}
             </Stack>
         </>

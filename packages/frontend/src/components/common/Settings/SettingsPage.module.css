@@ -4,10 +4,13 @@
     padding-bottom: var(--mantine-spacing-lg);
 }
 
-.header {
+.container {
     width: 100%;
     max-width: var(--page-content-width);
     margin-inline: auto;
+}
+
+.header {
     min-width: 0;
 }
 

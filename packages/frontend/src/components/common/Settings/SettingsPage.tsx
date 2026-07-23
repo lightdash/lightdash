@@ -8,6 +8,10 @@ type SettingsPageProps = {
     actions?: ReactNode;
 };
 
+const SettingsPageContainer: FC<PropsWithChildren> = ({ children }) => (
+    <Box className={classes.container}>{children}</Box>
+);
+
 const SettingsPage: FC<PropsWithChildren<SettingsPageProps>> = ({
     title,
     description,
@@ -15,25 +19,33 @@ const SettingsPage: FC<PropsWithChildren<SettingsPageProps>> = ({
     children,
 }) => (
     <Stack gap="lg" className={classes.page}>
-        <Group
-            justify="space-between"
-            align="flex-start"
-            wrap="nowrap"
-            gap="lg"
-            className={classes.header}
-        >
-            <Stack gap={4} className={classes.heading}>
-                <Title order={4} className={classes.title}>
-                    {title}
-                </Title>
-                {description ? (
-                    <Text fz="sm" c="ldGray.6" className={classes.description}>
-                        {description}
-                    </Text>
+        <SettingsPageContainer>
+            <Group
+                justify="space-between"
+                align="flex-start"
+                wrap="nowrap"
+                gap="lg"
+                className={classes.header}
+            >
+                <Stack gap={4} className={classes.heading}>
+                    <Title order={4} className={classes.title}>
+                        {title}
+                    </Title>
+                    {description ? (
+                        <Text
+                            fz="sm"
+                            c="ldGray.6"
+                            className={classes.description}
+                        >
+                            {description}
+                        </Text>
+                    ) : null}
+                </Stack>
+                {actions ? (
+                    <Box className={classes.actions}>{actions}</Box>
                 ) : null}
-            </Stack>
-            {actions ? <Box className={classes.actions}>{actions}</Box> : null}
-        </Group>
+            </Group>
+        </SettingsPageContainer>
 
         <Stack gap="lg" className={classes.content}>
             {children}
@@ -41,4 +53,4 @@ const SettingsPage: FC<PropsWithChildren<SettingsPageProps>> = ({
     </Stack>
 );
 
-export { SettingsPage };
+export { SettingsPage, SettingsPageContainer };
