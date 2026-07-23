@@ -34,6 +34,7 @@ export type DbtSemanticConfig = {
     meta?: {
         hidden?: boolean | null;
         group_label?: string | null;
+        format?: string | null;
     } | null;
 };
 

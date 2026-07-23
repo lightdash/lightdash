@@ -312,6 +312,7 @@ export const translateMetricFlowMetrics = ({
             description?: string | null;
             hidden?: boolean | null;
             groupLabel?: string | null;
+            format?: string | null;
         },
     ):
         | { modelName: string; definition: DbtModelLightdashMetric }
@@ -351,6 +352,8 @@ export const translateMetricFlowMetrics = ({
                 overrides.groupLabel ??
                 measure.config?.meta?.group_label ??
                 undefined,
+            format:
+                overrides.format ?? measure.config?.meta?.format ?? undefined,
         };
 
         if (metricType === MetricType.PERCENTILE) {
@@ -487,6 +490,7 @@ export const translateMetricFlowMetrics = ({
                 description: metric.description,
                 hidden: metric.config?.meta?.hidden,
                 groupLabel: metric.config?.meta?.group_label,
+                format: metric.config?.meta?.format,
             },
         );
         if ('error' in built) {
@@ -683,6 +687,7 @@ export const translateMetricFlowMetrics = ({
             description: metric.description ?? undefined,
             hidden: metric.config?.meta?.hidden ?? undefined,
             group_label: metric.config?.meta?.group_label ?? undefined,
+            format: metric.config?.meta?.format ?? undefined,
         });
         translatedCount += 1;
         return undefined;

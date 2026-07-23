@@ -1122,6 +1122,67 @@ describe('translateMetricFlowMetrics', () => {
             );
         });
 
+        it('carries format from a measure config.meta', () => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: {
+                    sm: {
+                        ...ordersSemanticModel,
+                        measures: [
+                            {
+                                name: 'total_revenue',
+                                agg: MetricFlowAggregation.SUM,
+                                expr: 'order_total',
+                                create_metric: true,
+                                config: {
+                                    meta: {
+                                        format: '$,.2f',
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                },
+                metrics: {},
+                modelNamesByUniqueId,
+            });
+            expect(result.metricsByModel.orders.total_revenue.format).toBe(
+                '$,.2f',
+            );
+        });
+
+        it('carries format from a simple metric config.meta, winning over the measure', () => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: {
+                    sm: {
+                        ...ordersSemanticModel,
+                        measures: [
+                            {
+                                name: 'order_total_sum',
+                                agg: MetricFlowAggregation.SUM,
+                                expr: 'order_total',
+                                config: {
+                                    meta: {
+                                        format: ',.0f',
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                },
+                metrics: {
+                    m: simpleMetric('revenue', 'order_total_sum', {
+                        config: {
+                            meta: {
+                                format: '$,.2f',
+                            },
+                        },
+                    }),
+                },
+                modelNamesByUniqueId,
+            });
+            expect(result.metricsByModel.orders.revenue.format).toBe('$,.2f');
+        });
+
         it('lets metric-level meta win over measure-level meta', () => {
             const result = translateMetricFlowMetrics({
                 semanticModels: {
