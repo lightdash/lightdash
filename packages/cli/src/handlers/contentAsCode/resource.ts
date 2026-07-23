@@ -161,10 +161,12 @@ export const writeCodeResourceDocuments = async <Document>({
     definition,
     basePath,
     documents,
+    pruneOtherDocuments,
 }: {
     definition: CodeResourceDefinition<Document>;
     basePath: string;
     documents: Document[];
+    pruneOtherDocuments: boolean;
 }): Promise<void> => {
     const sortedDocuments = definition.sort
         ? [...documents].sort(definition.sort)
@@ -218,24 +220,26 @@ export const writeCodeResourceDocuments = async <Document>({
         ),
     );
 
-    const downloadedIdentities = new Set(
-        sortedDocuments.map((document) =>
-            normalizeIdentity(definition, definition.identity(document)),
-        ),
-    );
-    await Promise.all(
-        current.files
-            .filter(
-                ({ document }) =>
-                    !downloadedIdentities.has(
-                        normalizeIdentity(
-                            definition,
-                            definition.identity(document),
+    if (pruneOtherDocuments) {
+        const downloadedIdentities = new Set(
+            sortedDocuments.map((document) =>
+                normalizeIdentity(definition, definition.identity(document)),
+            ),
+        );
+        await Promise.all(
+            current.files
+                .filter(
+                    ({ document }) =>
+                        !downloadedIdentities.has(
+                            normalizeIdentity(
+                                definition,
+                                definition.identity(document),
+                            ),
                         ),
-                    ),
-            )
-            .map(({ filePath }) => fs.unlink(filePath)),
-    );
+                )
+                .map(({ filePath }) => fs.unlink(filePath)),
+        );
+    }
 };
 
 export const downloadCodeResource = async <Document>({
@@ -248,7 +252,12 @@ export const downloadCodeResource = async <Document>({
     list: () => Promise<Document[]>;
 }): Promise<number> => {
     const documents = await list();
-    await writeCodeResourceDocuments({ definition, basePath, documents });
+    await writeCodeResourceDocuments({
+        definition,
+        basePath,
+        documents,
+        pruneOtherDocuments: true,
+    });
     return documents.length;
 };
 

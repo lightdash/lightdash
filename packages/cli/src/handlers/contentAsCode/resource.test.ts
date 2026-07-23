@@ -1,11 +1,32 @@
+import { ContentAsCodeType, type AgentAsCode } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { ALERT_CODE_RESOURCE } from './projectResources';
-import { readCodeResourceFiles } from './resource';
+import {
+    AI_AGENT_CODE_RESOURCE,
+    ALERT_CODE_RESOURCE,
+} from './projectResources';
+import { readCodeResourceFiles, writeCodeResourceDocuments } from './resource';
 
 const temporaryDirectories: string[] = [];
+
+const agent = (slug: string): AgentAsCode => ({
+    contentType: ContentAsCodeType.AI_AGENT,
+    version: 1,
+    agentVersion: 2,
+    slug,
+    name: slug,
+    description: null,
+    imageUrl: null,
+    instruction: null,
+    tags: null,
+    enableDataAccess: true,
+    enableSelfImprovement: false,
+    enableContentTools: false,
+    enableUserContext: false,
+    modelConfig: null,
+});
 
 afterEach(async () => {
     await Promise.all(
@@ -19,6 +40,54 @@ afterEach(async () => {
 });
 
 describe('content-as-code resource files', () => {
+    it('preserves other documents when writing a filtered download', async () => {
+        const basePath = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'lightdash-content-as-code-'),
+        );
+        temporaryDirectories.push(basePath);
+        await writeCodeResourceDocuments({
+            definition: AI_AGENT_CODE_RESOURCE,
+            basePath,
+            documents: [agent('alpha'), agent('beta')],
+            pruneOtherDocuments: true,
+        });
+
+        await writeCodeResourceDocuments({
+            definition: AI_AGENT_CODE_RESOURCE,
+            basePath,
+            documents: [agent('alpha')],
+            pruneOtherDocuments: false,
+        });
+
+        await expect(
+            fs.readdir(path.join(basePath, 'ai-agents')),
+        ).resolves.toEqual(['alpha.yml', 'beta.yml']);
+    });
+
+    it('prunes other documents when writing a complete download', async () => {
+        const basePath = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'lightdash-content-as-code-'),
+        );
+        temporaryDirectories.push(basePath);
+        await writeCodeResourceDocuments({
+            definition: AI_AGENT_CODE_RESOURCE,
+            basePath,
+            documents: [agent('alpha'), agent('beta')],
+            pruneOtherDocuments: true,
+        });
+
+        await writeCodeResourceDocuments({
+            definition: AI_AGENT_CODE_RESOURCE,
+            basePath,
+            documents: [agent('alpha')],
+            pruneOtherDocuments: true,
+        });
+
+        await expect(
+            fs.readdir(path.join(basePath, 'ai-agents')),
+        ).resolves.toEqual(['alpha.yml']);
+    });
+
     it('ignores other scheduled content types in a shared legacy folder', async () => {
         const basePath = await fs.mkdtemp(
             path.join(os.tmpdir(), 'lightdash-content-as-code-'),
