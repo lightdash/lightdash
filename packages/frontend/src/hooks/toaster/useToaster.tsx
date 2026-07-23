@@ -4,7 +4,6 @@ import {
     notifications,
     type NotificationData as MantineNotificationData,
 } from '@mantine-8/notifications';
-import { clsx } from '@mantine/core';
 import {
     IconAlertCircleFilled,
     IconAlertTriangleFilled,
@@ -12,6 +11,7 @@ import {
     IconInfoCircleFilled,
 } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
+import clsx from 'clsx';
 import React, { useCallback, useRef, type ReactNode } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
 import { v4 as uuid } from 'uuid';

@@ -19,13 +19,13 @@ import {
     Tooltip,
     type ButtonVariant,
     type DefaultMantineColor,
+    type MantineColorScheme,
     type MantineColorsTuple,
     type MantineTheme,
     type MantineThemeOverride,
 } from '@mantine-8/core';
-import { type ColorScheme } from '@mantine/styles';
 import { DotsLoader } from './ee/features/aiCopilot/components/ChatElements/DotsLoader/DotsLoader';
-import { getMantineThemeOverride as getMantine6ThemeOverride } from './mantineTheme';
+import { getMantineThemeOverride } from './mantineTheme';
 // eslint-disable-next-line css-modules/no-unused-class
 import accordionStyles from './styles/mantine-overrides/accordion.module.css';
 // eslint-disable-next-line css-modules/no-unused-class
@@ -106,32 +106,30 @@ const paperDottedStyles = (theme: MantineTheme) => ({
 });
 
 export const getMantine8ThemeOverride = (
-    colorScheme: ColorScheme,
+    colorScheme: Exclude<MantineColorScheme, 'auto'>,
     overrides?: Partial<MantineThemeOverride>,
 ) => {
-    const { colors, components, ...legacyTheme } =
-        getMantine6ThemeOverride(colorScheme);
-
-    const { Button: _Button, ...legacyComponentsTheme } = components;
+    const { colors, components, ...baseTheme } =
+        getMantineThemeOverride(colorScheme);
 
     return {
-        ...legacyTheme,
+        ...baseTheme,
         ...overrides,
         colors,
-        fontFamily: `Inter, ${legacyTheme.fontFamily}`,
+        fontFamily: `Inter, ${baseTheme.fontFamily}`,
         headings: {
-            fontFamily: `Inter, ${legacyTheme.fontFamily}`,
+            fontFamily: `Inter, ${baseTheme.fontFamily}`,
             fontWeight: `600`,
         },
         spacing: {
-            ...legacyTheme.spacing,
+            ...baseTheme.spacing,
             xxs: `0.125rem`,
             // Large padding for page bottoms to allow scrolling past last elements
             emptySpace: `6rem`,
         },
 
         components: {
-            ...legacyComponentsTheme,
+            ...components,
             Accordion: Accordion.extend({
                 classNames: (_theme, props) =>
                     props.transparentActiveItem

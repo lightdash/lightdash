@@ -1,5 +1,10 @@
-import { Group, NavLink, Text } from '@mantine-8/core';
-import { useMantineTheme } from '@mantine/core';
+import {
+    Group,
+    NavLink,
+    Text,
+    useComputedColorScheme,
+    useMantineTheme,
+} from '@mantine-8/core';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { TableItemDetailPreview } from '../ItemDetailPreview';
@@ -18,6 +23,7 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
     onToggle,
 }) => {
     const theme = useMantineTheme();
+    const colorScheme = useComputedColorScheme('light');
     const { table, isExpanded } = item.data;
     const [isHover, toggleHover] = useToggle(false);
 
@@ -62,12 +68,12 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
             top: 0,
             position: 'sticky' as const,
             backgroundColor:
-                theme.colorScheme === 'dark'
+                colorScheme === 'dark'
                     ? theme.colors.dark[7]
                     : theme.colors.background[0],
             zIndex: 1,
         }),
-        [theme.colorScheme, theme.colors],
+        [colorScheme, theme.colors],
     );
 
     const label = (

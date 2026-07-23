@@ -4,7 +4,7 @@ import {
     type BaseFilterRule,
     type FilterableItem,
 } from '@lightdash/common';
-import { type PopoverProps } from '@mantine/core';
+import { type PopoverProps } from '@mantine-8/core';
 import BooleanFilterInputs from './BooleanFilterInputs';
 import DateFilterInputs from './DateFilterInputs';
 import DefaultFilterInputs from './DefaultFilterInputs';

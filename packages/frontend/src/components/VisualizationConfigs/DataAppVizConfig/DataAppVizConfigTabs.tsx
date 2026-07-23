@@ -8,7 +8,6 @@ import {
     type Item,
 } from '@lightdash/common';
 import { Stack, Text } from '@mantine-8/core';
-import { MantineProvider, useMantineColorScheme } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import DataAppVizLibraryPicker from '../../../features/apps/components/DataAppVizLibraryPicker';
@@ -17,7 +16,6 @@ import FieldSelect from '../../common/FieldSelect';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
-import { getVizConfigThemeOverride } from '../mantineTheme';
 
 const isDimensionItem = (item: Item): boolean =>
     isDimension(item) || isCustomDimension(item);
@@ -26,11 +24,6 @@ const isMetricItem = (item: Item): boolean =>
     isMetric(item) || isTableCalculation(item);
 
 export const ConfigTabs: FC = memo(() => {
-    const { colorScheme } = useMantineColorScheme();
-    const themeOverride = useMemo(
-        () => getVizConfigThemeOverride(colorScheme),
-        [colorScheme],
-    );
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { visualizationConfig, itemsMap } = useVisualizationContext();
 
@@ -61,7 +54,7 @@ export const ConfigTabs: FC = memo(() => {
     const fields = dataAppViz?.schema?.fields ?? [];
 
     return (
-        <MantineProvider inherit theme={themeOverride}>
+        <>
             <Stack>
                 <Config>
                     <Config.Section>
@@ -112,6 +105,6 @@ export const ConfigTabs: FC = memo(() => {
                     );
                 })}
             </Stack>
-        </MantineProvider>
+        </>
     );
 });

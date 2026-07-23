@@ -1,4 +1,4 @@
-import { useMantineTheme } from '@mantine/core';
+import { useMantineTheme } from '@mantine-8/core';
 import { useLayoutEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 

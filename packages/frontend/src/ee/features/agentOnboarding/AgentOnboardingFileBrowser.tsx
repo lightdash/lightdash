@@ -10,7 +10,7 @@ import {
     Text,
     Tree,
     getTreeExpandedState,
-    useMantineColorScheme,
+    useComputedColorScheme,
     type RenderTreeNodePayload,
     type TreeNodeData,
     useTree,
@@ -59,7 +59,7 @@ const FilePreview: FC<{
     encoding: 'utf8' | 'base64';
     path: string;
 }> = ({ content, encoding, path }) => {
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme('light');
 
     if (encoding !== 'utf8') {
         return (

@@ -9,7 +9,7 @@ import {
     MapTileBackground,
     type MapFieldConfig,
 } from '@lightdash/common';
-import { useMantineColorScheme, useMantineTheme } from '@mantine/core';
+import { useComputedColorScheme, useMantineTheme } from '@mantine-8/core';
 import { useMemo } from 'react';
 import { isMapVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
@@ -223,7 +223,7 @@ const useLeafletMapConfig = ({
     const { visualizationConfig, resultsData, itemsMap } =
         useVisualizationContext();
     const theme = useMantineTheme();
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme('light');
 
     const chartConfig = useMemo(() => {
         if (!isMapVisualizationConfig(visualizationConfig)) return null;

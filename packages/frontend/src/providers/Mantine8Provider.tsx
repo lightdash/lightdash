@@ -2,15 +2,18 @@ import {
     MantineProvider as MantineProviderBase,
     type MantineThemeOverride,
 } from '@mantine-8/core';
-import { useMantineColorScheme } from '@mantine/core';
-import { useMemo, type FC } from 'react';
+import { useContext, useMemo, type FC } from 'react';
 import { cssVariablesResolver } from '../mantine8CssVariablesResolver';
 import { getMantine8ThemeOverride } from '../mantine8Theme';
 import CodeHighlightProvider from './CodeHighlightProvider';
+import {
+    LightdashColorSchemeContext,
+    type LightdashColorScheme,
+} from './LightdashColorSchemeContext';
 
 type Props = {
     themeOverride?: MantineThemeOverride;
-    forceColorScheme?: 'light' | 'dark';
+    forceColorScheme?: LightdashColorScheme;
     notificationsLimit?: number;
     cssVariablesSelector?: string;
     getRootElement?: () => HTMLElement | undefined;
@@ -23,7 +26,8 @@ const Mantine8Provider: FC<React.PropsWithChildren<Props>> = ({
     cssVariablesSelector,
     getRootElement,
 }) => {
-    const { colorScheme } = useMantineColorScheme();
+    const colorSchemeContext = useContext(LightdashColorSchemeContext);
+    const colorScheme = colorSchemeContext?.colorScheme ?? 'light';
     const effectiveColorScheme = forceColorScheme || colorScheme;
     const baseTheme = useMemo(
         () => getMantine8ThemeOverride(effectiveColorScheme),
@@ -33,12 +37,10 @@ const Mantine8Provider: FC<React.PropsWithChildren<Props>> = ({
         () => (themeOverride ? { ...baseTheme, ...themeOverride } : baseTheme),
         [baseTheme, themeOverride],
     );
-    const resolvedColorScheme = forceColorScheme || colorScheme;
-
     return (
         <MantineProviderBase
             theme={mergedTheme}
-            forceColorScheme={resolvedColorScheme}
+            forceColorScheme={effectiveColorScheme}
             cssVariablesResolver={cssVariablesResolver}
             cssVariablesSelector={cssVariablesSelector}
             getRootElement={getRootElement}

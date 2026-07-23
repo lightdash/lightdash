@@ -9,8 +9,8 @@ import {
     Switch,
     Text,
 } from '@mantine-8/core';
-import { clsx } from '@mantine/core';
 import { IconAsterisk, IconPlus } from '@tabler/icons-react';
+import clsx from 'clsx';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../../components/common/MantineIcon';

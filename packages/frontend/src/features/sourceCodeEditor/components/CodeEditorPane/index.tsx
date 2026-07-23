@@ -4,7 +4,7 @@ import {
     Loader,
     Stack,
     Text,
-    useMantineColorScheme,
+    useComputedColorScheme,
 } from '@mantine-8/core';
 import Editor, {
     type BeforeMount,
@@ -68,7 +68,7 @@ const CodeEditorPane: FC<CodeEditorPaneProps> = ({
     onSave,
     onCreatePR,
 }) => {
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme('light');
     const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
     const monacoRef = useRef<Monaco | null>(null);
 

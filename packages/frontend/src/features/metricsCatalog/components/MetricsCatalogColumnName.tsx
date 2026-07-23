@@ -8,8 +8,8 @@ import {
     Highlight,
     Portal,
 } from '@mantine-8/core';
+import { getDefaultZIndex } from '@mantine-8/core';
 import { useClickOutside } from '@mantine-8/hooks';
-import { getDefaultZIndex } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import EmojiPicker, {
     Emoji,

@@ -1,6 +1,6 @@
-import { useMantineColorScheme } from '@mantine-8/core';
+import { useComputedColorScheme } from '@mantine-8/core';
 
 export const useRjvTheme = () => {
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme('light');
     return colorScheme === 'light' ? 'rjv-default' : 'chalk';
 };

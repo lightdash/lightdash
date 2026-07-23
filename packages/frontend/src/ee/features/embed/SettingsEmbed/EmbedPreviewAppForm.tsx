@@ -21,7 +21,7 @@ import {
     TextInput,
     Title,
 } from '@mantine-8/core';
-import { useMantineColorScheme } from '@mantine-8/core';
+import { useComputedColorScheme } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconEye, IconLink, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
@@ -73,7 +73,7 @@ const EmbedPreviewAppForm: FC<{
 }> = ({ projectUuid, siteUrl, apps }) => {
     const { mutateAsync: createEmbedUrl } =
         useEmbedUrlCreateMutation(projectUuid);
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme('light');
     const { data: user } = useUser(true);
 
     const form = useForm<FormValues>({

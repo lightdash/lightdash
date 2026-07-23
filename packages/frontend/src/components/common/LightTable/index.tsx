@@ -10,8 +10,9 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import { getHotkeyHandler, useClipboard, useId } from '@mantine-8/hooks';
-import { useMantineTheme } from '@mantine/core';
+import clsx from 'clsx';
 import debounce from 'lodash/debounce';
+import { darken } from 'polished';
 import {
     createContext,
     forwardRef,
@@ -29,13 +30,8 @@ import {
 } from 'react';
 import { useScroll } from 'react-use';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { SMALL_TEXT_LENGTH } from './constants';
-import {
-    useTableCellStyles,
-    useTableRowStyles,
-    useTableSectionStyles,
-    useTableStyles,
-} from './styles';
+import { CELL_HEIGHT, SMALL_TEXT_LENGTH } from './constants';
+import styles from './LightTable.module.css';
 import { CellType, SectionType } from './types';
 
 type BoxProps = Omit<BoxPropsBase, 'component' | 'children'>;
@@ -166,8 +162,6 @@ const TableComponent = forwardRef<HTMLTableElement, TableProps>(
         },
         ref,
     ) => {
-        const { cx, classes } = useTableStyles();
-        const theme = useMantineTheme();
         const shouldRemoveBorders = isDashboard;
 
         const [isContainerInitialized, setIsContainerInitialized] =
@@ -203,24 +197,15 @@ const TableComponent = forwardRef<HTMLTableElement, TableProps>(
         return (
             <Box
                 ref={containerRef}
-                miw="inherit"
-                mah="100%"
-                pos="relative"
-                style={{
-                    overflow: 'auto',
-                    border: `1px solid ${theme.colors.ldGray[3]}`,
-                    borderRadius: shouldRemoveBorders ? '0' : '4px',
-                    ...(shouldRemoveBorders && {
-                        borderLeft: 'none',
-                        borderRight: 'none',
-                    }),
-                }}
+                className={clsx(styles.container, {
+                    [styles.dashboardContainer]: shouldRemoveBorders,
+                })}
             >
                 <Box
                     ref={ref}
                     component={component}
                     {...rest}
-                    className={cx(classes.root, rest.className)}
+                    className={clsx(styles.root, rest.className)}
                 >
                     <TableProvider scrollPositions={{ isAtBottom, isAtTop }}>
                         {children}
@@ -293,11 +278,12 @@ const SectionBase = (
         TableSectionProps
     > = ({ children, withSticky = false, ...rest }, ref) => {
         const { scrollPositions } = useTableContext();
-        const { cx, classes } = useTableSectionStyles({
-            withSticky,
-            sectionType,
-            scrollPositions,
-        });
+        const isHead = sectionType === SectionType.Head;
+        const isFooter = sectionType === SectionType.Footer;
+        const withShadow =
+            withSticky &&
+            ((isHead && !scrollPositions.isAtTop) ||
+                (isFooter && !scrollPositions.isAtBottom));
 
         const component = useMemo(() => {
             switch (sectionType) {
@@ -320,8 +306,11 @@ const SectionBase = (
                 component={component}
                 ref={ref}
                 {...rest}
-                className={cx(classes.root, rest.className, {
-                    [classes.withSticky]: withSticky,
+                className={clsx(rest.className, {
+                    [styles.stickySection]: withSticky,
+                    [styles.headSection]: withSticky && isHead,
+                    [styles.footerSection]: withSticky && isFooter,
+                    [styles.withShadow]: withShadow,
                 })}
             >
                 <SectionProvider
@@ -341,10 +330,9 @@ const SectionBase = (
 const Row = forwardRef<HTMLTableRowElement, TableRowProps>(
     ({ children, component = 'tr', index, ...rest }, ref) => {
         const { sectionType, withSticky } = useSectionContext();
-        const { cx, classes } = useTableRowStyles({
-            sectionType: sectionType,
-            index,
-        });
+        const isHead = sectionType === SectionType.Head;
+        const isBody = sectionType === SectionType.Body;
+        const isFooter = sectionType === SectionType.Footer;
 
         return (
             <RowProvider index={index}>
@@ -352,8 +340,14 @@ const Row = forwardRef<HTMLTableRowElement, TableRowProps>(
                     component={component}
                     ref={ref}
                     {...rest}
-                    className={cx(classes.root, rest.className, {
-                        [classes.withSticky]: withSticky,
+                    __vars={{
+                        '--light-table-sticky-offset': `${index * CELL_HEIGHT}px`,
+                    }}
+                    className={clsx(styles.row, rest.className, {
+                        [styles.bodyRow]: isBody,
+                        [styles.stickyRow]: withSticky,
+                        [styles.headRow]: withSticky && isHead,
+                        [styles.footerRow]: withSticky && isFooter,
                     })}
                 >
                     {children}
@@ -414,14 +408,32 @@ const BaseCell = (
                 };
             }, [handleCopy, isSelected]);
 
-            const { cx, classes } = useTableCellStyles({
-                sectionType,
-                cellType,
-                index,
-                withColor,
-                withBackground,
-                withTextStyle,
-            });
+            const isHead = sectionType === SectionType.Head;
+            const isFooter = sectionType === SectionType.Footer;
+            const cellVariables = useMemo(
+                () => ({
+                    '--light-table-sticky-offset': `${index * CELL_HEIGHT}px`,
+                    ...(withColor
+                        ? { '--light-table-cell-color': withColor }
+                        : {}),
+                    ...(withBackground
+                        ? {
+                              '--light-table-cell-background': withBackground,
+                              '--light-table-cell-background-selected': darken(
+                                  0.05,
+                                  withBackground,
+                              ),
+                              '--light-table-cell-background-selected-border':
+                                  darken(0.2, withBackground),
+                              '--light-table-cell-background-border': darken(
+                                  0.03,
+                                  withBackground,
+                              ),
+                          }
+                        : {}),
+                }),
+                [index, withBackground, withColor],
+            );
 
             const cellHasLargeContent = useMemo(() => {
                 return !!(
@@ -453,18 +465,27 @@ const BaseCell = (
                         ref={ref}
                         {...rest}
                         data-is-selected={isSelected}
-                        className={cx(classes.root, rest.className, {
-                            [classes.withSticky]: withSticky,
-                            [classes.withLargeContent]:
+                        __vars={cellVariables}
+                        className={clsx(styles.cell, rest.className, {
+                            [styles.headCell]: cellType === CellType.Head,
+                            [styles.stickyCell]: withSticky,
+                            [styles.headCellSticky]: withSticky && isHead,
+                            [styles.footerCellSticky]: withSticky && isFooter,
+                            [styles.withLargeContent]:
                                 cellHasLargeContent && !isMinimal,
-                            [classes.withMinimalWidth]: withMinimalWidth,
-                            [classes.withAlignRight]: withAlignRight,
-                            [classes.withBoldFont]: withBoldFont,
-                            [classes.withColor]: withColor,
-                            [classes.withTextStyle]: !!withTextStyle,
-                            [classes.withInteractions]: withInteractions,
-                            [classes.withBackground]: withBackground,
-                            [classes.withCopying]: clipboard.copied,
+                            [styles.withMinimalWidth]: withMinimalWidth,
+                            [styles.withAlignRight]: withAlignRight,
+                            [styles.withBoldFont]: withBoldFont,
+                            [styles.withColor]: !!withColor,
+                            [styles.withTextBold]:
+                                !!withTextStyle && withTextStyle.bold,
+                            [styles.withTextItalic]:
+                                !!withTextStyle && withTextStyle.italic,
+                            [styles.withTextUnderline]:
+                                !!withTextStyle && withTextStyle.underline,
+                            [styles.withInteractions]: withInteractions,
+                            [styles.withBackground]: !!withBackground,
+                            [styles.withCopying]: clipboard.copied,
                         })}
                         onClick={
                             withInteractions
@@ -498,19 +519,10 @@ const BaseCell = (
                     ref,
                     rest,
                     isSelected,
-                    cx,
-                    classes.root,
-                    classes.withSticky,
-                    classes.withLargeContent,
-                    classes.withMinimalWidth,
-                    classes.withAlignRight,
-                    classes.withBoldFont,
-                    classes.withColor,
-                    classes.withTextStyle,
-                    classes.withInteractions,
-                    classes.withBackground,
-                    classes.withCopying,
+                    cellVariables,
                     withSticky,
+                    isHead,
+                    isFooter,
                     cellHasLargeContent,
                     isMinimal,
                     withMinimalWidth,

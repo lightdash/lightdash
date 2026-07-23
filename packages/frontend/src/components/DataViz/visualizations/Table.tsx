@@ -6,7 +6,7 @@ import {
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
 import { Flex, Group, Menu, type FlexProps, Badge } from '@mantine-8/core';
-import { useMantineTheme } from '@mantine/core';
+import { useMantineTheme } from '@mantine-8/core';
 import { IconArrowDown, IconArrowUp, IconCopy } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
 import useToaster from '../../../hooks/toaster/useToaster';

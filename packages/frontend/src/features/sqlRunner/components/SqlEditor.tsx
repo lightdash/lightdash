@@ -1,5 +1,4 @@
-import { Center, Loader } from '@mantine-8/core';
-import { useMantineTheme } from '@mantine/core';
+import { Center, Loader, useComputedColorScheme } from '@mantine-8/core';
 import Editor, {
     useMonaco,
     type BeforeMount,
@@ -48,7 +47,7 @@ export const SqlEditor: FC<{
     highlightText?: MonacoHighlightLine;
     resetHighlightError?: () => void;
 }> = ({ onSubmit, highlightText, resetHighlightError }) => {
-    const theme = useMantineTheme();
+    const colorScheme = useComputedColorScheme('light');
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const dispatch = useAppDispatch();
     const quoteChar = useAppSelector((state) => state.sqlRunner.quoteChar);
@@ -294,9 +293,7 @@ export const SqlEditor: FC<{
             onChange={onChange}
             options={MONACO_DEFAULT_OPTIONS}
             theme={
-                theme.colorScheme === 'dark'
-                    ? 'lightdash-dark'
-                    : 'lightdash-light'
+                colorScheme === 'dark' ? 'lightdash-dark' : 'lightdash-light'
             }
         />
     );

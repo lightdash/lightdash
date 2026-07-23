@@ -1,6 +1,5 @@
 import { ChartType } from '@lightdash/common';
 import { Box } from '@mantine-8/core';
-import { MantineProvider, type MantineThemeOverride } from '@mantine/core';
 import {
     memo,
     useCallback,
@@ -12,6 +11,7 @@ import {
 } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
+import MinimalVisualizationBackground from '../components/common/MinimalVisualizationBackground';
 import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
 import LightdashVisualization from '../components/LightdashVisualization';
@@ -32,14 +32,6 @@ import { useResizeObserver } from '../hooks/useResizeObserver';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useApp from '../providers/App/useApp';
 import { ExplorerSection } from '../providers/Explorer/types';
-
-const themeOverride: MantineThemeOverride = {
-    globalStyles: () => ({
-        'html, body': {
-            backgroundColor: 'white',
-        },
-    }),
-};
 
 type Props = {
     savedQueryUuid?: string;
@@ -153,7 +145,7 @@ const MinimalExplorerContent = memo(() => {
                 containerWidth={containerWidth}
                 containerHeight={containerHeight}
             >
-                <MantineProvider inherit theme={themeOverride}>
+                <MinimalVisualizationBackground>
                     <Box mih="inherit" h="100%">
                         <LightdashVisualization
                             ref={measureRef}
@@ -164,7 +156,7 @@ const MinimalExplorerContent = memo(() => {
                             onScreenshotError={handleChartScreenshotError}
                         />
                     </Box>
-                </MantineProvider>
+                </MinimalVisualizationBackground>
 
                 <ScreenshotProgressIndicator
                     expectedTileUuids={[savedChart.uuid]}
@@ -243,9 +235,7 @@ const MinimalSavedExplorer: FC<Props> = ({
 
     return (
         <Provider store={store} key={`minimal-${savedQueryUuid}`}>
-            <MantineProvider inherit theme={themeOverride}>
-                <MinimalExplorerContent />
-            </MantineProvider>
+            <MinimalExplorerContent />
         </Provider>
     );
 };

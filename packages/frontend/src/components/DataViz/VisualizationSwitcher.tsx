@@ -5,10 +5,10 @@ import {
     Group,
     Paper,
     Tooltip,
-    useMantineColorScheme,
+    useComputedColorScheme,
     useMantineTheme,
 } from '@mantine-8/core';
-import { clsx } from '@mantine/core';
+import clsx from 'clsx';
 import { memo, type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 import { getChartIcon } from '../common/ResourceIcon/utils';
@@ -24,7 +24,7 @@ type VisualizationActionIconProps = {
 const VisualizationActionIcon: FC<VisualizationActionIconProps> = memo(
     ({ chartKind, label, onClick, selected }) => {
         const { colors } = useMantineTheme();
-        const { colorScheme } = useMantineColorScheme();
+        const colorScheme = useComputedColorScheme('light');
         const ICON_SELECTED_COLOR =
             colorScheme === 'light' ? colors.violet[6] : colors.violet[2];
         const ICON_SELECTED_BG_COLOR =

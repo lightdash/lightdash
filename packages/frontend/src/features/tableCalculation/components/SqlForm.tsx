@@ -10,9 +10,10 @@ import {
     Flex,
     ScrollArea,
     Text,
+    useComputedColorScheme,
+    useMantineTheme,
 } from '@mantine-8/core';
 import { useLocalStorage } from '@mantine-8/hooks';
-import { useMantineTheme } from '@mantine/core';
 import { IconAlertCircle, IconSparkles, IconWand } from '@tabler/icons-react';
 import { useCallback, type CSSProperties, type FC } from 'react';
 import AceEditor, { type IAceEditorProps } from 'react-ace';
@@ -104,6 +105,7 @@ export const SqlForm: FC<Props> = ({
     conversionState,
 }) => {
     const theme = useMantineTheme();
+    const colorScheme = useComputedColorScheme('light');
     const [isSoftWrapEnabled, setSoftWrapEnabled] = useLocalStorage({
         key: SOFT_WRAP_LOCAL_STORAGE_KEY,
         defaultValue: true,
@@ -205,11 +207,7 @@ export const SqlForm: FC<Props> = ({
             >
                 <SqlEditor
                     mode="sql"
-                    theme={
-                        theme.colorScheme === 'dark'
-                            ? 'tomorrow_night'
-                            : 'github'
-                    }
+                    theme={colorScheme === 'dark' ? 'tomorrow_night' : 'github'}
                     width="100%"
                     placeholder={SQL_PLACEHOLDER}
                     maxLines={Infinity}

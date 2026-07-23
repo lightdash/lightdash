@@ -5,7 +5,7 @@ import {
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
 import { Flex, Group, type FlexProps, Badge, Tooltip } from '@mantine-8/core';
-import { useMantineTheme } from '@mantine/core';
+import { useMantineTheme } from '@mantine-8/core';
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
 import { useMemo } from 'react';

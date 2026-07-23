@@ -4,7 +4,7 @@ import {
     type MetricExplorerDateRange,
     type MetricExplorerPartialDateRange,
 } from '@lightdash/common';
-import { type MantineTheme } from '@mantine/core';
+import { type MantineTheme } from '@mantine-8/core';
 import {
     type DatePickerProps,
     type MonthPickerProps,

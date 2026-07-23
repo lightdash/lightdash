@@ -14,8 +14,8 @@ import {
     Textarea,
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
-import { clsx } from '@mantine/core';
 import { IconInfoCircle, IconPlus, IconTrash } from '@tabler/icons-react';
+import clsx from 'clsx';
 import { Fragment, useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';

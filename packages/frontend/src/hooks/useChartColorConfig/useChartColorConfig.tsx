@@ -1,4 +1,4 @@
-import { useMantineTheme } from '@mantine/core';
+import { useMantineTheme } from '@mantine-8/core';
 import { useCallback, useContext } from 'react';
 import { ASSIGNMENT_IDX_KEY } from './constants';
 import { ChartColorMappingContext } from './context';

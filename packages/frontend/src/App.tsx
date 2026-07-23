@@ -19,7 +19,6 @@ import AbilityProvider from './providers/Ability/AbilityProvider';
 import ActiveJobProvider from './providers/ActiveJob/ActiveJobProvider';
 import AppProvider from './providers/App/AppProvider';
 import FullscreenProvider from './providers/Fullscreen/FullscreenProvider';
-import Mantine8Provider from './providers/Mantine8Provider';
 import MantineProvider from './providers/MantineProvider';
 import ReactQueryProvider from './providers/ReactQuery/ReactQueryProvider';
 import SchedulerJobsProvider from './providers/SchedulerJobs/SchedulerJobsProvider';
@@ -93,17 +92,10 @@ const App = () => (
         <DocumentTitle />
 
         <ReactQueryProvider>
-            <MantineProvider
-                withGlobalStyles
-                withNormalizeCSS
-                withCSSVariables
-                forceColorScheme={embedForcedColorScheme}
-            >
-                <Mantine8Provider forceColorScheme={embedForcedColorScheme}>
-                    <ModalsProvider>
-                        <RouterProvider router={router} />
-                    </ModalsProvider>
-                </Mantine8Provider>
+            <MantineProvider forceColorScheme={embedForcedColorScheme}>
+                <ModalsProvider>
+                    <RouterProvider router={router} />
+                </ModalsProvider>
             </MantineProvider>
         </ReactQueryProvider>
     </>

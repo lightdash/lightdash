@@ -1,19 +1,11 @@
 import { Tabs } from '@mantine-8/core';
-import { MantineProvider, useMantineColorScheme } from '@mantine/core';
-import { memo, useMemo, type FC } from 'react';
-import { getVizConfigThemeOverride } from '../mantineTheme';
+import { memo, type FC } from 'react';
 import { Display } from './TreemapDisplayConfig';
 import { Layout } from './TreemapLayoutConfig';
 
 export const ConfigTabs: FC = memo(() => {
-    const { colorScheme } = useMantineColorScheme();
-    const themeOverride = useMemo(
-        () => getVizConfigThemeOverride(colorScheme),
-        [colorScheme],
-    );
-
     return (
-        <MantineProvider inherit theme={themeOverride}>
+        <>
             <Tabs defaultValue="layout" keepMounted={false}>
                 <Tabs.List mb="sm">
                     <Tabs.Tab px="sm" value="layout">
@@ -32,6 +24,6 @@ export const ConfigTabs: FC = memo(() => {
                     <Display />
                 </Tabs.Panel>
             </Tabs>
-        </MantineProvider>
+        </>
     );
 });

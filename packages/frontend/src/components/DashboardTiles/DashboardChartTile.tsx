@@ -46,8 +46,8 @@ import {
     Portal,
     Tooltip,
 } from '@mantine-8/core';
+import { useComputedColorScheme } from '@mantine-8/core';
 import { useClipboard, useElementSize } from '@mantine-8/hooks';
-import { useMantineColorScheme } from '@mantine/core';
 import {
     IconAlertCircle,
     IconAlertTriangle,
@@ -308,7 +308,7 @@ const ValidDashboardChartTile: FC<{
 
         const { health } = useApp();
         const { data: org } = useOrganization();
-        const { colorScheme } = useMantineColorScheme();
+        const colorScheme = useComputedColorScheme('light');
 
         const {
             ref: measureRef,
@@ -452,7 +452,7 @@ const ValidDashboardChartTileMinimal: FC<{
 }) => {
     const { health } = useApp();
     const { data: org } = useOrganization();
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme('light');
 
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const tilesWithDateZoomApplied = useDashboardContext(

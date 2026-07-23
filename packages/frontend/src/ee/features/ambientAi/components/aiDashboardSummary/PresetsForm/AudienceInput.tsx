@@ -1,5 +1,5 @@
 import { TextInput, Flex, Stack, Text, ActionIcon } from '@mantine-8/core';
-import { type SystemProp } from '@mantine/core';
+import { type StyleProp } from '@mantine-8/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import {
@@ -29,7 +29,7 @@ const AudienceItem: FC<AudienceItemProps> = ({ item, removeItem }) => {
 
 type AudienceInputProps = {
     label?: string;
-    w?: SystemProp<CSSProperties['width']>;
+    w?: StyleProp<CSSProperties['width']>;
 } & ReturnType<UseFormReturnType<Record<string, unknown>>['getInputProps']>;
 
 const AudienceInput: FC<AudienceInputProps> = ({

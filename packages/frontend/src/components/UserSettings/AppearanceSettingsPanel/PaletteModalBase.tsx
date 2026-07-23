@@ -8,7 +8,7 @@ import {
     Stack,
     Tabs,
     TextInput,
-    useMantineColorScheme,
+    useComputedColorScheme,
     type ModalProps,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
@@ -50,7 +50,7 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
     existingPaletteNames = [],
 }) => {
     const [showAllColors, setShowAllColors] = useState(false);
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme('light');
     const [activeTab, setActiveTab] = useState<string | null>(
         colorScheme === 'dark' ? 'dark' : 'light',
     );

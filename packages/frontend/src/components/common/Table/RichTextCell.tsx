@@ -1,4 +1,4 @@
-import { useMantineColorScheme } from '@mantine-8/core';
+import { useComputedColorScheme } from '@mantine-8/core';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import type { Root } from 'hast';
 import React, { type FC } from 'react';
@@ -46,7 +46,7 @@ const rehypeRemoveLineBreaks: Plugin<[], Root> = () => {
 };
 
 const RichTextCell: FC<RichTextCellProps> = ({ content }) => {
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme('light');
 
     // Stop click propagation on links to prevent table cell selection
     const handleClick = (e: React.MouseEvent) => {

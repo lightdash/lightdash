@@ -12,8 +12,8 @@ import {
     useDisclosure,
     useTimeout,
 } from '@mantine-8/hooks';
-import { clsx } from '@mantine/core';
 import { type Cell } from '@tanstack/react-table';
+import clsx from 'clsx';
 import {
     useCallback,
     useEffect,

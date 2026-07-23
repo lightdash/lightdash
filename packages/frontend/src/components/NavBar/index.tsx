@@ -1,6 +1,6 @@
 import { OrganizationAccessStatus, ProjectType } from '@lightdash/common';
 import { Box } from '@mantine-8/core';
-import { clsx } from '@mantine/core';
+import clsx from 'clsx';
 import { memo } from 'react';
 import { useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';

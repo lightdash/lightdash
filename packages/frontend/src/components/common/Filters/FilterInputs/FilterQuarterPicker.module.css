@@ -1,0 +1,13 @@
+.input {
+    cursor: pointer;
+}
+
+.selectedQuarter,
+.selectedQuarter:hover {
+    background-color: var(--mantine-color-blue-2);
+}
+
+.hoveredQuarter,
+.hoveredQuarter:hover {
+    background-color: var(--mantine-color-blue-1);
+}

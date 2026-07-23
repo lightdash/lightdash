@@ -36,7 +36,7 @@ import {
     Text,
     Button,
 } from '@mantine-8/core';
-import { useMantineColorScheme } from '@mantine/core';
+import { useComputedColorScheme } from '@mantine-8/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import {
     flexRender,
@@ -239,7 +239,7 @@ const PivotTable: FC<PivotTableProps> = ({
     renderSortMenu,
     ...tableProps
 }) => {
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme('light');
     const containerRef = useRef<HTMLDivElement>(null);
     const [grouping, setGrouping] = React.useState<GroupingState>([]);
     // Row grouping without subtotals must always render expanded — there's

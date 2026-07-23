@@ -9,9 +9,9 @@ import {
     Anchor,
     Modal,
     Tooltip,
+    useComputedColorScheme,
 } from '@mantine-8/core';
 import { modals } from '@mantine-8/modals';
-import { useMantineTheme } from '@mantine/core';
 import { IconCheck, IconCopy, IconSpeakerphone } from '@tabler/icons-react';
 import { defaultContext } from '@tanstack/react-query';
 import { useContext } from 'react';
@@ -120,8 +120,8 @@ const ApiErrorDisplayWithHealth = ({
     apiError: ApiErrorDetail;
     onClose?: () => void;
 }) => {
-    const theme = useMantineTheme();
-    const isDark = theme.colorScheme === 'dark';
+    const colorScheme = useComputedColorScheme('light');
+    const isDark = colorScheme === 'dark';
     const health = useHealth();
     const isCloudCustomer = health.data?.mode === LightdashMode.CLOUD_BETA;
     const isDevelopment = health.data?.mode === LightdashMode.DEV;

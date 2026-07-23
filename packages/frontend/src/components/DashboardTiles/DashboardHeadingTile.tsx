@@ -1,6 +1,6 @@
 import { type DashboardHeadingTile as DashboardHeadingTileType } from '@lightdash/common';
 import { Text } from '@mantine-8/core';
-import { clsx } from '@mantine/core';
+import clsx from 'clsx';
 import React, { type FC } from 'react';
 import styles from './DashboardHeadingTile.module.css';
 import TileBase from './TileBase/index';

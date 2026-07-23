@@ -5,22 +5,14 @@ import {
     isVizTableConfig,
 } from '@lightdash/common';
 import { Box } from '@mantine-8/core';
-import { MantineProvider, type MantineThemeOverride } from '@mantine/core';
 import { memo, type FC, type JSX } from 'react';
 import { useParams } from 'react-router';
+import MinimalVisualizationBackground from '../components/common/MinimalVisualizationBackground';
 import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
 import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
 import { useSavedSqlChartResults } from '../features/sqlRunner/hooks/useSavedSqlChartResults';
-
-const themeOverride: MantineThemeOverride = {
-    globalStyles: () => ({
-        'html, body': {
-            backgroundColor: 'white',
-        },
-    }),
-};
 
 const MinimalSqlChartContent = memo(
     ({
@@ -122,7 +114,7 @@ const MinimalSqlChartContent = memo(
         }
 
         return (
-            <MantineProvider inherit theme={themeOverride}>
+            <MinimalVisualizationBackground>
                 <Box mih="inherit" h="100%" data-testid="visualization">
                     {visualization}
                 </Box>
@@ -135,7 +127,7 @@ const MinimalSqlChartContent = memo(
                         tilesErrored={hasError ? 1 : 0}
                     />
                 )}
-            </MantineProvider>
+            </MinimalVisualizationBackground>
         );
     },
 );

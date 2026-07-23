@@ -22,7 +22,7 @@ import {
     Group,
     Stack,
     Text,
-    useMantineColorScheme,
+    useComputedColorScheme,
 } from '@mantine-8/core';
 import {
     IconChevronDown,
@@ -100,7 +100,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
             enabled: !isEmbed,
         },
     );
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme('light');
 
     const colorPalette = useMemo(() => {
         if (colorScheme === 'dark' && resolvedPalette?.darkColors) {

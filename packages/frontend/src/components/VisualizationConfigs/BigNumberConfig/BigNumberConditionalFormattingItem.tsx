@@ -14,7 +14,7 @@ import {
     Flex,
     Group,
     Stack,
-    useMantineColorScheme,
+    useComputedColorScheme,
 } from '@mantine-8/core';
 import { IconMoon, IconPlus, IconSun } from '@tabler/icons-react';
 import { produce } from 'immer';
@@ -45,7 +45,7 @@ export const BigNumberConditionalFormattingItem: FC<Props> = ({
     onChange,
     onRemove,
 }) => {
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme('light');
     const [openConditions, setOpenConditions] = useState<string[]>(() =>
         isConditionalFormattingConfigWithSingleColor(value)
             ? value.rules.map((_, i) => `${i}`)

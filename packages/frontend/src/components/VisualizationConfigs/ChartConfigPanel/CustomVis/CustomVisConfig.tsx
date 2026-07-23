@@ -1,7 +1,13 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Flex, Group, Loader, Text, Button } from '@mantine-8/core';
+import {
+    Button,
+    Flex,
+    Group,
+    Loader,
+    Text,
+    useComputedColorScheme,
+} from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine-8/hooks';
-import { useMantineTheme } from '@mantine/core';
 import Editor, { type EditorProps, type Monaco } from '@monaco-editor/react';
 import { type IDisposable, type languages } from 'monaco-editor';
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
@@ -110,7 +116,7 @@ const registerCustomCompletionProvider = (
 
 export const ConfigTabs: React.FC = memo(() => {
     const { visualizationConfig } = useVisualizationContext();
-    const theme = useMantineTheme();
+    const colorScheme = useComputedColorScheme('light');
 
     const isCustomConfig = isCustomVisualizationConfig(visualizationConfig);
 
@@ -315,7 +321,7 @@ export const ConfigTabs: React.FC = memo(() => {
                         setEditorConfig(config ?? '');
                     }}
                     theme={
-                        theme.colorScheme === 'dark'
+                        colorScheme === 'dark'
                             ? 'lightdash-dark'
                             : 'lightdash-light'
                     }

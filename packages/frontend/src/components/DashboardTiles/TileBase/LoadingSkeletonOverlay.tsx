@@ -7,7 +7,7 @@ import {
     Stack,
     type SkeletonProps,
 } from '@mantine-8/core';
-import { clsx } from '@mantine/core';
+import clsx from 'clsx';
 import { type FC, type ReactElement } from 'react';
 import styles from './LoadingSkeletonOverlay.module.css';
 

@@ -1,4 +1,4 @@
-import { Input, Paper, Text, useMantineColorScheme } from '@mantine-8/core';
+import { Input, Paper, Text, useComputedColorScheme } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine-8/hooks';
 import {
     Editor,
@@ -122,7 +122,7 @@ export const LabelEditor: FC<LabelEditorProps> = ({
         [reactId],
     );
 
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme('light');
     const [localValue, setLocalValue] = useState(value);
     const [debouncedValue] = useDebouncedValue(localValue, 500);
     const contentDisposableRef = useRef<IDisposable | null>(null);

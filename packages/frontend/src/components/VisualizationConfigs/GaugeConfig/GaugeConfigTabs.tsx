@@ -1,19 +1,11 @@
 import { Tabs } from '@mantine-8/core';
-import { MantineProvider, useMantineColorScheme } from '@mantine/core';
-import { memo, useMemo, type FC } from 'react';
-import { getVizConfigThemeOverride } from '../mantineTheme';
+import { memo, type FC } from 'react';
 import { GaugeDisplayConfig } from './GaugeDisplayConfig';
 import { GaugeFieldsConfig } from './GaugeFieldsConfig';
 
 export const ConfigTabs: FC = memo(() => {
-    const { colorScheme } = useMantineColorScheme();
-    const themeOverride = useMemo(
-        () => getVizConfigThemeOverride(colorScheme),
-        [colorScheme],
-    );
-
     return (
-        <MantineProvider inherit theme={themeOverride}>
+        <>
             <Tabs defaultValue="fields" keepMounted={false}>
                 <Tabs.List mb="sm">
                     <Tabs.Tab px="sm" value="fields">
@@ -32,6 +24,6 @@ export const ConfigTabs: FC = memo(() => {
                     <GaugeDisplayConfig />
                 </Tabs.Panel>
             </Tabs>
-        </MantineProvider>
+        </>
     );
 });

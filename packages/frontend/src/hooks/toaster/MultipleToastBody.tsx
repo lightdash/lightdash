@@ -7,7 +7,7 @@ import {
     Stack,
     Text,
     Title,
-    useMantineColorScheme,
+    useComputedColorScheme,
 } from '@mantine-8/core';
 import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
@@ -26,7 +26,7 @@ const MultipleToastBody = ({
     toastsData: NotificationData[];
     onCloseError?: (errorData: NotificationData) => void;
 }) => {
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme('light');
     const isDark = colorScheme === 'dark';
     const [listCollapsed, setListCollapsed] = useState(true);
 

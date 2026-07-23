@@ -10,21 +10,13 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { Stack, Tabs, Text, SegmentedControl } from '@mantine-8/core';
-import { MantineProvider, useMantineColorScheme } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { isSankeyVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
-import { getVizConfigThemeOverride } from '../mantineTheme';
 
 export const ConfigTabs: FC = memo(() => {
-    const { colorScheme } = useMantineColorScheme();
-    const themeOverride = useMemo(
-        () => getVizConfigThemeOverride(colorScheme),
-        [colorScheme],
-    );
-
     const { visualizationConfig } = useVisualizationContext();
 
     const isSankey = isSankeyVisualizationConfig(visualizationConfig);
@@ -96,7 +88,7 @@ export const ConfigTabs: FC = memo(() => {
         nodeLayout === 'merged' && data.hasCycle ? 'multi-step' : nodeLayout;
 
     return (
-        <MantineProvider inherit theme={themeOverride}>
+        <>
             <Tabs defaultValue="general" keepMounted={false}>
                 <Tabs.List mb="sm">
                     <Tabs.Tab px="sm" value="general">
@@ -289,6 +281,6 @@ export const ConfigTabs: FC = memo(() => {
                     </Stack>
                 </Tabs.Panel>
             </Tabs>
-        </MantineProvider>
+        </>
     );
 });

@@ -20,24 +20,16 @@ import {
     Switch,
     Tooltip,
 } from '@mantine-8/core';
-import { MantineProvider, useMantineColorScheme } from '@mantine/core';
-import { memo, useMemo, type FC } from 'react';
+import { memo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { isFunnelVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
 import { Config } from '../common/Config';
-import { getVizConfigThemeOverride } from '../mantineTheme';
 import compactStyles from '../mantineTheme.module.css';
 import { StepConfig } from './StepConfig';
 
 export const ConfigTabs: FC = memo(() => {
-    const { colorScheme } = useMantineColorScheme();
-    const themeOverride = useMemo(
-        () => getVizConfigThemeOverride(colorScheme),
-        [colorScheme],
-    );
-
     const { visualizationConfig, itemsMap } = useVisualizationContext();
 
     if (!isFunnelVisualizationConfig(visualizationConfig)) return null;
@@ -68,7 +60,7 @@ export const ConfigTabs: FC = memo(() => {
     } = visualizationConfig.chartConfig;
 
     return (
-        <MantineProvider inherit theme={themeOverride}>
+        <>
             <Tabs defaultValue="general" keepMounted={false}>
                 <Tabs.List mb="sm">
                     <Tabs.Tab px="sm" value="general">
@@ -318,6 +310,6 @@ export const ConfigTabs: FC = memo(() => {
                     </Stack>
                 </Tabs.Panel>
             </Tabs>
-        </MantineProvider>
+        </>
     );
 });

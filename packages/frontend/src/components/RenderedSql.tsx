@@ -5,7 +5,7 @@ import {
     Loader,
     Stack,
     Title,
-    useMantineColorScheme,
+    useComputedColorScheme,
 } from '@mantine-8/core';
 import Editor, {
     type BeforeMount,
@@ -37,7 +37,7 @@ interface RenderedSqlProps {
 export const RenderedSql: FC<RenderedSqlProps> = ({
     selectedView = 'query',
 }) => {
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme('light');
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: project } = useProject(projectUuid);
     const language = useMemo(

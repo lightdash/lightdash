@@ -1,4 +1,4 @@
-import { clsx } from '@mantine/core';
+import clsx from 'clsx';
 import { type FC } from 'react';
 import classes from './ThemeSwitcher.module.css';
 

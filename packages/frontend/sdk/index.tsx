@@ -1,6 +1,7 @@
 import '@mantine-8/core/styles.css';
 import '@mantine-8/code-highlight/styles.css';
 import '@mantine-8/tiptap/styles.css';
+import '../src/styles/global.css';
 import {
     FilterOperator,
     getErrorMessage,
@@ -17,6 +18,7 @@ import {
     type PropsWithChildren,
 } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router';
+import SuboptimalState from '../src/components/common/SuboptimalState/SuboptimalState';
 import { type SdkFilter } from '../src/ee/features/embed/EmbedDashboard/types';
 import EmbedChart from '../src/ee/pages/EmbedChart';
 import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
@@ -24,16 +26,14 @@ import EmbedExplore from '../src/ee/pages/EmbedExplore';
 import EmbedProvider from '../src/ee/providers/Embed/EmbedProvider';
 import { type EmbedExploreChart } from '../src/ee/providers/Embed/types';
 import useEmbed from '../src/ee/providers/Embed/useEmbed';
-import SuboptimalState from '../src/components/common/SuboptimalState/SuboptimalState';
 import ErrorBoundary from '../src/features/errorBoundary/ErrorBoundary';
-import ChartColorMappingContextProvider from '../src/hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import { useCreateMutation } from '../src/hooks/dashboard/useDashboard';
+import ChartColorMappingContextProvider from '../src/hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import MetricsCatalogPage from '../src/pages/MetricsCatalog';
 import AbilityProvider from '../src/providers/Ability/AbilityProvider';
 import ActiveJobProvider from '../src/providers/ActiveJob/ActiveJobProvider';
 import AppProvider from '../src/providers/App/AppProvider';
 import FullscreenProvider from '../src/providers/Fullscreen/FullscreenProvider';
-import Mantine8Provider from '../src/providers/Mantine8Provider';
 import MantineProvider from '../src/providers/MantineProvider';
 import ReactQueryProvider from '../src/providers/ReactQuery/ReactQueryProvider';
 import ThirdPartyServicesProvider from '../src/providers/ThirdPartyServicesProvider';
@@ -291,39 +291,31 @@ const SdkProviders: FC<
     return (
         <ReactQueryProvider>
             <MantineProvider
-                withGlobalStyles
-                withNormalizeCSS
-                withCSSVariables
                 themeOverride={themeOverride}
                 notificationsLimit={0}
                 forceColorScheme={theme}
             >
-                <Mantine8Provider
-                    themeOverride={themeOverride}
-                    forceColorScheme={theme}
-                >
-                    <ModalsProvider>
-                        <AppProvider>
-                            <FullscreenProvider enabled={false}>
-                                <ThirdPartyServicesProvider enabled={false}>
-                                    <ErrorBoundary wrapper={{ mt: '4xl' }}>
-                                        <MemoryRouter initialEntries={[route]}>
-                                            <TrackingProvider enabled={true}>
-                                                <AbilityProvider>
-                                                    <ChartColorMappingContextProvider>
-                                                        <ActiveJobProvider>
-                                                            {routedChildren}
-                                                        </ActiveJobProvider>
-                                                    </ChartColorMappingContextProvider>
-                                                </AbilityProvider>
-                                            </TrackingProvider>
-                                        </MemoryRouter>
-                                    </ErrorBoundary>
-                                </ThirdPartyServicesProvider>
-                            </FullscreenProvider>
-                        </AppProvider>
-                    </ModalsProvider>
-                </Mantine8Provider>
+                <ModalsProvider>
+                    <AppProvider>
+                        <FullscreenProvider enabled={false}>
+                            <ThirdPartyServicesProvider enabled={false}>
+                                <ErrorBoundary wrapper={{ mt: '4xl' }}>
+                                    <MemoryRouter initialEntries={[route]}>
+                                        <TrackingProvider enabled={true}>
+                                            <AbilityProvider>
+                                                <ChartColorMappingContextProvider>
+                                                    <ActiveJobProvider>
+                                                        {routedChildren}
+                                                    </ActiveJobProvider>
+                                                </ChartColorMappingContextProvider>
+                                            </AbilityProvider>
+                                        </TrackingProvider>
+                                    </MemoryRouter>
+                                </ErrorBoundary>
+                            </ThirdPartyServicesProvider>
+                        </FullscreenProvider>
+                    </AppProvider>
+                </ModalsProvider>
             </MantineProvider>
         </ReactQueryProvider>
     );
@@ -420,7 +412,9 @@ const DashboardBuilderContent: FC<{
                 spaceUuid: writeActions.spaceUuid,
                 tiles: [],
                 tabs: [],
-            }).then((createdDashboard) => createdDashboard as EmbedDashboardType);
+            }).then(
+                (createdDashboard) => createdDashboard as EmbedDashboardType,
+            );
 
         dashboardBuilderCreatePromises.set(createKey, createPromise);
 
@@ -516,7 +510,9 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
     );
 };
 
-const Explore: FC<BaseProps & { exploreId: string; savedChart: SavedChart }> = ({
+const Explore: FC<
+    BaseProps & { exploreId: string; savedChart: SavedChart }
+> = ({
     token: tokenOrTokenPromise,
     instanceUrl,
     styles,
@@ -585,9 +581,7 @@ const Explore: FC<BaseProps & { exploreId: string; savedChart: SavedChart }> = (
                         overflow: 'auto',
                         backgroundColor:
                             styles?.backgroundColor ??
-                            (theme
-                                ? 'var(--mantine-color-body)'
-                                : undefined),
+                            (theme ? 'var(--mantine-color-body)' : undefined),
                     }}
                 />
             </EmbedProvider>
@@ -658,9 +652,7 @@ const Chart: FC<Omit<BaseProps, 'filters' | 'onExplore'> & { id: string }> = ({
                         overflow: 'auto',
                         backgroundColor:
                             styles?.backgroundColor ??
-                            (theme
-                                ? 'var(--mantine-color-body)'
-                                : undefined),
+                            (theme ? 'var(--mantine-color-body)' : undefined),
                     }}
                 />
             </EmbedProvider>

@@ -1,5 +1,4 @@
 import { WarehouseTypes, type ParameterValue } from '@lightdash/common';
-import type { ColorScheme } from '@mantine/core';
 import type { EditorProps, Monaco } from '@monaco-editor/react';
 import {
     bigqueryLanguageDefinition,
@@ -7,6 +6,7 @@ import {
 } from '@popsql/monaco-sql-languages';
 import type { languages } from 'monaco-editor';
 import { LanguageIdEnum, setupLanguageFeatures } from 'monaco-sql-languages';
+import { type LightdashColorScheme } from '../../../providers/LightdashColorSchemeContext';
 import type { SqlEditorPreferences } from '../hooks/useSqlEditorPreferences';
 import type { WarehouseTableFieldWithContext } from '../hooks/useTableFields';
 import type { TablesBySchema } from '../hooks/useTables';
@@ -75,7 +75,7 @@ export const registerMonacoLanguage = (monaco: Monaco, language: string) => {
     }
 };
 
-export const getLightdashMonacoTheme = (colorScheme: ColorScheme) => {
+export const getLightdashMonacoTheme = (colorScheme: LightdashColorScheme) => {
     if (colorScheme === 'dark') {
         // Dracula-inspired dark theme with Lightdash purple accent
         return {

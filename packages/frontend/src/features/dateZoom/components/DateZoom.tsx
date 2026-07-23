@@ -12,7 +12,6 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import { clsx } from '@mantine/core';
 import {
     IconCheck,
     IconChevronDown,
@@ -20,6 +19,7 @@ import {
     IconPin,
     IconPinFilled,
 } from '@tabler/icons-react';
+import clsx from 'clsx';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';

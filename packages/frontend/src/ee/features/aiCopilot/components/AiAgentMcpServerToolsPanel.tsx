@@ -7,7 +7,7 @@ import {
     Group,
     Stack,
     Text,
-    useMantineColorScheme,
+    useComputedColorScheme,
 } from '@mantine-8/core';
 import {
     IconInfoCircle,
@@ -71,7 +71,7 @@ const ToolDescriptionModal = ({
     toolName: string;
     source: string;
 }) => {
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme('light');
     const markdownStyle = useMdEditorStyle();
 
     return (

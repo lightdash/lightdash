@@ -1,17 +1,15 @@
 import {
     rem,
-    type ColorScheme,
+    type MantineColorsTuple,
     type MantineThemeOverride,
-    type Tuple,
-} from '@mantine/core';
-import type {} from 'csstype';
-// eslint-disable-next-line css-modules/no-unused-class
-import styles from './styles/mantine-overrides/tooltip.module.css';
+} from '@mantine-8/core';
+import { type LightdashColorScheme } from './providers/LightdashColorSchemeContext';
 
-type ColorTuple = Tuple<string, 10>;
+type ColorTuple = MantineColorsTuple;
+
 const createColorTuple = (input: string | ColorTuple): ColorTuple => {
     if (typeof input === 'string') {
-        return new Array(10).fill(input) as ColorTuple;
+        return new Array(10).fill(input) as unknown as ColorTuple;
     }
     return input;
 };
@@ -64,7 +62,6 @@ const darkModeColors = {
     background: createColorTuple('#1a1a1a'),
     foreground: createColorTuple('#FEFEFE'),
 
-    /** Overwrite Mantine's dark colors because they are too light */
     dark: createColorTuple([
         '#A1A1A1',
         '#939393',
@@ -78,27 +75,20 @@ const darkModeColors = {
         '#0E0E0E',
     ]),
 
-    /** Make both light and dark the same shades to avoid clashing different tones. */
     ldDark: lightdashDarkGray,
     ldGray: lightdashDarkGray,
 };
 
-// Colors used for conditional formatting in dark mode
 export const DARK_MODE_COLORS = {
     SUBTLE_GRAY: darkModeColors.ldDark[4],
     CONTRAST_GRAY: darkModeColors.ldDark[6],
 } as const;
 
 export interface LightdashFieldColors {
-    /** CSS variable for background color (auto-switches for dark/light modes) */
     bg: string;
-    /** CSS variable for hover background color */
     bgHover: string;
-    /** CSS variable for text color */
     color: string;
-    /** CSS variable for column header text color */
     columnHeaderColor: string;
-    /** Mantine color token for component color property */
     mantineColor: string;
 }
 
@@ -138,24 +128,11 @@ export const LD_FIELD_COLORS = {
     DEFAULT: LightdashFieldColors;
 };
 
-export const getMantineThemeOverride = (
-    colorScheme: ColorScheme,
-    overrides?: {
-        components?: Partial<MantineThemeOverride['components']>;
-    },
-) =>
+export const getMantineThemeOverride = (colorScheme: LightdashColorScheme) =>
     ({
-        colorScheme,
-        ...overrides,
-
         focusRing: 'auto',
-
-        //Black value from Blueprint. We could change this.
-        // Without it things look a little darker than before.
         black: '#111418',
-
         colors: colorScheme === 'dark' ? darkModeColors : lightModeColors,
-
         spacing: {
             one: rem(1),
             two: rem(2),
@@ -174,7 +151,6 @@ export const getMantineThemeOverride = (
             '8xl': rem(128),
             '9xl': rem(160),
         },
-
         fontFamily: [
             'Inter',
             '-apple-system',
@@ -192,90 +168,16 @@ export const getMantineThemeOverride = (
             'Segoe UI Emoji',
             'sans-serif',
         ].join(', '),
-
-        lineHeight: 1.4,
-
         cursorType: 'pointer',
-
         shadows: {
             subtle: '0px 1px 2px 0px rgba(10, 13, 18, 0.05)',
             heavy: '0px 12px 16px -4px rgba(10, 13, 18, 0.08), 0px 4px 6px -2px rgba(10, 13, 18, 0.03), 0px 2px 2px -1px rgba(10, 13, 18, 0.04)',
             bottomFade: '0 0 0 1px #bec1c426',
         },
-
-        components: {
-            Button: {
-                defaultProps: {
-                    variant: 'darkPrimary',
-                    radius: 'md',
-                },
-                variants: {
-                    darkPrimary: (theme) => ({
-                        root: {
-                            background: `var(--mantine-color-foreground-0)`,
-                            borderRadius: theme.radius.md,
-                            color: `var(--mantine-color-ldGray-0)`,
-                            ...theme.fn.hover({
-                                background: `color-mix(in srgb, var(--mantine-color-foreground-0) 80%, transparent)`,
-                            }),
-                            '&[data-loading]': {
-                                boxShadow: theme.shadows.subtle,
-                            },
-                            '&[data-disabled]': {
-                                boxShadow: theme.shadows.subtle,
-                                color: `color-mix(in srgb, var(--mantine-color-foreground-0) 50%, transparent)`,
-                            },
-                        },
-                    }),
-                },
-            },
-            Kbd: {
-                styles: (theme, _params) => ({
-                    root: {
-                        borderBottomWidth: theme.spacing.two,
-                    },
-                }),
-            },
-
-            Tooltip: {
-                classNames: {
-                    tooltip: styles.tooltipMantine6,
-                },
-                defaultProps: {
-                    withArrow: true,
-                },
-                variants: {
-                    xs: (theme) => ({
-                        tooltip: {
-                            fontSize: theme.fontSizes.xs,
-                        },
-                    }),
-                },
-            },
-
-            Modal: {
-                defaultProps: {
-                    // FIXME: This makes the mantine modals line up exactly with the Blueprint ones.
-                    // It could be made a less-magic number once we migrate
-                    yOffset: 140,
-                },
-            },
-
-            Alert: {
-                styles: (_theme, _params) => ({
-                    title: {
-                        // FIXME: This makes the icon align with the title.
-                        lineHeight: 1.55,
-                    },
-                }),
-            },
-
-            ...overrides?.components,
-        },
-
+        components: {},
         other: {
             transitionTimingFunction: 'ease-in-out',
-            transitionDuration: 200, // in ms
+            transitionDuration: 200,
             chartFont: 'Inter, sans-serif',
             ldField: LD_FIELD_COLORS,
             explorerItemBg: {
@@ -293,82 +195,4 @@ export const getMantineThemeOverride = (
                 },
             },
         },
-
-        globalStyles: (theme) => ({
-            ':root': {
-                '--table-selected-bg':
-                    theme.colorScheme === 'dark'
-                        ? theme.colors.blue[9]
-                        : '#ECF6FE',
-                '--table-selected-border':
-                    theme.colorScheme === 'dark'
-                        ? theme.colors.blue[5]
-                        : '#4170CB',
-            },
-
-            'html, body': {
-                backgroundColor:
-                    theme.colorScheme === 'dark'
-                        ? theme.colors.ldDark[0]
-                        : theme.colors.ldGray[0],
-            },
-
-            body: {
-                fontSize: '14px',
-            },
-
-            p: {
-                marginBottom: '10px',
-                marginTop: 0,
-            },
-
-            b: {
-                fontWeight: 'bold',
-            },
-
-            strong: {
-                fontWeight: 600,
-            },
-
-            '.ace_editor.ace_autocomplete': {
-                width: '500px',
-            },
-            '.ace_editor *': {
-                fontFamily:
-                    "Menlo, 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace",
-            },
-            '.wmde-markdown, .wmde-markdown-var': {
-                fontFamily: theme.fontFamily,
-            },
-            '.wmde-markdown img': {
-                backgroundColor: 'transparent',
-            },
-            // CJK font selection for headless browser screenshots/PDFs.
-            // Chromium on Linux ignores fontconfig, so we use :lang() CSS
-            // selectors to explicitly pick the correct Noto Sans CJK variant.
-            ':lang(ja)': {
-                fontFamily: `'Noto Sans CJK JP', ${theme.fontFamily}`,
-            },
-            ':lang(zh-CN), :lang(zh-Hans)': {
-                fontFamily: `'Noto Sans CJK SC', ${theme.fontFamily}`,
-            },
-            ':lang(zh-TW), :lang(zh-Hant)': {
-                fontFamily: `'Noto Sans CJK TC', ${theme.fontFamily}`,
-            },
-            ':lang(ko)': {
-                fontFamily: `'Noto Sans CJK KR', ${theme.fontFamily}`,
-            },
-
-            '@keyframes fadeIn': {
-                from: { opacity: 0 },
-                to: { opacity: 1 },
-            },
-            ...(theme.colorScheme === 'dark'
-                ? {
-                      '[class*="mantine-"][data-with-border]': {
-                          border: `1px solid var(--mantine-color-ldDark-2)`,
-                      },
-                  }
-                : undefined),
-        }),
     }) satisfies MantineThemeOverride;

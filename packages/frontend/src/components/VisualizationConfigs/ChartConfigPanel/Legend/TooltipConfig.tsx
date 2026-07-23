@@ -7,7 +7,7 @@ import {
     Switch,
     Text,
     Tooltip,
-    useMantineColorScheme,
+    useComputedColorScheme,
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine-8/hooks';
 import {
@@ -112,7 +112,7 @@ const calculateEditorHeight = (lineCount: number): number => {
 };
 export const TooltipConfig: FC<Props> = ({ fields }) => {
     const { visualizationConfig } = useVisualizationContext();
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme('light');
     const isAmbientAiEnabled = useAmbientAiEnabled();
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);

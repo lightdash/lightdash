@@ -26,7 +26,7 @@ import {
     Select,
     Stack,
     Text,
-    useMantineColorScheme,
+    useComputedColorScheme,
 } from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
 import React, { memo, useCallback, useMemo, useState, type FC } from 'react';
@@ -49,7 +49,7 @@ type Props = {
 const ALLOW_CONVERT_TO_GROUP_UP_TO_DEPTH = 2;
 
 const AddFilterButton: FC<{ onClick: () => void }> = ({ onClick }) => {
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme('light');
     return (
         <Box
             pos="relative"

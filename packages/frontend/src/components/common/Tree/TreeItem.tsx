@@ -6,13 +6,13 @@ import {
     rem,
     Tooltip,
 } from '@mantine-8/core';
-import { clsx } from '@mantine/core';
 import {
     IconCheck,
     IconChevronDown,
     IconChevronRight,
     IconFolder,
 } from '@tabler/icons-react';
+import clsx from 'clsx';
 import React, { useMemo } from 'react';
 import MantineIcon from '../MantineIcon';
 import classes from './TreeItem.module.css';

@@ -13,8 +13,8 @@ import {
     type FieldId,
 } from '@lightdash/common';
 import { Button } from '@mantine-8/core';
+import { useComputedColorScheme } from '@mantine-8/core';
 import { useElementSize } from '@mantine-8/hooks';
-import { useMantineColorScheme } from '@mantine/core';
 import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
@@ -86,7 +86,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
     } = props;
     const { health } = useApp();
     const { data: org } = useOrganization();
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme('light');
     const dispatch = useExplorerDispatch();
 
     // Get savedChart from Redux

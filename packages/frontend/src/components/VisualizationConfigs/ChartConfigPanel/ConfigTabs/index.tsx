@@ -1,8 +1,6 @@
 import { Tabs } from '@mantine-8/core';
-import { MantineProvider, useMantineColorScheme } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
-import { getVizConfigThemeOverride } from '../../mantineTheme';
 import { Axes } from '../Axes';
 import { Grid } from '../Grid';
 import { Layout } from '../Layout';
@@ -10,18 +8,12 @@ import { Legend } from '../Legend';
 import { Series } from '../Series';
 
 export const ConfigTabs: FC = memo(() => {
-    const { colorScheme } = useMantineColorScheme();
-    const themeOverride = useMemo(
-        () => getVizConfigThemeOverride(colorScheme),
-        [colorScheme],
-    );
-
     const { itemsMap } = useVisualizationContext();
 
     const items = useMemo(() => Object.values(itemsMap || {}), [itemsMap]);
 
     return (
-        <MantineProvider inherit theme={themeOverride}>
+        <>
             <Tabs defaultValue="layout" keepMounted={false}>
                 <Tabs.List mb="sm">
                     <Tabs.Tab px="sm" value="layout">
@@ -56,6 +48,6 @@ export const ConfigTabs: FC = memo(() => {
                     <Grid />
                 </Tabs.Panel>
             </Tabs>
-        </MantineProvider>
+        </>
     );
 });

@@ -6,7 +6,7 @@ import {
     type ParametersValuesMap,
     type WeekDay,
 } from '@lightdash/common';
-import { type PopoverProps } from '@mantine/core';
+import { type PopoverProps } from '@mantine-8/core';
 import { createContext } from 'react';
 
 export type DefaultFieldsMap = Record<

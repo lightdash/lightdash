@@ -1,11 +1,11 @@
 import { formatDate, TimeFrames } from '@lightdash/common';
 import { TextInput, Stack, Text, Popover } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
-import { type MantineTheme, type Sx } from '@mantine/core';
 import { MonthPicker, type MonthPickerProps } from '@mantine/dates';
 import dayjs from 'dayjs';
 import quarterOfYear from 'dayjs/plugin/quarterOfYear';
 import { useCallback, useEffect, useState, type FC } from 'react';
+import styles from './FilterQuarterPicker.module.css';
 
 dayjs.extend(quarterOfYear);
 
@@ -86,7 +86,7 @@ const FilterQuarterPicker: FC<Props> = ({
         (
             date: Date,
         ): {
-            sx?: Sx;
+            className?: string;
             onMouseEnter: () => void;
             onMouseLeave?: () => void;
         } => {
@@ -100,12 +100,7 @@ const FilterQuarterPicker: FC<Props> = ({
                 getQuarterMonths(monthValue).includes(month)
             ) {
                 return {
-                    sx: (theme: MantineTheme) => ({
-                        backgroundColor: theme.colors.blue[2],
-                        '&:hover': {
-                            backgroundColor: theme.colors.blue[2],
-                        },
-                    }),
+                    className: styles.selectedQuarter,
                     onMouseEnter: () => setHoveredMonth(month),
                 };
             }
@@ -116,12 +111,7 @@ const FilterQuarterPicker: FC<Props> = ({
                 getQuarterMonths(hoveredMonth).includes(month)
             ) {
                 return {
-                    sx: (theme: MantineTheme) => ({
-                        backgroundColor: theme.colors.blue[1],
-                        '&:hover': {
-                            backgroundColor: theme.colors.blue[1],
-                        },
-                    }),
+                    className: styles.hoveredQuarter,
                     onMouseEnter: () => setHoveredMonth(month),
                 };
             }
@@ -157,11 +147,7 @@ const FilterQuarterPicker: FC<Props> = ({
                     }
                     error={invalidValue ? 'Invalid date' : undefined}
                     readOnly
-                    styles={{
-                        input: {
-                            cursor: 'pointer',
-                        },
-                    }}
+                    classNames={{ input: styles.input }}
                 />
             </Popover.Target>
             <Popover.Dropdown>

@@ -13,7 +13,7 @@ import {
     SegmentedControl,
     Stack,
     Text,
-    useMantineColorScheme,
+    useComputedColorScheme,
 } from '@mantine-8/core';
 import { useMemo } from 'react';
 import {
@@ -47,7 +47,7 @@ export const CartesianChartSeries = ({
     const { data: resolvedPalette } = useProjectColorPalette(
         projectUuid || undefined,
     );
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme('light');
     const colors =
         colorScheme === 'dark' && resolvedPalette?.darkColors?.length
             ? resolvedPalette.darkColors

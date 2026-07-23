@@ -80,7 +80,7 @@ import {
     type XAxis,
 } from '@lightdash/common';
 import { getLegendStyle } from '@lightdash/common/src/visualizations/helpers/styles/legendStyles';
-import { useMantineTheme } from '@mantine/core';
+import { useMantineTheme } from '@mantine-8/core';
 import dayjs from 'dayjs';
 import {
     type DefaultLabelFormatterCallbackParams,

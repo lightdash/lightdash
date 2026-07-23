@@ -9,9 +9,10 @@ import {
     type ButtonProps,
     ActionIcon,
     Popover,
+    useComputedColorScheme,
+    useMantineTheme,
 } from '@mantine-8/core';
 import { useClickOutside, useDisclosure } from '@mantine-8/hooks';
-import { useMantineTheme } from '@mantine/core';
 import { IconRefresh, IconSparkles, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -170,6 +171,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
 }) => {
     const dispatch = useAppDispatch();
     const theme = useMantineTheme();
+    const colorScheme = useComputedColorScheme('light');
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -458,7 +460,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
         fontSize: theme.fontSizes.sm,
         fontWeight: 500,
         color:
-            theme.colorScheme === 'dark'
+            colorScheme === 'dark'
                 ? theme.colors.ldDark[9]
                 : theme.colors.ldGray[7],
     };

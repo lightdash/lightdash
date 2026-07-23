@@ -7,9 +7,9 @@ import {
     HoverCard,
     Popover,
     Tooltip,
+    useComputedColorScheme,
 } from '@mantine-8/core';
 import { useHover } from '@mantine-8/hooks';
-import { useMantineTheme } from '@mantine/core';
 import { Editor } from '@monaco-editor/react';
 import {
     IconClock,
@@ -31,7 +31,7 @@ type Props = {
 };
 
 const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
-    const mantineTheme = useMantineTheme();
+    const colorScheme = useComputedColorScheme('light');
     const dispatch = useAppDispatch();
 
     const { hovered, ref: hoverRef } = useHover<HTMLButtonElement>();
@@ -40,7 +40,7 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
     const formattedDate = dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss');
 
     const openInQueryEditorLinkColor =
-        mantineTheme.colorScheme === 'dark' ? 'indigo.4' : 'indigo.6';
+        colorScheme === 'dark' ? 'indigo.4' : 'indigo.6';
 
     return (
         <Stack w="100%">
@@ -109,7 +109,7 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                             roundedSelection: false,
                         }}
                         theme={
-                            mantineTheme.colorScheme === 'dark'
+                            colorScheme === 'dark'
                                 ? 'lightdash-dark'
                                 : 'lightdash-light'
                         }

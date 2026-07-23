@@ -7,8 +7,8 @@ import {
     TextInput,
     type ColorSwatchProps,
 } from '@mantine-8/core';
-import { clsx } from '@mantine/core';
 import { IconHash } from '@tabler/icons-react';
+import clsx from 'clsx';
 import {
     useCallback,
     useState,

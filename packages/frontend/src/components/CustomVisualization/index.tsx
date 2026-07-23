@@ -1,4 +1,4 @@
-import { Anchor, Text, useMantineColorScheme } from '@mantine-8/core';
+import { Anchor, Text, useComputedColorScheme } from '@mantine-8/core';
 import { IconGraphOff } from '@tabler/icons-react';
 import {
     lazy,
@@ -33,7 +33,7 @@ const CustomVisualization: FC<Props> = ({
     onScreenshotError,
     ...props
 }) => {
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme('light');
     const isDarkMode = colorScheme === 'dark';
 
     const {

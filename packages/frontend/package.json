@@ -75,6 +75,7 @@
         "ace-builds": "1.4.14",
         "ai": "6.0.205",
         "canvas-confetti": "1.6.0",
+        "clsx": "2.1.1",
         "colorjs.io": "0.5.2",
         "cron-converter": "2.0.0",
         "cronstrue": "2.23.0",
@@ -150,7 +151,6 @@
     },
     "devDependencies": {
         "@chromatic-com/storybook": "5.1.1",
-        "@mantine/styles": "6.0.21",
         "@rollup/plugin-commonjs": "29.0.2",
         "@rollup/plugin-json": "6.1.0",
         "@rollup/plugin-node-resolve": "16.0.3",

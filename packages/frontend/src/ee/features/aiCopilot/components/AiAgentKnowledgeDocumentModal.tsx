@@ -14,7 +14,7 @@ import {
     Text,
     Textarea,
     TextInput,
-    useMantineColorScheme,
+    useComputedColorScheme,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconDownload, IconEdit } from '@tabler/icons-react';
@@ -53,7 +53,7 @@ const LoadedDocumentModal = ({
     onClose,
     projectUuid,
 }: LoadedDocumentModalProps) => {
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme('light');
     const markdownStyle = useMdEditorStyle();
     const updateDocument = useUpdateAiAgentDocumentContent(
         projectUuid,

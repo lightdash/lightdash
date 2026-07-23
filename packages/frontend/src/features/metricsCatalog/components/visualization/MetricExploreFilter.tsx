@@ -10,7 +10,7 @@ import {
     Select,
     Stack,
     Text,
-    useMantineColorScheme,
+    useComputedColorScheme,
 } from '@mantine-8/core';
 import { IconFilter, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
@@ -51,7 +51,7 @@ export const MetricExploreFilter: FC<Props> = ({
     onFilterApply,
     initialFilterRule,
 }) => {
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme('light');
 
     // Seed from the metric's default filter on mount. The parent remounts this
     // component (via key) per metric, so this initializer re-runs on switch.
