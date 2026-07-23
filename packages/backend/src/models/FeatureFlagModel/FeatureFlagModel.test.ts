@@ -154,6 +154,47 @@ describe('FeatureFlagModel', () => {
             });
         });
 
+        it('enables commercial flags without a specific handler in commercial model', async () => {
+            const model = buildCommercialModel({
+                enabledFeatureFlags: new Set([
+                    CommercialFeatureFlags.Embedding,
+                ]),
+            });
+
+            const result = await model.get({
+                featureFlagId: CommercialFeatureFlags.Embedding,
+            });
+
+            expect(result).toEqual({
+                id: CommercialFeatureFlags.Embedding,
+                enabled: true,
+            });
+        });
+
+        it('refuses commercial flags without commercial handling in base model', async () => {
+            const warnSpy = vi
+                .spyOn(Logger, 'warn')
+                .mockImplementation(() => Logger);
+            const model = buildModel({
+                enabledFeatureFlags: new Set([
+                    CommercialFeatureFlags.Embedding,
+                ]),
+            });
+
+            const result = await model.get({
+                featureFlagId: CommercialFeatureFlags.Embedding,
+            });
+
+            expect(result).toEqual({
+                id: CommercialFeatureFlags.Embedding,
+                enabled: false,
+            });
+            expect(warnSpy).toHaveBeenCalledWith(
+                `Ignoring commercial feature flag ${CommercialFeatureFlags.Embedding} in LIGHTDASH_ENABLE_FEATURE_FLAGS without commercial feature flag handling`,
+            );
+            warnSpy.mockRestore();
+        });
+
         it('returns enabled for any flag listed in LIGHTDASH_ENABLE_FEATURE_FLAGS', async () => {
             const model = buildModel({
                 enabledFeatureFlags: new Set(['my-custom-flag']),
