@@ -209,13 +209,18 @@ export class PivotQueryBuilder {
     }
 
     /**
-     * Table-calc sorts use row-level semantics (MAX across all pivot columns),
-     * not the metric-sort anchor — anchoring a per-(index, group) calc to one
-     * group yields NULL for every index tuple absent from that group.
+     * Sort-only (undisplayed) table-calc sorts use row-level semantics — MAX
+     * across all pivot columns — instead of the metric-sort anchor: anchoring
+     * a per-(index, group) calc to one group yields NULL for every index tuple
+     * absent from that group. Displayed table calcs and metrics keep anchor
+     * semantics; column ordering is not affected either way.
      */
-    private isTableCalculationReference(reference: string): boolean {
+    private isSortOnlyTableCalculation(reference: string): boolean {
         const item = this.itemsMap[reference];
-        return !!item && isTableCalculation(item);
+        if (!item || !isTableCalculation(item)) return false;
+        return (this.pivotConfiguration.sortOnlyColumns ?? []).some(
+            (col) => col.reference === reference,
+        );
     }
 
     /**
@@ -799,8 +804,6 @@ export class PivotQueryBuilder {
                 (sort) => sort.reference === valCol.reference,
             );
             if (!sortConfig) return;
-            // Table-calc sorts don't drive column ordering (row-level semantics)
-            if (this.isTableCalculationReference(valCol.reference)) return;
 
             const fieldName = PivotQueryBuilder.getValueColumnFieldName(
                 valCol.reference,
@@ -870,9 +873,6 @@ export class PivotQueryBuilder {
                     (sort) => sort.reference === valCol.reference,
                 );
                 if (!sortConfig) return acc;
-                // Table-calc sorts don't drive column ordering
-                if (this.isTableCalculationReference(valCol.reference))
-                    return acc;
 
                 const fieldName = PivotQueryBuilder.getValueColumnFieldName(
                     valCol.reference,
@@ -1152,8 +1152,8 @@ export class PivotQueryBuilder {
 
             const rowAnchorCteName = `${valCol.reference}_ra`;
 
-            // Table-calc sorts aggregate across ALL pivot columns — no anchor
-            if (this.isTableCalculationReference(valCol.reference)) {
+            // Sort-only table calcs aggregate across ALL pivot columns — no anchor
+            if (this.isSortOnlyTableCalculation(valCol.reference)) {
                 result[rowAnchorCteName] = {
                     cteName: rowAnchorCteName,
                     sql: `SELECT ${indexColumnRefs}, MAX(q.${q}${fieldName}${q}) AS ${q}${rowAnchorCteName}_value${q} FROM group_by_query q GROUP BY ${indexColumnGroupBy}`,
@@ -1231,11 +1231,11 @@ export class PivotQueryBuilder {
             sortBy?.some((sort) => sort.reference === valCol.reference),
         );
         const hasMetricSort = sortedValueColumns.length > 0;
-        // Table-calc sorts use row-level semantics (MAX across all pivot
+        // Sort-only table-calc sorts use row-level semantics (MAX across all pivot
         // columns), so they don't need the anchor_column CTE — only metric
         // sorts anchored to the first pivot column do.
         const hasAnchoredMetricSort = sortedValueColumns.some(
-            (valCol) => !this.isTableCalculationReference(valCol.reference),
+            (valCol) => !this.isSortOnlyTableCalculation(valCol.reference),
         );
         // A sort-only dimension also drives the column ORDER BY, which means
         // we need column_ranking (for the precomputed ranking path) even when
@@ -1279,9 +1279,7 @@ export class PivotQueryBuilder {
                             (s) => s.reference === valCol.reference,
                         );
                         if (!sortConfig) return;
-                        if (
-                            this.isTableCalculationReference(valCol.reference)
-                        ) {
+                        if (this.isSortOnlyTableCalculation(valCol.reference)) {
                             return;
                         }
                         const anchorCteName = `${valCol.reference}_anchor_column`;
@@ -1373,10 +1371,10 @@ export class PivotQueryBuilder {
             sortBy?.some((sort) => sort.reference === valCol.reference),
         );
 
-        // Table-calc sorts aggregate across ALL pivot columns (row-level
+        // Sort-only table calcs aggregate across ALL pivot columns (row-level
         // semantics) — only metric sorts need an anchor column.
         const anchoredValueColumns = sortedValueColumns.filter(
-            (valCol) => !this.isTableCalculationReference(valCol.reference),
+            (valCol) => !this.isSortOnlyTableCalculation(valCol.reference),
         );
 
         // Each value column's anchor column (shared `anchor_column` or, for
@@ -1411,7 +1409,7 @@ export class PivotQueryBuilder {
                 valCol.reference,
                 valCol.aggregation,
             );
-            if (this.isTableCalculationReference(valCol.reference)) {
+            if (this.isSortOnlyTableCalculation(valCol.reference)) {
                 return `MAX(q.${q}${fieldName}${q}) AS ${q}${valCol.reference}_ra_value${q}`;
             }
             const alias = aliasByAnchor.get(
@@ -1520,15 +1518,12 @@ export class PivotQueryBuilder {
             .join(', ');
 
         // Layer 1 — column anchor: FIRST_VALUE per sorted value column.
-        // Table-calc sorts are excluded — they don't drive column ordering.
         const firstValueSelects = (valuesColumns ?? []).reduce<string[]>(
             (acc, valCol) => {
                 const sortConfig = sortBy?.find(
                     (sort) => sort.reference === valCol.reference,
                 );
                 if (!sortConfig) return acc;
-                if (this.isTableCalculationReference(valCol.reference))
-                    return acc;
 
                 const fieldName = PivotQueryBuilder.getValueColumnFieldName(
                     valCol.reference,
@@ -1582,8 +1577,8 @@ export class PivotQueryBuilder {
                     valCol.reference,
                     valCol.aggregation,
                 );
-                // Table-calc sorts aggregate across ALL pivot columns — no anchor
-                if (this.isTableCalculationReference(valCol.reference)) {
+                // Sort-only table calcs aggregate across ALL pivot columns — no anchor
+                if (this.isSortOnlyTableCalculation(valCol.reference)) {
                     acc.push(
                         `MAX(g.${q}${fieldName}${q}) OVER (PARTITION BY ${indexPartition}) AS ${q}${valCol.reference}_ra_value${q}`,
                     );

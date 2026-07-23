@@ -1397,9 +1397,10 @@ describe('PivotQueryBuilder', () => {
     });
 
     describe('Table calculation sorts (row-level, non-anchor semantics)', () => {
-        // Table-calc sorts order rows by MAX across all pivot columns and are
-        // excluded from column ordering — anchor semantics would NULL out every
-        // index tuple absent from the anchor group.
+        // Sort-only (undisplayed) table-calc sorts order rows by MAX across
+        // all pivot columns — anchor semantics would NULL out every index
+        // tuple absent from the anchor group. Column ordering and displayed
+        // table-calc sorts keep the existing anchor behavior.
         const itemsMap = {
             month_order: {
                 name: 'month_order',
@@ -1458,7 +1459,7 @@ describe('PivotQueryBuilder', () => {
             );
         });
 
-        test('column ordering ignores the table calc sort — columns order by group dimensions', () => {
+        test('column ordering still honors the calc anchor — group-companion sorts preserved', () => {
             const result = new PivotQueryBuilder(
                 baseSql,
                 tableCalcSortConfiguration,
@@ -1467,9 +1468,8 @@ describe('PivotQueryBuilder', () => {
                 itemsMap,
             ).toSql();
 
-            expect(result).not.toContain('month_order_ca_value');
             expect(replaceWhitespace(result)).toContain(
-                'DENSE_RANK() OVER (ORDER BY g."year" ASC) AS "col_idx"',
+                'DENSE_RANK() OVER (ORDER BY g."month_order_ca_value" ASC, g."year" ASC) AS "col_idx"',
             );
         });
 
@@ -1515,11 +1515,45 @@ describe('PivotQueryBuilder', () => {
             );
             expect(result).toContain('revenue_ca_value');
 
-            // Table calc gets row-level MAX and no column anchor
+            // Table calc gets row-level MAX; column anchoring stays intact
             expect(replaceWhitespace(result)).toContain(
                 'MAX(q."month_order_any") AS "month_order_ra_value"',
             );
-            expect(result).not.toContain('month_order_ca_value');
+            expect(result).toContain('month_order_ca_value');
+        });
+
+        test('displayed table calc sorts keep anchor semantics', () => {
+            const displayedTcConfiguration = {
+                indexColumn: [
+                    { reference: 'month_name', type: VizIndexType.CATEGORY },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'cumulative_volume',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'year' }],
+                sortBy: [
+                    {
+                        reference: 'cumulative_volume',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+            };
+
+            const result = new PivotQueryBuilder(
+                baseSql,
+                displayedTcConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            ).toSql();
+
+            expect(result).toContain('anchor_column AS (');
+            expect(replaceWhitespace(result)).toContain(
+                'MAX(CASE WHEN (q."year" = ac."anchor_year" OR (q."year" IS NULL AND ac."anchor_year" IS NULL)) THEN q."cumulative_volume_any" END) AS "cumulative_volume_ra_value"',
+            );
         });
 
         test('single-scan path (no CTE materialization) also uses plain MAX for table calc sorts', () => {
@@ -1541,7 +1575,7 @@ describe('PivotQueryBuilder', () => {
                 'MAX(g."month_order_any") OVER (PARTITION BY g."month_name", g."month") AS "month_order_ra_value"',
             );
             expect(result).not.toContain('MAX(CASE WHEN');
-            expect(result).not.toContain('month_order_ca_value');
+            expect(result).toContain('month_order_ca_value');
         });
     });
 
