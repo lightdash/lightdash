@@ -110,6 +110,7 @@ export class PivotTableService extends BaseService {
         pivotDetails,
         warehouseRowTotals,
         warehouseColumnTotals,
+        warehouseGrandTotals,
         organizationUuid,
         createdByUserUuid,
         expirationSecondsOverride,
@@ -123,6 +124,7 @@ export class PivotTableService extends BaseService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         warehouseRowTotals?: PivotRowTotalsByIndex;
         warehouseColumnTotals?: Record<string, number>;
+        warehouseGrandTotals?: Record<string, number>;
         options: {
             onlyRaw: boolean;
             showTableNames: boolean;
@@ -193,6 +195,7 @@ export class PivotTableService extends BaseService {
             pivotDetails,
             warehouseRowTotals,
             warehouseColumnTotals,
+            warehouseGrandTotals,
             organizationUuid,
             createdByUserUuid,
             expirationSecondsOverride,
@@ -223,6 +226,7 @@ export class PivotTableService extends BaseService {
         pivotDetails,
         warehouseRowTotals,
         warehouseColumnTotals,
+        warehouseGrandTotals,
         organizationUuid,
         createdByUserUuid,
         expirationSecondsOverride,
@@ -236,6 +240,7 @@ export class PivotTableService extends BaseService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         warehouseRowTotals?: PivotRowTotalsByIndex;
         warehouseColumnTotals?: Record<string, number>;
+        warehouseGrandTotals?: Record<string, number>;
         exploreId: string;
         onlyRaw: boolean;
         truncated: boolean;
@@ -281,6 +286,7 @@ export class PivotTableService extends BaseService {
             pivotDetails,
             warehouseRowTotals,
             warehouseColumnTotals,
+            warehouseGrandTotals,
             timezone,
             formatTemporalsForSpreadsheet: true,
         });

@@ -508,6 +508,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     groupedSubtotals,
     warehouseRowTotals,
     warehouseColumnTotals,
+    warehouseGrandTotals,
     columnLimit,
     parameters,
 }: {
@@ -542,6 +543,12 @@ export const convertSqlPivotedRowsToPivotData = ({
      * query can't be totalled). Drives both layouts.
      */
     warehouseColumnTotals?: Record<string, number>;
+    /**
+     * Warehouse-computed grand totals from `calculate-total`
+     * (`kind: 'grandTotal'`), keyed by metric field id. These are only used
+     * when both total axes are enabled.
+     */
+    warehouseGrandTotals?: Record<string, number>;
     columnLimit?: number;
     parameters?: ParametersValuesMap;
 }): PivotData => {
@@ -970,6 +977,18 @@ export const convertSqlPivotedRowsToPivotData = ({
         warehouseColumnTotals,
     });
 
+    const grandTotals =
+        fullPivotConfig.rowTotals &&
+        fullPivotConfig.columnTotals &&
+        warehouseGrandTotals
+            ? baseMetricsArray.map((fieldId) => {
+                  const value =
+                      warehouseGrandTotals[`${fieldId}_any`] ??
+                      warehouseGrandTotals[fieldId];
+                  return typeof value === 'number' ? value : null;
+              })
+            : undefined;
+
     // Passthrough dims — hidden non-sort pivot dims whose raw values are
     // carried on each row so cross-field richText / image templates can
     // resolve `row.<table>.<field>.raw` even though the dim has no rendered
@@ -1178,6 +1197,7 @@ export const convertSqlPivotedRowsToPivotData = ({
         columnTotalFields,
         rowTotals,
         columnTotals,
+        ...(grandTotals ? { grandTotals } : {}),
         cellsCount: pivotConfig.metricsAsRows
             ? indexColumns.length +
               1 + // label column
@@ -1429,6 +1449,7 @@ type PivotResultsParams = {
     // pivot worker leaves total cells blank — there is no client-side fallback.
     warehouseRowTotals?: PivotRowTotalsByIndex;
     warehouseColumnTotals?: Record<string, number>;
+    warehouseGrandTotals?: Record<string, number>;
 };
 
 export const pivotResultsAsData = ({
@@ -1443,6 +1464,7 @@ export const pivotResultsAsData = ({
     formatTemporalsForSpreadsheet = false,
     warehouseRowTotals,
     warehouseColumnTotals,
+    warehouseGrandTotals,
 }: PivotResultsParams): PivotResultsData => {
     const getFieldLabel = (fieldId: string) => {
         const customLabel = customLabels?.[fieldId];
@@ -1459,6 +1481,7 @@ export const pivotResultsAsData = ({
         groupedSubtotals: undefined,
         warehouseRowTotals,
         warehouseColumnTotals,
+        warehouseGrandTotals,
     });
 
     const formatField = onlyRaw ? 'raw' : 'formatted';
@@ -1582,13 +1605,35 @@ export const pivotResultsAsData = ({
             },
         );
 
+        const totalFields = last(pivotedResults.rowTotalFields) ?? [];
         const rowTotalCells: PivotResultsDataCell[] =
             pivotConfig.rowTotals && pivotedResults.rowTotalFields?.[0]
-                ? pivotedResults.rowTotalFields[0].map(() => ({
-                      raw: '',
-                      formatted: '',
-                      fieldId: '',
-                  }))
+                ? pivotedResults.rowTotalFields[0].map((_, totalColIndex) => {
+                      const grandTotalIndex = pivotConfig.metricsAsRows
+                          ? totalRowIndex
+                          : totalColIndex;
+                      const grandTotal =
+                          pivotedResults.grandTotals?.[grandTotalIndex];
+                      const fieldId = pivotConfig.metricsAsRows
+                          ? lastTotalField?.fieldId
+                          : totalFields[totalColIndex]?.fieldId;
+                      if (
+                          grandTotal === null ||
+                          grandTotal === undefined ||
+                          !fieldId
+                      ) {
+                          return { raw: '', formatted: '', fieldId: '' };
+                      }
+                      const field = itemMap[fieldId];
+                      const formatted = onlyRaw
+                          ? String(grandTotal)
+                          : formatItemValue(field, grandTotal, false);
+                      return {
+                          raw: grandTotal,
+                          formatted,
+                          fieldId,
+                      };
+                  })
                 : [];
 
         return [...labelCells, ...dataCells, ...rowTotalCells];

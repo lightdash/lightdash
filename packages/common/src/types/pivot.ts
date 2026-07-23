@@ -117,6 +117,7 @@ export type PivotData = {
 
     rowTotals?: TotalValue[][];
     columnTotals?: TotalValue[][];
+    grandTotals?: TotalValue[];
     cellsCount: number;
     rowsCount: number;
     pivotConfig: PivotConfig;

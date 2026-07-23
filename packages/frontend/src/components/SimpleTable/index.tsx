@@ -233,6 +233,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         updateColumnProperty,
         isCalculatingColumnTotals,
         isCalculatingRowTotals,
+        isCalculatingGrandTotals,
         isCalculatingSubtotals,
     } = visualizationConfig.chartConfig;
 
@@ -331,6 +332,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                     isCalculatingColumnTotals
                                 }
                                 isRowTotalsLoading={isCalculatingRowTotals}
+                                isGrandTotalsLoading={isCalculatingGrandTotals}
                                 isSubtotalsLoading={isCalculatingSubtotals}
                                 {...rest}
                             />
@@ -358,6 +360,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                     isCalculatingColumnTotals
                                 }
                                 isRowTotalsLoading={isCalculatingRowTotals}
+                                isGrandTotalsLoading={isCalculatingGrandTotals}
                                 isSubtotalsLoading={isCalculatingSubtotals}
                                 {...rest}
                             />
