@@ -65,7 +65,7 @@ const SettingsScheduler: FC<SettingsSchedulerProps> = ({ projectUuid }) => {
             <LoadingOverlay visible={isLoadingProject} />
             <SettingsGridCard>
                 <Stack gap="xs">
-                    <Title order={4}>Settings</Title>
+                    <Title order={5}>Delivery defaults</Title>
                     <Text c="ldGray.6" fz="sm">
                         Default settings applied to all of this project's
                         scheduled deliveries. Owners can override these

@@ -43,7 +43,7 @@ const CompilationHistory: FC<CompilationHistoryProps> = ({ projectUuid }) => {
                 <Stack gap="md">
                     <Group justify="space-between">
                         <Stack gap={2}>
-                            <Title order={5}>Compilation History</Title>
+                            <Title order={5}>Compilation runs</Title>
                             <Text c="dimmed" size="xs">
                                 View the history of all dbt compilations for
                                 this project, including CLI deploys and UI

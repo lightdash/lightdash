@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
 import { Anchor, Stack, Text, Title } from '@mantine-8/core';
-import { useMemo, type FC } from 'react';
+import { useMemo, type FC, type PropsWithChildren } from 'react';
 import {
     matchPath,
     Navigate,
@@ -21,7 +21,10 @@ import { DocumentTitle } from '../common/DocumentTitle';
 import ErrorState from '../common/ErrorState';
 import PageBreadcrumbs from '../common/PageBreadcrumbs';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
-import { SettingsPageContainer } from '../common/Settings/SettingsPage';
+import {
+    SettingsPage,
+    SettingsPageContainer,
+} from '../common/Settings/SettingsPage';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import CompilationHistory from '../CompilationHistory';
 import { DataOps } from '../DataOps';
@@ -43,6 +46,21 @@ import CorsSettingsPanel from '../UserSettings/CorsSettingsPanel';
 import VerifiedContentPanel from '../VerifiedContent/VerifiedContentPanel';
 import DataAppConnectionsPanel from './DataAppConnectionsPanel';
 import SemanticLayerConnectionPanel from './SemanticLayerConnectionPanel';
+
+type ProjectSettingsPageProps = PropsWithChildren<{
+    title: string;
+    description: string;
+}>;
+
+const ProjectSettingsPage: FC<ProjectSettingsPageProps> = ({
+    title,
+    description,
+    children,
+}) => (
+    <SettingsPage title={title} description={description}>
+        {children}
+    </SettingsPage>
+);
 
 const ProjectSettings: FC = () => {
     const { projectUuid } = useParams<{
@@ -83,80 +101,188 @@ const ProjectSettings: FC = () => {
         return [
             {
                 path: `/settings`,
-                element: <UpdateProjectConnection projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Connection settings"
+                        description="Manage this project's warehouse and dbt connections."
+                    >
+                        <UpdateProjectConnection projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/tablesConfiguration`,
                 element: (
-                    <ProjectTablesConfiguration projectUuid={projectUuid} />
+                    <ProjectSettingsPage
+                        title="Tables configuration"
+                        description="Choose which dbt models are available in this project."
+                    >
+                        <ProjectTablesConfiguration projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
                 ),
             },
             {
                 path: `/projectAccess`,
-                element: <ProjectUserAccess projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Project access"
+                        description="Manage who can access this project and what they can do."
+                    >
+                        <ProjectUserAccess projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/appearance`,
-                element: <ProjectAppearance projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Appearance"
+                        description="Customize colors and chart styling for this project."
+                    >
+                        <ProjectAppearance projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/usageAnalytics`,
-                element: <SettingsUsageAnalytics projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Usage analytics"
+                        description="Review how people use this project's content."
+                    >
+                        <SettingsUsageAnalytics projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/scheduledDeliveries`,
-                element: <SettingsScheduler projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Syncs & scheduled deliveries"
+                        description="Configure delivery defaults and manage this project's schedules."
+                    >
+                        <SettingsScheduler projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/validator`,
-                element: <SettingsValidator projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Validator"
+                        description="Find content errors and issues across this project."
+                    >
+                        <SettingsValidator projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/verifiedContent`,
-                element: <VerifiedContentPanel projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Verified content"
+                        description="Review verified charts and dashboards in this project."
+                    >
+                        <VerifiedContentPanel projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/dataOps`,
-                element: <DataOps projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Data ops"
+                        description="Configure workflows for promoting content between projects."
+                    >
+                        <DataOps projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/defaultUserSpaces`,
-                element: <DefaultUserSpaces projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Default user spaces"
+                        description="Choose whether project members receive a personal space automatically."
+                    >
+                        <DefaultUserSpaces projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             ...(isSoftDeleteEnabled
                 ? [
                       {
                           path: `/recentlyDeleted`,
                           element: (
-                              <RecentlyDeletedPage projectUuid={projectUuid} />
+                              <ProjectSettingsPage
+                                  title="Recently deleted"
+                                  description="Review and restore recently deleted project content."
+                              >
+                                  <RecentlyDeletedPage
+                                      projectUuid={projectUuid}
+                                  />
+                              </ProjectSettingsPage>
                           ),
                       },
                   ]
                 : []),
             {
                 path: `/parameters`,
-                element: <ProjectParameters projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Parameters"
+                        description="Review reusable values defined for project queries and content."
+                    >
+                        <ProjectParameters projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/queryTimezone`,
-                element: <SettingsQueryTimezone projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Project time zone"
+                        description="Set the default time zone used by this project."
+                    >
+                        <SettingsQueryTimezone projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/previewsConfig`,
-                element: <ProjectPreviewExpiration projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Preview settings"
+                        description="Configure preview project expiration and cleanup."
+                    >
+                        <ProjectPreviewExpiration projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/compilationHistory`,
-                element: <CompilationHistory projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Compilation history"
+                        description="Review recent dbt compilation runs for this project."
+                    >
+                        <CompilationHistory projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             ...(isPgWireEnabled
                 ? [
                       {
                           path: `/semanticLayer`,
                           element: (
-                              <SemanticLayerConnectionPanel
-                                  projectUuid={projectUuid}
-                              />
+                              <ProjectSettingsPage
+                                  title="Semantic layer"
+                                  description="Configure this project's semantic layer connection."
+                              >
+                                  <SemanticLayerConnectionPanel
+                                      projectUuid={projectUuid}
+                                  />
+                              </ProjectSettingsPage>
                           ),
                       },
                   ]
@@ -166,7 +292,12 @@ const ProjectSettings: FC = () => {
                       {
                           path: `/pullRequests`,
                           element: (
-                              <PullRequestsPage projectUuid={projectUuid} />
+                              <ProjectSettingsPage
+                                  title="Pull requests"
+                                  description="Review pull requests opened for this project's code."
+                              >
+                                  <PullRequestsPage projectUuid={projectUuid} />
+                              </ProjectSettingsPage>
                           ),
                       },
                   ]
@@ -205,17 +336,29 @@ const ProjectSettings: FC = () => {
             },
             {
                 path: '/embed', // commercial route
-                element: <SettingsEmbed projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Embed configuration"
+                        description="Configure embedded access for this project."
+                    >
+                        <SettingsEmbed projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             ...(user.data?.ability.can('manage', 'Organization')
                 ? [
                       {
                           path: '/embed/cors',
                           element: (
-                              <Stack gap="xl">
+                              <ProjectSettingsPage
+                                  title="CORS"
+                                  description="Control which external browser origins can call the Lightdash API."
+                              >
                                   <SettingsGridCard>
                                       <Stack gap="xs">
-                                          <Title order={4}>CORS</Title>
+                                          <Title order={5}>
+                                              Allowed origins
+                                          </Title>
                                           <Text c="ldGray.6" fz="xs">
                                               CORS controls which external
                                               browser origins can call the
@@ -242,7 +385,7 @@ const ProjectSettings: FC = () => {
                                       </Stack>
                                       <CorsSettingsPanel />
                                   </SettingsGridCard>
-                              </Stack>
+                              </ProjectSettingsPage>
                           ),
                       },
                   ]
@@ -252,9 +395,14 @@ const ProjectSettings: FC = () => {
                       {
                           path: `/dataAppConnections`,
                           element: (
-                              <DataAppConnectionsPanel
-                                  projectUuid={projectUuid}
-                              />
+                              <ProjectSettingsPage
+                                  title="Data app connections"
+                                  description="Manage external connections used by this project's data apps."
+                              >
+                                  <DataAppConnectionsPanel
+                                      projectUuid={projectUuid}
+                                  />
+                              </ProjectSettingsPage>
                           ),
                       },
                   ]

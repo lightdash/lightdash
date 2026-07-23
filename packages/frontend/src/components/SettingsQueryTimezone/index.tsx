@@ -145,7 +145,7 @@ const SettingsQueryTimezone: FC<SettingsQueryTimezoneProps> = ({
             <LoadingOverlay visible={isLoadingProject} />
             <SettingsGridCard>
                 <Stack gap="xs">
-                    <Title order={4}>Project time zone</Title>
+                    <Title order={5}>Time zone behavior</Title>
                     <Text c="ldGray.6" fz="sm">
                         {timezoneSupportEnabled ? (
                             <>

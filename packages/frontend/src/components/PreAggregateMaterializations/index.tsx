@@ -10,7 +10,6 @@ import {
     Button,
     Group,
     LoadingOverlay,
-    Paper,
     Popover,
     Radio,
     ScrollArea,
@@ -60,8 +59,8 @@ import {
 } from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
+import { SettingsEmptyState } from '../common/Settings/SettingsEmptyState';
 import { SettingsPage } from '../common/Settings/SettingsPage';
-import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import MaterializationDetailDrawer from './MaterializationDetailDrawer';
 import classes from './PreAggregateMaterializations.module.css';
 import { StatusBadge } from './StatusBadge';
@@ -756,13 +755,11 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 )}
 
                 {!isLoading && materializations.length === 0 ? (
-                    <Paper withBorder radius="md" p="xxl">
-                        <SuboptimalState
-                            icon={IconBolt}
-                            title="No pre-aggregates defined yet"
-                            description="Define pre-aggregates in your dbt YAML to serve queries from materialized results instead of hitting your warehouse."
-                        />
-                    </Paper>
+                    <SettingsEmptyState
+                        icon={IconBolt}
+                        title="No pre-aggregates defined yet"
+                        description="Define pre-aggregates in your dbt YAML to serve queries from materialized results instead of hitting your warehouse."
+                    />
                 ) : (
                     <ContentTable table={table} />
                 )}

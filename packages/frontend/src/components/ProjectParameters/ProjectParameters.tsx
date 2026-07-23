@@ -191,7 +191,7 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
             <SettingsCard shadow="none" p={0}>
                 <Paper p="sm" bd={0}>
                     <Group gap="md" align="center">
-                        <Title order={5}>Parameters</Title>
+                        <Title order={5}>Defined parameters</Title>
                     </Group>
 
                     <Box mt="sm">
