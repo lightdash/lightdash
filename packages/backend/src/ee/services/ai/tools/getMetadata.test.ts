@@ -137,6 +137,38 @@ describe('getMetadata group AI hints', () => {
             'hint: Use for zephyr settlement questions.',
         );
     });
+
+    it('ignores malformed explore, field, and group hints', async () => {
+        const explore = makeExplore({});
+        explore.aiHint = { invalid: true } as unknown as string[];
+        explore.tables.orders.dimensions.status.aiHint = [
+            'Valid field hint.',
+            { Formula: 'clicks + keys' },
+        ] as unknown as string[];
+        explore.tables.orders.dimensions.status.groups = ['settlements'];
+        explore.tables.orders.groupDetails = {
+            settlements: {
+                label: 'Settlements',
+                aiHint: { invalid: true } as unknown as string[],
+            },
+        };
+
+        const exploreResult = await execute(explore, [
+            { type: 'explore', exploreIds: ['sales'] },
+        ]);
+        const fieldResult = await execute(explore, [
+            {
+                type: 'field',
+                fields: [{ exploreId: 'sales', fieldId: 'orders_status' }],
+            },
+        ]);
+
+        expect(exploreResult.metadata).toEqual({ status: 'success' });
+        expect(exploreResult.result).not.toContain('[object Object]');
+        expect(fieldResult.metadata).toEqual({ status: 'success' });
+        expect(fieldResult.result).toContain('hint: Valid field hint.');
+        expect(fieldResult.result).not.toContain('[object Object]');
+    });
 });
 
 describe('getMetadata explore field listing', () => {

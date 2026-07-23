@@ -88,6 +88,77 @@ models:
     });
 });
 
+describe('AI hint schema validation', () => {
+    it.each([
+        {
+            name: 'model',
+            metadata: `    ai_hint:
+      - Formula: clicks + keys`,
+        },
+        {
+            name: 'field group',
+            metadata: `    group_details:
+      finance:
+        label: Finance
+        ai_hint:
+          - Formula: clicks + keys`,
+        },
+        {
+            name: 'model metric',
+            metadata: `    metrics:
+      revenue:
+        type: sum
+        sql: '\${TABLE}.revenue'
+        ai_hint:
+          - Formula: clicks + keys`,
+        },
+    ])('rejects malformed $name hints', ({ metadata }) => {
+        const schema = `version: 2
+models:
+  - name: orders
+    meta:
+${metadata}`;
+
+        expect(() => new DbtSchemaEditor(schema)).toThrowError(ParseError);
+    });
+
+    it.each([
+        {
+            name: 'column metric',
+            metadata: `        metrics:
+          revenue:
+            type: sum
+            ai_hint:
+              - Formula: clicks + keys`,
+        },
+        {
+            name: 'dimension',
+            metadata: `        dimension:
+          ai_hint:
+            - Formula: clicks + keys`,
+        },
+        {
+            name: 'additional dimension',
+            metadata: `        additional_dimensions:
+          normalized_name:
+            type: string
+            sql: '\${TABLE}.name'
+            ai_hint:
+              - Formula: clicks + keys`,
+        },
+    ])('rejects malformed $name hints', ({ metadata }) => {
+        const schema = `version: 2
+models:
+  - name: orders
+    columns:
+      - name: status
+        meta:
+${metadata}`;
+
+        expect(() => new DbtSchemaEditor(schema)).toThrowError(ParseError);
+    });
+});
+
 describe('case-insensitive column matching', () => {
     const MIXED_CASE_SCHEMA = `version: 2
 models:

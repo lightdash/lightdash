@@ -431,6 +431,19 @@
                 "apostrophePeriod"
             ]
         },
+        "aiHint": {
+            "oneOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            ]
+        },
         "filterItem": {
             "type": "object",
             "additionalProperties": {
@@ -528,23 +541,17 @@
                                     "type": "string"
                                 },
                                 "ai_hint": {
-                                    "oneOf": [
-                                        {
-                                            "type": "string"
-                                        },
-                                        {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "string"
-                                            }
-                                        }
-                                    ],
+                                    "$ref": "#/$defs/aiHint",
                                     "description": "Hints inherited by fields in this group for AI-powered query generation"
                                 }
                             },
                             "required": ["label"]
                         }
                     }
+                },
+                "ai_hint": {
+                    "$ref": "#/$defs/aiHint",
+                    "description": "Hints for AI-powered query generation"
                 },
                 "metrics": {
                     "type": "object",
@@ -581,6 +588,10 @@
                                 "description": {
                                     "type": "string",
                                     "minLength": 1
+                                },
+                                "ai_hint": {
+                                    "$ref": "#/$defs/aiHint",
+                                    "description": "Hints for AI-powered query generation"
                                 },
                                 "sql": {
                                     "type": "string",
@@ -1195,6 +1206,10 @@
                                     "type": "string",
                                     "minLength": 1
                                 },
+                                "ai_hint": {
+                                    "$ref": "#/$defs/aiHint",
+                                    "description": "Hints for AI-powered query generation"
+                                },
                                 "sql": {
                                     "type": "string",
                                     "minLength": 1
@@ -1445,6 +1460,10 @@
                         "description": {
                             "type": "string",
                             "minLength": 1
+                        },
+                        "ai_hint": {
+                            "$ref": "#/$defs/aiHint",
+                            "description": "Hints for AI-powered query generation"
                         },
                         "sql": {
                             "type": "string",
@@ -1715,6 +1734,10 @@
                                 "description": {
                                     "type": "string",
                                     "minLength": 1
+                                },
+                                "ai_hint": {
+                                    "$ref": "#/$defs/aiHint",
+                                    "description": "Hints for AI-powered query generation"
                                 },
                                 "sql": {
                                     "type": "string",
