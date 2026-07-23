@@ -18,6 +18,7 @@ import {
 import KnexPaginate from '../database/pagination';
 import {
     AiThreadTableName,
+    AiWritebackRunTableName,
     AiWritebackThreadTableName,
 } from '../ee/database/entities/ai';
 import {
@@ -53,6 +54,8 @@ export type AiWritebackMergedAnalyticsContext = {
     repo: string;
     prNumber: number;
     prUrl: string;
+    threadId: string;
+    promptId: string | null;
     workstream: AiWritebackWorkstream;
 };
 type ReviewSourceInfo = {
@@ -688,11 +691,13 @@ export class PullRequestsModel {
             .select<
                 Array<
                     DbPullRequest & {
+                        ai_thread_uuid: string;
                         workstream: AiWritebackWorkstream;
                     }
                 >
             >(
                 `${PullRequestsTableName}.*`,
+                `${AiWritebackThreadTableName}.ai_thread_uuid`,
                 `${AiWritebackThreadTableName}.workstream`,
             )
             .first();
@@ -714,6 +719,12 @@ export class PullRequestsModel {
             return null;
         }
 
+        const latestRun = await this.database(AiWritebackRunTableName)
+            .where('project_uuid', candidate.project_uuid)
+            .where('pr_url', candidate.pr_url)
+            .orderBy('created_at', 'desc')
+            .first('prompt_uuid');
+
         return {
             organizationUuid: candidate.organization_uuid,
             projectUuid: candidate.project_uuid,
@@ -723,6 +734,8 @@ export class PullRequestsModel {
             repo: candidate.repo,
             prNumber: candidate.pr_number,
             prUrl: candidate.pr_url,
+            threadId: candidate.ai_thread_uuid,
+            promptId: latestRun?.prompt_uuid ?? null,
             workstream: candidate.workstream,
         };
     }

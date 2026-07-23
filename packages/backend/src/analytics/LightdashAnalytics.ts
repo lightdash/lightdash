@@ -1831,6 +1831,8 @@ export const buildAiWritebackMergedEvent = ({
     properties: {
         organizationId: context.organizationUuid,
         projectId: context.projectUuid,
+        threadId: context.threadId,
+        promptId: context.promptId,
         prUrl: context.prUrl,
         owner:
             context.provider === PullRequestProvider.GITHUB
