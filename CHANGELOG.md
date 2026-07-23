@@ -1,3 +1,10 @@
+# [0.3461.0](https://github.com/lightdash/lightdash/compare/0.3460.0...0.3461.0) (2026-07-23)
+
+
+### Features
+
+* enforce project-scoped space slugs ([#25932](https://github.com/lightdash/lightdash/issues/25932)) ([843bbf7](https://github.com/lightdash/lightdash/commit/843bbf7fbe21f21ca7a4a1f285b02a8f20d4b4e3))
+
 # [0.3460.0](https://github.com/lightdash/lightdash/compare/0.3459.0...0.3460.0) (2026-07-22)
 
 
