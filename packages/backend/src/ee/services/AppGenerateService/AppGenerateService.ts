@@ -51,10 +51,12 @@ import {
     type AppVersionDependencyEntry,
     type AppVersionExternalConnectionResource,
     type AppVersionResources,
+    type ChartConfig,
     type ChartReference,
     type ChartSampleData,
     type CompiledExploreJoin,
     type CompiledTable,
+    type DashboardBlueprint,
     type DataAppClaudeModel,
     type DataAppCode,
     type DataAppCodeDownload,
@@ -179,6 +181,12 @@ import {
     type ClaudeGenerationUsage,
 } from './ClaudeStreamProcessor';
 import {
+    buildDashboardBlueprint,
+    DASHBOARD_BLUEPRINT_PATH,
+    dashboardBlueprintPromptBlock,
+    describeDashboardBlueprint,
+} from './dashboardBlueprint';
+import {
     assertDependenciesHaveNoKnownMalware,
     assertDependenciesMeetMinReleaseAge,
 } from './dependencyGuards';
@@ -206,6 +214,8 @@ export const buildChartReference = (
         description?: string;
         tableName: string;
         metricQuery: MetricQuery;
+        chartConfig: ChartConfig;
+        pivotConfig?: { columns: string[] };
     },
     chartUuid: string,
     linked: boolean,
@@ -215,6 +225,8 @@ export const buildChartReference = (
     chartDescription: chart.description ?? '',
     exploreName: chart.tableName,
     metricQuery: chart.metricQuery,
+    chartConfig: chart.chartConfig,
+    pivotConfig: chart.pivotConfig ?? null,
     sampleData,
     chartUuid,
     linked,
@@ -1898,6 +1910,30 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * Write the attached dashboard's structural blueprint (tabs, tile layout,
+     * filters) into the sandbox and return a prompt block framing it as the
+     * layout spec. The blueprint complements the flattened chart references:
+     * they carry the queries, this carries the design.
+     */
+    private async writeDashboardBlueprint(
+        sandbox: SandboxHandle,
+        appUuid: string,
+        blueprint: DashboardBlueprint,
+    ): Promise<string> {
+        await sandbox.commands.run('mkdir -p /tmp/dashboard', {
+            timeoutMs: 10_000,
+        });
+        await sandbox.files.write(
+            DASHBOARD_BLUEPRINT_PATH,
+            JSON.stringify(blueprint, null, 2),
+        );
+        this.logger.info(
+            `App ${appUuid}: wrote dashboard blueprint for "${blueprint.name}" (${describeDashboardBlueprint(blueprint)}) to ${DASHBOARD_BLUEPRINT_PATH}`,
+        );
+        return dashboardBlueprintPromptBlock(blueprint);
+    }
+
+    /**
      * For each linked external connection, write a self-contained API-doc JSON
      * to /tmp/external-data/{alias}.json in the sandbox and return a prompt
      * block listing each file. Writes a file for every connection — the
@@ -2014,6 +2050,7 @@ export class AppGenerateService extends BaseService {
         s3Client: S3Client,
         bucket: string,
         chartReferences: ChartReference[] | undefined,
+        dashboardBlueprint: DashboardBlueprint | undefined,
         template: DataAppTemplate | undefined,
         isDataAppViz: boolean,
     ): Promise<{
@@ -2052,7 +2089,7 @@ export class AppGenerateService extends BaseService {
         // different ownership (e.g. root-owned after Claude CLI execution),
         // which would cause a permission error on write.
         await sandbox.commands.run(
-            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/dbt-repo/lightdash.config.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/metric-queries /tmp/external-data 2>/dev/null; true',
+            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/dbt-repo/lightdash.config.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/metric-queries /tmp/dashboard /tmp/external-data 2>/dev/null; true',
             { timeoutMs: 10_000 },
         );
 
@@ -2073,6 +2110,18 @@ export class AppGenerateService extends BaseService {
                 chartReferences,
             );
             finalPrompt = referenceBlock + finalPrompt;
+        }
+
+        // Attached dashboard: write its structural blueprint and prepend the
+        // layout-spec block. Prepended after the chart block so it lands above
+        // it in the final prompt — structure first, then the queries.
+        if (dashboardBlueprint) {
+            const blueprintBlock = await this.writeDashboardBlueprint(
+                sandbox,
+                appUuid,
+                dashboardBlueprint,
+            );
+            finalPrompt = blueprintBlock + finalPrompt;
         }
 
         // Linked external connections: write an API-doc file per connection into
@@ -2464,7 +2513,7 @@ export class AppGenerateService extends BaseService {
                     `cat /tmp/prompt.txt | claude ${sessionFlags} ` +
                         `--model ${claudeModel} ${effortFlag}` +
                         `--verbose --output-format stream-json --include-partial-messages ` +
-                        `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Read(//tmp/external-data/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Glob(//tmp/external-data/**),Grep(//app/**),Grep(//tmp/dbt-repo/**),Grep(//tmp/external-data/**)" ` +
+                        `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Read(//tmp/dashboard/**),Read(//tmp/external-data/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Glob(//tmp/dashboard/**),Glob(//tmp/external-data/**),Grep(//app/**),Grep(//tmp/dbt-repo/**),Grep(//tmp/external-data/**)" ` +
                         `${jsonSchemaFlag}--append-system-prompt-file ${AppGenerateService.EFFECTIVE_SKILL_PATH}`,
                     {
                         cwd: '/app',
@@ -3639,6 +3688,7 @@ export class AppGenerateService extends BaseService {
                     s3Client,
                     bucket,
                     chartReferences,
+                    payload.dashboardBlueprint,
                     template,
                     isDataAppViz,
                 );
@@ -4070,14 +4120,18 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * Extract UUID v4 patterns from the prompt, attempt to resolve each as a
-     * saved chart (permission-checked), and return structured references for
-     * any that resolve.
+     * Resolve an attached dashboard (permission-checked) into the chart uuids
+     * of its saved-chart tiles plus a structural blueprint of the dashboard
+     * itself — tabs, tile layout, filters.
      */
-    private async resolveDashboardToChartUuids(
+    private async resolveDashboardReference(
         dashboardUuid: string,
         user: SessionUser,
-    ): Promise<{ chartUuids: string[]; dashboardName: string }> {
+    ): Promise<{
+        chartUuids: string[];
+        dashboardName: string;
+        blueprint: DashboardBlueprint;
+    }> {
         const dashboard = await this.dashboardService.getByIdOrSlug(
             user,
             dashboardUuid,
@@ -4089,6 +4143,7 @@ export class AppGenerateService extends BaseService {
         return {
             chartUuids: [...new Set(chartUuids)],
             dashboardName: dashboard.name,
+            blueprint: buildDashboardBlueprint(dashboard),
         };
     }
 
@@ -4106,6 +4161,7 @@ export class AppGenerateService extends BaseService {
     ): Promise<{
         refs: AppChartReference[];
         dashboardName: string | null;
+        dashboardBlueprint: DashboardBlueprint | null;
     }> {
         const flagByUuid = new Map<
             string,
@@ -4122,12 +4178,14 @@ export class AppGenerateService extends BaseService {
             });
         }
         let dashboardName: string | null = null;
+        let dashboardBlueprint: DashboardBlueprint | null = null;
         if (dashboard) {
-            const result = await this.resolveDashboardToChartUuids(
+            const result = await this.resolveDashboardReference(
                 dashboard.uuid,
                 user,
             );
             dashboardName = result.dashboardName;
+            dashboardBlueprint = result.blueprint;
             for (const uuid of result.chartUuids) {
                 const prev = flagByUuid.get(uuid) ?? {
                     sample: false,
@@ -4146,7 +4204,7 @@ export class AppGenerateService extends BaseService {
                 linkLive: link,
             }),
         );
-        return { refs, dashboardName };
+        return { refs, dashboardName, dashboardBlueprint };
     }
 
     /**
@@ -4492,18 +4550,26 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         user: SessionUser,
     ): Promise<{
         charts: { name: string; exploreName: string }[];
-        dashboardName: string | null;
+        dashboard: { name: string; structureSummary: string } | null;
     }> {
         const uuids = new Set<string>();
         for (const c of charts ?? []) uuids.add(c.uuid);
-        let dashboardName: string | null = null;
+        let resolvedDashboard: {
+            name: string;
+            structureSummary: string;
+        } | null = null;
         if (dashboard) {
             try {
-                const result = await this.resolveDashboardToChartUuids(
+                const result = await this.resolveDashboardReference(
                     dashboard.uuid,
                     user,
                 );
-                dashboardName = result.dashboardName;
+                resolvedDashboard = {
+                    name: result.dashboardName,
+                    structureSummary: describeDashboardBlueprint(
+                        result.blueprint,
+                    ),
+                };
                 for (const uuid of result.chartUuids) uuids.add(uuid);
             } catch (error) {
                 this.logger.warn(
@@ -4512,7 +4578,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             }
         }
         if (uuids.size === 0) {
-            return { charts: [], dashboardName };
+            return { charts: [], dashboard: resolvedDashboard };
         }
         const account = fromSession(user);
         const chartResults = await Promise.allSettled(
@@ -4527,7 +4593,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 });
             }
         }
-        return { charts: resolvedCharts, dashboardName };
+        return { charts: resolvedCharts, dashboard: resolvedDashboard };
     }
 
     /**
@@ -4538,13 +4604,17 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     private static formatAttachedResourcesForClarifier(
         attached: {
             charts: { name: string; exploreName: string }[];
-            dashboardName: string | null;
+            dashboard: { name: string; structureSummary: string } | null;
         },
         imageCount: number,
     ): string {
         const lines: string[] = [];
-        if (attached.dashboardName) {
-            lines.push(`- Dashboard: "${attached.dashboardName}"`);
+        if (attached.dashboard) {
+            // Surface that the layout is already known so the clarifier does
+            // not ask structural questions the blueprint answers.
+            lines.push(
+                `- Dashboard: "${attached.dashboard.name}" (structure attached: ${attached.dashboard.structureSummary})`,
+            );
         }
         for (const chart of attached.charts) {
             lines.push(
@@ -4685,11 +4755,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             })`,
         );
 
-        const { refs, dashboardName } = await this.collectChartReferences(
-            charts,
-            dashboard,
-            user,
-        );
+        const { refs, dashboardName, dashboardBlueprint } =
+            await this.collectChartReferences(charts, dashboard, user);
         const {
             references: chartReferences,
             chartResources,
@@ -4747,6 +4814,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             charts: chartResources,
             externalConnections: externalConnectionResources,
             dashboardName,
+            dashboardUuid: dashboardBlueprint?.dashboardUuid ?? null,
             clarifications: clarifications ?? [],
             claudeModel,
             design: designSnapshot,
@@ -4813,6 +4881,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             isIteration: false,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
+            dashboardBlueprint: dashboardBlueprint ?? undefined,
             claudeModel,
             designUuid: resolvedDesignUuid,
         });
@@ -4872,11 +4941,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             })`,
         );
 
-        const { refs, dashboardName } = await this.collectChartReferences(
-            charts,
-            dashboard,
-            user,
-        );
+        const { refs, dashboardName, dashboardBlueprint } =
+            await this.collectChartReferences(charts, dashboard, user);
         const {
             references: chartReferences,
             chartResources,
@@ -4930,6 +4996,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             charts: chartResources,
             externalConnections: externalConnectionResources,
             dashboardName,
+            dashboardUuid: dashboardBlueprint?.dashboardUuid ?? null,
             clarifications: [],
             claudeModel,
             design: designSnapshot,
@@ -5039,6 +5106,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             isIteration: true,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
+            dashboardBlueprint: dashboardBlueprint ?? undefined,
             claudeModel,
             designUuid: effectiveDesignUuid,
         });
@@ -5445,6 +5513,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             charts: sourceResources?.charts ?? [],
             externalConnections: sourceResources?.externalConnections ?? [],
             dashboardName: sourceResources?.dashboardName ?? null,
+            dashboardUuid: sourceResources?.dashboardUuid ?? null,
             clarifications: [],
             ...(sourceResources?.claudeModel
                 ? { claudeModel: sourceResources.claudeModel }

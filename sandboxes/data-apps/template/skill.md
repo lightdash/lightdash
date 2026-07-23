@@ -148,6 +148,10 @@ These metrics are **not additive over time**. A balance on Monday plus the balan
 
 If the prompt lists referenced charts (files under `/tmp/metric-queries/*.json`), read `/app/references/chart-references.md` before writing any query code — it defines the JSON shape, linked-vs-copied chart semantics (`savedChart`), and the field-id mapping rules.
 
+## Attached dashboard blueprint
+
+If the prompt announces an attached dashboard (blueprint at `/tmp/dashboard/blueprint.json`), read `/app/references/dashboard-blueprint.md` before designing any layout — the blueprint defines the dashboard's tabs, tile grid, and filters, and it is the layout spec to recreate unless the user asks for a different design.
+
 ## Linked external connections
 
 If the prompt lists external connections (files under `/tmp/external-data/`), read `/app/references/external-apis.md` before calling any external API — it documents each connection file and the `externalFetch` rules.
