@@ -1,3 +1,12 @@
+## [0.3470.1](https://github.com/lightdash/lightdash/compare/0.3470.0...0.3470.1) (2026-07-23)
+
+
+### Bug Fixes
+
+* index AI prompts by thread creation time ([#26093](https://github.com/lightdash/lightdash/issues/26093)) ([c364b38](https://github.com/lightdash/lightdash/commit/c364b38c08e16c989706b13e19f5b3bd47488583))
+* track AI thread prompt activity ([#26085](https://github.com/lightdash/lightdash/issues/26085)) ([06aa9db](https://github.com/lightdash/lightdash/commit/06aa9db8716f73f096fcaa2b6df3d0687cf6a4d0))
+* use row-level semantics for table calculation sorts in pivot queries ([#26087](https://github.com/lightdash/lightdash/issues/26087)) ([776ec18](https://github.com/lightdash/lightdash/commit/776ec18cc9178b528c4739ff12c9c59db4218f7f))
+
 # [0.3470.0](https://github.com/lightdash/lightdash/compare/0.3469.0...0.3470.0) (2026-07-23)
 
 
