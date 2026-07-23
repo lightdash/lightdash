@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     DbtProjectType,
     DbtVersionOptionLatest,
+    DefaultSupportedDbtVersion,
     defineUserAbility,
     DimensionType,
     DuckdbConnectionType,
@@ -19,6 +20,7 @@ import {
     RedshiftAuthenticationType,
     RequestMethod,
     SessionUser,
+    SnowflakeAuthenticationType,
     SupportedDbtAdapter,
     WarehouseTypes,
     type ChartSummary,
@@ -26,6 +28,7 @@ import {
     type Explore,
     type PossibleAbilities,
     type RegisteredAccount,
+    type UpdateProject,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
@@ -3100,6 +3103,71 @@ describe('ProjectService', () => {
                     credentials,
                 }),
             ).rejects.toThrowError(ForbiddenError);
+        });
+    });
+
+    describe('validateConfigSecrets', () => {
+        const projectWithSnowflakeAuth = (
+            authenticationType: SnowflakeAuthenticationType,
+            requireUserCredentials?: boolean,
+        ): UpdateProject => ({
+            name: 'test-project',
+            dbtConnection: { type: DbtProjectType.NONE },
+            dbtVersion: DefaultSupportedDbtVersion,
+            warehouseConnection: {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'test-account',
+                user: 'test-user',
+                database: 'test-db',
+                warehouse: 'test-warehouse',
+                schema: 'test-schema',
+                authenticationType,
+                requireUserCredentials,
+            },
+        });
+
+        it('rejects Snowflake OAuth authorization code authentication', () => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithSnowflakeAuth(
+                        SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
+                    ),
+                ),
+            ).toThrowError(ParameterError);
+        });
+
+        it('rejects Snowflake external browser authentication without user credentials', () => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithSnowflakeAuth(
+                        SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+                    ),
+                ),
+            ).toThrowError(ParameterError);
+        });
+
+        it('allows Snowflake external browser authentication when user credentials are required', () => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithSnowflakeAuth(
+                        SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+                        true,
+                    ),
+                ),
+            ).not.toThrowError();
+        });
+
+        it.each([
+            SnowflakeAuthenticationType.PASSWORD,
+            SnowflakeAuthenticationType.PRIVATE_KEY,
+            SnowflakeAuthenticationType.SSO,
+            SnowflakeAuthenticationType.NONE,
+        ])('allows Snowflake %s authentication', (authenticationType) => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithSnowflakeAuth(authenticationType),
+                ),
+            ).not.toThrowError();
         });
     });
 });
