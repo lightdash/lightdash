@@ -205,6 +205,9 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                             {projectUuid && agentUuid && (
                                                 <AssistantBubble
                                                     message={message}
+                                                    isLastMessage={
+                                                        i === xs.length - 1
+                                                    }
                                                     debug={debug}
                                                     projectUuid={projectUuid}
                                                     agentUuid={agentUuid}
