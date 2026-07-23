@@ -2,6 +2,7 @@
 
 # version control
 .git
+.local/
 .worktrees/
 
 # dependencies

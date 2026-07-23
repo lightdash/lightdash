@@ -97,6 +97,25 @@ rows into `PivotData`: each `status` value becomes a column header, each
 | **2026-01-01** |           100 |          40 |
 | **2026-01-02** |            80 |          60 |
 
+## Cohort-retention demo
+
+The full Jaffle Shop demo includes `subscription_cohort_retention`, a
+deterministic 12-month grid derived from the subscription seed. Use it to build
+a pivot-table retention heatmap that also exercises metrics on the row axis:
+
+1. Add **Cohort started at Month** and **Months since start** as dimensions.
+2. Add **Cohort size** and **Retention rate** as metrics.
+3. Move **Months since start** to Columns and sort it ascending so month zero is
+   the first rendered pivot group.
+4. Move **Cohort size** into Rows beside **Cohort started at Month**.
+5. Apply a color-scale conditional formatting rule to **Retention rate**.
+6. To test table calculations on Rows, add **Month-zero retention** with SQL
+   `${subscription_cohort_retention.retention_rate}` and drag it into Rows. It
+   should show the exact value from the first rendered month group.
+
+The result keeps the initial cohort size visible once per cohort while the
+retention-rate cells form the 0–11 month heatmap.
+
 ## Mini-glossary
 
 Cross-cutting terms only — fuller definitions live in the linked package docs.
@@ -116,6 +135,11 @@ Cross-cutting terms only — fuller definitions live in the linked package docs.
   still reference them.
 - **`metricsAsRows`** — layout flag; when true, metrics fan out down the rows
   instead of across the columns (affects the column-count math).
+- **`pivotConfig.rows` / `rowFieldIds`** — persisted and runtime names for the
+  ordered fields rendered once on the row axis. Metrics and table calculations
+  remain value columns in the warehouse pivot, then the shared reshape step
+  takes their exact value from the first rendered pivot group and removes their
+  repeated pivot columns.
 - **anchor (column / row)** — the reference column/row used when sorting a pivot by
   a metric value; see `QueryBuilder/CLAUDE.md`.
 - **`PivotData` / `pivotColumnInfo`** — the matrix structure (`headerValues`,
