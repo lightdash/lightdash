@@ -260,6 +260,7 @@ export const MetricExploreFilter: FC<Props> = ({
                         data-no-values={!showValuesSection ? 'true' : 'false'}
                         classNames={{
                             root: filterStyles.filterRoot,
+                            wrapper: filterStyles.filterWrapper,
                             input: filterStyles.filterInput,
                             option: filterStyles.baseItem,
                             dropdown: filterStyles.filterDropdown,
@@ -283,6 +284,7 @@ export const MetricExploreFilter: FC<Props> = ({
                             radius="md"
                             classNames={{
                                 root: filterStyles.operatorRoot,
+                                wrapper: filterStyles.operatorWrapper,
                                 input: filterStyles.operatorInput,
                                 option: filterStyles.baseItem,
                                 dropdown: filterStyles.operatorDropdown,

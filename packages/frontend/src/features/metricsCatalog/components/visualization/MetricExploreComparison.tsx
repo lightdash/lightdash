@@ -231,6 +231,8 @@ export const MetricExploreComparison: FC<Props> = ({
                                                     ) : undefined
                                                 }
                                                 classNames={{
+                                                    wrapper:
+                                                        selectStyles.wrapper,
                                                     input: selectStyles.input,
                                                     option: selectStyles.option,
                                                     section:

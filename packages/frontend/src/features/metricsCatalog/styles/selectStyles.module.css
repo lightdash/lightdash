@@ -1,3 +1,7 @@
+.wrapper {
+    --input-padding: var(--mantine-spacing-sm);
+}
+
 .input {
     font-weight: 500;
     font-size: 14px;
@@ -5,7 +9,7 @@
     border-color: var(--mantine-color-ldGray-2);
     border-radius: var(--mantine-radius-md);
     box-shadow: var(--mantine-shadow-subtle);
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    padding-block: var(--mantine-spacing-xs);
     color: var(--mantine-color-ldDark-7);
 
     &:hover {

@@ -63,6 +63,7 @@ export const TimeDimensionIntervalPicker: FC<Props> = ({
                 />
             }
             classNames={{
+                wrapper: selectStyles.wrapper,
                 input: selectStyles.input,
                 option: selectStyles.option,
                 section: selectStyles.rightSection,

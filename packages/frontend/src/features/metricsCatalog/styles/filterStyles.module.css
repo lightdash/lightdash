@@ -39,9 +39,13 @@
     flex-grow: 1;
 }
 
+.filterWrapper {
+    --input-padding: var(--mantine-spacing-sm);
+}
+
 .filterInput {
     composes: baseInput;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    padding-block: var(--mantine-spacing-xs);
     border-radius: var(--mantine-radius-md);
     min-width: 200px;
     text-overflow: ellipsis;
@@ -78,6 +82,10 @@
     }
 }
 
+.operatorWrapper {
+    --input-padding: 8px;
+}
+
 .operatorInput {
     composes: baseInput;
     border-radius: var(--mantine-radius-md);
@@ -87,7 +95,7 @@
     margin-left: -1px;
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
-    padding: var(--mantine-spacing-xs) 8px;
+    padding-block: var(--mantine-spacing-xs);
 
     /* When filter accepts values, remove bottom-right radius (connects to autocomplete below) */
     &[data-no-values='false'] {
