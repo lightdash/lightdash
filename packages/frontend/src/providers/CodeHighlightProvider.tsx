@@ -12,6 +12,7 @@ import sql from 'highlight.js/lib/languages/sql';
 import typescript from 'highlight.js/lib/languages/typescript';
 import yaml from 'highlight.js/lib/languages/yaml';
 import { type FC, type PropsWithChildren } from 'react';
+import '../styles/hljs-theme.css';
 
 hljs.registerLanguage('bash', bash);
 hljs.registerLanguage('go', go);
