@@ -148,7 +148,7 @@ const baseOptions = (projectDir: string): CompileHandlerOptions => ({
 });
 
 const SKIP_WARNING =
-    'Skipping warehouse column validation because --skip-warehouse-catalog was supplied';
+    'Skipping warehouse column validation because the warehouse catalog is skipped';
 
 const YML_SKIP_WARNING =
     'Skipping warehouse column validation because it is not supported for Lightdash YAML projects';
