@@ -1,3 +1,15 @@
+# [0.3463.0](https://github.com/lightdash/lightdash/compare/0.3462.0...0.3463.0) (2026-07-23)
+
+
+### Bug Fixes
+
+* derive homepage data app links from appUuid ([#26018](https://github.com/lightdash/lightdash/issues/26018)) ([d2ba797](https://github.com/lightdash/lightdash/commit/d2ba797e129114fd1d8c3861c00999e24c640f53))
+
+
+### Features
+
+* support subtotals with metrics as rows ([#25940](https://github.com/lightdash/lightdash/issues/25940)) ([f3e1274](https://github.com/lightdash/lightdash/commit/f3e1274ad76f384b429604818ced3d59fa4de5ee))
+
 # [0.3462.0](https://github.com/lightdash/lightdash/compare/0.3461.0...0.3462.0) (2026-07-23)
 
 
