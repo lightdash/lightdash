@@ -12,7 +12,7 @@ import {
     type ComboboxProps,
     type PillsInputProps,
 } from '@mantine-8/core';
-import { useDisclosure, useHover } from '@mantine/hooks';
+import { useDisclosure, useHover } from '@mantine-8/hooks';
 import {
     IconAlertCircle,
     IconListDetails,

@@ -23,7 +23,7 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import {
     IconArrowLeft,
     IconCamera,

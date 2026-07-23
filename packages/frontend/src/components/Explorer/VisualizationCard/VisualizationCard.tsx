@@ -13,8 +13,8 @@ import {
     type FieldId,
 } from '@lightdash/common';
 import { Button } from '@mantine-8/core';
+import { useElementSize } from '@mantine-8/hooks';
 import { useMantineColorScheme } from '@mantine/core';
-import { useElementSize } from '@mantine/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,

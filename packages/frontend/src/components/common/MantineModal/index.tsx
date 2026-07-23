@@ -14,7 +14,7 @@ import {
     type ModalHeaderProps,
     type ModalRootProps,
 } from '@mantine-8/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure } from '@mantine-8/hooks';
 import { IconTrash, type Icon as IconType } from '@tabler/icons-react';
 import React, { useCallback, useEffect } from 'react';
 import MantineIcon from '../MantineIcon';

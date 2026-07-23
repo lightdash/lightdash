@@ -6,7 +6,7 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine-8/core';
-import { useDebouncedState } from '@mantine/hooks';
+import { useDebouncedState } from '@mantine-8/hooks';
 import {
     IconEye,
     IconEyeOff,

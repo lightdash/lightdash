@@ -16,8 +16,8 @@ import {
     Title,
     UnstyledButton,
 } from '@mantine-8/core';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import { type UseFormReturnType } from '@mantine/form';
-import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconAlertTriangleFilled,
     IconChevronDown,

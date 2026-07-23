@@ -1,5 +1,5 @@
 import { Button, Group, Stack, Title } from '@mantine-8/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure } from '@mantine-8/hooks';
 import { IconUsersGroup } from '@tabler/icons-react';
 import { useState } from 'react';
 import { EmptyState } from '../../../components/common/EmptyState';

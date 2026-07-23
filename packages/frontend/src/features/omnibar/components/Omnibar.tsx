@@ -17,7 +17,7 @@ import {
     useDisclosure,
     useHotkeys,
     useScrollIntoView,
-} from '@mantine/hooks';
+} from '@mantine-8/hooks';
 import { IconCircleXFilled, IconSearch } from '@tabler/icons-react';
 import {
     useEffect,

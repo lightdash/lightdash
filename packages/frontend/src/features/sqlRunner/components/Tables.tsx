@@ -15,7 +15,7 @@ import {
     ScrollArea,
     Tooltip,
 } from '@mantine-8/core';
-import { useDebouncedValue, useHover } from '@mantine/hooks';
+import { useDebouncedValue, useHover } from '@mantine-8/hooks';
 import {
     IconChevronDown,
     IconChevronRight,

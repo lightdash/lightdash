@@ -12,7 +12,7 @@ import {
     Stack,
     Text,
 } from '@mantine-8/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure } from '@mantine-8/hooks';
 import {
     IconChevronRight,
     IconFlask,
