@@ -265,7 +265,9 @@ describe('MCP tool contracts', () => {
             const viewer = buildUser(OrganizationMemberRole.VIEWER, [
                 { projectUuid: PROJECT_A, role: ProjectMemberRole.VIEWER },
             ]);
-            expect(await service.isRunSqlEnabled(viewer, PROJECT_A)).toBe(false);
+            expect(await service.isRunSqlEnabled(viewer, PROJECT_A)).toBe(
+                false,
+            );
         });
 
         it('is true for a developer of the pinned project', async () => {
