@@ -212,12 +212,12 @@ const useTableConfig = (
     const numUnpivotedDimensions =
         dimensions.length - (pivotDimensions?.length || 0);
 
-    const canUseSubtotals = useMemo(() => {
-        return !metricsAsRows && numUnpivotedDimensions > 1;
-    }, [metricsAsRows, numUnpivotedDimensions]);
+    const canUseSubtotals = useMemo(
+        () => numUnpivotedDimensions > 1,
+        [numUnpivotedDimensions],
+    );
 
-    // Once dimensions are loaded, if there are not enough dimensions to use subtotals then
-    // turn off "Show subtotals" so that "Show metrics as rows" can be enabled.
+    // Once dimensions are loaded, turn off subtotals if there are not enough dimensions.
     useEffect(() => {
         if (dimensions.length > 0 && numUnpivotedDimensions < 2)
             setShowSubtotals(false);

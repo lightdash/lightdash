@@ -207,11 +207,9 @@ const GeneralSettings: FC = () => {
                 <Config.Section>
                     <Config.Heading>Metrics</Config.Heading>
                     <Tooltip
-                        disabled={!!isPivotTableEnabled && !showSubtotals}
+                        disabled={!!isPivotTableEnabled}
                         label={
-                            showSubtotals
-                                ? 'Metrics as rows are not available when subtotals are enabled'
-                                : 'To use metrics as rows, you need to move a dimension to "Columns"'
+                            'To use metrics as rows, you need to move a dimension to "Columns"'
                         }
                         w={300}
                         multiline
@@ -224,7 +222,7 @@ const GeneralSettings: FC = () => {
                                 classNames={{
                                     label: compactStyles.compactCheckboxLabel,
                                 }}
-                                disabled={!isPivotTableEnabled || showSubtotals}
+                                disabled={!isPivotTableEnabled}
                                 label="Show metrics as rows"
                                 labelPosition="right"
                                 checked={metricsAsRows}
@@ -329,13 +327,9 @@ const GeneralSettings: FC = () => {
                 />
                 <Tooltip
                     disabled={canUseSubtotals}
-                    label={
-                        metricsAsRows
-                            ? 'Subtotals cannot be used with metrics as rows'
-                            : `Subtotals can only be used on tables with at least two ${
-                                  isPivotTableEnabled ? 'un-pivoted' : ''
-                              } dimensions`
-                    }
+                    label={`Subtotals can only be used on tables with at least two ${
+                        isPivotTableEnabled ? 'un-pivoted' : ''
+                    } dimensions`}
                     w={300}
                     multiline
                     withinPortal
@@ -348,15 +342,11 @@ const GeneralSettings: FC = () => {
                                 label: compactStyles.compactCheckboxLabel,
                             }}
                             label="Show subtotals"
-                            checked={
-                                canUseSubtotals &&
-                                !metricsAsRows &&
-                                showSubtotals
-                            }
+                            checked={canUseSubtotals && showSubtotals}
                             onChange={() => {
                                 setShowSubtotals(!showSubtotals);
                             }}
-                            disabled={!canUseSubtotals || metricsAsRows}
+                            disabled={!canUseSubtotals}
                         />
                     </Box>
                 </Tooltip>
@@ -371,12 +361,12 @@ const GeneralSettings: FC = () => {
                     onChange={() => {
                         setShowSubtotalsExpanded(!showSubtotalsExpanded);
                     }}
-                    disabled={
-                        !canUseSubtotals || metricsAsRows || !showSubtotals
-                    }
+                    disabled={!canUseSubtotals || !showSubtotals}
                 />
                 <Tooltip
-                    disabled={canUseSubtotals && !showSubtotals}
+                    disabled={
+                        canUseSubtotals && !showSubtotals && !metricsAsRows
+                    }
                     label={
                         showSubtotals
                             ? 'Row grouping is always on when subtotals are enabled.'

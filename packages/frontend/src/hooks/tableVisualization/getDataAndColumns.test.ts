@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { findMatchingSubtotal } from './getDataAndColumns';
+import {
+    findMatchingSubtotal,
+    getSubtotalValueFromGroup,
+} from './getDataAndColumns';
 
 const cell = (raw: unknown) => ({ value: { raw, formatted: String(raw) } });
 const headerValue = (raw: unknown) => ({ raw, formatted: String(raw) });
@@ -38,27 +41,47 @@ describe('findMatchingSubtotal', () => {
         expect(match).toBe(recs[0]);
     });
 
-    it('matches a pivoted header dimension value alongside the grouping value', () => {
+    it('matches multiple pivoted header values alongside the grouping value', () => {
         const recs = records(
             {
                 orders_order_date_month: '2018-01-01T00:00:00.000Z',
                 orders_status: 'completed',
+                payments_payment_method: 'card',
                 payments_total_revenue: 424,
             },
             {
                 orders_order_date_month: '2018-01-01T00:00:00.000Z',
                 orders_status: 'returned',
+                payments_payment_method: 'cash',
                 payments_total_revenue: 49,
+                payments_average_revenue: 12.25,
+                payments_null_metric: null,
             },
         );
 
         const match = findMatchingSubtotal(
             recs,
             { orders_order_date_month: cell('2018-01-01T00:00:00Z') },
-            { orders_status: headerValue('returned') },
+            {
+                orders_status: headerValue('returned'),
+                payments_payment_method: headerValue('cash'),
+            },
         );
 
         expect(match).toBe(recs[1]);
+        expect(getSubtotalValueFromGroup(match, 'payments_total_revenue')).toBe(
+            49,
+        );
+        expect(
+            getSubtotalValueFromGroup(match, 'payments_average_revenue'),
+        ).toBe(12.25);
+        expect(
+            getSubtotalValueFromGroup(match, 'payments_null_metric'),
+        ).toBeUndefined();
+        expect(getSubtotalValueFromGroup(match, 'row-total-0')).toBeNull();
+        expect(
+            getSubtotalValueFromGroup(undefined, 'payments_total_revenue'),
+        ).toBeUndefined();
     });
 
     it('returns undefined when no record matches', () => {
