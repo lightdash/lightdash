@@ -108,6 +108,7 @@ import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import type {
     ExternalRequestEvent,
     QueryEvent,
+    SdkManifest,
 } from '../features/apps/hooks/useAppSdkBridge';
 import { useAppThumbnailUpload } from '../features/apps/hooks/useAppThumbnail';
 import { useBuildNotification } from '../features/apps/hooks/useBuildNotification';
@@ -117,6 +118,7 @@ import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useIterateApp } from '../features/apps/hooks/useIterateApp';
 import { useRestoreAppVersion } from '../features/apps/hooks/useRestoreAppVersion';
+import { useSdkUpgradeStatus } from '../features/apps/hooks/useSdkUpgradeStatus';
 import { useTrackedAppQueries } from '../features/apps/hooks/useTrackedAppQueries';
 import { useTrackedExternalRequests } from '../features/apps/hooks/useTrackedExternalRequests';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
@@ -211,6 +213,7 @@ type AppPreviewProps = {
     lineageHighlightQueryUuid?: string | null;
     onLineageCancelled?: () => void;
     dataAppVizContext?: DataAppVizContext;
+    onSdkManifest?: (manifest: SdkManifest) => void;
 };
 
 const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
@@ -234,6 +237,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
             lineageHighlightQueryUuid,
             onLineageCancelled,
             dataAppVizContext,
+            onSdkManifest,
         },
         ref,
     ) => {
@@ -294,6 +298,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 capabilities={{ gsheetExport: true }}
                 dataAppVizContext={dataAppVizContext}
                 urlStateSync
+                onSdkManifest={onSdkManifest}
             />
         );
     },
@@ -1285,6 +1290,15 @@ const AppGenerate: FC = () => {
         if (!latestReadyVersion) return null;
         return { appUuid: activeAppUuid, version: latestReadyVersion.version };
     }, [activeAppUuid, effectivePinnedVersion, latestReadyVersion]);
+
+    // Upgrade offer for the header menu, derived from the previewed bundle's
+    // SDK manifest. Keyed per app+version so rollbacks/deploys re-classify.
+    const { offer: sdkUpgradeOffer, onSdkManifest: handleSdkManifest } =
+        useSdkUpgradeStatus({
+            resetKey: previewApp
+                ? `${previewApp.appUuid}:${previewApp.version}`
+                : null,
+        });
 
     // Pin the preview to a specific version. Captures the current latest as
     // the "pinned-at" snapshot so the derived state can decide later when
@@ -3113,6 +3127,7 @@ const AppGenerate: FC = () => {
                                             projectUuid={projectUuid}
                                             appUuid={activeAppUuid}
                                             upgrade={{
+                                                ...sdkUpgradeOffer,
                                                 disabled:
                                                     !previewApp ||
                                                     isAgentWorking,
@@ -3272,6 +3287,7 @@ const AppGenerate: FC = () => {
                                         dataAppVizContext={
                                             testVizContext ?? undefined
                                         }
+                                        onSdkManifest={handleSdkManifest}
                                     />
                                 ) : (
                                     <Box className={classes.previewEmpty}>

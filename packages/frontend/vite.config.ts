@@ -73,6 +73,10 @@ export default defineConfig({
                           __dirname,
                           '../formula/src/index.ts',
                       ),
+                      '@lightdash/query-sdk/features': path.resolve(
+                          __dirname,
+                          '../query-sdk/src/features.ts',
+                      ),
                   }
                 : undefined,
     },

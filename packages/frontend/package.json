@@ -38,6 +38,7 @@
         "@lightdash/common": "workspace:*",
         "@lightdash/formula": "workspace:*",
         "@mantine-8/code-highlight": "npm:@mantine/code-highlight@8.0.0",
+        "@lightdash/query-sdk": "workspace:*",
         "@mantine-8/core": "npm:@mantine/core@8.0.0",
         "@mantine-8/hooks": "npm:@mantine/hooks@8.0.0",
         "@mantine-8/modals": "npm:@mantine/modals@8.0.0",

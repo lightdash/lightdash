@@ -21,7 +21,12 @@
             "@testing-library/jest-dom"
         ],
         "noUncheckedIndexedAccess": false, // TODO fix errors, then enable
-        "tsBuildInfoFile": "dist/.tsbuildinfo"
+        "tsBuildInfoFile": "dist/.tsbuildinfo",
+        // Resolve the SDK feature registry from source so typecheck doesn't
+        // require a query-sdk build (mirrors the Vite dev alias).
+        "paths": {
+            "@lightdash/query-sdk/features": ["../query-sdk/src/features.ts"]
+        }
     },
     "include": ["./src", "./sdk/index.tsx", "./vite-env.d.ts"],
     "references": [
