@@ -1253,7 +1253,7 @@ program
     )
     .option(
         '--validate-warehouse-columns',
-        validateWarehouseColumnsDescription,
+        `${validateWarehouseColumnsDescription} Only applies when tables are validated.`,
         false,
     )
     .option(
