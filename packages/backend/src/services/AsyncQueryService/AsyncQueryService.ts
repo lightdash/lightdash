@@ -1611,6 +1611,7 @@ export class AsyncQueryService extends ProjectService {
                       metricsAsRows:
                           queryHistory.pivotConfiguration?.metricsAsRows ??
                           false,
+                      rowFieldIds: pivotConfig?.rowFieldIds,
                       columnOrder: validColumnOrder,
                       hiddenMetricFieldIds: pivotConfig?.hiddenMetricFieldIds,
                       hiddenDimensionFieldIds:

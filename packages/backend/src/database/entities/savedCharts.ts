@@ -105,6 +105,7 @@ export type DbSavedChartVersion = {
     saved_query_id: number;
     chart_config: ChartConfig['config'] | null;
     pivot_dimensions: string[] | null;
+    pivot_rows: string[] | null;
     parameters: AnyType | null; // JSONB
     updated_by_user_uuid: string | null;
     timezone: TimezoneSetting;
@@ -125,6 +126,7 @@ export type CreateDbSavedChartVersion = Pick<
     | 'dimension_overrides'
     | 'chart_type'
     | 'pivot_dimensions'
+    | 'pivot_rows'
     | 'chart_config'
     | 'parameters'
     | 'updated_by_user_uuid'

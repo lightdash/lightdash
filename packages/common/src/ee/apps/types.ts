@@ -13,7 +13,7 @@ import {
 } from '../../types/knex-paginate';
 import { type MetricQuery } from '../../types/metricQuery';
 import { type DashboardParameters } from '../../types/parameters';
-import { type ChartConfig } from '../../types/savedCharts';
+import { type ChartConfig, type SavedChart } from '../../types/savedCharts';
 
 /**
  * Ordered pipeline stages. Index position determines progression — used to
@@ -452,8 +452,8 @@ export type ChartReference = {
     /** Saved visualization config (bar/line/table/big number…) so the agent
      *  can reproduce the chart type and styling, not just the query. */
     chartConfig: ChartConfig;
-    /** Pivot dimensions when the saved chart pivots its results. */
-    pivotConfig: { columns: string[] } | null;
+    /** Saved pivot layout, including ordered row fields when configured. */
+    pivotConfig: NonNullable<SavedChart['pivotConfig']> | null;
     sampleData: ChartSampleData | null; // null when the user did not opt in
     /** Saved chart UUID — surfaced into the sandbox so a linked chart can be
      *  run live via savedChart(uuid). */
