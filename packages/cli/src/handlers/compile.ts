@@ -58,6 +58,35 @@ export type CompileHandlerOptions = DbtCompileOptions & {
     validateWarehouseColumns?: boolean;
 };
 
+export const hasBlockingCompileError = (
+    explore: Explore | ExploreError,
+): boolean =>
+    isExploreError(explore) ||
+    explore.warnings?.some(
+        (warning) => warning.type === InlineErrorType.WAREHOUSE_COLUMN_ERROR,
+    ) === true;
+
+export const stripWarehouseColumnErrors = (
+    explore: Explore | ExploreError,
+): Explore | ExploreError => {
+    if (isExploreError(explore) || explore.warnings === undefined) {
+        return explore;
+    }
+
+    const { warnings: currentWarnings, ...exploreWithoutWarnings } = explore;
+    const warnings = currentWarnings.filter(
+        (warning) => warning.type !== InlineErrorType.WAREHOUSE_COLUMN_ERROR,
+    );
+
+    if (warnings.length === currentWarnings.length) {
+        return explore;
+    }
+
+    return warnings.length > 0
+        ? { ...exploreWithoutWarnings, warnings }
+        : exploreWithoutWarnings;
+};
+
 const getDisplayableDiagnostics = (explore: Explore) => {
     const diagnostics = explore.warnings ?? [];
     const errors = diagnostics.filter(
@@ -616,7 +645,7 @@ export const compileHandler = async (
 
     GlobalState.setVerbose(options.verbose);
     const explores = await compile(options);
-    const errorsCount = explores.filter((e) => isExploreError(e)).length;
+    const errorsCount = explores.filter(hasBlockingCompileError).length;
     console.error('');
     if (errorsCount > 0) {
         console.error(

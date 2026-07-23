@@ -6,7 +6,6 @@ import {
     ExploreError,
     friendlyName,
     getErrorMessage,
-    isExploreError,
     LightdashError,
     ParseError,
     Project,
@@ -26,7 +25,11 @@ import GlobalState from '../globalState';
 import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
 import { CliProjectType, detectProjectType } from '../lightdash/projectType';
 import * as styles from '../styles';
-import { compile } from './compile';
+import {
+    compile,
+    hasBlockingCompileError,
+    stripWarehouseColumnErrors,
+} from './compile';
 import {
     createProject,
     resolveOrganizationCredentialsName,
@@ -63,6 +66,7 @@ type DeployHandlerOptions = DbtCompileOptions & {
     parallelBatches?: string;
     gzip?: boolean;
     disableTimestampConversion?: boolean;
+    validateWarehouseColumns: boolean;
 };
 
 type DeployArgs = DeployHandlerOptions & {
@@ -346,7 +350,7 @@ export const deploy = async (
         process.exit(1);
     }
 
-    const errors = explores.filter((e) => isExploreError(e)).length;
+    const errors = explores.filter(hasBlockingCompileError).length;
     if (errors > 0) {
         if (options.ignoreErrors) {
             console.error(
@@ -363,6 +367,8 @@ export const deploy = async (
             process.exit(1);
         }
     }
+
+    const deployableExplores = explores.map(stripWarehouseColumnErrors);
 
     const lightdashProjectConfig = await readAndLoadLightdashProjectConfig(
         path.resolve(options.projectDir),
@@ -426,10 +432,10 @@ export const deploy = async (
 
     // Use batched deploy if enabled
     if (options.useBatchedDeploy) {
-        await deployBatched(explores, options);
+        await deployBatched(deployableExplores, options);
     } else {
         const deployStartTime = Date.now();
-        const deployPayload = JSON.stringify(explores);
+        const deployPayload = JSON.stringify(deployableExplores);
         try {
             const deployResponse = await lightdashApi<ApiDeployExploresResults>(
                 {

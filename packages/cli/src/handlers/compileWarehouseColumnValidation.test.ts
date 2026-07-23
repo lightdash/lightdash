@@ -22,10 +22,17 @@ import { getDbtContext } from '../dbt/context';
 import { loadManifest } from '../dbt/manifest';
 import { validateDbtModel } from '../dbt/validation';
 import { loadLightdashModels } from '../lightdash/loader';
-import { compile, type CompileHandlerOptions } from './compile';
+import {
+    compile,
+    hasBlockingCompileError,
+    stripWarehouseColumnErrors,
+    type CompileHandlerOptions,
+} from './compile';
+import { lightdashApi } from './dbt/apiClient';
 import { maybeCompileModelsAndJoins } from './dbt/compile';
 import { tryGetDbtVersion } from './dbt/getDbtVersion';
 import getWarehouseClient from './dbt/getWarehouseClient';
+import { deploy } from './deploy';
 
 vi.mock('../analytics/analytics');
 vi.mock('../config', () => ({
@@ -36,6 +43,10 @@ vi.mock('../dbt/manifest');
 vi.mock('../dbt/validation');
 vi.mock('../lightdash/loader');
 vi.mock('./dbt/compile');
+vi.mock('./dbt/apiClient', async (importOriginal) => {
+    const original = await importOriginal<typeof import('./dbt/apiClient')>();
+    return { ...original, lightdashApi: vi.fn() };
+});
 vi.mock('./dbt/getDbtVersion');
 vi.mock('./dbt/getWarehouseClient');
 vi.mock('@lightdash/warehouses', async (importOriginal) => {
@@ -346,6 +357,65 @@ describe('compile warehouse column validation', () => {
             expect(warningTypes).toEqual([
                 InlineErrorType.WAREHOUSE_COLUMN_ERROR,
             ]);
+            expect(result.filter(hasBlockingCompileError)).toHaveLength(1);
+            expect(
+                result
+                    .map(stripWarehouseColumnErrors)
+                    .flatMap((explore) =>
+                        isExploreError(explore) ? [] : (explore.warnings ?? []),
+                    ),
+            ).toEqual([]);
+        });
+
+        test('blocks deploy when the warehouse rejects a column', async () => {
+            setupWarehouseClient();
+            mockProberToAppendWarning(WAREHOUSE_WARNING);
+            const explores = await compile({
+                ...baseOptions(tempDir),
+                validateWarehouseColumns: true,
+            });
+            vi.spyOn(process, 'exit').mockImplementation(() => {
+                throw new Error('process.exit');
+            });
+
+            await expect(
+                deploy(explores, {
+                    ...baseOptions(tempDir),
+                    projectUuid: 'projectUuid',
+                    ignoreErrors: false,
+                    validateWarehouseColumns: true,
+                }),
+            ).rejects.toThrow('process.exit');
+            expect(process.exit).toHaveBeenCalledWith(1);
+        });
+
+        test('does not persist warehouse diagnostics when deploy errors are ignored', async () => {
+            setupWarehouseClient();
+            mockProberToAppendWarning(WAREHOUSE_WARNING);
+            const explores = await compile({
+                ...baseOptions(tempDir),
+                validateWarehouseColumns: true,
+            });
+
+            await deploy(explores, {
+                ...baseOptions(tempDir),
+                projectUuid: 'projectUuid',
+                ignoreErrors: true,
+                validateWarehouseColumns: true,
+            });
+
+            const deployRequest = vi
+                .mocked(lightdashApi)
+                .mock.calls.find(
+                    ([request]) =>
+                        request.url === '/api/v1/projects/projectUuid/explores',
+                );
+            if (deployRequest === undefined) {
+                throw new Error('Expected explores deploy request');
+            }
+            expect(deployRequest[0].body).not.toContain(
+                InlineErrorType.WAREHOUSE_COLUMN_ERROR,
+            );
         });
 
         test('keeps generic warnings hidden when partial compilation is disabled', async () => {
@@ -415,7 +485,7 @@ describe('compile warehouse column validation', () => {
             setupWarehouseClient();
             mockProberToAppendWarning(WAREHOUSE_WARNING);
 
-            await compile({
+            const result = await compile({
                 ...baseOptions(tempDir),
                 validateWarehouseColumns: true,
             });
@@ -431,6 +501,17 @@ describe('compile warehouse column validation', () => {
                     ),
                 ]),
             );
+            expect(
+                result
+                    .map(stripWarehouseColumnErrors)
+                    .flatMap((explore) =>
+                        isExploreError(explore)
+                            ? []
+                            : (explore.warnings ?? []).map(
+                                  (warning) => warning.type,
+                              ),
+                    ),
+            ).toEqual([InlineErrorType.DUPLICATE_FIELD_NAME]);
         });
 
         test('renders only the warehouse error when partial compilation is disabled and generic warnings exist', async () => {
