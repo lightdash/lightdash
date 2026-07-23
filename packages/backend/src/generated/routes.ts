@@ -14740,6 +14740,13 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'refAlias', ref: 'AppClarification' },
                     required: true,
                 },
+                dashboardUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 dashboardName: {
                     dataType: 'union',
                     subSchemas: [

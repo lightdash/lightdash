@@ -1,3 +1,19 @@
+# [0.3467.0](https://github.com/lightdash/lightdash/compare/0.3466.0...0.3467.0) (2026-07-23)
+
+
+### Bug Fixes
+
+* **cli:** clarify warehouse validation skip ([#26066](https://github.com/lightdash/lightdash/issues/26066)) ([7bbc21b](https://github.com/lightdash/lightdash/commit/7bbc21bfc7353bfed21677d6181d23e722ea3666)), closes [#26065](https://github.com/lightdash/lightdash/issues/26065)
+* **cli:** restore validation help scope ([#26065](https://github.com/lightdash/lightdash/issues/26065)) ([9a9202a](https://github.com/lightdash/lightdash/commit/9a9202a4e907aa5e1009dceba2dd40f4da6ff70b)), closes [#26024](https://github.com/lightdash/lightdash/issues/26024)
+
+
+### Features
+
+* **cli:** allow uploading data apps by URL ([#26047](https://github.com/lightdash/lightdash/issues/26047)) ([7c842c4](https://github.com/lightdash/lightdash/commit/7c842c49c91b26280734b539638cf8cc913ac344))
+* **cli:** extend warehouse column validation ([#26024](https://github.com/lightdash/lightdash/issues/26024)) ([6791e28](https://github.com/lightdash/lightdash/commit/6791e28560c41394e434e617978ad0440b4d3402))
+* **deep-research:** add chart summaries to report markdown ([#26051](https://github.com/lightdash/lightdash/issues/26051)) ([8271e6f](https://github.com/lightdash/lightdash/commit/8271e6fb9164448d629aafb158e1fe39b81213fa))
+* pass dashboard structure blueprint to data app generation ([#26044](https://github.com/lightdash/lightdash/issues/26044)) ([df5eba0](https://github.com/lightdash/lightdash/commit/df5eba0d84193d203640d7e1433c7eed66f064c5))
+
 # [0.3466.0](https://github.com/lightdash/lightdash/compare/0.3465.1...0.3466.0) (2026-07-23)
 
 

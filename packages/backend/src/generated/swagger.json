@@ -16087,6 +16087,10 @@
                         },
                         "type": "array"
                     },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "dashboardName": {
                         "type": "string",
                         "nullable": true
@@ -29142,7 +29146,7 @@
                     "source"
                 ],
                 "type": "object",
-                "description": "Everything the UI needs to render one report chart, keyed by chart key in\n`AiDeepResearchRun.resultChartData`. Written entirely by the backend at\npublish time; the markdown only carries [title](#chart-<key>) references."
+                "description": "Everything the UI needs to render one report chart, keyed by chart key in\n`AiDeepResearchRun.resultChartData`. Written entirely by the backend at\npublish time; the markdown only carries compact <chart> references."
             },
             "Record_string.AiDeepResearchChartData_": {
                 "properties": {},
@@ -29221,7 +29225,7 @@
                     "resultMarkdown": {
                         "type": "string",
                         "nullable": true,
-                        "description": "The report narrative with [title](#chart-<key>) chart references."
+                        "description": "The report narrative with compact <chart> references."
                     },
                     "status": {
                         "$ref": "#/components/schemas/AiDeepResearchRunStatus"
@@ -49166,7 +49170,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3466.0",
+        "version": "0.3467.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
