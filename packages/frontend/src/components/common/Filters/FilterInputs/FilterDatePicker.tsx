@@ -3,16 +3,25 @@ import {
     DatePicker,
     type DateInputProps,
     type DayOfWeek,
-} from '@mantine/dates';
+} from '@mantine-8/dates';
 import { type FC } from 'react';
 import InvalidDateInput from './InvalidDateInput';
+import { formatMantineDate, parseMantineDate } from './mantineDateAdapter';
 
 interface Props extends Omit<
     DateInputProps,
-    'firstDayOfWeek' | 'getDayProps' | 'value' | 'onChange'
+    | 'firstDayOfWeek'
+    | 'getDayProps'
+    | 'value'
+    | 'defaultValue'
+    | 'onChange'
+    | 'minDate'
+    | 'maxDate'
 > {
     value: Date | null;
     onChange: (value: Date) => void;
+    minDate?: Date;
+    maxDate?: Date;
     firstDayOfWeek: DayOfWeek;
     invalidValue?: string;
 }
@@ -22,6 +31,8 @@ const FilterDatePicker: FC<Props> = ({
     onChange,
     firstDayOfWeek,
     invalidValue,
+    minDate,
+    maxDate,
     ...rest
 }) => {
     if (invalidValue) {
@@ -35,10 +46,15 @@ const FilterDatePicker: FC<Props> = ({
                 {({ close }) => (
                     <DatePicker
                         firstDayOfWeek={firstDayOfWeek}
-                        minDate={rest.minDate}
-                        maxDate={rest.maxDate}
+                        minDate={
+                            formatMantineDate(minDate ?? null) ?? undefined
+                        }
+                        maxDate={
+                            formatMantineDate(maxDate ?? null) ?? undefined
+                        }
                         value={null}
-                        onChange={(date) => {
+                        onChange={(mantineValue) => {
+                            const date = parseMantineDate(mantineValue);
                             if (!date) return;
                             onChange(date);
                             close();
@@ -56,8 +72,11 @@ const FilterDatePicker: FC<Props> = ({
             {...rest}
             popoverProps={{ shadow: 'sm', ...rest.popoverProps }}
             firstDayOfWeek={firstDayOfWeek}
-            value={value}
-            onChange={(date) => {
+            minDate={formatMantineDate(minDate ?? null) ?? undefined}
+            maxDate={formatMantineDate(maxDate ?? null) ?? undefined}
+            value={formatMantineDate(value)}
+            onChange={(mantineValue) => {
+                const date = parseMantineDate(mantineValue);
                 if (!date) return;
                 onChange(date);
             }}

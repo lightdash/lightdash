@@ -5,8 +5,8 @@ import {
     type SearchFilters,
 } from '@lightdash/common';
 import { Button, Flex, Group, Menu, Select } from '@mantine-8/core';
+import { DatePicker } from '@mantine-8/dates';
 import { useDisclosure } from '@mantine-8/hooks';
-import { DatePicker } from '@mantine/dates';
 import {
     IconAdjustments,
     IconAppWindow,
@@ -25,6 +25,11 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import {
+    formatMantineDate,
+    formatMantineDateRange,
+} from '../../../components/common/Filters/FilterInputs/mantineDateAdapter';
+import { serializeMantineDateRangeToIso } from '../../../components/common/Filters/FilterInputs/mantineDateSerialization';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { allSearchItemTypes } from '../types/searchItem';
@@ -187,25 +192,25 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                         <DatePicker
                             type="range"
                             allowSingleDateInRange
-                            maxDate={new Date()}
-                            value={[
+                            maxDate={formatMantineDate(new Date()) ?? undefined}
+                            value={formatMantineDateRange([
                                 filters?.fromDate
                                     ? new Date(filters.fromDate)
                                     : null,
                                 filters?.toDate
                                     ? new Date(filters.toDate)
                                     : null,
-                            ]}
+                            ])}
                             onChange={(value) => {
-                                const [fromDate, toDate] = value;
-
+                                const [fromDate, toDate] =
+                                    serializeMantineDateRangeToIso(value);
                                 onSearchFilterChange({
                                     ...filters,
-                                    fromDate: fromDate?.toISOString(),
-                                    toDate: toDate?.toISOString(),
+                                    fromDate: fromDate ?? undefined,
+                                    toDate: toDate ?? undefined,
                                 });
 
-                                if (fromDate && toDate) {
+                                if (value[0] && value[1]) {
                                     dateMenuHandlers.close();
                                 }
                             }}

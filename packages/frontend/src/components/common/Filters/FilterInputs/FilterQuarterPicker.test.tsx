@@ -4,27 +4,28 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import FilterQuarterPicker from './FilterQuarterPicker';
 
-vi.mock('@mantine/dates', () => ({
+vi.mock('@mantine-8/dates', () => ({
     MonthPicker: ({
-        defaultDate,
+        date: displayedDate,
         getMonthControlProps,
         onChange,
         onMouseLeave,
     }: {
-        defaultDate: Date;
-        getMonthControlProps: (date: Date) => {
+        date: string;
+        getMonthControlProps: (date: string) => {
             className?: string;
             'data-quarter-selected'?: boolean;
             'data-quarter-hovered'?: boolean;
             onMouseEnter: MouseEventHandler;
             onMouseLeave: MouseEventHandler;
         };
-        onChange: (date: Date) => void;
+        onChange: (date: string) => void;
         onMouseLeave: MouseEventHandler;
     }) => (
         <div data-testid="month-picker" onMouseLeave={onMouseLeave}>
             {Array.from({ length: 12 }, (_, month) => {
-                const date = new Date(defaultDate.getFullYear(), month, 1);
+                const year = Number(displayedDate.slice(0, 4));
+                const date = `${year}-${String(month + 1).padStart(2, '0')}-01`;
                 return (
                     <button
                         key={month}
