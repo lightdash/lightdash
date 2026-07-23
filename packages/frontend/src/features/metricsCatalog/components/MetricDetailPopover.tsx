@@ -17,9 +17,9 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import { Prism } from '@mantine/prism';
 import { IconCode, IconTable } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
+import CodeBlock from '../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useExploreMetric } from '../hooks/useExploreMetric';
 import { useMetric } from '../hooks/useMetricsCatalog';
@@ -99,14 +99,13 @@ const CompiledQuerySection: FC<{
                             <Loader size="sm" />
                         </Group>
                     ) : data ? (
-                        <Prism
+                        <CodeBlock
+                            code={data.query}
                             language="sql"
                             className={classes.codeBlock}
                             copyLabel="Copy SQL"
                             copiedLabel="Copied!"
-                        >
-                            {data.query}
-                        </Prism>
+                        />
                     ) : (
                         <Text size="xs" c="dimmed">
                             Unable to load SQL
@@ -184,9 +183,12 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
                         </Group>
                     </Tooltip>
                 </Group>
-                <Prism language="sql" className={classes.codeBlock} noCopy>
-                    {sqlToShow}
-                </Prism>
+                <CodeBlock
+                    code={sqlToShow}
+                    language="sql"
+                    className={classes.codeBlock}
+                    withCopyButton={false}
+                />
             </Box>
 
             {metric.timeDimension && (

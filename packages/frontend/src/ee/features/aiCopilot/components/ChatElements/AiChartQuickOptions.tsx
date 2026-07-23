@@ -5,9 +5,8 @@ import {
     type ApiError,
     type SavedChart,
 } from '@lightdash/common';
-import { ActionIcon, Button, HoverCard, Menu, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Button, Menu, Tooltip } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
-import { Prism } from '@mantine/prism';
 import {
     IconChartBar,
     IconCircleCheck,
@@ -23,6 +22,7 @@ import {
 } from '@tabler/icons-react';
 import { Fragment, useCallback, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
+import CodeBlock from '../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
@@ -92,6 +92,8 @@ export const AiChartQuickOptions = ({
         verifyModalOpened,
         { open: openVerifyModal, close: closeVerifyModal },
     ] = useDisclosure(false);
+    const [sqlModalOpened, { open: openSqlModal, close: closeSqlModal }] =
+        useDisclosure(false);
 
     const canCreateScheduledDeliveries = user.data?.ability?.can(
         'create',
@@ -460,38 +462,12 @@ export const AiChartQuickOptions = ({
                         )}
 
                         {!!compiledSql && (
-                            <HoverCard
-                                shadow="subtle"
-                                radius="md"
-                                position="left-start"
-                                withinPortal
-                                openDelay={120}
+                            <Menu.Item
+                                leftSection={<MantineIcon icon={IconEye} />}
+                                onClick={openSqlModal}
                             >
-                                <HoverCard.Target>
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconEye} />
-                                        }
-                                        closeMenuOnClick={false}
-                                    >
-                                        View SQL
-                                    </Menu.Item>
-                                </HoverCard.Target>
-                                <HoverCard.Dropdown p={0} maw={500}>
-                                    <Prism
-                                        language="sql"
-                                        withLineNumbers
-                                        noCopy
-                                        styles={{
-                                            lineContent: {
-                                                fontSize: 10,
-                                            },
-                                        }}
-                                    >
-                                        {compiledSql}
-                                    </Prism>
-                                </HoverCard.Dropdown>
-                            </HoverCard>
+                                View SQL
+                            </Menu.Item>
                         )}
 
                         {!!compiledSql && !isEmbed ? (
@@ -548,6 +524,21 @@ export const AiChartQuickOptions = ({
                     redirectOnSuccess={false}
                 />
             </MantineModal>
+            {!!compiledSql && (
+                <MantineModal
+                    opened={sqlModalOpened}
+                    onClose={closeSqlModal}
+                    title="SQL"
+                    icon={IconEye}
+                    size="xl"
+                >
+                    <CodeBlock
+                        code={compiledSql}
+                        language="sql"
+                        withLineNumbers
+                    />
+                </MantineModal>
+            )}
             <MantineModal
                 opened={verifyModalOpened}
                 onClose={closeVerifyModal}

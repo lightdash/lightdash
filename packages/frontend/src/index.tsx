@@ -34,6 +34,7 @@ if (typeof Node !== 'undefined' && Node.prototype) {
 }
 
 import '@mantine-8/core/styles.css';
+import '@mantine-8/code-highlight/styles.css';
 import '@mantine-8/notifications/styles.css';
 import '@mantine-8/tiptap/styles.css';
 import { StrictMode } from 'react';

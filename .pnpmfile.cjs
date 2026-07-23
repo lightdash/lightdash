@@ -49,6 +49,18 @@ const remapPeerDependencies = [
         newVersion: '8.0.0',
     },
     {
+        package: '@mantine/code-highlight',
+        packageVersion: '8.0.0',
+        peerDependency: '@mantine/core',
+        newVersion: '8.0.0',
+    },
+    {
+        package: '@mantine/code-highlight',
+        packageVersion: '8.0.0',
+        peerDependency: '@mantine/hooks',
+        newVersion: '8.0.0',
+    },
+    {
         package: 'echarts-for-react',
         packageVersion: '3.0.1',
         peerDependency: 'echarts',
