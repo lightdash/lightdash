@@ -88,16 +88,21 @@ export const stripWarehouseColumnErrors = (
         : exploreWithoutWarnings;
 };
 
-const getDisplayableDiagnostics = (explore: Explore) => {
+const getDisplayableDiagnostics = (
+    explore: Explore,
+    allowPartialCompilation: boolean,
+) => {
     const diagnostics = explore.warnings ?? [];
     const errors = diagnostics.filter(
         (diagnostic) =>
             diagnostic.type === InlineErrorType.WAREHOUSE_COLUMN_ERROR,
     );
-    const warnings = diagnostics.filter(
-        (diagnostic) =>
-            diagnostic.type !== InlineErrorType.WAREHOUSE_COLUMN_ERROR,
-    );
+    const warnings = allowPartialCompilation
+        ? diagnostics.filter(
+              (diagnostic) =>
+                  diagnostic.type !== InlineErrorType.WAREHOUSE_COLUMN_ERROR,
+          )
+        : [];
     return { errors, warnings };
 };
 
@@ -566,7 +571,7 @@ export const compile = async (options: CompileHandlerOptions) => {
             errors += 1;
         } else {
             const { errors: warehouseErrors, warnings } =
-                getDisplayableDiagnostics(e);
+                getDisplayableDiagnostics(e, allowPartialCompilation);
             if (warehouseErrors.length > 0) {
                 status = styles.error('ERROR');
                 messages = `: ${styles.error(

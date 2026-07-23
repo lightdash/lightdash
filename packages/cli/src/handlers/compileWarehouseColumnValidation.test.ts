@@ -416,7 +416,7 @@ describe('compile warehouse column validation', () => {
             );
         });
 
-        test('renders non-fatal warnings when partial compilation is disabled', async () => {
+        test('keeps generic warnings hidden when partial compilation is disabled', async () => {
             vi.mocked(validateDbtModel).mockResolvedValue({
                 valid: [modelWithDuplicateMetricName],
                 invalid: [],
@@ -431,11 +431,20 @@ describe('compile warehouse column validation', () => {
 
             expect(errorOutput).toEqual(
                 expect.arrayContaining([
-                    expect.stringContaining('- PARTIAL_SUCCESS> my_model'),
-                    expect.stringContaining('Skipped metric "id"'),
+                    expect.stringContaining('- SUCCESS> my_model'),
                     expect.stringContaining(
-                        'Compiled 1 explores, SUCCESS=0 PARTIAL_SUCCESS=1 ERRORS=0',
+                        'Compiled 1 explores, SUCCESS=1 ERRORS=0',
                     ),
+                ]),
+            );
+            expect(errorOutput).not.toEqual(
+                expect.arrayContaining([
+                    expect.stringContaining('PARTIAL_SUCCESS'),
+                ]),
+            );
+            expect(errorOutput).not.toEqual(
+                expect.arrayContaining([
+                    expect.stringContaining('Skipped metric "id"'),
                 ]),
             );
         });
@@ -501,7 +510,7 @@ describe('compile warehouse column validation', () => {
             ).toEqual([InlineErrorType.DUPLICATE_FIELD_NAME]);
         });
 
-        test('renders the warehouse error and non-fatal warnings when partial compilation is disabled', async () => {
+        test('renders only the warehouse error when partial compilation is disabled', async () => {
             vi.mocked(validateDbtModel).mockResolvedValue({
                 valid: [modelWithDuplicateMetricName],
                 invalid: [],
@@ -521,10 +530,14 @@ describe('compile warehouse column validation', () => {
                     expect.stringContaining(
                         `- ERROR> my_model : ${WAREHOUSE_WARNING}`,
                     ),
-                    expect.stringContaining('Skipped metric "id"'),
                     expect.stringContaining(
                         'Compiled 1 explores, SUCCESS=0 ERRORS=1',
                     ),
+                ]),
+            );
+            expect(errorOutput).not.toEqual(
+                expect.arrayContaining([
+                    expect.stringContaining('Skipped metric "id"'),
                 ]),
             );
         });
