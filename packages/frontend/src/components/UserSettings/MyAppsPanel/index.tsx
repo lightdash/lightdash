@@ -6,6 +6,7 @@ import {
     Group,
     Menu,
     SegmentedControl,
+    Stack,
     Text,
 } from '@mantine-8/core';
 import {
@@ -403,31 +404,35 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
         <SettingsPage
             title="My apps"
             description="Manage the data apps you can access and edit."
-            actions={
-                <SegmentedControl
-                    size="xs"
-                    aria-label="App project scope"
-                    value={includePreviewApps ? 'with-previews' : 'production'}
-                    onChange={(value) =>
-                        setIncludePreviewApps(value === 'with-previews')
-                    }
-                    data={APP_SCOPE_OPTIONS}
-                />
-            }
         >
-            {!isLoading && !isError && flatData.length === 0 ? (
-                <SettingsEmptyState
-                    icon={IconLayoutDashboard}
-                    title="No apps"
-                    description={
-                        includePreviewApps
-                            ? 'Create an app to see it here.'
-                            : 'No apps are available in production projects. Include preview apps to see work from preview projects.'
-                    }
-                />
-            ) : (
-                <ContentTable table={table} />
-            )}
+            <Stack gap="xs">
+                <Group justify="flex-end">
+                    <SegmentedControl
+                        size="xs"
+                        aria-label="App project scope"
+                        value={
+                            includePreviewApps ? 'with-previews' : 'production'
+                        }
+                        onChange={(value) =>
+                            setIncludePreviewApps(value === 'with-previews')
+                        }
+                        data={APP_SCOPE_OPTIONS}
+                    />
+                </Group>
+                {!isLoading && !isError && flatData.length === 0 ? (
+                    <SettingsEmptyState
+                        icon={IconLayoutDashboard}
+                        title="No apps"
+                        description={
+                            includePreviewApps
+                                ? 'Create an app to see it here.'
+                                : 'No apps are available in production projects. Include preview apps to see work from preview projects.'
+                        }
+                    />
+                ) : (
+                    <ContentTable table={table} />
+                )}
+            </Stack>
             {appToDelete && (
                 <AppDeleteModal
                     opened
