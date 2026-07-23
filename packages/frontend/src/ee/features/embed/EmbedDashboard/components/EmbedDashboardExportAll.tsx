@@ -34,14 +34,15 @@ const EmbedDashboardExportAll: FC<Props> = ({ dashboard, projectUuid }) => {
         return null;
     }
 
-    const handleExport = (format: SchedulerFormat.CSV | SchedulerFormat.XLSX) => {
+    const handleExport = (
+        format: SchedulerFormat.CSV | SchedulerFormat.XLSX,
+    ) => {
         const options: SchedulerCsvOptions = {
             formatted: true,
             limit: 'table',
             asAttachment: false,
             exportPivotedData: true,
-            xlsxFileLayout:
-                format === SchedulerFormat.XLSX ? 'zip' : undefined,
+            xlsxFileLayout: format === SchedulerFormat.XLSX ? 'zip' : undefined,
         };
 
         const event = {
@@ -67,9 +68,15 @@ const EmbedDashboardExportAll: FC<Props> = ({ dashboard, projectUuid }) => {
     return (
         <Menu position="bottom-end" withinPortal>
             <Menu.Target>
-                <Tooltip label="Export all tiles" withinPortal position="bottom">
+                <Tooltip
+                    label="Export all tiles"
+                    withinPortal
+                    position="bottom"
+                >
                     <ActionIcon
-                        className={embedContractClass('ld-dashboard-export-all')}
+                        className={embedContractClass(
+                            'ld-dashboard-export-all',
+                        )}
                         variant="default"
                         size="lg"
                         radius="md"
