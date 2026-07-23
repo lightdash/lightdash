@@ -240,6 +240,7 @@ export const lightdashConfigMock: LightdashConfig = {
             askAiButtonEnabled: false,
             embeddingEnabled: true,
             defaultProvider: 'openai',
+            selfManagedProviders: [],
             providers: {
                 openai: {
                     apiKey: 'mock_api_key',

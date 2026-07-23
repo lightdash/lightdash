@@ -36,6 +36,7 @@ import { type ClientAuthMethod } from 'openid-client';
 import { z } from 'zod';
 import { VERSION } from '../version';
 import {
+    AI_PROVIDER_KEYS,
     aiCopilotConfigSchema,
     AiCopilotConfigSchemaType,
     DEFAULT_AI_TOOL_DESCRIPTION_MAX_CHARS,
@@ -1156,6 +1157,19 @@ export const getAiConfig = () => ({
     defaultEmbeddingModelProvider:
         process.env.AI_DEFAULT_EMBEDDING_PROVIDER ||
         DEFAULT_DEFAULT_AI_PROVIDER,
+    // Unknown names are dropped (with a log) rather than passed through so a
+    // typo can't fail schema validation and discard the whole parsed config.
+    selfManagedProviders: getArrayFromCommaSeparatedList(
+        'AI_COPILOT_SELF_MANAGED_PROVIDERS',
+    ).filter((provider): provider is (typeof AI_PROVIDER_KEYS)[number] => {
+        if ((AI_PROVIDER_KEYS as readonly string[]).includes(provider)) {
+            return true;
+        }
+        console.error(
+            `Ignoring unknown provider "${provider}" in AI_COPILOT_SELF_MANAGED_PROVIDERS`,
+        );
+        return false;
+    }),
     providers: {
         azure: process.env.AZURE_AI_API_KEY
             ? {

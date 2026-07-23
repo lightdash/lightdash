@@ -31,7 +31,10 @@ export { MODEL_PRESETS };
  * by the resolver (OrgAiCopilotConfigResolver) listing the providers whose
  * apiKey came from the org's own self-managed key; absent/empty for the
  * instance (Lightdash-managed) config. Optional so the raw instance config is
- * still a valid input (it resolves to Lightdash-managed).
+ * still a valid input (it resolves to Lightdash-managed). Instance-level
+ * customer-owned keys are declared separately via
+ * `selfManagedProviders` (AI_COPILOT_SELF_MANAGED_PROVIDERS) on the config
+ * itself.
  */
 export type CopilotConfigForModel = LightdashConfig['ai']['copilot'] & {
     byoProviders?: ByoAiProvider[];
@@ -41,7 +44,9 @@ export const resolveKeyManagement = (
     config: CopilotConfigForModel,
     provider: AiProvider,
 ): AiKeyManagement =>
-    isByoAiProvider(provider) && (config.byoProviders ?? []).includes(provider)
+    (isByoAiProvider(provider) &&
+        (config.byoProviders ?? []).includes(provider)) ||
+    (config.selfManagedProviders ?? []).includes(provider)
         ? 'self-managed'
         : 'lightdash-managed';
 
