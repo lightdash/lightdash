@@ -34,6 +34,10 @@ import {
 import { useProjectUuid } from '../useProjectUuid';
 import { type InfiniteQueryResults } from '../useQueryResults';
 import getDataAndColumns from './getDataAndColumns';
+import {
+    resolvePivotRowFieldIds,
+    shouldDisableMetricsAsRows,
+} from './pivotRows';
 
 const createWorker = createWorkerFactory(
     () => import('@lightdash/common/src/pivot/pivotQueryResults'),
@@ -51,6 +55,8 @@ const useTableConfig = (
     itemsMap: ItemsMap | undefined,
     columnOrder: string[],
     pivotDimensions: string[] | undefined,
+    pivotRows: string[] | undefined,
+    onPivotRowsChange?: (value: string[] | undefined) => void,
     invalidateCache?: boolean,
     parameters?: ParametersValuesMap,
 ) => {
@@ -122,6 +128,32 @@ const useTableConfig = (
             ? itemsInMetricQuery(resultsData.metricQuery)
             : undefined;
     }, [resultsData?.metricQuery]);
+
+    const rowFieldIds = useMemo(
+        () =>
+            resolvePivotRowFieldIds({
+                selectedItemIds,
+                itemsMap,
+                pivotDimensions,
+                columnOrder,
+                pivotRows,
+            }),
+        [selectedItemIds, itemsMap, pivotDimensions, columnOrder, pivotRows],
+    );
+
+    const disableMetricsAsRows = shouldDisableMetricsAsRows({
+        metricsAsRows,
+        selectedItemIds: selectedItemIds?.filter(
+            (fieldId) => columnProperties[fieldId]?.visible !== false,
+        ),
+        rowFieldIds,
+        itemsMap,
+    });
+    const effectiveMetricsAsRows = metricsAsRows && !disableMetricsAsRows;
+
+    useEffect(() => {
+        if (disableMetricsAsRows) setMetricsAsRows(false);
+    }, [disableMetricsAsRows]);
 
     const getFieldLabelDefault = useCallback(
         (fieldId: string | null | undefined) => {
@@ -393,7 +425,8 @@ const useTableConfig = (
 
         const pivotConfig: PivotConfig = {
             pivotDimensions,
-            metricsAsRows,
+            metricsAsRows: effectiveMetricsAsRows,
+            rowFieldIds,
             columnOrder,
             hiddenMetricFieldIds,
             hiddenDimensionFieldIds,
@@ -423,7 +456,8 @@ const useTableConfig = (
         resultsData?.metricQuery,
         resultsData?.rows,
         resultsData?.pivotDetails,
-        metricsAsRows,
+        effectiveMetricsAsRows,
+        rowFieldIds,
         columnOrder,
         selectedItemIds,
         getField,
@@ -684,7 +718,7 @@ const useTableConfig = (
             columns: columnProperties,
             hideRowNumbers,
             conditionalFormattings,
-            metricsAsRows,
+            metricsAsRows: effectiveMetricsAsRows,
             rowLimit,
         }),
         [
@@ -698,7 +732,7 @@ const useTableConfig = (
             showRowGrouping,
             columnProperties,
             conditionalFormattings,
-            metricsAsRows,
+            effectiveMetricsAsRows,
             rowLimit,
         ],
     );
@@ -739,8 +773,11 @@ const useTableConfig = (
             conditionalFormattings,
             onSetConditionalFormattings: handleSetConditionalFormattings,
             pivotTableData,
-            metricsAsRows,
+            metricsAsRows: effectiveMetricsAsRows,
             setMetricsAsRows,
+            rowFieldIds,
+            configuredRowFieldIds: pivotRows,
+            setRowFieldIds: onPivotRowsChange,
             isPivotTableEnabled,
             isPivotResultStale,
             canUseSubtotals,
@@ -788,8 +825,11 @@ const useTableConfig = (
             conditionalFormattings,
             handleSetConditionalFormattings,
             pivotTableData,
-            metricsAsRows,
+            effectiveMetricsAsRows,
             setMetricsAsRows,
+            rowFieldIds,
+            pivotRows,
+            onPivotRowsChange,
             isPivotTableEnabled,
             isPivotResultStale,
             canUseSubtotals,
