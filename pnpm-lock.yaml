@@ -1125,9 +1125,6 @@ importers:
       '@mantine/tiptap':
         specifier: 6.0.21
         version: 6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@tabler/icons-react@2.47.0(react@19.2.0))(@tiptap/extension-link@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2))(@tiptap/react@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)
-      '@mantine/utils':
-        specifier: 6.0.21
-        version: 6.0.21(react@19.2.0)
       '@monaco-editor/react':
         specifier: 4.6.0
         version: 4.6.0(monaco-editor@0.44.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
