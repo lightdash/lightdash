@@ -1,3 +1,10 @@
+# [0.3471.0](https://github.com/lightdash/lightdash/compare/0.3470.3...0.3471.0) (2026-07-23)
+
+
+### Features
+
+* **frontend:** harmonize settings layouts ([#26104](https://github.com/lightdash/lightdash/issues/26104)) ([86358d3](https://github.com/lightdash/lightdash/commit/86358d39bd6ef53df4761527921dc4802f47b572))
+
 ## [0.3470.3](https://github.com/lightdash/lightdash/compare/0.3470.2...0.3470.3) (2026-07-23)
 
 

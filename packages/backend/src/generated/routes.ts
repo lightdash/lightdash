@@ -59633,6 +59633,13 @@ export function RegisterRoutes(app: Router) {
             name: 'excludePreviewProjects',
             dataType: 'boolean',
         },
+        projectUuids: {
+            in: 'query',
+            name: 'projectUuids',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        search: { in: 'query', name: 'search', dataType: 'string' },
     };
     app.get(
         '/api/v1/ee/user/apps',
