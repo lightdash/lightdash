@@ -5,7 +5,6 @@ import {
     type SearchFilters,
 } from '@lightdash/common';
 import { Button, Flex, Group, Menu, Select } from '@mantine-8/core';
-import { DatePicker } from '@mantine-8/dates';
 import { useDisclosure } from '@mantine-8/hooks';
 import {
     IconAdjustments,
@@ -25,11 +24,8 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
-import {
-    formatMantineDate,
-    formatMantineDateRange,
-} from '../../../components/common/Filters/FilterInputs/mantineDateAdapter';
-import { serializeMantineDateRangeToIso } from '../../../components/common/Filters/FilterInputs/mantineDateSerialization';
+import CalendarRangePicker from '../../../components/common/DatePickers/CalendarRangePicker';
+import { type CalendarDateRange } from '../../../components/common/DatePickers/types';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { allSearchItemTypes } from '../types/searchItem';
@@ -189,25 +185,23 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                 </Menu.Target>
                 <Menu.Dropdown>
                     <Flex direction="column" align="flex-end">
-                        <DatePicker
-                            type="range"
+                        <CalendarRangePicker
                             allowSingleDateInRange
-                            maxDate={formatMantineDate(new Date()) ?? undefined}
-                            value={formatMantineDateRange([
+                            maxDate={new Date()}
+                            value={[
                                 filters?.fromDate
                                     ? new Date(filters.fromDate)
                                     : null,
                                 filters?.toDate
                                     ? new Date(filters.toDate)
                                     : null,
-                            ])}
-                            onChange={(value) => {
-                                const [fromDate, toDate] =
-                                    serializeMantineDateRangeToIso(value);
+                            ]}
+                            onChange={(value: CalendarDateRange) => {
+                                // Persisting calendar dates as ISO instants is search-filter policy
                                 onSearchFilterChange({
                                     ...filters,
-                                    fromDate: fromDate ?? undefined,
-                                    toDate: toDate ?? undefined,
+                                    fromDate: value[0]?.toISOString(),
+                                    toDate: value[1]?.toISOString(),
                                 });
 
                                 if (value[0] && value[1]) {
