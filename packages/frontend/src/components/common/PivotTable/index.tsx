@@ -766,7 +766,7 @@ const PivotTable: FC<PivotTableProps> = ({
             const totalField = data.pivotConfig.metricsAsRows
                 ? last(data.columnTotalFields?.[metricIndex])
                 : last(data.rowTotalFields)?.[metricIndex];
-            if (!totalField?.fieldId) throw new Error('Invalid pivot data');
+            if (!totalField?.fieldId) return null;
             if (total === null || total === undefined) return null;
 
             return {
