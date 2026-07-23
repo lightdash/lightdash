@@ -964,6 +964,11 @@ const uploadCommand = program
         false,
     )
     .option(
+        '--skip-space-access',
+        'upload spaces without applying their access policies',
+        false,
+    )
+    .option(
         '--skip-spaces',
         'skip uploading space definitions and access',
         false,
