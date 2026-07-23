@@ -72,6 +72,25 @@ describe('AiDeepResearchRunModel', () => {
         ]);
     });
 
+    it('scopes idempotent prompt lookups to the creating user', async () => {
+        tracker.on.select(AiDeepResearchRunsTableName).responseOnce([]);
+
+        await model.findByPromptScoped({
+            promptUuid: 'prompt-1',
+            organizationUuid: 'organization-1',
+            projectUuid: 'project-1',
+            createdByUserUuid: 'user-1',
+        });
+
+        expect(tracker.history.select[0].bindings).toEqual([
+            'prompt-1',
+            'organization-1',
+            'project-1',
+            'user-1',
+            1,
+        ]);
+    });
+
     it('does not overwrite a cancellation request with completion', async () => {
         tracker.on.update(AiDeepResearchRunsTableName).responseOnce([]);
 
@@ -84,6 +103,18 @@ describe('AiDeepResearchRunModel', () => {
             expect.arrayContaining(['running', 'completed', RUN_UUID]),
         );
         expect(tracker.history.insert).toHaveLength(0);
+    });
+
+    it('deletes only an unstarted failed run so enqueue failures can retry', async () => {
+        tracker.on.delete(AiDeepResearchRunsTableName).responseOnce(1);
+
+        const deleted = await model.deleteUnstartedFailedRun(RUN_UUID);
+
+        expect(deleted).toBe(true);
+        const [deletion] = tracker.history.delete;
+        expect(deletion.sql).toContain('"status" = $2');
+        expect(deletion.sql).toContain('"started_at" is null');
+        expect(deletion.bindings).toEqual([RUN_UUID, 'failed']);
     });
 
     it('cancels a queued run immediately and records both lifecycle events', async () => {

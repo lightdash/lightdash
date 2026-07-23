@@ -60,7 +60,10 @@ export type DeepResearchRunView = {
 export type DeepResearchRunRegistration = {
     runUuid: string;
     projectUuid: string;
+    agentUuid: string;
     threadUuid: string;
+    promptUuid: string;
+    mcpServerUuids: string[];
     userUuid: string;
     question: string;
     depth: DeepResearchDepth;
@@ -72,4 +75,5 @@ export type DeepResearchRunRegistration = {
 export type StartDeepResearchArgs = {
     question: string;
     depth: DeepResearchDepth;
+    mcpServerUuids: string[];
 };

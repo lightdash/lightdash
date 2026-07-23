@@ -2,19 +2,35 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { subscribeToDeepResearchComposerPrompt } from '../deepResearch/deepResearchRegistry';
 import { type DeepResearchRunRegistration } from '../deepResearch/types';
-import { useDeepResearchRun } from './useDeepResearch';
+import {
+    useDeepResearchRun,
+    useStartDeepResearchMutation,
+} from './useDeepResearch';
 
 const lightdashApiMock = vi.fn();
+const showToastApiErrorMock = vi.fn();
 
 vi.mock('../../../../api', () => ({
     lightdashApi: (args: unknown) => lightdashApiMock(args),
 }));
 
+vi.mock('../../../../hooks/toaster/useToaster', () => ({
+    default: () => ({ showToastApiError: showToastApiErrorMock }),
+}));
+
+vi.mock('../../../../hooks/user/useUser', () => ({
+    default: () => ({ data: { userUuid: 'user-1' } }),
+}));
+
 const registration: DeepResearchRunRegistration = {
     runUuid: 'run-1',
     projectUuid: 'project-1',
+    agentUuid: 'agent-1',
     threadUuid: 'thread-1',
+    promptUuid: 'prompt-1',
+    mcpServerUuids: ['mcp-1'],
     userUuid: 'user-1',
     question: 'Why did enterprise retention fall in Q2?',
     depth: 'standard',
@@ -62,6 +78,66 @@ const getWrapper = () => {
         </QueryClientProvider>
     );
 };
+
+describe('useStartDeepResearchMutation', () => {
+    afterEach(() => {
+        window.localStorage.clear();
+        lightdashApiMock.mockReset();
+        showToastApiErrorMock.mockReset();
+    });
+
+    it('restores the composer prompt when a run fails to start', async () => {
+        const apiError = {
+            error: {
+                message: 'Could not enqueue run',
+                statusCode: 500,
+            },
+        };
+        lightdashApiMock.mockRejectedValueOnce(apiError);
+        const promptListener = vi.fn();
+        const unsubscribe =
+            subscribeToDeepResearchComposerPrompt(promptListener);
+        const { result } = renderHook(
+            () =>
+                useStartDeepResearchMutation({
+                    projectUuid: 'project-1',
+                    agentUuid: 'agent-1',
+                    threadUuid: 'thread-1',
+                }),
+            { wrapper: getWrapper() },
+        );
+
+        await act(async () => {
+            await expect(
+                result.current.mutateAsync({
+                    question: 'Why did retention fall?',
+                    depth: 'standard',
+                    mcpServerUuids: ['mcp-1'],
+                    promptUuid: 'prompt-1',
+                }),
+            ).rejects.toEqual(apiError);
+        });
+
+        expect(promptListener).toHaveBeenCalledWith({
+            threadUuid: 'thread-1',
+            prompt: 'Why did retention fall?',
+        });
+        expect(showToastApiErrorMock).toHaveBeenCalledOnce();
+        expect(
+            JSON.parse(
+                window.localStorage.getItem(
+                    'lightdash.deep-research-runs.v1',
+                ) ?? '[]',
+            ),
+        ).toEqual([
+            expect.objectContaining({
+                promptUuid: 'prompt-1',
+                state: 'start_failed',
+            }),
+        ]);
+        unsubscribe();
+    });
+});
 
 describe('useDeepResearchRun', () => {
     beforeEach(() => {

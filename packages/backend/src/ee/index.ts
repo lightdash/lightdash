@@ -23,7 +23,6 @@ import { ProjectService } from '../services/ProjectService/ProjectService';
 import { RolesService } from '../services/RolesService/RolesService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { AiModelCatalog } from './clients/Ai/AiModelCatalog';
-import { AiDeepResearchClient } from './clients/AiDeepResearchClient';
 import LicenseClient from './clients/License/LicenseClient';
 import { ManagedAgentClient } from './clients/ManagedAgentClient';
 import OpenAi from './clients/OpenAi';
@@ -174,29 +173,22 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getSlackAuthenticationModel(),
                     lightdashConfig: context.lightdashConfig,
                 }),
-            aiDeepResearchService: ({
-                models,
-                clients,
-                context,
-                repository,
-            }) => {
+            aiDeepResearchService: ({ models, clients, repository }) => {
                 const aiDeepResearchRunModel =
                     models.getAiDeepResearchRunModel<AiDeepResearchRunModel>();
                 const executor = new AiDeepResearchExecutor({
-                    lightdashConfig: context.lightdashConfig,
+                    aiAgentService:
+                        repository.getAiAgentService<AiAgentService>(),
                     aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
-                    aiDeepResearchClient: new AiDeepResearchClient({
-                        lightdashConfig: context.lightdashConfig,
-                    }),
                     aiDeepResearchRunModel,
-                    personalAccessTokenService:
-                        repository.getPersonalAccessTokenService(),
                     userService: repository.getUserService(),
                 });
 
                 return new AiDeepResearchService({
                     aiDeepResearchRunModel,
                     aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
+                    aiAgentService:
+                        repository.getAiAgentService<AiAgentService>(),
                     projectModel: models.getProjectModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     schedulerClient:

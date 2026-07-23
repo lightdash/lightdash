@@ -111,6 +111,8 @@ import {
     type AiAgentEditDbtProjectPipelineJobPayload,
     type AiAgentModelConfig,
     type AiClonedThreadCreatedFrom,
+    type AiDeepResearchBudget,
+    type AiDeepResearchExecutionContextSnapshot,
     type AiPromptContextInput,
     type AiWebAppThreadCreatedFrom,
     type SessionUser,
@@ -233,6 +235,7 @@ import { ProjectContextModel } from '../../models/ProjectContextModel';
 import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { selectAgent } from '../ai/agents/agentSelector';
 import {
+    DEFAULT_AGENT_MAX_STEPS,
     generateAgentResponse,
     streamAgentResponse,
     type AgentMcpToolSetup,
@@ -281,6 +284,7 @@ import { renderBlocks as renderSqlApprovalBlocks } from '../ai/tools/slackSqlAgg
 import {
     AiAgentArgs,
     AiAgentDependencies,
+    type AiAgentExecutionConfig,
     type AiAgentMcpServer,
     type AiAgentRequestingUser,
     type AiAgentRequestingUserRole,
@@ -387,8 +391,29 @@ const ALLOWED_AGENT_AVATAR_MIME_TYPES = new Set([
 // wrong" even though the backend job completes and opens the PR. 15s sits
 // comfortably under the usual 30-60s idle timeouts.
 const STREAM_KEEPALIVE_INTERVAL_MS = 15_000;
+const DEEP_RESEARCH_STEP_HEADROOM = 10;
 
 const MAX_MCP_BEARER_TOKEN_LENGTH = 8192;
+
+type GenerateAgentExecutionOptions =
+    | { mode: 'standard' }
+    | {
+          mode: 'deep_research';
+          budget: AiDeepResearchBudget;
+          selectedMcpServerUuids: string[];
+          abortSignal?: AbortSignal;
+          onStepUsage?: (tokens: number) => void | Promise<void>;
+          onWarehouseQuery?: () => void | Promise<void>;
+          onExecutionContextResolved?: (
+              snapshot: AiDeepResearchExecutionContextSnapshot,
+          ) => void | Promise<void>;
+      };
+
+export const shouldEnqueueReviewClassifierForPromptUpdate = (
+    update: UpdateSlackResponse | UpdateWebAppResponse,
+): boolean =>
+    update.errorMessage !== undefined ||
+    (update.response !== undefined && update.tokenUsage !== undefined);
 
 type EmbedAiAgentRuntimeOptions = {
     embedSpaceUuid: string;
@@ -1672,7 +1697,9 @@ export class AiAgentService extends BaseService {
             const modelOptions =
                 await this.orgAiCopilotConfigResolver.resolveFastModel(
                     copilotConfig,
-                    { enableReasoning: false },
+                    {
+                        enableReasoning: false,
+                    },
                 );
 
             const generated = await generateAgentSuggestions(
@@ -3183,6 +3210,259 @@ export class AiAgentService extends BaseService {
             );
     }
 
+    private async getAgentRuntimeMcpServers({
+        user,
+        projectUuid,
+        agentUuid,
+        selectedMcpServerUuids,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        agentUuid: string;
+        selectedMcpServerUuids?: string[];
+    }): Promise<AiAgentMcpServer[]> {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const attachedServers = await this.refreshGithubMcpCredentials(
+            user.organizationUuid,
+            await this.aiAgentModel.getAgentMcpServersWithSensitiveData(
+                agentUuid,
+                user.userUuid,
+            ),
+        );
+        const selectedServerUuids =
+            selectedMcpServerUuids === undefined
+                ? null
+                : new Set(selectedMcpServerUuids);
+
+        if (selectedServerUuids) {
+            const attachedServerUuids = new Set(
+                attachedServers.map((server) => server.uuid),
+            );
+            const unknownServerUuids = [...selectedServerUuids].filter(
+                (serverUuid) => !attachedServerUuids.has(serverUuid),
+            );
+            if (unknownServerUuids.length > 0) {
+                throw new ParameterError(
+                    'One or more selected MCP servers are not attached to this agent',
+                );
+            }
+        }
+
+        const selectedServers = selectedServerUuids
+            ? attachedServers.filter((server) =>
+                  selectedServerUuids.has(server.uuid),
+              )
+            : attachedServers;
+
+        return this.aiAgentMcpRuntimeClient.attachRuntimeProviders({
+            projectUuid,
+            userUuid: user.userUuid,
+            mcpServers: await Promise.all(
+                selectedServers.map(async (mcpServer) => ({
+                    ...mcpServer,
+                    enabledToolNames:
+                        await this.aiAgentModel.getEnabledMcpServerToolNames({
+                            agentUuid,
+                            serverUuid: mcpServer.uuid,
+                        }),
+                })),
+            ),
+        });
+    }
+
+    public async validateDeepResearchMcpSelection(
+        user: SessionUser,
+        {
+            projectUuid,
+            agentUuid,
+            mcpServerUuids,
+            modelConfig,
+        }: {
+            projectUuid: string;
+            agentUuid: string;
+            mcpServerUuids: string[];
+            modelConfig: AiAgentModelConfig | null;
+        },
+    ): Promise<AiDeepResearchExecutionContextSnapshot> {
+        const agent = await this.getAgent(user, agentUuid, projectUuid);
+        const mcpServers = await this.getAgentRuntimeMcpServers({
+            user,
+            projectUuid,
+            agentUuid,
+            selectedMcpServerUuids: mcpServerUuids,
+        });
+        const setup = await this.aiAgentMcpRuntimeClient.resolveTools({
+            mcpServers,
+            userUuid: user.userUuid,
+            debugLoggingEnabled:
+                this.lightdashConfig.ai.copilot.debugLoggingEnabled,
+        });
+
+        try {
+            if (setup.unavailableMcpServers.length > 0) {
+                throw new ParameterError(
+                    `Connect or disable these MCP servers before starting Deep Research: ${setup.unavailableMcpServers
+                        .map(
+                            (server) =>
+                                `${server.serverName} (${server.message})`,
+                        )
+                        .join(', ')}`,
+                );
+            }
+
+            const ability = this.createAuditedAbility(user);
+            const getSubjectAttributes = () => ({
+                organizationUuid: agent.organizationUuid,
+                projectUuid,
+                metadata: { agentUuid },
+            });
+            const canManageAgent = ability.can(
+                'manage',
+                subject('AiAgent', getSubjectAttributes()),
+            );
+            const canRunSql = ability.can(
+                'manage',
+                subject('SqlRunner', getSubjectAttributes()),
+            );
+            const canUseContentTools =
+                agent.enableDataAccess &&
+                agent.enableContentTools &&
+                ability.can(
+                    'create',
+                    subject('ContentAsCode', getSubjectAttributes()),
+                );
+            const knowledgeDocuments =
+                await this.aiAgentDocumentModel.findAllForAgent({
+                    organizationUuid: agent.organizationUuid,
+                    agentUuid,
+                    projectUuid,
+                });
+
+            return {
+                schemaVersion: 1,
+                resolutionStage: 'preflight',
+                capturedAt: new Date().toISOString(),
+                agent: {
+                    uuid: agent.uuid,
+                    name: agent.name,
+                    version: agent.version,
+                    updatedAt: agent.updatedAt.toISOString(),
+                    hasInstruction: Boolean(agent.instruction),
+                    tags: agent.tags,
+                    spaceAccess: agent.spaceAccess,
+                    enableDataAccess: agent.enableDataAccess,
+                    enableSelfImprovement: agent.enableSelfImprovement,
+                    enableContentTools: agent.enableContentTools,
+                    enableUserContext: agent.enableUserContext,
+                },
+                model: {
+                    provider: modelConfig?.modelProvider ?? null,
+                    modelName: modelConfig?.modelName ?? null,
+                    reasoningEnabled: modelConfig?.reasoning ?? null,
+                    keyManagement: null,
+                },
+                tools: {
+                    availableToolNames: Object.keys(setup.tools).sort(),
+                    selectedMcpServers: mcpServers.map((server) => ({
+                        uuid: server.uuid,
+                        name: server.name,
+                        enabledToolNames: Object.entries(
+                            setup.mcpToolNameToServerUuid,
+                        )
+                            .filter(
+                                ([, serverUuid]) => serverUuid === server.uuid,
+                            )
+                            .map(([toolName]) => toolName)
+                            .sort(),
+                    })),
+                },
+                knowledgeDocuments: knowledgeDocuments.map((document) => ({
+                    uuid: document.uuid,
+                    name: document.name,
+                    updatedAt: document.updatedAt.toISOString(),
+                    alwaysIncludeInContext: document.alwaysIncludeInContext,
+                })),
+                repository: {
+                    projectContextEnabled: null,
+                    aiWritebackEnabled: null,
+                    codingAgentEnabled: null,
+                    previewDeploySetupEnabled: null,
+                    repoDiscoveryEnabled: null,
+                    repoFsRoot: null,
+                    repoFsSupportsCodeSearch: null,
+                    availableSkillNames: [],
+                },
+                effectivePermissions: {
+                    canManageAgent,
+                    canRunSql,
+                    canUseDataTools: agent.enableDataAccess,
+                    canUseContentTools,
+                    canUseSelfImprovementTools: canManageAgent,
+                    autoApproveSql: true,
+                },
+            };
+        } finally {
+            await setup.closeMcpClients();
+        }
+    }
+
+    public async assertDeepResearchAccess(
+        user: SessionUser,
+        {
+            agentUuid,
+            organizationUuid,
+            projectUuid,
+            threadUuid,
+        }: {
+            agentUuid: string;
+            organizationUuid: string;
+            projectUuid: string;
+            threadUuid: string;
+        },
+    ): Promise<void> {
+        if (!user.isActive || user.organizationUuid !== organizationUuid) {
+            throw new ForbiddenError('Deep Research access was revoked');
+        }
+
+        const ability = this.createAuditedAbility(user);
+        if (
+            ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            ) ||
+            ability.cannot(
+                'create',
+                subject('AiDeepResearch', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError('Deep Research access was revoked');
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (
+            !thread ||
+            !agent ||
+            agent.projectUuid !== projectUuid ||
+            !(await this.checkAgentThreadAccess(user, agent, thread.user.uuid))
+        ) {
+            throw new ForbiddenError('Deep Research access was revoked');
+        }
+    }
+
     private static toApiAgentMcpServerTool(
         tool: AiAgentMcpServerToolPermissionSetting,
     ) {
@@ -4408,10 +4688,12 @@ export class AiAgentService extends BaseService {
         {
             agentUuid,
             threadUuid,
+            promptUuid,
             retrieveRelevantArtifacts = true,
         }: {
             agentUuid: string;
             threadUuid: string;
+            promptUuid?: string;
             retrieveRelevantArtifacts?: boolean;
         },
     ) {
@@ -4461,26 +4743,43 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        const prompt = await this.aiAgentModel.findWebAppPrompt(
-            threadMessages.at(-1)!.ai_prompt_uuid,
+        const targetPromptUuid =
+            promptUuid ?? threadMessages.at(-1)!.ai_prompt_uuid;
+        const targetPromptIndex = threadMessages.findIndex(
+            (message) => message.ai_prompt_uuid === targetPromptUuid,
         );
+        const prompt =
+            await this.aiAgentModel.findWebAppPrompt(targetPromptUuid);
 
-        if (!prompt) {
-            throw new NotFoundError(
-                `Prompt not found: ${
-                    threadMessages[threadMessages.length - 1].ai_prompt_uuid
-                }`,
-            );
+        if (
+            targetPromptIndex === -1 ||
+            !prompt ||
+            prompt.threadUuid !== threadUuid
+        ) {
+            throw new NotFoundError(`Prompt not found: ${targetPromptUuid}`);
         }
+        const targetThreadMessages = threadMessages.slice(
+            0,
+            targetPromptIndex + 1,
+        );
         const compaction = await this.maybeCompactThreadBeforeResponse(user, {
             threadUuid: prompt.threadUuid,
             prompt,
         });
+        const applicableCompaction =
+            compaction &&
+            targetThreadMessages.some(
+                (message) =>
+                    message.ai_prompt_uuid ===
+                    compaction.compacted_through_ai_prompt_uuid,
+            )
+                ? compaction
+                : null;
 
         const compactedThreadMessages =
             Compaction.filterThreadMessagesAfterCompaction(
-                threadMessages,
-                compaction?.compacted_through_ai_prompt_uuid ?? null,
+                targetThreadMessages,
+                applicableCompaction?.compacted_through_ai_prompt_uuid ?? null,
             );
 
         const chatHistoryMessages = await this.getChatHistoryFromThreadMessages(
@@ -4492,12 +4791,17 @@ export class AiAgentService extends BaseService {
                 retrieveRelevantArtifacts:
                     retrieveRelevantArtifacts &&
                     this.getIsVerifiedArtifactsEnabled(),
-                compaction,
+                compaction: applicableCompaction,
                 currentPromptUuid: prompt.promptUuid,
             },
         );
 
-        return { user, chatHistoryMessages, prompt, compaction };
+        return {
+            user,
+            chatHistoryMessages,
+            prompt,
+            compaction: applicableCompaction,
+        };
     }
 
     async streamAgentThreadResponse(
@@ -4975,15 +5279,18 @@ export class AiAgentService extends BaseService {
         {
             agentUuid,
             threadUuid,
+            promptUuid,
             autoApproveSql = false,
             toolHints,
             forceToolHints,
             onStepProgress,
             suppressWritebackPreview,
             isReviewRemediationWorkThread,
+            execution = { mode: 'standard' },
         }: {
             agentUuid: string;
             threadUuid: string;
+            promptUuid?: string;
             autoApproveSql?: boolean;
             toolHints?: string[];
             forceToolHints?: boolean;
@@ -4992,11 +5299,12 @@ export class AiAgentService extends BaseService {
                 toolName?: string,
                 progressId?: string,
                 progressStatus?: 'in_progress' | 'complete' | 'error',
-            ) => void;
+            ) => void | Promise<void>;
             suppressWritebackPreview?: boolean;
             // Enables the work-thread-only editProjectContext tool so the agent
             // can open/change the project_context PR from this thread.
             isReviewRemediationWorkThread?: boolean;
+            execution?: GenerateAgentExecutionOptions;
         },
     ): Promise<string> {
         try {
@@ -5007,6 +5315,7 @@ export class AiAgentService extends BaseService {
             } = await this.prepareAgentThreadResponse(user, {
                 agentUuid,
                 threadUuid,
+                promptUuid,
             });
             if (!user.organizationUuid) {
                 throw new ForbiddenError();
@@ -5039,6 +5348,7 @@ export class AiAgentService extends BaseService {
                     onSlackStepProgress: onStepProgress,
                     suppressWritebackPreview,
                     isReviewRemediationWorkThread,
+                    execution,
                 },
             );
             return response;
@@ -7353,9 +7663,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 toolName?: string,
                 progressId?: string,
                 progressStatus?: 'in_progress' | 'complete' | 'error',
-            ) => void;
+            ) => void | Promise<void>;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
             suppressWritebackPreview?: boolean;
+            onWarehouseQuery?: () => void | Promise<void>;
         },
     ) {
         const { projectUuid, organizationUuid } = prompt;
@@ -7375,6 +7686,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             userAttributeOverrides:
                 options?.runtimeOptions?.userAttributeOverrides,
             agentUuid: runtimeAgentSettings.uuid,
+            onWarehouseQuery: options?.onWarehouseQuery,
         });
 
         const getProjectContextDocument: AiAgentDependencies['getProjectContextDocument'] =
@@ -7417,13 +7729,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         ) => {
             if (isSlackPrompt(prompt)) {
                 if (options?.onStepProgress) {
-                    options.onStepProgress(
-                        progress,
-                        toolName,
-                        progressId,
-                        progressStatus,
+                    return Promise.resolve(
+                        options.onStepProgress(
+                            progress,
+                            toolName,
+                            progressId,
+                            progressStatus,
+                        ),
                     );
-                    return Promise.resolve();
                 }
                 return this.updateSlackResponseWithProgress(prompt, progress);
             }
@@ -7432,13 +7745,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             // generateOrStreamAgentResponse). The callback is wired only
             // when streaming; non-stream responses silently drop these
             // events.
-            options?.onStepProgress?.(
-                progress,
-                toolName,
-                progressId,
-                progressStatus,
+            return Promise.resolve(
+                options?.onStepProgress?.(
+                    progress,
+                    toolName,
+                    progressId,
+                    progressStatus,
+                ),
             );
-            return Promise.resolve();
         };
 
         const getPrompt: GetPromptFn = async () => {
@@ -7519,7 +7833,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
 
         const storeToolCall: StoreToolCallFn = async (args) => {
-            void wrapSentryTransaction(
+            await wrapSentryTransaction(
                 'AiAgent.storeToolCall',
                 {
                     promptUuid: args.promptUuid,
@@ -7543,7 +7857,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         };
 
         const storeToolResults: StoreToolResultsFn = async (args) => {
-            void wrapSentryTransaction(
+            await wrapSentryTransaction(
                 'AiAgent.storeToolResults',
                 args.map((arg) => ({
                     promptUuid: arg.promptUuid,
@@ -8051,7 +8365,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 toolName?: string,
                 progressId?: string,
                 progressStatus?: 'in_progress' | 'complete' | 'error',
-            ) => void;
+            ) => void | Promise<void>;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
         },
     ): Promise<AgentResponseStream>;
@@ -8079,8 +8393,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 toolName?: string,
                 progressId?: string,
                 progressStatus?: 'in_progress' | 'complete' | 'error',
-            ) => void;
+            ) => void | Promise<void>;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
+            execution?: GenerateAgentExecutionOptions;
         },
     ): Promise<string>;
     async generateOrStreamAgentResponse(
@@ -8101,7 +8416,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 toolName?: string,
                 progressId?: string,
                 progressStatus?: 'in_progress' | 'complete' | 'error',
-            ) => void;
+            ) => void | Promise<void>;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
         },
     ): Promise<string>;
@@ -8122,8 +8437,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 toolName?: string,
                 progressId?: string,
                 progressStatus?: 'in_progress' | 'complete' | 'error',
-            ) => void;
+            ) => void | Promise<void>;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
+            execution?: GenerateAgentExecutionOptions;
         } & (
             | {
                   prompt: AiWebAppPrompt;
@@ -8145,6 +8461,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         if (!user.organizationUuid) {
             throw new Error('Organization not found');
         }
+        const responseExecution: GenerateAgentExecutionOptions =
+            options.execution ?? { mode: 'standard' };
 
         if (!(await this.getIsCopilotEnabled(user))) {
             throw new Error('AI Copilot is not enabled');
@@ -8225,16 +8543,21 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             onStepProgress:
                 options.onSlackStepProgress ??
                 (stepProgressEmitter
-                    ? (progress, toolName, progressId, progressStatus) =>
+                    ? (progress, toolName, progressId, progressStatus) => {
                           stepProgressEmitter.emit('stepProgress', {
                               message: progress,
                               toolName,
                               progressId,
                               progressStatus,
-                          })
+                          });
+                      }
                     : undefined),
             runtimeOptions: options.runtimeOptions,
             suppressWritebackPreview: options.suppressWritebackPreview,
+            onWarehouseQuery:
+                responseExecution.mode === 'deep_research'
+                    ? responseExecution.onWarehouseQuery
+                    : undefined,
         });
 
         const enableSqlMode = options.enableSqlMode ?? false;
@@ -8311,27 +8634,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 agentUuid: agentSettings.uuid,
                 projectUuid: prompt.projectUuid,
             });
-        const agentMcpServersWithSensitiveData =
-            await this.refreshGithubMcpCredentials(
-                user.organizationUuid,
-                await this.aiAgentModel.getAgentMcpServersWithSensitiveData(
-                    agentSettings.uuid,
-                    user.userUuid,
-                ),
-            );
-        const mcpServers = this.aiAgentMcpRuntimeClient.attachRuntimeProviders({
+        const mcpServers = await this.getAgentRuntimeMcpServers({
+            user,
             projectUuid: prompt.projectUuid,
-            userUuid: user.userUuid,
-            mcpServers: await Promise.all(
-                agentMcpServersWithSensitiveData.map(async (mcpServer) => ({
-                    ...mcpServer,
-                    enabledToolNames:
-                        await this.aiAgentModel.getEnabledMcpServerToolNames({
-                            agentUuid: agentSettings.uuid,
-                            serverUuid: mcpServer.uuid,
-                        }),
-                })),
-            ),
+            agentUuid: agentSettings.uuid,
+            selectedMcpServerUuids:
+                responseExecution.mode === 'deep_research'
+                    ? responseExecution.selectedMcpServerUuids
+                    : undefined,
         });
         const { enabled: grepFieldsEnabled } =
             await this.featureFlagService.get({
@@ -8538,6 +8848,27 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             };
         }
 
+        let execution: AiAgentExecutionConfig;
+        if (responseExecution.mode === 'deep_research') {
+            execution = {
+                mode: 'deep_research',
+                // The executor counts tool calls directly. Leave room for
+                // planning and the final report-only model step.
+                maxSteps:
+                    responseExecution.budget.maxToolCalls +
+                    DEEP_RESEARCH_STEP_HEADROOM,
+                budget: responseExecution.budget,
+                onStepUsage: responseExecution.onStepUsage,
+                onExecutionContextResolved:
+                    responseExecution.onExecutionContextResolved,
+            };
+        } else {
+            execution = {
+                mode: 'standard',
+                maxSteps: DEFAULT_AGENT_MAX_STEPS,
+            };
+        }
+
         const args: AiAgentArgs = {
             organizationId: user.organizationUuid,
             userId: user.userUuid,
@@ -8583,18 +8914,32 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             warehouseType,
             warehouseSchema,
             availableSkills,
+            modelReasoningEnabled: prompt.modelConfig?.reasoning ?? null,
 
             findExploresFieldSearchSize: 200,
             findFieldsPageSize: 30,
             toolDescriptionMaxChars:
                 this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
             getDashboardChartsPageSize: 20,
-            maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
-            runSqlMaxLimit: this.lightdashConfig.ai.copilot.runSqlMaxLimit,
+            maxQueryLimit:
+                responseExecution.mode === 'deep_research'
+                    ? Math.min(
+                          this.lightdashConfig.ai.copilot.maxQueryLimit,
+                          responseExecution.budget.maxResultRows,
+                      )
+                    : this.lightdashConfig.ai.copilot.maxQueryLimit,
+            runSqlMaxLimit:
+                responseExecution.mode === 'deep_research'
+                    ? Math.min(
+                          this.lightdashConfig.ai.copilot.runSqlMaxLimit,
+                          responseExecution.budget.maxResultRows,
+                      )
+                    : this.lightdashConfig.ai.copilot.runSqlMaxLimit,
             siteUrl: this.lightdashConfig.siteUrl,
             canManageAgent: options.canManageAgent,
             toolHints: options.toolHints ?? [],
             forceToolHints: options.forceToolHints ?? false,
+            execution,
         };
 
         const mcpToolSetup: AgentMcpToolSetup =
@@ -8604,6 +8949,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 debugLoggingEnabled:
                     this.lightdashConfig.ai.copilot.debugLoggingEnabled,
             });
+
+        if (
+            responseExecution.mode === 'deep_research' &&
+            mcpToolSetup.unavailableMcpServers.length > 0
+        ) {
+            await mcpToolSetup.closeMcpClients();
+            throw new ParameterError(
+                `Selected MCP servers became unavailable: ${mcpToolSetup.unavailableMcpServers
+                    .map((server) => server.serverName)
+                    .join(', ')}`,
+            );
+        }
 
         if (
             isSlackPrompt(prompt) &&
@@ -8777,10 +9134,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                           })
                         : updatePromise;
 
-                if (
-                    update.errorMessage !== undefined ||
-                    update.tokenUsage !== undefined
-                ) {
+                if (shouldEnqueueReviewClassifierForPromptUpdate(update)) {
                     void updatePromise
                         .then(() => {
                             this.enqueueReviewClassifierEvent({
@@ -8860,6 +9214,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 args,
                 dependencies,
                 mcpToolSetup,
+                abortSignal:
+                    responseExecution.mode === 'deep_research'
+                        ? responseExecution.abortSignal
+                        : undefined,
             });
         }
 

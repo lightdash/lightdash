@@ -829,6 +829,41 @@ describe('AiAgentToolsService', () => {
         });
     });
 
+    it('checks the warehouse budget at the saved-chart query boundary', async () => {
+        const executeSavedChartQueryAndGetResults = vi.fn();
+        const onWarehouseQuery = vi
+            .fn()
+            .mockRejectedValue(
+                new Error('Deep Research exceeded its warehouse-query budget'),
+            );
+        const service = makeService({
+            savedChartService: {
+                get: vi.fn().mockResolvedValue({
+                    spaceUuid: 'allowed-space-uuid',
+                }),
+            },
+            asyncQueryService: {
+                executeSavedChartQueryAndGetResults,
+            },
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({
+                spaceAccess: ['allowed-space-uuid'],
+                onWarehouseQuery,
+            }),
+        );
+
+        await expect(
+            runtime.runSavedChartQuery({
+                chartUuid: 'allowed-chart-uuid',
+                dashboardSlug: null,
+                limit: 100,
+            }),
+        ).rejects.toThrow('Deep Research exceeded its warehouse-query budget');
+        expect(onWarehouseQuery).toHaveBeenCalledOnce();
+        expect(executeSavedChartQueryAndGetResults).not.toHaveBeenCalled();
+    });
+
     it('does not run dashboard chart queries outside the scoped agent spaces', async () => {
         const executeDashboardChartQueryAndGetResults = vi.fn();
         const service = makeService({

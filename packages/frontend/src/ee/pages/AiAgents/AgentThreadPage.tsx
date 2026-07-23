@@ -15,6 +15,8 @@ import {
     mergeContentMentionSuggestionItems,
 } from '../../features/aiCopilot/components/ChatElements/contentMentions';
 import { ThreadWorkstreamsPanel } from '../../features/aiCopilot/components/ChatElements/ThreadWorkstreamsPanel';
+import { findRetryableDeepResearchRun } from '../../features/aiCopilot/deepResearch/deepResearchRegistry';
+import { type StartDeepResearchArgs } from '../../features/aiCopilot/deepResearch/types';
 import { isEmbedAiAgentRoute } from '../../features/aiCopilot/hooks/aiAgentRouting';
 import { emitEmbedAiAgentThreadChange } from '../../features/aiCopilot/hooks/embedAiAgentThreadChange';
 import {
@@ -171,6 +173,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const deepResearchFlag = useServerFeatureFlag(FeatureFlags.AiDeepResearch);
     const startDeepResearch = useStartDeepResearchMutation({
         projectUuid: projectUuid!,
+        agentUuid: agentUuid!,
         threadUuid: threadUuid!,
     });
     const sqlMode = useAiAgentStoreSelector(
@@ -290,18 +293,31 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const handleStartDeepResearch = async ({
         question,
         depth,
-    }: Parameters<typeof startDeepResearch.mutateAsync>[0]) => {
-        const message = await createAgentThreadMessage({
-            prompt: question,
-            modelConfig: threadModelConfig ?? undefined,
-            context: pageContextInput,
-            optimisticContext: pagePreviewItems,
-            skipAgentResponse: true,
+        mcpServerUuids,
+    }: StartDeepResearchArgs) => {
+        const retryableRun = findRetryableDeepResearchRun({
+            projectUuid: projectUuid!,
+            agentUuid: agentUuid!,
+            threadUuid: threadUuid!,
+            userUuid: user?.data?.userUuid,
+            question,
         });
+        const promptUuid =
+            retryableRun?.promptUuid ??
+            (
+                await createAgentThreadMessage({
+                    prompt: question,
+                    modelConfig: threadModelConfig ?? undefined,
+                    context: pageContextInput,
+                    optimisticContext: pagePreviewItems,
+                    skipAgentResponse: true,
+                })
+            ).uuid;
         await startDeepResearch.mutateAsync({
             question,
             depth,
-            promptUuid: message.uuid,
+            mcpServerUuids,
+            promptUuid,
         });
     };
     const isBusy = Boolean(isCreatingMessage || isStreaming || isPending);
@@ -345,6 +361,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                     agentUuid={agentUuid}
                     showAddToEvalsButton={canManage}
                     onDashboardLinkClick={handleDashboardLinkClick}
+                    canRetryDeepResearch={!inputDisabled && !isBusy}
                 >
                     {workstreams && workstreams.length > 0 && (
                         <ThreadWorkstreamsPanel workstreams={workstreams} />

@@ -27,6 +27,7 @@ import {
     type AiDeepResearchEvent,
     type AiDeepResearchEventPayloadMap,
     type AiDeepResearchEventsPage,
+    type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchInlineChart,
     type AiDeepResearchJobPayload,
     type AiDeepResearchProgress,
@@ -53,6 +54,7 @@ import {
     type DbAiDeepResearchEventWithCursor,
 } from '../../models/AiDeepResearchRunModel';
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
+import { type AiAgentService } from '../AiAgentService/AiAgentService';
 
 const MAX_EVENT_PAGE_SIZE = 100;
 const DEFAULT_EVENT_PAGE_SIZE = 50;
@@ -167,7 +169,16 @@ export type AiDeepResearchExecutor = (
 
 type Dependencies = {
     aiDeepResearchRunModel: AiDeepResearchRunModel;
-    aiAgentModel: Pick<AiAgentModel, 'findThreadOwnership'>;
+    aiAgentModel: Pick<
+        AiAgentModel,
+        | 'findThreadOwnership'
+        | 'findWebAppPrompt'
+        | 'getToolCallsAndResultsForPrompt'
+    >;
+    aiAgentService: Pick<
+        AiAgentService,
+        'assertDeepResearchAccess' | 'validateDeepResearchMcpSelection'
+    >;
     projectModel: ProjectModel;
     featureFlagModel: FeatureFlagModel;
     schedulerClient: CommercialSchedulerClient;
@@ -188,8 +199,10 @@ type EventCursorPayload = {
 const toRun = (row: DbAiDeepResearchRun): AiDeepResearchRun => ({
     aiDeepResearchRunUuid: row.ai_deep_research_run_uuid,
     projectUuid: row.project_uuid,
+    agentUuid: row.agent_uuid,
     aiThreadUuid: row.ai_thread_uuid,
     promptUuid: row.prompt_uuid,
+    mcpServerUuids: row.selected_mcp_server_uuids,
     prompt: row.prompt,
     status: row.status,
     resultMarkdown: row.result_markdown,
@@ -200,6 +213,7 @@ const toRun = (row: DbAiDeepResearchRun): AiDeepResearchRun => ({
         maxWarehouseQueries: row.budget_snapshot.maxWarehouseQueries,
         maxResultRows: row.budget_snapshot.maxResultRows,
     },
+    executionContextSnapshot: row.execution_context_snapshot,
     errorMessage: row.error_message,
     cancellationRequestedAt:
         row.cancellation_requested_at?.toISOString() ?? null,
@@ -352,7 +366,12 @@ const assertValidBudget = (budget: AiDeepResearchBudget): void => {
 export class AiDeepResearchService extends BaseService {
     private readonly aiDeepResearchRunModel: AiDeepResearchRunModel;
 
-    private readonly aiAgentModel: Pick<AiAgentModel, 'findThreadOwnership'>;
+    private readonly aiAgentModel: Dependencies['aiAgentModel'];
+
+    private readonly aiAgentService: Pick<
+        AiAgentService,
+        'assertDeepResearchAccess' | 'validateDeepResearchMcpSelection'
+    >;
 
     private readonly projectModel: ProjectModel;
 
@@ -377,6 +396,7 @@ export class AiDeepResearchService extends BaseService {
     constructor({
         aiDeepResearchRunModel,
         aiAgentModel,
+        aiAgentService,
         projectModel,
         featureFlagModel,
         schedulerClient,
@@ -388,6 +408,7 @@ export class AiDeepResearchService extends BaseService {
         super();
         this.aiDeepResearchRunModel = aiDeepResearchRunModel;
         this.aiAgentModel = aiAgentModel;
+        this.aiAgentService = aiAgentService;
         this.projectModel = projectModel;
         this.featureFlagModel = featureFlagModel;
         this.schedulerClient = schedulerClient;
@@ -395,23 +416,6 @@ export class AiDeepResearchService extends BaseService {
         this.queryHistoryModel = queryHistoryModel;
         this.resultsFileStorageClient = resultsFileStorageClient;
         this.executor = executor;
-    }
-
-    private async assertCanViewProject(
-        user: SessionUser,
-        projectUuid: string,
-    ): Promise<void> {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
-        const ability = this.createAuditedAbility(user);
-        if (
-            ability.cannot(
-                'view',
-                subject('Project', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
     }
 
     private async assertCanCreateRun(
@@ -429,30 +433,29 @@ export class AiDeepResearchService extends BaseService {
             ability.cannot(
                 'create',
                 subject('AiDeepResearch', { organizationUuid, projectUuid }),
-            ) ||
-            ability.cannot(
-                'create',
-                subject('PersonalAccessToken', {
-                    organizationUuid,
-                    metadata: { userUuid: user.userUuid },
-                }),
-            ) ||
-            ability.cannot(
-                'delete',
-                subject('PersonalAccessToken', {
-                    organizationUuid,
-                    metadata: { userUuid: user.userUuid },
-                }),
             )
         ) {
             throw new ForbiddenError();
         }
     }
 
+    private async assertCurrentRunAccess(
+        user: SessionUser,
+        run: DbAiDeepResearchRun,
+    ): Promise<void> {
+        await this.aiAgentService.assertDeepResearchAccess(user, {
+            agentUuid: run.agent_uuid,
+            organizationUuid: run.organization_uuid,
+            projectUuid: run.project_uuid,
+            threadUuid: run.ai_thread_uuid,
+        });
+    }
+
     private async findCreatorOwnedRun(
         user: SessionUser,
         projectUuid: string,
         aiDeepResearchRunUuid: string,
+        requireCurrentAgentAccess = true,
     ): Promise<DbAiDeepResearchRun> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -469,22 +472,40 @@ export class AiDeepResearchService extends BaseService {
             );
         }
 
-        await this.assertCanViewProject(user, projectUuid);
+        if (requireCurrentAgentAccess) {
+            await this.assertCurrentRunAccess(user, run);
+        }
         return run;
+    }
+
+    private async enqueueRun(run: DbAiDeepResearchRun): Promise<void> {
+        await this.schedulerClient.aiDeepResearch({
+            aiDeepResearchRunUuid: run.ai_deep_research_run_uuid,
+            organizationUuid: run.organization_uuid,
+            projectUuid: run.project_uuid,
+            userUuid: run.created_by_user_uuid,
+        });
     }
 
     async createRun(args: {
         user: SessionUser;
         projectUuid: string;
         prompt: string;
+        agentUuid: string;
         effort?: AiDeepResearchEffort;
         budget?: AiDeepResearchBudget;
-        aiThreadUuid?: string;
-        promptUuid?: string;
+        aiThreadUuid: string;
+        promptUuid: string;
+        mcpServerUuids: string[];
         toolCallId?: string;
     }): Promise<AiDeepResearchRun> {
         if (!isUserWithOrg(args.user)) {
             throw new ForbiddenError('User is not part of an organization');
+        }
+        if (args.user.serviceAccount || args.user.impersonation) {
+            throw new ForbiddenError(
+                'Deep Research must be started by a signed-in user',
+            );
         }
         if (args.prompt.trim().length === 0) {
             throw new ParameterError('Deep Research prompt is required');
@@ -505,45 +526,112 @@ export class AiDeepResearchService extends BaseService {
             throw new ForbiddenError('Deep Research is not enabled');
         }
 
-        if (args.promptUuid && !args.aiThreadUuid) {
+        const ownership = await this.aiAgentModel.findThreadOwnership({
+            organizationUuid: args.user.organizationUuid,
+            threadUuid: args.aiThreadUuid,
+        });
+        if (
+            !ownership ||
+            ownership.projectUuid !== args.projectUuid ||
+            ownership.agentUuid !== args.agentUuid ||
+            ownership.ownerUserUuid !== args.user.userUuid
+        ) {
+            throw new NotFoundError(`AI thread ${args.aiThreadUuid} not found`);
+        }
+        const prompt = await this.aiAgentModel.findWebAppPrompt(
+            args.promptUuid,
+        );
+        if (
+            !prompt ||
+            prompt.threadUuid !== args.aiThreadUuid ||
+            prompt.agentUuid !== args.agentUuid ||
+            prompt.projectUuid !== args.projectUuid ||
+            prompt.createdByUserUuid !== args.user.userUuid
+        ) {
+            throw new NotFoundError(`AI prompt ${args.promptUuid} not found`);
+        }
+        if (prompt.prompt.trim() !== args.prompt.trim()) {
             throw new ParameterError(
-                'A Deep Research prompt link requires its thread',
+                'Deep Research prompt does not match the selected thread message',
             );
         }
-        if (args.aiThreadUuid) {
-            const ownership = await this.aiAgentModel.findThreadOwnership({
+
+        const existingRun =
+            await this.aiDeepResearchRunModel.findByPromptScoped({
+                promptUuid: args.promptUuid,
                 organizationUuid: args.user.organizationUuid,
-                threadUuid: args.aiThreadUuid,
+                projectUuid: args.projectUuid,
+                createdByUserUuid: args.user.userUuid,
             });
-            if (
-                !ownership ||
-                ownership.projectUuid !== args.projectUuid ||
-                ownership.ownerUserUuid !== args.user.userUuid
-            ) {
-                throw new NotFoundError(
-                    `AI thread ${args.aiThreadUuid} not found`,
-                );
+        if (existingRun) {
+            await this.assertCurrentRunAccess(args.user, existingRun);
+            if (existingRun.status === 'queued') {
+                await this.enqueueRun(existingRun);
             }
+            return toRun(existingRun);
         }
 
-        const run = await this.aiDeepResearchRunModel.create({
-            organizationUuid: args.user.organizationUuid,
-            projectUuid: args.projectUuid,
-            createdByUserUuid: args.user.userUuid,
-            aiThreadUuid: args.aiThreadUuid ?? null,
-            promptUuid: args.promptUuid ?? null,
-            toolCallId: args.toolCallId ?? null,
-            prompt: args.prompt.trim(),
-            budget,
-        });
+        const existingToolCalls =
+            await this.aiAgentModel.getToolCallsAndResultsForPrompt(
+                args.promptUuid,
+            );
+        if (
+            prompt.response !== null ||
+            prompt.errorMessage !== null ||
+            existingToolCalls.length > 0
+        ) {
+            throw new ParameterError(
+                'Deep Research requires a new thread message that has not been answered',
+            );
+        }
+
+        const mcpServerUuids = [...new Set(args.mcpServerUuids)];
+        const executionContextSnapshot: AiDeepResearchExecutionContextSnapshot =
+            await this.aiAgentService.validateDeepResearchMcpSelection(
+                args.user,
+                {
+                    projectUuid: args.projectUuid,
+                    agentUuid: args.agentUuid,
+                    mcpServerUuids,
+                    modelConfig: prompt.modelConfig ?? null,
+                },
+            );
+
+        let run: DbAiDeepResearchRun;
+        try {
+            run = await this.aiDeepResearchRunModel.create({
+                organizationUuid: args.user.organizationUuid,
+                projectUuid: args.projectUuid,
+                createdByUserUuid: args.user.userUuid,
+                agentUuid: args.agentUuid,
+                aiThreadUuid: args.aiThreadUuid,
+                promptUuid: args.promptUuid,
+                toolCallId: args.toolCallId ?? null,
+                prompt: prompt.prompt.trim(),
+                selectedMcpServerUuids: mcpServerUuids,
+                budget,
+                executionContextSnapshot,
+            });
+        } catch (error) {
+            const concurrentRun =
+                await this.aiDeepResearchRunModel.findByPromptScoped({
+                    promptUuid: args.promptUuid,
+                    organizationUuid: args.user.organizationUuid,
+                    projectUuid: args.projectUuid,
+                    createdByUserUuid: args.user.userUuid,
+                });
+            if (concurrentRun) {
+                await this.assertCurrentRunAccess(args.user, concurrentRun);
+                if (concurrentRun.status === 'queued') {
+                    await this.enqueueRun(concurrentRun);
+                }
+                return toRun(concurrentRun);
+            }
+            throw error;
+        }
 
         try {
-            await this.schedulerClient.aiDeepResearch({
-                aiDeepResearchRunUuid: run.ai_deep_research_run_uuid,
-                organizationUuid: run.organization_uuid,
-                projectUuid: run.project_uuid,
-                userUuid: run.created_by_user_uuid,
-            });
+            await this.enqueueRun(run);
         } catch (error) {
             this.logger.error(
                 `Failed to enqueue Deep Research run ${run.ai_deep_research_run_uuid}: ${getErrorMessage(error)}`,
@@ -551,6 +639,9 @@ export class AiDeepResearchService extends BaseService {
             await this.aiDeepResearchRunModel.markFailed(
                 run.ai_deep_research_run_uuid,
                 FAILED_RUN_ERROR_MESSAGE,
+            );
+            await this.aiDeepResearchRunModel.deleteUnstartedFailedRun(
+                run.ai_deep_research_run_uuid,
             );
             throw error;
         }
@@ -580,7 +671,24 @@ export class AiDeepResearchService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        await this.assertCanViewProject(user, projectUuid);
+        const ownership = await this.aiAgentModel.findThreadOwnership({
+            organizationUuid: user.organizationUuid,
+            threadUuid: aiThreadUuid,
+        });
+        if (
+            !ownership ||
+            !ownership.agentUuid ||
+            ownership.projectUuid !== projectUuid ||
+            ownership.ownerUserUuid !== user.userUuid
+        ) {
+            throw new NotFoundError(`AI thread ${aiThreadUuid} not found`);
+        }
+        await this.aiAgentService.assertDeepResearchAccess(user, {
+            agentUuid: ownership.agentUuid,
+            organizationUuid: user.organizationUuid,
+            projectUuid,
+            threadUuid: aiThreadUuid,
+        });
 
         const runs = await this.aiDeepResearchRunModel.findByThreadScoped({
             aiThreadUuid,
@@ -692,6 +800,7 @@ export class AiDeepResearchService extends BaseService {
             user,
             projectUuid,
             aiDeepResearchRunUuid,
+            false,
         );
         const run = await this.aiDeepResearchRunModel.requestCancellation(
             aiDeepResearchRunUuid,
@@ -701,7 +810,14 @@ export class AiDeepResearchService extends BaseService {
                 `Deep Research run ${aiDeepResearchRunUuid} not found`,
             );
         }
-        return toRun(run);
+        return {
+            ...toRun({
+                ...run,
+                result_markdown: null,
+                result_chart_data: null,
+            }),
+            executionContextSnapshot: null,
+        };
     }
 
     async executeRun(
@@ -863,7 +979,7 @@ export class AiDeepResearchService extends BaseService {
         chart: AiDeepResearchWarehouseChart,
         runQueryUuids: Set<string>,
     ): Promise<AiDeepResearchChartData | null> {
-        // The UUID set is built from this run's actual MCP tool results.
+        // The UUID set is built from this run's persisted warehouse-tool results.
         if (!runQueryUuids.has(chart.queryUuid)) {
             return null;
         }
@@ -871,13 +987,17 @@ export class AiDeepResearchService extends BaseService {
         const queryHistory = await this.queryHistoryModel.getByQueryUuid(
             chart.queryUuid,
         );
+        const executionStartedAt = run.started_at ?? run.created_at;
         const isVerified =
-            queryHistory?.context ===
-                QueryExecutionContext.MCP_RUN_METRIC_QUERY &&
+            (queryHistory?.context === QueryExecutionContext.AI ||
+                queryHistory?.context ===
+                    QueryExecutionContext.MCP_RUN_METRIC_QUERY) &&
             queryHistory.projectUuid === run.project_uuid &&
             queryHistory.organizationUuid === run.organization_uuid &&
             queryHistory.createdByUserUuid === run.created_by_user_uuid &&
-            queryHistory.createdByActorType === 'pat' &&
+            queryHistory.createdAt >= executionStartedAt &&
+            (queryHistory.createdByActorType === 'session' ||
+                queryHistory.createdByActorType === 'pat') &&
             queryHistory.status === QueryHistoryStatus.READY &&
             queryHistory.resultsFileName !== null &&
             (!queryHistory.resultsExpiresAt ||
@@ -973,16 +1093,6 @@ export class AiDeepResearchService extends BaseService {
                 aiDeepResearchRunUuid,
             );
         }
-    }
-
-    async setClaudeSessionId(
-        aiDeepResearchRunUuid: string,
-        claudeSessionId: string,
-    ): Promise<boolean> {
-        return this.aiDeepResearchRunModel.setClaudeSessionId(
-            aiDeepResearchRunUuid,
-            claudeSessionId,
-        );
     }
 
     async appendProgressEvent(

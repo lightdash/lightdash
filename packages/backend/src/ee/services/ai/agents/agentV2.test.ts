@@ -1,11 +1,125 @@
 import type { ModelMessage } from 'ai';
 import type { AiAgentArgs, AiAgentDependencies } from '../types/aiAgent';
 import {
+    buildDeepResearchExecutionContextSnapshot,
     buildMessagesWithMemoryBlock,
     getAgentTools,
     normalizeToolOutput,
+    withEarlyToolProgress,
     type AgentMcpToolSetup,
 } from './agentV2';
+
+describe('buildDeepResearchExecutionContextSnapshot', () => {
+    it('captures the effective runtime without secret-bearing fields', () => {
+        const snapshot = buildDeepResearchExecutionContextSnapshot(
+            {
+                agentSettings: {
+                    uuid: 'agent-1',
+                    name: 'Research agent',
+                    version: 4,
+                    updatedAt: new Date('2026-07-24T09:00:00.000Z'),
+                    instruction:
+                        'Use https://secret.example/token-sensitive-path',
+                    tags: ['analytics'],
+                    spaceAccess: ['space-1'],
+                    enableDataAccess: true,
+                    enableSelfImprovement: false,
+                    enableContentTools: true,
+                    enableUserContext: false,
+                },
+                model: {
+                    provider: 'anthropic',
+                    modelId: 'claude-sonnet',
+                },
+                modelReasoningEnabled: true,
+                keyManagement: 'self-managed',
+                mcpServers: [
+                    {
+                        uuid: 'mcp-1',
+                        name: 'GitHub',
+                        url: 'https://secret.example/mcp',
+                        resolvedCredential: {
+                            type: 'bearer',
+                            token: 'never-store-this',
+                        },
+                    },
+                ],
+                knowledgeDocuments: [
+                    {
+                        uuid: 'document-1',
+                        name: 'Definitions',
+                        updatedAt: new Date('2026-07-24T08:00:00.000Z'),
+                        alwaysIncludeInContext: true,
+                        content: 'never store document contents',
+                    },
+                ],
+                projectContextEnabled: true,
+                enableAiWriteback: false,
+                enableCodingAgent: false,
+                enablePreviewDeploySetup: false,
+                enableRepoDiscovery: true,
+                repoFsRoot: 'dbt',
+                repoFsSupportsCodeSearch: true,
+                availableSkills: [{ name: 'modeling' }],
+                canManageAgent: false,
+                canRunSql: true,
+                enableDataAccess: true,
+                enableContentTools: true,
+                autoApproveSql: true,
+            } as unknown as AiAgentArgs,
+            {
+                generateVisualization: {} as never,
+                mcp_github__search_issues: {} as never,
+            },
+            {
+                tools: {
+                    mcp_github__search_issues: {} as never,
+                },
+                mcpToolNameToServerUuid: {
+                    mcp_github__search_issues: 'mcp-1',
+                },
+                unavailableMcpServers: [],
+                closeMcpClients: () => Promise.resolve(),
+            },
+        );
+
+        expect(snapshot).toMatchObject({
+            schemaVersion: 1,
+            resolutionStage: 'execution',
+            model: {
+                provider: 'anthropic',
+                modelName: 'claude-sonnet',
+                reasoningEnabled: true,
+                keyManagement: 'self-managed',
+            },
+            tools: {
+                availableToolNames: [
+                    'generateVisualization',
+                    'mcp_github__search_issues',
+                ],
+                selectedMcpServers: [
+                    {
+                        uuid: 'mcp-1',
+                        name: 'GitHub',
+                        enabledToolNames: ['mcp_github__search_issues'],
+                    },
+                ],
+            },
+            knowledgeDocuments: [
+                {
+                    uuid: 'document-1',
+                    name: 'Definitions',
+                    alwaysIncludeInContext: true,
+                },
+            ],
+        });
+        expect(JSON.stringify(snapshot)).not.toContain('never-store-this');
+        expect(JSON.stringify(snapshot)).not.toContain('secret.example');
+        expect(JSON.stringify(snapshot)).not.toContain(
+            'never store document contents',
+        );
+    });
+});
 
 describe('normalizeToolOutput', () => {
     it('preserves built-in tool output result and metadata', () => {
@@ -40,6 +154,64 @@ describe('normalizeToolOutput', () => {
         expect(normalizeToolOutput(undefined)).toEqual({
             result: 'undefined',
         });
+    });
+});
+
+describe('withEarlyToolProgress', () => {
+    const finalOutput = {
+        result: 'done',
+        metadata: { status: 'success' },
+    };
+    const streamingTool = {
+        async *execute() {
+            yield {
+                result: '',
+                metadata: { status: 'streaming' },
+            };
+            yield finalOutput;
+        },
+    };
+
+    it('resolves an async iterable tool to its final output after durable progress', async () => {
+        let resolveProgress: () => void = () => undefined;
+        const updateProgress = vi.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolveProgress = resolve;
+                }),
+        );
+        const execute = vi.fn(streamingTool.execute);
+        const tools = withEarlyToolProgress(
+            { discoverFields: { execute } } as never,
+            updateProgress,
+            true,
+        );
+
+        const execution = tools.discoverFields.execute?.({}, {
+            toolCallId: 'tool-call-1',
+        } as never);
+        expect(execute).not.toHaveBeenCalled();
+
+        resolveProgress();
+
+        await expect(execution).resolves.toEqual(finalOutput);
+        expect(execute).toHaveBeenCalledOnce();
+    });
+
+    it('preserves async iterable tools in the standard execution path', () => {
+        const tools = withEarlyToolProgress(
+            { discoverFields: streamingTool } as never,
+            vi.fn().mockResolvedValue(undefined),
+            false,
+        );
+
+        const execution = tools.discoverFields.execute?.({}, {
+            toolCallId: 'tool-call-1',
+        } as never);
+
+        expect(
+            (execution as AsyncIterable<unknown>)[Symbol.asyncIterator],
+        ).toBeTypeOf('function');
     });
 });
 
@@ -81,6 +253,10 @@ describe('getAgentTools workstream tool gate', () => {
             enableGrepFields: false,
             enablePreviewDeploySetup: false,
             enableRepoDiscovery: false,
+            execution: {
+                mode: 'standard',
+                maxSteps: 10,
+            },
             findExploresFieldSearchSize: 10,
             findFieldsPageSize: 10,
             getDashboardChartsPageSize: 10,
@@ -151,6 +327,44 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).not.toContain('listWorkstreams');
         expect(names).not.toContain('closePullRequest');
         expect(names).not.toContain('getPullRequestDiff');
+    });
+
+    it('adds the report tool while preserving inherited built-in and MCP tools in deep research', () => {
+        const args = buildArgs({
+            enableCodingAgent: false,
+            enableAiWriteback: true,
+        });
+        args.execution = {
+            mode: 'deep_research',
+            maxSteps: 30,
+            budget: {
+                maxTokens: 10_000,
+                maxToolCalls: 20,
+                maxWarehouseQueries: 10,
+                maxResultRows: 1_000,
+            },
+        };
+        const tools = getAgentTools(
+            args,
+            depsStub(),
+            [],
+            {
+                ...mcpStub,
+                tools: {
+                    mcp_github__create_issue: {} as never,
+                },
+            },
+            new Map(),
+        );
+
+        expect(Object.keys(tools)).toEqual(
+            expect.arrayContaining([
+                'submitResearchReport',
+                'editDbtProject',
+                'generateVisualization',
+                'mcp_github__create_issue',
+            ]),
+        );
     });
 });
 

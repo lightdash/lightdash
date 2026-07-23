@@ -135,7 +135,10 @@ export const toDeepResearchRegistration = (
 ): DeepResearchRunRegistration => ({
     runUuid: run.aiDeepResearchRunUuid,
     projectUuid: run.projectUuid,
+    agentUuid: run.agentUuid,
     threadUuid: args.threadUuid,
+    promptUuid: run.promptUuid,
+    mcpServerUuids: run.mcpServerUuids,
     userUuid: args.userUuid,
     question: run.prompt,
     depth: getDepthFromBudget(run.budget),

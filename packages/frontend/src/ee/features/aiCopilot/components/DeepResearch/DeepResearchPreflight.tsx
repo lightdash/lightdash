@@ -1,33 +1,34 @@
-import {
-    Box,
-    Group,
-    Radio,
-    SimpleGrid,
-    Stack,
-    Text,
-    ThemeIcon,
-} from '@mantine-8/core';
-import { IconDatabase, IconSearch } from '@tabler/icons-react';
+import { type AiMcpServer } from '@lightdash/common';
+import { Box, Group, Radio, SimpleGrid, Stack, Text } from '@mantine-8/core';
+import { IconDatabase } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { DEEP_RESEARCH_DEPTH_CONFIG } from '../../deepResearch/runProgress';
 import {
     DEEP_RESEARCH_DEPTHS,
     type DeepResearchDepth,
-    type DeepResearchSource,
 } from '../../deepResearch/types';
+import { DeepResearchMcpSelector } from './DeepResearchMcpSelector';
 import styles from './DeepResearchPreflight.module.css';
-
-const SOURCES: DeepResearchSource[] = [
-    { name: 'Project data', isAvailable: true, warning: null },
-    { name: 'Public web', isAvailable: true, warning: null },
-];
 
 type Props = {
     depth: DeepResearchDepth;
     onDepthChange: (depth: DeepResearchDepth) => void;
+    mcpServers: AiMcpServer[];
+    selectedMcpServerUuids: string[];
+    onSelectedMcpServerUuidsChange: (mcpServerUuids: string[]) => void;
+    isLoadingMcpServers: boolean;
+    mcpServerError: string | null;
 };
 
-export const DeepResearchPreflight = ({ depth, onDepthChange }: Props) => {
+export const DeepResearchPreflight = ({
+    depth,
+    onDepthChange,
+    mcpServers,
+    selectedMcpServerUuids,
+    onSelectedMcpServerUuidsChange,
+    isLoadingMcpServers,
+    mcpServerError,
+}: Props) => {
     return (
         <Box
             className={styles.root}
@@ -100,52 +101,15 @@ export const DeepResearchPreflight = ({ depth, onDepthChange }: Props) => {
                     </SimpleGrid>
                 </Radio.Group>
 
-                <Stack gap="xs">
-                    <Stack gap={2}>
-                        <Text size="13px" fw={600} lh={1.35}>
-                            Evidence sources
-                        </Text>
-                        <Text size="11px" c="dimmed" lh={1.4}>
-                            Deep research will search the available sources
-                            shown below.
-                        </Text>
-                    </Stack>
-                    <Group gap="xs">
-                        {SOURCES.map((source) => (
-                            <Group
-                                key={source.name}
-                                gap={6}
-                                className={styles.source}
-                                data-available={source.isAvailable}
-                            >
-                                <ThemeIcon
-                                    variant="light"
-                                    color={
-                                        source.isAvailable ? 'indigo' : 'gray'
-                                    }
-                                    size={22}
-                                >
-                                    <MantineIcon
-                                        icon={
-                                            source.name === 'Project data'
-                                                ? IconDatabase
-                                                : IconSearch
-                                        }
-                                        size={12}
-                                    />
-                                </ThemeIcon>
-                                <Text size="11px" lh={1.35}>
-                                    {source.name}
-                                </Text>
-                                {!source.isAvailable && (
-                                    <Text span size="xs" c="dimmed">
-                                        unavailable
-                                    </Text>
-                                )}
-                            </Group>
-                        ))}
-                    </Group>
-                </Stack>
+                <DeepResearchMcpSelector
+                    mcpServers={mcpServers}
+                    selectedMcpServerUuids={selectedMcpServerUuids}
+                    onSelectedMcpServerUuidsChange={
+                        onSelectedMcpServerUuidsChange
+                    }
+                    isLoading={isLoadingMcpServers}
+                    error={mcpServerError}
+                />
             </Stack>
         </Box>
     );
