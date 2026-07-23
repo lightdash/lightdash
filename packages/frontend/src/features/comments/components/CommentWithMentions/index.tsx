@@ -1,5 +1,5 @@
 import { useMantineTheme } from '@mantine-8/core';
-import { RichTextEditor } from '@mantine/tiptap';
+import { RichTextEditor } from '@mantine-8/tiptap';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useEditor, type Editor } from '@tiptap/react';

@@ -13,7 +13,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import { RichTextEditor } from '@mantine/tiptap';
+import { RichTextEditor } from '@mantine-8/tiptap';
 import {
     IconArrowUp,
     IconPlayerStop,

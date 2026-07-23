@@ -40,7 +40,7 @@ overrides:
 
 packageExtensionsChecksum: sha256-dssFMdNh289VAmJNNfz2Un2yyQ65P87lDvF3ZdZoc94=
 
-pnpmfileChecksum: sha256-MpThIPbzl7wRjww3iPI5NpP3QZScl0ioo5/ZQ9GARXg=
+pnpmfileChecksum: sha256-B7yqhOAqNThdTYJz5i/S/A0AwiFLQcUF7Hc7bSdd680=
 
 importers:
 
@@ -1107,6 +1107,9 @@ importers:
       '@mantine-8/notifications':
         specifier: npm:@mantine/notifications@8.0.0
         version: '@mantine/notifications@8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)'
+      '@mantine-8/tiptap':
+        specifier: npm:@mantine/tiptap@8.0.0
+        version: '@mantine/tiptap@8.0.0(@tiptap/extension-link@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2))(@tiptap/react@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)'
       '@mantine/core':
         specifier: 6.0.22
         version: 6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -1122,9 +1125,6 @@ importers:
       '@mantine/prism':
         specifier: 6.0.21
         version: 6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@mantine/tiptap':
-        specifier: 6.0.21
-        version: 6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@tabler/icons-react@2.47.0(react@19.2.0))(@tiptap/extension-link@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2))(@tiptap/react@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)
       '@monaco-editor/react':
         specifier: 4.6.0
         version: 4.6.0(monaco-editor@0.44.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -4357,15 +4357,13 @@ packages:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
 
-  '@mantine/tiptap@6.0.21':
-    resolution: {integrity: sha512-SeVoMN+STXeeVTg2H4bxLJUjDuZ9ykAm6TSTqDi/vTRxp/v3aokAU8DCD8Z207DNXaRfZ50YByxfo1/uIyndYw==}
+  '@mantine/tiptap@8.0.0':
+    resolution: {integrity: sha512-45GVrwyLWzQl+lXfHpNYvX/qIDCamLyvQnyEpBpyBEdkxEiSeu9dCqE0WF159uST6QsODPMktPPgdzPvcc0psQ==}
     peerDependencies:
-      '@mantine/core': 6.0.21
-      '@mantine/hooks': 6.0.21
-      '@tabler/icons-react': '>=2.1.0'
-      '@tiptap/extension-link': ^2.0.0-beta.202
-      '@tiptap/react': ^2.0.0-beta.202
-      react: '>=16.8.0'
+      '@tiptap/extension-link': '>=2.1.12'
+      '@tiptap/react': '>=2.1.12'
+      react: ^18.x || ^19.x
+      react-dom: ^18.x || ^19.x
 
   '@mantine/utils@6.0.21':
     resolution: {integrity: sha512-33RVDRop5jiWFao3HKd3Yp7A9mEq4HAJxJPTuYm1NkdqX6aTKOQK7wT8v8itVodBp+sb4cJK6ZVdD1UurK/txQ==}
@@ -20745,15 +20743,16 @@ snapshots:
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
 
-  '@mantine/tiptap@6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@tabler/icons-react@2.47.0(react@19.2.0))(@tiptap/extension-link@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2))(@tiptap/react@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)':
+  '@mantine/tiptap@8.0.0(@tiptap/extension-link@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2))(@tiptap/react@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
-      '@mantine/core': 6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@mantine/hooks': 6.0.22(react@19.2.0)
-      '@mantine/utils': 6.0.21(react@19.2.0)
-      '@tabler/icons-react': 2.47.0(react@19.2.0)
+      '@mantine/core': 8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@mantine/hooks': 8.0.0(react@19.2.0)
       '@tiptap/extension-link': 2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)
       '@tiptap/react': 2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       react: 19.2.0
+      react-dom: 19.2.0(react@19.2.0)
+    transitivePeerDependencies:
+      - '@types/react'
 
   '@mantine/utils@6.0.21(react@19.2.0)':
     dependencies:
