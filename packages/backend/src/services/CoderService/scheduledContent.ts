@@ -117,9 +117,9 @@ export const getDashboardTabSlug = (
         );
     }
     const baseSlug = getDashboardTabBaseSlug(tab);
-    const matchingTabs = dashboard.tabs.filter(
-        (candidate) => getDashboardTabBaseSlug(candidate) === baseSlug,
-    );
+    const matchingTabs = dashboard.tabs
+        .filter((candidate) => getDashboardTabBaseSlug(candidate) === baseSlug)
+        .sort((left, right) => left.order - right.order);
     if (matchingTabs.length === 1) return baseSlug;
     const index = matchingTabs.findIndex(({ uuid }) => uuid === tabUuid);
     return `${baseSlug}-${index + 1}`;
