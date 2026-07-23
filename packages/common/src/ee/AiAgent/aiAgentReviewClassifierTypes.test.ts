@@ -4,6 +4,7 @@ import {
     getAiAgentConfigSnapshotHash,
     getAiAgentReviewItemFingerprint,
     getAiAgentReviewItemFingerprintScope,
+    persistedAiAgentJudgeProjectContextEntrySchema,
     shouldReopenReviewItem,
     type AiAgentConfigSnapshot,
     type AiAgentReviewItemFingerprintInput,
@@ -366,6 +367,69 @@ describe('aiAgentJudgeProjectContextEntrySchema', () => {
             terms: [],
             objects: [],
         });
+        expect(result.success).toBe(false);
+    });
+});
+
+describe('persistedAiAgentJudgeProjectContextEntrySchema', () => {
+    test('drops legacy string object refs from persisted entries', () => {
+        const result = persistedAiAgentJudgeProjectContextEntrySchema.safeParse(
+            {
+                op: 'create',
+                id: null,
+                kind: 'context',
+                content: 'Use the payments explore.',
+                terms: [],
+                objects: ['payments'],
+            },
+        );
+        expect(result.success).toBe(true);
+        expect(result.success && result.data.objects).toEqual([]);
+    });
+
+    test('drops the whole objects array when refs are mixed', () => {
+        const result = persistedAiAgentJudgeProjectContextEntrySchema.safeParse(
+            {
+                op: 'create',
+                id: null,
+                kind: 'context',
+                content: 'Use the payments explore.',
+                terms: [],
+                objects: [{ type: 'explore', name: 'payments' }, 'orders'],
+            },
+        );
+        expect(result.success).toBe(true);
+        expect(result.success && result.data.objects).toEqual([]);
+    });
+
+    test('preserves valid typed object refs', () => {
+        const result = persistedAiAgentJudgeProjectContextEntrySchema.safeParse(
+            {
+                op: 'update',
+                id: 'payments-routing',
+                kind: 'context',
+                content: 'Use the payments explore.',
+                terms: [],
+                objects: [{ type: 'explore', name: 'payments' }],
+            },
+        );
+        expect(result.success).toBe(true);
+        expect(result.success && result.data.objects).toEqual([
+            { type: 'explore', name: 'payments' },
+        ]);
+    });
+
+    test('still rejects entries invalid beyond legacy objects', () => {
+        const result = persistedAiAgentJudgeProjectContextEntrySchema.safeParse(
+            {
+                op: 'update',
+                id: null,
+                kind: 'context',
+                content: 'x',
+                terms: [],
+                objects: ['payments'],
+            },
+        );
         expect(result.success).toBe(false);
     });
 });
