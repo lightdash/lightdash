@@ -6,7 +6,7 @@ import {
     type LanguageMap,
     type SavedChart,
 } from '@lightdash/common';
-import { ModalsProvider } from '@mantine/modals';
+import { ModalsProvider } from '@mantine-8/modals';
 import {
     useEffect,
     useRef,
