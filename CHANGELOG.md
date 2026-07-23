@@ -1,3 +1,10 @@
+## [0.3464.1](https://github.com/lightdash/lightdash/compare/0.3464.0...0.3464.1) (2026-07-23)
+
+
+### Bug Fixes
+
+* run scheduled deliveries created by service accounts ([#25917](https://github.com/lightdash/lightdash/issues/25917)) ([4ceeedb](https://github.com/lightdash/lightdash/commit/4ceeedbde3012a5033997fb87ed1648547e0639f)), closes [/linear.app/lightdash/issue/PROD-9012/scheduled-deliveries-created-by-a-service-account-never-run#agent-session-1da05de1](https://github.com//linear.app/lightdash/issue/PROD-9012/scheduled-deliveries-created-by-a-service-account-never-run/issues/agent-session-1da05de1)
+
 # [0.3464.0](https://github.com/lightdash/lightdash/compare/0.3463.0...0.3464.0) (2026-07-23)
 
 
