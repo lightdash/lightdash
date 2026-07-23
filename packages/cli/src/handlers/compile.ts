@@ -471,7 +471,7 @@ export const compile = async (options: CompileHandlerOptions) => {
             if (options.validateWarehouseColumns === true) {
                 console.error(
                     styles.warning(
-                        '> Skipping warehouse column validation because --skip-warehouse-catalog was supplied',
+                        '> Skipping warehouse column validation because the warehouse catalog is skipped',
                     ),
                 );
             }
