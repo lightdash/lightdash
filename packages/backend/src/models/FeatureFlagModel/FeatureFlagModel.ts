@@ -96,7 +96,7 @@ export class FeatureFlagModel {
         return { id: args.featureFlagId, enabled: false };
     }
 
-    private hasCommercialFeatureFlagHandler(featureFlagId: string): boolean {
+    protected hasCommercialFeatureFlagHandler(featureFlagId: string): boolean {
         return this.featureFlagHandlers[featureFlagId] !== undefined;
     }
 
