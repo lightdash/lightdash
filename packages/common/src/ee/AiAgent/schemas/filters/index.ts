@@ -18,6 +18,7 @@ export {
     numberFilterSchema,
     stringFilterSchema,
 };
+export * from './filterExamples';
 
 const filterAndOrSchema = z
     .union([z.literal('and'), z.literal('or')])

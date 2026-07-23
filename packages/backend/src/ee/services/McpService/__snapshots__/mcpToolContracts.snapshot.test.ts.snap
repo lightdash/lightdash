@@ -1672,7 +1672,12 @@ Example B — "Revenue by month with year-over-year comparison"
                                     "anyOf": [
                                       {
                                         "additionalProperties": false,
-                                        "description": "Use for boolean fields when checking if a value is missing or present. Do not include values. Examples: {"fieldId":"users_is_active","fieldType":"boolean","fieldFilterType":"boolean","operator":"isNull"}; {"fieldId":"users_is_active","fieldType":"boolean","fieldFilterType":"boolean","operator":"notNull"}",
+                                        "description": "Use for boolean fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "users_is_active"; // use the actual field id
+  fieldType: "boolean"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "boolean"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
                                         "properties": {
                                           "fieldFilterType": {
                                             "const": "boolean",
@@ -1707,7 +1712,13 @@ Example B — "Revenue by month with year-over-year comparison"
                                       },
                                       {
                                         "additionalProperties": false,
-                                        "description": "Use for boolean fields when matching or excluding true/false values. Examples: {"fieldId":"users_is_active","fieldType":"boolean","fieldFilterType":"boolean","operator":"equals","values":[true]}; {"fieldId":"users_is_active","fieldType":"boolean","fieldFilterType":"boolean","operator":"notEquals","values":[false]}",
+                                        "description": "Use for boolean fields when matching or excluding true/false values. Type shape: {
+  fieldId: "users_is_active"; // use the actual field id
+  fieldType: "boolean"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "boolean"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals"; // | means or
+  values: [boolean]; // exactly one array value
+}",
                                         "properties": {
                                           "fieldFilterType": {
                                             "const": "boolean",
@@ -1756,7 +1767,12 @@ Example B — "Revenue by month with year-over-year comparison"
                                     "anyOf": [
                                       {
                                         "additionalProperties": false,
-                                        "description": "Use for string fields when checking if a value is missing or present. Do not include values. Examples: {"fieldId":"orders_status","fieldType":"string","fieldFilterType":"string","operator":"isNull"}; {"fieldId":"orders_status","fieldType":"string","fieldFilterType":"string","operator":"notNull"}",
+                                        "description": "Use for string fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "orders_status"; // use the actual field id
+  fieldType: "string"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "string"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
                                         "properties": {
                                           "fieldFilterType": {
                                             "const": "string",
@@ -1791,7 +1807,13 @@ Example B — "Revenue by month with year-over-year comparison"
                                       },
                                       {
                                         "additionalProperties": false,
-                                        "description": "Use for text matching on string fields. For dates like "last 2 weeks", use a date filter instead. Examples: {"fieldId":"orders_status","fieldType":"string","fieldFilterType":"string","operator":"equals","values":["complete","paid"]}; {"fieldId":"customers_email","fieldType":"string","fieldFilterType":"string","operator":"include","values":["@lightdash.com"]}; {"fieldId":"products_sku","fieldType":"string","fieldFilterType":"string","operator":"startsWith","values":["SKU-"]}; {"fieldId":"orders_status","fieldType":"string","fieldFilterType":"string","operator":"notEquals","values":["cancelled"]}",
+                                        "description": "Use for text matching on string fields. For dates like "last 2 weeks", use a date filter instead. Type shape: {
+  fieldId: "orders_status"; // use the actual field id
+  fieldType: "string"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "string"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals" | "startsWith" | "endsWith" | "include" | "doesNotInclude"; // | means or
+  values: string[];
+}",
                                         "properties": {
                                           "fieldFilterType": {
                                             "const": "string",
@@ -1842,7 +1864,12 @@ Example B — "Revenue by month with year-over-year comparison"
                                     "anyOf": [
                                       {
                                         "additionalProperties": false,
-                                        "description": "Use for numeric fields when checking if a value is missing or present. Do not include values. Examples: {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"isNull"}; {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"notNull"}",
+                                        "description": "Use for numeric fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
                                         "properties": {
                                           "fieldFilterType": {
                                             "const": "number",
@@ -1887,7 +1914,13 @@ Example B — "Revenue by month with year-over-year comparison"
                                       },
                                       {
                                         "additionalProperties": false,
-                                        "description": "Use for numeric fields that equal or exclude specific values. Examples: {"fieldId":"orders_item_count","fieldType":"count","fieldFilterType":"number","operator":"equals","values":[1,2]}; {"fieldId":"orders_discount_percent","fieldType":"number","fieldFilterType":"number","operator":"notEquals","values":[0]}",
+                                        "description": "Use for numeric fields that equal or exclude specific values. Type shape: {
+  fieldId: "orders_item_count"; // use the actual field id
+  fieldType: "count"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals"; // | means or
+  values: number[];
+}",
                                         "properties": {
                                           "fieldFilterType": {
                                             "const": "number",
@@ -1940,7 +1973,13 @@ Example B — "Revenue by month with year-over-year comparison"
                                       },
                                       {
                                         "additionalProperties": false,
-                                        "description": "Use for numeric fields with a single comparison threshold. Examples: {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"greaterThan","values":[1000]}; {"fieldId":"orders_discount_percent","fieldType":"number","fieldFilterType":"number","operator":"lessThanOrEqual","values":[0.15]}",
+                                        "description": "Use for numeric fields with a single comparison threshold. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "lessThan" | "lessThanOrEqual" | "greaterThan" | "greaterThanOrEqual"; // | means or
+  values: [number]; // exactly one array value
+}",
                                         "properties": {
                                           "fieldFilterType": {
                                             "const": "number",
@@ -1997,7 +2036,13 @@ Example B — "Revenue by month with year-over-year comparison"
                                       },
                                       {
                                         "additionalProperties": false,
-                                        "description": "Use for numeric fields inside or outside a two-value range. Examples: {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"inBetween","values":[100,500]}; {"fieldId":"orders_margin_percent","fieldType":"number","fieldFilterType":"number","operator":"notInBetween","values":[0.2,0.4]}",
+                                        "description": "Use for numeric fields inside or outside a two-value range. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inBetween" | "notInBetween"; // | means or
+  values: [number, number]; // exactly two array values; lower and upper bounds
+}",
                                         "properties": {
                                           "fieldFilterType": {
                                             "const": "number",
@@ -2056,7 +2101,12 @@ Example B — "Revenue by month with year-over-year comparison"
                                     "anyOf": [
                                       {
                                         "additionalProperties": false,
-                                        "description": "Use for date/timestamp fields when checking if a value is missing or present. Do not include values. Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"isNull"}; {"fieldId":"orders_created_at","fieldType":"timestamp","fieldFilterType":"date","operator":"notNull"}",
+                                        "description": "Use for date/timestamp fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
                                         "properties": {
                                           "fieldFilterType": {
                                             "const": "date",
@@ -2092,7 +2142,13 @@ Example B — "Revenue by month with year-over-year comparison"
                                       },
                                       {
                                         "additionalProperties": false,
-                                        "description": "Use for specific dates like 2024-01-01. For relative periods like "last 2 weeks", use inThePast. Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"equals","values":["2024-01-01"]}; {"fieldId":"orders_created_at","fieldType":"timestamp","fieldFilterType":"date","operator":"notEquals","values":["2024-01-01T00:00:00Z"]}",
+                                        "description": "Use for specific dates like 2024-01-01. For relative periods like "last 2 weeks", use inThePast. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals"; // | means or
+  values: string[];
+}",
                                         "properties": {
                                           "fieldFilterType": {
                                             "const": "date",
@@ -2146,7 +2202,17 @@ Example B — "Revenue by month with year-over-year comparison"
                                       },
                                       {
                                         "additionalProperties": false,
-                                        "description": "Use for relative date requests such as "last 2 weeks" or "next 3 months". Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"inThePast","values":[2],"settings":{"completed":false,"unitOfTime":"weeks"}}; {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"inThePast","values":[3],"settings":{"completed":true,"unitOfTime":"months"}}; {"fieldId":"orders_ship_date","fieldType":"date","fieldFilterType":"date","operator":"inTheNext","values":[14],"settings":{"completed":false,"unitOfTime":"days"}}; {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"notInThePast","values":[7],"settings":{"completed":false,"unitOfTime":"days"}}",
+                                        "description": "Use for relative date requests such as "last 2 weeks" or "next 3 months". Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inThePast" | "notInThePast" | "inTheNext"; // | means or
+  values: [number]; // exactly one array value; number of periods
+  settings: {
+  completed: false | true; // false includes current partial period; true means completed periods only
+  unitOfTime: "days" | "weeks" | "months" | "quarters" | "years";
+};
+}",
                                         "properties": {
                                           "fieldFilterType": {
                                             "const": "date",
@@ -2220,7 +2286,17 @@ Example B — "Revenue by month with year-over-year comparison"
                                       },
                                       {
                                         "additionalProperties": false,
-                                        "description": "Use for current date requests such as "today", "this week", "this month", or "this year". Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"inTheCurrent","values":[1],"settings":{"completed":false,"unitOfTime":"days"}}; {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"notInTheCurrent","values":[1],"settings":{"completed":false,"unitOfTime":"months"}}",
+                                        "description": "Use for current date requests such as "today", "this week", "this month", or "this year". Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inTheCurrent" | "notInTheCurrent"; // | means or
+  values: [1]; // exactly one array value; always [1] for current-period filters
+  settings: {
+  completed: false; // false includes current partial period; true means completed periods only
+  unitOfTime: "days" | "weeks" | "months" | "quarters" | "years";
+};
+}",
                                         "properties": {
                                           "fieldFilterType": {
                                             "const": "date",
@@ -2295,7 +2371,13 @@ Example B — "Revenue by month with year-over-year comparison"
                                       },
                                       {
                                         "additionalProperties": false,
-                                        "description": "Use for date/timestamp fields before, on-or-before, after, or on-or-after a specific date. Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"greaterThanOrEqual","values":["2024-01-01"]}; {"fieldId":"orders_created_at","fieldType":"timestamp","fieldFilterType":"date","operator":"lessThan","values":["2024-02-01T00:00:00Z"]}",
+                                        "description": "Use for date/timestamp fields before, on-or-before, after, or on-or-after a specific date. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "lessThan" | "lessThanOrEqual" | "greaterThan" | "greaterThanOrEqual"; // | means or
+  values: [string]; // exactly one array value
+}",
                                         "properties": {
                                           "fieldFilterType": {
                                             "const": "date",
@@ -2353,7 +2435,13 @@ Example B — "Revenue by month with year-over-year comparison"
                                       },
                                       {
                                         "additionalProperties": false,
-                                        "description": "Use for explicit date ranges such as from 2024-01-01 to 2024-01-31. Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"inBetween","values":["2024-01-01","2024-01-31"]}; {"fieldId":"orders_created_at","fieldType":"timestamp","fieldFilterType":"date","operator":"inBetween","values":["2024-01-01T00:00:00Z","2024-01-31T23:59:59Z"]}",
+                                        "description": "Use for explicit date ranges such as from 2024-01-01 to 2024-01-31. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inBetween"; // | means or
+  values: [string, string]; // exactly two array values; lower and upper bounds
+}",
                                         "properties": {
                                           "fieldFilterType": {
                                             "const": "date",
@@ -2534,7 +2622,12 @@ Example B — "Revenue by month with year-over-year comparison"
                           "anyOf": [
                             {
                               "additionalProperties": false,
-                              "description": "Use for boolean fields when checking if a value is missing or present. Do not include values. Examples: {"fieldId":"users_is_active","fieldType":"boolean","fieldFilterType":"boolean","operator":"isNull"}; {"fieldId":"users_is_active","fieldType":"boolean","fieldFilterType":"boolean","operator":"notNull"}",
+                              "description": "Use for boolean fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "users_is_active"; // use the actual field id
+  fieldType: "boolean"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "boolean"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "boolean",
@@ -2569,7 +2662,13 @@ Example B — "Revenue by month with year-over-year comparison"
                             },
                             {
                               "additionalProperties": false,
-                              "description": "Use for boolean fields when matching or excluding true/false values. Examples: {"fieldId":"users_is_active","fieldType":"boolean","fieldFilterType":"boolean","operator":"equals","values":[true]}; {"fieldId":"users_is_active","fieldType":"boolean","fieldFilterType":"boolean","operator":"notEquals","values":[false]}",
+                              "description": "Use for boolean fields when matching or excluding true/false values. Type shape: {
+  fieldId: "users_is_active"; // use the actual field id
+  fieldType: "boolean"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "boolean"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals"; // | means or
+  values: [boolean]; // exactly one array value
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "boolean",
@@ -2618,7 +2717,12 @@ Example B — "Revenue by month with year-over-year comparison"
                           "anyOf": [
                             {
                               "additionalProperties": false,
-                              "description": "Use for string fields when checking if a value is missing or present. Do not include values. Examples: {"fieldId":"orders_status","fieldType":"string","fieldFilterType":"string","operator":"isNull"}; {"fieldId":"orders_status","fieldType":"string","fieldFilterType":"string","operator":"notNull"}",
+                              "description": "Use for string fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "orders_status"; // use the actual field id
+  fieldType: "string"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "string"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "string",
@@ -2653,7 +2757,13 @@ Example B — "Revenue by month with year-over-year comparison"
                             },
                             {
                               "additionalProperties": false,
-                              "description": "Use for text matching on string fields. For dates like "last 2 weeks", use a date filter instead. Examples: {"fieldId":"orders_status","fieldType":"string","fieldFilterType":"string","operator":"equals","values":["complete","paid"]}; {"fieldId":"customers_email","fieldType":"string","fieldFilterType":"string","operator":"include","values":["@lightdash.com"]}; {"fieldId":"products_sku","fieldType":"string","fieldFilterType":"string","operator":"startsWith","values":["SKU-"]}; {"fieldId":"orders_status","fieldType":"string","fieldFilterType":"string","operator":"notEquals","values":["cancelled"]}",
+                              "description": "Use for text matching on string fields. For dates like "last 2 weeks", use a date filter instead. Type shape: {
+  fieldId: "orders_status"; // use the actual field id
+  fieldType: "string"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "string"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals" | "startsWith" | "endsWith" | "include" | "doesNotInclude"; // | means or
+  values: string[];
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "string",
@@ -2704,7 +2814,12 @@ Example B — "Revenue by month with year-over-year comparison"
                           "anyOf": [
                             {
                               "additionalProperties": false,
-                              "description": "Use for numeric fields when checking if a value is missing or present. Do not include values. Examples: {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"isNull"}; {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"notNull"}",
+                              "description": "Use for numeric fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "number",
@@ -2749,7 +2864,13 @@ Example B — "Revenue by month with year-over-year comparison"
                             },
                             {
                               "additionalProperties": false,
-                              "description": "Use for numeric fields that equal or exclude specific values. Examples: {"fieldId":"orders_item_count","fieldType":"count","fieldFilterType":"number","operator":"equals","values":[1,2]}; {"fieldId":"orders_discount_percent","fieldType":"number","fieldFilterType":"number","operator":"notEquals","values":[0]}",
+                              "description": "Use for numeric fields that equal or exclude specific values. Type shape: {
+  fieldId: "orders_item_count"; // use the actual field id
+  fieldType: "count"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals"; // | means or
+  values: number[];
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "number",
@@ -2802,7 +2923,13 @@ Example B — "Revenue by month with year-over-year comparison"
                             },
                             {
                               "additionalProperties": false,
-                              "description": "Use for numeric fields with a single comparison threshold. Examples: {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"greaterThan","values":[1000]}; {"fieldId":"orders_discount_percent","fieldType":"number","fieldFilterType":"number","operator":"lessThanOrEqual","values":[0.15]}",
+                              "description": "Use for numeric fields with a single comparison threshold. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "lessThan" | "lessThanOrEqual" | "greaterThan" | "greaterThanOrEqual"; // | means or
+  values: [number]; // exactly one array value
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "number",
@@ -2859,7 +2986,13 @@ Example B — "Revenue by month with year-over-year comparison"
                             },
                             {
                               "additionalProperties": false,
-                              "description": "Use for numeric fields inside or outside a two-value range. Examples: {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"inBetween","values":[100,500]}; {"fieldId":"orders_margin_percent","fieldType":"number","fieldFilterType":"number","operator":"notInBetween","values":[0.2,0.4]}",
+                              "description": "Use for numeric fields inside or outside a two-value range. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inBetween" | "notInBetween"; // | means or
+  values: [number, number]; // exactly two array values; lower and upper bounds
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "number",
@@ -2918,7 +3051,12 @@ Example B — "Revenue by month with year-over-year comparison"
                           "anyOf": [
                             {
                               "additionalProperties": false,
-                              "description": "Use for date/timestamp fields when checking if a value is missing or present. Do not include values. Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"isNull"}; {"fieldId":"orders_created_at","fieldType":"timestamp","fieldFilterType":"date","operator":"notNull"}",
+                              "description": "Use for date/timestamp fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "date",
@@ -2954,7 +3092,13 @@ Example B — "Revenue by month with year-over-year comparison"
                             },
                             {
                               "additionalProperties": false,
-                              "description": "Use for specific dates like 2024-01-01. For relative periods like "last 2 weeks", use inThePast. Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"equals","values":["2024-01-01"]}; {"fieldId":"orders_created_at","fieldType":"timestamp","fieldFilterType":"date","operator":"notEquals","values":["2024-01-01T00:00:00Z"]}",
+                              "description": "Use for specific dates like 2024-01-01. For relative periods like "last 2 weeks", use inThePast. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals"; // | means or
+  values: string[];
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "date",
@@ -3008,7 +3152,17 @@ Example B — "Revenue by month with year-over-year comparison"
                             },
                             {
                               "additionalProperties": false,
-                              "description": "Use for relative date requests such as "last 2 weeks" or "next 3 months". Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"inThePast","values":[2],"settings":{"completed":false,"unitOfTime":"weeks"}}; {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"inThePast","values":[3],"settings":{"completed":true,"unitOfTime":"months"}}; {"fieldId":"orders_ship_date","fieldType":"date","fieldFilterType":"date","operator":"inTheNext","values":[14],"settings":{"completed":false,"unitOfTime":"days"}}; {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"notInThePast","values":[7],"settings":{"completed":false,"unitOfTime":"days"}}",
+                              "description": "Use for relative date requests such as "last 2 weeks" or "next 3 months". Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inThePast" | "notInThePast" | "inTheNext"; // | means or
+  values: [number]; // exactly one array value; number of periods
+  settings: {
+  completed: false | true; // false includes current partial period; true means completed periods only
+  unitOfTime: "days" | "weeks" | "months" | "quarters" | "years";
+};
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "date",
@@ -3082,7 +3236,17 @@ Example B — "Revenue by month with year-over-year comparison"
                             },
                             {
                               "additionalProperties": false,
-                              "description": "Use for current date requests such as "today", "this week", "this month", or "this year". Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"inTheCurrent","values":[1],"settings":{"completed":false,"unitOfTime":"days"}}; {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"notInTheCurrent","values":[1],"settings":{"completed":false,"unitOfTime":"months"}}",
+                              "description": "Use for current date requests such as "today", "this week", "this month", or "this year". Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inTheCurrent" | "notInTheCurrent"; // | means or
+  values: [1]; // exactly one array value; always [1] for current-period filters
+  settings: {
+  completed: false; // false includes current partial period; true means completed periods only
+  unitOfTime: "days" | "weeks" | "months" | "quarters" | "years";
+};
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "date",
@@ -3157,7 +3321,13 @@ Example B — "Revenue by month with year-over-year comparison"
                             },
                             {
                               "additionalProperties": false,
-                              "description": "Use for date/timestamp fields before, on-or-before, after, or on-or-after a specific date. Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"greaterThanOrEqual","values":["2024-01-01"]}; {"fieldId":"orders_created_at","fieldType":"timestamp","fieldFilterType":"date","operator":"lessThan","values":["2024-02-01T00:00:00Z"]}",
+                              "description": "Use for date/timestamp fields before, on-or-before, after, or on-or-after a specific date. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "lessThan" | "lessThanOrEqual" | "greaterThan" | "greaterThanOrEqual"; // | means or
+  values: [string]; // exactly one array value
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "date",
@@ -3215,7 +3385,13 @@ Example B — "Revenue by month with year-over-year comparison"
                             },
                             {
                               "additionalProperties": false,
-                              "description": "Use for explicit date ranges such as from 2024-01-01 to 2024-01-31. Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"inBetween","values":["2024-01-01","2024-01-31"]}; {"fieldId":"orders_created_at","fieldType":"timestamp","fieldFilterType":"date","operator":"inBetween","values":["2024-01-01T00:00:00Z","2024-01-31T23:59:59Z"]}",
+                              "description": "Use for explicit date ranges such as from 2024-01-01 to 2024-01-31. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inBetween"; // | means or
+  values: [string, string]; // exactly two array values; lower and upper bounds
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "date",
@@ -3280,7 +3456,12 @@ Example B — "Revenue by month with year-over-year comparison"
                           "anyOf": [
                             {
                               "additionalProperties": false,
-                              "description": "Use for boolean fields when checking if a value is missing or present. Do not include values. Examples: {"fieldId":"users_is_active","fieldType":"boolean","fieldFilterType":"boolean","operator":"isNull"}; {"fieldId":"users_is_active","fieldType":"boolean","fieldFilterType":"boolean","operator":"notNull"}",
+                              "description": "Use for boolean fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "users_is_active"; // use the actual field id
+  fieldType: "boolean"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "boolean"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "boolean",
@@ -3315,7 +3496,13 @@ Example B — "Revenue by month with year-over-year comparison"
                             },
                             {
                               "additionalProperties": false,
-                              "description": "Use for boolean fields when matching or excluding true/false values. Examples: {"fieldId":"users_is_active","fieldType":"boolean","fieldFilterType":"boolean","operator":"equals","values":[true]}; {"fieldId":"users_is_active","fieldType":"boolean","fieldFilterType":"boolean","operator":"notEquals","values":[false]}",
+                              "description": "Use for boolean fields when matching or excluding true/false values. Type shape: {
+  fieldId: "users_is_active"; // use the actual field id
+  fieldType: "boolean"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "boolean"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals"; // | means or
+  values: [boolean]; // exactly one array value
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "boolean",
@@ -3364,7 +3551,12 @@ Example B — "Revenue by month with year-over-year comparison"
                           "anyOf": [
                             {
                               "additionalProperties": false,
-                              "description": "Use for string fields when checking if a value is missing or present. Do not include values. Examples: {"fieldId":"orders_status","fieldType":"string","fieldFilterType":"string","operator":"isNull"}; {"fieldId":"orders_status","fieldType":"string","fieldFilterType":"string","operator":"notNull"}",
+                              "description": "Use for string fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "orders_status"; // use the actual field id
+  fieldType: "string"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "string"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "string",
@@ -3399,7 +3591,13 @@ Example B — "Revenue by month with year-over-year comparison"
                             },
                             {
                               "additionalProperties": false,
-                              "description": "Use for text matching on string fields. For dates like "last 2 weeks", use a date filter instead. Examples: {"fieldId":"orders_status","fieldType":"string","fieldFilterType":"string","operator":"equals","values":["complete","paid"]}; {"fieldId":"customers_email","fieldType":"string","fieldFilterType":"string","operator":"include","values":["@lightdash.com"]}; {"fieldId":"products_sku","fieldType":"string","fieldFilterType":"string","operator":"startsWith","values":["SKU-"]}; {"fieldId":"orders_status","fieldType":"string","fieldFilterType":"string","operator":"notEquals","values":["cancelled"]}",
+                              "description": "Use for text matching on string fields. For dates like "last 2 weeks", use a date filter instead. Type shape: {
+  fieldId: "orders_status"; // use the actual field id
+  fieldType: "string"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "string"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals" | "startsWith" | "endsWith" | "include" | "doesNotInclude"; // | means or
+  values: string[];
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "string",
@@ -3450,7 +3648,12 @@ Example B — "Revenue by month with year-over-year comparison"
                           "anyOf": [
                             {
                               "additionalProperties": false,
-                              "description": "Use for numeric fields when checking if a value is missing or present. Do not include values. Examples: {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"isNull"}; {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"notNull"}",
+                              "description": "Use for numeric fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "number",
@@ -3495,7 +3698,13 @@ Example B — "Revenue by month with year-over-year comparison"
                             },
                             {
                               "additionalProperties": false,
-                              "description": "Use for numeric fields that equal or exclude specific values. Examples: {"fieldId":"orders_item_count","fieldType":"count","fieldFilterType":"number","operator":"equals","values":[1,2]}; {"fieldId":"orders_discount_percent","fieldType":"number","fieldFilterType":"number","operator":"notEquals","values":[0]}",
+                              "description": "Use for numeric fields that equal or exclude specific values. Type shape: {
+  fieldId: "orders_item_count"; // use the actual field id
+  fieldType: "count"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals"; // | means or
+  values: number[];
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "number",
@@ -3548,7 +3757,13 @@ Example B — "Revenue by month with year-over-year comparison"
                             },
                             {
                               "additionalProperties": false,
-                              "description": "Use for numeric fields with a single comparison threshold. Examples: {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"greaterThan","values":[1000]}; {"fieldId":"orders_discount_percent","fieldType":"number","fieldFilterType":"number","operator":"lessThanOrEqual","values":[0.15]}",
+                              "description": "Use for numeric fields with a single comparison threshold. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "lessThan" | "lessThanOrEqual" | "greaterThan" | "greaterThanOrEqual"; // | means or
+  values: [number]; // exactly one array value
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "number",
@@ -3605,7 +3820,13 @@ Example B — "Revenue by month with year-over-year comparison"
                             },
                             {
                               "additionalProperties": false,
-                              "description": "Use for numeric fields inside or outside a two-value range. Examples: {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"inBetween","values":[100,500]}; {"fieldId":"orders_margin_percent","fieldType":"number","fieldFilterType":"number","operator":"notInBetween","values":[0.2,0.4]}",
+                              "description": "Use for numeric fields inside or outside a two-value range. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inBetween" | "notInBetween"; // | means or
+  values: [number, number]; // exactly two array values; lower and upper bounds
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "number",
@@ -3664,7 +3885,12 @@ Example B — "Revenue by month with year-over-year comparison"
                           "anyOf": [
                             {
                               "additionalProperties": false,
-                              "description": "Use for date/timestamp fields when checking if a value is missing or present. Do not include values. Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"isNull"}; {"fieldId":"orders_created_at","fieldType":"timestamp","fieldFilterType":"date","operator":"notNull"}",
+                              "description": "Use for date/timestamp fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "date",
@@ -3700,7 +3926,13 @@ Example B — "Revenue by month with year-over-year comparison"
                             },
                             {
                               "additionalProperties": false,
-                              "description": "Use for specific dates like 2024-01-01. For relative periods like "last 2 weeks", use inThePast. Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"equals","values":["2024-01-01"]}; {"fieldId":"orders_created_at","fieldType":"timestamp","fieldFilterType":"date","operator":"notEquals","values":["2024-01-01T00:00:00Z"]}",
+                              "description": "Use for specific dates like 2024-01-01. For relative periods like "last 2 weeks", use inThePast. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals"; // | means or
+  values: string[];
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "date",
@@ -3754,7 +3986,17 @@ Example B — "Revenue by month with year-over-year comparison"
                             },
                             {
                               "additionalProperties": false,
-                              "description": "Use for relative date requests such as "last 2 weeks" or "next 3 months". Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"inThePast","values":[2],"settings":{"completed":false,"unitOfTime":"weeks"}}; {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"inThePast","values":[3],"settings":{"completed":true,"unitOfTime":"months"}}; {"fieldId":"orders_ship_date","fieldType":"date","fieldFilterType":"date","operator":"inTheNext","values":[14],"settings":{"completed":false,"unitOfTime":"days"}}; {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"notInThePast","values":[7],"settings":{"completed":false,"unitOfTime":"days"}}",
+                              "description": "Use for relative date requests such as "last 2 weeks" or "next 3 months". Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inThePast" | "notInThePast" | "inTheNext"; // | means or
+  values: [number]; // exactly one array value; number of periods
+  settings: {
+  completed: false | true; // false includes current partial period; true means completed periods only
+  unitOfTime: "days" | "weeks" | "months" | "quarters" | "years";
+};
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "date",
@@ -3828,7 +4070,17 @@ Example B — "Revenue by month with year-over-year comparison"
                             },
                             {
                               "additionalProperties": false,
-                              "description": "Use for current date requests such as "today", "this week", "this month", or "this year". Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"inTheCurrent","values":[1],"settings":{"completed":false,"unitOfTime":"days"}}; {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"notInTheCurrent","values":[1],"settings":{"completed":false,"unitOfTime":"months"}}",
+                              "description": "Use for current date requests such as "today", "this week", "this month", or "this year". Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inTheCurrent" | "notInTheCurrent"; // | means or
+  values: [1]; // exactly one array value; always [1] for current-period filters
+  settings: {
+  completed: false; // false includes current partial period; true means completed periods only
+  unitOfTime: "days" | "weeks" | "months" | "quarters" | "years";
+};
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "date",
@@ -3903,7 +4155,13 @@ Example B — "Revenue by month with year-over-year comparison"
                             },
                             {
                               "additionalProperties": false,
-                              "description": "Use for date/timestamp fields before, on-or-before, after, or on-or-after a specific date. Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"greaterThanOrEqual","values":["2024-01-01"]}; {"fieldId":"orders_created_at","fieldType":"timestamp","fieldFilterType":"date","operator":"lessThan","values":["2024-02-01T00:00:00Z"]}",
+                              "description": "Use for date/timestamp fields before, on-or-before, after, or on-or-after a specific date. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "lessThan" | "lessThanOrEqual" | "greaterThan" | "greaterThanOrEqual"; // | means or
+  values: [string]; // exactly one array value
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "date",
@@ -3961,7 +4219,13 @@ Example B — "Revenue by month with year-over-year comparison"
                             },
                             {
                               "additionalProperties": false,
-                              "description": "Use for explicit date ranges such as from 2024-01-01 to 2024-01-31. Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"inBetween","values":["2024-01-01","2024-01-31"]}; {"fieldId":"orders_created_at","fieldType":"timestamp","fieldFilterType":"date","operator":"inBetween","values":["2024-01-01T00:00:00Z","2024-01-31T23:59:59Z"]}",
+                              "description": "Use for explicit date ranges such as from 2024-01-01 to 2024-01-31. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inBetween"; // | means or
+  values: [string, string]; // exactly two array values; lower and upper bounds
+}",
                               "properties": {
                                 "fieldFilterType": {
                                   "const": "date",
@@ -4024,7 +4288,12 @@ Example B — "Revenue by month with year-over-year comparison"
                       "anyOf": [
                         {
                           "additionalProperties": false,
-                          "description": "Use for numeric fields when checking if a value is missing or present. Do not include values. Examples: {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"isNull"}; {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"notNull"}",
+                          "description": "Use for numeric fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "number",
@@ -4069,7 +4338,13 @@ Example B — "Revenue by month with year-over-year comparison"
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for numeric fields that equal or exclude specific values. Examples: {"fieldId":"orders_item_count","fieldType":"count","fieldFilterType":"number","operator":"equals","values":[1,2]}; {"fieldId":"orders_discount_percent","fieldType":"number","fieldFilterType":"number","operator":"notEquals","values":[0]}",
+                          "description": "Use for numeric fields that equal or exclude specific values. Type shape: {
+  fieldId: "orders_item_count"; // use the actual field id
+  fieldType: "count"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals"; // | means or
+  values: number[];
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "number",
@@ -4122,7 +4397,13 @@ Example B — "Revenue by month with year-over-year comparison"
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for numeric fields with a single comparison threshold. Examples: {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"greaterThan","values":[1000]}; {"fieldId":"orders_discount_percent","fieldType":"number","fieldFilterType":"number","operator":"lessThanOrEqual","values":[0.15]}",
+                          "description": "Use for numeric fields with a single comparison threshold. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "lessThan" | "lessThanOrEqual" | "greaterThan" | "greaterThanOrEqual"; // | means or
+  values: [number]; // exactly one array value
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "number",
@@ -4179,7 +4460,13 @@ Example B — "Revenue by month with year-over-year comparison"
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for numeric fields inside or outside a two-value range. Examples: {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"inBetween","values":[100,500]}; {"fieldId":"orders_margin_percent","fieldType":"number","fieldFilterType":"number","operator":"notInBetween","values":[0.2,0.4]}",
+                          "description": "Use for numeric fields inside or outside a two-value range. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inBetween" | "notInBetween"; // | means or
+  values: [number, number]; // exactly two array values; lower and upper bounds
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "number",
@@ -5037,7 +5324,12 @@ Usage Tips:
                       "anyOf": [
                         {
                           "additionalProperties": false,
-                          "description": "Use for boolean fields when checking if a value is missing or present. Do not include values. Examples: {"fieldId":"users_is_active","fieldType":"boolean","fieldFilterType":"boolean","operator":"isNull"}; {"fieldId":"users_is_active","fieldType":"boolean","fieldFilterType":"boolean","operator":"notNull"}",
+                          "description": "Use for boolean fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "users_is_active"; // use the actual field id
+  fieldType: "boolean"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "boolean"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "boolean",
@@ -5072,7 +5364,13 @@ Usage Tips:
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for boolean fields when matching or excluding true/false values. Examples: {"fieldId":"users_is_active","fieldType":"boolean","fieldFilterType":"boolean","operator":"equals","values":[true]}; {"fieldId":"users_is_active","fieldType":"boolean","fieldFilterType":"boolean","operator":"notEquals","values":[false]}",
+                          "description": "Use for boolean fields when matching or excluding true/false values. Type shape: {
+  fieldId: "users_is_active"; // use the actual field id
+  fieldType: "boolean"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "boolean"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals"; // | means or
+  values: [boolean]; // exactly one array value
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "boolean",
@@ -5121,7 +5419,12 @@ Usage Tips:
                       "anyOf": [
                         {
                           "additionalProperties": false,
-                          "description": "Use for string fields when checking if a value is missing or present. Do not include values. Examples: {"fieldId":"orders_status","fieldType":"string","fieldFilterType":"string","operator":"isNull"}; {"fieldId":"orders_status","fieldType":"string","fieldFilterType":"string","operator":"notNull"}",
+                          "description": "Use for string fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "orders_status"; // use the actual field id
+  fieldType: "string"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "string"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "string",
@@ -5156,7 +5459,13 @@ Usage Tips:
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for text matching on string fields. For dates like "last 2 weeks", use a date filter instead. Examples: {"fieldId":"orders_status","fieldType":"string","fieldFilterType":"string","operator":"equals","values":["complete","paid"]}; {"fieldId":"customers_email","fieldType":"string","fieldFilterType":"string","operator":"include","values":["@lightdash.com"]}; {"fieldId":"products_sku","fieldType":"string","fieldFilterType":"string","operator":"startsWith","values":["SKU-"]}; {"fieldId":"orders_status","fieldType":"string","fieldFilterType":"string","operator":"notEquals","values":["cancelled"]}",
+                          "description": "Use for text matching on string fields. For dates like "last 2 weeks", use a date filter instead. Type shape: {
+  fieldId: "orders_status"; // use the actual field id
+  fieldType: "string"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "string"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals" | "startsWith" | "endsWith" | "include" | "doesNotInclude"; // | means or
+  values: string[];
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "string",
@@ -5207,7 +5516,12 @@ Usage Tips:
                       "anyOf": [
                         {
                           "additionalProperties": false,
-                          "description": "Use for numeric fields when checking if a value is missing or present. Do not include values. Examples: {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"isNull"}; {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"notNull"}",
+                          "description": "Use for numeric fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "number",
@@ -5252,7 +5566,13 @@ Usage Tips:
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for numeric fields that equal or exclude specific values. Examples: {"fieldId":"orders_item_count","fieldType":"count","fieldFilterType":"number","operator":"equals","values":[1,2]}; {"fieldId":"orders_discount_percent","fieldType":"number","fieldFilterType":"number","operator":"notEquals","values":[0]}",
+                          "description": "Use for numeric fields that equal or exclude specific values. Type shape: {
+  fieldId: "orders_item_count"; // use the actual field id
+  fieldType: "count"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals"; // | means or
+  values: number[];
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "number",
@@ -5305,7 +5625,13 @@ Usage Tips:
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for numeric fields with a single comparison threshold. Examples: {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"greaterThan","values":[1000]}; {"fieldId":"orders_discount_percent","fieldType":"number","fieldFilterType":"number","operator":"lessThanOrEqual","values":[0.15]}",
+                          "description": "Use for numeric fields with a single comparison threshold. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "lessThan" | "lessThanOrEqual" | "greaterThan" | "greaterThanOrEqual"; // | means or
+  values: [number]; // exactly one array value
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "number",
@@ -5362,7 +5688,13 @@ Usage Tips:
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for numeric fields inside or outside a two-value range. Examples: {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"inBetween","values":[100,500]}; {"fieldId":"orders_margin_percent","fieldType":"number","fieldFilterType":"number","operator":"notInBetween","values":[0.2,0.4]}",
+                          "description": "Use for numeric fields inside or outside a two-value range. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inBetween" | "notInBetween"; // | means or
+  values: [number, number]; // exactly two array values; lower and upper bounds
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "number",
@@ -5421,7 +5753,12 @@ Usage Tips:
                       "anyOf": [
                         {
                           "additionalProperties": false,
-                          "description": "Use for date/timestamp fields when checking if a value is missing or present. Do not include values. Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"isNull"}; {"fieldId":"orders_created_at","fieldType":"timestamp","fieldFilterType":"date","operator":"notNull"}",
+                          "description": "Use for date/timestamp fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "date",
@@ -5457,7 +5794,13 @@ Usage Tips:
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for specific dates like 2024-01-01. For relative periods like "last 2 weeks", use inThePast. Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"equals","values":["2024-01-01"]}; {"fieldId":"orders_created_at","fieldType":"timestamp","fieldFilterType":"date","operator":"notEquals","values":["2024-01-01T00:00:00Z"]}",
+                          "description": "Use for specific dates like 2024-01-01. For relative periods like "last 2 weeks", use inThePast. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals"; // | means or
+  values: string[];
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "date",
@@ -5511,7 +5854,17 @@ Usage Tips:
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for relative date requests such as "last 2 weeks" or "next 3 months". Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"inThePast","values":[2],"settings":{"completed":false,"unitOfTime":"weeks"}}; {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"inThePast","values":[3],"settings":{"completed":true,"unitOfTime":"months"}}; {"fieldId":"orders_ship_date","fieldType":"date","fieldFilterType":"date","operator":"inTheNext","values":[14],"settings":{"completed":false,"unitOfTime":"days"}}; {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"notInThePast","values":[7],"settings":{"completed":false,"unitOfTime":"days"}}",
+                          "description": "Use for relative date requests such as "last 2 weeks" or "next 3 months". Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inThePast" | "notInThePast" | "inTheNext"; // | means or
+  values: [number]; // exactly one array value; number of periods
+  settings: {
+  completed: false | true; // false includes current partial period; true means completed periods only
+  unitOfTime: "days" | "weeks" | "months" | "quarters" | "years";
+};
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "date",
@@ -5585,7 +5938,17 @@ Usage Tips:
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for current date requests such as "today", "this week", "this month", or "this year". Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"inTheCurrent","values":[1],"settings":{"completed":false,"unitOfTime":"days"}}; {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"notInTheCurrent","values":[1],"settings":{"completed":false,"unitOfTime":"months"}}",
+                          "description": "Use for current date requests such as "today", "this week", "this month", or "this year". Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inTheCurrent" | "notInTheCurrent"; // | means or
+  values: [1]; // exactly one array value; always [1] for current-period filters
+  settings: {
+  completed: false; // false includes current partial period; true means completed periods only
+  unitOfTime: "days" | "weeks" | "months" | "quarters" | "years";
+};
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "date",
@@ -5660,7 +6023,13 @@ Usage Tips:
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for date/timestamp fields before, on-or-before, after, or on-or-after a specific date. Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"greaterThanOrEqual","values":["2024-01-01"]}; {"fieldId":"orders_created_at","fieldType":"timestamp","fieldFilterType":"date","operator":"lessThan","values":["2024-02-01T00:00:00Z"]}",
+                          "description": "Use for date/timestamp fields before, on-or-before, after, or on-or-after a specific date. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "lessThan" | "lessThanOrEqual" | "greaterThan" | "greaterThanOrEqual"; // | means or
+  values: [string]; // exactly one array value
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "date",
@@ -5718,7 +6087,13 @@ Usage Tips:
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for explicit date ranges such as from 2024-01-01 to 2024-01-31. Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"inBetween","values":["2024-01-01","2024-01-31"]}; {"fieldId":"orders_created_at","fieldType":"timestamp","fieldFilterType":"date","operator":"inBetween","values":["2024-01-01T00:00:00Z","2024-01-31T23:59:59Z"]}",
+                          "description": "Use for explicit date ranges such as from 2024-01-01 to 2024-01-31. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inBetween"; // | means or
+  values: [string, string]; // exactly two array values; lower and upper bounds
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "date",
@@ -5783,7 +6158,12 @@ Usage Tips:
                       "anyOf": [
                         {
                           "additionalProperties": false,
-                          "description": "Use for boolean fields when checking if a value is missing or present. Do not include values. Examples: {"fieldId":"users_is_active","fieldType":"boolean","fieldFilterType":"boolean","operator":"isNull"}; {"fieldId":"users_is_active","fieldType":"boolean","fieldFilterType":"boolean","operator":"notNull"}",
+                          "description": "Use for boolean fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "users_is_active"; // use the actual field id
+  fieldType: "boolean"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "boolean"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "boolean",
@@ -5818,7 +6198,13 @@ Usage Tips:
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for boolean fields when matching or excluding true/false values. Examples: {"fieldId":"users_is_active","fieldType":"boolean","fieldFilterType":"boolean","operator":"equals","values":[true]}; {"fieldId":"users_is_active","fieldType":"boolean","fieldFilterType":"boolean","operator":"notEquals","values":[false]}",
+                          "description": "Use for boolean fields when matching or excluding true/false values. Type shape: {
+  fieldId: "users_is_active"; // use the actual field id
+  fieldType: "boolean"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "boolean"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals"; // | means or
+  values: [boolean]; // exactly one array value
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "boolean",
@@ -5867,7 +6253,12 @@ Usage Tips:
                       "anyOf": [
                         {
                           "additionalProperties": false,
-                          "description": "Use for string fields when checking if a value is missing or present. Do not include values. Examples: {"fieldId":"orders_status","fieldType":"string","fieldFilterType":"string","operator":"isNull"}; {"fieldId":"orders_status","fieldType":"string","fieldFilterType":"string","operator":"notNull"}",
+                          "description": "Use for string fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "orders_status"; // use the actual field id
+  fieldType: "string"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "string"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "string",
@@ -5902,7 +6293,13 @@ Usage Tips:
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for text matching on string fields. For dates like "last 2 weeks", use a date filter instead. Examples: {"fieldId":"orders_status","fieldType":"string","fieldFilterType":"string","operator":"equals","values":["complete","paid"]}; {"fieldId":"customers_email","fieldType":"string","fieldFilterType":"string","operator":"include","values":["@lightdash.com"]}; {"fieldId":"products_sku","fieldType":"string","fieldFilterType":"string","operator":"startsWith","values":["SKU-"]}; {"fieldId":"orders_status","fieldType":"string","fieldFilterType":"string","operator":"notEquals","values":["cancelled"]}",
+                          "description": "Use for text matching on string fields. For dates like "last 2 weeks", use a date filter instead. Type shape: {
+  fieldId: "orders_status"; // use the actual field id
+  fieldType: "string"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "string"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals" | "startsWith" | "endsWith" | "include" | "doesNotInclude"; // | means or
+  values: string[];
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "string",
@@ -5953,7 +6350,12 @@ Usage Tips:
                       "anyOf": [
                         {
                           "additionalProperties": false,
-                          "description": "Use for numeric fields when checking if a value is missing or present. Do not include values. Examples: {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"isNull"}; {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"notNull"}",
+                          "description": "Use for numeric fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "number",
@@ -5998,7 +6400,13 @@ Usage Tips:
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for numeric fields that equal or exclude specific values. Examples: {"fieldId":"orders_item_count","fieldType":"count","fieldFilterType":"number","operator":"equals","values":[1,2]}; {"fieldId":"orders_discount_percent","fieldType":"number","fieldFilterType":"number","operator":"notEquals","values":[0]}",
+                          "description": "Use for numeric fields that equal or exclude specific values. Type shape: {
+  fieldId: "orders_item_count"; // use the actual field id
+  fieldType: "count"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals"; // | means or
+  values: number[];
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "number",
@@ -6051,7 +6459,13 @@ Usage Tips:
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for numeric fields with a single comparison threshold. Examples: {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"greaterThan","values":[1000]}; {"fieldId":"orders_discount_percent","fieldType":"number","fieldFilterType":"number","operator":"lessThanOrEqual","values":[0.15]}",
+                          "description": "Use for numeric fields with a single comparison threshold. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "lessThan" | "lessThanOrEqual" | "greaterThan" | "greaterThanOrEqual"; // | means or
+  values: [number]; // exactly one array value
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "number",
@@ -6108,7 +6522,13 @@ Usage Tips:
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for numeric fields inside or outside a two-value range. Examples: {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"inBetween","values":[100,500]}; {"fieldId":"orders_margin_percent","fieldType":"number","fieldFilterType":"number","operator":"notInBetween","values":[0.2,0.4]}",
+                          "description": "Use for numeric fields inside or outside a two-value range. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inBetween" | "notInBetween"; // | means or
+  values: [number, number]; // exactly two array values; lower and upper bounds
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "number",
@@ -6167,7 +6587,12 @@ Usage Tips:
                       "anyOf": [
                         {
                           "additionalProperties": false,
-                          "description": "Use for date/timestamp fields when checking if a value is missing or present. Do not include values. Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"isNull"}; {"fieldId":"orders_created_at","fieldType":"timestamp","fieldFilterType":"date","operator":"notNull"}",
+                          "description": "Use for date/timestamp fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "date",
@@ -6203,7 +6628,13 @@ Usage Tips:
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for specific dates like 2024-01-01. For relative periods like "last 2 weeks", use inThePast. Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"equals","values":["2024-01-01"]}; {"fieldId":"orders_created_at","fieldType":"timestamp","fieldFilterType":"date","operator":"notEquals","values":["2024-01-01T00:00:00Z"]}",
+                          "description": "Use for specific dates like 2024-01-01. For relative periods like "last 2 weeks", use inThePast. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals"; // | means or
+  values: string[];
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "date",
@@ -6257,7 +6688,17 @@ Usage Tips:
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for relative date requests such as "last 2 weeks" or "next 3 months". Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"inThePast","values":[2],"settings":{"completed":false,"unitOfTime":"weeks"}}; {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"inThePast","values":[3],"settings":{"completed":true,"unitOfTime":"months"}}; {"fieldId":"orders_ship_date","fieldType":"date","fieldFilterType":"date","operator":"inTheNext","values":[14],"settings":{"completed":false,"unitOfTime":"days"}}; {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"notInThePast","values":[7],"settings":{"completed":false,"unitOfTime":"days"}}",
+                          "description": "Use for relative date requests such as "last 2 weeks" or "next 3 months". Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inThePast" | "notInThePast" | "inTheNext"; // | means or
+  values: [number]; // exactly one array value; number of periods
+  settings: {
+  completed: false | true; // false includes current partial period; true means completed periods only
+  unitOfTime: "days" | "weeks" | "months" | "quarters" | "years";
+};
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "date",
@@ -6331,7 +6772,17 @@ Usage Tips:
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for current date requests such as "today", "this week", "this month", or "this year". Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"inTheCurrent","values":[1],"settings":{"completed":false,"unitOfTime":"days"}}; {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"notInTheCurrent","values":[1],"settings":{"completed":false,"unitOfTime":"months"}}",
+                          "description": "Use for current date requests such as "today", "this week", "this month", or "this year". Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inTheCurrent" | "notInTheCurrent"; // | means or
+  values: [1]; // exactly one array value; always [1] for current-period filters
+  settings: {
+  completed: false; // false includes current partial period; true means completed periods only
+  unitOfTime: "days" | "weeks" | "months" | "quarters" | "years";
+};
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "date",
@@ -6406,7 +6857,13 @@ Usage Tips:
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for date/timestamp fields before, on-or-before, after, or on-or-after a specific date. Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"greaterThanOrEqual","values":["2024-01-01"]}; {"fieldId":"orders_created_at","fieldType":"timestamp","fieldFilterType":"date","operator":"lessThan","values":["2024-02-01T00:00:00Z"]}",
+                          "description": "Use for date/timestamp fields before, on-or-before, after, or on-or-after a specific date. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "lessThan" | "lessThanOrEqual" | "greaterThan" | "greaterThanOrEqual"; // | means or
+  values: [string]; // exactly one array value
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "date",
@@ -6464,7 +6921,13 @@ Usage Tips:
                         },
                         {
                           "additionalProperties": false,
-                          "description": "Use for explicit date ranges such as from 2024-01-01 to 2024-01-31. Examples: {"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"inBetween","values":["2024-01-01","2024-01-31"]}; {"fieldId":"orders_created_at","fieldType":"timestamp","fieldFilterType":"date","operator":"inBetween","values":["2024-01-01T00:00:00Z","2024-01-31T23:59:59Z"]}",
+                          "description": "Use for explicit date ranges such as from 2024-01-01 to 2024-01-31. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inBetween"; // | means or
+  values: [string, string]; // exactly two array values; lower and upper bounds
+}",
                           "properties": {
                             "fieldFilterType": {
                               "const": "date",
@@ -6527,7 +6990,12 @@ Usage Tips:
                   "anyOf": [
                     {
                       "additionalProperties": false,
-                      "description": "Use for numeric fields when checking if a value is missing or present. Do not include values. Examples: {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"isNull"}; {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"notNull"}",
+                      "description": "Use for numeric fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
                       "properties": {
                         "fieldFilterType": {
                           "const": "number",
@@ -6572,7 +7040,13 @@ Usage Tips:
                     },
                     {
                       "additionalProperties": false,
-                      "description": "Use for numeric fields that equal or exclude specific values. Examples: {"fieldId":"orders_item_count","fieldType":"count","fieldFilterType":"number","operator":"equals","values":[1,2]}; {"fieldId":"orders_discount_percent","fieldType":"number","fieldFilterType":"number","operator":"notEquals","values":[0]}",
+                      "description": "Use for numeric fields that equal or exclude specific values. Type shape: {
+  fieldId: "orders_item_count"; // use the actual field id
+  fieldType: "count"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals"; // | means or
+  values: number[];
+}",
                       "properties": {
                         "fieldFilterType": {
                           "const": "number",
@@ -6625,7 +7099,13 @@ Usage Tips:
                     },
                     {
                       "additionalProperties": false,
-                      "description": "Use for numeric fields with a single comparison threshold. Examples: {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"greaterThan","values":[1000]}; {"fieldId":"orders_discount_percent","fieldType":"number","fieldFilterType":"number","operator":"lessThanOrEqual","values":[0.15]}",
+                      "description": "Use for numeric fields with a single comparison threshold. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "lessThan" | "lessThanOrEqual" | "greaterThan" | "greaterThanOrEqual"; // | means or
+  values: [number]; // exactly one array value
+}",
                       "properties": {
                         "fieldFilterType": {
                           "const": "number",
@@ -6682,7 +7162,13 @@ Usage Tips:
                     },
                     {
                       "additionalProperties": false,
-                      "description": "Use for numeric fields inside or outside a two-value range. Examples: {"fieldId":"orders_total_revenue","fieldType":"sum","fieldFilterType":"number","operator":"inBetween","values":[100,500]}; {"fieldId":"orders_margin_percent","fieldType":"number","fieldFilterType":"number","operator":"notInBetween","values":[0.2,0.4]}",
+                      "description": "Use for numeric fields inside or outside a two-value range. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inBetween" | "notInBetween"; // | means or
+  values: [number, number]; // exactly two array values; lower and upper bounds
+}",
                       "properties": {
                         "fieldFilterType": {
                           "const": "number",
