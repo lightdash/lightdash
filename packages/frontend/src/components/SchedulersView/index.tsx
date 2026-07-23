@@ -1,5 +1,6 @@
 import {
     ActionIcon,
+    Button,
     Card,
     Group,
     Stack,
@@ -14,6 +15,7 @@ import { useSearchParams } from 'react-router';
 import { useGetSlackChannelName } from '../../hooks/slack/useGetSlackChannelName';
 import useToaster from '../../hooks/toaster/useToaster';
 import MantineIcon from '../common/MantineIcon';
+import { SettingsPage } from '../common/Settings/SettingsPage';
 import LogsTable from './LogsTable';
 import SchedulersTable from './SchedulersTable';
 import classes from './SchedulersView.module.css';
@@ -63,6 +65,31 @@ const SchedulersView: FC<{ projectUuid?: string; isUserScope?: boolean }> = ({
         });
     };
 
+    if (isUserScope) {
+        return (
+            <SettingsPage
+                title="My scheduled deliveries"
+                description="Review and manage deliveries scheduled across your projects."
+                actions={
+                    <Button
+                        size="xs"
+                        variant="default"
+                        leftSection={<MantineIcon icon={IconRefresh} />}
+                        onClick={handleRefresh}
+                    >
+                        Refresh
+                    </Button>
+                }
+            >
+                <SchedulersTable
+                    getSlackChannelName={getSlackChannelName}
+                    onSlackChannelIdsChange={setSchedulerSlackChannelIds}
+                    isUserScope
+                />
+            </SettingsPage>
+        );
+    }
+
     return (
         <Card>
             <Stack gap="sm">
@@ -106,36 +133,31 @@ const SchedulersView: FC<{ projectUuid?: string; isUserScope?: boolean }> = ({
                         >
                             All schedulers
                         </Tabs.Tab>
-                        {!isUserScope && (
-                            <Tabs.Tab
-                                value={SchedulersViewTab.RUN_HISTORY}
-                                leftSection={<MantineIcon icon={IconClock} />}
-                            >
-                                Run history
-                            </Tabs.Tab>
-                        )}
+                        <Tabs.Tab
+                            value={SchedulersViewTab.RUN_HISTORY}
+                            leftSection={<MantineIcon icon={IconClock} />}
+                        >
+                            Run history
+                        </Tabs.Tab>
                     </Tabs.List>
 
                     <Tabs.Panel value={SchedulersViewTab.ALL_SCHEDULERS}>
-                        {(isUserScope || projectUuid) && (
+                        {projectUuid ? (
                             <SchedulersTable
                                 projectUuid={projectUuid}
                                 getSlackChannelName={getSlackChannelName}
                                 onSlackChannelIdsChange={
                                     setSchedulerSlackChannelIds
                                 }
-                                isUserScope={isUserScope}
                             />
-                        )}
+                        ) : null}
                     </Tabs.Panel>
-                    {!isUserScope && (
-                        <Tabs.Panel value={SchedulersViewTab.RUN_HISTORY}>
-                            <LogsTable
-                                projectUuid={projectUuid}
-                                getSlackChannelName={getSlackChannelName}
-                            />
-                        </Tabs.Panel>
-                    )}
+                    <Tabs.Panel value={SchedulersViewTab.RUN_HISTORY}>
+                        <LogsTable
+                            projectUuid={projectUuid}
+                            getSlackChannelName={getSlackChannelName}
+                        />
+                    </Tabs.Panel>
                 </Tabs>
             </Stack>
         </Card>

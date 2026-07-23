@@ -250,14 +250,7 @@ const Settings: FC = () => {
             // Since the service returns specifically the user's scheduled deliveries, this is completely intended behavior.
             allowedRoutes.push({
                 path: '/userScheduledDeliveries',
-                element: (
-                    <SettingsPage
-                        title="My scheduled deliveries"
-                        description="Review and manage deliveries scheduled across your projects."
-                    >
-                        <UserScheduledDeliveriesPanel />
-                    </SettingsPage>
-                ),
+                element: <UserScheduledDeliveriesPanel />,
             });
         }
         if (dataAppsFlag?.enabled && user?.ability.can('create', 'DataApp')) {

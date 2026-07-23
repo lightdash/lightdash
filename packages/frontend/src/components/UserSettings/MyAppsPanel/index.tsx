@@ -5,7 +5,7 @@ import {
     Badge,
     Group,
     Menu,
-    Switch,
+    SegmentedControl,
     Text,
 } from '@mantine-8/core';
 import {
@@ -44,6 +44,11 @@ import { SettingsPage } from '../../common/Settings/SettingsPage';
 
 const hasReadyVersion = (app: ApiAppSummary) =>
     app.lastVersionStatus === 'ready' && !!app.lastVersionNumber;
+
+const APP_SCOPE_OPTIONS = [
+    { label: 'Production only', value: 'production' },
+    { label: 'Include previews', value: 'with-previews' },
+];
 
 const MoveAppToSpaceModal: FC<{
     app: ApiAppSummary;
@@ -399,14 +404,14 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
             title="My apps"
             description="Manage the data apps you can access and edit."
             actions={
-                <Switch
-                    size="sm"
-                    label="Include preview apps"
-                    labelPosition="left"
-                    checked={includePreviewApps}
-                    onChange={(event) =>
-                        setIncludePreviewApps(event.currentTarget.checked)
+                <SegmentedControl
+                    size="xs"
+                    aria-label="App project scope"
+                    value={includePreviewApps ? 'with-previews' : 'production'}
+                    onChange={(value) =>
+                        setIncludePreviewApps(value === 'with-previews')
                     }
+                    data={APP_SCOPE_OPTIONS}
                 />
             }
         >
