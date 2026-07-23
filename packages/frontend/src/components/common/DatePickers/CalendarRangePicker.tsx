@@ -3,12 +3,15 @@ import { useCallback, type FC } from 'react';
 import {
     formatMantineDate,
     formatMantineDateRange,
+    parseMantineDate,
     parseMantineDateRange,
     type MantineDateRange,
 } from '../Filters/FilterInputs/mantineDateAdapter';
 import { type CalendarDateRange } from './types';
 
-type Props = Omit<
+type MantineGetDayProps = NonNullable<DatePickerProps<'range'>['getDayProps']>;
+
+export type CalendarRangePickerProps = Omit<
     DatePickerProps<'range'>,
     | 'type'
     | 'value'
@@ -28,20 +31,30 @@ type Props = Omit<
     minDate?: Date;
     maxDate?: Date;
     defaultDate?: Date;
+    getDayProps?: (date: Date) => ReturnType<MantineGetDayProps>;
 };
 
 // Date-native inline range calendar; Mantine v8's date-string contract stays private
-const CalendarRangePicker: FC<Props> = ({
+const CalendarRangePicker: FC<CalendarRangePickerProps> = ({
     value,
     onChange,
     minDate,
     maxDate,
     defaultDate,
+    getDayProps,
     ...rest
 }) => {
     const handleChange = useCallback(
         (range: MantineDateRange) => onChange(parseMantineDateRange(range)),
         [onChange],
+    );
+
+    const handleGetDayProps = useCallback<MantineGetDayProps>(
+        (dateString) => {
+            const date = parseMantineDate(dateString);
+            return date && getDayProps ? getDayProps(date) : {};
+        },
+        [getDayProps],
     );
 
     return (
@@ -53,6 +66,7 @@ const CalendarRangePicker: FC<Props> = ({
             defaultDate={formatMantineDate(defaultDate ?? null) ?? undefined}
             value={formatMantineDateRange(value)}
             onChange={handleChange}
+            getDayProps={getDayProps ? handleGetDayProps : undefined}
         />
     );
 };

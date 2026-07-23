@@ -17,8 +17,10 @@ import {
     Popover,
     Tooltip,
 } from '@mantine-8/core';
-import { DatePicker, MonthPicker, YearPicker } from '@mantine-8/dates';
 import { useCallback, useEffect, useRef, type FC } from 'react';
+import CalendarRangePicker from '../../../../components/common/DatePickers/CalendarRangePicker';
+import MonthRangePicker from '../../../../components/common/DatePickers/MonthRangePicker';
+import YearRangePicker from '../../../../components/common/DatePickers/YearRangePicker';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
@@ -245,7 +247,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
                     <Stack gap={0}>
                         <Box px="xs">
                             {calendarConfig?.type === TimeFrames.YEAR ? (
-                                <YearPicker
+                                <YearRangePicker
                                     {...calendarConfig.props}
                                     mih={180}
                                     w="100%"
@@ -253,21 +255,21 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                     size="xs"
                                 />
                             ) : calendarConfig?.type === TimeFrames.MONTH ? (
-                                <MonthPicker
+                                <MonthRangePicker
                                     {...calendarConfig.props}
                                     mih={180}
                                     color="dark"
                                     size="xs"
                                 />
-                            ) : (
-                                <DatePicker
-                                    {...calendarConfig?.props}
+                            ) : calendarConfig ? (
+                                <CalendarRangePicker
+                                    {...calendarConfig.props}
                                     mih={225}
                                     color="dark"
                                     size="xs"
                                     withCellSpacing={false}
                                 />
-                            )}
+                            ) : null}
                         </Box>
                         <Divider color="ldGray.2" />
                         <Box p="sm">

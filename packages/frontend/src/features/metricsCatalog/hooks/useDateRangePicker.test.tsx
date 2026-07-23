@@ -50,8 +50,8 @@ describe('useDateRangePicker', () => {
         expect('classNames' in config.props).toBe(true);
         expect('styles' in config.props).toBe(false);
 
-        const monday = config.props.getDayProps?.('2025-01-06');
-        const sunday = config.props.getDayProps?.('2025-01-12');
+        const monday = config.props.getDayProps?.(new Date(2025, 0, 6));
+        const sunday = config.props.getDayProps?.(new Date(2025, 0, 12));
         expect(monday).toMatchObject({ inRange: true, firstInRange: true });
         expect(sunday).toMatchObject({ inRange: true, lastInRange: true });
     });
@@ -69,7 +69,7 @@ describe('useDateRangePicker', () => {
         if (!firstConfig || firstConfig.type !== TimeFrames.WEEK) {
             throw new Error('Expected week picker config');
         }
-        act(() => firstConfig.props.onChange(['2025-01-15', null]));
+        act(() => firstConfig.props.onChange([new Date(2025, 0, 15), null]));
         expect(result.current.tempDateRange).toEqual([
             new Date(2025, 0, 13),
             new Date(2025, 0, 19, 23, 59, 59, 999),
@@ -79,7 +79,7 @@ describe('useDateRangePicker', () => {
         if (!secondConfig || secondConfig.type !== TimeFrames.WEEK) {
             throw new Error('Expected week picker config');
         }
-        act(() => secondConfig.props.onChange(['2025-01-22', null]));
+        act(() => secondConfig.props.onChange([new Date(2025, 0, 22), null]));
         expect(result.current.tempDateRange).toEqual([
             new Date(2025, 0, 13),
             new Date(2025, 0, 26, 23, 59, 59, 999),
@@ -99,7 +99,12 @@ describe('useDateRangePicker', () => {
         if (!config || config.type !== TimeFrames.WEEK) {
             throw new Error('Expected week picker config');
         }
-        act(() => config.props.onChange(['2024-12-30', '2025-01-05']));
+        act(() =>
+            config.props.onChange([
+                new Date(2024, 11, 30),
+                new Date(2025, 0, 5),
+            ]),
+        );
         expect(result.current.tempDateRange).toEqual([
             new Date(2024, 11, 30),
             new Date(2025, 0, 5, 23, 59, 59, 999),
@@ -109,7 +114,12 @@ describe('useDateRangePicker', () => {
         if (!midWeekConfig || midWeekConfig.type !== TimeFrames.WEEK) {
             throw new Error('Expected week picker config');
         }
-        act(() => midWeekConfig.props.onChange(['2025-01-01', '2025-01-08']));
+        act(() =>
+            midWeekConfig.props.onChange([
+                new Date(2025, 0, 1),
+                new Date(2025, 0, 8),
+            ]),
+        );
         expect(result.current.tempDateRange).toEqual([
             new Date(2024, 11, 30),
             new Date(2025, 0, 12, 23, 59, 59, 999),
@@ -136,17 +146,17 @@ describe('useDateRangePicker', () => {
     it.each([
         [
             TimeFrames.MONTH,
-            ['2025-03-15', '2025-04-02'],
+            [new Date(2025, 2, 15), new Date(2025, 3, 2)],
             [new Date(2025, 2, 1), new Date(2025, 3, 30, 23, 59, 59, 999)],
         ],
         [
             TimeFrames.YEAR,
-            ['2024-06-15', '2025-02-02'],
+            [new Date(2024, 5, 15), new Date(2025, 1, 2)],
             [new Date(2024, 0, 1), new Date(2025, 11, 31, 23, 59, 59, 999)],
         ],
     ] as const)(
         'normalizes %s picker ranges at the domain boundary',
-        (timeInterval, mantineRange, expected) => {
+        (timeInterval, calendarRange, expected) => {
             const { result } = renderHook(() =>
                 useDateRangePicker({
                     value: initialValue,
@@ -158,7 +168,7 @@ describe('useDateRangePicker', () => {
             const config = result.current.calendarConfig;
             if (!config) throw new Error('Expected picker config');
             act(() =>
-                config.props.onChange([mantineRange[0], mantineRange[1]]),
+                config.props.onChange([calendarRange[0], calendarRange[1]]),
             );
             expect(result.current.tempDateRange).toEqual(expected);
         },
