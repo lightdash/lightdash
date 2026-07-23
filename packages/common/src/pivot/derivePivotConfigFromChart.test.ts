@@ -191,6 +191,36 @@ describe('derivePivotConfigurationFromChart', () => {
         expect(result?.metricsAsRows).toBe(true);
     });
 
+    it('keeps a pivot row metric as a query-time value column', () => {
+        const savedChart: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'> = {
+            chartConfig: {
+                type: ChartType.TABLE,
+                config: {},
+            },
+            pivotConfig: {
+                columns: ['payments_payment_method'],
+                rows: ['orders_status', 'payments_total_revenue'],
+            },
+        };
+
+        const result = derivePivotConfigurationFromChart(
+            savedChart,
+            mockMetricQuery,
+            mockItems,
+        );
+
+        expect(result?.valuesColumns).toContainEqual({
+            reference: 'payments_total_revenue',
+            aggregation: VizAggregationOptions.ANY,
+        });
+        expect(result?.indexColumn).toEqual([
+            {
+                reference: 'orders_status',
+                type: VizIndexType.CATEGORY,
+            },
+        ]);
+    });
+
     it('does not include metricsAsRows for Cartesian charts', () => {
         const savedChart: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'> = {
             chartConfig: mockCartesianChartConfig,
