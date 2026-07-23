@@ -1,6 +1,11 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { TextInput, Stack, Anchor, PasswordInput } from '@mantine-8/core';
-import { NumberInput } from '@mantine/core';
+import {
+    TextInput,
+    Stack,
+    Anchor,
+    PasswordInput,
+    NumberInput,
+} from '@mantine-8/core';
 import React, { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import FormCollapseButton from '../FormCollapseButton';
@@ -98,6 +103,7 @@ const ClickhouseForm: FC<{
                         />
 
                         <NumberInput
+                            decimalScale={0}
                             name="warehouse.port"
                             {...form.getInputProps('warehouse.port')}
                             defaultValue={ClickhouseDefaultValues.port}
@@ -134,6 +140,7 @@ const ClickhouseForm: FC<{
                         />
 
                         <NumberInput
+                            decimalScale={0}
                             name="warehouse.timeoutSeconds"
                             defaultValue={
                                 ClickhouseDefaultValues.timeoutSeconds

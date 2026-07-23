@@ -25,8 +25,8 @@ import {
     Stack,
     Text,
     TextInput,
+    NumberInput,
 } from '@mantine-8/core';
-import { NumberInput } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import {
     IconCalendar,
@@ -35,6 +35,7 @@ import {
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { type ValueOf } from 'type-fest';
+import { optionalNumber } from '../../../utils/numberInputUtils';
 import MantineIcon from '../../common/MantineIcon';
 import { PolymorphicPaperButton } from '../../common/PolymorphicPaperButton';
 import { getFormatTypeLabel } from './getFormatSummary';
@@ -440,7 +441,7 @@ export const FormatForm: FC<Props> = ({
                     )}
                     <Grid.Col span={compact ? 12 : 4}>
                         <NumberInput
-                            type="number"
+                            decimalScale={0}
                             min={0}
                             label="Decimal places"
                             placeholder="Auto"
@@ -450,7 +451,7 @@ export const FormatForm: FC<Props> = ({
                                 onChange: (value) => {
                                     setFormatFieldValue(
                                         'round',
-                                        value === '' ? undefined : value,
+                                        optionalNumber(value),
                                     );
                                 },
                             }}

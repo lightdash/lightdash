@@ -16,8 +16,8 @@ import {
     Select,
     PasswordInput,
     Tooltip,
+    NumberInput,
 } from '@mantine-8/core';
-import { NumberInput } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import {
     useCallback,
@@ -760,6 +760,7 @@ const SnowflakeForm: FC<{
                                             )}
                                         />
                                         <NumberInput
+                                            decimalScale={0}
                                             name="warehouse.timeoutSeconds"
                                             {...form.getInputProps(
                                                 'warehouse.timeoutSeconds',

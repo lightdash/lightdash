@@ -5,8 +5,8 @@ import {
     Anchor,
     Select,
     PasswordInput,
+    NumberInput,
 } from '@mantine-8/core';
-import { NumberInput } from '@mantine/core';
 import { useEffect, type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import useHealth from '../../../hooks/health/useHealth';
@@ -233,6 +233,7 @@ const AthenaForm: FC<{
                         />
 
                         <NumberInput
+                            decimalScale={0}
                             name="warehouse.threads"
                             label="Threads"
                             description="Number of threads for dbt to use."
@@ -242,6 +243,7 @@ const AthenaForm: FC<{
                         />
 
                         <NumberInput
+                            decimalScale={0}
                             name="warehouse.numRetries"
                             label="Number of Retries"
                             description="Number of times to retry failed queries."

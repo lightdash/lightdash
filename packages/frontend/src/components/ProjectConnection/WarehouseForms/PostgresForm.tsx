@@ -9,8 +9,8 @@ import {
     Select,
     PasswordInput,
     Tooltip,
+    NumberInput,
 } from '@mantine-8/core';
-import { NumberInput } from '@mantine/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import React, { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
@@ -145,6 +145,7 @@ const PostgresForm: FC<{
                             }
                         />
                         <NumberInput
+                            decimalScale={0}
                             name="warehouse.port"
                             {...form.getInputProps('warehouse.port')}
                             defaultValue={PostgresDefaultValues.port}
@@ -155,6 +156,7 @@ const PostgresForm: FC<{
                         />
 
                         <NumberInput
+                            decimalScale={0}
                             name="warehouse.keepalivesIdle"
                             {...form.getInputProps('warehouse.keepalivesIdle')}
                             defaultValue={PostgresDefaultValues.keepalivesIdle}
@@ -300,6 +302,7 @@ const PostgresForm: FC<{
                         <StartOfWeekSelect disabled={disabled} />
 
                         <NumberInput
+                            decimalScale={0}
                             name="warehouse.timeoutSeconds"
                             defaultValue={PostgresDefaultValues.timeoutSeconds}
                             {...form.getInputProps('warehouse.timeoutSeconds')}
@@ -338,6 +341,7 @@ const PostgresForm: FC<{
                                 />
 
                                 <NumberInput
+                                    decimalScale={0}
                                     name="warehouse.sshTunnelPort"
                                     {...form.getInputProps(
                                         'warehouse.sshTunnelPort',

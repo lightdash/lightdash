@@ -16,9 +16,10 @@ import {
     Switch,
     Text,
     Tooltip,
+    NumberInput,
 } from '@mantine-8/core';
-import { NumberInput } from '@mantine/core';
 import { IconHelpCircle } from '@tabler/icons-react';
+import { optionalNumber } from '../../../utils/numberInputUtils';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { isTreemapVisualizationConfig } from '../../LightdashVisualization/types';
@@ -252,10 +253,16 @@ export const Layout: React.FC = () => {
                                     <Group gap="xs" justify="flex-end">
                                         <Config.Label>Threshold</Config.Label>
                                         <NumberInput
+                                            size="xs"
                                             value={startColorThreshold}
-                                            onChange={setStartColorThreshold}
+                                            onChange={(value) =>
+                                                setStartColorThreshold(
+                                                    optionalNumber(value),
+                                                )
+                                            }
                                             hideControls={true}
-                                            precision={2}
+                                            decimalScale={2}
+                                            fixedDecimalScale
                                             placeholder="Auto (per-level)"
                                         />
                                     </Group>
@@ -280,10 +287,16 @@ export const Layout: React.FC = () => {
                                     >
                                         <Config.Label>Threshold</Config.Label>
                                         <NumberInput
+                                            size="xs"
                                             value={endColorThreshold}
-                                            onChange={setEndColorThreshold}
+                                            onChange={(value) =>
+                                                setEndColorThreshold(
+                                                    optionalNumber(value),
+                                                )
+                                            }
                                             hideControls={true}
-                                            precision={2}
+                                            decimalScale={2}
+                                            fixedDecimalScale
                                             placeholder="Auto (per-level)"
                                         />
                                     </Group>

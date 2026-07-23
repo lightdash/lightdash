@@ -10,10 +10,10 @@ import {
     type BaseFilterRule,
     type DateFilterRule,
 } from '@lightdash/common';
-import { Flex, Text } from '@mantine-8/core';
-import { NumberInput } from '@mantine/core';
+import { Flex, Text, NumberInput } from '@mantine-8/core';
 import dayjs from 'dayjs';
 import { type FilterInputsProps } from '.';
+import { handleNumberInputChange } from '../../../../utils/numberInputUtils';
 import useFiltersContext from '../useFiltersContext';
 import { getFirstDayOfWeek } from '../utils/filterDateUtils';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
@@ -266,23 +266,19 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
             return (
                 <Flex gap="xs" w="100%">
                     <NumberInput
+                        decimalScale={0}
                         size="xs"
-                        sx={{
-                            flexShrink: 1,
-                            flexGrow: 1,
-                            minWidth: 50,
-                        }}
+                        flex="1 1 auto"
+                        miw={50}
                         placeholder={placeholder}
                         disabled={disabled}
                         data-autofocus
                         value={isNaN(parsedValue) ? undefined : parsedValue}
                         min={0}
-                        onChange={(value) => {
-                            onChange({
-                                ...rule,
-                                values: value === '' ? [] : [value],
-                            });
-                        }}
+                        onChange={handleNumberInputChange(
+                            (value) => onChange({ ...rule, values: [value] }),
+                            () => onChange({ ...rule, values: [] }),
+                        )}
                     />
 
                     <FilterUnitOfTimeAutoComplete

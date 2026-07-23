@@ -12,6 +12,7 @@ export const AxisMinInterval: FC<Props> = ({ label, value, onChange }) => (
     <Group wrap="nowrap" gap="xs">
         <Config.Label>{label}</Config.Label>
         <NumberInput
+            size="xs"
             placeholder="Auto"
             value={value ?? ''}
             min={0}

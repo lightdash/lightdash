@@ -28,8 +28,8 @@ import {
     TextInput,
     Tooltip,
     type ComboboxItem,
+    NumberInput,
 } from '@mantine-8/core';
-import { NumberInput } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import {
     Icon123,
@@ -44,6 +44,7 @@ import {
 import { useMemo, type FC } from 'react';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { optionalNumber } from '../../../../utils/numberInputUtils';
 import classes from './FormatRow.module.css';
 
 type Props = {
@@ -469,6 +470,7 @@ export const FormatRow: FC<Props> = ({
                     {isNumeric && format.type === CustomFormatType.NUMBER && (
                         <Group gap="md" wrap="wrap" align="flex-end">
                             <NumberInput
+                                decimalScale={0}
                                 className={classes.subFieldInputNarrow}
                                 size="xs"
                                 radius="md"
@@ -480,7 +482,7 @@ export const FormatRow: FC<Props> = ({
                                     onChange: (value) =>
                                         setFormatFieldValue(
                                             'round',
-                                            value === '' ? undefined : value,
+                                            optionalNumber(value),
                                         ),
                                 }}
                             />
@@ -537,6 +539,7 @@ export const FormatRow: FC<Props> = ({
                                 {...formatInputProps('currency')}
                             />
                             <NumberInput
+                                decimalScale={0}
                                 className={classes.subFieldInput}
                                 size="xs"
                                 radius="md"
@@ -548,7 +551,7 @@ export const FormatRow: FC<Props> = ({
                                     onChange: (value) =>
                                         setFormatFieldValue(
                                             'round',
-                                            value === '' ? undefined : value,
+                                            optionalNumber(value),
                                         ),
                                 }}
                             />
@@ -574,6 +577,7 @@ export const FormatRow: FC<Props> = ({
 
                     {isNumeric && format.type === CustomFormatType.PERCENT && (
                         <NumberInput
+                            decimalScale={0}
                             className={classes.subFieldInput}
                             size="xs"
                             radius="md"
@@ -585,7 +589,7 @@ export const FormatRow: FC<Props> = ({
                                 onChange: (value) =>
                                     setFormatFieldValue(
                                         'round',
-                                        value === '' ? undefined : value,
+                                        optionalNumber(value),
                                     ),
                             }}
                         />
