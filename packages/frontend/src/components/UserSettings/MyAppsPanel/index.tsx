@@ -3,12 +3,13 @@ import {
     ActionIcon,
     Anchor,
     Badge,
+    Divider,
     Group,
     Menu,
     SegmentedControl,
-    Stack,
     Text,
 } from '@mantine-8/core';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import {
     IconCode,
     IconDots,
@@ -16,7 +17,6 @@ import {
     IconExternalLink,
     IconFolderPlus,
     IconFolderSymlink,
-    IconLayoutDashboard,
     IconTrash,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -32,23 +32,26 @@ import { Link } from 'react-router';
 import AppThumbnailHoverCard from '../../../features/apps/components/AppThumbnailHoverCard';
 import { MoveAppToSpaceModal as SharedMoveAppToSpaceModal } from '../../../features/apps/components/MoveAppToSpaceModal';
 import { useMyApps } from '../../../features/apps/hooks/useMyApps';
+import { useProjects } from '../../../hooks/useProjects';
 import {
     ContentTable,
+    ContentTableSearchInput,
     useContentTable,
     type ContentTableColumnDef,
 } from '../../common/ContentTable';
+import FilterFacet, { type FilterFacetOption } from '../../common/FilterFacet';
 import MantineIcon from '../../common/MantineIcon';
 import AppDeleteModal from '../../common/modal/AppDeleteModal';
 import AppUpdateModal from '../../common/modal/AppUpdateModal';
-import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
 import { SettingsPage } from '../../common/Settings/SettingsPage';
+import classes from './MyAppsPanel.module.css';
 
 const hasReadyVersion = (app: ApiAppSummary) =>
     app.lastVersionStatus === 'ready' && !!app.lastVersionNumber;
 
-const APP_SCOPE_OPTIONS = [
-    { label: 'Production only', value: 'production' },
-    { label: 'Include previews', value: 'with-previews' },
+const PROJECT_SCOPE_OPTIONS = [
+    { label: 'Production', value: 'production' },
+    { label: 'All projects', value: 'all' },
 ];
 
 const MoveAppToSpaceModal: FC<{
@@ -127,8 +130,16 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
     const [includePreviewApps, setIncludePreviewApps] = useState(
         includePreviewAppsByDefault,
     );
+    const [selectedProjectUuids, setSelectedProjectUuids] = useState<string[]>(
+        [],
+    );
+    const [search, setSearch] = useState('');
+    const [debouncedSearch] = useDebouncedValue(search.trim(), 300);
+    const { data: projects = [], isLoading: isLoadingProjects } = useProjects();
     const { data, fetchNextPage, isFetching, isLoading, isError } = useMyApps({
         excludePreviewProjects: !includePreviewApps,
+        projectUuids: selectedProjectUuids,
+        search: debouncedSearch || undefined,
     });
     const [appToDelete, setAppToDelete] = useState<ApiAppSummary | null>(null);
     const [appToMove, setAppToMove] = useState<ApiAppSummary | null>(null);
@@ -163,13 +174,30 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
 
+    const resetFilters = useCallback(() => {
+        setSearch('');
+        setIncludePreviewApps(false);
+        setSelectedProjectUuids([]);
+    }, []);
+
+    const projectOptions = useMemo<FilterFacetOption[]>(
+        () =>
+            projects
+                .map((project) => ({
+                    label: project.name,
+                    value: project.projectUuid,
+                }))
+                .sort((a, b) => a.label.localeCompare(b.label)),
+        [projects],
+    );
+
     const columns: ContentTableColumnDef<ApiAppSummary>[] = useMemo(
         () => [
             {
                 accessorKey: 'name',
                 header: 'Name',
                 enableSorting: false,
-                size: 200,
+                size: 300,
                 Cell: ({ row }) => {
                     const app = row.original;
                     return <AppNameCell app={app} />;
@@ -370,10 +398,11 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
         enablePagination: false,
         enableRowNumbers: false,
         enableSorting: false,
-        enableTopToolbar: false,
+        enableTopToolbar: true,
         enableBottomToolbar: false,
         enableStickyHeader: true,
         mantinePaperProps: {
+            className: classes.tableSurface,
             shadow: undefined,
         },
         mantineTableHeadCellProps: {
@@ -393,6 +422,47 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
         mantineTableProps: {
             highlightOnHover: true,
         },
+        emptyState: {
+            emptyMessage: 'No apps to display',
+            entityName: 'apps',
+            hasActiveFilters:
+                includePreviewApps || selectedProjectUuids.length > 0,
+            onClearFilters: resetFilters,
+            search,
+        },
+        renderTopToolbar: () => (
+            <Group px="md" py="sm" gap="xs" wrap="nowrap">
+                <ContentTableSearchInput
+                    placeholder="Search apps..."
+                    tooltipLabel="Search by app, project, or space"
+                    value={search}
+                    onChange={setSearch}
+                />
+                <Divider orientation="vertical" h={20} />
+                <SegmentedControl
+                    size="xs"
+                    radius="md"
+                    aria-label="App project scope"
+                    value={includePreviewApps ? 'all' : 'production'}
+                    onChange={(value) => setIncludePreviewApps(value === 'all')}
+                    data={PROJECT_SCOPE_OPTIONS}
+                    classNames={{
+                        root: classes.segmentedControl,
+                        indicator: classes.segmentedIndicator,
+                        label: classes.segmentedLabel,
+                    }}
+                />
+                <Divider orientation="vertical" h={20} />
+                <FilterFacet
+                    label="Project"
+                    options={projectOptions}
+                    selected={selectedProjectUuids}
+                    onChange={setSelectedProjectUuids}
+                    tooltipLabel="Filter apps by project"
+                    loading={isLoadingProjects}
+                />
+            </Group>
+        ),
         state: {
             isLoading,
             showProgressBars: isFetching,
@@ -405,34 +475,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
             title="My apps"
             description="Manage the data apps you can access and edit."
         >
-            <Stack gap="xs">
-                <Group justify="flex-end">
-                    <SegmentedControl
-                        size="xs"
-                        aria-label="App project scope"
-                        value={
-                            includePreviewApps ? 'with-previews' : 'production'
-                        }
-                        onChange={(value) =>
-                            setIncludePreviewApps(value === 'with-previews')
-                        }
-                        data={APP_SCOPE_OPTIONS}
-                    />
-                </Group>
-                {!isLoading && !isError && flatData.length === 0 ? (
-                    <SettingsEmptyState
-                        icon={IconLayoutDashboard}
-                        title="No apps"
-                        description={
-                            includePreviewApps
-                                ? 'Create an app to see it here.'
-                                : 'No apps are available in production projects. Include preview apps to see work from preview projects.'
-                        }
-                    />
-                ) : (
-                    <ContentTable table={table} />
-                )}
-            </Stack>
+            <ContentTable table={table} />
             {appToDelete && (
                 <AppDeleteModal
                     opened
