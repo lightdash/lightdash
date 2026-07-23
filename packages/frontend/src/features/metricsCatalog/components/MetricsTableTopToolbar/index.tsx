@@ -344,7 +344,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             input: {
                                 height: 32,
                                 width: 309,
-                                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                                paddingBlock: theme.spacing.xs,
                                 textOverflow: 'ellipsis',
                                 fontSize: theme.fontSizes.sm,
                                 fontWeight: 400,
