@@ -24,7 +24,6 @@ const buildQueryTool = (dimensions: string[], metrics: string[]) =>
             xAxisType: null,
             stackBars: null,
             lineType: null,
-            funnelDataInput: 'column',
             xAxisLabel: '',
             yAxisLabel: '',
             secondaryYAxisMetric: null,

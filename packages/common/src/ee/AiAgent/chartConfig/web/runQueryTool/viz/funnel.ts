@@ -16,10 +16,9 @@ export const getFunnelChartConfig = ({
     const { metrics, dimensions } = metricQuery;
     const { chartConfig } = queryTool;
 
-    // The tool's funnelDataInput values don't match FunnelChartDataInput
-    // semantics (ROW means stages across the metric columns of a single row,
-    // COLUMN means one stage per row), so infer the mode from the query shape
-    // instead of trusting the model's choice.
+    // FunnelChartDataInput.ROW means stages across the metric columns of a
+    // single row; COLUMN means one stage per row. The query shape fully
+    // determines which applies, so it is derived rather than model-chosen.
     const dataInput =
         dimensions.length === 0
             ? FunnelChartDataInput.ROW

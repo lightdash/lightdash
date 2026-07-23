@@ -10,12 +10,10 @@ const buildQueryTool = ({
     defaultVizType,
     dimensions,
     metrics,
-    funnelDataInput = null,
 }: {
     defaultVizType: 'funnel';
     dimensions: string[];
     metrics: string[];
-    funnelDataInput?: 'row' | 'column' | null;
 }) =>
     toolRunQueryArgsSchemaTransformed.parse({
         title: 'Order Funnel',
@@ -38,7 +36,6 @@ const buildQueryTool = ({
             xAxisType: null,
             stackBars: null,
             lineType: null,
-            funnelDataInput,
             xAxisLabel: '',
             yAxisLabel: '',
             secondaryYAxisMetric: null,
@@ -72,7 +69,6 @@ describe('getRunQueryChartConfig', () => {
                     defaultVizType: 'funnel',
                     dimensions: [],
                     metrics,
-                    funnelDataInput: 'column',
                 }),
                 metricQuery: buildMetricQuery([], metrics),
                 fieldsMap: {},
@@ -93,7 +89,6 @@ describe('getRunQueryChartConfig', () => {
                     defaultVizType: 'funnel',
                     dimensions: ['orders_status'],
                     metrics: ['orders_order_count'],
-                    funnelDataInput: 'row',
                 }),
                 metricQuery: buildMetricQuery(
                     ['orders_status'],
