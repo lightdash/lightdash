@@ -171,6 +171,7 @@
          Widen the files list as more features migrate to components/common/DatePickers. */
       "files": [
         "src/features/funnelBuilder/**",
+        "src/features/metricsCatalog/**",
         "src/features/omnibar/**"
       ],
       "rules": {
