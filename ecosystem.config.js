@@ -79,6 +79,7 @@ module.exports = {
             env: {
                 ...envWithPath,
                 LIGHTDASH_MODE: 'development',
+                ALLOW_FIXED_OTP_PASSCODE: 'true',
                 HEADLESS: 'true',
                 NODE_ENV: 'development',
                 SENTRY_SPOTLIGHT: `http://localhost:${spotlightPort}/stream`,

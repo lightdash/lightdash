@@ -204,6 +204,7 @@ export const lightdashConfigMock: LightdashConfig = {
     helpMenuUrl: undefined,
     trustProxy: false,
     mode: LightdashMode.DEFAULT,
+    allowFixedOtpPasscode: false,
     license: {
         licenseKey: null,
     },

@@ -1011,6 +1011,32 @@ describe('process.env.LIGHTDASH_CORS_ENABLED', () => {
     });
 });
 
+describe('process.env.ALLOW_FIXED_OTP_PASSCODE', () => {
+    test('defaults to false when not set', () => {
+        const config = parseConfig();
+        expect(config.allowFixedOtpPasscode).toBe(false);
+    });
+
+    test('is false in default mode even when the flag is set', () => {
+        process.env.ALLOW_FIXED_OTP_PASSCODE = 'true';
+        const config = parseConfig();
+        expect(config.allowFixedOtpPasscode).toBe(false);
+    });
+
+    test('is true in development mode when the flag is set', () => {
+        process.env.LIGHTDASH_MODE = 'development';
+        process.env.ALLOW_FIXED_OTP_PASSCODE = 'true';
+        const config = parseConfig();
+        expect(config.allowFixedOtpPasscode).toBe(true);
+    });
+
+    test('is false in development mode without the flag', () => {
+        process.env.LIGHTDASH_MODE = 'development';
+        const config = parseConfig();
+        expect(config.allowFixedOtpPasscode).toBe(false);
+    });
+});
+
 describe('parseAndSanitizeSchedulerTasks', () => {
     beforeEach(() => {
         // Clear scheduler environment variables before each test

@@ -2079,11 +2079,9 @@ export class UserService extends BaseService {
             currentEmailStatus.otp &&
             !this.isOtpExpired(currentEmailStatus.otp.createdAt),
         );
-        const passcode =
-            this.lightdashConfig.mode === LightdashMode.PR ||
-            this.lightdashConfig.mode === LightdashMode.DEV
-                ? '000000'
-                : randomInt(999999).toString().padStart(6, '0');
+        const passcode = this.lightdashConfig.allowFixedOtpPasscode
+            ? '000000'
+            : randomInt(999999).toString().padStart(6, '0');
         const emailStatus = await this.emailModel.createPrimaryEmailOtp({
             passcode,
             userUuid: user.userUuid,

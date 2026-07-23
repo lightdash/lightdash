@@ -216,7 +216,9 @@ export class OrganizationDomainVerificationService extends BaseService {
             }
         }
 
-        const passcode = generateOneTimePasscode(this.lightdashConfig.mode);
+        const passcode = generateOneTimePasscode(
+            this.lightdashConfig.allowFixedOtpPasscode,
+        );
         const { createdAt, numberOfAttempts } =
             await this.organizationDomainVerificationModel.upsertChallenge({
                 organizationUuid,
