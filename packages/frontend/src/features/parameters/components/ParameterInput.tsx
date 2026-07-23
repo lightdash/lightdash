@@ -25,11 +25,11 @@ import React, {
     useState,
     type FC,
 } from 'react';
+import { formatMantineDate } from '../../../components/common/Filters/FilterInputs/mantineDateAdapter';
 import {
-    formatMantineDate,
-    parseMantineDate,
-} from '../../../components/common/Filters/FilterInputs/mantineDateAdapter';
-import { serializeParameterDateValue } from '../../../components/common/Filters/FilterInputs/mantineDateSerialization';
+    parseParameterDateValue,
+    serializeParameterDateValue,
+} from '../../../components/common/Filters/FilterInputs/mantineDateSerialization';
 import { formatDisplayValue } from '../../../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
@@ -489,7 +489,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         // Convert current ISO string value to Date object
         const currentDate =
             currentDateValues.length > 0
-                ? parseMantineDate(currentDateValues[0])
+                ? parseParameterDateValue(currentDateValues[0])
                 : null;
 
         // Reasonable date range constraints
@@ -498,7 +498,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
 
         const defaultValue =
             typeof parameter.default === 'string'
-                ? parseMantineDate(parameter.default)
+                ? parseParameterDateValue(parameter.default)
                 : null;
 
         return (
