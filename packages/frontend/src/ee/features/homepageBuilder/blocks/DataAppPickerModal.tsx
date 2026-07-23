@@ -22,6 +22,7 @@ import MantineModal from '../../../../components/common/MantineModal';
 import { ResourceIcon } from '../../../../components/common/ResourceIcon';
 import { useInfiniteContent } from '../../../../hooks/useContent';
 import classes from './blockStyles.module.css';
+import { dataAppHref } from './resourceUrls';
 
 const PAGE_SIZE = 50;
 
@@ -33,7 +34,7 @@ const dataAppToResourceItem = (
 ): HomepageResourceItem => ({
     kind: 'data-app',
     appUuid: content.uuid,
-    url: `/projects/${projectUuid}/n${content.uuid}`,
+    url: dataAppHref(projectUuid, content.uuid),
     title: content.name,
     ...(content.description ? { description: content.description } : {}),
 });

@@ -1,6 +1,9 @@
 import { type HomepageResourceItem } from '@lightdash/common';
 import { fetchHomepageLinkMetadata } from '../hooks/useHomepageLinkMetadata';
 
+export const dataAppHref = (projectUuid: string, appUuid: string): string =>
+    `/projects/${projectUuid}/apps/${appUuid}/view`;
+
 export const hostnameOf = (url: string): string => {
     try {
         return new URL(url).hostname.replace(/^www\./, '');
