@@ -140,9 +140,6 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
                             </Text>
                         </Box>
                     )}
-                    <Text size="sm" fw={600} c="white" ff={bodyFamily}>
-                        {displayName}
-                    </Text>
                 </Group>
                 <Group gap="lg" wrap="nowrap" visibleFrom="xs">
                     <Text size="xs" c="white" ff={bodyFamily}>
