@@ -322,6 +322,49 @@ describe('Mantine Dates v8 wrapper boundaries', () => {
         );
     });
 
+    it('drops bounds the stored value violates so v8 cannot clamp it on dropdown close', () => {
+        mocks.timezoneSupportEnabled = false;
+        mocks.project.useProjectTimezoneInFilters = false;
+        const onChange = vi.fn();
+
+        renderDateTimePicker(
+            <FilterDateTimePicker
+                value={new Date(2025, 4, 14, 10, 0, 0)}
+                minDate={new Date(2025, 4, 14, 10, 0, 1)}
+                maxDate={new Date(2025, 4, 14, 9, 59, 59)}
+                firstDayOfWeek={1}
+                withSeconds
+                onChange={onChange}
+            />,
+        );
+
+        const picker = screen.getByTestId('date-time-picker');
+        expect(picker).toHaveAttribute('data-min', '');
+        expect(picker).toHaveAttribute('data-max', '');
+        expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('keeps bounds the stored value satisfies', () => {
+        mocks.timezoneSupportEnabled = false;
+        mocks.project.useProjectTimezoneInFilters = false;
+        const onChange = vi.fn();
+
+        renderDateTimePicker(
+            <FilterDateTimePicker
+                value={new Date(2025, 4, 14, 10, 0, 0)}
+                minDate={new Date(2025, 4, 14, 9, 0, 0)}
+                maxDate={new Date(2025, 4, 14, 11, 0, 0)}
+                firstDayOfWeek={1}
+                withSeconds
+                onChange={onChange}
+            />,
+        );
+
+        const picker = screen.getByTestId('date-time-picker');
+        expect(picker).toHaveAttribute('data-min', '2025-05-14 09:00:00');
+        expect(picker).toHaveAttribute('data-max', '2025-05-14 11:00:00');
+    });
+
     it('closes invalid replacement only after a valid parsed submission', () => {
         mocks.timezoneSupportEnabled = false;
         mocks.project.useProjectTimezoneInFilters = false;

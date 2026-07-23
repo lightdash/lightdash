@@ -86,6 +86,53 @@ describe('useDateRangePicker', () => {
         ]);
     });
 
+    it('snaps a complete week range emission to whole weeks, across year boundaries', () => {
+        const { result } = renderHook(() =>
+            useDateRangePicker({
+                value: initialValue,
+                timeInterval: TimeFrames.WEEK,
+            }),
+        );
+        act(() => result.current.handleOpen(true));
+
+        const config = result.current.calendarConfig;
+        if (!config || config.type !== TimeFrames.WEEK) {
+            throw new Error('Expected week picker config');
+        }
+        act(() => config.props.onChange(['2024-12-30', '2025-01-05']));
+        expect(result.current.tempDateRange).toEqual([
+            new Date(2024, 11, 30),
+            new Date(2025, 0, 5, 23, 59, 59, 999),
+        ]);
+
+        const midWeekConfig = result.current.calendarConfig;
+        if (!midWeekConfig || midWeekConfig.type !== TimeFrames.WEEK) {
+            throw new Error('Expected week picker config');
+        }
+        act(() => midWeekConfig.props.onChange(['2025-01-01', '2025-01-08']));
+        expect(result.current.tempDateRange).toEqual([
+            new Date(2024, 11, 30),
+            new Date(2025, 0, 12, 23, 59, 59, 999),
+        ]);
+    });
+
+    it('keeps the current week range when the picker emits a cleared range', () => {
+        const { result } = renderHook(() =>
+            useDateRangePicker({
+                value: initialValue,
+                timeInterval: TimeFrames.WEEK,
+            }),
+        );
+        act(() => result.current.handleOpen(true));
+
+        const config = result.current.calendarConfig;
+        if (!config || config.type !== TimeFrames.WEEK) {
+            throw new Error('Expected week picker config');
+        }
+        act(() => config.props.onChange([null, null]));
+        expect(result.current.tempDateRange).toEqual(initialValue);
+    });
+
     it.each([
         [
             TimeFrames.MONTH,
