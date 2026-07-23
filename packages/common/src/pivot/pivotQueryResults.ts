@@ -1208,7 +1208,7 @@ export const convertSqlPivotedRowsToPivotData = ({
             pivotColumnInfo,
         },
         groupedSubtotals,
-        groupedRowSubtotals,
+        ...(groupedRowSubtotals ? { groupedRowSubtotals } : {}),
     };
 
     const retrofitted = combinedRetrofit(
