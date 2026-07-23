@@ -75,6 +75,10 @@ seeds:
         estimated_delivery_days: integer
         shipping_cost: numeric
         tax_rate: numeric
+    raw_prospects:
+      +column_types:
+        month: date
+        prospect_count: integer
     raw_plan:
       +column_types:
         metadata: jsonb
