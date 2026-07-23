@@ -99,6 +99,7 @@ import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import AppSpaceChip from '../features/apps/components/AppSpaceChip';
 import DataAppVizResultCard from '../features/apps/components/DataAppVizResultCard';
 import DataAppVizTestPanel from '../features/apps/components/DataAppVizTestPanel';
+import { getAppVersionFailureMessage } from '../features/apps/getAppVersionFailureMessage';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
@@ -954,10 +955,7 @@ const AppGenerate: FC = () => {
             } else if (v.status === 'error') {
                 msgs.push({
                     role: 'assistant',
-                    content:
-                        v.error ??
-                        v.statusMessage ??
-                        'Generation failed. Please try again.',
+                    content: getAppVersionFailureMessage(v),
                     imagePreviewUrls: [],
                     imageResourceIds: [],
                     charts: [],
