@@ -10,8 +10,8 @@ import {
     Modal,
     Tooltip,
 } from '@mantine-8/core';
+import { modals } from '@mantine-8/modals';
 import { useMantineTheme } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { IconCheck, IconCopy, IconSpeakerphone } from '@tabler/icons-react';
 import { defaultContext } from '@tanstack/react-query';
 import { useContext } from 'react';

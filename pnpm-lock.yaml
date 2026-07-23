@@ -40,7 +40,7 @@ overrides:
 
 packageExtensionsChecksum: sha256-dssFMdNh289VAmJNNfz2Un2yyQ65P87lDvF3ZdZoc94=
 
-pnpmfileChecksum: sha256-VWpxI1QbiNG0Pi71ZEHzWZMoyUmcVupMFdS47hBIZzc=
+pnpmfileChecksum: sha256-MpThIPbzl7wRjww3iPI5NpP3QZScl0ioo5/ZQ9GARXg=
 
 importers:
 
@@ -1101,6 +1101,9 @@ importers:
       '@mantine-8/hooks':
         specifier: npm:@mantine/hooks@8.0.0
         version: '@mantine/hooks@8.0.0(react@19.2.0)'
+      '@mantine-8/modals':
+        specifier: npm:@mantine/modals@8.0.0
+        version: '@mantine/modals@8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)'
       '@mantine-8/notifications':
         specifier: npm:@mantine/notifications@8.0.0
         version: '@mantine/notifications@8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)'
@@ -1116,9 +1119,6 @@ importers:
       '@mantine/hooks':
         specifier: 6.0.22
         version: 6.0.22(react@19.2.0)
-      '@mantine/modals':
-        specifier: 6.0.22
-        version: 6.0.22(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@mantine/prism':
         specifier: 6.0.21
         version: 6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -4318,13 +4318,11 @@ packages:
     peerDependencies:
       react: ^18.x || ^19.x
 
-  '@mantine/modals@6.0.22':
-    resolution: {integrity: sha512-1k4bc6eFBGwKLaySXqAFCxyAHKv+p5bOh06RaYx9S9KyospR61M8Nw6BE3q7CdQRH2MQp8vgVue+h6y7pcWFFQ==}
+  '@mantine/modals@8.0.0':
+    resolution: {integrity: sha512-yki3KzW9Pykf6hVSezWjeHC0FCiYD3mK2r2Sn6qE0ag+EeXZs1cbrqpjZHYov2rh6j0xzW2jnaoVbKEqYw1vUQ==}
     peerDependencies:
-      '@mantine/core': 6.0.22
-      '@mantine/hooks': 6.0.22
-      react: '>=16.8.0'
-      react-dom: '>=16.8.0'
+      react: ^18.x || ^19.x
+      react-dom: ^18.x || ^19.x
 
   '@mantine/notifications@8.0.0':
     resolution: {integrity: sha512-sWldvQmq4YJsknHURBNKkc3CAU0qDb0LuQGKIZGxqFlwEiXNIAI8mtfr7stgzVx+mteVW1g+HBb7FaZp07jRxQ==}
@@ -20698,13 +20696,14 @@ snapshots:
     dependencies:
       react: 19.2.0
 
-  '@mantine/modals@6.0.22(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
+  '@mantine/modals@8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
-      '@mantine/core': 6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@mantine/hooks': 6.0.22(react@19.2.0)
-      '@mantine/utils': 6.0.22(react@19.2.0)
+      '@mantine/core': 8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@mantine/hooks': 8.0.0(react@19.2.0)
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
+    transitivePeerDependencies:
+      - '@types/react'
 
   '@mantine/notifications@8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
