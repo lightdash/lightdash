@@ -381,9 +381,9 @@ export const AiGeneralSettingsPage = () => {
                                     to Slack channels from the Lightdash UI.
                                     Mentioning the bot in an unconfigured
                                     channel will not add the AI agent to it.
-                                    When off, admins, developers, or roles with
-                                    the manage:AiAgent scope can link agents
-                                    directly from Slack.
+                                    When off, admins &amp; developers or roles
+                                    with the manage:AiAgent scope can link
+                                    agents directly from Slack.
                                 </Text>
                             </Box>
                             <Switch
