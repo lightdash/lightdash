@@ -10,6 +10,7 @@ import {
     buildImportBody,
     readBundleFromDir,
     readDependenciesFromDir,
+    readManifestFromDir,
     retargetManifest,
     writeBundleToDir,
     writeContextToDir,
@@ -117,6 +118,13 @@ const bundle = {
     ],
 };
 
+it('readManifestFromDir returns just the manifest', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-app-'));
+    await writeBundleToDir(dir, bundle);
+    const manifest = await readManifestFromDir(dir);
+    expect(manifest).toEqual(bundle.manifest);
+});
+
 it('writes then reads back an identical bundle', async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-app-'));
     await writeBundleToDir(dir, bundle);
@@ -161,8 +169,13 @@ it('upload reads back only src/ files, ignoring scaffolding and context', async 
         'models: []',
     );
     await fs.writeFile(path.join(dir, '.claude/skills/x/SKILL.md'), '# skill');
+    await fs.writeFile(
+        path.join(dir, '.env.local'),
+        'VITE_LIGHTDASH_API_KEY=secret',
+    );
     const read = await readBundleFromDir(dir);
     expect(read.files.every((f) => f.path.startsWith('src/'))).toBe(true);
+    expect(read.files.map((f) => f.path)).not.toContain('.env.local');
     expect(read.files.map((f) => f.path).sort()).toEqual(
         bundle.files.map((f) => f.path).sort(),
     );
