@@ -53,7 +53,7 @@ const sql = composer.getSql({ columnLimit }); // PivotQueryBuilder-wrapped when 
 definition to build a totals query. The composer just forwards it —
 **totals are entirely `MetricQueryBuilder`'s job**: in its constructor the
 builder collapses the (compiled) source query + pivot config into the requested
-grain (`grandTotal`/`columnTotal`/`rowTotal`/`columnSubtotal`) via
+grain (`grandTotal`/`columnTotal`/`rowTotal`/`columnSubtotal`/`rowSubtotal`) via
 `TotalQueryBuilder`, compiles the collapsed query internally, and keeps the
 original around as the embedded source where needed. The effective (collapsed)
 query/pivot are exposed via the builder's `getEffectiveMetricQuery()` /
@@ -196,7 +196,7 @@ const builder = new SqlQueryBuilder(
 const { sql, parameterReferences } = builder.getSqlAndReferences();
 ```
 
-**TotalQueryBuilder** — transforms a source query (`metricQuery` + `pivotConfiguration`) into the totals query that reproduces a requested grain (`grandTotal` / `columnTotal` / `rowTotal` / `columnSubtotal`). It does NOT emit SQL — it returns a transformed `MetricQuery` + `PivotConfiguration` that is then executed through the normal path (`MetricQueryBuilder` / `PivotQueryBuilder`). Mirrors `MetricQueryBuilder`'s surface: configure via the constructor, then call `compileQuery()`. Used by `AsyncQueryService` to compute table-calc/metric totals for a previously-executed query.
+**TotalQueryBuilder** — transforms a source query (`metricQuery` + `pivotConfiguration`) into the totals query that reproduces a requested grain (`grandTotal` / `columnTotal` / `rowTotal` / `columnSubtotal` / `rowSubtotal`). It does NOT emit SQL — it returns a transformed `MetricQuery` + `PivotConfiguration` that is then executed through the normal path (`MetricQueryBuilder` / `PivotQueryBuilder`). Mirrors `MetricQueryBuilder`'s surface: configure via the constructor, then call `compileQuery()`. Used by `AsyncQueryService` to compute table-calc/metric totals for a previously-executed query.
 
 ```typescript
 import { TotalQueryBuilder } from './TotalQueryBuilder';
@@ -205,7 +205,7 @@ const { metricQuery, pivotConfiguration } = new TotalQueryBuilder({
     metricQuery: source.metricQuery,
     pivotConfiguration: source.pivotConfiguration, // or null
     kind: 'columnTotal',
-    subtotalDimensions, // only for kind: 'columnSubtotal'
+    subtotalDimensions, // required for subtotal kinds
 }).compileQuery();
 ```
 

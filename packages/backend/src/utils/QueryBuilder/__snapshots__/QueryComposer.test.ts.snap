@@ -69,6 +69,39 @@ FROM "db"."schema"."table1" AS "table1"
 LIMIT 1"
 `;
 
+exports[`QueryComposer > totalConfiguration > collapses the source query into the totals grain for kind "'rowSubtotal'" 1`] = `
+"WITH source_rows AS (
+SELECT
+  "table1".dim1 AS "table1_dim1",
+  "table1".shared AS "table1_shared",
+  MAX("table1".number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
+
+GROUP BY 1,2
+),
+visible_page_rows AS (
+SELECT
+  *
+FROM source_rows
+ORDER BY "table1_dim1"
+LIMIT 500
+),
+visible_dimension_groups AS (
+SELECT DISTINCT
+  "table1_dim1"
+FROM visible_page_rows
+)
+SELECT
+  "table1".dim1 AS "table1_dim1",
+  MAX("table1".number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
+
+INNER JOIN visible_dimension_groups ON (("table1".dim1) = visible_dimension_groups."table1_dim1" OR (("table1".dim1) IS NULL AND visible_dimension_groups."table1_dim1" IS NULL))
+GROUP BY 1
+ORDER BY "table1_metric1" DESC
+LIMIT 500"
+`;
+
 exports[`QueryComposer > totalConfiguration > collapses the source query into the totals grain for kind "'rowTotal'" 1`] = `
 "WITH original_query AS (SELECT "table1".dim1 AS "table1_dim1", MAX("table1".number_column) AS "table1_metric1" FROM "db"."schema"."table1" AS "table1" GROUP BY 1 ORDER BY "table1_metric1" DESC),
 group_by_query AS (SELECT "table1_dim1", sum("table1_metric1") AS "table1_metric1_sum" FROM original_query group by "table1_dim1")

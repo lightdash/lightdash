@@ -4835,7 +4835,10 @@ export class MetricQueryBuilder {
                 scope: 'results',
             });
         }
-        if (this.args.totalConfiguration?.kind === 'columnSubtotal') {
+        if (
+            this.args.totalConfiguration?.kind === 'columnSubtotal' ||
+            this.args.totalConfiguration?.kind === 'rowSubtotal'
+        ) {
             groupRestrictions.push({
                 joinDimensions: grainDimensions,
                 scope: 'visiblePage',

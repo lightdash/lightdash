@@ -13,6 +13,7 @@ import {
     type PivotColumn,
     type PivotConfig,
     type PivotData,
+    type PivotRowTotalsByIndex,
     type TotalField,
 } from '../types/pivot';
 import { type ResultRow, type ResultValue } from '../types/results';
@@ -30,16 +31,6 @@ import { type PivotValuesColumn } from '../visualizations/types';
 type FieldFunction = (fieldId: string) => ItemsMap[string] | undefined;
 
 type FieldLabelFunction = (fieldId: string) => string | undefined;
-
-/**
- * Warehouse-computed row totals, keyed by a stable index-value key (built with
- * `buildPivotRowTotalKey`) → metric fieldId → numeric total. Produced by the
- * `calculate-total` endpoint (`kind: 'rowTotal'`) and fed into the pivot worker
- * so the displayed row totals are correct for every metric type — count
- * distinct, average, ratios — instead of the client-side sum that only holds
- * for additive metrics.
- */
-export type PivotRowTotalsByIndex = Record<string, Record<string, number>>;
 
 // ISO 8601 datetime with an explicit timezone (e.g. 2026-01-01T00:00:00Z).
 const ISO_DATETIME_RE =
@@ -506,6 +497,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     getField,
     getFieldLabel,
     groupedSubtotals,
+    groupedRowSubtotals,
     warehouseRowTotals,
     warehouseColumnTotals,
     warehouseGrandTotals,
@@ -527,6 +519,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     getField: FieldFunction;
     getFieldLabel: FieldLabelFunction;
     groupedSubtotals: Record<string, Record<string, number>[]> | undefined;
+    groupedRowSubtotals?: PivotData['groupedRowSubtotals'];
     /**
      * Warehouse-computed row totals from `calculate-total` (`kind: 'rowTotal'`).
      * Row totals are exclusively warehouse-computed — there is no client-side
@@ -1215,6 +1208,7 @@ export const convertSqlPivotedRowsToPivotData = ({
             pivotColumnInfo,
         },
         groupedSubtotals,
+        ...(groupedRowSubtotals ? { groupedRowSubtotals } : {}),
     };
 
     const retrofitted = combinedRetrofit(

@@ -1013,6 +1013,37 @@ describe('TotalQueryBuilder: columnSubtotal', () => {
     });
 });
 
+describe('TotalQueryBuilder: rowSubtotal', () => {
+    const multiIndexPivotConfiguration: PivotConfiguration = {
+        ...pivotConfiguration,
+        indexColumn: [
+            {
+                reference: 'orders_created_at',
+                type: VizIndexType.TIME,
+            },
+            {
+                reference: 'orders_status',
+                type: VizIndexType.CATEGORY,
+            },
+        ],
+        groupByColumns: [{ reference: 'orders_payment_method' }],
+    };
+
+    it('groups by the subtotal dimensions and collapses the pivot', () => {
+        const result = new TotalQueryBuilder({
+            metricQuery: baseMetricQuery,
+            pivotConfiguration: multiIndexPivotConfiguration,
+            subtotalDimensions: ['orders_created_at'],
+            kind: 'rowSubtotal',
+        }).compileQuery();
+
+        expect(result.metricQuery.dimensions).toEqual(['orders_created_at']);
+        expect(result.metricQuery.sorts).toEqual([]);
+        expect(result.metricQuery.metrics).toEqual(baseMetricQuery.metrics);
+        expect(result.pivotConfiguration).toBeUndefined();
+    });
+});
+
 describe('TotalQueryBuilder: visible groups (PROD-7570)', () => {
     it('columnSubtotal always restricts to the grain groups on the visible page', () => {
         const result = new TotalQueryBuilder({

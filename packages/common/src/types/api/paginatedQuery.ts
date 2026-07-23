@@ -168,13 +168,13 @@ export type CalculateTotalKind =
     | 'grandTotal'
     | 'columnTotal'
     | 'rowTotal'
-    | 'columnSubtotal';
-// | 'rowSubtotal'
+    | 'columnSubtotal'
+    | 'rowSubtotal';
 
 export type ExecuteAsyncCalculateTotalRequestParams = {
     kind: CalculateTotalKind;
-    // Required for `columnSubtotal`: the dimensions this subtotal level groups
-    // by (the pivot groupBy columns are added from the source query).
+    // Required for subtotal kinds: the dimensions this subtotal level groups
+    // by. Column subtotals also add the pivot groupBy columns.
     subtotalDimensions?: string[];
     invalidateCache?: boolean;
 };

@@ -91,6 +91,11 @@ export type TotalField = null | {
 
 type TotalValue = null | number;
 
+/** Warehouse-computed metric totals keyed by pivot row values. */
+export type PivotRowTotalsByIndex = Record<string, Record<string, number>>;
+
+export type GroupedPivotRowSubtotals = Record<string, PivotRowTotalsByIndex>;
+
 type DataValue = null | ResultValue;
 
 export type PivotColumn = {
@@ -142,4 +147,5 @@ export type PivotData = {
      */
     hiddenIndexValues?: FieldValue[][];
     groupedSubtotals?: Record<string, Record<string, number>[]>;
+    groupedRowSubtotals?: GroupedPivotRowSubtotals;
 };
