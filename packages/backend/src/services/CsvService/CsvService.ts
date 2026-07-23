@@ -3,6 +3,7 @@ import {
     Account,
     AnyType,
     ApiSqlQueryResults,
+    assertRegisteredAccount,
     DashboardFilters,
     DateGranularity,
     DownloadFileType,
@@ -614,6 +615,10 @@ export class CsvService extends BaseService {
         selectedTabs: string[] | null,
         dateZoomGranularity?: DateGranularity | string,
     ) {
+        // Registered-only: this legacy payload cannot carry an embed JWT, so a
+        // JWT-scheduled job would fail at the worker. Embeds use the v2
+        // dashboard exports endpoint instead.
+        assertRegisteredAccount(account);
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const auditedAbility = this.createAuditedAbility(account);
