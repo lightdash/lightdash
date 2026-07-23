@@ -8,7 +8,15 @@ import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';
 import { ExternalConnectionService } from './ExternalConnectionService';
 
-vi.mock('../../../utils/secureFetch/secureFetch');
+// Keep SecureFetchError real: auto-mocking the class would stub its
+// constructor and drop the reason/message the service forwards.
+vi.mock('../../../utils/secureFetch/secureFetch', async (importOriginal) => {
+    const actual =
+        await importOriginal<
+            typeof import('../../../utils/secureFetch/secureFetch')
+        >();
+    return { ...actual, secureFetch: vi.fn() };
+});
 
 const mockSecureFetch = vi.mocked(secureFetchModule.secureFetch);
 
@@ -515,9 +523,39 @@ describe('ExternalConnectionService.proxyFetch', () => {
             });
             await expect(promise).rejects.toBeInstanceOf(ParameterError);
             const err = await promise.catch((e) => e);
-            expect(err.message).not.toMatch(/10\.0\.0\.1/);
+            expect(err.message).toBe(
+                `Upstream request was blocked (${reason})`,
+            );
         },
     );
+
+    it('forwards an upstream error response (status + body) instead of throwing', async () => {
+        mockSecureFetch.mockResolvedValueOnce({
+            status: 400,
+            contentType: 'application/json',
+            bodyText: '{"error":"anthropic-version header is required"}',
+            truncated: false,
+        });
+        const { service, analytics } = buildService({
+            connection: baseConnection(),
+        });
+        const res = await service.proxyFetch(user, 'proj-1', 'app-1', {
+            connectionAlias: 'weather',
+            path: '/v1/x',
+        });
+        expect(res.status).toBe(400);
+        expect(res.body).toEqual({
+            error: 'anthropic-version header is required',
+        });
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                properties: expect.objectContaining({
+                    status: 400,
+                    outcome: 'upstream_error',
+                }),
+            }),
+        );
+    });
 
     it('rate-limits the 2nd POST over the limit with a 429-class error', async () => {
         const { service } = buildService({
