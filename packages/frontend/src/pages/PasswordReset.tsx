@@ -61,12 +61,13 @@ const PasswordReset: FC = () => {
                                     <form
                                         name="password-reset"
                                         onSubmit={form.onSubmit(
-                                            ({ password }) =>
-                                                code &&
+                                            ({ password }) => {
+                                                if (!code) return;
                                                 passwordResetMutation.mutate({
                                                     code,
                                                     newPassword: password,
-                                                }),
+                                                });
+                                            },
                                         )}
                                     >
                                         <Stack gap="lg">

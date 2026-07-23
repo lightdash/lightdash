@@ -53,7 +53,7 @@ export interface SchedulerFormValues {
     thresholds?: Array<{
         fieldId: string;
         operator: ThresholdOperator;
-        value: number;
+        value: number | '';
     }>;
     includeLinks: boolean;
     notificationFrequency?: NotificationFrequency;
@@ -294,7 +294,13 @@ export const transformFormValues = (
             filters: values.chartFilters,
             parameters: values.parameters,
         }),
-        thresholds: values.thresholds,
+        thresholds: values.thresholds?.filter(
+            (
+                threshold,
+            ): threshold is typeof threshold & {
+                value: number;
+            } => typeof threshold.value === 'number',
+        ),
         enabled: true,
         notificationFrequency:
             'notificationFrequency' in values

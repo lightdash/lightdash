@@ -69,6 +69,9 @@ const saveToSpaceOrDashboardSchema = z
     .merge(saveToDashboardSchema)
     // for saving to the space
     .merge(saveToSpaceSchema);
+const saveToSpaceOrDashboardResolver = zodResolver(
+    saveToSpaceOrDashboardSchema,
+);
 
 type FormValues = z.infer<typeof saveToSpaceOrDashboardSchema>;
 
@@ -148,7 +151,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     } = spaceManagement;
 
     const form = useForm<FormValues>({
-        validate: zodResolver(saveToSpaceOrDashboardSchema),
+        validate: saveToSpaceOrDashboardResolver,
     });
 
     // Check if the chart has unused dimensions that may cause incorrect results
