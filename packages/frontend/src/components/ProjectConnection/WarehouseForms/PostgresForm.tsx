@@ -9,12 +9,12 @@ import {
     Select,
     PasswordInput,
     Tooltip,
-    NumberInput,
 } from '@mantine-8/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import React, { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import MantineIcon from '../../common/MantineIcon';
+import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import BooleanSwitch from '../Inputs/BooleanSwitch';
@@ -145,7 +145,6 @@ const PostgresForm: FC<{
                             }
                         />
                         <NumberInput
-                            decimalScale={0}
                             name="warehouse.port"
                             {...form.getInputProps('warehouse.port')}
                             defaultValue={PostgresDefaultValues.port}
@@ -156,7 +155,6 @@ const PostgresForm: FC<{
                         />
 
                         <NumberInput
-                            decimalScale={0}
                             name="warehouse.keepalivesIdle"
                             {...form.getInputProps('warehouse.keepalivesIdle')}
                             defaultValue={PostgresDefaultValues.keepalivesIdle}
@@ -302,7 +300,6 @@ const PostgresForm: FC<{
                         <StartOfWeekSelect disabled={disabled} />
 
                         <NumberInput
-                            decimalScale={0}
                             name="warehouse.timeoutSeconds"
                             defaultValue={PostgresDefaultValues.timeoutSeconds}
                             {...form.getInputProps('warehouse.timeoutSeconds')}
@@ -341,7 +338,6 @@ const PostgresForm: FC<{
                                 />
 
                                 <NumberInput
-                                    decimalScale={0}
                                     name="warehouse.sshTunnelPort"
                                     {...form.getInputProps(
                                         'warehouse.sshTunnelPort',

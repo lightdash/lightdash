@@ -10,11 +10,10 @@ import {
     SegmentedControl,
     Stack,
     Tooltip,
-    NumberInput,
 } from '@mantine-8/core';
 import { memo, type FC } from 'react';
-import { handleNumberInputChange } from '../../../utils/numberInputUtils';
 import FieldSelect from '../../common/FieldSelect';
+import { NumberInput } from '../../common/NumberInput';
 import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
@@ -72,9 +71,7 @@ export const GaugeDisplayConfig: FC = memo(() => {
                         label="Minimum value"
                         description="Set the minimum value for the gauge scale"
                         value={min}
-                        onChange={handleNumberInputChange(setMin, () =>
-                            setMin(0),
-                        )}
+                        onNumberChange={(value) => setMin(value ?? 0)}
                         placeholder="0"
                         decimalScale={2}
                     />
@@ -85,9 +82,7 @@ export const GaugeDisplayConfig: FC = memo(() => {
                                 label="Maximum value"
                                 description="Set the maximum value for the gauge scale"
                                 value={max}
-                                onChange={handleNumberInputChange(setMax, () =>
-                                    setMax(0),
-                                )}
+                                onNumberChange={(value) => setMax(value ?? 0)}
                                 placeholder="100"
                                 decimalScale={2}
                                 style={{ flex: 1 }}

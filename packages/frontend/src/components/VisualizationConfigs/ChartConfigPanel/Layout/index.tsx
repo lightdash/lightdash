@@ -15,7 +15,6 @@ import {
     ActionIcon,
     CloseButton,
     Group,
-    NumberInput,
     SegmentedControl,
     Stack,
     Tooltip,
@@ -25,6 +24,7 @@ import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { EMPTY_X_AXIS } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import FieldSelect from '../../../common/FieldSelect';
 import MantineIcon from '../../../common/MantineIcon';
+import { NumberInput } from '../../../common/NumberInput';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { AddButton } from '../../common/AddButton';

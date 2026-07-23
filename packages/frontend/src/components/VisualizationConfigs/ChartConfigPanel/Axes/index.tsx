@@ -18,7 +18,6 @@ import {
     Switch,
     Text,
     Select,
-    NumberInput,
 } from '@mantine-8/core';
 import {
     IconChartBar,
@@ -30,11 +29,8 @@ import {
 } from '@tabler/icons-react';
 import { forwardRef, type FC } from 'react';
 import { getAxisTypeFromField } from '../../../../hooks/echarts/useEchartsCartesianConfig';
-import {
-    handleNumberInputChange,
-    optionalNumber,
-} from '../../../../utils/numberInputUtils';
 import MantineIcon from '../../../common/MantineIcon';
+import { NumberInput } from '../../../common/NumberInput';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
@@ -288,7 +284,6 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             <Group wrap="nowrap" gap="xs" align="baseline">
                                 <Config.Label>Rotation</Config.Label>
                                 <NumberInput
-                                    decimalScale={0}
                                     size="xs"
                                     defaultValue={
                                         dirtyEchartsConfig?.xAxis?.[0].rotate ||
@@ -299,10 +294,9 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                                     step={15}
                                     maw={54}
                                     rightSection="°"
-                                    onChange={handleNumberInputChange(
-                                        setXAxisLabelRotation,
-                                        () => setXAxisLabelRotation(0),
-                                    )}
+                                    onNumberChange={(value) =>
+                                        setXAxisLabelRotation(value ?? 0)
+                                    }
                                 />
                             </Group>
                         )}
@@ -357,7 +351,6 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                                             Visible items
                                         </Config.Label>
                                         <NumberInput
-                                            decimalScale={0}
                                             size="xs"
                                             maw={80}
                                             min={2}
@@ -366,9 +359,10 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                                                 dirtyEchartsConfig?.xAxis?.[0]
                                                     ?.dataZoomItemCount ?? 10
                                             }
-                                            onChange={handleNumberInputChange(
-                                                setDataZoomItemCount,
-                                            )}
+                                            onNumberChange={(value) => {
+                                                if (value !== undefined)
+                                                    setDataZoomItemCount(value);
+                                            }}
                                         />
                                     </Group>
                                 </>
@@ -621,9 +615,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             decimalScale={1}
                             fixedDecimalScale
                             maw={60}
-                            onChange={(value) => {
-                                setAxisLabelFontSize(optionalNumber(value));
-                            }}
+                            onNumberChange={setAxisLabelFontSize}
                         />
                         {dirtyEchartsConfig?.axisLabelFontSize !==
                             undefined && (
@@ -651,9 +643,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             decimalScale={1}
                             fixedDecimalScale
                             maw={60}
-                            onChange={(value) => {
-                                setAxisTitleFontSize(optionalNumber(value));
-                            }}
+                            onNumberChange={setAxisTitleFontSize}
                         />
                         {dirtyEchartsConfig?.axisTitleFontSize !==
                             undefined && (

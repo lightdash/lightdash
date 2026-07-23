@@ -9,12 +9,12 @@ import {
     Select,
     PasswordInput,
     Tooltip,
-    NumberInput,
 } from '@mantine-8/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import { useEffect, type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import MantineIcon from '../../common/MantineIcon';
+import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import BooleanSwitch from '../Inputs/BooleanSwitch';
@@ -210,7 +210,6 @@ const RedshiftForm: FC<{
                         )}
 
                         <NumberInput
-                            decimalScale={0}
                             name="warehouse.port"
                             defaultValue={RedshiftDefaultValues.port}
                             {...form.getInputProps('warehouse.port')}
@@ -221,7 +220,6 @@ const RedshiftForm: FC<{
                         />
 
                         <NumberInput
-                            decimalScale={0}
                             name="warehouse.keepalivesIdle"
                             {...form.getInputProps('warehouse.keepalivesIdle')}
                             defaultValue={RedshiftDefaultValues.keepalivesIdle}
@@ -296,7 +294,6 @@ const RedshiftForm: FC<{
                         <StartOfWeekSelect disabled={disabled} />
 
                         <NumberInput
-                            decimalScale={0}
                             name="warehouse.timeoutSeconds"
                             {...form.getInputProps('warehouse.timeoutSeconds')}
                             defaultValue={RedshiftDefaultValues.timeoutSeconds}
@@ -338,7 +335,6 @@ const RedshiftForm: FC<{
                                 />
 
                                 <NumberInput
-                                    decimalScale={0}
                                     name="warehouse.sshTunnelPort"
                                     defaultValue={22}
                                     {...form.getInputProps(

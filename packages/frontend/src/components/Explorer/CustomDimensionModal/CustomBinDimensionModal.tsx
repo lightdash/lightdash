@@ -21,7 +21,6 @@ import {
     Flex,
     Group,
     Menu,
-    NumberInput,
     Radio,
     Select,
     Stack,
@@ -46,6 +45,7 @@ import {
 import useToaster from '../../../hooks/toaster/useToaster';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
+import { NumberInput } from '../../common/NumberInput';
 import classes from './CustomBinDimensionModal.module.css';
 
 // TODO: preview custom dimension results
@@ -725,6 +725,7 @@ export const CustomBinDimensionModal: FC<{
 
                     {form.values.binType === BinType.FIXED_WIDTH && (
                         <NumberInput
+                            decimalScale="unlimited"
                             w={100}
                             label="Bin width"
                             required

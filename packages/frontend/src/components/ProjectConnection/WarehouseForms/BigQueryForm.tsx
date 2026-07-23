@@ -20,7 +20,6 @@ import {
     Select,
     Switch,
     Tooltip,
-    NumberInput,
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconCheck, IconExclamationCircle } from '@tabler/icons-react';
@@ -46,6 +45,7 @@ import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
+import { NumberInput } from '../../common/NumberInput';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
@@ -833,7 +833,6 @@ const BigQueryForm: FC<{
                                 />
 
                                 <NumberInput
-                                    decimalScale={0}
                                     name="warehouse.timeoutSeconds"
                                     {...form.getInputProps(
                                         'warehouse.timeoutSeconds',
@@ -904,7 +903,6 @@ const BigQueryForm: FC<{
                                 />
 
                                 <NumberInput
-                                    decimalScale={0}
                                     name="warehouse.retries"
                                     {...form.getInputProps('warehouse.retries')}
                                     defaultValue={BigQueryDefaultValues.retries}
@@ -930,7 +928,6 @@ const BigQueryForm: FC<{
                                 />
 
                                 <NumberInput
-                                    decimalScale={0}
                                     name="warehouse.maximumBytesBilled"
                                     {...form.getInputProps(
                                         'warehouse.maximumBytesBilled',

@@ -25,7 +25,6 @@ import {
     Stack,
     Text,
     TextInput,
-    NumberInput,
 } from '@mantine-8/core';
 import { type UseFormReturnType } from '@mantine/form';
 import {
@@ -37,6 +36,7 @@ import { useMemo, type FC } from 'react';
 import { type ValueOf } from 'type-fest';
 import { optionalNumber } from '../../../utils/numberInputUtils';
 import MantineIcon from '../../common/MantineIcon';
+import { NumberInput } from '../../common/NumberInput';
 import { PolymorphicPaperButton } from '../../common/PolymorphicPaperButton';
 import { getFormatTypeLabel } from './getFormatSummary';
 
@@ -441,7 +441,6 @@ export const FormatForm: FC<Props> = ({
                     )}
                     <Grid.Col span={compact ? 12 : 4}>
                         <NumberInput
-                            decimalScale={0}
                             min={0}
                             label="Decimal places"
                             placeholder="Auto"

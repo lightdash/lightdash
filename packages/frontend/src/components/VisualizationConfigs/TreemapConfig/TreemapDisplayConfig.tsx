@@ -1,7 +1,8 @@
-import { Group, NumberInput, Stack, Tooltip } from '@mantine-8/core';
+import { Group, Stack, Tooltip } from '@mantine-8/core';
 import { IconHelpCircle } from '@tabler/icons-react';
 import React from 'react';
 import MantineIcon from '../../common/MantineIcon';
+import { NumberInput } from '../../common/NumberInput';
 import { isTreemapVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
