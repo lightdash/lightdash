@@ -1,3 +1,10 @@
+## [0.3465.1](https://github.com/lightdash/lightdash/compare/0.3465.0...0.3465.1) (2026-07-23)
+
+
+### Bug Fixes
+
+* preserve project context v1 compatibility ([#26037](https://github.com/lightdash/lightdash/issues/26037)) ([0093ca7](https://github.com/lightdash/lightdash/commit/0093ca78e70c2be76ca357b567541584ee18c8ac)), closes [#26035](https://github.com/lightdash/lightdash/issues/26035)
+
 # [0.3465.0](https://github.com/lightdash/lightdash/compare/0.3464.1...0.3465.0) (2026-07-23)
 
 
