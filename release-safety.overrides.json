@@ -5,5 +5,10 @@
         "requiredStop": false,
         "note": null
     },
-    "versions": {}
+    "versions": {
+        "0.3462.0": {
+            "minPreviousVersion": "0.3461.0",
+            "note": "Auto-recorded at release 0.3462.0: a destructive migration here is safe to roll past only when upgrading from 0.3461.0 or later."
+        }
+    }
 }

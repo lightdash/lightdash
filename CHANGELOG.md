@@ -1,3 +1,10 @@
+# [0.3462.0](https://github.com/lightdash/lightdash/compare/0.3461.0...0.3462.0) (2026-07-23)
+
+
+### Features
+
+* enforce project-scoped dashboard slugs ([#25919](https://github.com/lightdash/lightdash/issues/25919)) ([feeefdd](https://github.com/lightdash/lightdash/commit/feeefddf597ae55eccf328851d3788783678e85a)), closes [#25906](https://github.com/lightdash/lightdash/issues/25906) [#25906](https://github.com/lightdash/lightdash/issues/25906) [#25906](https://github.com/lightdash/lightdash/issues/25906)
+
 # [0.3461.0](https://github.com/lightdash/lightdash/compare/0.3460.0...0.3461.0) (2026-07-23)
 
 
