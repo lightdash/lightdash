@@ -23,7 +23,6 @@ import {
     SegmentedControl,
     Stack,
     Text,
-    Title,
     Tooltip,
     UnstyledButton,
     useMantineTheme,
@@ -57,6 +56,7 @@ import {
 } from '../../common/ContentTable';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
+import { SettingsPage } from '../../common/Settings/SettingsPage';
 import {
     getWarehouseIcon,
     getWarehouseLabel,
@@ -974,22 +974,22 @@ const ProjectManagementPanel: FC = () => {
     }
 
     return (
-        <Stack mb="lg">
-            <Group justify="space-between">
-                <Title order={5}>Project Management</Title>
-
-                {user.data?.ability.can(
+        <SettingsPage
+            title="All projects"
+            description="Manage projects, connections, access, and project lifecycle."
+            actions={
+                user.data?.ability.can(
                     'create',
                     subject('Project', {
                         organizationUuid: user.data?.organizationUuid,
                     }),
                 ) && (
                     <Button component={Link} to="/createProject">
-                        Create new
+                        Create project
                     </Button>
-                )}
-            </Group>
-
+                )
+            }
+        >
             <ContentTable table={table} />
 
             {deletingProjectUuid ? (
@@ -1042,7 +1042,7 @@ const ProjectManagementPanel: FC = () => {
                     </Stack>
                 )}
             </MantineModal>
-        </Stack>
+        </SettingsPage>
     );
 };
 

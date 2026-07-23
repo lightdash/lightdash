@@ -169,7 +169,7 @@ const SlackSettingsPanel: FC = () => {
                 <Box>
                     <Group gap="sm">
                         <Avatar src={slackSvg} size="md" />
-                        <Title order={4}>Slack</Title>
+                        <Title order={5}>Slack</Title>
                     </Group>
                 </Box>
             </Stack>

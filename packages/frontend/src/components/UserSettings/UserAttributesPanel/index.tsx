@@ -8,7 +8,6 @@ import {
     Menu,
     Stack,
     Text,
-    Title,
     Tooltip,
     useMantineTheme,
 } from '@mantine-8/core';
@@ -38,6 +37,7 @@ import {
 import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
+import { SettingsPage } from '../../common/Settings/SettingsPage';
 import ForbiddenPanel from '../../ForbiddenPanel';
 import UserAttributeModal from './UserAttributeModal';
 import { UserAttributesTopToolbar } from './UserAttributesTopToolbar';
@@ -320,44 +320,36 @@ const UserAttributesPanel: FC = () => {
     if (!user.data) return null;
 
     return (
-        <>
-            <Stack gap="sm">
-                <Group gap="xs" align="center" pb="xs">
-                    <Title order={5}>
-                        {isGroupManagementEnabled
-                            ? 'User and group attributes'
-                            : 'User attributes'}
-                    </Title>
-                    <Tooltip
-                        multiline
-                        w={400}
-                        withArrow
-                        position="bottom-start"
-                        label={
-                            <Box>
-                                User attributes are metadata defined by your
-                                organization. They can be used to control and
-                                customize the user experience through data
-                                access and personalization. Learn more about
-                                using user attributes by clicking on this icon.
-                            </Box>
-                        }
+        <SettingsPage
+            title={
+                isGroupManagementEnabled
+                    ? 'User and group attributes'
+                    : 'User attributes'
+            }
+            description="Define organization metadata used for data access and personalization."
+            actions={
+                <Tooltip
+                    multiline
+                    w={400}
+                    withArrow
+                    position="bottom-end"
+                    label="Learn more about using user attributes."
+                >
+                    <ActionIcon
+                        component="a"
+                        href="https://docs.lightdash.com/references/user-attributes"
+                        target="_blank"
+                        rel="noreferrer"
+                        variant="subtle"
+                        color="ldGray.6"
+                        aria-label="Open user attributes documentation"
                     >
-                        <ActionIcon
-                            component="a"
-                            href="https://docs.lightdash.com/references/user-attributes"
-                            target="_blank"
-                            rel="noreferrer"
-                            variant="subtle"
-                            size="xs"
-                            color="ldGray.6"
-                        >
-                            <MantineIcon icon={IconInfoCircle} />
-                        </ActionIcon>
-                    </Tooltip>
-                </Group>
-                <ContentTable table={table} />
-            </Stack>
+                        <MantineIcon icon={IconInfoCircle} />
+                    </ActionIcon>
+                </Tooltip>
+            }
+        >
+            <ContentTable table={table} />
 
             <UserAttributeModal
                 opened={showAddAttributeModal}
@@ -388,7 +380,7 @@ const UserAttributesPanel: FC = () => {
                     }}
                 />
             )}
-        </>
+        </SettingsPage>
     );
 };
 

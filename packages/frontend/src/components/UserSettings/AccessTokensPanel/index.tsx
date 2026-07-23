@@ -1,9 +1,9 @@
-import { Button, Group, Stack, Title } from '@mantine-8/core';
+import { Button } from '@mantine-8/core';
 import { IconKey } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useAccessToken } from '../../../hooks/useAccessToken';
-import { EmptyState } from '../../common/EmptyState';
-import MantineIcon from '../../common/MantineIcon';
+import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
+import { SettingsPage } from '../../common/Settings/SettingsPage';
 import { CreateTokenModal } from './CreateTokenModal';
 import { TokensTable } from './TokensTable';
 
@@ -13,34 +13,29 @@ const AccessTokensPanel: FC = () => {
     const hasAvailableTokens = data && data.length > 0;
 
     return (
-        <Stack mb="lg">
+        <SettingsPage
+            title="Personal access tokens"
+            description="Create and revoke tokens used to access the Lightdash API."
+            actions={
+                hasAvailableTokens ? (
+                    <Button onClick={() => setIsCreatingToken(true)}>
+                        Generate new token
+                    </Button>
+                ) : null
+            }
+        >
             {hasAvailableTokens ? (
-                <>
-                    <Group justify="space-between">
-                        <Title order={5}>Personal access tokens</Title>
-                        <Button onClick={() => setIsCreatingToken(true)}>
-                            Generate new token
-                        </Button>
-                    </Group>
-                    <TokensTable />
-                </>
+                <TokensTable />
             ) : (
-                <EmptyState
-                    icon={
-                        <MantineIcon
-                            icon={IconKey}
-                            color="ldGray.6"
-                            stroke={1}
-                            size="5xl"
-                        />
-                    }
+                <SettingsEmptyState
+                    icon={IconKey}
                     title="No tokens"
-                    description="You haven't generated any tokens yet!, generate your first token"
+                    description="Generate a token to access the Lightdash API."
                 >
                     <Button onClick={() => setIsCreatingToken(true)}>
                         Generate token
                     </Button>
-                </EmptyState>
+                </SettingsEmptyState>
             )}
 
             {isCreatingToken && (
@@ -48,7 +43,7 @@ const AccessTokensPanel: FC = () => {
                     onBackClick={() => setIsCreatingToken(false)}
                 />
             )}
-        </Stack>
+        </SettingsPage>
     );
 };
 

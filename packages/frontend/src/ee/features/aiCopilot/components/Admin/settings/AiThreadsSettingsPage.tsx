@@ -1,5 +1,5 @@
 import { type AiAgentAdminThreadSummary } from '@lightdash/common';
-import { Button, Drawer, Group, Stack } from '@mantine-8/core';
+import { Button, Drawer, Group } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import { IconChartDots, IconMessageCircleShare } from '@tabler/icons-react';
 import { useState } from 'react';
@@ -7,7 +7,7 @@ import LinkButton from '../../../../../../components/common/LinkButton';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../../components/common/MantineModal';
 import { NAVBAR_HEIGHT } from '../../../../../../components/common/Page/constants';
-import PageBreadcrumbs from '../../../../../../components/common/PageBreadcrumbs';
+import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
 import useHealth from '../../../../../../hooks/health/useHealth';
 import { useAiOrganizationSettings } from '../../../hooks/useAiOrganizationSettings';
 import AiAgentAdminThreadsTable from '../AiAgentAdminThreadsTable';
@@ -43,14 +43,10 @@ export const AiThreadsSettingsPage = () => {
         health?.ai.analyticsProjectUuid && health?.ai.analyticsDashboardUuid;
 
     return (
-        <Stack mb="lg" gap="md">
-            <Group justify="space-between" align="flex-start">
-                <PageBreadcrumbs
-                    items={[
-                        { title: 'Ask AI', to: '/generalSettings/ai/general' },
-                        { title: 'Threads', active: true },
-                    ]}
-                />
+        <SettingsPage
+            title="Threads"
+            description="Review AI conversations across your organization."
+            actions={
                 <Group gap="xs">
                     {isAnalyticsEmbedEnabled && (
                         <Button
@@ -71,8 +67,8 @@ export const AiThreadsSettingsPage = () => {
                         New Thread
                     </LinkButton>
                 </Group>
-            </Group>
-
+            }
+        >
             {settings?.aiAgentsVisible === false && <AiFeaturesDisabledAlert />}
 
             <AiAgentAdminThreadsTable
@@ -117,6 +113,6 @@ export const AiThreadsSettingsPage = () => {
             >
                 <AnalyticsEmbedDashboard />
             </MantineModal>
-        </Stack>
+        </SettingsPage>
     );
 };

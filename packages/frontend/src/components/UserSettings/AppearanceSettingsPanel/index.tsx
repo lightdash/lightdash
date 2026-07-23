@@ -5,8 +5,6 @@ import {
     Group,
     Skeleton,
     Stack,
-    Text,
-    Title,
     Tooltip,
 } from '@mantine-8/core';
 import { IconInfoCircle, IconPlus } from '@tabler/icons-react';
@@ -20,6 +18,7 @@ import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
+import { SettingsPage } from '../../common/Settings/SettingsPage';
 import { BrandAppearanceSettings } from './BrandAppearanceSettings';
 import { CreatePaletteModal } from './CreatePaletteModal';
 import { PaletteItem } from './PaletteItem';
@@ -48,25 +47,19 @@ const AppearanceColorSettings: FC<{ canManage: boolean }> = ({ canManage }) => {
 
     return (
         <Stack gap="md">
-            <Group justify="space-between">
-                <Text size="sm" c="ldGray.6">
-                    Customize the color palettes used in your charts and
-                    visualizations.
-                </Text>
-
-                {canManage && (
+            {canManage ? (
+                <Group justify="flex-end">
                     <Button
                         leftSection={<MantineIcon icon={IconPlus} />}
                         onClick={() => setIsCreatePaletteModalOpen(true)}
                         variant="default"
                         size="xs"
-                        style={{ alignSelf: 'flex-end' }}
                         disabled={hasColorPaletteOverride}
                     >
                         Add new palette
                     </Button>
-                )}
-            </Group>
+                </Group>
+            ) : null}
 
             <Stack gap="xs">
                 {isPalettesLoading || isHealthLoading ? (
@@ -144,9 +137,10 @@ const AppearanceSettingsPanel: FC = () => {
         ) ?? false;
 
     return (
-        <Stack gap="sm">
-            <Group gap="xxs">
-                <Title order={5}>Appearance settings</Title>
+        <SettingsPage
+            title="Appearance"
+            description="Customize organization branding and the color palettes used in charts and visualizations."
+            actions={
                 <Tooltip
                     label="Click here to learn more about customizing the appearance of your project"
                     position="bottom"
@@ -159,16 +153,18 @@ const AppearanceSettingsPanel: FC = () => {
                         size="xs"
                         color="gray"
                         variant="subtle"
+                        aria-label="Learn about appearance settings"
                     >
                         <MantineIcon icon={IconInfoCircle} />
                     </ActionIcon>
                 </Tooltip>
-            </Group>
+            }
+        >
             {canManageOrgSettings && <BrandAppearanceSettings />}
-            <SettingsCard mb="lg">
+            <SettingsCard>
                 <AppearanceColorSettings canManage={canManageColorPalette} />
             </SettingsCard>
-        </Stack>
+        </SettingsPage>
     );
 };
 

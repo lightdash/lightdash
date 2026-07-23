@@ -3,9 +3,9 @@ import { Badge, Group, Stack, Tabs, Text } from '@mantine-8/core';
 import { IconBuilding, IconFolder, IconIdBadge2 } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { EmptyState } from '../../../components/common/EmptyState';
 import MantineIcon from '../../../components/common/MantineIcon';
-import PageBreadcrumbs from '../../../components/common/PageBreadcrumbs';
+import { SettingsEmptyState } from '../../../components/common/Settings/SettingsEmptyState';
+import { SettingsPage } from '../../../components/common/Settings/SettingsPage';
 import PageSpinner from '../../../components/PageSpinner';
 import { AddRoleButton } from '../../features/customRoles/components/AddRoleButton';
 import { CustomRolesTable } from '../../features/customRoles/CustomRolesTable';
@@ -70,26 +70,13 @@ export const CustomRoles = () => {
         );
 
     return (
-        <Stack mb="lg" gap="md">
-            <Group justify="space-between" align="flex-start">
-                <PageBreadcrumbs
-                    items={[
-                        {
-                            title: 'Custom roles',
-                            active: true,
-                        },
-                    ]}
-                />
-                {hasRoles && <AddRoleButton size="xs" />}
-            </Group>
-
+        <SettingsPage
+            title="Custom roles"
+            description="Create reusable permission sets for users, groups, and service accounts."
+            actions={hasRoles ? <AddRoleButton size="xs" /> : null}
+        >
             {hasRoles ? (
                 <Stack gap="md">
-                    <Text c="dimmed" fz="sm">
-                        Roles you create here can be assigned to users, groups
-                        and service accounts
-                    </Text>
-
                     <Tabs
                         keepMounted={false}
                         value={level}
@@ -157,21 +144,14 @@ export const CustomRoles = () => {
                     </Tabs>
                 </Stack>
             ) : (
-                <EmptyState
-                    icon={
-                        <MantineIcon
-                            icon={IconIdBadge2}
-                            color="ldGray.6"
-                            stroke={1}
-                            size="5xl"
-                        />
-                    }
+                <SettingsEmptyState
+                    icon={IconIdBadge2}
                     title="No custom roles"
-                    description="You haven't created any custom roles yet. Custom roles allow you to define specific permissions for your organization."
+                    description="Create a role to define reusable organization or project permissions."
                 >
                     <AddRoleButton size="md" />
-                </EmptyState>
+                </SettingsEmptyState>
             )}
-        </Stack>
+        </SettingsPage>
     );
 };

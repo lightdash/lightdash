@@ -45,6 +45,7 @@ import {
 import MantineIcon from '../../common/MantineIcon';
 import AppDeleteModal from '../../common/modal/AppDeleteModal';
 import AppUpdateModal from '../../common/modal/AppUpdateModal';
+import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
 
 const hasReadyVersion = (app: ApiAppSummary) =>
     app.lastVersionStatus === 'ready' && !!app.lastVersionNumber;
@@ -431,11 +432,15 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                 />
             </Group>
             {!isLoading && !isError && flatData.length === 0 ? (
-                <Text c="dimmed" fz="sm" p="md">
-                    {includePreviewApps
-                        ? "You haven't created any apps yet."
-                        : 'No apps in production projects. Turn on Include apps in previews to show apps from preview projects.'}
-                </Text>
+                <SettingsEmptyState
+                    icon={IconLayoutDashboard}
+                    title="No apps"
+                    description={
+                        includePreviewApps
+                            ? 'Create an app to see it here.'
+                            : 'No apps are available in production projects. Include preview apps to see work from preview projects.'
+                    }
+                />
             ) : (
                 <ContentTable table={table} />
             )}

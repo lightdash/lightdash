@@ -1,9 +1,9 @@
-import { Button, Group, Stack, Title } from '@mantine-8/core';
+import { Button } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import { IconUsersGroup } from '@tabler/icons-react';
 import { useState } from 'react';
-import { EmptyState } from '../../../components/common/EmptyState';
-import MantineIcon from '../../../components/common/MantineIcon';
+import { SettingsEmptyState } from '../../../components/common/Settings/SettingsEmptyState';
+import { SettingsPage } from '../../../components/common/Settings/SettingsPage';
 import { ServiceAccountsCreateModal } from './ServiceAccountsCreateModal';
 import { ServiceAccountsTable } from './ServiceAccountsTable';
 import { useServiceAccounts } from './useServiceAccounts';
@@ -31,53 +31,34 @@ export function ServiceAccountsPage() {
     const isInitialLoading = listAccounts.isLoading && !accountsData;
     const hasAccounts = (accountsData?.length ?? 0) > 0;
 
-    // Truly-empty path keeps the friendly EmptyState with the Create CTA;
-    // the table's own renderEmptyRowsFallback handles "filters returned 0"
-    // separately so the toolbar stays visible while filters are applied.
-    if (!isInitialLoading && !hasAccounts) {
-        return (
-            <Stack mb="lg">
-                <EmptyState
-                    icon={
-                        <MantineIcon
-                            icon={IconUsersGroup}
-                            color="ldGray.6"
-                            stroke={1}
-                            size="5xl"
-                        />
-                    }
+    // The table owns filtered empty states; this page-level state is only for
+    // organizations that have not created a service account yet.
+    return (
+        <SettingsPage
+            title="Service accounts"
+            description="Manage non-human accounts used for automated access to Lightdash."
+            actions={
+                hasAccounts ? (
+                    <Button onClick={open}>Add service account</Button>
+                ) : null
+            }
+        >
+            {!isInitialLoading && !hasAccounts ? (
+                <SettingsEmptyState
+                    icon={IconUsersGroup}
                     title="No service accounts"
-                    description="You haven't created any service accounts yet. Create your first service account"
+                    description="Create a service account for automated access to Lightdash."
                 >
                     <Button onClick={open}>Create service account</Button>
-                </EmptyState>
-
-                <ServiceAccountsCreateModal
-                    isOpen={opened}
-                    onClose={handleCloseModal}
-                    onSave={handleSaveAccount}
-                    isWorking={createAccount.isLoading}
-                    token={token}
+                </SettingsEmptyState>
+            ) : (
+                <ServiceAccountsTable
+                    accounts={accountsData ?? []}
+                    isLoading={isInitialLoading}
+                    onDelete={deleteAccount.mutate}
+                    isDeleting={deleteAccount.isLoading}
                 />
-            </Stack>
-        );
-    }
-
-    return (
-        <Stack mb="lg">
-            <Group justify="space-between">
-                <Title order={5}>Service accounts</Title>
-                <Button onClick={open} size="xs">
-                    Add service account
-                </Button>
-            </Group>
-
-            <ServiceAccountsTable
-                accounts={accountsData ?? []}
-                isLoading={isInitialLoading}
-                onDelete={deleteAccount.mutate}
-                isDeleting={deleteAccount.isLoading}
-            />
+            )}
 
             <ServiceAccountsCreateModal
                 isOpen={opened}
@@ -86,6 +67,6 @@ export function ServiceAccountsPage() {
                 isWorking={createAccount.isLoading}
                 token={token}
             />
-        </Stack>
+        </SettingsPage>
     );
 }

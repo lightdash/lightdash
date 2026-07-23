@@ -30,6 +30,7 @@ import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import { SettingsGridCard } from '../components/common/Settings/SettingsCard';
+import { SettingsPage } from '../components/common/Settings/SettingsPage';
 import PageSpinner from '../components/PageSpinner';
 import ProjectSettings from '../components/Settings/ProjectSettings';
 import SettingsNavigation from '../components/Settings/SettingsNavigation';
@@ -180,16 +181,19 @@ const Settings: FC = () => {
             {
                 path: '/profile',
                 element: (
-                    <Stack gap="xl">
+                    <SettingsPage
+                        title="Profile"
+                        description="Manage your personal details and account preferences."
+                    >
                         <SettingsGridCard>
-                            <Title order={4}>Profile settings</Title>
+                            <Title order={5}>Profile details</Title>
                             <ProfilePanel />
                         </SettingsGridCard>
                         {health?.hasGithub && <GithubUserSettingsPanel />}
                         {isLeaveOrganizationEnabled && (
                             <SettingsGridCard>
                                 <Box>
-                                    <Title order={4}>Danger zone</Title>
+                                    <Title order={5}>Danger zone</Title>
                                     <Text c="ldGray.6" fz="xs">
                                         Leave the organization to remove
                                         yourself from it (you cannot leave if
@@ -200,7 +204,7 @@ const Settings: FC = () => {
                                 <LeaveOrganizationPanel />
                             </SettingsGridCard>
                         )}
-                    </Stack>
+                    </SettingsPage>
                 ),
             },
             {
@@ -213,19 +217,22 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/password',
                 element: (
-                    <Stack gap="xl">
+                    <SettingsPage
+                        title="Password"
+                        description="Update your password and manage the ways you sign in."
+                    >
                         <SettingsGridCard>
-                            <Title order={4}>Password settings</Title>
+                            <Title order={5}>Password</Title>
                             <PasswordPanel />
                         </SettingsGridCard>
 
                         {hasSocialLogin && (
                             <SettingsGridCard>
-                                <Title order={4}>Social logins</Title>
+                                <Title order={5}>Social logins</Title>
                                 <SocialLoginsPanel />
                             </SettingsGridCard>
                         )}
-                    </Stack>
+                    </SettingsPage>
                 ),
             });
         }
@@ -244,12 +251,12 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/userScheduledDeliveries',
                 element: (
-                    <Stack gap="xl">
-                        <SettingsGridCard>
-                            <Title order={4}>My scheduled deliveries</Title>
-                        </SettingsGridCard>
+                    <SettingsPage
+                        title="My scheduled deliveries"
+                        description="Review and manage deliveries scheduled across your projects."
+                    >
                         <UserScheduledDeliveriesPanel />
-                    </Stack>
+                    </SettingsPage>
                 ),
             });
         }
@@ -257,17 +264,17 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/myApps',
                 element: (
-                    <Stack gap="xl">
-                        <SettingsGridCard>
-                            <Title order={4}>My apps</Title>
-                        </SettingsGridCard>
+                    <SettingsPage
+                        title="My apps"
+                        description="Manage the data apps you can access and edit."
+                    >
                         <MyAppsPanel
                             key={String(project?.type === ProjectType.PREVIEW)}
                             includePreviewAppsByDefault={
                                 project?.type === ProjectType.PREVIEW
                             }
                         />
-                    </Stack>
+                    </SettingsPage>
                 ),
             });
         }
@@ -275,15 +282,18 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/organization',
                 element: (
-                    <Stack gap="xl">
+                    <SettingsPage
+                        title="General"
+                        description="Manage organization-wide defaults, access, and account controls."
+                    >
                         <SettingsGridCard>
-                            <Title order={4}>General</Title>
+                            <Title order={5}>Organization</Title>
                             <OrganizationPanel />
                         </SettingsGridCard>
 
                         <SettingsGridCard>
                             <div>
-                                <Title order={4}>Allowed email domains</Title>
+                                <Title order={5}>Allowed email domains</Title>
                                 <Text c="ldGray.6" fz="xs">
                                     Anyone with email addresses at these domains
                                     can automatically join the organization.
@@ -294,7 +304,7 @@ const Settings: FC = () => {
 
                         <SettingsGridCard>
                             <div>
-                                <Title order={4}>Default Project</Title>
+                                <Title order={5}>Default project</Title>
                                 <Text c="ldGray.6" fz="xs">
                                     This is the project users will see when they
                                     log in for the first time or from a new
@@ -307,13 +317,13 @@ const Settings: FC = () => {
 
                         {showImpersonationPanel && (
                             <SettingsGridCard>
-                                <Title order={4}>User impersonation</Title>
+                                <Title order={5}>User impersonation</Title>
                                 <ImpersonationPanel />
                             </SettingsGridCard>
                         )}
 
                         <SettingsGridCard>
-                            <Title order={4}>Lightdash support access</Title>
+                            <Title order={5}>Lightdash support access</Title>
                             <SupportImpersonationPanel />
                         </SettingsGridCard>
 
@@ -321,7 +331,7 @@ const Settings: FC = () => {
                             user.ability?.can('delete', 'Organization')) && (
                             <SettingsGridCard>
                                 <div>
-                                    <Title order={4}>Danger zone </Title>
+                                    <Title order={5}>Danger zone</Title>
                                     <Text c="ldGray.6" fz="xs">
                                         {isLeaveOrganizationEnabled &&
                                             'Leave the organization to remove yourself from it (you cannot leave if you are the only admin). '}
@@ -344,7 +354,7 @@ const Settings: FC = () => {
                                 </Stack>
                             </SettingsGridCard>
                         )}
-                    </Stack>
+                    </SettingsPage>
                 ),
             });
         }
@@ -352,10 +362,13 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/exporting',
                 element: (
-                    <Stack gap="xl">
+                    <SettingsPage
+                        title="Exporting"
+                        description="Control how exported files are shared outside Lightdash."
+                    >
                         <SettingsGridCard>
                             <div>
-                                <Title order={4}>Scheduled deliveries</Title>
+                                <Title order={5}>Scheduled deliveries</Title>
                                 <Text c="ldGray.6" fz="xs">
                                     Control how files exported from your
                                     organization — starting with scheduled
@@ -373,7 +386,7 @@ const Settings: FC = () => {
                             </div>
                             <ExportingPanel />
                         </SettingsGridCard>
-                    </Stack>
+                    </SettingsPage>
                 ),
             });
         }
@@ -381,10 +394,13 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/limits',
                 element: (
-                    <Stack gap="xl">
+                    <SettingsPage
+                        title="Limits"
+                        description="Set organization-wide query and export limits."
+                    >
                         <SettingsGridCard>
                             <div>
-                                <Title order={4}>Limits</Title>
+                                <Title order={5}>Query and export limits</Title>
                                 <Text c="ldGray.6" fz="xs">
                                     Limit how many rows a query can return and
                                     how many cells a CSV or Excel export can
@@ -393,7 +409,7 @@ const Settings: FC = () => {
                             </div>
                             <LimitsPanel />
                         </SettingsGridCard>
-                    </Stack>
+                    </SettingsPage>
                 ),
             });
         }
@@ -490,8 +506,10 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/integrations',
                 element: (
-                    <Stack>
-                        <Title order={4}>Integrations</Title>
+                    <SettingsPage
+                        title="Integrations"
+                        description="Connect Lightdash to the tools your organization uses."
+                    >
                         {!health?.hasSlack &&
                             !health?.hasGithub &&
                             !health?.hasGitlab &&
@@ -499,7 +517,7 @@ const Settings: FC = () => {
                         {health?.hasSlack && <SlackSettingsPanel />}
                         {health?.hasGithub && <GithubSettingsPanel />}
                         {health?.hasGitlab && <GitlabSettingsPanel />}
-                    </Stack>
+                    </SettingsPage>
                 ),
             });
         }
@@ -538,15 +556,10 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/sso',
                 element: (
-                    <Stack gap="md">
-                        <Stack gap="xs">
-                            <Title order={5}>Single Sign-On</Title>
-                            <Text c="ldGray.6" fz="xs">
-                                Configure SSO providers for your organization.
-                                Users are routed to the matching provider based
-                                on their email domain.
-                            </Text>
-                        </Stack>
+                    <SettingsPage
+                        title="Single Sign-On"
+                        description="Configure organization identity providers and account linking."
+                    >
                         <AzureAdSsoPanel />
                         <OktaSsoPanel />
                         <GenericOidcSsoPanel />
@@ -555,7 +568,7 @@ const Settings: FC = () => {
                             toggle when Google is enabled instance-wide. */}
                         {health?.auth.google.enabled && <GoogleSsoPanel />}
                         <AccountLinkingPanel />
-                    </Stack>
+                    </SettingsPage>
                 ),
             });
         }

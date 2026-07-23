@@ -1,17 +1,11 @@
 import { FeatureFlags } from '@lightdash/common';
-import {
-    ActionIcon,
-    Group,
-    Stack,
-    Tabs,
-    Title,
-    Tooltip,
-} from '@mantine-8/core';
+import { ActionIcon, Tabs, Tooltip } from '@mantine-8/core';
 import { IconInfoCircle, IconUsers, IconUsersGroup } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
+import { SettingsPage } from '../../common/Settings/SettingsPage';
 import ForbiddenPanel from '../../ForbiddenPanel';
 import GroupsView from './GroupsView';
 import classes from './UsersAndGroupsPanel.module.css';
@@ -32,8 +26,31 @@ const UsersAndGroupsPanel: FC = () => {
     const isGroupManagementEnabled =
         userGroupsFeatureFlagQuery.data?.enabled ?? false;
 
+    const title = isGroupManagementEnabled
+        ? 'Users & groups'
+        : 'User management';
+
     return (
-        <Stack gap="sm">
+        <SettingsPage
+            title={title}
+            description="Manage organization members, roles, and group membership."
+            actions={
+                <Tooltip label="Learn more about user roles" position="bottom">
+                    <ActionIcon
+                        component="a"
+                        href="https://docs.lightdash.com/references/roles"
+                        target="_blank"
+                        rel="noreferrer"
+                        variant="subtle"
+                        size="xs"
+                        color="ldGray.6"
+                        aria-label="Learn about user roles"
+                    >
+                        <MantineIcon icon={IconInfoCircle} />
+                    </ActionIcon>
+                </Tooltip>
+            }
+        >
             <Tabs
                 keepMounted={false}
                 defaultValue="users"
@@ -44,29 +61,6 @@ const UsersAndGroupsPanel: FC = () => {
                     panel: classes.panel,
                 }}
             >
-                <Group gap="xs" align="center" className={classes.header}>
-                    <Title order={5}>
-                        {isGroupManagementEnabled
-                            ? 'Users and groups'
-                            : 'User management settings'}
-                    </Title>
-                    <Tooltip
-                        label="Click here to learn more about user roles"
-                        position="right"
-                    >
-                        <ActionIcon
-                            component="a"
-                            href="https://docs.lightdash.com/references/roles"
-                            target="_blank"
-                            rel="noreferrer"
-                            variant="subtle"
-                            size="xs"
-                            color="ldGray.6"
-                        >
-                            <MantineIcon icon={IconInfoCircle} />
-                        </ActionIcon>
-                    </Tooltip>
-                </Group>
                 {isGroupManagementEnabled && (
                     <Tabs.List>
                         <Tabs.Tab
@@ -90,7 +84,7 @@ const UsersAndGroupsPanel: FC = () => {
                     <GroupsView />
                 </Tabs.Panel>
             </Tabs>
-        </Stack>
+        </SettingsPage>
     );
 };
 

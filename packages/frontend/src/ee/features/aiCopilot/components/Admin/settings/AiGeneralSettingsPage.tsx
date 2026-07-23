@@ -17,8 +17,8 @@ import { Link } from 'react-router';
 import { BetaBadge } from '../../../../../../components/common/BetaBadge';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { getModelKey } from '../../../../../../components/common/ModelSelector/utils';
-import PageBreadcrumbs from '../../../../../../components/common/PageBreadcrumbs';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
+import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
 import { useServerFeatureFlag } from '../../../../../../hooks/useServerOrClientFeatureFlag';
 import {
     getAiAgentModelConfig,
@@ -71,14 +71,10 @@ export const AiGeneralSettingsPage = () => {
     });
 
     return (
-        <Stack mb="lg" gap="md">
-            <PageBreadcrumbs
-                items={[
-                    { title: 'Ask AI', to: '/generalSettings/ai/general' },
-                    { title: 'General', active: true },
-                ]}
-            />
-
+        <SettingsPage
+            title="Ask AI"
+            description="Configure organization-wide AI features, providers, and defaults."
+        >
             {isSettingsLoading || !settings ? (
                 <Group justify="center" mt="xl">
                     <Loader size="sm" />
@@ -409,6 +405,6 @@ export const AiGeneralSettingsPage = () => {
                     </SettingsCard>
                 </>
             )}
-        </Stack>
+        </SettingsPage>
     );
 };
