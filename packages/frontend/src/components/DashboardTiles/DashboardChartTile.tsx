@@ -46,8 +46,8 @@ import {
     Portal,
     Tooltip,
 } from '@mantine-8/core';
+import { useClipboard, useElementSize } from '@mantine-8/hooks';
 import { useMantineColorScheme } from '@mantine/core';
-import { useClipboard, useElementSize } from '@mantine/hooks';
 import {
     IconAlertCircle,
     IconAlertTriangle,

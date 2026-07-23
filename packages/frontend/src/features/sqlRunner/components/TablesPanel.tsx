@@ -1,5 +1,5 @@
 import { Box, LoadingOverlay, Text } from '@mantine-8/core';
-import { useTimeout } from '@mantine/hooks';
+import { useTimeout } from '@mantine-8/hooks';
 import { IconGripHorizontal } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';

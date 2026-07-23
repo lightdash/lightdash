@@ -11,8 +11,8 @@ import {
     ScrollArea,
     Text,
 } from '@mantine-8/core';
+import { useLocalStorage } from '@mantine-8/hooks';
 import { useMantineTheme } from '@mantine/core';
-import { useLocalStorage } from '@mantine/hooks';
 import { IconAlertCircle, IconSparkles, IconWand } from '@tabler/icons-react';
 import { useCallback, type CSSProperties, type FC } from 'react';
 import AceEditor, { type IAceEditorProps } from 'react-ace';

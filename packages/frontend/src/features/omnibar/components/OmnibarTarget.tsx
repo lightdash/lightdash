@@ -1,5 +1,5 @@
 import { Badge, Text } from '@mantine-8/core';
-import { useOs } from '@mantine/hooks';
+import { useOs } from '@mantine-8/hooks';
 import { IconSearch } from '@tabler/icons-react';
 import { type CSSProperties, type FC, type MouseEvent } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';

@@ -16,7 +16,7 @@ import {
     Select,
     Tooltip,
 } from '@mantine-8/core';
-import { useHover } from '@mantine/hooks';
+import { useHover } from '@mantine-8/hooks';
 import { IconChevronDown, IconChevronUp, IconTrash } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';

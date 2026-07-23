@@ -1,4 +1,4 @@
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import { IconUser } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import FilterFacet, {

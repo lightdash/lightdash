@@ -13,7 +13,7 @@ import {
     type ScrollAreaProps,
     type SelectProps,
 } from '@mantine-8/core';
-import { useUncontrolled } from '@mantine/hooks';
+import { useUncontrolled } from '@mantine-8/hooks';
 import { useEffect, useMemo, type FC, type ReactNode } from 'react';
 
 type Props = Omit<

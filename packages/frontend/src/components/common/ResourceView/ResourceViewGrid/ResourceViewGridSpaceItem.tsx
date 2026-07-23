@@ -1,6 +1,6 @@
 import { FeatureFlags, type ResourceViewSpaceItem } from '@lightdash/common';
 import { Box, Flex, Group, Paper, Stack, Text } from '@mantine-8/core';
-import { useDisclosure, useHover } from '@mantine/hooks';
+import { useDisclosure, useHover } from '@mantine-8/hooks';
 import {
     IconAppWindow,
     IconChartBar,

@@ -21,7 +21,7 @@ import {
     Switch,
     Tooltip,
 } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import { IconCheck, IconExclamationCircle } from '@tabler/icons-react';
 import {
     useEffect,

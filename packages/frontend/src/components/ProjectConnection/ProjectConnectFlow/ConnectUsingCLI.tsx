@@ -11,7 +11,7 @@ import {
     Text,
     Avatar,
 } from '@mantine-8/core';
-import { useOs } from '@mantine/hooks';
+import { useOs } from '@mantine-8/hooks';
 import { IconChevronLeft, IconClock } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';

@@ -27,8 +27,8 @@ import {
     Title,
     Tooltip,
 } from '@mantine-8/core';
+import { useDisclosure } from '@mantine-8/hooks';
 import { useForm, zodResolver } from '@mantine/form';
-import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertTriangle,
     IconBrandGithub,

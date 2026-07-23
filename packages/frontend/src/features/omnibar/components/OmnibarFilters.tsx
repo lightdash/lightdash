@@ -5,8 +5,8 @@ import {
     type SearchFilters,
 } from '@lightdash/common';
 import { Button, Flex, Group, Menu, Select } from '@mantine-8/core';
+import { useDisclosure } from '@mantine-8/hooks';
 import { DatePicker } from '@mantine/dates';
-import { useDisclosure } from '@mantine/hooks';
 import {
     IconAdjustments,
     IconAppWindow,

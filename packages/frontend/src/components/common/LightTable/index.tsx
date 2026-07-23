@@ -9,8 +9,8 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
+import { getHotkeyHandler, useClipboard, useId } from '@mantine-8/hooks';
 import { useMantineTheme } from '@mantine/core';
-import { getHotkeyHandler, useClipboard, useId } from '@mantine/hooks';
 import debounce from 'lodash/debounce';
 import {
     createContext,

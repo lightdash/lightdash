@@ -17,7 +17,7 @@ import {
     Drawer,
     type DefaultMantineColor,
 } from '@mantine-8/core';
-import { useInterval } from '@mantine/hooks';
+import { useInterval } from '@mantine-8/hooks';
 import {
     IconAlertTriangle,
     IconAlertTriangleFilled,

@@ -10,7 +10,7 @@ import {
     Menu,
     Tooltip,
 } from '@mantine-8/core';
-import { useClipboard } from '@mantine/hooks';
+import { useClipboard } from '@mantine-8/hooks';
 import {
     IconBrandGithub,
     IconChevronDown,
