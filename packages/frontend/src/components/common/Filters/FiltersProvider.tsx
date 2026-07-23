@@ -7,9 +7,11 @@ import {
     type ParametersValuesMap,
     type WeekDay,
 } from '@lightdash/common';
-import { type PopoverProps } from '@mantine/core';
 import { useCallback, type ReactNode } from 'react';
-import Context, { type DefaultFieldsMap } from './context';
+import Context, {
+    type DefaultFieldsMap,
+    type FilterPopoverProps,
+} from './context';
 import { getAutocompleteFilterGroup } from './utils/getAutocompleteFilterGroup';
 
 type Props<T extends DefaultFieldsMap> = {
@@ -20,7 +22,7 @@ type Props<T extends DefaultFieldsMap> = {
     dashboardFilters?: DashboardFilters;
     dashboardTiles?: DashboardTile[];
     filterableFieldsByTileUuid?: Record<string, DashboardFilterableField[]>;
-    popoverProps?: Omit<PopoverProps, 'children'>;
+    popoverProps?: FilterPopoverProps;
     parameterValues?: ParametersValuesMap;
     activeTabUuid?: string;
     metricQueryTimezone?: string;

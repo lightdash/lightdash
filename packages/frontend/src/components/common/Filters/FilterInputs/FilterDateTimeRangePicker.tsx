@@ -1,5 +1,5 @@
 import { Group, Text } from '@mantine-8/core';
-import { type DateTimePickerProps, type DayOfWeek } from '@mantine/dates';
+import { type DateTimePickerProps, type DayOfWeek } from '@mantine-8/dates';
 import dayjs from 'dayjs';
 import { useEffect, useState, type FC } from 'react';
 import FilterDateTimePicker from './FilterDateTimePicker';
@@ -7,7 +7,13 @@ import styles from './FilterDateTimeRangePicker.module.css';
 
 interface Props extends Omit<
     DateTimePickerProps,
-    'firstDayOfWeek' | 'getDayProps' | 'value' | 'onChange'
+    | 'firstDayOfWeek'
+    | 'getDayProps'
+    | 'value'
+    | 'defaultValue'
+    | 'onChange'
+    | 'minDate'
+    | 'maxDate'
 > {
     startValue: Date | null;
     endValue: Date | null;
@@ -44,8 +50,6 @@ const FilterDateTimeRangePicker: FC<Props> = ({
                 size="xs"
                 withSeconds
                 disabled={disabled}
-                // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
-                // @ts-ignore
                 placeholder="Start date"
                 showTimezone={false}
                 maxDate={
@@ -76,8 +80,6 @@ const FilterDateTimeRangePicker: FC<Props> = ({
                 size="xs"
                 withSeconds
                 disabled={disabled}
-                // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
-                // @ts-ignore
                 placeholder="End date"
                 minDate={
                     date1 ? dayjs(date1).add(1, 'second').toDate() : undefined

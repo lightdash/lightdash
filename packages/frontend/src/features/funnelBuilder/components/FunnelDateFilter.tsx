@@ -1,7 +1,12 @@
 import { FUNNEL_DATE_PRESETS, type FunnelDatePreset } from '@lightdash/common';
 import { Group, SegmentedControl } from '@mantine-8/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DatePickerInput } from '@mantine-8/dates';
 import { useCallback, type FC } from 'react';
+import {
+    formatMantineDateRange,
+    type MantineDateRange,
+} from '../../../components/common/Filters/FilterInputs/mantineDateAdapter';
+import { serializeMantineDateRangeToIso } from '../../../components/common/Filters/FilterInputs/mantineDateSerialization';
 import { useAppDispatch, useAppSelector } from '../store';
 import {
     selectCustomDateRange,
@@ -22,13 +27,8 @@ export const FunnelDateFilter: FC = () => {
     ];
 
     const handleCustomDateChange = useCallback(
-        (range: [Date | null, Date | null]) => {
-            dispatch(
-                setCustomDateRange([
-                    range[0]?.toISOString() ?? null,
-                    range[1]?.toISOString() ?? null,
-                ]),
-            );
+        (range: MantineDateRange) => {
+            dispatch(setCustomDateRange(serializeMantineDateRangeToIso(range)));
         },
         [dispatch],
     );
@@ -50,7 +50,7 @@ export const FunnelDateFilter: FC = () => {
                 <DatePickerInput
                     type="range"
                     label="Custom Date Range"
-                    value={customDateRangeDates}
+                    value={formatMantineDateRange(customDateRangeDates)}
                     onChange={handleCustomDateChange}
                 />
             )}

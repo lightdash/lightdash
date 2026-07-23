@@ -17,7 +17,7 @@ import {
     Popover,
     Tooltip,
 } from '@mantine-8/core';
-import { DatePicker, MonthPicker, YearPicker } from '@mantine/dates';
+import { DatePicker, MonthPicker, YearPicker } from '@mantine-8/dates';
 import { useCallback, useEffect, useRef, type FC } from 'react';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
