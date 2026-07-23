@@ -56,7 +56,8 @@ const CodeBlock: FC<Props> = ({
     withLineNumbers = false,
     ...props
 }) => {
-    const lineCount = code.trim().split('\n').length;
+    const trimmedCode = code.trim();
+    const lineCount = trimmedCode.split('\n').length;
     const lineNumbers = Array.from(
         { length: lineCount },
         (_, index) => index + 1,
@@ -84,7 +85,7 @@ const CodeBlock: FC<Props> = ({
 
             <CodeHighlight
                 {...props}
-                code={code}
+                code={trimmedCode}
                 copiedLabel={copiedLabel}
                 copyLabel={copyLabel}
                 controls={
@@ -92,7 +93,7 @@ const CodeBlock: FC<Props> = ({
                         ? [
                               <CodeBlockCopyControl
                                   key="copy"
-                                  code={code}
+                                  code={trimmedCode}
                                   copiedLabel={copiedLabel}
                                   copyLabel={copyLabel}
                                   onCopy={onCopy}
