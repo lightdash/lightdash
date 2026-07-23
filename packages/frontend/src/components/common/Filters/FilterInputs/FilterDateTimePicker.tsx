@@ -23,7 +23,6 @@ import {
 } from './FilterDateTimePicker.utils';
 import InvalidDateInput from './InvalidDateInput';
 import {
-    formatMantineDate,
     formatMantineDateTime,
     parseMantineDateTime,
 } from './mantineDateAdapter';
@@ -92,13 +91,20 @@ const FilterDateTimePicker: FC<Props> = ({
         (mantineValue: string | null) => {
             const date = parseMantineDateTime(mantineValue);
             if (!date) return;
+            const milliseconds = value?.getMilliseconds() ?? 0;
             if (!projectTimezone) {
+                date.setMilliseconds(milliseconds);
                 onChange(date);
                 return;
             }
-            onChange(unshiftFromProjectTimezone(date, projectTimezone));
+            const unshiftedDate = unshiftFromProjectTimezone(
+                date,
+                projectTimezone,
+            );
+            unshiftedDate.setMilliseconds(milliseconds);
+            onChange(unshiftedDate);
         },
-        [onChange, projectTimezone],
+        [onChange, projectTimezone, value],
     );
 
     const formatBound = useCallback(
@@ -107,7 +113,7 @@ const FilterDateTimePicker: FC<Props> = ({
             const shiftedDate = projectTimezone
                 ? shiftToProjectTimezone(date, projectTimezone)
                 : date;
-            return formatMantineDate(shiftedDate) ?? undefined;
+            return formatMantineDateTime(shiftedDate) ?? undefined;
         },
         [projectTimezone],
     );
