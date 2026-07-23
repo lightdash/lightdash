@@ -1,4 +1,9 @@
-import { FeatureFlag, FeatureFlags, LightdashUser } from '@lightdash/common';
+import {
+    CommercialFeatureFlags,
+    FeatureFlag,
+    FeatureFlags,
+    LightdashUser,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
 import {
@@ -55,6 +60,16 @@ export class FeatureFlagModel {
     ): Promise<FeatureFlag> {
         // 1a. Check env var enable-allowlist (self-hosted escape hatch)
         if (this.lightdashConfig.enabledFeatureFlags.has(args.featureFlagId)) {
+            if (
+                Object.values(CommercialFeatureFlags).includes(
+                    args.featureFlagId as CommercialFeatureFlags,
+                ) && !this.canEnableCommercialFeatureFlagsFromEnv()
+            ) {
+                Logger.warn(
+                    `Ignoring commercial feature flag ${args.featureFlagId} in LIGHTDASH_ENABLE_FEATURE_FLAGS without commercial feature flag handling`,
+                );
+                return { id: args.featureFlagId, enabled: false };
+            }
             return { id: args.featureFlagId, enabled: true };
         }
 
@@ -78,6 +93,10 @@ export class FeatureFlagModel {
         // Unknown flags default to disabled.
         // See: GLITCH-331
         return { id: args.featureFlagId, enabled: false };
+    }
+
+    protected canEnableCommercialFeatureFlagsFromEnv(): boolean {
+        return false;
     }
 
     private async getEditYamlInUiEnabled({

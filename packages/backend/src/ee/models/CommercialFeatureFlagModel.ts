@@ -19,6 +19,10 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
         };
     }
 
+    protected canEnableCommercialFeatureFlagsFromEnv(): boolean {
+        return true;
+    }
+
     // Default-off; enabled per-org via DB-backed overrides.
     private async getHomepageBuilderFlag({
         featureFlagId,

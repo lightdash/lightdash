@@ -1,4 +1,4 @@
-import { FeatureFlags } from '@lightdash/common';
+import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
 import { Knex } from 'knex';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -9,6 +9,7 @@ import {
     FeatureFlagsTableName,
 } from '../../database/entities/featureFlags';
 import Logger from '../../logging/logger';
+import { CommercialFeatureFlagModel } from '../../ee/models/CommercialFeatureFlagModel';
 import { FeatureFlagModel } from './FeatureFlagModel';
 
 // Minimal stub — tests below don't exercise the database layer
@@ -25,6 +26,18 @@ const buildModel = (
 ) =>
     new FeatureFlagModel({
         database,
+        lightdashConfig: {
+            ...lightdashConfigMock,
+            enabledFeatureFlags: new Set<string>(),
+            ...configOverrides,
+        } as LightdashConfig,
+    });
+
+const buildCommercialModel = (
+    configOverrides: Partial<LightdashConfig> = {},
+) =>
+    new CommercialFeatureFlagModel({
+        database: databaseStub,
         lightdashConfig: {
             ...lightdashConfigMock,
             enabledFeatureFlags: new Set<string>(),
@@ -87,6 +100,62 @@ const buildFakeDatabase = (rows: FakeRows): Knex => {
 
 describe('FeatureFlagModel', () => {
     describe('env var override', () => {
+        it('does not enable commercial flags without commercial handling', async () => {
+            const warnSpy = vi
+                .spyOn(Logger, 'warn')
+                .mockImplementation(() => Logger);
+            const model = buildModel({
+                enabledFeatureFlags: new Set([
+                    CommercialFeatureFlags.HomepageBuilder,
+                ]),
+            });
+
+            const result = await model.get({
+                featureFlagId: CommercialFeatureFlags.HomepageBuilder,
+            });
+
+            expect(result).toEqual({
+                id: CommercialFeatureFlags.HomepageBuilder,
+                enabled: false,
+            });
+            expect(warnSpy).toHaveBeenCalledWith(
+                `Ignoring commercial feature flag ${CommercialFeatureFlags.HomepageBuilder} in LIGHTDASH_ENABLE_FEATURE_FLAGS without commercial feature flag handling`,
+            );
+            warnSpy.mockRestore();
+        });
+
+        it('enables regular flags listed in LIGHTDASH_ENABLE_FEATURE_FLAGS', async () => {
+            const model = buildModel({
+                enabledFeatureFlags: new Set([FeatureFlags.NewOnboarding]),
+            });
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.NewOnboarding,
+            });
+
+            expect(result).toEqual({
+                id: FeatureFlags.NewOnboarding,
+                enabled: true,
+            });
+        });
+
+        it('enables commercial flags with commercial handling', async () => {
+            const model = buildCommercialModel({
+                enabledFeatureFlags: new Set([
+                    CommercialFeatureFlags.HomepageBuilder,
+                ]),
+            });
+
+            const result = await model.get({
+                featureFlagId: CommercialFeatureFlags.HomepageBuilder,
+            });
+
+            expect(result).toEqual({
+                id: CommercialFeatureFlags.HomepageBuilder,
+                enabled: true,
+            });
+        });
+
         it('returns enabled for any flag listed in LIGHTDASH_ENABLE_FEATURE_FLAGS', async () => {
             const model = buildModel({
                 enabledFeatureFlags: new Set(['my-custom-flag']),
