@@ -1,0 +1,138 @@
+name: Publish E2B template
+
+on:
+  workflow_call:
+    inputs:
+      release_tag:
+        required: true
+        type: string
+      template_directory:
+        required: true
+        type: string
+      template_name:
+        required: true
+        type: string
+      template_name_env:
+        required: true
+        type: string
+      template_tag_env:
+        required: true
+        type: string
+      template_extra_tags_env:
+        required: true
+        type: string
+      template_source_tag_env:
+        required: true
+        type: string
+      additional_watch_paths:
+        default: ''
+        type: string
+      install_root_deps:
+        default: false
+        type: boolean
+      e2b_domain:
+        default: ''
+        type: string
+    secrets:
+      e2b_api_key:
+        required: true
+
+jobs:
+  publish:
+    runs-on: depot-ubuntu-24.04-4
+    env:
+      E2B_API_KEY: ${{ secrets.e2b_api_key }}
+      E2B_DOMAIN: ${{ inputs.e2b_domain }}
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.release_tag }}
+
+      - name: Plan build
+        id: plan
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          TEMPLATE_DIRECTORY: ${{ inputs.template_directory }}
+          ADDITIONAL_WATCH_PATHS: ${{ inputs.additional_watch_paths }}
+        run: |
+          set -euo pipefail
+          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -A1 "^${RELEASE_TAG}$" | tail -1 || true)
+          if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" = "$RELEASE_TAG" ]; then
+            echo "No previous tag found — performing full build"
+            ACTION="build"
+          else
+            WATCH_PATHS=("$TEMPLATE_DIRECTORY")
+            while IFS= read -r watch_path; do
+              [ -n "$watch_path" ] && WATCH_PATHS+=("$watch_path")
+            done <<< "$ADDITIONAL_WATCH_PATHS"
+            CHANGED=$(git diff --name-only "$PREVIOUS_TAG" "$RELEASE_TAG" -- "${WATCH_PATHS[@]}" || true)
+            if [ -n "$CHANGED" ]; then
+              echo "Template changed since $PREVIOUS_TAG — performing full build"
+              echo "$CHANGED"
+              ACTION="build"
+            else
+              echo "No template changes since $PREVIOUS_TAG — re-tagging :latest"
+              ACTION="retag"
+            fi
+          fi
+          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            ${{ inputs.template_directory }}/pnpm-lock.yaml
+
+      - name: Install root deps
+        if: steps.plan.outputs.action == 'build' && inputs.install_root_deps
+        run: sfw pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Install sandbox deps
+        working-directory: ${{ inputs.template_directory }}
+        run: sfw pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Build and publish template
+        if: steps.plan.outputs.action == 'build'
+        working-directory: ${{ inputs.template_directory }}
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          TEMPLATE_NAME: ${{ inputs.template_name }}
+          TEMPLATE_NAME_ENV: ${{ inputs.template_name_env }}
+          TEMPLATE_TAG_ENV: ${{ inputs.template_tag_env }}
+          TEMPLATE_EXTRA_TAGS_ENV: ${{ inputs.template_extra_tags_env }}
+        run: |
+          env \
+            "$TEMPLATE_NAME_ENV=$TEMPLATE_NAME" \
+            "$TEMPLATE_TAG_ENV=$RELEASE_TAG" \
+            "$TEMPLATE_EXTRA_TAGS_ENV=latest" \
+            pnpm run build
+
+      - name: Re-tag latest build with release version
+        if: steps.plan.outputs.action == 'retag'
+        working-directory: ${{ inputs.template_directory }}
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          TEMPLATE_NAME: ${{ inputs.template_name }}
+          TEMPLATE_NAME_ENV: ${{ inputs.template_name_env }}
+          TEMPLATE_TAG_ENV: ${{ inputs.template_tag_env }}
+          TEMPLATE_SOURCE_TAG_ENV: ${{ inputs.template_source_tag_env }}
+        run: |
+          env \
+            "$TEMPLATE_NAME_ENV=$TEMPLATE_NAME" \
+            "$TEMPLATE_TAG_ENV=$RELEASE_TAG" \
+            "$TEMPLATE_SOURCE_TAG_ENV=latest" \
+            pnpm exec tsx assign-tag.ts
