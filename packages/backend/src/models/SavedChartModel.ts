@@ -235,11 +235,15 @@ const createSavedChartVersion = async (
                 dimensions.includes(key),
             ),
         );
+        const storedDimensionOverrides =
+            Object.keys(validDimensionOverrides).length > 0
+                ? validDimensionOverrides
+                : null;
         const [version] = await trx('saved_queries_versions')
             .insert({
                 row_limit: limit,
                 metric_overrides: validMetricOverrides || null,
-                dimension_overrides: validDimensionOverrides || null,
+                dimension_overrides: storedDimensionOverrides,
                 filters: JSON.stringify(filters),
                 explore_name: tableName,
                 saved_query_id: savedChartId,

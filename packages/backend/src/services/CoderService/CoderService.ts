@@ -1395,12 +1395,25 @@ export class CoderService extends BaseService {
 
         const spaceSlug = getContentAsCodePathFromLtreePath(contentSpace.path);
 
+        const additionalMetrics = chart.metricQuery.additionalMetrics?.map(
+            ({ uuid: _uuid, ...metric }) => metric,
+        );
+        const dimensionOverrides =
+            chart.metricQuery.dimensionOverrides &&
+            Object.keys(chart.metricQuery.dimensionOverrides).length > 0
+                ? chart.metricQuery.dimensionOverrides
+                : undefined;
+
         return {
             name: chart.name,
             description: chart.description,
             tableName: chart.tableName,
             updatedAt: chart.updatedAt,
-            metricQuery: chart.metricQuery,
+            metricQuery: {
+                ...chart.metricQuery,
+                additionalMetrics,
+                dimensionOverrides,
+            },
             chartConfig: chart.chartConfig,
             pivotConfig: chart.pivotConfig,
             dashboardSlug: chart.dashboardUuid
@@ -1478,15 +1491,27 @@ export class CoderService extends BaseService {
         }
 
         const spaceSlug = getContentAsCodePathFromLtreePath(contentSpace.path);
+        const sortedTabs = [...dashboard.tabs].sort(
+            (left, right) => left.order - right.order,
+        );
+        const dashboardWithSortedTabs = {
+            ...dashboard,
+            tabs: sortedTabs,
+        };
 
         const tilesWithoutUuids: DashboardTileAsCode[] = dashboard.tiles.map(
             (tile): DashboardTileAsCode => {
+                const tabSlug = tile.tabUuid
+                    ? getDashboardTabSlug(dashboardWithSortedTabs, tile.tabUuid)
+                    : null;
                 if (isAnyChartTile(tile)) {
                     if (tile.type === DashboardTileTypes.SAVED_CHART) {
                         const chartTile: DashboardChartTileAsCode = {
                             ...tile,
                             type: DashboardTileTypes.SAVED_CHART,
                             uuid: undefined,
+                            tabUuid: undefined,
+                            tabSlug,
                             tileSlug: CoderService.getChartSlugForTileUuid(
                                 dashboard,
                                 tile.uuid,
@@ -1506,6 +1531,8 @@ export class CoderService extends BaseService {
                         ...tile,
                         type: DashboardTileTypes.SQL_CHART,
                         uuid: undefined,
+                        tabUuid: undefined,
+                        tabSlug,
                         tileSlug: CoderService.getChartSlugForTileUuid(
                             dashboard,
                             tile.uuid,
@@ -1525,6 +1552,8 @@ export class CoderService extends BaseService {
                         ...tile,
                         type: DashboardTileTypes.MARKDOWN,
                         uuid: undefined,
+                        tabUuid: undefined,
+                        tabSlug,
                         tileSlug: undefined,
                         properties: {
                             title: tile.properties.title,
@@ -1540,9 +1569,22 @@ export class CoderService extends BaseService {
                     ...tile,
                     tileSlug: undefined,
                     uuid: undefined,
+                    tabUuid: undefined,
+                    tabSlug,
                 };
             },
             [],
+        );
+        tilesWithoutUuids.sort(
+            (left, right) =>
+                left.y - right.y ||
+                left.x - right.x ||
+                (left.tabSlug ?? '').localeCompare(right.tabSlug ?? '') ||
+                (left.tileSlug ?? '').localeCompare(right.tileSlug ?? '') ||
+                left.type.localeCompare(right.type) ||
+                JSON.stringify(left.properties).localeCompare(
+                    JSON.stringify(right.properties),
+                ),
         );
 
         const dashboardAsCode: DashboardAsCode = {
@@ -1552,7 +1594,12 @@ export class CoderService extends BaseService {
             tiles: tilesWithoutUuids,
 
             filters: CoderService.getFiltersWithTileSlugs(dashboard),
-            tabs: dashboard.tabs,
+            tabs: sortedTabs.map(({ uuid, name, order, hidden }) => ({
+                slug: getDashboardTabSlug(dashboardWithSortedTabs, uuid),
+                name,
+                order,
+                hidden,
+            })),
             slug: dashboard.slug,
             ...(dashboard.config
                 ? {
@@ -1576,9 +1623,54 @@ export class CoderService extends BaseService {
         return dashboardAsCode;
     }
 
+    private static convertTabsWithSlugsToUuids(
+        tabs: DashboardAsCode['tabs'],
+        existingTabs: DashboardDAO['tabs'] = [],
+    ): {
+        tabs: DashboardDAO['tabs'];
+        tabUuidsBySlug: Map<string, string>;
+    } {
+        const sortedExistingTabs = [...existingTabs].sort(
+            (left, right) => left.order - right.order,
+        );
+        const existingDashboard = { tabs: sortedExistingTabs };
+        const existingTabUuidsBySlug = new Map(
+            sortedExistingTabs.map((tab) => [
+                getDashboardTabSlug(existingDashboard, tab.uuid),
+                tab.uuid,
+            ]),
+        );
+        const tabUuidsBySlug = new Map<string, string>();
+
+        const tabsWithUuids = tabs.map(({ slug, uuid, ...tab }) => {
+            if (slug && tabUuidsBySlug.has(slug)) {
+                throw new ParameterError(
+                    `Dashboard tab slug "${slug}" is duplicated`,
+                );
+            }
+
+            const resolvedUuid =
+                (slug ? existingTabUuidsBySlug.get(slug) : undefined) ??
+                uuid ??
+                uuidv4();
+
+            if (slug) {
+                tabUuidsBySlug.set(slug, resolvedUuid);
+            }
+
+            return {
+                ...tab,
+                uuid: resolvedUuid,
+            };
+        });
+
+        return { tabs: tabsWithUuids, tabUuidsBySlug };
+    }
+
     async convertTileWithSlugsToUuids(
         projectUuid: string,
         tiles: DashboardTileAsCode[],
+        tabUuidsBySlug: ReadonlyMap<string, string> = new Map(),
     ): Promise<DashboardTileWithSlug[]> {
         const chartSlugs: string[] = tiles.reduce<string[]>((acc, tile) => {
             if (!isAnyChartTile(tile) || tile.properties.chartSlug == null) {
@@ -1592,9 +1684,23 @@ export class CoderService extends BaseService {
             tile: DashboardTileAsCode,
             chartInfo?: { uuid: string; isSql: boolean },
         ): DashboardTileWithSlug => {
+            const { tabSlug, ...tileWithoutTabSlug } = tile;
+            let { tabUuid } = tile;
+            if (tabSlug === null) {
+                tabUuid = null;
+            } else if (tabSlug !== undefined) {
+                tabUuid = tabUuidsBySlug.get(tabSlug);
+            }
+            if (tabSlug && !tabUuid) {
+                throw new NotFoundError(
+                    `Dashboard tab "${tabSlug}" referenced by tile was not found`,
+                );
+            }
+
             if (!isAnyChartTile(tile)) {
                 return {
-                    ...tile,
+                    ...tileWithoutTabSlug,
+                    tabUuid,
                     uuid: tile.uuid ?? uuidv4(),
                 } as DashboardTileWithSlug;
             }
@@ -1604,7 +1710,8 @@ export class CoderService extends BaseService {
 
             if (isSqlChart) {
                 return {
-                    ...tile,
+                    ...tileWithoutTabSlug,
+                    tabUuid,
                     uuid: tile.uuid ?? uuidv4(),
                     type: DashboardTileTypes.SQL_CHART,
                     properties: {
@@ -1616,7 +1723,8 @@ export class CoderService extends BaseService {
             }
 
             return {
-                ...tile,
+                ...tileWithoutTabSlug,
+                tabUuid,
                 uuid: tile.uuid ?? uuidv4(),
                 type: DashboardTileTypes.SAVED_CHART,
                 properties: {
@@ -3402,9 +3510,22 @@ export class CoderService extends BaseService {
                   projectUuid,
               })
             : [undefined];
+        const existingDashboard = dashboardSummary
+            ? await this.dashboardModel.getByIdOrSlug(dashboardSummary.uuid)
+            : undefined;
+        const { tabs: tabsWithUuids, tabUuidsBySlug } =
+            CoderService.convertTabsWithSlugsToUuids(
+                dashboardWithDefaults.tabs,
+                existingDashboard?.tabs,
+            );
+        const dashboardWithResolvedTabs = {
+            ...dashboardWithDefaults,
+            tabs: tabsWithUuids,
+        };
         const tilesWithUuids = await this.convertTileWithSlugsToUuids(
             projectUuid,
-            dashboardWithDefaults.tiles,
+            dashboardWithResolvedTabs.tiles,
+            tabUuidsBySlug,
         );
         if (!canUploadAnyContent) {
             await this.assertTileChartsViewAccess({
@@ -3416,15 +3537,15 @@ export class CoderService extends BaseService {
         }
 
         const dashboardFilters = CoderService.getFiltersWithTileUuids(
-            dashboardWithDefaults,
+            dashboardWithResolvedTabs,
             tilesWithUuids,
         );
-        const dashboardConfig = dashboardWithDefaults.config
+        const dashboardConfig = dashboardWithResolvedTabs.config
             ? CoderService.getConfigWithDateZoomTileUuids(
-                  dashboardWithDefaults.config,
+                  dashboardWithResolvedTabs.config,
                   tilesWithUuids,
               )
-            : dashboardWithDefaults.config;
+            : dashboardWithResolvedTabs.config;
         // If chart does not exist, we can't use promoteService,
         // since it relies on information that's not available in ChartAsCode, and other uuids
         if (dashboardSummary === undefined) {
@@ -3463,7 +3584,7 @@ export class CoderService extends BaseService {
             const newDashboard = await this.dashboardModel.create(
                 space.uuid,
                 {
-                    ...dashboardWithDefaults,
+                    ...dashboardWithResolvedTabs,
                     tiles: tilesWithUuids,
                     forceSlug: shouldUseExactSlug,
                     filters: dashboardFilters,
@@ -3503,9 +3624,7 @@ export class CoderService extends BaseService {
         }
         // Use promote service to update existing dashboard
 
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardSummary.uuid,
-        );
+        const dashboard = existingDashboard!;
 
         console.info(
             `Updating dashboard "${dashboard.name}" on project ${projectUuid}`,
@@ -3537,7 +3656,7 @@ export class CoderService extends BaseService {
         }
 
         const dashboardWithUuids = {
-            ...dashboardWithDefaults,
+            ...dashboardWithResolvedTabs,
             tiles: tilesWithUuids,
             config: dashboardConfig,
         };
