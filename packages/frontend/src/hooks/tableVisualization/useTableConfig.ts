@@ -26,6 +26,7 @@ import uniq from 'lodash/uniq';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     useAsyncCalculateGrandTotal,
+    useAsyncCalculateRowSubtotals,
     useAsyncCalculateRowTotal,
     useAsyncCalculateSubtotals,
     useAsyncCalculateTotal,
@@ -290,6 +291,21 @@ const useTableConfig = (
             enabled: isInitialQueryReady && showSubtotals && canUseSubtotals,
             invalidateCache,
         });
+    const { data: groupedRowSubtotals, isFetching: isCalculatingRowSubtotals } =
+        useAsyncCalculateRowSubtotals({
+            projectUuid,
+            sourceQueryUuid: resultsData?.queryUuid,
+            dimensions: resultsData?.metricQuery?.dimensions,
+            columnOrder,
+            pivotDimensions,
+            enabled:
+                isInitialQueryReady &&
+                showSubtotals &&
+                canUseSubtotals &&
+                !!tableChartConfig?.showRowCalculation &&
+                (pivotDimensions?.length ?? 0) > 0,
+            invalidateCache,
+        });
 
     const columns = useMemo(() => {
         if (!selectedItemIds || !itemsMap) {
@@ -396,6 +412,7 @@ const useTableConfig = (
             getField,
             getFieldLabel,
             groupedSubtotals,
+            groupedRowSubtotals,
             warehouseRowTotals: asyncRowTotals,
             warehouseColumnTotals: asyncTotals,
             warehouseGrandTotals: asyncGrandTotals,
@@ -415,6 +432,7 @@ const useTableConfig = (
         tableChartConfig?.showColumnCalculation,
         tableChartConfig?.showRowCalculation,
         groupedSubtotals,
+        groupedRowSubtotals,
         asyncRowTotals,
         asyncTotals,
         asyncGrandTotals,
@@ -729,6 +747,7 @@ const useTableConfig = (
             groupedSubtotals,
             isCalculatingColumnTotals,
             isCalculatingRowTotals,
+            isCalculatingRowSubtotals,
             isCalculatingGrandTotals,
             isCalculatingSubtotals,
             rowLimit,
@@ -777,6 +796,7 @@ const useTableConfig = (
             groupedSubtotals,
             isCalculatingColumnTotals,
             isCalculatingRowTotals,
+            isCalculatingRowSubtotals,
             isCalculatingGrandTotals,
             isCalculatingSubtotals,
             rowLimit,

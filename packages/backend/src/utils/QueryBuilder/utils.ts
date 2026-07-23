@@ -52,7 +52,8 @@ export type TotalQueryKind =
     | 'grandTotal'
     | 'columnTotal'
     | 'rowTotal'
-    | 'columnSubtotal';
+    | 'columnSubtotal'
+    | 'rowSubtotal';
 
 /**
  * Turns a source query into a totals query for the given grain. Consumed by
@@ -61,7 +62,7 @@ export type TotalQueryKind =
  */
 export type TotalConfiguration = {
     kind: TotalQueryKind;
-    // Required only for `columnSubtotal`; undefined for every other kind.
+    // Required for subtotal kinds; undefined for every other kind.
     subtotalDimensions: string[] | undefined;
 };
 

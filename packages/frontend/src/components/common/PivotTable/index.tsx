@@ -62,6 +62,7 @@ import React, {
 import {
     findMatchingSubtotal,
     getGroupingValuesAndSubtotalKey,
+    getRowSubtotalValue,
     getSubtotalValueFromGroup,
 } from '../../../hooks/tableVisualization/getDataAndColumns';
 import {
@@ -187,6 +188,8 @@ type PivotTableProps = BoxProps & // TODO: remove this
         isColumnTotalsLoading?: boolean;
         /** Row-total cells render a loading skeleton while their async query is in flight. */
         isRowTotalsLoading?: boolean;
+        /** Grouped row-total cells render a loading skeleton while row subtotals are in flight. */
+        isRowSubtotalsLoading?: boolean;
         /** Grand-total intersection cells render a loading skeleton while their async query is in flight. */
         isGrandTotalsLoading?: boolean;
         /** Subtotal cells render a loading skeleton while their async query is in flight. */
@@ -224,6 +227,7 @@ const PivotTable: FC<PivotTableProps> = ({
     showRowGrouping = false,
     isColumnTotalsLoading = false,
     isRowTotalsLoading = false,
+    isRowSubtotalsLoading = false,
     isGrandTotalsLoading = false,
     isSubtotalsLoading = false,
     columnProperties = {},
@@ -549,21 +553,27 @@ const PivotTable: FC<PivotTableProps> = ({
                                 const { groupingValues, subtotalGroupKey } =
                                     groupingValuesAndSubtotalKey;
 
-                                // Get the pivoted header values for the column
-                                const pivotedHeaderValues =
-                                    finalHeaderInfoForColumns[colIndex];
-
-                                // Find the subtotal for the row, this is used to find the subtotal in the groupedSubtotals object
-                                const subtotal = findMatchingSubtotal(
-                                    data.groupedSubtotals?.[subtotalGroupKey],
-                                    groupingValues,
-                                    pivotedHeaderValues,
-                                );
-
-                                const subtotalValue = getSubtotalValueFromGroup(
-                                    subtotal,
-                                    col.baseId ?? col.fieldId,
-                                );
+                                const isRowTotal =
+                                    col.columnType === 'rowTotal';
+                                const subtotalValue = isRowTotal
+                                    ? getRowSubtotalValue(
+                                          data.groupedRowSubtotals,
+                                          subtotalGroupKey,
+                                          groupingValues,
+                                          col.underlyingId,
+                                      )
+                                    : getSubtotalValueFromGroup(
+                                          findMatchingSubtotal(
+                                              data.groupedSubtotals?.[
+                                                  subtotalGroupKey
+                                              ],
+                                              groupingValues,
+                                              finalHeaderInfoForColumns[
+                                                  colIndex
+                                              ],
+                                          ),
+                                          col.baseId ?? col.fieldId,
+                                      );
 
                                 if (subtotalValue === null) {
                                     return null;
@@ -571,7 +581,9 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                 if (
                                     subtotalValue === undefined &&
-                                    isSubtotalsLoading &&
+                                    (isRowTotal
+                                        ? isRowSubtotalsLoading
+                                        : isSubtotalsLoading) &&
                                     isNumericItem(item)
                                 ) {
                                     return (
@@ -619,6 +631,7 @@ const PivotTable: FC<PivotTableProps> = ({
         rowNumberWidth,
         parameters,
         isSubtotalsLoading,
+        isRowSubtotalsLoading,
     ]);
 
     // Minimum table width so auto columns don't get squeezed to zero
@@ -1774,7 +1787,7 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                 if (
                                     data.pivotConfig.metricsAsRows &&
-                                    isDataColumn &&
+                                    (isDataColumn || isRowTotal) &&
                                     metricFieldId
                                 ) {
                                     item = getField(metricFieldId);
@@ -1791,13 +1804,23 @@ const PivotTable: FC<PivotTableProps> = ({
                                 const fullValue =
                                     cell.getValue() as ResultRow[0];
                                 const metricSubtotalValue =
-                                    isMetricSubtotal && isDataColumn
+                                    isMetricSubtotal &&
+                                    (isDataColumn || isRowTotal)
                                         ? (() => {
                                               const groupingMatch =
                                                   getGroupingValuesAndSubtotalKey(
                                                       cell.getContext(),
                                                   );
                                               if (!groupingMatch) return null;
+
+                                              if (isRowTotal) {
+                                                  return getRowSubtotalValue(
+                                                      data.groupedRowSubtotals,
+                                                      groupingMatch.subtotalGroupKey,
+                                                      groupingMatch.groupingValues,
+                                                      renderRow.metricFieldId,
+                                                  );
+                                              }
 
                                               const subtotal =
                                                   findMatchingSubtotal(
@@ -1818,7 +1841,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                     | ResultValue
                                     | undefined =
                                     isMetricSubtotal &&
-                                    isDataColumn &&
+                                    (isDataColumn || isRowTotal) &&
                                     metricSubtotalValue !== null
                                         ? {
                                               raw: metricSubtotalValue,
@@ -1843,7 +1866,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                           }
                                         : undefined;
                                 const value = isMetricSubtotal
-                                    ? isDataColumn
+                                    ? isDataColumn || isRowTotal
                                         ? metricSubtotalResultValue
                                         : meta?.type === 'label'
                                           ? metricSubtotalLabelValue
@@ -2129,9 +2152,12 @@ const PivotTable: FC<PivotTableProps> = ({
                                                     renderRow.metricFieldId,
                                                 ) ?? renderRow.metricFieldId}
                                             </Text>
-                                        ) : isMetricSubtotal && isDataColumn ? (
+                                        ) : isMetricSubtotal &&
+                                          (isDataColumn || isRowTotal) ? (
                                             metricSubtotalValue === undefined &&
-                                            isSubtotalsLoading &&
+                                            (isRowTotal
+                                                ? isRowSubtotalsLoading
+                                                : isSubtotalsLoading) &&
                                             isNumericItem(item) ? (
                                                 <Skeleton
                                                     height={16}
@@ -2145,9 +2171,8 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 </Text>
                                             )
                                         ) : isMetricSubtotal &&
-                                          (isRowTotal ||
-                                              (meta?.type === 'indexValue' &&
-                                                  !cell.getIsGrouped())) ? null : cell.getIsGrouped() ? (
+                                          meta?.type === 'indexValue' &&
+                                          !cell.getIsGrouped() ? null : cell.getIsGrouped() ? (
                                             // Grouping-only mode (row dedup
                                             // without subtotals): suppress the
                                             // carat + group count chrome and

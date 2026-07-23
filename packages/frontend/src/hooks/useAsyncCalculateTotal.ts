@@ -7,6 +7,7 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
     type ApiGetAsyncQueryResults,
     type CalculateTotalKind,
+    type GroupedPivotRowSubtotals,
     type PivotRowTotalsByIndex,
     type RawResultRow,
     type ResultRow,
@@ -263,6 +264,117 @@ const getSubtotalDimensionGroups = (
     const withoutPivot = ordered.filter((d) => !pivotDimensions.includes(d));
     const toSubtotal = withoutPivot.slice(0, -1);
     return toSubtotal.map((_, index) => toSubtotal.slice(0, index + 1));
+};
+
+const buildGroupedRowSubtotals = (
+    entries: Array<[dimensions: string[], rows: ResultRow[]]>,
+): GroupedPivotRowSubtotals =>
+    Object.fromEntries(
+        entries.map(([dimensions, rows]) => [
+            getSubtotalKey(dimensions),
+            buildWarehouseRowTotals(rows, dimensions),
+        ]),
+    );
+
+const fetchRowSubtotals = async (args: {
+    projectUuid: string;
+    sourceQueryUuid: string;
+    dimensionGroups: string[][];
+    invalidateCache?: boolean;
+}): Promise<GroupedPivotRowSubtotals> => {
+    const entries = await Promise.all(
+        args.dimensionGroups.map(
+            async (
+                group,
+            ): Promise<[dimensions: string[], rows: ResultRow[]]> => {
+                const { queryUuid } = await startCalculateTotalQuery({
+                    projectUuid: args.projectUuid,
+                    sourceQueryUuid: args.sourceQueryUuid,
+                    kind: 'rowSubtotal',
+                    subtotalDimensions: group,
+                    invalidateCache: args.invalidateCache,
+                });
+
+                const query = await pollForResults(args.projectUuid, queryUuid);
+                if (
+                    query.status === QueryHistoryStatus.ERROR ||
+                    query.status === QueryHistoryStatus.EXPIRED
+                ) {
+                    throw new Error(
+                        query.error || 'Error computing row subtotals',
+                    );
+                }
+                if (query.status !== QueryHistoryStatus.READY) {
+                    throw new Error(
+                        'Unexpected query status while polling row subtotals',
+                    );
+                }
+
+                const rows = await fetchAllResultRows(
+                    args.projectUuid,
+                    queryUuid,
+                );
+                return [group, rows];
+            },
+        ),
+    );
+
+    return buildGroupedRowSubtotals(entries);
+};
+
+export const useAsyncCalculateRowSubtotals = ({
+    projectUuid,
+    sourceQueryUuid,
+    dimensions,
+    columnOrder,
+    pivotDimensions,
+    enabled,
+    invalidateCache,
+}: {
+    projectUuid: string | undefined;
+    sourceQueryUuid: string | undefined;
+    dimensions: string[] | undefined;
+    columnOrder: string[];
+    pivotDimensions: string[] | undefined;
+    enabled: boolean;
+    invalidateCache?: boolean;
+}) => {
+    const dimensionGroups = getSubtotalDimensionGroups(
+        dimensions ?? [],
+        columnOrder,
+        pivotDimensions ?? [],
+    );
+
+    return useQuery<GroupedPivotRowSubtotals, ApiError>({
+        queryKey: [
+            'calculate_async_row_subtotals',
+            projectUuid,
+            sourceQueryUuid,
+            dimensionGroups,
+            invalidateCache,
+        ],
+        queryFn: () => {
+            if (!projectUuid || !sourceQueryUuid) {
+                return Promise.reject(
+                    new Error(
+                        'Missing projectUuid or sourceQueryUuid for async row subtotals',
+                    ),
+                );
+            }
+            return fetchRowSubtotals({
+                projectUuid,
+                sourceQueryUuid,
+                dimensionGroups,
+                invalidateCache,
+            });
+        },
+        enabled:
+            enabled &&
+            !!projectUuid &&
+            !!sourceQueryUuid &&
+            dimensionGroups.length > 0,
+        retry: false,
+    });
 };
 
 // One async calculate-total call per nesting level (kind 'columnSubtotal'),

@@ -1,4 +1,5 @@
 import {
+    buildPivotRowTotalKey,
     formatItemValue,
     getSubtotalKey,
     isCustomDimension,
@@ -7,6 +8,7 @@ import {
     isNumericItem,
     normalizePivotMatchRaw,
     type ItemsMap,
+    type GroupedPivotRowSubtotals,
     type ParametersValuesMap,
     type ResultRow,
     type ResultValue,
@@ -118,6 +120,30 @@ export function getSubtotalValueFromGroup(
     // Convert null to undefined so formatItemValue shows '-' instead of '∅'
     // SQL returns null when all aggregated values are null (no data)
     return subtotal[columnId] ?? undefined;
+}
+
+export function getRowSubtotalValue(
+    groupedRowSubtotals: GroupedPivotRowSubtotals | undefined,
+    subtotalGroupKey: string,
+    groupingValues: Record<string, { value: ResultValue } | undefined>,
+    metricFieldId: string | undefined,
+): number | null | undefined {
+    if (!groupedRowSubtotals || !metricFieldId) return undefined;
+
+    const subtotalRow =
+        groupedRowSubtotals[subtotalGroupKey]?.[
+            buildPivotRowTotalKey(
+                Object.entries(groupingValues).map(([fieldId, value]) => [
+                    fieldId,
+                    value?.value.raw,
+                ]),
+            )
+        ];
+    if (!subtotalRow) return undefined;
+
+    const total =
+        subtotalRow[`${metricFieldId}_any`] ?? subtotalRow[metricFieldId];
+    return typeof total === 'number' ? total : null;
 }
 
 const getImageSize = (item: ItemsMap[string] | undefined) => {
