@@ -22,6 +22,15 @@ Each file contains:
 - `metricQuery.sorts` — sort order
 - `metricQuery.limit` — row limit
 - `metricQuery.tableCalculations` — computed columns (may be empty)
+- `chartConfig` — the saved visualization config. `chartConfig.type` tells you
+  what to render: `big_number` (KPI stat), `cartesian` (bar/line/area/scatter —
+  the series type is inside `chartConfig.config.eChartsConfig.series`), `table`,
+  `pie`, `funnel`, `treemap`, `gauge`, `map`, `sankey`, or `custom`. Reproduce
+  the chart type instead of guessing one from the data shape; deeper styling
+  details inside the config are optional inspiration, not a spec.
+- `pivotConfig` — pivot dimension field IDs when the saved chart pivots its
+  results (`null` otherwise). A pivoted table/bar means one series per value of
+  the pivot dimension.
 
 **How to use these:**
 1. Read the JSON file(s) to understand what data the user wants in their app

@@ -1,11 +1,18 @@
-import { type ChartSampleData, type MetricQuery } from '@lightdash/common';
+import {
+    ChartType,
+    type ChartConfig,
+    type ChartSampleData,
+    type MetricQuery,
+} from '@lightdash/common';
 import { buildChartReference } from './AppGenerateService';
 
 describe('buildChartReference', () => {
+    const chartConfig: ChartConfig = { type: ChartType.BIG_NUMBER };
     const chart = {
         name: 'Revenue',
         tableName: 'orders',
         metricQuery: {} as MetricQuery,
+        chartConfig,
     };
     it('carries chartUuid and linked=true, no sample, for a linked chart', () => {
         const ref = buildChartReference(chart, 'chart-1', true, null);

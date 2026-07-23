@@ -10,6 +10,7 @@ import {
     type AiDeepResearchJobPayload,
     type AiWritebackSource,
     type ChartReference,
+    type DashboardBlueprint,
     type DataAppClaudeModel,
     type DataAppTemplate,
     type EmbedArtifactVersionJobPayload,
@@ -56,6 +57,10 @@ export type AppGeneratePipelineJobPayload = TraceTaskBase & {
     imageIds?: string[];
     isIteration: boolean;
     chartReferences?: ChartReference[];
+    // Structural snapshot of the attached dashboard (tabs, tile layout,
+    // filters). Written into the sandbox as a layout blueprint alongside the
+    // flattened chartReferences. Absent when no dashboard was attached.
+    dashboardBlueprint?: DashboardBlueprint;
     // Claude model the user picked for this version. Absent on jobs enqueued
     // before the picker shipped — the pipeline falls back to
     // DEFAULT_DATA_APP_CLAUDE_MODEL in that case.
