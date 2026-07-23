@@ -1,7 +1,7 @@
 import { Flex, Text } from '@mantine-8/core';
 import { type DateInputProps, type DayOfWeek } from '@mantine/dates';
 import dayjs from 'dayjs';
-import { useState, type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import FilterDatePicker from './FilterDatePicker';
 import styles from './FilterDateRangePicker.module.css';
 
@@ -29,6 +29,14 @@ const FilterDateRangePicker: FC<Props> = ({
 }) => {
     const [date1, setDate1] = useState(startValue);
     const [date2, setDate2] = useState(endValue);
+
+    useEffect(() => {
+        setDate1(startValue);
+    }, [startValue]);
+
+    useEffect(() => {
+        setDate2(endValue);
+    }, [endValue]);
 
     return (
         <Flex align="center" w="100%" gap="xxs">
