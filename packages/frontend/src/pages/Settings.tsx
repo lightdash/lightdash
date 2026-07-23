@@ -733,18 +733,6 @@ const Settings: FC = () => {
             ) &&
             !matchPath(
                 {
-                    path: '/generalSettings/userScheduledDeliveries',
-                },
-                location.pathname,
-            ) &&
-            !matchPath(
-                {
-                    path: '/generalSettings/myApps',
-                },
-                location.pathname,
-            ) &&
-            !matchPath(
-                {
                     path: '/generalSettings/projectManagement/:projectUuid/compilationHistory',
                 },
                 location.pathname,
