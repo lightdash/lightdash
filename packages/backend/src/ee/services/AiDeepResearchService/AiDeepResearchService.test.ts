@@ -81,7 +81,7 @@ const chart = {
     },
 };
 
-const chartRef = `[${chart.title}](#chart-${chart.queryUuid})`;
+const chartRef = `<chart id="${chart.queryUuid}" title="${chart.title}" description="Revenue remained stable across the period.">`;
 
 const reportMarkdown = `Revenue held steady overall, with high confidence.
 
@@ -910,7 +910,7 @@ describe('AiDeepResearchService', () => {
             };
             const inlineMarkdown = reportMarkdown.replace(
                 'The baseline trend is stable.',
-                `The baseline trend is stable.\n\n[${inlineChart.title}](#chart-${inlineChart.key})`,
+                `The baseline trend is stable.\n\n<chart id="${inlineChart.key}" title="${inlineChart.title}" description="The enterprise ratio was lower than the SMB ratio.">`,
             );
             const { service, model } = buildService({
                 executor: vi.fn().mockResolvedValue({
@@ -972,7 +972,7 @@ describe('AiDeepResearchService', () => {
             expect(queryHistoryModel.getByQueryUuid).not.toHaveBeenCalled();
             const [, persisted, chartData] = model.markCompleted.mock.calls[0];
             expect(chartData).toEqual({});
-            expect(persisted).not.toContain('#chart-');
+            expect(persisted).not.toContain(`<chart id="${chart.queryUuid}"`);
             expect(persisted).toContain('*(chart omitted:');
             expect(persisted).toContain(
                 'Some proposed charts were omitted because their query evidence could not be verified.',
@@ -1011,7 +1011,7 @@ describe('AiDeepResearchService', () => {
 
             const [, persisted, chartData] = model.markCompleted.mock.calls[0];
             expect(chartData).toEqual({});
-            expect(persisted).not.toContain('#chart-');
+            expect(persisted).not.toContain(`<chart id="${chart.queryUuid}"`);
             expect(persisted).toContain('*(chart omitted:');
         });
 

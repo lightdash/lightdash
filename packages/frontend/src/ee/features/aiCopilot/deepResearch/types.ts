@@ -50,7 +50,7 @@ export type DeepResearchRunView = {
         label: string;
         createdAt: string;
     }>;
-    /** The report narrative with [title](#chart-<key>) chart references. */
+    /** The report narrative with compact <chart> references. */
     resultMarkdown: string | null;
     /** Render data for each referenced chart, keyed by chart key. */
     resultChartData: AiDeepResearchChartDataMap | null;

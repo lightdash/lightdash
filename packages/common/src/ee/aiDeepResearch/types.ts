@@ -104,7 +104,7 @@ export type AiDeepResearchChartSnapshot = {
 /**
  * Everything the UI needs to render one report chart, keyed by chart key in
  * `AiDeepResearchRun.resultChartData`. Written entirely by the backend at
- * publish time; the markdown only carries [title](#chart-<key>) references.
+ * publish time; the markdown only carries compact <chart> references.
  */
 export type AiDeepResearchChartData = {
     source: 'warehouse' | 'inline';
@@ -205,7 +205,7 @@ export type AiDeepResearchRun = {
     promptUuid: string | null;
     prompt: string;
     status: AiDeepResearchRunStatus;
-    /** The report narrative with [title](#chart-<key>) chart references. */
+    /** The report narrative with compact <chart> references. */
     resultMarkdown: string | null;
     /** Render data for each referenced chart, keyed by chart key. */
     resultChartData: AiDeepResearchChartDataMap | null;
