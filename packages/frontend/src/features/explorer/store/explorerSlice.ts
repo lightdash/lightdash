@@ -54,7 +54,7 @@ function saveConfigToCache<T extends ChartType>(
     cache: Partial<ConfigCacheMap>,
     chartType: T,
     config: ConfigCacheMap[T]['chartConfig'],
-    pivotConfig?: { columns: string[] },
+    pivotConfig?: SavedChart['pivotConfig'],
 ): void {
     cache[chartType] = {
         chartConfig: config,
@@ -63,6 +63,17 @@ function saveConfigToCache<T extends ChartType>(
 }
 
 const initialState: ExplorerSliceState = defaultState;
+
+const removePivotValuesFromSorts = (sorts: SortField[]): SortField[] => {
+    const seen = new Set<string>();
+    return sorts.reduce<SortField[]>((acc, sort) => {
+        if (seen.has(sort.fieldId)) return acc;
+        seen.add(sort.fieldId);
+        const { pivotValues: _pivotValues, ...rest } = sort;
+        acc.push(rest);
+        return acc;
+    }, []);
+};
 
 const explorerSlice = createSlice({
     name: 'explorer',
@@ -257,22 +268,37 @@ const explorerSlice = createSlice({
 
         setPivotConfig: (
             state,
-            action: PayloadAction<{ columns: string[] } | undefined>,
+            action: PayloadAction<SavedChart['pivotConfig']>,
         ) => {
             state.unsavedChartVersion.pivotConfig = action.payload;
             if (!action.payload?.columns.length) {
-                const seen = new Set<string>();
                 state.unsavedChartVersion.metricQuery.sorts =
-                    state.unsavedChartVersion.metricQuery.sorts.reduce<
-                        SortField[]
-                    >((acc, sort) => {
-                        if (seen.has(sort.fieldId)) return acc;
-                        seen.add(sort.fieldId);
-                        const { pivotValues: _pivotValues, ...rest } = sort;
-                        acc.push(rest);
-                        return acc;
-                    }, []);
+                    removePivotValuesFromSorts(
+                        state.unsavedChartVersion.metricQuery.sorts,
+                    );
             }
+        },
+
+        setPivotColumns: (state, action: PayloadAction<string[]>) => {
+            const rows = state.unsavedChartVersion.pivotConfig?.rows;
+            state.unsavedChartVersion.pivotConfig = {
+                columns: action.payload,
+                ...(rows !== undefined && { rows }),
+            };
+
+            if (!action.payload.length) {
+                state.unsavedChartVersion.metricQuery.sorts =
+                    removePivotValuesFromSorts(
+                        state.unsavedChartVersion.metricQuery.sorts,
+                    );
+            }
+        },
+
+        setPivotRows: (state, action: PayloadAction<string[] | undefined>) => {
+            state.unsavedChartVersion.pivotConfig = {
+                columns: state.unsavedChartVersion.pivotConfig?.columns ?? [],
+                ...(action.payload !== undefined && { rows: action.payload }),
+            };
         },
 
         setParameter: (
@@ -485,7 +511,7 @@ const explorerSlice = createSlice({
                 before.type,
                 current(before.config),
                 beforePivotConfig
-                    ? (current(beforePivotConfig) as { columns: string[] })
+                    ? (current(beforePivotConfig) as SavedChart['pivotConfig'])
                     : undefined,
             );
 

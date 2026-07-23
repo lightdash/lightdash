@@ -76,7 +76,7 @@ export enum ActionType {
 
 export type ChartConfigCache<T = AnyType> = {
     chartConfig: T;
-    pivotConfig?: { columns: string[] };
+    pivotConfig?: SavedChart['pivotConfig'];
 };
 
 /**

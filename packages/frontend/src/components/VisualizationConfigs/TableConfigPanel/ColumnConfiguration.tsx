@@ -64,7 +64,7 @@ const ColumnConfigurationInput: FC<ColumnConfigurationInputProps> = ({
     );
 };
 
-type ColumnConfigurationProps = {
+export type ColumnConfigurationProps = {
     fieldId: string;
 
     /**

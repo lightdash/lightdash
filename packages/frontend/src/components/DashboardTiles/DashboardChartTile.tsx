@@ -393,6 +393,7 @@ const ValidDashboardChartTile: FC<{
             <VisualizationProvider
                 chartConfig={chart.chartConfig}
                 initialPivotDimensions={chart.pivotConfig?.columns}
+                initialPivotRows={chart.pivotConfig?.rows}
                 resultsData={resultsDataWithQueryData}
                 isLoading={resultsData.isFetchingRows}
                 onSeriesContextMenu={onSeriesContextMenu}
@@ -543,6 +544,7 @@ const ValidDashboardChartTileMinimal: FC<{
             minimal
             chartConfig={chart.chartConfig}
             initialPivotDimensions={chart.pivotConfig?.columns}
+            initialPivotRows={chart.pivotConfig?.rows}
             resultsData={resultsDataWithQueryData}
             isLoading={resultsData.isFetchingRows}
             onSeriesContextMenu={onSeriesContextMenu}
