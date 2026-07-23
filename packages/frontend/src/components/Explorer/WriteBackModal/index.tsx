@@ -15,7 +15,6 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import { Prism } from '@mantine/prism';
 import { IconGitBranch } from '@tabler/icons-react';
 import * as yaml from 'js-yaml';
 import { memo, useMemo, useState } from 'react';
@@ -25,6 +24,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import CodeBlock from '../../common/CodeBlock/CodeBlock';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import MantineModal from '../../common/MantineModal';
 import { PolymorphicGroupButton } from '../../common/PolymorphicGroupButton';
@@ -193,9 +193,11 @@ export const SingleItemModalContent = ({
                     onToggle={() => setShowDiff(!showDiff)}
                 >
                     <Stack ml={36}>
-                        <Prism language="yaml" withLineNumbers trim={false}>
-                            {error || previewCode}
-                        </Prism>
+                        <CodeBlock
+                            code={error || previewCode}
+                            language="yaml"
+                            withLineNumbers
+                        />
                     </Stack>
                 </CollapsableCard>
             </Stack>
@@ -402,13 +404,11 @@ const MultipleItemsModalContent = ({
                             overflowY: 'auto',
                         }}
                     >
-                        <Prism
+                        <CodeBlock
+                            code={error || previewCode}
                             language="yaml"
-                            trim={false}
-                            noCopy={previewCode === ''}
-                        >
-                            {error || previewCode}
-                        </Prism>
+                            withCopyButton={previewCode !== ''}
+                        />
                     </Paper>
                 </Stack>
             </Group>

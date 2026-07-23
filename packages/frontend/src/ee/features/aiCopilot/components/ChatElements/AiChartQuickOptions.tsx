@@ -7,7 +7,6 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Button, HoverCard, Menu, Tooltip } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
-import { Prism } from '@mantine/prism';
 import {
     IconChartBar,
     IconCircleCheck,
@@ -23,6 +22,7 @@ import {
 } from '@tabler/icons-react';
 import { Fragment, useCallback, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
+import CodeBlock from '../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
@@ -478,18 +478,14 @@ export const AiChartQuickOptions = ({
                                     </Menu.Item>
                                 </HoverCard.Target>
                                 <HoverCard.Dropdown p={0} maw={500}>
-                                    <Prism
+                                    <CodeBlock
+                                        code={compiledSql}
                                         language="sql"
+                                        lineNumberFontSize={10}
                                         withLineNumbers
-                                        noCopy
-                                        styles={{
-                                            lineContent: {
-                                                fontSize: 10,
-                                            },
-                                        }}
-                                    >
-                                        {compiledSql}
-                                    </Prism>
+                                        withCopyButton={false}
+                                        styles={{ code: { fontSize: 10 } }}
+                                    />
                                 </HoverCard.Dropdown>
                             </HoverCard>
                         )}

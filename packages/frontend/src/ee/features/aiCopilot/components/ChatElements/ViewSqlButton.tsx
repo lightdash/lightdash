@@ -1,7 +1,7 @@
 import { ActionIcon, HoverCard } from '@mantine-8/core';
-import { Prism } from '@mantine/prism';
 import { IconEye } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
+import CodeBlock from '../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 
 interface ViewSqlButtonProps {
@@ -24,18 +24,14 @@ export const ViewSqlButton: FC<ViewSqlButtonProps> = memo(({ sql }) => {
                 </ActionIcon>
             </HoverCard.Target>
             <HoverCard.Dropdown p={0} maw={500}>
-                <Prism
+                <CodeBlock
+                    code={sql}
                     language="sql"
+                    lineNumberFontSize={10}
                     withLineNumbers
-                    noCopy
-                    styles={{
-                        lineContent: {
-                            fontSize: 10,
-                        },
-                    }}
-                >
-                    {sql}
-                </Prism>
+                    withCopyButton={false}
+                    styles={{ code: { fontSize: 10 } }}
+                />
             </HoverCard.Dropdown>
         </HoverCard>
     );
