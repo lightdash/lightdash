@@ -94,6 +94,7 @@ import {
 import AppTemplatePicker from '../features/apps/AppTemplatePicker';
 import ChatBubbleMeta from '../features/apps/ChatBubbleMeta';
 import ChatMessageContent from '../features/apps/ChatMessageContent';
+import AppBuilderSidebarToggle from '../features/apps/components/AppBuilderSidebarToggle';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import AppSpaceChip from '../features/apps/components/AppSpaceChip';
@@ -566,6 +567,13 @@ const AppGenerate: FC = () => {
         null,
     );
     const previewRef = useRef<AppIframePreviewHandle>(null);
+    // Collapse is pure UI state driven by CSS (see chatPanelOuter[data-collapsed])
+    // — the panel-group layout is never touched, so expanding restores the
+    // exact pre-collapse width.
+    const [isChatPanelCollapsed, setIsChatPanelCollapsed] = useState(false);
+    const handleToggleChatPanel = useCallback(() => {
+        setIsChatPanelCollapsed((collapsed) => !collapsed);
+    }, []);
     const {
         queries: trackedQueries,
         persistLogs,
@@ -717,6 +725,7 @@ const AppGenerate: FC = () => {
         setPendingClarification(null);
         setClarificationAnswers([]);
         setTestVizContext(null);
+        setIsChatPanelCollapsed(false);
         versionCacheRef.current.clear();
         versionCacheAppRef.current = undefined;
         sentImagesByPrompt.current.forEach((urls) =>
@@ -1997,6 +2006,7 @@ const AppGenerate: FC = () => {
                     defaultSize={newAppLanding ? 100 : 30}
                     minSize={newAppLanding ? 100 : 22}
                     maxSize={newAppLanding ? 100 : 50}
+                    data-collapsed={isChatPanelCollapsed || undefined}
                     className={`${classes.chatPanelOuter}${
                         newAppLanding ? ` ${classes.chatPanelOuterCompose}` : ''
                     }`}
@@ -2006,6 +2016,14 @@ const AppGenerate: FC = () => {
                             newAppLanding ? ` ${classes.chatPanelCompose}` : ''
                         }`}
                     >
+                        {!newAppLanding && (
+                            <Box className={classes.sidebarHeader}>
+                                <AppBuilderSidebarToggle
+                                    collapsed={isChatPanelCollapsed}
+                                    onToggle={handleToggleChatPanel}
+                                />
+                            </Box>
+                        )}
                         {newAppLanding && (
                             <Stack gap="lg" className={classes.composeHeading}>
                                 <Stack gap={6}>
@@ -3051,7 +3069,10 @@ const AppGenerate: FC = () => {
                 </Panel>
 
                 {!newAppLanding && (
-                    <PanelResizeHandle className={classes.resizeHandle} />
+                    <PanelResizeHandle
+                        className={classes.resizeHandle}
+                        disabled={isChatPanelCollapsed}
+                    />
                 )}
 
                 {/* Preview Panel */}
