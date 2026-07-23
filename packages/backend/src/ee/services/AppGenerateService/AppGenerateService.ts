@@ -79,6 +79,7 @@ import {
     type SavedChart,
     type SessionUser,
     type TogglePinnedItemInfo,
+    type UpgradeAppRequestBody,
 } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { Knex } from 'knex';
@@ -1831,6 +1832,84 @@ export class AppGenerateService extends BaseService {
         };
     }
 
+    private static readonly CLAUDE_SESSION_PATHS =
+        'root/.claude root/.claude.json home/user/.claude home/user/.claude.json';
+
+    /**
+     * Upgrade pre-step: best-effort extract the Claude session state from the
+     * old sandbox, then destroy it and clear `sandbox_id` so `acquireSandbox`
+     * takes its cold-create path — a fresh box from the CURRENT template
+     * image with the latest ready source restored from S3. Session carry and
+     * destroy failures are logged, never fatal.
+     */
+    private async prepareUpgradeColdStart(
+        appUuid: string,
+        projectUuid: string,
+        copilot: CopilotConfig,
+        extraEgressHosts: string[],
+    ): Promise<Buffer | null> {
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        if (!app.sandbox_id) return null;
+        let sessionTar: Buffer | null = null;
+        try {
+            const { sandbox: oldSandbox } = await this.resumeSandbox(
+                app.sandbox_id,
+                appUuid,
+                copilot,
+                extraEgressHosts,
+            );
+            const result = await oldSandbox.commands.run(
+                `tar -cf /tmp/claude-session.tar --ignore-failed-read -C / ${AppGenerateService.CLAUDE_SESSION_PATHS}`,
+                { timeoutMs: 60_000 },
+            );
+            if (result.exitCode === 0) {
+                sessionTar = Buffer.from(
+                    await oldSandbox.files.readBytes('/tmp/claude-session.tar'),
+                );
+            }
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: could not carry the Claude session over the upgrade: ${getErrorMessage(error)}`,
+            );
+        }
+        try {
+            await this.getSandboxManager().destroy({
+                sandboxUuid: app.sandbox_id,
+            });
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: failed to destroy the old sandbox on upgrade: ${getErrorMessage(error)}`,
+            );
+        }
+        await this.appModel.updateSandboxUuid(appUuid, null);
+        this.logger.info(
+            `App ${appUuid}: upgrade cold-start prepared (sessionCarried=${sessionTar !== null})`,
+        );
+        return sessionTar;
+    }
+
+    /** Best-effort restore of a carried Claude session into the new box. */
+    private async restoreClaudeSession(
+        sandbox: SandboxHandle,
+        appUuid: string,
+        sessionTar: Buffer,
+    ): Promise<void> {
+        try {
+            await sandbox.files.write('/tmp/claude-session.tar', sessionTar);
+            await sandbox.commands.run(
+                'tar -xf /tmp/claude-session.tar -C / && rm -f /tmp/claude-session.tar',
+                { timeoutMs: 60_000 },
+            );
+            this.logger.info(
+                `App ${appUuid}: Claude session restored into the upgraded sandbox`,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: failed to restore the Claude session into the new sandbox: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
     /**
      * Write resolved chart references as individual JSON files in the sandbox.
      * Returns a summary string to prepend to the prompt, or empty string if
@@ -3296,6 +3375,18 @@ export class AppGenerateService extends BaseService {
                 return;
             }
             try {
+                // Upgrade: drop the old sandbox first (carrying the Claude
+                // session best-effort) so the iteration path below cold-starts
+                // on the current template image.
+                let upgradeSessionTar: Buffer | null = null;
+                if (payload.isUpgrade) {
+                    upgradeSessionTar = await this.prepareUpgradeColdStart(
+                        appUuid,
+                        projectUuid,
+                        copilot,
+                        registryHosts,
+                    );
+                }
                 if (isIteration) {
                     const app = await this.appModel.getApp(
                         appUuid,
@@ -3327,6 +3418,13 @@ export class AppGenerateService extends BaseService {
                     sandboxUuid = result.sandboxUuid;
                     durations.sandboxMs = result.durationMs;
                     await this.appModel.updateSandboxUuid(appUuid, sandboxUuid);
+                }
+                if (upgradeSessionTar) {
+                    await this.restoreClaudeSession(
+                        sandbox,
+                        appUuid,
+                        upgradeSessionTar,
+                    );
                 }
             } catch (error) {
                 const marked = await this.markError(
@@ -5001,56 +5099,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             design: designSnapshot,
         };
 
-        // Carry the latest version's custom dependency set forward. The dep
-        // FILES must be copied under the new version's S3 prefix BEFORE the
-        // row is created so a copy failure can't orphan a pending version.
-        // An errored version can hold a summary without files, so walk back
-        // to the newest version whose files actually exist.
-        let carriedDependencies: AppVersionDependencies | undefined;
-        if (latestVersion?.dependencies) {
-            // Kill-switch: iterations restore the stored dep set, so they must
-            // stop too when custom dependencies are disabled instance-wide.
-            if (!this.lightdashConfig.appRuntime.customDependenciesEnabled) {
-                throw new ParameterError(
-                    'Custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED). This app declares custom packages, so it cannot be iterated until they are re-enabled.',
-                );
-            }
-            carriedDependencies = latestVersion.dependencies;
-            const { client, bucket } = this.getS3Client();
-            const toPrefix = versionPrefix(appUuid, newVersion);
-            const candidates =
-                await this.appModel.getVersionsWithDependencies(appUuid);
-            let copied = false;
-            for (const candidate of candidates) {
-                const fromPrefix = versionPrefix(appUuid, candidate.version);
-                try {
-                    // eslint-disable-next-line no-await-in-loop
-                    await Promise.all(
-                        ['deps/package.json', 'deps/pnpm-lock.yaml'].map(
-                            (key) =>
-                                client.send(
-                                    new CopyObjectCommand({
-                                        Bucket: bucket,
-                                        CopySource: `${bucket}/${fromPrefix}${key}`,
-                                        Key: `${toPrefix}${key}`,
-                                    }),
-                                ),
-                        ),
-                    );
-                    copied = true;
-                    break;
-                } catch (err) {
-                    this.logger.warn(
-                        `App ${appUuid}: dependency files missing for version ${candidate.version}, trying an earlier version (${getErrorMessage(err)})`,
-                    );
-                }
-            }
-            if (!copied) {
-                throw new ParameterError(
-                    "Could not carry this app's custom dependencies forward: no stored dependency files found. Re-upload the app with 'lightdash upload --apps' to restore them.",
-                );
-            }
-        }
+        const carriedDependencies = await this.carryDependenciesForward(
+            appUuid,
+            newVersion,
+            latestVersion?.dependencies,
+        );
 
         await this.appModel.createVersion(
             appUuid,
@@ -5108,6 +5161,185 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             dashboardBlueprint: dashboardBlueprint ?? undefined,
             claudeModel,
             designUuid: effectiveDesignUuid,
+        });
+
+        return { appUuid, version: newVersion };
+    }
+
+    /**
+     * Carry the latest version's custom dependency set forward. The dep
+     * FILES must be copied under the new version's S3 prefix BEFORE the
+     * row is created so a copy failure can't orphan a pending version.
+     * An errored version can hold a summary without files, so walk back
+     * to the newest version whose files actually exist.
+     */
+    private async carryDependenciesForward(
+        appUuid: string,
+        newVersion: number,
+        latestDependencies: AppVersionDependencies | null | undefined,
+    ): Promise<AppVersionDependencies | undefined> {
+        if (!latestDependencies) return undefined;
+        // Kill-switch: iterations restore the stored dep set, so they must
+        // stop too when custom dependencies are disabled instance-wide.
+        if (!this.lightdashConfig.appRuntime.customDependenciesEnabled) {
+            throw new ParameterError(
+                'Custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED). This app declares custom packages, so it cannot be iterated until they are re-enabled.',
+            );
+        }
+        const { client, bucket } = this.getS3Client();
+        const toPrefix = versionPrefix(appUuid, newVersion);
+        const candidates =
+            await this.appModel.getVersionsWithDependencies(appUuid);
+        let copied = false;
+        for (const candidate of candidates) {
+            const fromPrefix = versionPrefix(appUuid, candidate.version);
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                await Promise.all(
+                    ['deps/package.json', 'deps/pnpm-lock.yaml'].map((key) =>
+                        client.send(
+                            new CopyObjectCommand({
+                                Bucket: bucket,
+                                CopySource: `${bucket}/${fromPrefix}${key}`,
+                                Key: `${toPrefix}${key}`,
+                            }),
+                        ),
+                    ),
+                );
+                copied = true;
+                break;
+            } catch (err) {
+                this.logger.warn(
+                    `App ${appUuid}: dependency files missing for version ${candidate.version}, trying an earlier version (${getErrorMessage(err)})`,
+                );
+            }
+        }
+        if (!copied) {
+            throw new ParameterError(
+                "Could not carry this app's custom dependencies forward: no stored dependency files found. Re-upload the app with 'lightdash upload --apps' to restore them.",
+            );
+        }
+        return latestDependencies;
+    }
+
+    static readonly UPGRADE_PROMPT_LABEL = 'Upgrade to the latest app template';
+
+    /**
+     * The stored row prompt stays the short label (what chat history shows);
+     * this composed instruction is what the pipeline actually sends —
+     * mirrors the theme-change prompt pattern.
+     */
+    private static buildUpgradePrompt(body: UpgradeAppRequestBody): string {
+        const candidates = (body.candidateFeatures ?? []).slice(0, 20);
+        const featureStep =
+            candidates.length > 0
+                ? [
+                      '2. These SDK features may be new to this app:',
+                      ...candidates.map(
+                          (f) => `   - ${f.key}: ${f.label} — ${f.description}`,
+                      ),
+                      '   Keep only the ones that BOTH exist in the SDK installed in this workspace (verify in node_modules/@lightdash/query-sdk, e.g. dist/features.js) AND would be genuinely useful for what this app does. Silently discard the rest.',
+                  ].join('\n')
+                : '2. Read SDK_FEATURES from node_modules/@lightdash/query-sdk/dist/features.js to see what is available. If that file does not exist, the installed SDK predates feature reporting — there is nothing to offer; skip the feature list entirely.';
+        return [
+            'This app has just been moved to the latest app template (new SDK, components, and skills).',
+            'Do the following, in order:',
+            '1. Verify the app still builds and runs on the new template. Fix any breakage minimally. Do not change features, content, or visual design.',
+            featureStep,
+            'Never infer or invent "new features" from export lists, type definitions, or guesswork — if a feature is not declared in the installed SDK feature registry, do not mention it.',
+            '3. Write your final message for a non-technical app owner, in EXACTLY this shape and nothing more:',
+            '   - One or two plain sentences saying whether the upgrade succeeded. No file names, no API names, no description of how you checked.',
+            '   - If any verified features remain from step 2: the line "Newly available — ask me to add any of these:" followed by one bullet per feature: the feature label in bold, a dash, then one plain-language sentence on what it would do for this app.',
+            '   Do not implement any of the features now.',
+        ].join('\n');
+    }
+
+    /**
+     * Upgrade-as-iteration: rebuilds the app on the current template image.
+     * The `isUpgrade` flag makes the pipeline destroy the app's sandbox
+     * (carrying the Claude session best-effort) so the run cold-starts on the
+     * current image with the latest source restored. Nothing is persisted
+     * about freshness — the running bundle self-reports via the SDK manifest.
+     */
+    async upgradeApp(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+        body: UpgradeAppRequestBody = {},
+    ): Promise<GenerateAppResult> {
+        await this.assertDataAppsEnabled(user);
+
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to upgrade this data app',
+        );
+
+        const latestVersion = await this.appModel.getLatestVersion(appUuid);
+        if (
+            latestVersion?.status &&
+            isAppVersionInProgress(latestVersion.status)
+        ) {
+            throw new ParameterError(
+                'A version is already building for this app',
+            );
+        }
+        const latestReady = await this.appModel.getLatestReadyVersion(appUuid);
+        if (!latestReady) {
+            throw new ParameterError(
+                'This app has no ready version to upgrade',
+            );
+        }
+
+        const newVersion = (latestVersion?.version ?? 0) + 1;
+        this.logger.info(
+            `App ${appUuid}: upgrade started (version=${newVersion}, reportedSdkVersion=${
+                body.reportedSdkVersion ?? 'unknown'
+            })`,
+        );
+
+        const carriedDependencies = await this.carryDependenciesForward(
+            appUuid,
+            newVersion,
+            latestVersion?.dependencies,
+        );
+
+        await this.appModel.createVersion(
+            appUuid,
+            {
+                version: newVersion,
+                prompt: AppGenerateService.UPGRADE_PROMPT_LABEL,
+            },
+            'pending',
+            user.userUuid,
+            undefined,
+            carriedDependencies,
+        );
+
+        this.analytics.track({
+            event: 'data_app.upgrade_requested',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                appUuid,
+                version: newVersion,
+                reportedSdkVersion: body.reportedSdkVersion ?? null,
+                reportedFeatureCount: body.reportedFeatures?.length ?? null,
+            },
+        });
+
+        await this.schedulerClient.appGeneratePipeline({
+            appUuid,
+            version: newVersion,
+            projectUuid,
+            organizationUuid: user.organizationUuid!,
+            userUuid: user.userUuid,
+            prompt: AppGenerateService.buildUpgradePrompt(body),
+            isIteration: true,
+            isUpgrade: true,
+            designUuid: app.design_uuid,
         });
 
         return { appUuid, version: newVersion };
