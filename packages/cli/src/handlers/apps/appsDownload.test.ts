@@ -11,6 +11,7 @@ import {
     computeUpsertedTotal,
     DEFAULT_APPS_LIMIT,
     ensureDownloadedAppContext,
+    getDataAppUploadFilter,
     getDataAppUuidFromReference,
     manifestRetargetHint,
     resolveAppsLimit,
@@ -43,6 +44,25 @@ describe('getDataAppUuidFromReference', () => {
         `ftp://app.lightdash.cloud/projects/${projectUuid}/apps/${appUuid}`,
     ])('leaves unsupported references unchanged: %s', (reference) => {
         expect(getDataAppUuidFromReference(reference)).toBe(reference);
+    });
+});
+
+describe('getDataAppUploadFilter', () => {
+    const appUuid = 'd3afc44c-6f0f-4d9f-a267-fb739efa31dd';
+
+    it('matches app manifests by UUID when a URL is passed', () => {
+        expect(
+            getDataAppUploadFilter(
+                [
+                    `https://app.lightdash.cloud/projects/project-uuid/apps/${appUuid}/view`,
+                ],
+                false,
+            ),
+        ).toEqual(new Set([appUuid]));
+    });
+
+    it('does not filter app folders when --include-apps is passed', () => {
+        expect(getDataAppUploadFilter([appUuid], true)).toBeNull();
     });
 });
 

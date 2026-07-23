@@ -81,6 +81,7 @@ import {
     classifyAppDownloadError,
     classifyAppUpload,
     ensureDownloadedAppContext,
+    getDataAppUploadFilter,
     manifestRetargetHint,
     resolveAppsLimit,
     selectAppsToDownload,
@@ -203,6 +204,40 @@ const shouldDownloadAiAgents = ({
 >): boolean =>
     appsOnly !== true &&
     (includeAll === true || includeAgents === true || agents.length > 0);
+
+const hasUploadFilters = ({
+    spacesOnly,
+    charts,
+    dashboards,
+    agents,
+    alerts,
+    googleSheets,
+    scheduledDeliveries,
+    virtualViews,
+    apps,
+}: Pick<
+    DownloadHandlerOptions,
+    | 'spacesOnly'
+    | 'charts'
+    | 'dashboards'
+    | 'agents'
+    | 'alerts'
+    | 'googleSheets'
+    | 'scheduledDeliveries'
+    | 'virtualViews'
+    | 'apps'
+>): boolean =>
+    !spacesOnly &&
+    [
+        charts,
+        dashboards,
+        agents,
+        alerts,
+        googleSheets,
+        scheduledDeliveries,
+        virtualViews,
+        apps ?? [],
+    ].some((filters) => filters.length > 0);
 
 /*
     This function is used to parse the content filters.
@@ -1388,15 +1423,7 @@ export const downloadHandler = async (
         );
     }
 
-    const hasFilters =
-        !options.spacesOnly &&
-        (options.charts.length > 0 ||
-            options.dashboards.length > 0 ||
-            options.agents.length > 0 ||
-            options.alerts.length > 0 ||
-            options.googleSheets.length > 0 ||
-            options.scheduledDeliveries.length > 0 ||
-            options.virtualViews.length > 0);
+    const hasFilters = hasUploadFilters(options);
     const shouldDownloadSpaces =
         !isOrganizationDownload && !options.skipSpaces && !hasFilters;
     let skipEmbeddedSpaces = !hasFilters || options.skipSpaces;
@@ -2814,13 +2841,13 @@ export const uploadHandler = async (
             }
         }
 
-        // Upload data apps (enterprise, opt-in via --apps <uuids...> or
+        // Upload data apps (enterprise, opt-in via --apps <references...> or
         // --include-apps, fire-and-forget)
-        const explicitAppUuids = Array.isArray(options.apps)
+        const explicitAppReferences = Array.isArray(options.apps)
             ? options.apps
             : [];
         const shouldUploadApps =
-            options.includeApps === true || explicitAppUuids.length > 0;
+            options.includeApps === true || explicitAppReferences.length > 0;
 
         let appsCreated = 0;
         let appsUpdated = 0;
@@ -2838,10 +2865,12 @@ export const uploadHandler = async (
             output.completeItem('permission denied', 'warning');
         } else if (shouldUploadApps) {
             output.startItem('Data apps');
-            // --include-apps uploads every folder on disk; explicit UUIDs
+            // --include-apps uploads every folder on disk; explicit references
             // filter folders by their manifest appUuid
-            const filterUuids: Set<string> | null =
-                options.includeApps === true ? null : new Set(explicitAppUuids);
+            const filterUuids = getDataAppUploadFilter(
+                explicitAppReferences,
+                options.includeApps === true,
+            );
 
             const baseDir = getDownloadFolder(options.path);
             const appsDir = path.join(baseDir, 'apps');
@@ -3177,6 +3206,7 @@ export const testHelpers = {
     downloadSpaces,
     getFlatSpaceFileNames,
     getDashboardChartSlugs,
+    hasUploadFilters,
     readAiAgentFiles,
     readSpaceFiles,
     readSpaceNames,
