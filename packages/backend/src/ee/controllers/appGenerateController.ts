@@ -28,8 +28,10 @@ import {
     type ApiTogglePinnedItem,
     type ApiUpdateAppRequest,
     type ApiUpdateAppResponse,
+    type ApiUpgradeAppResponse,
     type GenerateAppRequestBody,
     type ImportAppCodeRequestBody,
+    type UpgradeAppRequestBody,
 } from '@lightdash/common';
 import {
     Body,
@@ -397,6 +399,36 @@ export class AppGenerateController extends BaseController {
             toSessionUser(req.account),
             projectUuid,
             appUuid,
+        );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
+     * Rebuild this app on the current template image (fresh sandbox, latest
+     * SDK and skills). The body carries what the running bundle self-reported
+     * so the upgrade agent can offer the newly available features.
+     * @summary Upgrade app to the latest template
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/upgrade')
+    @OperationId('upgradeApp')
+    async upgradeApp(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Body() body: UpgradeAppRequestBody,
+    ): Promise<ApiUpgradeAppResponse> {
+        assertRegisteredAccount(req.account);
+        const result = await this.getAppGenerateService().upgradeApp(
+            toSessionUser(req.account),
+            projectUuid,
+            appUuid,
+            body,
         );
         this.setStatus(200);
         return {

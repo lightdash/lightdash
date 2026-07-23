@@ -3230,6 +3230,11 @@ const AppGenerate: FC = () => {
                                         <AppHeaderActions
                                             projectUuid={projectUuid}
                                             appUuid={activeAppUuid}
+                                            upgrade={{
+                                                disabled:
+                                                    !previewApp ||
+                                                    isAgentWorking,
+                                            }}
                                             appName={appName}
                                             appDescription={
                                                 appDescription || null
