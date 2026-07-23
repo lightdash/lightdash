@@ -46505,6 +46505,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'union',
             subSchemas: [
+                { dataType: 'enum', enums: ['grandTotal'] },
                 { dataType: 'enum', enums: ['columnTotal'] },
                 { dataType: 'enum', enums: ['rowTotal'] },
                 { dataType: 'enum', enums: ['columnSubtotal'] },

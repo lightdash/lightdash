@@ -1,3 +1,10 @@
+# [0.3464.0](https://github.com/lightdash/lightdash/compare/0.3463.0...0.3464.0) (2026-07-23)
+
+
+### Features
+
+* **pivot-table:** include grand total intersections ([#25954](https://github.com/lightdash/lightdash/issues/25954)) ([e5ef136](https://github.com/lightdash/lightdash/commit/e5ef1363ec75da076f7f1fd5d58d53cfdefa4af4))
+
 # [0.3463.0](https://github.com/lightdash/lightdash/compare/0.3462.0...0.3463.0) (2026-07-23)
 
 

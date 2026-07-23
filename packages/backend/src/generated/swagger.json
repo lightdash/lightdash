@@ -46525,8 +46525,13 @@
             },
             "CalculateTotalKind": {
                 "type": "string",
-                "enum": ["columnTotal", "rowTotal", "columnSubtotal"],
-                "description": "Kinds of totals derivable from an executed pivot query. Follow-up PRs\nwill widen the union to enable the commented-out variants below."
+                "enum": [
+                    "grandTotal",
+                    "columnTotal",
+                    "rowTotal",
+                    "columnSubtotal"
+                ],
+                "description": "Kinds of totals derivable from an executed pivot query."
             },
             "ExecuteAsyncCalculateTotalRequestParams": {
                 "properties": {
@@ -49161,7 +49166,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3463.0",
+        "version": "0.3464.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
