@@ -19,15 +19,6 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
         };
     }
 
-    protected hasCommercialFeatureFlagHandler(featureFlagId: string): boolean {
-        return (
-            this.featureFlagHandlers !== undefined &&
-            Object.values(CommercialFeatureFlags).includes(
-                featureFlagId as CommercialFeatureFlags,
-            )
-        );
-    }
-
     // Default-off; enabled per-org via DB-backed overrides.
     private async getHomepageBuilderFlag({
         featureFlagId,
