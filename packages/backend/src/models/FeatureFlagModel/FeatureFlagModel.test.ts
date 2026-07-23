@@ -8,8 +8,8 @@ import {
     FeatureFlagOverridesTableName,
     FeatureFlagsTableName,
 } from '../../database/entities/featureFlags';
-import Logger from '../../logging/logger';
 import { CommercialFeatureFlagModel } from '../../ee/models/CommercialFeatureFlagModel';
+import Logger from '../../logging/logger';
 import { FeatureFlagModel } from './FeatureFlagModel';
 
 // Minimal stub — tests below don't exercise the database layer
@@ -33,9 +33,7 @@ const buildModel = (
         } as LightdashConfig,
     });
 
-const buildCommercialModel = (
-    configOverrides: Partial<LightdashConfig> = {},
-) =>
+const buildCommercialModel = (configOverrides: Partial<LightdashConfig> = {}) =>
     new CommercialFeatureFlagModel({
         database: databaseStub,
         lightdashConfig: {

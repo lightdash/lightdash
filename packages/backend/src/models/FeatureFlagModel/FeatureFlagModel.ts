@@ -63,7 +63,8 @@ export class FeatureFlagModel {
             if (
                 Object.values(CommercialFeatureFlags).includes(
                     args.featureFlagId as CommercialFeatureFlags,
-                ) && !this.canEnableCommercialFeatureFlagsFromEnv()
+                ) &&
+                !this.hasCommercialFeatureFlagHandler(args.featureFlagId)
             ) {
                 Logger.warn(
                     `Ignoring commercial feature flag ${args.featureFlagId} in LIGHTDASH_ENABLE_FEATURE_FLAGS without commercial feature flag handling`,
@@ -95,8 +96,8 @@ export class FeatureFlagModel {
         return { id: args.featureFlagId, enabled: false };
     }
 
-    protected canEnableCommercialFeatureFlagsFromEnv(): boolean {
-        return false;
+    private hasCommercialFeatureFlagHandler(featureFlagId: string): boolean {
+        return this.featureFlagHandlers[featureFlagId] !== undefined;
     }
 
     private async getEditYamlInUiEnabled({
