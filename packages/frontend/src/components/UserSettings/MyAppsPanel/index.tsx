@@ -4,24 +4,18 @@ import {
     Anchor,
     Badge,
     Group,
-    Loader,
     Menu,
-    Stack,
     Switch,
     Text,
 } from '@mantine-8/core';
 import {
-    IconClock,
     IconCode,
     IconDots,
     IconEdit,
     IconExternalLink,
-    IconFolder,
     IconFolderPlus,
     IconFolderSymlink,
     IconLayoutDashboard,
-    IconRadar,
-    IconTextCaption,
     IconTrash,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -46,6 +40,7 @@ import MantineIcon from '../../common/MantineIcon';
 import AppDeleteModal from '../../common/modal/AppDeleteModal';
 import AppUpdateModal from '../../common/modal/AppUpdateModal';
 import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
+import { SettingsPage } from '../../common/Settings/SettingsPage';
 
 const hasReadyVersion = (app: ApiAppSummary) =>
     app.lastVersionStatus === 'ready' && !!app.lastVersionNumber;
@@ -169,12 +164,6 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                 header: 'Name',
                 enableSorting: false,
                 size: 200,
-                Header: ({ column }) => (
-                    <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconTextCaption} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
                 Cell: ({ row }) => {
                     const app = row.original;
                     return <AppNameCell app={app} />;
@@ -185,15 +174,6 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                 header: 'Project',
                 enableSorting: false,
                 size: 150,
-                Header: ({ column }) => (
-                    <Group gap="two" wrap="nowrap">
-                        <MantineIcon
-                            icon={IconLayoutDashboard}
-                            color="ldGray.6"
-                        />
-                        {column.columnDef.header}
-                    </Group>
-                ),
                 Cell: ({ row }) => (
                     <Text fz="sm" c="ldGray.7">
                         {row.original.projectName}
@@ -205,12 +185,6 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                 header: 'Space',
                 enableSorting: false,
                 size: 150,
-                Header: ({ column }) => (
-                    <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconFolder} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
                 Cell: ({ row }) => {
                     const { spaceUuid, spaceName, projectUuid } = row.original;
                     if (!spaceUuid || !spaceName) {
@@ -240,12 +214,6 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                 header: 'Status',
                 enableSorting: false,
                 size: 100,
-                Header: ({ column }) => (
-                    <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconRadar} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
                 Cell: ({ row }) => {
                     const { lastVersionStatus, lastVersionNumber } =
                         row.original;
@@ -272,12 +240,6 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                 header: 'Created',
                 enableSorting: false,
                 size: 120,
-                Header: ({ column }) => (
-                    <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconClock} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
                 Cell: ({ row }) => (
                     <Text fz="sm" c="ldGray.7">
                         {new Date(row.original.createdAt).toLocaleDateString()}
@@ -298,8 +260,8 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                         <Menu position="bottom-end" withinPortal>
                             <Menu.Target>
                                 <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
+                                    variant="transparent"
+                                    color="ldGray.6"
                                     size="sm"
                                 >
                                     <MantineIcon icon={IconDots} size={16} />
@@ -391,11 +353,31 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
         columns,
         data: flatData,
         enableColumnActions: false,
+        enableColumnResizing: false,
         enableColumnFilters: false,
+        enableDensityToggle: false,
+        enableFilters: false,
+        enableFullScreenToggle: false,
+        enableGlobalFilter: false,
+        enableGlobalFilterModes: false,
+        enableHiding: false,
         enablePagination: false,
+        enableRowNumbers: false,
         enableSorting: false,
         enableTopToolbar: false,
         enableBottomToolbar: false,
+        enableStickyHeader: true,
+        mantinePaperProps: {
+            shadow: undefined,
+        },
+        mantineTableHeadCellProps: {
+            px: 'lg',
+            py: 'sm',
+        },
+        mantineTableBodyCellProps: {
+            px: 'lg',
+            py: 'sm',
+        },
         mantineTableContainerProps: {
             ref: tableContainerRef,
             style: { maxHeight: 'calc(100dvh - 420px)' },
@@ -412,25 +394,22 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
         },
     });
 
-    if (isLoading && flatData.length === 0) {
-        return (
-            <Group justify="center" p="xl">
-                <Loader size="sm" />
-            </Group>
-        );
-    }
-
     return (
-        <Stack gap="md">
-            <Group justify="flex-end">
+        <SettingsPage
+            title="My apps"
+            description="Manage the data apps you can access and edit."
+            actions={
                 <Switch
-                    label="Include apps in previews"
+                    size="sm"
+                    label="Include preview apps"
+                    labelPosition="left"
                     checked={includePreviewApps}
                     onChange={(event) =>
                         setIncludePreviewApps(event.currentTarget.checked)
                     }
                 />
-            </Group>
+            }
+        >
             {!isLoading && !isError && flatData.length === 0 ? (
                 <SettingsEmptyState
                     icon={IconLayoutDashboard}
@@ -471,7 +450,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                     onConfirm={() => setAppToRename(null)}
                 />
             )}
-        </Stack>
+        </SettingsPage>
     );
 };
 

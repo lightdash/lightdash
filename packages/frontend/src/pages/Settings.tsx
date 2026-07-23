@@ -264,17 +264,12 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/myApps',
                 element: (
-                    <SettingsPage
-                        title="My apps"
-                        description="Manage the data apps you can access and edit."
-                    >
-                        <MyAppsPanel
-                            key={String(project?.type === ProjectType.PREVIEW)}
-                            includePreviewAppsByDefault={
-                                project?.type === ProjectType.PREVIEW
-                            }
-                        />
-                    </SettingsPage>
+                    <MyAppsPanel
+                        key={String(project?.type === ProjectType.PREVIEW)}
+                        includePreviewAppsByDefault={
+                            project?.type === ProjectType.PREVIEW
+                        }
+                    />
                 ),
             });
         }
