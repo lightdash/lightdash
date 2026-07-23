@@ -1,3 +1,15 @@
+## [0.3470.3](https://github.com/lightdash/lightdash/compare/0.3470.2...0.3470.3) (2026-07-23)
+
+
+### Bug Fixes
+
+* make data freshness alert unshrinkable ([#26110](https://github.com/lightdash/lightdash/issues/26110)) ([785404d](https://github.com/lightdash/lightdash/commit/785404d2fc0b3117001932cf94903dda6a33dad8))
+
+
+### Reverts
+
+* commercial feature flag env guard ([#26072](https://github.com/lightdash/lightdash/issues/26072), [#26078](https://github.com/lightdash/lightdash/issues/26078)) ([#26107](https://github.com/lightdash/lightdash/issues/26107)) ([5a396e9](https://github.com/lightdash/lightdash/commit/5a396e99fe387e7ea12cba3b8b50e843aab79704))
+
 ## [0.3470.2](https://github.com/lightdash/lightdash/compare/0.3470.1...0.3470.2) (2026-07-23)
 
 
