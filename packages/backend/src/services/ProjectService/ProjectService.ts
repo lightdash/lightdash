@@ -2403,6 +2403,9 @@ export class ProjectService extends BaseService {
             data.warehouseConnection,
             internalProvisioning,
         );
+        ProjectService.assertPersistableSnowflakeAuthentication(
+            data.warehouseConnection,
+        );
 
         await this.validateProjectCreationPermissions(user, data);
 
@@ -2668,6 +2671,9 @@ export class ProjectService extends BaseService {
         }
 
         ProjectService.assertEmbeddedCredentialsAreInternal(
+            data.warehouseConnection,
+        );
+        ProjectService.assertPersistableSnowflakeAuthentication(
             data.warehouseConnection,
         );
 
@@ -3092,8 +3098,45 @@ export class ProjectService extends BaseService {
         }
     }
 
+    /*
+    Interactive Snowflake authentication types need a browser on every
+    connect, so they cannot be used from headless backend/scheduler runs.
+    External browser is still allowed when `requireUserCredentials` is set,
+    since each user then connects with their own credentials and the
+    project-level authentication type is never used to connect.
+    */
+    private static assertPersistableSnowflakeAuthentication(
+        credentials: CreateWarehouseCredentials | undefined,
+    ): void {
+        if (credentials?.type !== WarehouseTypes.SNOWFLAKE) {
+            return;
+        }
+        if (
+            credentials.authenticationType ===
+            SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE
+        ) {
+            throw new ParameterError(
+                'Snowflake OAuth authorization code authentication is only supported in the CLI and cannot be saved on a project',
+            );
+        }
+        if (
+            credentials.authenticationType ===
+                SnowflakeAuthenticationType.EXTERNAL_BROWSER &&
+            !credentials.requireUserCredentials
+        ) {
+            throw new ParameterError(
+                'Snowflake external browser authentication is only supported in the CLI and cannot be saved on a project',
+            );
+        }
+    }
+
     validateConfigSecrets(project: UpdateProject) {
         switch (project.warehouseConnection?.type) {
+            case WarehouseTypes.SNOWFLAKE:
+                ProjectService.assertPersistableSnowflakeAuthentication(
+                    project.warehouseConnection,
+                );
+                break;
             case WarehouseTypes.BIGQUERY:
                 const keyFileContents =
                     project.warehouseConnection?.keyfileContents;
