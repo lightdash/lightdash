@@ -172,7 +172,8 @@
       "files": [
         "src/features/funnelBuilder/**",
         "src/features/metricsCatalog/**",
-        "src/features/omnibar/**"
+        "src/features/omnibar/**",
+        "src/features/parameters/**"
       ],
       "rules": {
         "no-restricted-imports": [
