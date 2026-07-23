@@ -1916,6 +1916,16 @@ const models: TsoaRoute.Models = {
                             {
                                 dataType: 'nestedObjectLiteral',
                                 nestedProperties: {
+                                    rows: {
+                                        dataType: 'union',
+                                        subSchemas: [
+                                            {
+                                                dataType: 'array',
+                                                array: { dataType: 'string' },
+                                            },
+                                            { dataType: 'undefined' },
+                                        ],
+                                    },
                                     columns: {
                                         dataType: 'array',
                                         array: { dataType: 'string' },
@@ -6940,6 +6950,16 @@ const models: TsoaRoute.Models = {
                             {
                                 dataType: 'nestedObjectLiteral',
                                 nestedProperties: {
+                                    rows: {
+                                        dataType: 'union',
+                                        subSchemas: [
+                                            {
+                                                dataType: 'array',
+                                                array: { dataType: 'string' },
+                                            },
+                                            { dataType: 'undefined' },
+                                        ],
+                                    },
                                     columns: {
                                         dataType: 'array',
                                         array: { dataType: 'string' },
@@ -7251,6 +7271,16 @@ const models: TsoaRoute.Models = {
                         {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                rows: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        {
+                                            dataType: 'array',
+                                            array: { dataType: 'string' },
+                                        },
+                                        { dataType: 'undefined' },
+                                    ],
+                                },
                                 columns: {
                                     dataType: 'array',
                                     array: { dataType: 'string' },
@@ -12116,6 +12146,10 @@ const models: TsoaRoute.Models = {
                 pivotConfig: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        rows: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                        },
                         columns: {
                             dataType: 'array',
                             array: { dataType: 'string' },
@@ -38996,6 +39030,16 @@ const models: TsoaRoute.Models = {
                             {
                                 dataType: 'nestedObjectLiteral',
                                 nestedProperties: {
+                                    rows: {
+                                        dataType: 'union',
+                                        subSchemas: [
+                                            {
+                                                dataType: 'array',
+                                                array: { dataType: 'string' },
+                                            },
+                                            { dataType: 'undefined' },
+                                        ],
+                                    },
                                     columns: {
                                         dataType: 'array',
                                         array: { dataType: 'string' },
@@ -43014,6 +43058,10 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'string' },
                 },
                 columnOrder: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+                rowFieldIds: {
                     dataType: 'array',
                     array: { dataType: 'string' },
                 },

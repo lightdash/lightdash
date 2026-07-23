@@ -2083,6 +2083,12 @@
                     },
                     "pivotConfig": {
                         "properties": {
+                            "rows": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
                             "columns": {
                                 "items": {
                                     "type": "string"
@@ -7414,6 +7420,12 @@
                     },
                     "pivotConfig": {
                         "properties": {
+                            "rows": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
                             "columns": {
                                 "items": {
                                     "type": "string"
@@ -7760,6 +7772,12 @@
                     },
                     "pivotConfig": {
                         "properties": {
+                            "rows": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
                             "columns": {
                                 "items": {
                                     "type": "string"
@@ -13081,6 +13099,13 @@
                     },
                     "pivotConfig": {
                         "properties": {
+                            "rows": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "description": "Ordered fields to render on the pivot row axis"
+                            },
                             "columns": {
                                 "items": {
                                     "type": "string"
@@ -39213,6 +39238,12 @@
                     },
                     "pivotConfig": {
                         "properties": {
+                            "rows": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
                             "columns": {
                                 "items": {
                                     "type": "string"
@@ -43069,6 +43100,13 @@
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "rowFieldIds": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Ordered dimension and value field IDs rendered once on the row axis."
                     },
                     "metricsAsRows": {
                         "type": "boolean"
@@ -49181,7 +49219,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3469.0",
+        "version": "0.3470.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

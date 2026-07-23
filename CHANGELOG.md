@@ -1,3 +1,18 @@
+# [0.3470.0](https://github.com/lightdash/lightdash/compare/0.3469.0...0.3470.0) (2026-07-23)
+
+
+### Bug Fixes
+
+* **frontend:** trim code in CodeBlock so line numbers stay aligned ([#26091](https://github.com/lightdash/lightdash/issues/26091)) ([9e1a175](https://github.com/lightdash/lightdash/commit/9e1a1758677958b7ba76b0bf1d5ccd706945fefc))
+
+
+### Features
+
+* **ai:** AI_COPILOT_SELF_MANAGED_PROVIDERS marks instance-level customer keys in usage analytics ([#25984](https://github.com/lightdash/lightdash/issues/25984)) ([5a22e01](https://github.com/lightdash/lightdash/commit/5a22e01784a4c121e122d8a2e9285980a0b4908c))
+* configure metrics as pivot row fields ([#26059](https://github.com/lightdash/lightdash/issues/26059)) ([af9b4f4](https://github.com/lightdash/lightdash/commit/af9b4f47c222c7fd2da61e362f94d308d0c647bb))
+* preserve pivot row fields in backend flows ([#26058](https://github.com/lightdash/lightdash/issues/26058)) ([21ffb26](https://github.com/lightdash/lightdash/commit/21ffb26e873c2b18fec84dbf23551a74b93e24f2))
+* support ordered pivot row fields ([#26052](https://github.com/lightdash/lightdash/issues/26052)) ([c26f291](https://github.com/lightdash/lightdash/commit/c26f2912382e37704746dba1a4d00289d850ad99))
+
 # [0.3469.0](https://github.com/lightdash/lightdash/compare/0.3468.0...0.3469.0) (2026-07-23)
 
 
