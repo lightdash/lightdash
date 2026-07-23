@@ -55,6 +55,7 @@ import {
     ApiUpdateUserAgentPreferences,
     assertUnreachable,
     CommercialFeatureFlags,
+    ConflictError,
     ContentType,
     DbtProjectType,
     derivePivotConfigurationFromChart,
@@ -4590,6 +4591,14 @@ export class AiAgentService extends BaseService {
                 agentUuid,
                 threadUuid,
             });
+
+            // Re-running an answered prompt would stamp an error onto a good
+            // response (chat history already ends with its assistant answer)
+            if (prompt.response) {
+                throw new ConflictError(
+                    'The latest message already has a response. Refresh the page to see it.',
+                );
+            }
 
             if (!validatedUser.organizationUuid) {
                 throw new ForbiddenError();

@@ -313,12 +313,14 @@ const AssistantBubbleContent: FC<{
     message: AiAgentMessageAssistant;
     projectUuid: string;
     agentUuid: string;
+    isLastMessage: boolean;
     mcpServers?: AiMcpServer[];
     onDashboardLinkClick?: (url: string) => void;
 }> = ({
     message,
     projectUuid,
     agentUuid,
+    isLastMessage,
     mcpServers,
     onDashboardLinkClick,
 }) => {
@@ -520,28 +522,32 @@ const AssistantBubbleContent: FC<{
                                 </Text>
                             </Stack>
                         </Alert>
-                        <Button
-                            size="xs"
-                            variant="default"
-                            color="ldDark.5"
-                            leftSection={
-                                <MantineIcon
-                                    icon={IconRefresh}
-                                    size="sm"
-                                    color="ldGray.7"
-                                />
-                            }
-                            onClick={() =>
-                                handleRetry({
-                                    projectUuid,
-                                    agentUuid,
-                                    threadUuid: message.threadUuid,
-                                    messageUuid: message.uuid,
-                                })
-                            }
-                        >
-                            Try again
-                        </Button>
+                        {/* Retry re-runs the thread's latest prompt, so only
+                            offer it on the message it would actually re-run */}
+                        {isLastMessage && (
+                            <Button
+                                size="xs"
+                                variant="default"
+                                color="ldDark.5"
+                                leftSection={
+                                    <MantineIcon
+                                        icon={IconRefresh}
+                                        size="sm"
+                                        color="ldGray.7"
+                                    />
+                                }
+                                onClick={() =>
+                                    handleRetry({
+                                        projectUuid,
+                                        agentUuid,
+                                        threadUuid: message.threadUuid,
+                                        messageUuid: message.uuid,
+                                    })
+                                }
+                            >
+                                Try again
+                            </Button>
+                        )}
                     </Group>
                 </Paper>
             )}
@@ -854,6 +860,7 @@ const AssistantBubbleContent: FC<{
 
 type Props = {
     message: AiAgentMessageAssistant;
+    isLastMessage: boolean;
     isActive?: boolean;
     debug?: boolean;
     projectUuid: string;
@@ -868,6 +875,7 @@ type Props = {
 export const AssistantBubble: FC<Props> = memo(
     ({
         message,
+        isLastMessage,
         isActive = false,
         debug = false,
         projectUuid,
@@ -969,6 +977,7 @@ export const AssistantBubble: FC<Props> = memo(
                     message={message}
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
+                    isLastMessage={isLastMessage}
                     mcpServers={mcpServers}
                     onDashboardLinkClick={onDashboardLinkClick}
                 />
