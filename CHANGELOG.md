@@ -1,3 +1,16 @@
+# [0.3468.0](https://github.com/lightdash/lightdash/compare/0.3467.0...0.3468.0) (2026-07-23)
+
+
+### Bug Fixes
+
+* **backend:** allow all commercial env flags in EE ([#26078](https://github.com/lightdash/lightdash/issues/26078)) ([53d9370](https://github.com/lightdash/lightdash/commit/53d93709de026805e1bc3c765bebd918d91aa7be))
+* guard commercial env feature flags ([#26072](https://github.com/lightdash/lightdash/issues/26072)) ([d9c6d1f](https://github.com/lightdash/lightdash/commit/d9c6d1f13fc157bcbd3ecc61acca83c3419a6f4a))
+
+
+### Features
+
+* surface Claude's thoughts in data-app build status again ([#26073](https://github.com/lightdash/lightdash/issues/26073)) ([6a8f353](https://github.com/lightdash/lightdash/commit/6a8f353ab8d4a2436233bd294d98ce5fa3a588cc))
+
 # [0.3467.0](https://github.com/lightdash/lightdash/compare/0.3466.0...0.3467.0) (2026-07-23)
 
 
