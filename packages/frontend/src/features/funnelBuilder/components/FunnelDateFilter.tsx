@@ -1,12 +1,8 @@
 import { FUNNEL_DATE_PRESETS, type FunnelDatePreset } from '@lightdash/common';
 import { Group, SegmentedControl } from '@mantine-8/core';
-import { DatePickerInput } from '@mantine-8/dates';
 import { useCallback, type FC } from 'react';
-import {
-    formatMantineDateRange,
-    type MantineDateRange,
-} from '../../../components/common/Filters/FilterInputs/mantineDateAdapter';
-import { serializeMantineDateRangeToIso } from '../../../components/common/Filters/FilterInputs/mantineDateSerialization';
+import CalendarRangePickerInput from '../../../components/common/DatePickers/CalendarRangePickerInput';
+import { type CalendarDateRange } from '../../../components/common/DatePickers/types';
 import { useAppDispatch, useAppSelector } from '../store';
 import {
     selectCustomDateRange,
@@ -21,14 +17,20 @@ export const FunnelDateFilter: FC = () => {
     const customDateRange = useAppSelector(selectCustomDateRange);
 
     // Convert ISO strings to Date objects for the picker
-    const customDateRangeDates: [Date | null, Date | null] = [
+    const customDateRangeDates: CalendarDateRange = [
         customDateRange[0] ? new Date(customDateRange[0]) : null,
         customDateRange[1] ? new Date(customDateRange[1]) : null,
     ];
 
     const handleCustomDateChange = useCallback(
-        (range: MantineDateRange) => {
-            dispatch(setCustomDateRange(serializeMantineDateRangeToIso(range)));
+        (range: CalendarDateRange) => {
+            // Persisting a calendar date as an ISO instant is funnel policy
+            dispatch(
+                setCustomDateRange([
+                    range[0]?.toISOString() ?? null,
+                    range[1]?.toISOString() ?? null,
+                ]),
+            );
         },
         [dispatch],
     );
@@ -47,10 +49,9 @@ export const FunnelDateFilter: FC = () => {
             />
 
             {dateRangePreset === 'custom' && (
-                <DatePickerInput
-                    type="range"
+                <CalendarRangePickerInput
                     label="Custom Date Range"
-                    value={formatMantineDateRange(customDateRangeDates)}
+                    value={customDateRangeDates}
                     onChange={handleCustomDateChange}
                 />
             )}
