@@ -308,6 +308,13 @@ export enum FeatureFlags {
      * default; enable per-org.
      */
     EmailWhitelabel = 'email-whitelabel',
+
+    /**
+     * Gate the customer-facing read-only Roadmap page and its instance-side
+     * backend proxy to the central roadmap service. Off by default while the
+     * feature is built out across the roadmap service and app.
+     */
+    Roadmap = 'roadmap',
 }
 
 export type FeatureFlag = {
