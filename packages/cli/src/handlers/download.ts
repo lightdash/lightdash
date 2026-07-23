@@ -153,7 +153,7 @@ export type DownloadHandlerOptions = {
     googleSheets: string[];
     scheduledDeliveries: string[];
     virtualViews: string[];
-    apps?: string[]; // specific app UUIDs (enterprise); absent = no explicit selection
+    apps?: string[]; // specific app UUIDs or URLs (enterprise); absent = no explicit selection
     includeAgents?: boolean;
     includeApps?: boolean; // download: all of the project's apps, capped at --apps-limit; upload: all app folders on disk
     appsLimit?: string; // download only: cap for the --include-apps listing (default 50); raw string from commander
@@ -1347,7 +1347,7 @@ export const downloadHandler = async (
         });
         if (appsOnlySelection.mode === 'none') {
             throw new ParameterError(
-                'Nothing to download: --apps-only requires --apps <appUuids...>, --include-apps, or --include-all.',
+                'Nothing to download: --apps-only requires --apps <appReferences...>, --include-apps, or --include-all.',
             );
         }
         options.skipCharts = true;

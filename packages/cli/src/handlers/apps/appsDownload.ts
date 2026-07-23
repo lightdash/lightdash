@@ -4,8 +4,31 @@ import {
     ParameterError,
     type DataAppCodeDownload,
 } from '@lightdash/common';
+import { validate as isUuid } from 'uuid';
 
 export const DEFAULT_APPS_LIMIT = 50;
+
+export const getDataAppUuidFromReference = (reference: string): string => {
+    let url: URL;
+    try {
+        url = new URL(reference);
+    } catch {
+        return reference;
+    }
+
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        return reference;
+    }
+
+    const pathSegments = url.pathname.split('/').filter(Boolean);
+    const appSegmentIndex = pathSegments.findIndex(
+        (segment, index) =>
+            (segment === 'apps' || segment === 'app') &&
+            isUuid(pathSegments[index + 1]),
+    );
+
+    return appSegmentIndex >= 0 ? pathSegments[appSegmentIndex + 1] : reference;
+};
 
 /**
  * Resolves the --apps-limit flag. Commander passes the raw string (or
@@ -56,7 +79,7 @@ export const selectAppsToDownload = (request: {
     apps?: string[];
     includeApps?: boolean;
 }): AppsDownloadSelection => {
-    const explicitUuids = request.apps ?? [];
+    const explicitUuids = (request.apps ?? []).map(getDataAppUuidFromReference);
     if (request.includeApps) {
         return { mode: 'list-all', extraAppUuids: explicitUuids };
     }

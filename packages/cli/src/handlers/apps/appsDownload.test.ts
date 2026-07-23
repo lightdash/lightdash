@@ -11,12 +11,40 @@ import {
     computeUpsertedTotal,
     DEFAULT_APPS_LIMIT,
     ensureDownloadedAppContext,
+    getDataAppUuidFromReference,
     manifestRetargetHint,
     resolveAppsLimit,
     selectAppsToDownload,
     shouldFallBackToSpaceScopedListing,
     shouldWarnAllSkipped,
 } from './appsDownload';
+
+describe('getDataAppUuidFromReference', () => {
+    const appUuid = 'd3afc44c-6f0f-4d9f-a267-fb739efa31dd';
+    const projectUuid = 'd4c8dfd2-98c0-4eb2-8395-d924aee62611';
+
+    it('keeps a bare app UUID unchanged', () => {
+        expect(getDataAppUuidFromReference(appUuid)).toBe(appUuid);
+    });
+
+    it.each([
+        `https://app.lightdash.cloud/projects/${projectUuid}/apps/${appUuid}`,
+        `https://app.lightdash.cloud/projects/${projectUuid}/apps/${appUuid}/view`,
+        `https://app.lightdash.cloud/projects/${projectUuid}/apps/${appUuid}/versions/2/view?state=filters#preview`,
+        `https://app.lightdash.cloud/embed/${projectUuid}/app/${appUuid}`,
+    ])('extracts the app UUID from %s', (url) => {
+        expect(getDataAppUuidFromReference(url)).toBe(appUuid);
+    });
+
+    it.each([
+        'my-app',
+        `https://app.lightdash.cloud/${appUuid}`,
+        `https://app.lightdash.cloud/projects/${projectUuid}/apps/generate`,
+        `ftp://app.lightdash.cloud/projects/${projectUuid}/apps/${appUuid}`,
+    ])('leaves unsupported references unchanged: %s', (reference) => {
+        expect(getDataAppUuidFromReference(reference)).toBe(reference);
+    });
+});
 
 const makeDownload = (): DataAppCodeDownload =>
     ({
@@ -64,6 +92,19 @@ describe('selectAppsToDownload', () => {
         expect(
             selectAppsToDownload({ apps: ['uuid-a'], includeApps: true }),
         ).toEqual({ mode: 'list-all', extraAppUuids: ['uuid-a'] });
+    });
+
+    it('normalizes explicit app URLs without listing apps', () => {
+        expect(
+            selectAppsToDownload({
+                apps: [
+                    'https://app.lightdash.cloud/projects/project-uuid/apps/d3afc44c-6f0f-4d9f-a267-fb739efa31dd/view',
+                ],
+            }),
+        ).toEqual({
+            mode: 'explicit',
+            appUuids: ['d3afc44c-6f0f-4d9f-a267-fb739efa31dd'],
+        });
     });
 
     it('skips apps when neither flag is passed', () => {
