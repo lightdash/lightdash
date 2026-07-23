@@ -10,6 +10,17 @@ const CONNECTION = lightdashConfig.database.connectionUri
     ? parse(lightdashConfig.database.connectionUri)
     : {};
 
+const connection = {
+    ...CONNECTION,
+    keepAlive: lightdashConfig.database.keepAlive,
+    keepAliveInitialDelayMillis:
+        lightdashConfig.database.keepAliveInitialDelayMillis,
+    connectionTimeoutMillis: lightdashConfig.database.connectionTimeoutMillis,
+    ...(lightdashConfig.database.queryTimeoutMillis !== undefined
+        ? { query_timeout: lightdashConfig.database.queryTimeoutMillis }
+        : {}),
+};
+
 export const DEFAULT_DB_MAX_CONNECTIONS = 10;
 
 // Condition to be removed once we require Postgres vector extension
@@ -17,7 +28,7 @@ const hasEnterpriseLicense = !!lightdashConfig.license.licenseKey;
 
 const development: Knex.Config<Knex.PgConnectionConfig> = {
     client: 'pg',
-    connection: CONNECTION,
+    connection,
     pool: {
         min: lightdashConfig.database.minConnections || 0,
         max:
