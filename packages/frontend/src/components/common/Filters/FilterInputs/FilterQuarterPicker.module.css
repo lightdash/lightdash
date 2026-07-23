@@ -1,0 +1,17 @@
+.monthControl {
+    &[data-quarter-selected] {
+        background-color: var(--mantine-color-blue-2);
+
+        &:hover {
+            background-color: var(--mantine-color-blue-2);
+        }
+    }
+
+    &[data-quarter-hovered] {
+        background-color: var(--mantine-color-blue-1);
+
+        &:hover {
+            background-color: var(--mantine-color-blue-1);
+        }
+    }
+}
