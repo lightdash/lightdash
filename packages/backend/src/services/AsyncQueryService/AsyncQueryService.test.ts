@@ -3212,6 +3212,29 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncSqlQuery', () => {
+        it('throws ForbiddenError when the account lacks manage:SqlRunner', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+
+            const viewerAccount = {
+                ...sessionAccount,
+                user: {
+                    ...sessionAccount.user,
+                    ability: new Ability<PossibleAbilities>([
+                        { subject: 'Project', action: ['view'] },
+                    ]),
+                },
+            } as unknown as Account;
+
+            await expect(
+                service.executeAsyncSqlQuery({
+                    account: viewerAccount,
+                    projectUuid,
+                    sql: 'SELECT 1',
+                    context: QueryExecutionContext.SQL_RUNNER,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
         describe('cache invalidation', () => {
             it('skips cache when invalidateCache is true', async () => {
                 const service = getMockedAsyncQueryService({

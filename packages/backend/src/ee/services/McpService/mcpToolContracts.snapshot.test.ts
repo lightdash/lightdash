@@ -1,6 +1,9 @@
 import { Ability } from '@casl/ability';
 import {
+    defineUserAbility,
     mcpToolDefinitions,
+    OrganizationMemberRole,
+    ProjectMemberRole,
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
@@ -152,7 +155,10 @@ describe('MCP tool contracts', () => {
 
         mockRegisteredMcpTools.length = 0;
         mockRegisteredMcpPrompts.length = 0;
-        await mcpService.createServer({ aiWritebackEnabled: true });
+        await mcpService.createServer({
+            aiWritebackEnabled: true,
+            runSqlEnabled: true,
+        });
 
         const prompts = mockRegisteredMcpPrompts.map(({ name, config }) => ({
             name,
@@ -199,6 +205,104 @@ describe('MCP tool contracts', () => {
         expect(mockRegisteredMcpTools.map(({ name }) => name)).not.toContain(
             McpToolName.RUN_SQL,
         );
+    });
+
+    describe('isRunSqlEnabled', () => {
+        const ORG_UUID = 'org-1';
+        const PROJECT_A = 'project-a';
+        const PROJECT_B = 'project-b';
+
+        const buildUser = (
+            orgRole: OrganizationMemberRole,
+            projectProfiles: {
+                projectUuid: string;
+                role: ProjectMemberRole;
+            }[] = [],
+        ): SessionUser => {
+            const userUuid = 'user-1';
+            const ability = defineUserAbility(
+                {
+                    role: orgRole,
+                    organizationUuid: ORG_UUID,
+                    userUuid,
+                    roleUuid: undefined,
+                },
+                projectProfiles.map((profile) => ({
+                    ...profile,
+                    userUuid,
+                    roleUuid: undefined,
+                })),
+            );
+            return {
+                userUuid,
+                organizationUuid: ORG_UUID,
+                ability,
+            } as unknown as SessionUser;
+        };
+
+        const makeServiceWithContextProject = (
+            projectUuid?: string,
+        ): McpService => {
+            const service = makeMcpService();
+            (
+                service as unknown as {
+                    mcpContextModel: {
+                        getContext: (...args: unknown[]) => unknown;
+                    };
+                }
+            ).mcpContextModel = {
+                getContext: vi
+                    .fn()
+                    .mockResolvedValue(
+                        projectUuid ? { context: { projectUuid } } : undefined,
+                    ),
+            };
+            return service;
+        };
+
+        it('is false for a viewer of the pinned project', async () => {
+            const service = makeServiceWithContextProject();
+            const viewer = buildUser(OrganizationMemberRole.VIEWER, [
+                { projectUuid: PROJECT_A, role: ProjectMemberRole.VIEWER },
+            ]);
+            expect(await service.isRunSqlEnabled(viewer, PROJECT_A)).toBe(false);
+        });
+
+        it('is true for a developer of the pinned project', async () => {
+            const service = makeServiceWithContextProject();
+            const developer = buildUser(OrganizationMemberRole.VIEWER, [
+                { projectUuid: PROJECT_A, role: ProjectMemberRole.DEVELOPER },
+            ]);
+            expect(await service.isRunSqlEnabled(developer, PROJECT_A)).toBe(
+                true,
+            );
+        });
+
+        it('is false when the caller is a developer elsewhere but a viewer of the pinned project', async () => {
+            const service = makeServiceWithContextProject();
+            // Developer in project B, but only an org-viewer for project A.
+            const user = buildUser(OrganizationMemberRole.VIEWER, [
+                { projectUuid: PROJECT_B, role: ProjectMemberRole.DEVELOPER },
+            ]);
+            expect(await service.isRunSqlEnabled(user, PROJECT_A)).toBe(false);
+            expect(await service.isRunSqlEnabled(user, PROJECT_B)).toBe(true);
+        });
+
+        it('resolves the project from mcp_context when no header is pinned', async () => {
+            const service = makeServiceWithContextProject(PROJECT_A);
+            const viewer = buildUser(OrganizationMemberRole.VIEWER, [
+                { projectUuid: PROJECT_A, role: ProjectMemberRole.VIEWER },
+            ]);
+            expect(await service.isRunSqlEnabled(viewer)).toBe(false);
+        });
+
+        it('falls back to the coarse capability check when no project is resolved', async () => {
+            const service = makeServiceWithContextProject();
+            const orgDeveloper = buildUser(OrganizationMemberRole.DEVELOPER);
+            const orgViewer = buildUser(OrganizationMemberRole.VIEWER);
+            expect(await service.isRunSqlEnabled(orgDeveloper)).toBe(true);
+            expect(await service.isRunSqlEnabled(orgViewer)).toBe(false);
+        });
     });
 
     it('registers content and scheduled-delivery tools independently', async () => {
