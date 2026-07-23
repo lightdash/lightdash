@@ -1,5 +1,4 @@
 import { Box, Flex, Text, Button } from '@mantine-8/core';
-import { noop } from '@mantine/utils';
 import { IconAlertCircle, IconRefresh, IconTable } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import {
@@ -24,6 +23,8 @@ import DashboardHeaderContextMenu from './DashboardHeaderContextMenu';
 import ExplorerPivotTable from './ExplorerPivotTable';
 import MinimalCellContextMenu from './MinimalCellContextMenu';
 import PivotRerunState from './PivotRerunState';
+
+const noop = () => undefined;
 
 type SimpleTableProps = {
     isDashboard: boolean;

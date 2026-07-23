@@ -2076,7 +2076,8 @@ const PivotTable: FC<PivotTableProps> = ({
                                         withTextStyle={textStyle ?? false}
                                         withBoldFont={meta?.type === 'label'}
                                         withBackground={
-                                            conditionalFormatting?.backgroundColor
+                                            conditionalFormatting?.backgroundColor ??
+                                            false
                                         }
                                         withTooltip={
                                             labelFieldDescription ||
