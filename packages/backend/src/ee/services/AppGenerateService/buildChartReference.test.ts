@@ -30,4 +30,24 @@ describe('buildChartReference', () => {
         expect(ref.linked).toBe(false);
         expect(ref.sampleData).toBe(sample);
     });
+
+    it('preserves ordered pivot rows', () => {
+        const ref = buildChartReference(
+            {
+                ...chart,
+                pivotConfig: {
+                    columns: ['orders_status'],
+                    rows: ['orders_order_date', 'orders_total_revenue'],
+                },
+            },
+            'chart-3',
+            false,
+            null,
+        );
+
+        expect(ref.pivotConfig).toEqual({
+            columns: ['orders_status'],
+            rows: ['orders_order_date', 'orders_total_revenue'],
+        });
+    });
 });

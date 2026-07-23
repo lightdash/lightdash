@@ -2142,6 +2142,7 @@ describe('AsyncQueryService', () => {
         const pivotConfig = {
             pivotDimensions: ['order_date'],
             metricsAsRows: false,
+            rowFieldIds: ['user_id', 'amount'],
         };
 
         const baseReadyQueryHistory = (
@@ -2268,6 +2269,15 @@ describe('AsyncQueryService', () => {
             ).resolves.toMatchObject({ fileUrl: 'pivot-url' });
 
             expect(pivotSpy).toHaveBeenCalledTimes(1);
+            expect(pivotSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    options: expect.objectContaining({
+                        pivotConfig: expect.objectContaining({
+                            rowFieldIds: ['user_id', 'amount'],
+                        }),
+                    }),
+                }),
+            );
             expect(flatSpy).not.toHaveBeenCalled();
         });
 

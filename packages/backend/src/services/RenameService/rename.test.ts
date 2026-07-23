@@ -1224,6 +1224,7 @@ describe('renameSavedChart', () => {
             },
             pivotConfig: {
                 columns: ['payment_type'],
+                rows: ['payment_id', 'payment_amount'],
             },
         } as SavedChartDAO;
 
@@ -1260,6 +1261,10 @@ describe('renameSavedChart', () => {
             'invoice_amount',
         ]);
         expect(updatedChart.pivotConfig?.columns).toEqual(['invoice_type']);
+        expect(updatedChart.pivotConfig?.rows).toEqual([
+            'invoice_id',
+            'invoice_amount',
+        ]);
     });
 
     // Regression test for PROD-7548: model rename silently skipped charts

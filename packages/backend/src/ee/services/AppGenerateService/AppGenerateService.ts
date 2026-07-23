@@ -76,6 +76,7 @@ import {
     type MetricQuery,
     type PromoteAppAction,
     type PromoteAppDiff,
+    type SavedChart,
     type SessionUser,
     type TogglePinnedItemInfo,
 } from '@lightdash/common';
@@ -209,14 +210,11 @@ import { getTemplateInstructions } from './templates';
  * full async service.
  */
 export const buildChartReference = (
-    chart: {
-        name: string;
-        description?: string;
-        tableName: string;
-        metricQuery: MetricQuery;
-        chartConfig: ChartConfig;
-        pivotConfig?: { columns: string[] };
-    },
+    chart: Pick<
+        SavedChart,
+        'name' | 'tableName' | 'metricQuery' | 'chartConfig'
+    > &
+        Partial<Pick<SavedChart, 'description' | 'pivotConfig'>>,
     chartUuid: string,
     linked: boolean,
     sampleData: ChartSampleData | null,

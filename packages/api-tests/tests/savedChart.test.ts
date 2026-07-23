@@ -129,6 +129,36 @@ describe('Saved chart space selection', () => {
         expect(spaceUuids).toContain(fetchedChart.spaceUuid);
     });
 
+    it('Should persist ordered pivot rows when the chart is reloaded', async () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        const body: CreateChartInSpace = {
+            ...chartMock,
+            name: uniqueName('Chart with ordered pivot rows'),
+            pivotConfig: {
+                columns: ['orders_status'],
+                rows: ['orders_average_order_size'],
+            },
+            spaceUuid: undefined,
+            dashboardUuid: null,
+        };
+
+        const response = await admin.post<{ results: SavedChart }>(
+            `${apiUrl}/projects/${projectUuid}/saved`,
+            body,
+        );
+        expect(response.status).toBe(200);
+        createdChartUuids.push(response.body.results.uuid);
+
+        const getResponse = await admin.get<{ results: SavedChart }>(
+            `${apiUrl}/saved/${response.body.results.uuid}`,
+        );
+        expect(getResponse.status).toBe(200);
+        expect(getResponse.body.results.pivotConfig).toEqual({
+            columns: ['orders_status'],
+            rows: ['orders_average_order_size'],
+        });
+    });
+
     it('Should create a chart belonging to a dashboard', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
