@@ -1522,6 +1522,36 @@ describe('PivotQueryBuilder', () => {
             expect(result).toContain('month_order_ca_value');
         });
 
+        test('pinned sort-only table calc keeps the anchor path', () => {
+            const pinnedConfiguration = {
+                ...tableCalcSortConfiguration,
+                sortBy: [
+                    {
+                        reference: 'month_order',
+                        direction: SortByDirection.ASC,
+                        pivotValues: [{ reference: 'year', value: '2020' }],
+                    },
+                    { reference: 'year', direction: SortByDirection.ASC },
+                ],
+            };
+
+            const result = new PivotQueryBuilder(
+                baseSql,
+                pinnedConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            ).toSql();
+
+            expect(result).toContain('"month_order_anchor_column" AS (');
+            expect(replaceWhitespace(result)).toContain(
+                'MAX(CASE WHEN (q."year" = ac."anchor_year" OR (q."year" IS NULL AND ac."anchor_year" IS NULL)) THEN q."month_order_any" END) AS "month_order_ra_value"',
+            );
+            expect(replaceWhitespace(result)).not.toContain(
+                'MAX(q."month_order_any") AS "month_order_ra_value"',
+            );
+        });
+
         test('displayed table calc sorts keep anchor semantics', () => {
             const displayedTcConfiguration = {
                 indexColumn: [

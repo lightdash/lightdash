@@ -209,18 +209,24 @@ export class PivotQueryBuilder {
     }
 
     /**
-     * Sort-only (undisplayed) table-calc sorts use row-level semantics — MAX
-     * across all pivot columns — instead of the metric-sort anchor: anchoring
-     * a per-(index, group) calc to one group yields NULL for every index tuple
-     * absent from that group. Displayed table calcs and metrics keep anchor
-     * semantics; column ordering is not affected either way.
+     * Unpinned sort-only (undisplayed) table-calc sorts use row-level
+     * semantics — MAX across all pivot columns — instead of the metric-sort
+     * anchor: anchoring a per-(index, group) calc to one group yields NULL for
+     * every index tuple absent from that group. Displayed table calcs, metrics
+     * and explicitly pinned sorts (`pivotValues`) keep anchor semantics;
+     * column ordering is not affected either way.
      */
     private isSortOnlyTableCalculation(reference: string): boolean {
         const item = this.itemsMap[reference];
         if (!item || !isTableCalculation(item)) return false;
-        return (this.pivotConfiguration.sortOnlyColumns ?? []).some(
+        const isSortOnly = (this.pivotConfiguration.sortOnlyColumns ?? []).some(
             (col) => col.reference === reference,
         );
+        if (!isSortOnly) return false;
+        const sort = this.pivotConfiguration.sortBy?.find(
+            (s) => s.reference === reference,
+        );
+        return !sort?.pivotValues?.length;
     }
 
     /**
