@@ -15,7 +15,6 @@ import {
     Select,
     type ComboboxItemGroup,
 } from '@mantine-8/core';
-import { DatePickerInput } from '@mantine-8/dates';
 import { IconPlus } from '@tabler/icons-react';
 import React, {
     useCallback,
@@ -25,17 +24,13 @@ import React, {
     useState,
     type FC,
 } from 'react';
-import { formatMantineDate } from '../../../components/common/Filters/FilterInputs/mantineDateAdapter';
-import {
-    parseParameterDateValue,
-    serializeParameterDateValue,
-} from '../../../components/common/Filters/FilterInputs/mantineDateSerialization';
 import { formatDisplayValue } from '../../../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
     MAX_AUTOCOMPLETE_RESULTS,
     useFieldValuesSafely,
 } from '../../../hooks/useFieldValues';
+import ParameterDateInput from './ParameterDateInput';
 import styles from './ParameterInput.module.css';
 
 type ParameterInputProps = {
@@ -484,44 +479,17 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         ],
     );
 
-    // Render DateInput for date type parameters (single value only - multiple dates not yet supported)
+    // Date parameters use a dedicated input (single value only - multiple dates not yet supported)
     if (parameter.type === 'date' && !parameter.multiple) {
-        // Convert current ISO string value to Date object
-        const currentDate =
-            currentDateValues.length > 0
-                ? parseParameterDateValue(currentDateValues[0])
-                : null;
-
-        // Reasonable date range constraints
-        const minDate = new Date(1900, 0, 1); // January 1, 1900
-        const maxDate = new Date(2100, 11, 31); // December 31, 2100
-
-        const defaultValue =
-            typeof parameter.default === 'string'
-                ? parseParameterDateValue(parameter.default)
-                : null;
-
         return (
-            <DatePickerInput
-                value={formatMantineDate(currentDate || defaultValue)}
-                onChange={(mantineValue) => {
-                    onParameterChange(
-                        paramKey,
-                        serializeParameterDateValue(mantineValue),
-                    );
-                }}
-                firstDayOfWeek={0}
+            <ParameterDateInput
+                paramKey={paramKey}
+                parameter={parameter}
+                currentValue={currentDateValues[0] ?? null}
+                onParameterChange={onParameterChange}
                 size={size}
-                clearable
                 disabled={disabled}
-                error={isError}
-                minDate={formatMantineDate(minDate) ?? undefined}
-                maxDate={formatMantineDate(maxDate) ?? undefined}
-                popoverProps={{
-                    shadow: 'sm',
-                    withinPortal: false,
-                    zIndex: 10000,
-                }}
+                isError={isError}
             />
         );
     }

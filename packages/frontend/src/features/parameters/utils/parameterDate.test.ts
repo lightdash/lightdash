@@ -2,12 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
     parseParameterDateValue,
     serializeParameterDateValue,
-} from './mantineDateSerialization';
+} from './parameterDate';
 
-describe('Mantine Dates domain serialization', () => {
-    it('keeps parameter values as strict YYYY-MM-DD strings', () => {
-        expect(serializeParameterDateValue('2024-02-29')).toBe('2024-02-29');
-        expect(serializeParameterDateValue('2023-02-29')).toBeNull();
+describe('parameter date persistence', () => {
+    it('serializes calendar dates as strict YYYY-MM-DD strings', () => {
+        expect(serializeParameterDateValue(new Date(2024, 1, 29))).toBe(
+            '2024-02-29',
+        );
         expect(serializeParameterDateValue(null)).toBeNull();
     });
 
@@ -24,7 +25,14 @@ describe('Mantine Dates domain serialization', () => {
 
     it('rejects invalid legacy parameter date values', () => {
         expect(parseParameterDateValue('2025-02-29T00:00:00Z')).toBeNull();
+        expect(parseParameterDateValue('2023-02-29')).toBeNull();
         expect(parseParameterDateValue('not-a-date')).toBeNull();
         expect(parseParameterDateValue(null)).toBeNull();
+    });
+
+    it('round-trips through parse and serialize', () => {
+        expect(
+            serializeParameterDateValue(parseParameterDateValue('2024-02-29')),
+        ).toBe('2024-02-29');
     });
 });
