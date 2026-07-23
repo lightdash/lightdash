@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import {
-    aiAgentReviewClassifierJudgeOutputSchema,
+    aiAgentReviewClassifierJudgeCallOutputSchema,
+    aiAgentReviewClassifierJudgeProjectContextCallSchema,
     assertUnreachable,
     CatalogType,
     filterExploreByTags,
@@ -13,6 +14,7 @@ import {
     type AiAgentConfigSnapshot,
     type AiAgentConfigurationSetting,
     type AiAgentEvidenceExcerpt,
+    type AiAgentJudgeProjectContextEntry,
     type AiAgentKnowledgeDocumentSnapshot,
     type AiAgentMcpServerSnapshot,
     type AiAgentReviewClassifierEventType,
@@ -1571,7 +1573,10 @@ export class AiAgentReviewClassifierService extends BaseService {
             ...model.callOptions,
             providerOptions: model.providerOptions,
             experimental_telemetry: telemetry,
-            schema: aiAgentReviewClassifierJudgeOutputSchema,
+            // This schema is near the provider's strict-output grammar-size limit;
+            // growing it breaks EVERY judge call silently ("compiled grammar is too
+            // large"). Put new fields in a follow-up call like emitProjectContextEntry.
+            schema: aiAgentReviewClassifierJudgeCallOutputSchema,
             messages: [
                 {
                     role: 'system',
@@ -1663,14 +1668,6 @@ reviewItem.description should summarize why this grouping exists.
 
 Always populate targetRefs with every object the fix would touch (model, dimension, metric, join, explore). For semantic_layer and project_context findings these drive how findings collapse into one review item, so name the same object consistently across turns rather than varying the wording.
 
-Set projectContextEntry ONLY when primaryRootCause=project_context and a single durable, project-specific fact (a business definition or acronym, routing/join guidance, or object-scoped context) would prevent this class of failure in future turns. Otherwise set it to null.
-- op: "update" if one of the project context entries already injected into the reviewed turn was present but insufficient (reference its id); otherwise "create".
-- id: the existing entry id when op="update", otherwise null.
-- kind: definition | context. Use "definition" for acronyms and business vocabulary ("X means Y"); use "context" for everything else (routing/join rules, guidance, durable object-scoped facts).
-- content: a single self-contained sentence stating the fact (e.g. '"HR" = the high-risk diabetes cohort, not human resources.').
-- terms: the prompt-facing trigger words/phrases that should surface this entry (e.g. ["HR","high risk"]). Required for definitions.
-- objects: typed semantic object refs derived from targetRefs. For an explore use {"type":"explore","name":"payments"}. For a field use {"type":"field","explore":"payments","fieldId":"payments_total_amount"}; the owning explore is required and must be one where that field exists. Use [] when purely prompt-driven.
-
 Existing review items — dedup rules. The evidence packet field existingReviewItems lists this project's existing review items (key, title, status, dismissedReason, primaryRootCause, objectSummary). Apply these rules when promoting:
 - If the finding's underlying user need matches an existing item — even when you would assign a DIFFERENT root cause or blame a DIFFERENT object — set matchedExistingItemKey to that item's key. The test is "would a human say this is the same problem?", not "same technical label". A timeout, a missing field, and a routing gap that all block the same user question are ONE problem.
 - Items with dismissedReason=expected_behavior are known non-issues already reviewed by a human. If the turn's failure is that same behavior, set promotedToFinding=false and matchedExistingItemKey=null — do not re-file it.
@@ -1684,7 +1681,114 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
         });
         emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
-        return result.object as AiAgentReviewClassifierJudgeOutput;
+        const projectContextEntry =
+            result.object.promotedToFinding &&
+            result.object.primaryRootCause === 'project_context'
+                ? await this.emitProjectContextEntry({
+                      candidate,
+                      evidencePacket,
+                      model,
+                      judgeOutput: result.object,
+                  })
+                : null;
+
+        return {
+            ...result.object,
+            projectContextEntry,
+        } as AiAgentReviewClassifierJudgeOutput;
+    }
+
+    /**
+     * Second, smaller LLM call that emits the structured project_context entry
+     * for a promoted project_context finding. Split from the main judge call
+     * because the combined schema exceeds the provider's strict-structured-
+     * output grammar size limit ("the compiled grammar is too large") and every
+     * judge call then fails. Failure here degrades to a finding without an
+     * entry (writeback preview reports unavailable) instead of losing the
+     * whole judgment.
+     */
+    private async emitProjectContextEntry(input: {
+        candidate: AiAgentReviewClassifierTurnCandidate;
+        evidencePacket: AiAgentReviewJudgeEvidencePacket;
+        model: ReturnType<typeof getModel>;
+        judgeOutput: Omit<
+            AiAgentReviewClassifierJudgeOutput,
+            'projectContextEntry'
+        >;
+    }): Promise<AiAgentJudgeProjectContextEntry | null> {
+        const { candidate, evidencePacket, model, judgeOutput } = input;
+        this.debugLog('ProjectContextEntryRequest', {
+            promptUuid: candidate.subject.assistantPromptUuid,
+            threadUuid: candidate.subject.threadUuid,
+            judgeModelId: model.model.modelId,
+        });
+        const telemetry = getAiCallTelemetry({
+            functionId: 'aiAgentReviewClassifierJudgeProjectContextEntry',
+            feature: 'review-classifier',
+            organizationUuid: candidate.subject.organizationUuid,
+            projectUuid: candidate.subject.projectUuid,
+            agentUuid: candidate.subject.agentUuid,
+            threadUuid: candidate.subject.threadUuid,
+            promptUuid: candidate.subject.assistantPromptUuid,
+            ...getLanguageModelAttribution(model.model),
+        });
+        try {
+            const result = await generateObject({
+                model: model.model,
+                ...defaultAgentOptions,
+                ...model.callOptions,
+                providerOptions: model.providerOptions,
+                experimental_telemetry: telemetry,
+                schema: aiAgentReviewClassifierJudgeProjectContextCallSchema,
+                messages: [
+                    {
+                        role: 'system',
+                        content: `You emit the structured living-document entry for a Lightdash AI review finding whose root cause is project_context.
+
+Set projectContextEntry ONLY when a single durable, project-specific fact (a business definition or acronym, routing/join guidance, or object-scoped context) would prevent this class of failure in future turns. Otherwise set it to null.
+- op: "update" if one of the project context entries already injected into the reviewed turn was present but insufficient (reference its id); otherwise "create".
+- id: the existing entry id when op="update", otherwise null.
+- kind: definition | context. Use "definition" for acronyms and business vocabulary ("X means Y"); use "context" for everything else (routing/join rules, guidance, durable object-scoped facts).
+- content: a single self-contained sentence stating the fact (e.g. '"HR" = the high-risk diabetes cohort, not human resources.').
+- terms: the prompt-facing trigger words/phrases that should surface this entry (e.g. ["HR","high risk"]). Required for definitions.
+- objects: typed semantic object refs derived from the finding's targetRefs. For an explore use {"type":"explore","name":"payments"}. For a field use {"type":"field","explore":"payments","fieldId":"payments_total_amount"}; the owning explore is required and must be one where that field exists. Use [] when purely prompt-driven.
+
+Use only the supplied evidence packet and finding. Do not invent project fields or facts.`,
+                    },
+                    {
+                        role: 'user',
+                        content: JSON.stringify(
+                            {
+                                evidencePacket,
+                                finding: {
+                                    reviewItem: judgeOutput.reviewItem,
+                                    promotionReason:
+                                        judgeOutput.promotionReason,
+                                    targetRefs: judgeOutput.targetRefs,
+                                    subcategories: judgeOutput.subcategories,
+                                    recommendation: judgeOutput.recommendation,
+                                },
+                            },
+                            null,
+                            2,
+                        ),
+                    },
+                ],
+            });
+            emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
+            return result.object.projectContextEntry;
+        } catch (error) {
+            Logger.error(
+                'AI review project context entry emission failed; keeping finding without an entry',
+                {
+                    promptUuid: candidate.subject.assistantPromptUuid,
+                    threadUuid: candidate.subject.threadUuid,
+                    errorMessage:
+                        error instanceof Error ? error.message : String(error),
+                },
+            );
+            return null;
+        }
     }
 
     private async isEnabled(args: {

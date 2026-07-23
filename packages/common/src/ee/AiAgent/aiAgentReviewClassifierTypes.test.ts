@@ -1,6 +1,8 @@
 import {
     aiAgentJudgeProjectContextEntrySchema,
+    aiAgentReviewClassifierJudgeCallOutputSchema,
     aiAgentReviewClassifierJudgeOutputSchema,
+    aiAgentReviewClassifierJudgeProjectContextCallSchema,
     getAiAgentConfigSnapshotHash,
     getAiAgentReviewItemFingerprint,
     getAiAgentReviewItemFingerprintScope,
@@ -368,6 +370,61 @@ describe('aiAgentJudgeProjectContextEntrySchema', () => {
             objects: [],
         });
         expect(result.success).toBe(false);
+    });
+});
+
+describe('aiAgentReviewClassifierJudgeCallOutputSchema', () => {
+    test('strips projectContextEntry — it is emitted via a separate call', () => {
+        const { projectContextEntry, ...callOutput } = baseJudgeOutput;
+        const result = aiAgentReviewClassifierJudgeCallOutputSchema.safeParse({
+            ...callOutput,
+            projectContextEntry: { anything: true },
+        });
+        expect(result.success).toBe(true);
+        expect(result.success && 'projectContextEntry' in result.data).toBe(
+            false,
+        );
+    });
+
+    test('accepts a judge output without projectContextEntry', () => {
+        const { projectContextEntry, ...callOutput } = baseJudgeOutput;
+        expect(
+            aiAgentReviewClassifierJudgeCallOutputSchema.safeParse(callOutput)
+                .success,
+        ).toBe(true);
+    });
+
+    test('applies the promotion refinement', () => {
+        const { projectContextEntry, ...callOutput } = baseJudgeOutput;
+        expect(
+            aiAgentReviewClassifierJudgeCallOutputSchema.safeParse({
+                ...callOutput,
+                promotedToFinding: true,
+                primaryRootCause: 'not_a_failure',
+            }).success,
+        ).toBe(false);
+    });
+});
+
+describe('aiAgentReviewClassifierJudgeProjectContextCallSchema', () => {
+    test('accepts a typed entry and null', () => {
+        expect(
+            aiAgentReviewClassifierJudgeProjectContextCallSchema.safeParse({
+                projectContextEntry: {
+                    op: 'create',
+                    id: null,
+                    kind: 'definition',
+                    content: '"FC" = fulfillment center.',
+                    terms: ['FC'],
+                    objects: [{ type: 'explore', name: 'orders' }],
+                },
+            }).success,
+        ).toBe(true);
+        expect(
+            aiAgentReviewClassifierJudgeProjectContextCallSchema.safeParse({
+                projectContextEntry: null,
+            }).success,
+        ).toBe(true);
     });
 });
 
