@@ -25,6 +25,14 @@ export const APP_VERSION_STAGE_ORDER = [
 
 export const APP_VERSION_TERMINAL_STATUSES = ['ready', 'error'] as const;
 
+/**
+ * Error message stamped on a version when the user cancels its build. There is
+ * no dedicated 'cancelled' status — cancellation is an 'error' carrying this
+ * marker, which the pipeline also reads to detect that a previous prompt was
+ * cancelled mid-generation.
+ */
+export const APP_VERSION_CANCELLED_BY_USER = 'Cancelled by user';
+
 export type AppVersionStatus =
     | (typeof APP_VERSION_STAGE_ORDER)[number]
     | 'error';
