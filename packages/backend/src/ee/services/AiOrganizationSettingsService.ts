@@ -269,6 +269,20 @@ export class AiOrganizationSettingsService extends BaseService {
         return settings?.defaultAiAgentModelConfig ?? null;
     }
 
+    /**
+     * No SessionUser for the same reason as getDefaultModelConfig: read from
+     * Slack event handlers, which have no session.
+     */
+    async isExplicitSlackChannelLinkingRequired(
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                organizationUuid,
+            );
+        return settings?.requireExplicitSlackChannelLinking ?? false;
+    }
+
     async getSettings(
         user: SessionUser,
     ): Promise<AiOrganizationSettings & ComputedAiOrganizationSettings> {
@@ -321,6 +335,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 aiAgentsVisible: true,
                 aiAgentReviewsEnabled: false,
                 mcpContentWritesEnabled: true,
+                requireExplicitSlackChannelLinking: false,
                 defaultAiAgentModelConfig: null,
                 modelVisibility: effectiveModelVisibility,
                 dataAppModelVisibility: null,
