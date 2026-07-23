@@ -1,0 +1,45 @@
+.root {
+    & thead tr {
+        background-color: var(--mantine-color-ldGray-0);
+    }
+
+    & thead tr th {
+        font-size: var(--mantine-font-size-xs);
+        color: var(--mantine-color-ldGray-6);
+        font-weight: 600;
+        border-radius: var(--mantine-radius-sm);
+    }
+
+    & thead tr th,
+    & tbody tr td {
+        padding: var(--mantine-spacing-sm) var(--mantine-spacing-lg);
+    }
+}
+
+@media (hover: hover) {
+    .root[data-hover] tbody tr:hover {
+        cursor: pointer;
+        background-color: color-mix(
+            in srgb,
+            var(--mantine-color-ldGray-0) 50%,
+            transparent
+        );
+    }
+}
+
+@media (hover: none) {
+    .root[data-hover] tbody tr:active {
+        cursor: pointer;
+        background-color: color-mix(
+            in srgb,
+            var(--mantine-color-ldGray-0) 50%,
+            transparent
+        );
+    }
+}
+
+.alignLastTdRight {
+    & tr td:last-child {
+        text-align: right;
+    }
+}

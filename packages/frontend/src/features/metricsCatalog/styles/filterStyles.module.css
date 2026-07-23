@@ -1,0 +1,127 @@
+.baseInput {
+    font-weight: 500;
+    font-size: 14px;
+    height: 32px;
+    border-color: var(--mantine-color-ldGray-2);
+    color: var(--mantine-color-ldDark-9);
+
+    &:hover {
+        background-color: var(--mantine-color-ldGray-0);
+        transition: background-color 200ms ease-in-out;
+    }
+
+    &:focus,
+    &:focus-within {
+        border-color: var(--mantine-color-ldGray-2);
+    }
+}
+
+.baseItem {
+    font-size: 14px;
+
+    &[data-combobox-selected] {
+        color: var(--mantine-color-ldGray-7);
+        font-weight: 500;
+        background-color: var(--mantine-color-ldGray-0);
+    }
+
+    &[data-combobox-selected]:hover {
+        background-color: var(--mantine-color-ldGray-0);
+    }
+
+    &:hover {
+        background-color: var(--mantine-color-ldGray-0);
+        transition: background-color 200ms ease-in-out;
+    }
+}
+
+.filterRoot {
+    flex-grow: 1;
+}
+
+.filterWrapper {
+    --input-padding: var(--mantine-spacing-sm);
+}
+
+.filterInput {
+    composes: baseInput;
+    padding-block: var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-md);
+    min-width: 200px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    max-width: 100%;
+
+    &[value=''] {
+        border: 1px dashed var(--mantine-color-ldGray-4);
+    }
+
+    &[data-selected='true'] {
+        border-bottom-right-radius: 0;
+        border-bottom-left-radius: var(--mantine-radius-md);
+        border-top-right-radius: 0;
+    }
+
+    &[data-no-values='true'] {
+        border-bottom-left-radius: var(--mantine-radius-md);
+    }
+
+    &[data-no-values='false'] {
+        border-bottom-left-radius: 0;
+    }
+}
+
+.filterDropdown {
+    min-width: 300px;
+}
+
+.operatorRoot {
+    &:has(input[data-full-width='true']) {
+        flex-grow: 1;
+    }
+}
+
+.operatorWrapper {
+    --input-padding: 8px;
+}
+
+.operatorInput {
+    composes: baseInput;
+    border-radius: var(--mantine-radius-md);
+    width: 100px;
+    min-width: 100px;
+    max-width: 100px;
+    margin-left: -1px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    padding-block: var(--mantine-spacing-xs);
+
+    /* When filter accepts values, remove bottom-right radius (connects to autocomplete below) */
+    &[data-no-values='false'] {
+        border-bottom-right-radius: 0;
+    }
+
+    &[data-full-width='true'] {
+        width: 100%;
+        max-width: 100%;
+    }
+}
+
+.operatorDropdown {
+    min-width: 100px;
+}
+
+.rightSection {
+    pointer-events: none;
+}
+
+.filterContainer {
+    box-shadow: var(--mantine-shadow-subtle);
+    border-radius: var(--mantine-radius-md);
+}
+
+.applyButton {
+    box-shadow: var(--mantine-shadow-subtle);
+    align-self: flex-end;
+}

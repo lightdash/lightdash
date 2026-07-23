@@ -34,7 +34,7 @@ import {
     type FC,
     type SetStateAction,
 } from 'react';
-import { useTableStyles } from '../../../hooks/styles/useTableStyles';
+import tableStyles from '../../../hooks/styles/tableStyles.module.css';
 import {
     useAccessToken,
     useDeleteAccessToken,
@@ -270,8 +270,6 @@ const RotateTokenForm: FC<{
 export const TokensTable = () => {
     const { data } = useAccessToken();
 
-    const { cx, classes } = useTableStyles();
-
     const [tokenToDelete, setTokenToDelete] = useState<
         PersonalAccessToken | undefined
     >();
@@ -302,7 +300,9 @@ export const TokensTable = () => {
     return (
         <>
             <Paper withBorder style={{ overflow: 'hidden' }}>
-                <Table className={cx(classes.root, classes.alignLastTdRight)}>
+                <Table
+                    className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
+                >
                     <Table.Thead>
                         <Table.Tr>
                             <Table.Th>Description</Table.Th>
