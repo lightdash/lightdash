@@ -1396,6 +1396,155 @@ describe('PivotQueryBuilder', () => {
         });
     });
 
+    describe('Table calculation sorts (row-level, non-anchor semantics)', () => {
+        // Table-calc sorts order rows by MAX across all pivot columns and are
+        // excluded from column ordering — anchor semantics would NULL out every
+        // index tuple absent from the anchor group.
+        const itemsMap = {
+            month_order: {
+                name: 'month_order',
+                displayName: 'Month Order',
+                sql: 'MOD(CAST(${orders.month_num} AS INT) + 8, 12)',
+                type: TableCalculationType.NUMBER,
+            },
+            cumulative_volume: {
+                name: 'cumulative_volume',
+                displayName: 'Cumulative Volume',
+                sql: 'SUM(${orders.count}) OVER (PARTITION BY ${orders.year} ORDER BY ${orders.month})',
+                type: TableCalculationType.NUMBER,
+            },
+        } as unknown as ItemsMap;
+
+        const tableCalcSortConfiguration = {
+            indexColumn: [
+                { reference: 'month_name', type: VizIndexType.CATEGORY },
+                { reference: 'month', type: VizIndexType.TIME },
+            ],
+            valuesColumns: [
+                {
+                    reference: 'cumulative_volume',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ],
+            sortOnlyColumns: [
+                {
+                    reference: 'month_order',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ],
+            groupByColumns: [{ reference: 'year' }],
+            sortBy: [
+                { reference: 'month_order', direction: SortByDirection.ASC },
+                { reference: 'year', direction: SortByDirection.ASC },
+            ],
+        };
+
+        test('row_ranking orders by MAX across all groups instead of the anchor column value', () => {
+            const result = new PivotQueryBuilder(
+                baseSql,
+                tableCalcSortConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            ).toSql();
+
+            expect(replaceWhitespace(result)).toContain(
+                'MAX(q."month_order_any") AS "month_order_ra_value"',
+            );
+            expect(result).not.toContain('MAX(CASE WHEN');
+            expect(result).not.toContain('anchor_column AS (');
+            expect(replaceWhitespace(result)).toContain(
+                'ORDER BY g."month_order_ra_value" ASC',
+            );
+        });
+
+        test('column ordering ignores the table calc sort — columns order by group dimensions', () => {
+            const result = new PivotQueryBuilder(
+                baseSql,
+                tableCalcSortConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            ).toSql();
+
+            expect(result).not.toContain('month_order_ca_value');
+            expect(replaceWhitespace(result)).toContain(
+                'DENSE_RANK() OVER (ORDER BY g."year" ASC) AS "col_idx"',
+            );
+        });
+
+        test('metric sorts keep anchor semantics when mixed with a table calc sort', () => {
+            const mixedConfiguration = {
+                indexColumn: [
+                    { reference: 'month_name', type: VizIndexType.CATEGORY },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                sortOnlyColumns: [
+                    {
+                        reference: 'month_order',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'year' }],
+                sortBy: [
+                    { reference: 'revenue', direction: SortByDirection.DESC },
+                    {
+                        reference: 'month_order',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+            };
+
+            const result = new PivotQueryBuilder(
+                baseSql,
+                mixedConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            ).toSql();
+
+            // Metric keeps the anchor path
+            expect(result).toContain('anchor_column AS (');
+            expect(replaceWhitespace(result)).toContain(
+                'MAX(CASE WHEN (q."year" = ac."anchor_year" OR (q."year" IS NULL AND ac."anchor_year" IS NULL)) THEN q."revenue_sum" END) AS "revenue_ra_value"',
+            );
+            expect(result).toContain('revenue_ca_value');
+
+            // Table calc gets row-level MAX and no column anchor
+            expect(replaceWhitespace(result)).toContain(
+                'MAX(q."month_order_any") AS "month_order_ra_value"',
+            );
+            expect(result).not.toContain('month_order_ca_value');
+        });
+
+        test('single-scan path (no CTE materialization) also uses plain MAX for table calc sorts', () => {
+            const mockTrinoBuilder = {
+                ...mockWarehouseSqlBuilder,
+                getAdapterType: () => SupportedDbtAdapter.TRINO,
+                supportsCteMaterialization: () => false,
+            } as unknown as WarehouseSqlBuilder;
+
+            const result = new PivotQueryBuilder(
+                baseSql,
+                tableCalcSortConfiguration,
+                mockTrinoBuilder,
+                500,
+                itemsMap,
+            ).toSql();
+
+            expect(replaceWhitespace(result)).toContain(
+                'MAX(g."month_order_any") OVER (PARTITION BY g."month_name", g."month") AS "month_order_ra_value"',
+            );
+            expect(result).not.toContain('MAX(CASE WHEN');
+            expect(result).not.toContain('month_order_ca_value');
+        });
+    });
+
     describe('Sort handling', () => {
         test('Should handle single sort ascending', () => {
             const pivotConfiguration = {
