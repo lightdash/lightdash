@@ -6,6 +6,8 @@ import type { GroupByColumn, SortBy, ValuesColumn } from './sqlRunner';
 export type PivotConfig = {
     pivotDimensions: string[];
     metricsAsRows: boolean;
+    /** Ordered dimension and value field IDs rendered once on the row axis. */
+    rowFieldIds?: string[];
     columnOrder?: string[];
     hiddenMetricFieldIds?: string[];
     visibleMetricFieldIds?: string[];
@@ -73,7 +75,7 @@ export type PivotConfiguration = {
 };
 
 type Field =
-    | { type: FieldType.METRIC; fieldId?: undefined }
+    | { type: FieldType.METRIC; fieldId?: string }
     | { type: FieldType.DIMENSION; fieldId: string };
 
 type FieldValue =

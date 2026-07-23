@@ -3588,6 +3588,13 @@
                         "type": "string"
                     },
                     "type": "array"
+                },
+                "rows": {
+                    "description": "Ordered fields to render on the pivot row axis",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
                 }
             },
             "required": ["columns"],
