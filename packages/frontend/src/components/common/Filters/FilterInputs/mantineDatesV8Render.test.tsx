@@ -4,6 +4,7 @@ import { type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import FiltersContext from '../context';
+import FilterDateTimePicker from './FilterDateTimePicker';
 import FilterDateTimeRangePicker from './FilterDateTimeRangePicker';
 
 const mocks = vi.hoisted(() => ({
@@ -61,6 +62,42 @@ describe('Mantine Dates v8 runtime', () => {
 
         fireEvent.click(day15);
         expect(onChange).toHaveBeenCalledWith('2025-05-15');
+    });
+
+    // Pins the real library's emitted datetime string format: if a Mantine
+    // patch drifted from 'YYYY-MM-DD HH:mm:ss', parseMantineDateTime would
+    // return null and this onChange would never fire.
+    it('parses the real DateTimePicker emission into a successful onChange', async () => {
+        mocks.project.useProjectTimezoneInFilters = false;
+        mocks.timezoneSupportEnabled = false;
+        const onChange = vi.fn();
+        renderDateTimeRange(
+            <FilterDateTimePicker
+                value={new Date(2025, 4, 14, 10, 0, 0)}
+                firstDayOfWeek={1}
+                withSeconds
+                onChange={onChange}
+            />,
+        );
+
+        fireEvent.click(
+            screen.getByRole('button', { name: '2025-05-14 10:00:00' }),
+        );
+        let day15: HTMLElement | undefined;
+        await waitFor(() => {
+            day15 = screen
+                .getAllByRole('button')
+                .find((button) => button.textContent === '15');
+            expect(day15).toBeDefined();
+        });
+        if (!day15) throw new Error('Expected May 15 day control');
+        fireEvent.click(day15);
+
+        await waitFor(() =>
+            expect(onChange).toHaveBeenCalledWith(
+                new Date(2025, 4, 15, 10, 0, 0),
+            ),
+        );
     });
 
     it.each([false, true])(

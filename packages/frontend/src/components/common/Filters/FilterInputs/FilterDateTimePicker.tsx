@@ -118,6 +118,19 @@ const FilterDateTimePicker: FC<Props> = ({
         [projectTimezone],
     );
 
+    // Mantine v8 clamps out-of-range values to min/max on dropdown close (v6 never did);
+    // drop a bound the stored value already violates so persisted filters aren't rewritten
+    const safeMinDate = useMemo(() => {
+        if (!minDate) return undefined;
+        if (value && dayjs(value).isBefore(minDate)) return undefined;
+        return minDate;
+    }, [minDate, value]);
+    const safeMaxDate = useMemo(() => {
+        if (!maxDate) return undefined;
+        if (value && dayjs(value).isAfter(maxDate)) return undefined;
+        return maxDate;
+    }, [maxDate, value]);
+
     const browserTimezone = useMemo(() => dayjs.tz.guess(), []);
     const subtext = useMemo(() => {
         if (!value) return '';
@@ -190,8 +203,8 @@ const FilterDateTimePicker: FC<Props> = ({
                 {...rest}
                 popoverProps={{ shadow: 'sm', ...rest.popoverProps }}
                 firstDayOfWeek={firstDayOfWeek}
-                minDate={formatBound(minDate)}
-                maxDate={formatBound(maxDate)}
+                minDate={formatBound(safeMinDate)}
+                maxDate={formatBound(safeMaxDate)}
                 value={formatMantineDateTime(shiftedValue)}
                 onChange={handleChange}
                 inputWrapperOrder={['input', 'description']}

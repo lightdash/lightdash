@@ -81,12 +81,11 @@ describe('FilterQuarterPicker', () => {
         expect(onChange).not.toHaveBeenCalled();
     });
 
-    it('normalizes controlled values and user selections to quarter starts', async () => {
+    it('normalizes user selections, not controlled prop updates', async () => {
         const onChange = vi.fn();
         const { rerender } = renderPicker(new Date(2025, 1, 15), onChange);
 
-        expect(onChange).toHaveBeenCalledWith(new Date(2025, 0, 1));
-        onChange.mockClear();
+        expect(onChange).not.toHaveBeenCalled();
 
         rerender(
             <FilterQuarterPicker
@@ -94,8 +93,7 @@ describe('FilterQuarterPicker', () => {
                 onChange={onChange}
             />,
         );
-        expect(onChange).toHaveBeenCalledWith(new Date(2026, 6, 1));
-        onChange.mockClear();
+        expect(onChange).not.toHaveBeenCalled();
 
         fireEvent.click(screen.getByRole('textbox'));
         fireEvent.click(await screen.findByTestId('month-7'));
