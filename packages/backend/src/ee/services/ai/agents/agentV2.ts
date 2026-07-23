@@ -97,6 +97,70 @@ const createAiAgentLogger =
 
 const STEP_CAP = 40;
 
+const PERSIST_TIMEOUT_MS = 10_000;
+
+/**
+ * Decorates updatePrompt with the stream-close contract: awaiting it never
+ * throws and never holds the HTTP stream open past PERSIST_TIMEOUT_MS (the
+ * write continues in the background on timeout). If persisting a response
+ * fails outright, the update degrades to an error marker so a later page load
+ * shows a retry card instead of a silently vanished answer.
+ */
+const makeStreamSafePersist = (
+    updatePrompt: AiAgentDependencies['updatePrompt'],
+    modelName: string,
+) => {
+    const report = (error: unknown) => {
+        Logger.error('[AiAgent][Persist] Failed to persist prompt', error);
+        Sentry.captureException(error, {
+            tags: { 'ai.model': modelName },
+        });
+    };
+
+    const bounded = async (
+        update: Parameters<AiAgentDependencies['updatePrompt']>[0],
+    ): Promise<'persisted' | 'timeout' | 'failed'> => {
+        let timer: NodeJS.Timeout | undefined;
+        try {
+            const persist = updatePrompt(update);
+            const outcome = await Promise.race([
+                persist.then(() => 'persisted' as const),
+                new Promise<'timeout'>((resolve) => {
+                    timer = setTimeout(
+                        () => resolve('timeout'),
+                        PERSIST_TIMEOUT_MS,
+                    );
+                }),
+            ]);
+            if (outcome === 'timeout') {
+                Logger.warn(
+                    `[AiAgent][Persist] Persist exceeded ${PERSIST_TIMEOUT_MS}ms, continuing in background`,
+                );
+                persist.catch(report);
+            }
+            return outcome;
+        } catch (error) {
+            report(error);
+            return 'failed';
+        } finally {
+            clearTimeout(timer);
+        }
+    };
+
+    return async (
+        update: Parameters<AiAgentDependencies['updatePrompt']>[0],
+    ): Promise<void> => {
+        const outcome = await bounded(update);
+        if (outcome === 'failed' && update.response !== undefined) {
+            await bounded({
+                promptUuid: update.promptUuid,
+                errorMessage:
+                    'Something went wrong while saving the response. Please try again.',
+            });
+        }
+    };
+};
+
 const withToolHints = (
     messageHistory: ModelMessage[],
     toolHints: string[],
@@ -1144,6 +1208,10 @@ export const streamAgentResponse = async ({
     let firstTextTime: number | null = null;
     let mcpClientsClosed = false;
     const modelName = getAiAgentModelName(args.model);
+    const persistPrompt = makeStreamSafePersist(
+        dependencies.updatePrompt,
+        modelName,
+    );
 
     const cleanupMcpClients = async () => {
         if (mcpClientsClosed) {
@@ -1454,39 +1522,25 @@ export const streamAgentResponse = async ({
 
                 const stepCapReached = steps.length >= STEP_CAP;
 
-                // Await the persist before onFinish resolves — the AI SDK holds
-                // the stream open until this callback completes, so the HTTP
-                // stream only closes once the response is in the DB. Without
-                // this, the client's post-stream refetch can win the race and
-                // read a still-null message, blanking the bubble until refresh.
-                try {
-                    if (stepCapReached && !completeResponse) {
-                        await dependencies.updatePrompt({
-                            promptUuid: args.promptUuid,
-                            errorMessage: getUserFacingErrorMessage(
-                                new AiAgentStepCapReachedError(steps.length),
-                            ),
-                            tokenUsage: {
-                                totalTokens: usage.totalTokens ?? 0,
-                            },
-                        });
-                    } else {
-                        await dependencies.updatePrompt({
-                            response: completeResponse,
-                            promptUuid: args.promptUuid,
-                            tokenUsage: {
-                                totalTokens: usage.totalTokens ?? 0,
-                            },
-                        });
-                    }
-                } catch (error) {
-                    Logger.error(
-                        '[AiAgent][On Finish] Failed to persist final response',
-                        error,
-                    );
-                    Sentry.captureException(error, {
-                        tags: {
-                            'ai.model': modelName,
+                // The AI SDK holds the stream open until onFinish resolves, so
+                // the HTTP stream only closes once the response is persisted —
+                // the client's post-stream refetch then reads persisted content.
+                if (stepCapReached && !completeResponse) {
+                    await persistPrompt({
+                        promptUuid: args.promptUuid,
+                        errorMessage: getUserFacingErrorMessage(
+                            new AiAgentStepCapReachedError(steps.length),
+                        ),
+                        tokenUsage: {
+                            totalTokens: usage.totalTokens ?? 0,
+                        },
+                    });
+                } else {
+                    await persistPrompt({
+                        response: completeResponse,
+                        promptUuid: args.promptUuid,
+                        tokenUsage: {
+                            totalTokens: usage.totalTokens ?? 0,
                         },
                     });
                 }
@@ -1530,7 +1584,7 @@ export const streamAgentResponse = async ({
                 delayInMs: 20,
                 chunking: 'word',
             }),
-            onError: ({ error }) => {
+            onError: async ({ error }) => {
                 console.error(error);
                 const errorMessage =
                     error instanceof Error ? error.message : 'Unknown error';
@@ -1550,7 +1604,7 @@ export const streamAgentResponse = async ({
                     'Something went wrong while streaming the response. Please try again.',
                 );
 
-                void dependencies.updatePrompt({
+                await persistPrompt({
                     promptUuid: args.promptUuid,
                     errorMessage: userFacingMessage,
                 });

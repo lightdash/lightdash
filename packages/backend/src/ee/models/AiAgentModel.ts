@@ -4595,15 +4595,26 @@ export class AiAgentModel {
     async updateModelResponse(
         data: UpdateSlackResponse | UpdateWebAppResponse,
     ) {
+        // A new response supersedes any previous error for this prompt
+        const outcome: {
+            response?: string | null;
+            error_message?: string | null;
+        } =
+            'response' in data
+                ? {
+                      response: data.response ?? null,
+                      error_message: data.errorMessage ?? null,
+                  }
+                : {
+                      ...(data.errorMessage
+                          ? { error_message: data.errorMessage }
+                          : {}),
+                  };
+
         await this.database(AiPromptTableName)
             .update({
                 responded_at: this.database.fn.now(),
-                ...('response' in data
-                    ? { response: data.response ?? null }
-                    : {}),
-                ...(data.errorMessage
-                    ? { error_message: data.errorMessage }
-                    : {}),
+                ...outcome,
                 ...(data.humanScore !== undefined
                     ? { human_score: data.humanScore }
                     : {}),
