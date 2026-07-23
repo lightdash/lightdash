@@ -110,6 +110,7 @@ import { type InfiniteQueryResults } from '../useQueryResults';
 import { getCartesianConditionalFormattingColor } from './cartesianConditionalFormatting';
 import {
     applyTimezoneShiftToEchartsOptions,
+    detectCalendarTimeAxisField,
     resolveAxisTimezone,
     TIME_INTERVALS_FOR_CATEGORY_AXIS,
 } from './timezoneShift';
@@ -3345,6 +3346,26 @@ const useEchartsCartesianConfig = (
         timeAxisField,
     ]);
 
+    // Calendar DATEs plotted on an actual `time` axis get their coordinate
+    // encoded as UTC midnight so ECharts' browser-local parse of the bare
+    // `YYYY-MM-DD` can't move the day. Derived from the built axes so
+    // reference-line-forced time axes are covered, and kept separate from
+    // timeAxisField so isTimeAxisShifted stays instant-shift only.
+    const calendarTimeAxisField = useMemo(() => {
+        const physicalAxis = validCartesianConfig?.layout?.flipAxes
+            ? axes.yAxis[0]
+            : axes.xAxis[0];
+        return detectCalendarTimeAxisField({
+            validCartesianConfig,
+            itemsMap,
+            resolvedTimezone,
+            physicalAxisType:
+                typeof physicalAxis?.type === 'string'
+                    ? physicalAxis.type
+                    : undefined,
+        });
+    }, [validCartesianConfig, itemsMap, resolvedTimezone, axes]);
+
     // Shared by stackedSeriesWithColorAssignments (non-stacked bar styling) and
     // decoratedSeriesForChart (stacked rounded corners). Same inputs in both
     // places — keep the calc in one spot.
@@ -4412,8 +4433,12 @@ const useEchartsCartesianConfig = (
             }),
         };
 
-        return timeAxisField
-            ? applyTimezoneShiftToEchartsOptions(baseOptions, timeAxisField)
+        const plottedCoordinateField = timeAxisField ?? calendarTimeAxisField;
+        return plottedCoordinateField
+            ? applyTimezoneShiftToEchartsOptions(
+                  baseOptions,
+                  plottedCoordinateField,
+              )
             : baseOptions;
     }, [
         sortedAxes,
@@ -4429,6 +4454,7 @@ const useEchartsCartesianConfig = (
         theme?.other.chartFont,
         validCartesianConfig,
         timeAxisField,
+        calendarTimeAxisField,
     ]);
 
     if (
