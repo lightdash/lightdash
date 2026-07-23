@@ -3,11 +3,11 @@ import {
     DbtProjectType,
     ForbiddenError,
     NotFoundError,
+    ParseError,
     type MemberAbility,
     type ProjectContextEntry,
     type SessionUser,
 } from '@lightdash/common';
-import { ZodError } from 'zod';
 import {
     createBranch,
     createPullRequest,
@@ -259,20 +259,40 @@ describe('ProjectContextService.writebackEntry', () => {
         });
     });
 
-    test('rejects writeback from a persisted legacy string ref', async () => {
+    test('drops persisted legacy string refs instead of failing', async () => {
+        mockGetFileContent.mockRejectedValue(new NotFoundError('missing'));
+        const { service } = makeService({});
+
+        const result = await service.writebackEntry({
+            projectUuid: PROJECT_UUID,
+            entry: { ...judgeEntry, objects: ['orders'] },
+            branchTimestamp: 1000,
+            sourceThread: null,
+        });
+
+        expect(result).toMatchObject({ op: 'create', entryId: 'hr' });
+        const commitArgs = mockCreateSignedCommitOnBranch.mock.calls[0][0];
+        const written = Buffer.from(
+            commitArgs.fileChanges.additions[0].contents,
+            'base64',
+        ).toString('utf8');
+        expect(written).toContain('objects: []');
+        expect(written).not.toContain('orders');
+    });
+
+    test('rejects an entry that is invalid beyond legacy refs', async () => {
         const { service } = makeService({});
 
         const error = await service
             .writebackEntry({
                 projectUuid: PROJECT_UUID,
-                entry: { ...judgeEntry, objects: ['orders'] },
+                entry: { ...judgeEntry, op: 'update' as const, id: null },
                 branchTimestamp: 1000,
                 sourceThread: null,
             })
             .catch((caught: unknown) => caught);
 
-        expect(error).toBeInstanceOf(ZodError);
-        expect((error as ZodError).issues[0].path).toEqual(['objects', 0]);
+        expect(error).toBeInstanceOf(ParseError);
         expect(mockGetFileContent).not.toHaveBeenCalled();
     });
 

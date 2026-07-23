@@ -491,6 +491,28 @@ export const aiAgentJudgeProjectContextEntrySchema = z
         }
     });
 
+// Lenient parse for persisted findings, which can predate typed object refs:
+// drops the whole `objects` array when it isn't a valid typed-ref array,
+// mirroring loadProjectContextFile's legacy handling.
+export const persistedAiAgentJudgeProjectContextEntrySchema = z.preprocess(
+    (entry) => {
+        if (
+            typeof entry !== 'object' ||
+            entry === null ||
+            Array.isArray(entry)
+        ) {
+            return entry;
+        }
+        const candidate = entry as Record<string, unknown>;
+        return z
+            .array(aiProjectContextTypedObjectRefSchema)
+            .safeParse(candidate.objects).success
+            ? entry
+            : { ...candidate, objects: [] };
+    },
+    aiAgentJudgeProjectContextEntrySchema,
+);
+
 // Concrete type (not z.infer) so tsoa can resolve it in API responses. The
 // string union preserves persisted findings written before typed refs.
 export type AiAgentJudgeProjectContextEntry = {
@@ -791,6 +813,8 @@ export type AiAgentReviewItemWritebackPreview =
           after: string;
           op: 'create' | 'update';
           entryId: string;
+          // True when the PR also rewrites a legacy (pre-v2) file as canonical v2.
+          upgradesFileToV2: boolean;
       }
     | { available: false };
 

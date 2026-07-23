@@ -1,11 +1,12 @@
 import { subject } from '@casl/ability';
 import {
-    aiAgentJudgeProjectContextEntrySchema,
     applyProjectContextWriteback,
     DbtProjectType,
     ForbiddenError,
     loadProjectContextFile,
     NotFoundError,
+    ParseError,
+    persistedAiAgentJudgeProjectContextEntrySchema,
     type AiAgentJudgeProjectContextEntry,
     type DbtProjectConfig,
     type SessionUser,
@@ -68,8 +69,16 @@ type ProjectContextServiceDeps = {
     projectContextModel: ProjectContextModel;
 };
 
-const parseWritebackEntry = (entry: AiAgentJudgeProjectContextEntry) =>
-    aiAgentJudgeProjectContextEntrySchema.parse(entry);
+const parseWritebackEntry = (entry: AiAgentJudgeProjectContextEntry) => {
+    const result =
+        persistedAiAgentJudgeProjectContextEntrySchema.safeParse(entry);
+    if (!result.success) {
+        throw new ParseError(
+            `Invalid project context writeback entry: ${result.error.message}`,
+        );
+    }
+    return result.data;
+};
 
 export class ProjectContextService extends BaseService {
     private readonly projectModel: ProjectModel;
@@ -221,6 +230,7 @@ export class ProjectContextService extends BaseService {
         after: string;
         op: 'create' | 'update';
         entryId: string;
+        upgradesFileToV2: boolean;
     }> {
         const entry = parseWritebackEntry(args.entry);
         const access = await this.resolveGithubAccess(args.projectUuid);
@@ -252,8 +262,9 @@ export class ProjectContextService extends BaseService {
             content: after,
             entryId,
             op,
+            upgradesFileToV2,
         } = applyProjectContextWriteback(before, entry);
-        return { fileName, before, after, op, entryId };
+        return { fileName, before, after, op, entryId, upgradesFileToV2 };
     }
 
     async writebackEntry(args: {

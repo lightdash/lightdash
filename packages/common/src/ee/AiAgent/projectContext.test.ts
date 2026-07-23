@@ -462,15 +462,19 @@ entries:
     content: Use orders.
     objects: [orders]
 `;
-        const { content } = applyProjectContextWriteback(existing, {
-            op: 'create',
-            id: 'payments',
-            kind: 'context',
-            content: 'Use payments.',
-            terms: [],
-            objects: [{ type: 'explore', name: 'payments' }],
-        });
+        const { content, upgradesFileToV2 } = applyProjectContextWriteback(
+            existing,
+            {
+                op: 'create',
+                id: 'payments',
+                kind: 'context',
+                content: 'Use payments.',
+                terms: [],
+                objects: [{ type: 'explore', name: 'payments' }],
+            },
+        );
 
+        expect(upgradesFileToV2).toBe(true);
         expect(content).toContain('version: 2');
         expect(loadProjectContextFile(content)).toEqual([
             {
@@ -491,17 +495,19 @@ entries:
     });
 
     test('creates a canonical file from empty content', () => {
-        const { content, entryId, op } = applyProjectContextWriteback('', {
-            op: 'create',
-            id: null,
-            kind: 'definition',
-            content: 'MRR means monthly recurring revenue.',
-            terms: ['MRR'],
-            objects: [],
-        });
+        const { content, entryId, op, upgradesFileToV2 } =
+            applyProjectContextWriteback('', {
+                op: 'create',
+                id: null,
+                kind: 'definition',
+                content: 'MRR means monthly recurring revenue.',
+                terms: ['MRR'],
+                objects: [],
+            });
         expect(op).toBe('create');
         expect(entryId).toBe('mrr');
         expect(content).toContain('version: 2');
+        expect(upgradesFileToV2).toBe(false);
         expect(content.startsWith(PROJECT_CONTEXT_FILE_HEADER)).toBe(true);
         expect(loadProjectContextFile(content)).toEqual([
             {
@@ -547,15 +553,19 @@ entries:
     terms: [HR]
     objects: []
 `;
-        const { content, op } = applyProjectContextWriteback(existing, {
-            op: 'create',
-            id: null,
-            kind: 'definition',
-            content: 'MRR means monthly recurring revenue.',
-            terms: ['MRR'],
-            objects: [],
-        });
+        const { content, op, upgradesFileToV2 } = applyProjectContextWriteback(
+            existing,
+            {
+                op: 'create',
+                id: null,
+                kind: 'definition',
+                content: 'MRR means monthly recurring revenue.',
+                terms: ['MRR'],
+                objects: [],
+            },
+        );
         expect(op).toBe('create');
+        expect(upgradesFileToV2).toBe(false);
         // The human comment, the original quoting, the flow style and the entry
         // content all survive byte-for-byte — this is the whole point: a minimal,
         // reviewable diff (just the added entry) rather than a full-file rewrite.

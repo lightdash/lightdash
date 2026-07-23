@@ -341,7 +341,14 @@ export const loadProjectContextFile = (
 export const applyProjectContextWriteback = (
     existingContent: string,
     judgeEntry: ProjectContextWritebackEntry,
-): { content: string; entryId: string; op: 'create' | 'update' } => {
+): {
+    content: string;
+    entryId: string;
+    op: 'create' | 'update';
+    // True when a non-empty legacy (v1 / bare-array) file was rewritten as
+    // canonical v2, so callers can surface the migration to the user.
+    upgradesFileToV2: boolean;
+} => {
     const { entries, entryId, op } = mergeProjectContextEntry(
         loadProjectContextFile(existingContent),
         judgeEntry,
@@ -380,9 +387,15 @@ export const applyProjectContextWriteback = (
                 }),
                 entryId,
                 op,
+                upgradesFileToV2: false,
             };
         }
     }
 
-    return { content: serializeProjectContextFile(entries), entryId, op };
+    return {
+        content: serializeProjectContextFile(entries),
+        entryId,
+        op,
+        upgradesFileToV2: existingContent.trim() !== '',
+    };
 };
