@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { listFunctions } from '@lightdash/formula';
 import { Box } from '@mantine-8/core';
-import { RichTextEditor } from '@mantine/tiptap';
+import { RichTextEditor } from '@mantine-8/tiptap';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Plugin, PluginKey } from '@tiptap/pm/state';

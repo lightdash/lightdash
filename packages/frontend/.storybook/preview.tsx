@@ -1,5 +1,6 @@
 import '@mantine-8/core/styles.css';
 import '@mantine-8/notifications/styles.css';
+import '@mantine-8/tiptap/styles.css';
 
 import { ActionIcon, Group } from '@mantine-8/core';
 import { useMantineColorScheme } from '@mantine/core';
