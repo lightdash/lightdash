@@ -61,8 +61,6 @@ const STALE_RUN_ERROR_MESSAGE =
     'Deep Research stopped unexpectedly before it could finish.';
 const FAILED_RUN_ERROR_MESSAGE =
     'Deep Research could not finish. Please try again.';
-const TIMED_OUT_RUN_ERROR_MESSAGE =
-    'Deep Research took too long to finish. Please try again.';
 const OMITTED_CHARTS_CAVEAT =
     'Some proposed charts were omitted because their query evidence could not be verified.';
 const OMITTED_CHART_REF_REPLACEMENT =
@@ -196,7 +194,12 @@ const toRun = (row: DbAiDeepResearchRun): AiDeepResearchRun => ({
     status: row.status,
     resultMarkdown: row.result_markdown,
     resultChartData: row.result_chart_data,
-    budget: row.budget_snapshot,
+    budget: {
+        maxTokens: row.budget_snapshot.maxTokens,
+        maxToolCalls: row.budget_snapshot.maxToolCalls,
+        maxWarehouseQueries: row.budget_snapshot.maxWarehouseQueries,
+        maxResultRows: row.budget_snapshot.maxResultRows,
+    },
     errorMessage: row.error_message,
     cancellationRequestedAt:
         row.cancellation_requested_at?.toISOString() ?? null,
@@ -291,28 +294,24 @@ export const AI_DEEP_RESEARCH_BUDGETS_BY_EFFORT: Record<
     AiDeepResearchBudget
 > = {
     low: {
-        maxRuntimeMs: 15 * 60 * 1_000,
         maxTokens: 500_000,
         maxToolCalls: 50,
         maxWarehouseQueries: 10,
         maxResultRows: 5_000,
     },
     medium: {
-        maxRuntimeMs: 30 * 60 * 1_000,
         maxTokens: 1_000_000,
         maxToolCalls: 125,
         maxWarehouseQueries: 25,
         maxResultRows: 10_000,
     },
     high: {
-        maxRuntimeMs: 45 * 60 * 1_000,
         maxTokens: 2_000_000,
         maxToolCalls: 250,
         maxWarehouseQueries: 50,
         maxResultRows: 25_000,
     },
     xhigh: {
-        maxRuntimeMs: 55 * 60 * 1_000,
         maxTokens: 4_000_000,
         maxToolCalls: 500,
         maxWarehouseQueries: 100,
@@ -973,13 +972,6 @@ export class AiDeepResearchService extends BaseService {
                 aiDeepResearchRunUuid,
             );
         }
-    }
-
-    async markRunTimedOut(aiDeepResearchRunUuid: string): Promise<boolean> {
-        return this.aiDeepResearchRunModel.markFailed(
-            aiDeepResearchRunUuid,
-            TIMED_OUT_RUN_ERROR_MESSAGE,
-        );
     }
 
     async setClaudeSessionId(

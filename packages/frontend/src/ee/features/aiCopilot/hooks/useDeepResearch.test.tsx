@@ -39,7 +39,6 @@ const getRun = (status: 'running' | 'completed') => ({
               }
             : null,
     budget: {
-        maxRuntimeMs: 1_800_000,
         maxTokens: 10_000,
         maxToolCalls: 25,
         maxWarehouseQueries: 25,

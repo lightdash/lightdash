@@ -180,7 +180,6 @@ const createConfig = (
     ],
     sessionTitle: 'Investigate revenue changes',
     prompt: 'Why did revenue change?',
-    timeoutMs: 60_000,
     interruptTimeoutMs: 1_000,
     signal: new AbortController().signal,
     onSessionCreated: vi.fn().mockResolvedValue(undefined),
@@ -624,37 +623,6 @@ describe('AiDeepResearchClient', () => {
         expect(anthropic.eventsStream).toHaveBeenCalledTimes(2);
     });
 
-    it('bounds a stalled session ID persistence callback with the run timeout', async () => {
-        vi.useFakeTimers();
-        const anthropic = createAnthropicMock();
-        const resultPromise = createClient(anthropic.client).runSession(
-            createConfig({
-                timeoutMs: 100,
-                onSessionCreated: vi.fn(
-                    async (_sessionId, signal): Promise<void> =>
-                        new Promise<void>((_resolve, reject) => {
-                            signal.addEventListener('abort', () =>
-                                reject(signal.reason),
-                            );
-                        }),
-                ),
-            }),
-        );
-
-        await vi.advanceTimersByTimeAsync(100);
-        const result = await resultPromise;
-
-        expect(result).toMatchObject({
-            status: 'failed',
-            reason: 'timed_out',
-        });
-        expect(anthropic.eventsSend).toHaveBeenCalledWith(
-            'session-1',
-            { events: [{ type: 'user.interrupt' }] },
-            expect.anything(),
-        );
-    });
-
     it('surfaces credential vault cleanup failures', async () => {
         const anthropic = createAnthropicMock();
         anthropic.vaultsDelete.mockRejectedValue(new Error('delete failed'));
@@ -762,41 +730,6 @@ describe('AiDeepResearchClient', () => {
             status: 'failed',
             reason: 'interrupt_failed',
         });
-    });
-
-    it('interrupts Claude and reports a timeout as failure', async () => {
-        vi.useFakeTimers();
-        const anthropic = createAnthropicMock();
-        anthropic.eventsStream.mockImplementation(
-            async (_id, _params, options) => ({
-                controller: new AbortController(),
-                async *[Symbol.asyncIterator]() {
-                    yield await new Promise<BetaManagedAgentsSessionEvent>(
-                        (_resolve, reject) => {
-                            options.signal.addEventListener('abort', () =>
-                                reject(options.signal.reason),
-                            );
-                        },
-                    );
-                },
-            }),
-        );
-        const resultPromise = createClient(anthropic.client).runSession(
-            createConfig({ timeoutMs: 100 }),
-        );
-
-        await vi.advanceTimersByTimeAsync(100);
-        const result = await resultPromise;
-
-        expect(result).toMatchObject({
-            status: 'failed',
-            reason: 'timed_out',
-        });
-        expect(anthropic.eventsSend).toHaveBeenCalledWith(
-            'session-1',
-            { events: [{ type: 'user.interrupt' }] },
-            expect.anything(),
-        );
     });
 
     it('passes cancellation into custom tools and suppresses their result', async () => {
