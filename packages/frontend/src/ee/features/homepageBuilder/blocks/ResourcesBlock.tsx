@@ -42,6 +42,7 @@ import classes from './blockStyles.module.css';
 import { DataAppPickerModal } from './DataAppPickerModal';
 import { PageGrid, PageGridItem } from './PageGrid';
 import {
+    dataAppHref,
     faviconUrl,
     hostnameOf,
     looksLikeUrl,
@@ -270,6 +271,13 @@ const RowThumb: FC<{ item: HomepageResourceItem; projectUuid: string }> = ({
 // external-link chrome (new tab, hostname fallback) only applies to the latter.
 const isDataApp = (item: HomepageResourceItem) => item.kind === 'data-app';
 
+// Data app hrefs are derived from `appUuid` rather than trusting the stored
+// `url` — some already-persisted layouts contain malformed data app urls.
+const itemHref = (item: HomepageResourceItem, projectUuid: string): string =>
+    isDataApp(item) && item.appUuid
+        ? dataAppHref(projectUuid, item.appUuid)
+        : item.url;
+
 const ResourceCard: FC<{ item: HomepageResourceItem; projectUuid: string }> = ({
     item,
     projectUuid,
@@ -277,7 +285,7 @@ const ResourceCard: FC<{ item: HomepageResourceItem; projectUuid: string }> = ({
     const dataApp = isDataApp(item);
     return (
         <a
-            href={item.url}
+            href={itemHref(item, projectUuid)}
             target={dataApp ? undefined : '_blank'}
             rel={dataApp ? undefined : 'noopener noreferrer'}
             className={`${classes.mediaCard} ${classes.cardUnit1} ${classes.clickable} ${classes.plainLink}`}
@@ -313,7 +321,7 @@ const ResourceRow: FC<{ item: HomepageResourceItem; projectUuid: string }> = ({
     const dataApp = isDataApp(item);
     return (
         <a
-            href={item.url}
+            href={itemHref(item, projectUuid)}
             target={dataApp ? undefined : '_blank'}
             rel={dataApp ? undefined : 'noopener noreferrer'}
             className={`${classes.listRow} ${classes.clickable} ${classes.plainLink}`}
