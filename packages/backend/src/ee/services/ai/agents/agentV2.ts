@@ -1454,22 +1454,39 @@ export const streamAgentResponse = async ({
 
                 const stepCapReached = steps.length >= STEP_CAP;
 
-                if (stepCapReached && !completeResponse) {
-                    void dependencies.updatePrompt({
-                        promptUuid: args.promptUuid,
-                        errorMessage: getUserFacingErrorMessage(
-                            new AiAgentStepCapReachedError(steps.length),
-                        ),
-                        tokenUsage: {
-                            totalTokens: usage.totalTokens ?? 0,
-                        },
-                    });
-                } else {
-                    void dependencies.updatePrompt({
-                        response: completeResponse,
-                        promptUuid: args.promptUuid,
-                        tokenUsage: {
-                            totalTokens: usage.totalTokens ?? 0,
+                // Await the persist before onFinish resolves — the AI SDK holds
+                // the stream open until this callback completes, so the HTTP
+                // stream only closes once the response is in the DB. Without
+                // this, the client's post-stream refetch can win the race and
+                // read a still-null message, blanking the bubble until refresh.
+                try {
+                    if (stepCapReached && !completeResponse) {
+                        await dependencies.updatePrompt({
+                            promptUuid: args.promptUuid,
+                            errorMessage: getUserFacingErrorMessage(
+                                new AiAgentStepCapReachedError(steps.length),
+                            ),
+                            tokenUsage: {
+                                totalTokens: usage.totalTokens ?? 0,
+                            },
+                        });
+                    } else {
+                        await dependencies.updatePrompt({
+                            response: completeResponse,
+                            promptUuid: args.promptUuid,
+                            tokenUsage: {
+                                totalTokens: usage.totalTokens ?? 0,
+                            },
+                        });
+                    }
+                } catch (error) {
+                    Logger.error(
+                        '[AiAgent][On Finish] Failed to persist final response',
+                        error,
+                    );
+                    Sentry.captureException(error, {
+                        tags: {
+                            'ai.model': modelName,
                         },
                     });
                 }
