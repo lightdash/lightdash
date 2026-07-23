@@ -901,6 +901,7 @@ const downloadVirtualViews = async (
         definition: VIRTUAL_VIEW_CODE_RESOURCE,
         basePath: getDownloadFolder(customPath),
         documents: results.virtualViews,
+        pruneOtherDocuments: slugs.length === 0,
     });
     results.skipped.forEach(({ slug, reason }) =>
         GlobalState.log(
@@ -1078,6 +1079,7 @@ const downloadAiAgents = async (
         definition: AI_AGENT_CODE_RESOURCE,
         basePath: getDownloadFolder(customPath),
         documents: agents,
+        pruneOtherDocuments: ids.length === 0,
     });
 
     return downloaded;
