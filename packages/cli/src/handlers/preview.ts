@@ -47,6 +47,7 @@ type PreviewHandlerOptions = DbtCompileOptions & {
     parallelBatches?: string;
     expiresIn?: string;
     disableTimestampConversion?: boolean;
+    validateWarehouseColumns: boolean;
 };
 
 type StopPreviewHandlerOptions = {

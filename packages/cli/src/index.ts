@@ -87,6 +87,8 @@ function parseDisableTimestampConversionOption(
     return value.toLowerCase() === 'true';
 }
 
+const validateWarehouseColumnsDescription = `Check physical \${TABLE}.column references in dimensions and metrics by executing zero-row queries against the warehouse. Requires warehouse credentials.`;
+
 function parseProjectArgument(value: string | undefined): string | undefined {
     if (value === undefined) {
         throw new InvalidArgumentError('No project argument provided.');
@@ -469,6 +471,11 @@ program
         'Disable timestamp conversion to UTC for Snowflake warehouses. Only use this if your timestamp values are already in UTC.',
         parseDisableTimestampConversionOption,
     )
+    .option(
+        '--validate-warehouse-columns',
+        validateWarehouseColumnsDescription,
+        false,
+    )
     .action(compileHandler);
 
 program
@@ -598,6 +605,11 @@ program
         '--expires-in <hours>',
         'Number of hours until the preview project auto-expires (default: 720, i.e. 30 days)',
     )
+    .option(
+        '--validate-warehouse-columns',
+        validateWarehouseColumnsDescription,
+        false,
+    )
     .action(previewHandler);
 
 program
@@ -723,6 +735,11 @@ program
     .option(
         '--expires-in <hours>',
         'Number of hours until the preview project auto-expires (default: 720, i.e. 30 days)',
+    )
+    .option(
+        '--validate-warehouse-columns',
+        validateWarehouseColumnsDescription,
+        false,
     )
     .action(startPreviewHandler);
 
@@ -1139,6 +1156,11 @@ program
         '1',
     )
     .option('--gzip', 'Enable gzip compression for request bodies', false)
+    .option(
+        '--validate-warehouse-columns',
+        validateWarehouseColumnsDescription,
+        false,
+    )
     .action(deployHandler);
 
 program
@@ -1231,7 +1253,7 @@ program
     )
     .option(
         '--validate-warehouse-columns',
-        `Check physical \${TABLE}.column references in dimensions and metrics by executing zero-row queries against the warehouse. Requires warehouse credentials and only applies when tables are validated.`,
+        validateWarehouseColumnsDescription,
         false,
     )
     .option(
