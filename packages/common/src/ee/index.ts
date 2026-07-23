@@ -6,6 +6,7 @@ export * from './aiWriteback/types';
 export * from './externalConnections/coder';
 export * from './externalConnections/types';
 export * from './AiRouter';
+export * from './apps/sdkFeatures';
 export * from './apps/types';
 export * from './apps/code';
 export * from './ambientAi';

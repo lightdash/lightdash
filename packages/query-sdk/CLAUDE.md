@@ -30,7 +30,12 @@ upgrade detection and the "What's new" UI, so old apps will never be offered it.
    the optional `wiring` field. It is agent-facing only — never rendered in
    user UI — and it is what the upgrade agent relays/uses when a user asks for
    the feature. No `wiring` means "activates automatically on a current SDK".
-3. If the capability announces itself with a `lightdash:*:available` message,
+3. Apply the same change to the mirror registry in
+   `packages/common/src/ee/apps/sdkFeatures.ts` — the Lightdash
+   frontend/backend read the registry from common because deployment images
+   don't include this package. A sync test in `features.test.ts` fails CI
+   when the two copies diverge.
+4. If the capability announces itself with a `lightdash:*:available` message,
    also map that literal in `AVAILABLE_MESSAGE_TO_FEATURE`
    (`src/features.test.ts`). The drift test fails CI if an `:available` literal
    ships unmapped — capabilities without such a message rely on this checklist.

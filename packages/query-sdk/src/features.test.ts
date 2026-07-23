@@ -65,6 +65,16 @@ describe('SDK_FEATURES registry', () => {
     });
 });
 
+describe('registry mirror in @lightdash/common', () => {
+    it('matches packages/common/src/ee/apps/sdkFeatures.ts exactly', async () => {
+        // devDependency, test-only: the deployed frontend/backend build from
+        // common's copy because deployment images don't include this package.
+        // When this fails, update BOTH files with the same change.
+        const common = await import('@lightdash/common');
+        expect(common.SDK_FEATURES).toEqual(SDK_FEATURES);
+    });
+});
+
 describe('announceSdkManifest', () => {
     const expectedMessage = {
         type: SDK_MANIFEST_MESSAGE_TYPE,
