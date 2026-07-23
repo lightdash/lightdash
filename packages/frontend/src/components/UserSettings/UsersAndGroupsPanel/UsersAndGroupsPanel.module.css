@@ -6,7 +6,10 @@
     font-weight: 500;
     font-size: 0.875rem;
     padding: 0.5rem 1rem;
-    transition: all 150ms ease;
+    transition:
+        background-color 150ms ease,
+        border-color 150ms ease,
+        color 150ms ease;
     border-radius: var(--mantine-radius-md);
     border: 1px solid
         light-dark(var(--mantine-color-ldGray-3), var(--mantine-color-ldDark-4));
@@ -56,8 +59,4 @@
 
 .panel {
     padding-top: 1rem;
-}
-
-.header {
-    padding-bottom: 0.75rem;
 }

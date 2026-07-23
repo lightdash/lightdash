@@ -1,15 +1,6 @@
 import { subject } from '@casl/ability';
-import {
-    ActionIcon,
-    Button,
-    Group,
-    Skeleton,
-    Stack,
-    Text,
-    Title,
-    Tooltip,
-} from '@mantine-8/core';
-import { IconInfoCircle, IconPlus } from '@tabler/icons-react';
+import { Button, Skeleton, Stack } from '@mantine-8/core';
+import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import {
     useColorPalettes,
@@ -20,20 +11,26 @@ import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
+import {
+    SettingsPage,
+    SettingsPageActions,
+    SettingsPageDocumentationLink,
+} from '../../common/Settings/SettingsPage';
 import { BrandAppearanceSettings } from './BrandAppearanceSettings';
 import { CreatePaletteModal } from './CreatePaletteModal';
 import { PaletteItem } from './PaletteItem';
 
-const AppearanceColorSettings: FC<{ canManage: boolean }> = ({ canManage }) => {
+const AppearanceColorSettings: FC<{
+    canManage: boolean;
+    isCreatePaletteModalOpen: boolean;
+    onCloseCreatePaletteModal: () => void;
+}> = ({ canManage, isCreatePaletteModalOpen, onCloseCreatePaletteModal }) => {
     const { data: organization } = useOrganization();
     const { data: health, isLoading: isHealthLoading } = useHealth();
     const { data: palettes = [], isLoading: isPalettesLoading } =
         useColorPalettes();
 
     const setActivePalette = useSetActiveColorPalette();
-
-    const [isCreatePaletteModalOpen, setIsCreatePaletteModalOpen] =
-        useState(false);
 
     const handleSetActive = useCallback(
         (uuid: string) => {
@@ -48,26 +45,6 @@ const AppearanceColorSettings: FC<{ canManage: boolean }> = ({ canManage }) => {
 
     return (
         <Stack gap="md">
-            <Group justify="space-between">
-                <Text size="sm" c="ldGray.6">
-                    Customize the color palettes used in your charts and
-                    visualizations.
-                </Text>
-
-                {canManage && (
-                    <Button
-                        leftSection={<MantineIcon icon={IconPlus} />}
-                        onClick={() => setIsCreatePaletteModalOpen(true)}
-                        variant="default"
-                        size="xs"
-                        style={{ alignSelf: 'flex-end' }}
-                        disabled={hasColorPaletteOverride}
-                    >
-                        Add new palette
-                    </Button>
-                )}
-            </Group>
-
             <Stack gap="xs">
                 {isPalettesLoading || isHealthLoading ? (
                     <>
@@ -122,9 +99,7 @@ const AppearanceColorSettings: FC<{ canManage: boolean }> = ({ canManage }) => {
             <CreatePaletteModal
                 key={`create-palette-modal-${isCreatePaletteModalOpen}`}
                 opened={isCreatePaletteModalOpen}
-                onClose={() => {
-                    setIsCreatePaletteModalOpen(false);
-                }}
+                onClose={onCloseCreatePaletteModal}
             />
         </Stack>
     );
@@ -132,6 +107,9 @@ const AppearanceColorSettings: FC<{ canManage: boolean }> = ({ canManage }) => {
 
 const AppearanceSettingsPanel: FC = () => {
     const { user } = useApp();
+    const { data: health } = useHealth();
+    const [isCreatePaletteModalOpen, setIsCreatePaletteModalOpen] =
+        useState(false);
 
     const canManageOrgSettings =
         user.data?.ability?.can('update', 'Organization') ?? false;
@@ -142,33 +120,42 @@ const AppearanceSettingsPanel: FC = () => {
                 organizationUuid: user.data?.organizationUuid,
             }),
         ) ?? false;
+    const hasColorPaletteOverride =
+        !!health?.appearance.overrideColorPalette &&
+        health.appearance.overrideColorPalette.length > 0;
 
     return (
-        <Stack gap="sm">
-            <Group gap="xxs">
-                <Title order={5}>Appearance settings</Title>
-                <Tooltip
-                    label="Click here to learn more about customizing the appearance of your project"
-                    position="bottom"
-                >
-                    <ActionIcon
-                        component="a"
-                        href="https://docs.lightdash.com/guides/customizing-the-appearance-of-your-project"
-                        target="_blank"
-                        rel="noreferrer"
-                        size="xs"
-                        color="gray"
-                        variant="subtle"
-                    >
-                        <MantineIcon icon={IconInfoCircle} />
-                    </ActionIcon>
-                </Tooltip>
-            </Group>
+        <SettingsPage
+            title="Appearance"
+            description="Customize organization branding and the color palettes used in charts and visualizations."
+            actions={
+                <SettingsPageActions>
+                    <SettingsPageDocumentationLink href="https://docs.lightdash.com/guides/customizing-the-appearance-of-your-project" />
+                    {canManageColorPalette ? (
+                        <Button
+                            size="xs"
+                            leftSection={<MantineIcon icon={IconPlus} />}
+                            onClick={() => setIsCreatePaletteModalOpen(true)}
+                            variant="default"
+                            disabled={hasColorPaletteOverride}
+                        >
+                            Add palette
+                        </Button>
+                    ) : null}
+                </SettingsPageActions>
+            }
+        >
             {canManageOrgSettings && <BrandAppearanceSettings />}
-            <SettingsCard mb="lg">
-                <AppearanceColorSettings canManage={canManageColorPalette} />
+            <SettingsCard>
+                <AppearanceColorSettings
+                    canManage={canManageColorPalette}
+                    isCreatePaletteModalOpen={isCreatePaletteModalOpen}
+                    onCloseCreatePaletteModal={() =>
+                        setIsCreatePaletteModalOpen(false)
+                    }
+                />
             </SettingsCard>
-        </Stack>
+        </SettingsPage>
     );
 };
 

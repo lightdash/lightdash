@@ -1,18 +1,11 @@
 import { type OrganizationWarehouseCredentials } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    Group,
-    LoadingOverlay,
-    Stack,
-    Text,
-    Title,
-} from '@mantine-8/core';
+import { Box, Button, LoadingOverlay } from '@mantine-8/core';
 import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useOrganizationWarehouseCredentials } from '../../../hooks/organization/useOrganizationWarehouseCredentials';
-import { EmptyState } from '../../common/EmptyState';
 import MantineIcon from '../../common/MantineIcon';
+import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
+import { SettingsPage } from '../../common/Settings/SettingsPage';
 import { CreateCredentialsModal } from './CreateCredentialsModal';
 import { CredentialsTable } from './CredentialsTable';
 import { DeleteCredentialsModal } from './DeleteCredentialsModal';
@@ -29,65 +22,41 @@ export const OrganizationWarehouseCredentialsPanel = () => {
         setWarehouseCredentialsToBeDeleted,
     ] = useState<OrganizationWarehouseCredentials | undefined>(undefined);
 
-    if (isLoading) {
-        return (
-            <Box pos="relative" mih={120}>
-                <LoadingOverlay visible={isLoading} />
-            </Box>
-        );
-    }
     return (
-        <>
-            <Stack mb="lg">
-                {credentials && credentials.length > 0 ? (
-                    <>
-                        <Group justify="space-between">
-                            <Stack gap="one">
-                                <Title order={5}>
-                                    Organization warehouse credentials
-                                </Title>
-                                <Text c="ldGray.6" fz="xs">
-                                    Shared credentials that can be used across
-                                    all projects in your organization.
-                                </Text>
-                            </Stack>
-                            <Button
-                                size="xs"
-                                leftSection={<MantineIcon icon={IconPlus} />}
-                                onClick={() => setIsCreatingCredentials(true)}
-                            >
-                                Add new credentials
-                            </Button>
-                        </Group>
-                        <CredentialsTable
-                            credentials={credentials}
-                            setWarehouseCredentialsToBeDeleted={
-                                setWarehouseCredentialsToBeDeleted
-                            }
-                            setWarehouseCredentialsToBeEdited={
-                                setWarehouseCredentialsToBeEdited
-                            }
-                        />
-                    </>
-                ) : (
-                    <EmptyState
-                        icon={
-                            <MantineIcon
-                                icon={IconDatabaseCog}
-                                color="ldGray.6"
-                                stroke={1}
-                                size="5xl"
-                            />
-                        }
-                        title="No credentials"
-                        description="You haven't created any organization warehouse credentials yet!"
-                    >
-                        <Button onClick={() => setIsCreatingCredentials(true)}>
-                            Add new credentials
-                        </Button>
-                    </EmptyState>
-                )}
-            </Stack>
+        <SettingsPage
+            title="Warehouse credentials"
+            description="Manage shared credentials available across your organization."
+            actions={
+                <Button
+                    size="xs"
+                    leftSection={<MantineIcon icon={IconPlus} />}
+                    onClick={() => setIsCreatingCredentials(true)}
+                >
+                    Add credentials
+                </Button>
+            }
+        >
+            {isLoading ? (
+                <Box pos="relative" mih={120}>
+                    <LoadingOverlay visible />
+                </Box>
+            ) : credentials && credentials.length > 0 ? (
+                <CredentialsTable
+                    credentials={credentials}
+                    setWarehouseCredentialsToBeDeleted={
+                        setWarehouseCredentialsToBeDeleted
+                    }
+                    setWarehouseCredentialsToBeEdited={
+                        setWarehouseCredentialsToBeEdited
+                    }
+                />
+            ) : (
+                <SettingsEmptyState
+                    icon={IconDatabaseCog}
+                    title="No warehouse credentials"
+                    description="Add shared credentials for projects across your organization."
+                />
+            )}
 
             {!!warehouseCredentialsToBeEdited && (
                 <EditCredentialsModal
@@ -115,6 +84,6 @@ export const OrganizationWarehouseCredentialsPanel = () => {
                     }
                 />
             )}
-        </>
+        </SettingsPage>
     );
 };

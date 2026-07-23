@@ -53,7 +53,7 @@ const ProjectAppearance: FC<Props> = ({ projectUuid }) => {
             <LoadingOverlay visible={isLoading} />
             <SettingsGridCard>
                 <Stack gap="xs">
-                    <Title order={4}>Appearance</Title>
+                    <Title order={5}>Color palette</Title>
                     <Text c="ldGray.6" fz="sm">
                         Choose which organization color palette charts in this
                         project should use, or inherit the organization's active

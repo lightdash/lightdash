@@ -4,12 +4,9 @@ import {
     Anchor,
     Badge,
     Button,
-    Group,
     Menu,
-    Paper,
     Stack,
     Text,
-    Title,
     useMantineTheme,
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
@@ -33,7 +30,7 @@ import {
 } from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
-import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import { SettingsEmptyState } from '../common/Settings/SettingsEmptyState';
 
 type Props = {
     projectUuid: string;
@@ -281,21 +278,16 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
 
     if (!isLoading && items.length === 0) {
         return (
-            <Paper p="xl">
-                <SuboptimalState
-                    icon={IconCircleX}
-                    title="No verified content"
-                    description="Charts and dashboards that are verified will appear here."
-                />
-            </Paper>
+            <SettingsEmptyState
+                icon={IconCircleX}
+                title="No verified content"
+                description="Charts and dashboards that are verified will appear here."
+            />
         );
     }
 
     return (
         <Stack gap="md">
-            <Group justify="space-between">
-                <Title order={4}>Verified content</Title>
-            </Group>
             <ContentTable table={table} />
 
             <MantineModal

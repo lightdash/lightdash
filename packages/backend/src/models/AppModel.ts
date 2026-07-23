@@ -831,7 +831,11 @@ export class AppModel {
     async listMyApps(
         userUuid: string,
         paginateArgs?: KnexPaginateArgs,
-        options: { excludePreviewProjects?: boolean } = {},
+        options: {
+            excludePreviewProjects?: boolean;
+            projectUuids?: string[];
+            search?: string;
+        } = {},
     ): Promise<
         KnexPaginatedData<
             {
@@ -875,6 +879,29 @@ export class AppModel {
                         `${ProjectTableName}.project_type`,
                         ProjectType.PREVIEW,
                     );
+                }
+
+                if (options.projectUuids?.length) {
+                    void queryBuilder.whereIn(
+                        `${AppsTableName}.project_uuid`,
+                        options.projectUuids,
+                    );
+                }
+
+                const search = options.search?.trim();
+                if (search) {
+                    void queryBuilder.where((searchQueryBuilder) => {
+                        void searchQueryBuilder
+                            .whereILike(`${AppsTableName}.name`, `%${search}%`)
+                            .orWhereILike(
+                                `${ProjectTableName}.name`,
+                                `%${search}%`,
+                            )
+                            .orWhereILike(
+                                `${SpaceTableName}.name`,
+                                `%${search}%`,
+                            );
+                    });
                 }
             })
             .select(

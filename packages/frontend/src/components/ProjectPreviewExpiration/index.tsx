@@ -138,7 +138,7 @@ const ProjectPreviewExpiration: FC<Props> = ({ projectUuid }) => {
     return (
         <SettingsGridCard>
             <Box>
-                <Title order={4}>Preview projects</Title>
+                <Title order={5}>Preview projects</Title>
                 <Text c="ldGray.6" fz="xs">
                     Control how long preview projects created from this project
                     stick around before they're auto-deleted. Users can override

@@ -1,19 +1,10 @@
-import {
-    TextInput,
-    Group,
-    Stack,
-    Text,
-    Title,
-    Button,
-    Anchor,
-} from '@mantine-8/core';
+import { TextInput, Stack, Text, Title, Button, Anchor } from '@mantine-8/core';
 import { useClipboard } from '@mantine-8/hooks';
-import { IconCopy } from '@tabler/icons-react';
+import { IconCopy, IconKey } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
-import {
-    SettingsCard,
-    SettingsGridCard,
-} from '../../../../../components/common/Settings/SettingsCard';
+import { SettingsGridCard } from '../../../../../components/common/Settings/SettingsCard';
+import { SettingsEmptyState } from '../../../../../components/common/Settings/SettingsEmptyState';
+import { SettingsPage } from '../../../../../components/common/Settings/SettingsPage';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import useApp from '../../../../../providers/App/useApp';
 import { useScimTokenList } from '../../hooks/useScimAccessToken';
@@ -36,17 +27,18 @@ const ScimAccessTokensPanel: FC = () => {
     }, [scimURL, clipboard, showToastSuccess]);
 
     return (
-        <Stack mb="lg">
-            <Group justify="space-between">
-                <Title order={5}>SCIM access tokens</Title>
-                <Button onClick={() => setIsCreatingToken(true)}>
+        <SettingsPage
+            title="SCIM access tokens"
+            description="Connect your identity provider and manage tokens used for user provisioning."
+            actions={
+                <Button size="xs" onClick={() => setIsCreatingToken(true)}>
                     Generate new token
                 </Button>
-            </Group>
-
+            }
+        >
             <SettingsGridCard>
                 <Stack gap="sm">
-                    <Title order={4}>SCIM URL</Title>
+                    <Title order={5}>SCIM URL</Title>
                     <Text c="dimmed">
                         Use the URL to connect your identity provider to
                         Lightdash via SCIM.
@@ -80,9 +72,11 @@ const ScimAccessTokensPanel: FC = () => {
             {hasAvailableTokens ? (
                 <TokensTable />
             ) : (
-                <SettingsCard shadow="none">
-                    You haven't generated any tokens yet.
-                </SettingsCard>
+                <SettingsEmptyState
+                    icon={IconKey}
+                    title="No SCIM tokens"
+                    description="Generate a token to connect your identity provider."
+                />
             )}
 
             {isCreatingToken && (
@@ -90,7 +84,7 @@ const ScimAccessTokensPanel: FC = () => {
                     onBackClick={() => setIsCreatingToken(false)}
                 />
             )}
-        </Stack>
+        </SettingsPage>
     );
 };
 

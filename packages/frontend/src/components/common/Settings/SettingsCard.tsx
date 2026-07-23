@@ -1,30 +1,30 @@
-import { Paper, SimpleGrid, type PaperProps } from '@mantine-8/core';
-import { type FC } from 'react';
+import { Paper, type PaperProps } from '@mantine-8/core';
+import { type FC, type PropsWithChildren } from 'react';
 import classes from './SettingsCard.module.css';
 
-const SettingsCard: FC<React.PropsWithChildren<PaperProps>> = ({
+const SettingsCard: FC<PropsWithChildren<PaperProps>> = ({
     children,
     ...rest
 }) => {
     return (
-        <Paper shadow="subtle" withBorder p="md" radius="md" {...rest}>
+        <Paper shadow="subtle" withBorder p="lg" radius="md" {...rest}>
             {children}
         </Paper>
     );
 };
 
-const SettingsGridCard: FC<React.PropsWithChildren<PaperProps>> = ({
+const SettingsGridCard: FC<PropsWithChildren<PaperProps>> = ({
     children,
     ...rest
 }) => {
     return (
         <SettingsCard {...rest}>
-            <SimpleGrid cols={2}>{children}</SimpleGrid>
+            <div className={classes.settingsGrid}>{children}</div>
         </SettingsCard>
     );
 };
 
-const ProjectCreationCard: FC<React.PropsWithChildren<PaperProps>> = ({
+const ProjectCreationCard: FC<PropsWithChildren<PaperProps>> = ({
     children,
 }) => {
     return (

@@ -801,6 +801,8 @@ export class UserAppsController extends BaseController {
         @Query() page?: number,
         @Query() pageSize?: number,
         @Query() excludePreviewProjects?: boolean,
+        @Query() projectUuids?: string[],
+        @Query() search?: string,
     ): Promise<ApiMyAppsResponse> {
         assertRegisteredAccount(req.account);
         const result = await this.services
@@ -808,7 +810,7 @@ export class UserAppsController extends BaseController {
             .listMyApps(
                 toSessionUser(req.account),
                 page && pageSize ? { page, pageSize } : undefined,
-                { excludePreviewProjects },
+                { excludePreviewProjects, projectUuids, search },
             );
         return {
             status: 'ok',

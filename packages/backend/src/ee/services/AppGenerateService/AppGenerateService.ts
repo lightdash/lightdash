@@ -6607,7 +6607,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     async listMyApps(
         user: SessionUser,
         paginateArgs?: { page: number; pageSize: number },
-        options: { excludePreviewProjects?: boolean } = {},
+        options: {
+            excludePreviewProjects?: boolean;
+            projectUuids?: string[];
+            search?: string;
+        } = {},
     ): Promise<{
         data: {
             appUuid: string;
