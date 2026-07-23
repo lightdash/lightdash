@@ -27,8 +27,8 @@ const AccessTokensPanel: FC = () => {
             ) : (
                 <SettingsEmptyState
                     icon={IconKey}
-                    title="No tokens"
-                    description="Generate a token to access the Lightdash API."
+                    title="No personal access tokens"
+                    description="Generate your first token to authenticate with the Lightdash API."
                 />
             )}
 

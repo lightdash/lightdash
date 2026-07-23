@@ -222,7 +222,7 @@ const Settings: FC = () => {
                         description="Update your password and manage the ways you sign in."
                     >
                         <SettingsGridCard>
-                            <Title order={5}>Password</Title>
+                            <Title order={5}>Change password</Title>
                             <PasswordPanel />
                         </SettingsGridCard>
 
@@ -275,7 +275,7 @@ const Settings: FC = () => {
                         description="Manage organization-wide defaults, access, and account controls."
                     >
                         <SettingsGridCard>
-                            <Title order={5}>Organization</Title>
+                            <Title order={5}>Organization details</Title>
                             <OrganizationPanel />
                         </SettingsGridCard>
 
@@ -546,7 +546,7 @@ const Settings: FC = () => {
                 element: (
                     <SettingsPage
                         title="Single Sign-On"
-                        description="Configure organization identity providers and account linking."
+                        description="Configure SSO providers and account linking. Users are routed to the matching provider based on their email domain."
                     >
                         <AzureAdSsoPanel />
                         <OktaSsoPanel />
