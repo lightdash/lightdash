@@ -365,6 +365,42 @@ export const AiGeneralSettingsPage = () => {
                     </SettingsCard>
 
                     <SettingsCard>
+                        <Group
+                            justify="space-between"
+                            wrap="nowrap"
+                            align="flex-start"
+                            gap="md"
+                        >
+                            <Box maw={620}>
+                                <Title order={5} mb={4}>
+                                    Require explicit Slack channel configuration
+                                </Title>
+                                <Text c="dimmed" fz="xs">
+                                    Treat each agent&apos;s channel list as a
+                                    strict allowlist. Mentioning the bot in an
+                                    unconfigured channel will never link an
+                                    agent to it — channels can only be added
+                                    from the agent settings page. When off,
+                                    admins can link agents directly from Slack.
+                                </Text>
+                            </Box>
+                            <Switch
+                                size="md"
+                                checked={
+                                    settings.requireExplicitSlackChannelLinking
+                                }
+                                disabled={isUpdatingSettings}
+                                onChange={(event) =>
+                                    updateSettings({
+                                        requireExplicitSlackChannelLinking:
+                                            event.currentTarget.checked,
+                                    })
+                                }
+                            />
+                        </Group>
+                    </SettingsCard>
+
+                    <SettingsCard>
                         <Stack gap="md">
                             <Group
                                 justify="space-between"
