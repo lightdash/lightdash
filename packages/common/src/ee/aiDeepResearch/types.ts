@@ -32,7 +32,6 @@ export const isAiDeepResearchRunTerminal = (
     );
 
 export type AiDeepResearchBudget = {
-    maxRuntimeMs: number;
     maxTokens: number;
     maxToolCalls: number;
     maxWarehouseQueries: number;

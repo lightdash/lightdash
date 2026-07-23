@@ -46,7 +46,6 @@ export type AiDeepResearchFailureReason =
     | 'terminated'
     | 'unexpected_eof'
     | 'transport_error'
-    | 'timed_out'
     | 'interrupt_failed'
     | 'vault_cleanup_failed';
 
@@ -67,7 +66,6 @@ export type AiDeepResearchSessionConfig = {
     credentials: CredentialCreateParams[];
     sessionTitle: string;
     prompt: string;
-    timeoutMs: number;
     interruptTimeoutMs: number;
     signal: AbortSignal;
     onSessionCreated: (sessionId: string, signal: AbortSignal) => Promise<void>;
@@ -690,20 +688,7 @@ export class AiDeepResearchClient {
             return failed(null, 'setup_failed', getErrorMessage(error));
         }
 
-        const timeoutController = new AbortController();
-        const timeout = setTimeout(
-            () =>
-                timeoutController.abort(
-                    new Error(
-                        `Deep Research timed out after ${config.timeoutMs}ms`,
-                    ),
-                ),
-            config.timeoutMs,
-        );
-        const signal = AbortSignal.any([
-            config.signal,
-            timeoutController.signal,
-        ]);
+        const { signal } = config;
         let sessionId: string | null = null;
         let vaultId: string | null = null;
         let unconsumedStream: SessionEventStream | null = null;
@@ -845,29 +830,16 @@ export class AiDeepResearchClient {
         } catch (error) {
             if (signal.aborted) {
                 if (!sessionId) {
-                    return await finish(
-                        config.signal.aborted
-                            ? { status: 'cancelled', sessionId: null }
-                            : failed(
-                                  null,
-                                  'timed_out',
-                                  getErrorMessage(signal.reason),
-                              ),
-                    );
+                    return await finish({
+                        status: 'cancelled',
+                        sessionId: null,
+                    });
                 }
                 const interruptFailure = await interrupt();
                 if (interruptFailure) {
                     return await finish(interruptFailure);
                 }
-                return await finish(
-                    config.signal.aborted
-                        ? { status: 'cancelled', sessionId }
-                        : failed(
-                              sessionId,
-                              'timed_out',
-                              getErrorMessage(signal.reason),
-                          ),
-                );
+                return await finish({ status: 'cancelled', sessionId });
             }
 
             if (sessionId) {
@@ -889,7 +861,6 @@ export class AiDeepResearchClient {
             );
         } finally {
             unconsumedStream?.controller.abort();
-            clearTimeout(timeout);
         }
     }
 }

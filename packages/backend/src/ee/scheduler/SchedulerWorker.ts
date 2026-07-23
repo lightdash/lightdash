@@ -39,7 +39,6 @@ const AI_AGENT_REVIEW_CLASSIFIER_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 const AI_AGENT_REVIEW_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
 const AI_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000;
-const AI_DEEP_RESEARCH_TIMEOUT_MS = 60 * 60 * 1000;
 const AGENT_ONBOARDING_TIMEOUT_MS = 60 * 60 * 1000;
 
 type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
@@ -558,27 +557,13 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 );
             },
             [EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH]: async (payload, helpers) => {
-                const abortController = new AbortController();
-                await tryJobOrTimeout(
-                    SchedulerClient.processJob(
-                        EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH,
-                        helpers.job.id,
-                        helpers.job.run_at,
-                        payload,
-                        async () => {
-                            await this.aiDeepResearchService.executeRun(
-                                payload,
-                                abortController.signal,
-                            );
-                        },
-                    ),
-                    helpers.job,
-                    AI_DEEP_RESEARCH_TIMEOUT_MS,
-                    async (_job, error) => {
-                        abortController.abort(error);
-                        await this.aiDeepResearchService.markRunTimedOut(
-                            payload.aiDeepResearchRunUuid,
-                        );
+                await SchedulerClient.processJob(
+                    EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH,
+                    helpers.job.id,
+                    helpers.job.run_at,
+                    payload,
+                    async () => {
+                        await this.aiDeepResearchService.executeRun(payload);
                     },
                 );
             },

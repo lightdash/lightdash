@@ -7,7 +7,7 @@ import {
     Text,
     ThemeIcon,
 } from '@mantine-8/core';
-import { IconClock, IconDatabase, IconSearch } from '@tabler/icons-react';
+import { IconDatabase, IconSearch } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { DEEP_RESEARCH_DEPTH_CONFIG } from '../../deepResearch/runProgress';
 import {
@@ -74,19 +74,6 @@ export const DeepResearchPreflight = ({ depth, onDepthChange }: Props) => {
                                                 {optionConfig.label}
                                             </Text>
                                             <Stack gap={5} mt={6}>
-                                                <Group gap={3} wrap="nowrap">
-                                                    <MantineIcon
-                                                        icon={IconClock}
-                                                        size={10}
-                                                    />
-                                                    <Text
-                                                        size="10px"
-                                                        c="dimmed"
-                                                        lh={1.3}
-                                                    >
-                                                        {optionConfig.duration}
-                                                    </Text>
-                                                </Group>
                                                 <Group gap={3} wrap="nowrap">
                                                     <MantineIcon
                                                         icon={IconDatabase}

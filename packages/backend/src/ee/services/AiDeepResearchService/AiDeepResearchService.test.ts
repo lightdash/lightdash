@@ -16,7 +16,6 @@ import { Readable } from 'stream';
 import { AiDeepResearchService } from './AiDeepResearchService';
 
 const budget: AiDeepResearchBudget = {
-    maxRuntimeMs: 60_000,
     maxTokens: 10_000,
     maxToolCalls: 20,
     maxWarehouseQueries: 10,
@@ -27,7 +26,6 @@ const effortBudgets = [
     {
         effort: 'low',
         budget: {
-            maxRuntimeMs: 15 * 60 * 1_000,
             maxTokens: 500_000,
             maxToolCalls: 50,
             maxWarehouseQueries: 10,
@@ -37,7 +35,6 @@ const effortBudgets = [
     {
         effort: 'medium',
         budget: {
-            maxRuntimeMs: 30 * 60 * 1_000,
             maxTokens: 1_000_000,
             maxToolCalls: 125,
             maxWarehouseQueries: 25,
@@ -47,7 +44,6 @@ const effortBudgets = [
     {
         effort: 'high',
         budget: {
-            maxRuntimeMs: 45 * 60 * 1_000,
             maxTokens: 2_000_000,
             maxToolCalls: 250,
             maxWarehouseQueries: 50,
@@ -57,7 +53,6 @@ const effortBudgets = [
     {
         effort: 'xhigh',
         budget: {
-            maxRuntimeMs: 55 * 60 * 1_000,
             maxTokens: 4_000_000,
             maxToolCalls: 500,
             maxWarehouseQueries: 100,
@@ -652,7 +647,7 @@ describe('AiDeepResearchService', () => {
                     prompt: 'Investigate revenue',
                     budget: {
                         ...budget,
-                        maxRuntimeMs: 60 * 60 * 1_000 + 1,
+                        maxTokens: 4_000_000 + 1,
                     },
                 }),
             ).rejects.toBeInstanceOf(ParameterError);
@@ -661,6 +656,30 @@ describe('AiDeepResearchService', () => {
     });
 
     describe('access and cancellation', () => {
+        it('omits legacy runtime limits from returned budget snapshots', async () => {
+            const legacyBudget = {
+                ...budget,
+                maxRuntimeMs: 30 * 60 * 1_000,
+            } as AiDeepResearchBudget;
+            const { service } = buildService({
+                model: {
+                    findByUuidScoped: vi
+                        .fn()
+                        .mockResolvedValue(
+                            runRow({ budget_snapshot: legacyBudget }),
+                        ),
+                },
+            });
+
+            const run = await service.getRun(
+                userWithProjectAccess(),
+                'project-1',
+                'run-1',
+            );
+
+            expect(run.budget).toEqual(budget);
+        });
+
         it('does not expose a run through a different project path', async () => {
             const { service, model, projectModel } = buildService({
                 model: {
