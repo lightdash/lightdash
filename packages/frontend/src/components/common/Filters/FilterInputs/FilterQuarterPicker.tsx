@@ -1,11 +1,11 @@
 import { formatDate, TimeFrames } from '@lightdash/common';
 import { TextInput, Stack, Text, Popover } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
-import { type MantineTheme, type Sx } from '@mantine/core';
 import { MonthPicker, type MonthPickerProps } from '@mantine/dates';
 import dayjs from 'dayjs';
 import quarterOfYear from 'dayjs/plugin/quarterOfYear';
 import { useCallback, useEffect, useState, type FC } from 'react';
+import styles from './FilterQuarterPicker.module.css';
 
 dayjs.extend(quarterOfYear);
 
@@ -72,61 +72,27 @@ const FilterQuarterPicker: FC<Props> = ({
         [close, onChange, getStartOfQuarter],
     );
 
-    // Normalize value to start of quarter if needed
     useEffect(() => {
-        if (!value) return;
-
-        const startOfQuarter = getStartOfQuarter(value);
-        if (value.getTime() !== startOfQuarter.getTime()) {
-            onChange?.(startOfQuarter);
-        }
-    }, [value, getStartOfQuarter, onChange]);
+        setSelectedYear(yearValue);
+    }, [yearValue]);
 
     const getMonthControlProps = useCallback(
-        (
-            date: Date,
-        ): {
-            sx?: Sx;
-            onMouseEnter: () => void;
-            onMouseLeave?: () => void;
-        } => {
+        (date: Date) => {
             const month = date.getMonth();
             const year = date.getFullYear();
-
-            // If this is the selected quarter's months, highlight them
-            if (
-                parsedDate &&
+            const isSelected =
+                Boolean(parsedDate) &&
                 year === yearValue &&
-                getQuarterMonths(monthValue).includes(month)
-            ) {
-                return {
-                    sx: (theme: MantineTheme) => ({
-                        backgroundColor: theme.colors.blue[2],
-                        '&:hover': {
-                            backgroundColor: theme.colors.blue[2],
-                        },
-                    }),
-                    onMouseEnter: () => setHoveredMonth(month),
-                };
-            }
-
-            // If this is the hovered month's quarter, highlight all months in quarter
-            if (
+                getQuarterMonths(monthValue).includes(month);
+            const isHovered =
+                !isSelected &&
                 hoveredMonth !== null &&
-                getQuarterMonths(hoveredMonth).includes(month)
-            ) {
-                return {
-                    sx: (theme: MantineTheme) => ({
-                        backgroundColor: theme.colors.blue[1],
-                        '&:hover': {
-                            backgroundColor: theme.colors.blue[1],
-                        },
-                    }),
-                    onMouseEnter: () => setHoveredMonth(month),
-                };
-            }
+                getQuarterMonths(hoveredMonth).includes(month);
 
             return {
+                className: styles.monthControl,
+                'data-quarter-selected': isSelected || undefined,
+                'data-quarter-hovered': isHovered || undefined,
                 onMouseEnter: () => setHoveredMonth(month),
                 onMouseLeave: () => setHoveredMonth(null),
             };

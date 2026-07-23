@@ -4,7 +4,6 @@ import {
     type MetricExplorerDateRange,
     type MetricExplorerPartialDateRange,
 } from '@lightdash/common';
-import { type MantineTheme } from '@mantine/core';
 import {
     type DatePickerProps,
     type MonthPickerProps,
@@ -14,6 +13,7 @@ import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { formatDate, getDateRangePresets } from '../utils/metricExploreDate';
+import styles from './useDateRangePicker.module.css';
 
 dayjs.extend(isoWeek);
 
@@ -63,120 +63,6 @@ type CalendarVisualizationType =
     | YearPickerConfig
     | undefined;
 
-const getCommonCalendarStyles = (theme: MantineTheme) => ({
-    yearLevel: {
-        color: theme.colors.ldGray[7],
-        padding: theme.spacing.xs,
-        '&[data-year-level]:not(:last-of-type)': {
-            borderRight: `1px solid ${theme.colors.ldGray[2]}`,
-            marginRight: 0,
-        },
-        '&[data-year-level]:not(:first-of-type)': {
-            paddingRight: 0,
-        },
-    },
-    decadeLevel: {
-        color: theme.colors.ldGray[7],
-        padding: theme.spacing.xs,
-        '&[data-decade-level]:not(:last-of-type)': {
-            borderRight: `1px solid ${theme.colors.ldGray[2]}`,
-            marginRight: 0,
-        },
-        '&[data-decade-level]:not(:first-of-type)': {
-            paddingLeft: 0,
-            paddingRight: 0,
-        },
-    },
-    calendarHeaderControlIcon: {
-        color: theme.colors.ldGray[5],
-    },
-    calendarHeaderLevel: {
-        color: theme.colors.ldGray[7],
-    },
-    monthLevel: {
-        padding: theme.spacing.xs,
-        '&[data-month-level]:not(:last-of-type)': {
-            borderRight: `1px solid ${theme.colors.ldGray[2]}`,
-            marginRight: 0,
-        },
-    },
-    pickerControl: {
-        '&[data-selected]': {
-            backgroundColor: theme.colors.ldDark[7],
-            borderRadius: theme.radius.md,
-        },
-        '&[data-selected]:hover': {
-            backgroundColor: theme.colors.ldDark[9],
-            borderRadius: theme.radius.md,
-        },
-        '&[data-in-range]': {
-            backgroundColor: theme.colors.ldGray[1],
-        },
-        '&[data-in-range]:hover': {
-            backgroundColor: theme.colors.ldGray[1],
-        },
-        '&[data-last-in-range][data-first-in-range]': {
-            borderRadius: theme.radius.md,
-        },
-    },
-    day: {
-        borderRadius: theme.radius.lg,
-        '&[data-weekend="true"]&:not([data-selected])': {
-            color: theme.colors.ldGray[7],
-        },
-        '&[data-in-range]': {
-            backgroundColor: theme.colors.ldGray[1],
-        },
-        '&[data-in-range]:hover': {
-            backgroundColor: theme.colors.ldGray[1],
-        },
-        '&[data-selected]': {
-            backgroundColor: theme.colors.ldDark[7],
-            borderRadius: theme.radius.lg,
-        },
-        '&[data-selected]:hover': {
-            backgroundColor: theme.colors.ldDark[9],
-            borderRadius: theme.radius.lg,
-        },
-    },
-    monthsList: {
-        padding: theme.spacing.xs,
-    },
-    monthsListCell: {
-        '&[data-selected]': {
-            backgroundColor: theme.colors.ldDark[7],
-            borderRadius: theme.radius.lg,
-        },
-        '&[data-selected]:hover': {
-            backgroundColor: theme.colors.ldDark[9],
-        },
-        '&[data-in-range]': {
-            backgroundColor: theme.colors.ldGray[1],
-        },
-        '&[data-in-range]:hover': {
-            backgroundColor: theme.colors.ldGray[1],
-        },
-    },
-    yearsList: {
-        padding: theme.spacing.xs,
-    },
-    yearsListCell: {
-        '&[data-selected]': {
-            backgroundColor: theme.colors.ldDark[7],
-            borderRadius: theme.radius.lg,
-        },
-        '&[data-selected]:hover': {
-            backgroundColor: theme.colors.ldDark[9],
-        },
-        '&[data-in-range]': {
-            backgroundColor: theme.colors.ldGray[1],
-        },
-        '&[data-in-range]:hover': {
-            backgroundColor: theme.colors.ldGray[1],
-        },
-    },
-});
-
 /**
  * Hook to handle the date range picker for the metric peek
  * This hook handles the open/close state of the date range picker,
@@ -205,8 +91,7 @@ export const useDateRangePicker = ({
 
     useEffect(() => {
         setDateRange(value);
-        onChange?.(value);
-    }, [value, onChange]);
+    }, [value]);
 
     const buttonLabel = useMemo(() => {
         if (selectedPreset) {
@@ -283,7 +168,7 @@ export const useDateRangePicker = ({
                             handleDateRangeChange([startDate, endDate]);
                         },
                         numberOfColumns: 2,
-                        styles: getCommonCalendarStyles,
+                        classNames: styles,
                     },
                 } satisfies YearPickerConfig;
             case TimeFrames.MONTH:
@@ -303,7 +188,7 @@ export const useDateRangePicker = ({
                             handleDateRangeChange([startDate, endDate]);
                         },
                         numberOfColumns: 2,
-                        styles: getCommonCalendarStyles,
+                        classNames: styles,
                     },
                 } satisfies MonthPickerConfig;
             case TimeFrames.WEEK:
@@ -397,7 +282,7 @@ export const useDateRangePicker = ({
                                 lastInRange: date.getDay() === 0 && isSelected,
                             };
                         },
-                        styles: getCommonCalendarStyles,
+                        classNames: styles,
                     },
                 } satisfies WeekPickerConfig;
             case TimeFrames.DAY:
@@ -408,7 +293,7 @@ export const useDateRangePicker = ({
                         value: tempDateRange,
                         onChange: handleDateRangeChange,
                         numberOfColumns: 2,
-                        styles: getCommonCalendarStyles,
+                        classNames: styles,
                     },
                 } satisfies DayPickerConfig;
             default:
