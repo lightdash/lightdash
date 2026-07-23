@@ -185,19 +185,6 @@
                 }
             ]
         },
-        "AiHint": {
-            "oneOf": [
-                {
-                    "type": "string"
-                },
-                {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            ]
-        },
         "LightdashDimension": {
             "type": "object",
             "required": [],
@@ -215,9 +202,6 @@
                 },
                 "description": {
                     "type": "string"
-                },
-                "ai_hint": {
-                    "$ref": "#/definitions/AiHint"
                 },
                 "sql": {
                     "type": "string"
@@ -304,9 +288,6 @@
                 "description": {
                     "type": "string"
                 },
-                "ai_hint": {
-                    "$ref": "#/definitions/AiHint"
-                },
                 "sql": {
                     "type": "string"
                 },
@@ -390,9 +371,6 @@
                 },
                 "description": {
                     "type": "string"
-                },
-                "ai_hint": {
-                    "$ref": "#/definitions/AiHint"
                 },
                 "sql": {
                     "type": "string"
@@ -583,28 +561,6 @@
                         "minLength": 1
                     },
                     "maxItems": 5
-                },
-                "group_details": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "object",
-                        "properties": {
-                            "label": {
-                                "type": "string",
-                                "minLength": 1
-                            },
-                            "description": {
-                                "type": "string"
-                            },
-                            "ai_hint": {
-                                "$ref": "#/definitions/AiHint"
-                            }
-                        },
-                        "required": ["label"]
-                    }
-                },
-                "ai_hint": {
-                    "$ref": "#/definitions/AiHint"
                 },
                 "metrics": {
                     "type": "object",
