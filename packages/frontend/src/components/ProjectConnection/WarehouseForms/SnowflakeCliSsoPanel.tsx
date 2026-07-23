@@ -343,10 +343,7 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                     {...form.getInputProps('warehouse.database')}
                     onChange={(value) => {
                         if (value === warehouseValues?.database) return;
-                        form.setFieldValue(
-                            'warehouse.database',
-                            value ?? undefined,
-                        );
+                        form.setFieldValue('warehouse.database', value ?? '');
                         form.setFieldValue('warehouse.schema', '');
                     }}
                 />

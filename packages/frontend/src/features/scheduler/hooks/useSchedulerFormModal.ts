@@ -11,6 +11,7 @@ import {
     type ParametersValuesMap,
     type SchedulerAndTargets,
 } from '@lightdash/common';
+import { type FormValidateInput } from '@mantine/form';
 import { type UseMutationResult } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useAiAgentButtonVisibility } from '../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
@@ -154,38 +155,8 @@ export const useSchedulerFormModal = ({
     // Use the explicitly passed parameter values
     const dashboardParameterValues = currentParameterValues || {};
 
-    const form = useSchedulerForm({
-        initialValues:
-            scheduler.data !== undefined
-                ? getFormValuesFromScheduler({
-                      ...scheduler.data,
-                      ...getSelectedTabsForDashboardScheduler(
-                          scheduler.data,
-                          isDashboardTabsAvailable,
-                          dashboard,
-                      ),
-                  })
-                : isThresholdAlert
-                  ? DEFAULT_VALUES_ALERT
-                  : {
-                        ...DEFAULT_VALUES,
-                        // Apps only support image deliveries
-                        format: isApp
-                            ? SchedulerFormat.IMAGE
-                            : DEFAULT_VALUES.format,
-                        selectedTabs: isDashboardTabsAvailable
-                            ? dashboard?.tabs.map((tab) => tab.uuid)
-                            : null,
-                        parameters:
-                            isDashboard &&
-                            Object.keys(dashboardParameterValues).length > 0
-                                ? dashboardParameterValues
-                                : undefined,
-                        ...initialFormValues,
-                    },
-        validateInputOnBlur: ['options.customLimit'],
-
-        validate: {
+    const validate = useMemo<FormValidateInput<SchedulerFormValues>>(
+        () => ({
             name: (value) => {
                 return value.length > 0 ? null : 'Name is required';
             },
@@ -236,7 +207,42 @@ export const useSchedulerFormModal = ({
                 value && value.prompt.trim().length === 0
                     ? 'Instructions are required'
                     : null,
-        },
+        }),
+        [dashboard?.filters, isFilterRequirementsEnabled],
+    );
+
+    const form = useSchedulerForm({
+        initialValues:
+            scheduler.data !== undefined
+                ? getFormValuesFromScheduler({
+                      ...scheduler.data,
+                      ...getSelectedTabsForDashboardScheduler(
+                          scheduler.data,
+                          isDashboardTabsAvailable,
+                          dashboard,
+                      ),
+                  })
+                : isThresholdAlert
+                  ? DEFAULT_VALUES_ALERT
+                  : {
+                        ...DEFAULT_VALUES,
+                        // Apps only support image deliveries
+                        format: isApp
+                            ? SchedulerFormat.IMAGE
+                            : DEFAULT_VALUES.format,
+                        selectedTabs: isDashboardTabsAvailable
+                            ? dashboard?.tabs.map((tab) => tab.uuid)
+                            : null,
+                        parameters:
+                            isDashboard &&
+                            Object.keys(dashboardParameterValues).length > 0
+                                ? dashboardParameterValues
+                                : undefined,
+                        ...initialFormValues,
+                    },
+        validateInputOnBlur: ['options.customLimit'],
+
+        validate,
     });
 
     const numericMetrics = useMemo(

@@ -1120,8 +1120,8 @@ importers:
         specifier: 6.0.21
         version: 6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(dayjs@1.11.10)(react@19.2.0)
       '@mantine/form':
-        specifier: 7.5.2
-        version: 7.5.2(react@19.2.0)
+        specifier: 8.0.0
+        version: 8.0.0(react@19.2.0)
       '@mantine/hooks':
         specifier: 6.0.22
         version: 6.0.22(react@19.2.0)
@@ -1289,7 +1289,7 @@ importers:
         version: 4.18.1
       mantine-form-zod-resolver:
         specifier: 1.1.0
-        version: 1.1.0(@mantine/form@7.5.2(react@19.2.0))(zod@3.25.55)
+        version: 1.1.0(@mantine/form@8.0.0(react@19.2.0))(zod@3.25.55)
       moment:
         specifier: 2.29.4
         version: 2.29.4
@@ -4312,10 +4312,10 @@ packages:
       dayjs: '>=1.0.0'
       react: '>=16.8.0'
 
-  '@mantine/form@7.5.2':
-    resolution: {integrity: sha512-Kz4UNLvAvxB1utKflt4gr5Uzt1Dxj17thcnlLzB2JX6unzV3OkvC36b5XoXAtuoFxt/RzEyUrp5M38jZLwCLEA==}
+  '@mantine/form@8.0.0':
+    resolution: {integrity: sha512-ErbbEFMEiRsK2Rn0jmFE5ohNJXHSMSbuJsL2vDUVsbIaXo6svw6ockw1WWGdiU8oEGqxM6Pd618yI9cJWNHF3g==}
     peerDependencies:
-      react: ^18.2.0
+      react: ^18.x || ^19.x
 
   '@mantine/hooks@6.0.22':
     resolution: {integrity: sha512-e10//QTN2sAmC4Ryeu5X5L/TsxnrjXMOaGq3dxFPIPsCSwLzyxqySfjzVViWmoPWAj0Ak9MvE2MHFjzmOpA80w==}
@@ -20691,7 +20691,7 @@ snapshots:
       dayjs: 1.11.10
       react: 19.2.0
 
-  '@mantine/form@7.5.2(react@19.2.0)':
+  '@mantine/form@8.0.0(react@19.2.0)':
     dependencies:
       fast-deep-equal: 3.1.3
       klona: 2.0.6
@@ -30368,9 +30368,9 @@ snapshots:
       - bluebird
       - supports-color
 
-  mantine-form-zod-resolver@1.1.0(@mantine/form@7.5.2(react@19.2.0))(zod@3.25.55):
+  mantine-form-zod-resolver@1.1.0(@mantine/form@8.0.0(react@19.2.0))(zod@3.25.55):
     dependencies:
-      '@mantine/form': 7.5.2(react@19.2.0)
+      '@mantine/form': 8.0.0(react@19.2.0)
       zod: 3.25.55
 
   markdown-it-task-lists@2.1.1: {}

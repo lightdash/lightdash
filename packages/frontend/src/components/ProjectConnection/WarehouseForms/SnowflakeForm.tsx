@@ -517,7 +517,7 @@ const SnowflakeForm: FC<{
                                                     setTemporaryFile(undefined);
                                                     form.setFieldValue(
                                                         'warehouse.privateKey',
-                                                        null,
+                                                        undefined,
                                                     );
                                                     return;
                                                 }
@@ -542,7 +542,7 @@ const SnowflakeForm: FC<{
                                                     } else {
                                                         form.setFieldValue(
                                                             'warehouse.privateKey',
-                                                            null,
+                                                            undefined,
                                                         );
                                                     }
                                                 };
@@ -550,7 +550,7 @@ const SnowflakeForm: FC<{
                                                     setTemporaryFile(undefined);
                                                     form.setFieldValue(
                                                         'warehouse.privateKey',
-                                                        null,
+                                                        undefined,
                                                     );
                                                 };
                                                 fileReader.readAsText(file);

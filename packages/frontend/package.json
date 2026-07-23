@@ -45,7 +45,7 @@
         "@mantine-8/tiptap": "npm:@mantine/tiptap@8.0.0",
         "@mantine/core": "6.0.22",
         "@mantine/dates": "6.0.21",
-        "@mantine/form": "7.5.2",
+        "@mantine/form": "8.0.0",
         "@mantine/hooks": "6.0.22",
         "@monaco-editor/react": "4.6.0",
         "@pierre/diffs": "1.2.5",

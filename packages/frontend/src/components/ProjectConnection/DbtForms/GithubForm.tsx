@@ -1,4 +1,4 @@
-import { DbtProjectType } from '@lightdash/common';
+import { DbtProjectType, type DbtGithubProjectConfig } from '@lightdash/common';
 import {
     TextInput,
     Button,
@@ -262,7 +262,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     }
 
     const formAuthorizationMethod = form.values.dbt?.authorization_method;
-    const authorizationMethod: string =
+    const authorizationMethod: DbtGithubProjectConfig['authorization_method'] =
         formAuthorizationMethod ??
         (savedProject?.dbtConnection.type === DbtProjectType.GITHUB &&
         savedProject?.dbtConnection?.personal_access_token !== undefined
