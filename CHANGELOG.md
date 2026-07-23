@@ -1,3 +1,18 @@
+# [0.3469.0](https://github.com/lightdash/lightdash/compare/0.3468.0...0.3469.0) (2026-07-23)
+
+
+### Bug Fixes
+
+* make data-app tables scrollable with max-h ScrollArea ([#26082](https://github.com/lightdash/lightdash/issues/26082)) ([7a1c8a8](https://github.com/lightdash/lightdash/commit/7a1c8a806c1b7611bbe190fc55cc1b1911141cb6))
+* make preview content exports portable ([#26080](https://github.com/lightdash/lightdash/issues/26080)) ([0912428](https://github.com/lightdash/lightdash/commit/0912428515d397ebc5a310d13287436a339954a1))
+
+
+### Features
+
+* add skip space access upload flag ([#26032](https://github.com/lightdash/lightdash/issues/26032)) ([d84a612](https://github.com/lightdash/lightdash/commit/d84a612c87f4be708ce1d14aa2ae204b62ddfc9e))
+* **apps:** make build panel collapsible ([#25958](https://github.com/lightdash/lightdash/issues/25958)) ([7d86f60](https://github.com/lightdash/lightdash/commit/7d86f605d564b50f4419f9d536b19ccc32ceea4b))
+* infinite scroll and popularity ordering for homepage metric picker ([#25956](https://github.com/lightdash/lightdash/issues/25956)) ([4e24fe7](https://github.com/lightdash/lightdash/commit/4e24fe7f62f53e1502c64fefbb2b1830c9373ff0)), closes [/linear.app/lightdash/issue/ZAP-685/show-more-metrics-when-adding-a-homepage-metric#agent-session-331d77b0](https://github.com//linear.app/lightdash/issue/ZAP-685/show-more-metrics-when-adding-a-homepage-metric/issues/agent-session-331d77b0)
+
 # [0.3468.0](https://github.com/lightdash/lightdash/compare/0.3467.0...0.3468.0) (2026-07-23)
 
 

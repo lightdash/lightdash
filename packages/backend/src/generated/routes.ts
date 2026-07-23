@@ -3556,7 +3556,8 @@ const models: TsoaRoute.Models = {
                     required: true,
                     validators: { minLength: { value: 1 } },
                 },
-                uuid: { dataType: 'string', required: true },
+                uuid: { dataType: 'string' },
+                slug: { dataType: 'string' },
             },
             validators: {},
         },
@@ -3586,7 +3587,13 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: [null] },
                         { dataType: 'undefined' },
                     ],
-                    required: true,
+                },
+                tabSlug: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
                 },
                 w: {
                     dataType: 'double',

@@ -3887,10 +3887,15 @@
                         "minLength": 1
                     },
                     "uuid": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Legacy project-local identifier. Accepted on upload for backwards compatibility."
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Portable tab identifier used by new downloads."
                     }
                 },
-                "required": ["order", "name", "uuid"],
+                "required": ["order", "name"],
                 "type": "object"
             },
             "DashboardTileTypes": {
@@ -3908,7 +3913,13 @@
                 "properties": {
                     "tabUuid": {
                         "type": "string",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "Legacy project-local tab reference. Accepted on upload for backwards compatibility."
+                    },
+                    "tabSlug": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Portable reference to the dashboard tab containing this tile."
                     },
                     "w": {
                         "type": "number",
@@ -49170,7 +49181,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3468.0",
+        "version": "0.3469.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
