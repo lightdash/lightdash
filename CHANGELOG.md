@@ -1,3 +1,17 @@
+# [0.3465.0](https://github.com/lightdash/lightdash/compare/0.3464.1...0.3465.0) (2026-07-23)
+
+
+### Bug Fixes
+
+* **ai:** preserve deep research runs after refresh errors ([#26034](https://github.com/lightdash/lightdash/issues/26034)) ([9b18fe1](https://github.com/lightdash/lightdash/commit/9b18fe1ac5e554c1e1b1557e9033da17daf9f344))
+* preserve files on filtered agent and virtual view downloads ([#26026](https://github.com/lightdash/lightdash/issues/26026)) ([c7829dc](https://github.com/lightdash/lightdash/commit/c7829dcb5a82ba55f2ea7fe6ee884f9ccb2eb684)), closes [#26012](https://github.com/lightdash/lightdash/issues/26012)
+
+
+### Features
+
+* **ai:** remove Deep Research time limits ([#26033](https://github.com/lightdash/lightdash/issues/26033)) ([6e9a1f4](https://github.com/lightdash/lightdash/commit/6e9a1f4910a6f4e36ada3cd7fa5f67fe0309d1f5))
+* forward upstream errors in the external connection test tool ([#26027](https://github.com/lightdash/lightdash/issues/26027)) ([7806104](https://github.com/lightdash/lightdash/commit/7806104026abcddaf4acfb30d4e1f620674cdc33))
+
 ## [0.3464.1](https://github.com/lightdash/lightdash/compare/0.3464.0...0.3464.1) (2026-07-23)
 
 

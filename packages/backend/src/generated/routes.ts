@@ -28936,7 +28936,6 @@ const models: TsoaRoute.Models = {
                 maxWarehouseQueries: { dataType: 'double', required: true },
                 maxToolCalls: { dataType: 'double', required: true },
                 maxTokens: { dataType: 'double', required: true },
-                maxRuntimeMs: { dataType: 'double', required: true },
             },
             validators: {},
         },
