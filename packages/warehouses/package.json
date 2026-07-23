@@ -20,7 +20,7 @@
     "format": "oxfmt ./src --check",
     "fix-format": "oxfmt ./src",
     "test": "vitest run --config vitest.config.ts",
-    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "typecheck": "tsc --project tsconfig.json --noEmit --tsBuildInfoFile dist/.typecheck.tsbuildinfo",
     "copy-files": "copyfiles -u 1 src/warehouseClients/ca-bundle-aws-redshift.crt src/warehouseClients/ca-bundle-aws-rds-global.pem dist/",
     "build": "pnpm run copy-files && tsc --build tsconfig.json",
     "dev": "pnpm run copy-files && tsc --build --watch --preserveWatchOutput tsconfig.json",

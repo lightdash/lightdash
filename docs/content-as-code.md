@@ -495,11 +495,10 @@ field. `registry.test.ts` ensures that adding a resource to
 `CONTENT_AS_CODE_VERSIONS` also requires adding a matching coverage test.
 
 When a model changes, regenerate the OpenAPI schema before running a focused
-contract test. CI does this through `build:fast`, but focused local test runs do
-not:
+contract test. CI does this through `build`, but focused local test runs do not:
 
 ```bash
-pnpm generate-api:backend:fast
+pnpm generate-api:backend
 pnpm -F backend exec vitest run \
   src/contentAsCode/fieldCoverage/chart.test.ts \
   --config vitest.config.ts

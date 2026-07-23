@@ -76,7 +76,7 @@
         "typescript": "7.0.2"
     },
     "scripts": {
-        "build:playground-bundle": "pnpm formula:build:fast && pnpm common-build:fast && pnpm warehouses-build:fast && LIGHTDASH_MODE=development LIGHTDASH_SECRET=playground-bundle-build-only S3_ENDPOINT=http://localhost S3_BUCKET=playground-build S3_REGION=local tsx scripts/playground-bundle/build.ts",
+        "build:playground-bundle": "pnpm formula:build && pnpm common-build && pnpm warehouses-build && LIGHTDASH_MODE=development LIGHTDASH_SECRET=playground-bundle-build-only S3_ENDPOINT=http://localhost S3_BUCKET=playground-build S3_REGION=local tsx scripts/playground-bundle/build.ts",
         "formula:build": "pnpm -F formula build",
         "formula:test": "pnpm -F formula test",
         "formula:test:duckdb": "pnpm -F formula-tests test:duckdb",

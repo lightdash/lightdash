@@ -15,7 +15,7 @@
   "scripts": {
     "dev": "tsc --build --watch --preserveWatchOutput ./tsconfig.build.json",
     "build": "tsc --build ./tsconfig.build.json",
-    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "typecheck": "tsc --project tsconfig.json --noEmit --tsBuildInfoFile dist/types/.typecheck.tsbuildinfo",
     "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
     "type-aware-linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
     "formatter": "oxfmt",
