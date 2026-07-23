@@ -23,7 +23,15 @@ import {
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconChartDots, IconHash, IconPlus, IconX } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+    type UIEvent,
+} from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
@@ -186,9 +194,12 @@ const MetricsPickerModal: FC<{
 }> = ({ opened, onClose, projectUuid, selected, atLimit, onAdd }) => {
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
-    const { data, isFetching } = useMetricsCatalog({
+    const { data, fetchNextPage, hasNextPage, isFetching } = useMetricsCatalog({
         projectUuid: opened ? projectUuid : undefined,
         search: debouncedSearch.length >= 2 ? debouncedSearch : undefined,
+        // Match the metrics catalog ordering so the most-used metrics surface first
+        sortBy: 'chartUsage',
+        sortDirection: 'desc',
         pageSize: 25,
     });
     const results = (data?.pages ?? [])
@@ -201,6 +212,29 @@ const MetricsPickerModal: FC<{
                         ref.metricName === metric.name,
                 ),
         );
+
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    const fetchMoreOnBottomReached = useCallback(
+        (el: HTMLDivElement | null) => {
+            if (!el) return;
+            const { scrollHeight, scrollTop, clientHeight } = el;
+            if (
+                scrollHeight - scrollTop - clientHeight < 200 &&
+                !isFetching &&
+                hasNextPage
+            ) {
+                void fetchNextPage();
+            }
+        },
+        [fetchNextPage, isFetching, hasNextPage],
+    );
+
+    // Fetch more when the current results don't fill the scroll area, so the
+    // list is never capped at a single page just because it hasn't scrolled.
+    useEffect(() => {
+        fetchMoreOnBottomReached(scrollRef.current);
+    }, [fetchMoreOnBottomReached]);
 
     return (
         <MantineModal
@@ -223,7 +257,15 @@ const MetricsPickerModal: FC<{
                         add another.
                     </Text>
                 )}
-                <Stack gap={4} mah={360} className={classes.pickerScrollList}>
+                <Stack
+                    gap={4}
+                    mah={360}
+                    className={classes.pickerScrollList}
+                    ref={scrollRef}
+                    onScroll={(e: UIEvent<HTMLDivElement>) =>
+                        fetchMoreOnBottomReached(e.currentTarget)
+                    }
+                >
                     {!atLimit &&
                         results.map((metric) => (
                             <Group
@@ -256,6 +298,11 @@ const MetricsPickerModal: FC<{
                         <Text size="sm" c="dimmed" p="sm">
                             No matching metrics.
                         </Text>
+                    )}
+                    {!atLimit && isFetching && (
+                        <Group justify="center" p="xs">
+                            <Loader size="xs" />
+                        </Group>
                     )}
                 </Stack>
             </Stack>
