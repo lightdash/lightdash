@@ -45,7 +45,6 @@ export const MyWarehouseConnectionsPanel = () => {
             actions={
                 <Button
                     size="xs"
-                    variant="default"
                     leftSection={<MantineIcon icon={IconPlus} />}
                     onClick={() => setIsCreatingCredentials(true)}
                 >

@@ -73,7 +73,6 @@ const SchedulersView: FC<{ projectUuid?: string; isUserScope?: boolean }> = ({
                 actions={
                     <Button
                         size="xs"
-                        variant="default"
                         leftSection={<MantineIcon icon={IconRefresh} />}
                         onClick={handleRefresh}
                     >
