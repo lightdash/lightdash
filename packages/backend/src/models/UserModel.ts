@@ -294,17 +294,17 @@ export class UserModel {
         trx: Transaction,
         createUser: (Omit<CreateUserWithRole, 'role'> | OpenIdUser) & {
             isActive: boolean;
+            isSetupComplete: boolean;
             isVerified?: boolean;
         },
     ) {
-        const canSkipSetupForAnalytics = !this.lightdashConfig.rudder.writeKey;
         const userIn: DbUserIn = isOpenIdUser(createUser)
             ? {
                   first_name: createUser.openId.firstName || '',
                   last_name: createUser.openId.lastName || '',
                   is_marketing_opted_in: false,
                   is_tracking_anonymized: this.canTrackingBeAnonymized(),
-                  is_setup_complete: canSkipSetupForAnalytics,
+                  is_setup_complete: createUser.isSetupComplete,
                   is_active: createUser.isActive,
               }
             : {
@@ -312,7 +312,7 @@ export class UserModel {
                   last_name: createUser.lastName.trim(),
                   is_marketing_opted_in: false,
                   is_tracking_anonymized: this.canTrackingBeAnonymized(),
-                  is_setup_complete: canSkipSetupForAnalytics,
+                  is_setup_complete: createUser.isSetupComplete,
                   is_active: createUser.isActive,
               };
         const [newUser] = await trx<DbUser>('users')
@@ -1028,6 +1028,7 @@ export class UserModel {
         organizationUuid: string,
         createUser: CreateUserWithRole,
         isActive: boolean = true,
+        isSetupComplete?: boolean,
     ): Promise<LightdashUser> {
         const [org] = await this.database(OrganizationTableName)
             .where('organization_uuid', organizationUuid)
@@ -1050,10 +1051,14 @@ export class UserModel {
             throw new ParameterError("Password doesn't meet requirements");
         }
 
+        // Default preserves the legacy analytics-consent skip.
+        const setupComplete =
+            isSetupComplete ?? !this.lightdashConfig.rudder.writeKey;
         const user = await this.database.transaction(async (trx) => {
             const newUser = await this.createUserTransaction(trx, {
                 ...createUser,
                 isActive,
+                isSetupComplete: setupComplete,
             });
             await trx(OrganizationMembershipsTableName).insert({
                 organization_id: org.organization_id,
@@ -1134,7 +1139,10 @@ export class UserModel {
     async createUser(
         createUser: CreateLocalUserArgs | OpenIdUser,
         isActive: boolean = true,
+        isSetupComplete?: boolean,
     ): Promise<LightdashUser> {
+        const setupComplete =
+            isSetupComplete ?? !this.lightdashConfig.rudder.writeKey;
         const user = await this.database.transaction(async (trx) => {
             if (
                 !isOpenIdUser(createUser) &&
@@ -1159,6 +1167,7 @@ export class UserModel {
             const newUser = await this.createUserTransaction(trx, {
                 ...createUser,
                 isActive,
+                isSetupComplete: setupComplete,
             });
             return newUser;
         });

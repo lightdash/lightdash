@@ -736,6 +736,7 @@ export class UserService extends BaseService {
                 );
         }
         if (!existingUserWithEmail) {
+            const onboardingFlow = await this.getOnboardingFlow(user);
             const pendingUser = await this.userModel.createPendingUser(
                 organizationUuid,
                 {
@@ -744,6 +745,8 @@ export class UserService extends BaseService {
                     lastName: '',
                     role: userRole,
                 },
+                true,
+                onboardingFlow === 'new' ? false : undefined,
             );
             userUuid = pendingUser.userUuid;
         } else {
@@ -1832,7 +1835,11 @@ export class UserService extends BaseService {
             userConnectionType = 'email_only';
         }
 
-        const user = await this.userModel.createUser(createUser);
+        const user = await this.userModel.createUser(
+            createUser,
+            true,
+            onboardingFlow === 'new' ? false : undefined,
+        );
         this.identifyUser({
             ...user,
             isMarketingOptedIn: user.isMarketingOptedIn,
