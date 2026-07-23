@@ -1,3 +1,14 @@
+## [0.3470.2](https://github.com/lightdash/lightdash/compare/0.3470.1...0.3470.2) (2026-07-23)
+
+
+### Bug Fixes
+
+* **ai:** harden agent response persistence and recovery ([#26098](https://github.com/lightdash/lightdash/issues/26098)) ([6c95040](https://github.com/lightdash/lightdash/commit/6c950409fb1a379e3bfebe7288a3c45c1fa29994))
+* **ai:** only offer retry on the latest agent message ([#26100](https://github.com/lightdash/lightdash/issues/26100)) ([be35278](https://github.com/lightdash/lightdash/commit/be352782990149cc19690ae67097d2e9d31ad23a))
+* **ai:** prevent blank agent chat bubble from stream/persist race ([#26088](https://github.com/lightdash/lightdash/issues/26088)) ([f96f5d1](https://github.com/lightdash/lightdash/commit/f96f5d126f85bcc69c189e6f57fc0ac91e9dbb34)), closes [/linear.app/lightdash/issue/PROD-9206/ai-agent-chat-response-sometimes-not-displayed-until-page-refresh#agent-session-d7f8ad47](https://github.com//linear.app/lightdash/issue/PROD-9206/ai-agent-chat-response-sometimes-not-displayed-until-page-refresh/issues/agent-session-d7f8ad47)
+* **mcp:** scope run_sql registration to the target project ([#26092](https://github.com/lightdash/lightdash/issues/26092)) ([dacc2b2](https://github.com/lightdash/lightdash/commit/dacc2b24cc4d22103d4f76fa64634f041ea34a37)), closes [/linear.app/lightdash/issue/PROD-9147/mcp-run-sql-tool-executable-by-viewer-role-user-despite#agent-session-70cda582](https://github.com//linear.app/lightdash/issue/PROD-9147/mcp-run-sql-tool-executable-by-viewer-role-user-despite/issues/agent-session-70cda582)
+* stop deriving is_setup_complete from telemetry writeKey for new-onboarding signups ([#26089](https://github.com/lightdash/lightdash/issues/26089)) ([eca3c4c](https://github.com/lightdash/lightdash/commit/eca3c4c39625e9dbd0b7fa731440d3a2fcfcc79d))
+
 ## [0.3470.1](https://github.com/lightdash/lightdash/compare/0.3470.0...0.3470.1) (2026-07-23)
 
 
