@@ -1,0 +1,85 @@
+.card,
+.paper {
+    border-color: var(--app-border);
+}
+
+.card {
+    padding: var(--card-padding) !important;
+    background: var(--mantine-color-default);
+}
+
+.panel {
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    box-shadow: var(--app-shadow-raised);
+}
+
+.glass {
+    background: color-mix(in srgb, var(--app-surface) 72%, transparent);
+    border: 1px solid var(--app-border);
+    backdrop-filter: saturate(140%) blur(6px);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .card,
+    .paper {
+        transition:
+            border-color 180ms ease,
+            box-shadow 180ms ease;
+    }
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .card:hover,
+    .paper:hover {
+        border-color: var(--app-muted);
+        box-shadow: var(--mantine-shadow-sm);
+    }
+}
+
+.badge[data-variant='filled'] {
+    box-shadow: var(--app-inset-highlight);
+}
+
+.chip {
+    color: var(--mantine-color-text);
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+}
+
+.table thead th {
+    border-bottom: 1px solid var(--app-border-strong);
+}
+
+.table tbody td {
+    height: 44px;
+}
+
+.timelineBullet {
+    color: var(--mantine-color-dimmed);
+    background: var(--app-surface);
+    border-color: var(--app-border-strong);
+    border-width: 1px;
+}
+
+.blockquote {
+    background: var(--mantine-color-default);
+    border: 1px solid var(--app-border);
+}
+
+.spoilerControl {
+    color: var(--mantine-color-accent-6);
+    font-weight: 500;
+}
+
+.mark {
+    padding: 0 3px;
+    margin: 0 -1px;
+    border-radius: 3px;
+    box-decoration-break: clone;
+}
+
+.avatarRoot[data-within-group] {
+    border: 2px solid var(--app-surface);
+    box-shadow: 0 0 0 1px var(--app-border);
+}

@@ -1,0 +1,7 @@
+body[data-color-mode] {
+    color: var(--mantine-color-text);
+    letter-spacing: -0.006em;
+    background-color: var(--app-bg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizelegibility;
+}

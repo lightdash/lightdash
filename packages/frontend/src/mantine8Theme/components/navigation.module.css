@@ -1,0 +1,90 @@
+.tabsList {
+    border-color: var(--app-border);
+}
+
+.tabsTab {
+    font-weight: 500;
+    letter-spacing: -0.006em;
+}
+
+.accordionControl {
+    font-weight: 500;
+}
+
+.accordionChevron {
+    color: var(--app-muted);
+}
+
+.transparentActiveItem[data-active] {
+    background-color: transparent;
+}
+
+.paginationControl,
+.segmentIndicator {
+    border-color: var(--app-border-strong);
+    box-shadow: var(--app-shadow-raised);
+}
+
+.breadcrumbs {
+    font-size: var(--mantine-font-size-sm);
+}
+
+.navLink {
+    letter-spacing: -0.006em;
+}
+
+.stepperIcon {
+    border-color: var(--app-border-strong);
+}
+
+.stepperSeparator {
+    background: var(--app-border);
+}
+
+.menuDropdown {
+    padding: 4px;
+    background: var(--mantine-color-body);
+    border-color: var(--app-border);
+    box-shadow: var(--mantine-shadow-md);
+}
+
+.menuItem,
+.treeLabel {
+    padding: 6px 9px;
+    border-radius: var(--mantine-radius-sm);
+}
+
+.segmentRoot {
+    background: var(--mantine-color-default-hover);
+    border: 1px solid var(--app-border);
+}
+
+.segmentIndicator {
+    background: var(--app-surface);
+    border: 1px solid var(--app-border-strong);
+    box-shadow: var(--app-shadow-raised), var(--app-inset-highlight);
+}
+
+.segmentLabel {
+    padding-inline: 20px;
+    color: var(--mantine-color-dimmed);
+    font-weight: 500;
+    letter-spacing: -0.006em;
+}
+
+.segmentControl[data-active] .segmentLabel,
+.segmentLabel[data-active],
+.segmentControl .segmentLabel:hover {
+    color: var(--mantine-color-text);
+}
+
+.scrollThumb {
+    background: var(--app-muted);
+}
+
+.burger:focus-visible,
+.menuItem:focus-visible,
+.treeLabel:focus-visible {
+    outline: none;
+    box-shadow: var(--app-focus-ring);
+}

@@ -1,0 +1,45 @@
+.tooltip {
+    --tooltip-bg: var(--mantine-color-ldDark-9);
+    --tooltip-color: var(--mantine-color-ldGray-0);
+
+    font-weight: 500;
+    letter-spacing: -0.006em;
+    box-shadow: var(--mantine-shadow-md);
+}
+
+.notification,
+.dialog {
+    background: var(--app-surface);
+    border-color: var(--app-border);
+    box-shadow: var(--mantine-shadow-sm);
+}
+
+.modalContent,
+.drawerContent {
+    border: 1px solid var(--app-border-strong);
+    box-shadow: var(--mantine-shadow-lg);
+}
+
+.overlayHeader {
+    border-bottom: 1px solid var(--app-border);
+}
+
+.backdrop {
+    backdrop-filter: blur(3px);
+}
+
+.popoverDropdown {
+    background: var(--mantine-color-body);
+    border-color: var(--app-border);
+    box-shadow: var(--mantine-shadow-md);
+}
+
+.loader {
+    --loader-color: var(--mantine-primary-color-filled);
+}
+
+.alert {
+    border: 1px solid
+        color-mix(in srgb, var(--alert-color) 22%, var(--app-border));
+    box-shadow: var(--mantine-shadow-xs);
+}

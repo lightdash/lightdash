@@ -1,356 +1,97 @@
 import {
-    Accordion,
-    Badge,
-    Button,
-    Card,
-    Loader,
-    Modal,
-    MultiSelect,
-    NumberInput,
-    Paper,
-    PasswordInput,
-    Pill,
-    PillsInput,
-    ScrollArea,
-    Select,
-    TagsInput,
-    Textarea,
-    TextInput,
-    Tooltip,
+    type ActionIconVariant,
     type ButtonVariant,
     type DefaultMantineColor,
     type MantineColorsTuple,
-    type MantineTheme,
     type MantineThemeOverride,
 } from '@mantine-8/core';
 import { type ColorScheme } from '@mantine/styles';
-import { DotsLoader } from './ee/features/aiCopilot/components/ChatElements/DotsLoader/DotsLoader';
+import { actionsComponents } from './mantine8Theme/components/actions';
+import { dataDisplayComponents } from './mantine8Theme/components/dataDisplay';
+import { feedbackComponents } from './mantine8Theme/components/feedback';
+import { inputsComponents } from './mantine8Theme/components/inputs';
+import { navigationComponents } from './mantine8Theme/components/navigation';
+import { textComponents } from './mantine8Theme/components/text';
+import { accent, getThemeTokens } from './mantine8Theme/tokens';
 import { getMantineThemeOverride as getMantine6ThemeOverride } from './mantineTheme';
-// eslint-disable-next-line css-modules/no-unused-class
-import accordionStyles from './styles/mantine-overrides/accordion.module.css';
-// eslint-disable-next-line css-modules/no-unused-class
-import styles from './styles/mantine-overrides/tooltip.module.css';
 
 declare module '@mantine-8/core' {
     interface AccordionProps {
-        // When true, the active item won't get the variant's filled background.
         transparentActiveItem?: boolean;
     }
-}
 
-declare module '@mantine-8/core' {
-    export interface ButtonProps {
-        variant?: ButtonVariant | 'compact-outline' | 'dark';
+    interface ActionIconProps {
+        variant?: ActionIconVariant | 'quiet' | 'raised';
     }
 
-    export interface PaperProps {
-        variant?: 'dotted';
+    interface ButtonProps {
+        variant?: ButtonVariant | 'compact-outline' | 'dark' | 'raised';
     }
 
-    export interface LoaderProps {
-        /**
-         * Displays a message after 8s. Only available when type='dots'
-         */
+    interface LoaderProps {
         delayedMessage?: string;
     }
 
-    export interface MantineThemeColorsOverride {
+    interface MantineThemeColorsOverride {
         colors: Record<ExtendedCustomColors, MantineColorsTuple>;
+    }
+
+    interface PaperProps {
+        variant?: 'dotted' | 'glass' | 'panel';
     }
 }
 
-type ExtendedCustomColors = 'ldGray' | 'ldDark' | DefaultMantineColor;
-
-const subtleInputStyles = (theme: MantineTheme) => ({
-    input: {
-        fontWeight: 500,
-        fontSize: 14,
-        '--input-bd': theme.colors.ldGray[2],
-        borderRadius: theme.radius.md,
-        boxShadow: theme.shadows.subtle,
-        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-        color: theme.colors.ldGray[7],
-    },
-    label: {
-        fontWeight: 500,
-        color: theme.colors.ldGray[7],
-        marginBottom: theme.spacing.xxs,
-    },
-    pill: {
-        background: theme.colors.ldGray[1],
-        color: theme.colors.ldGray[9],
-    },
-});
-
-const subtlePasswordInputStyles = (theme: MantineTheme) => {
-    const subtleStyles = subtleInputStyles(theme);
-
-    return {
-        input: {
-            '--input-bd': theme.colors.ldGray[2],
-            borderRadius: theme.radius.md,
-            boxShadow: theme.shadows.subtle,
-        },
-        innerInput: {
-            fontWeight: subtleStyles.input.fontWeight,
-            fontSize: subtleStyles.input.fontSize,
-            color: subtleStyles.input.color,
-        },
-        label: subtleStyles.label,
-    };
-};
-
-const paperDottedStyles = (theme: MantineTheme) => ({
-    border: `1px dashed ${theme.colors.ldGray[3]}`,
-    background: 'inherit',
-});
+type ExtendedCustomColors =
+    | 'accent'
+    | 'ldDark'
+    | 'ldGray'
+    | DefaultMantineColor;
 
 export const getMantine8ThemeOverride = (
     colorScheme: ColorScheme,
-    overrides?: Partial<MantineThemeOverride>,
+    overrides: Partial<MantineThemeOverride> = {},
 ) => {
     const { colors, components, ...legacyTheme } =
         getMantine6ThemeOverride(colorScheme);
-
     const { Button: _Button, ...legacyComponentsTheme } = components;
+    const themeTokens = getThemeTokens(colorScheme);
+    const {
+        colors: overrideColors,
+        components: overrideComponents,
+        shadows: overrideShadows,
+        spacing: overrideSpacing,
+        ...overrideTheme
+    } = overrides;
 
     return {
         ...legacyTheme,
-        ...overrides,
-        colors,
-        fontFamily: `Inter, ${legacyTheme.fontFamily}`,
-        headings: {
-            fontFamily: `Inter, ${legacyTheme.fontFamily}`,
-            fontWeight: `600`,
+        ...themeTokens,
+        ...overrideTheme,
+        colors: {
+            ...colors,
+            accent,
+            ...overrideColors,
+        },
+        shadows: {
+            ...legacyTheme.shadows,
+            ...themeTokens.shadows,
+            ...overrideShadows,
         },
         spacing: {
             ...legacyTheme.spacing,
-            xxs: `0.125rem`,
-            // Large padding for page bottoms to allow scrolling past last elements
-            emptySpace: `6rem`,
+            xxs: '0.125rem',
+            emptySpace: '6rem',
+            ...overrideSpacing,
         },
-
         components: {
             ...legacyComponentsTheme,
-            Accordion: Accordion.extend({
-                classNames: (_theme, props) =>
-                    props.transparentActiveItem
-                        ? { item: accordionStyles.transparentActiveItem }
-                        : {},
-            }),
-            Badge: Badge.extend({
-                defaultProps: {
-                    radius: 'sm',
-                },
-                styles: {
-                    root: {
-                        textTransform: 'none',
-                        fontWeight: 400,
-                    },
-                },
-            }),
-            Card: Card.extend({
-                styles: (theme, props) => ({
-                    root: {
-                        borderColor: theme.colors.ldGray[2],
-                        ...(props.variant === 'dotted' &&
-                            paperDottedStyles(theme)),
-                    },
-                }),
-            }),
-            Pill: Pill.extend({
-                styles: (theme, props) =>
-                    props.variant === 'outline'
-                        ? {
-                              root: {
-                                  border: `1px solid ${theme.colors.ldGray[2]}`,
-                                  color: theme.colors.ldGray[7],
-                                  '&:hover': {
-                                      backgroundColor: theme.colors.ldGray[1],
-                                  },
-                              },
-                          }
-                        : {},
-            }),
-            Button: Button.extend({
-                vars: (theme, props) => {
-                    if (props.variant === 'compact-outline') {
-                        return {
-                            root: {
-                                '--button-bd': `1px solid ${theme.colors.ldGray[2]}`,
-                            },
-                        };
-                    }
-                    if (props.variant === 'subtle') {
-                        return {
-                            root: {
-                                '--button-color': theme.colors.ldGray[7],
-                                '--button-hover': theme.colors.ldGray[1],
-                            },
-                        };
-                    }
-                    if (props.variant === 'dark') {
-                        return {
-                            root: {
-                                '--button-bg': theme.colors.ldDark[9],
-                                '--button-hover': theme.colors.ldDark[8],
-                                '--button-color': theme.colors.ldGray[0],
-                                '--button-bd': `none`,
-                            },
-                        };
-                    }
-                    return { root: {} };
-                },
-                styles: (theme) => ({
-                    root: {
-                        fontFamily: theme.fontFamily,
-                        fontWeight: 500,
-                    },
-                }),
-                defaultProps: {
-                    radius: 'md',
-                    variant: 'dark',
-                },
-            }),
-            ScrollArea: ScrollArea.extend({
-                styles: (theme) => ({
-                    thumb: {
-                        backgroundColor: theme.colors.ldGray[3],
-                    },
-                    scrollbar: {
-                        backgroundColor: `transparent`,
-                    },
-                }),
-            }),
-            Tooltip: Tooltip.extend({
-                classNames: {
-                    tooltip: styles.tooltip,
-                },
-                defaultProps: {
-                    openDelay: 200,
-                    withinPortal: true,
-                    withArrow: true,
-                    multiline: true,
-                    maw: 250,
-                    fz: 'xs',
-                },
-            }),
-            Popover: {
-                defaultProps: {
-                    withinPortal: true,
-                    radius: 'md',
-                    shadow: 'sm',
-                },
-            },
-            Paper: Paper.extend({
-                defaultProps: {
-                    radius: 'md',
-                    shadow: 'subtle',
-                    withBorder: true,
-                },
-                styles: (theme, props) => ({
-                    root: {
-                        borderColor: `var(--mantine-color-ldGray-2)`,
-                        ...(props.variant === 'dotted' &&
-                            paperDottedStyles(theme)),
-                    },
-                }),
-            }),
-            Loader: Loader.extend({
-                defaultProps: {
-                    loaders: { ...Loader.defaultLoaders, dots: DotsLoader },
-                },
-            }),
-
-            Select: Select.extend({
-                defaultProps: {
-                    radius: 'md',
-                },
-                styles: (theme) => ({
-                    input: { fontFamily: theme.fontFamily },
-                    option: { fontFamily: theme.fontFamily },
-                    groupLabel: { fontFamily: theme.fontFamily },
-                }),
-                vars: (theme, props) => {
-                    if (props.variant === 'subtle')
-                        return subtleInputStyles(theme);
-                    return {};
-                },
-            }),
-
-            TextInput: TextInput.extend({
-                defaultProps: {
-                    radius: 'md',
-                },
-                vars: (theme, props) => {
-                    if (props.variant === 'subtle')
-                        return subtleInputStyles(theme);
-                    return {};
-                },
-            }),
-
-            NumberInput: NumberInput.extend({
-                defaultProps: {
-                    radius: 'md',
-                },
-            }),
-
-            PasswordInput: PasswordInput.extend({
-                defaultProps: {
-                    radius: 'md',
-                },
-                styles: (theme, props) =>
-                    props.variant === 'subtle'
-                        ? subtlePasswordInputStyles(theme)
-                        : {},
-            }),
-
-            Textarea: Textarea.extend({
-                defaultProps: {
-                    radius: 'md',
-                },
-                vars: (theme, props) => {
-                    if (props.variant === 'subtle')
-                        return subtleInputStyles(theme);
-                    return {};
-                },
-            }),
-            TagsInput: TagsInput.extend({
-                vars: (theme, props) => {
-                    if (props.variant === 'subtle')
-                        return subtleInputStyles(theme);
-                    return {};
-                },
-            }),
-            PillsInput: PillsInput.extend({
-                vars: (theme, props) => {
-                    if (props.variant === 'subtle') {
-                        return subtleInputStyles(theme);
-                    }
-                    return {};
-                },
-            }),
-            MultiSelect: MultiSelect.extend({
-                vars: (theme, props) => {
-                    if (props.variant === 'subtle')
-                        return subtleInputStyles(theme);
-                    return {};
-                },
-                defaultProps: {
-                    radius: 'md',
-                },
-            }),
-            Modal: Modal.extend({
-                styles: () => ({
-                    header: {
-                        paddingBottom: 'var(--mantine-spacing-sm)',
-                    },
-                    body: {
-                        paddingTop: 'var(--mantine-spacing-sm)',
-                    },
-                }),
-            }),
-            ...overrides?.components,
+            ...textComponents,
+            ...actionsComponents,
+            ...inputsComponents,
+            ...dataDisplayComponents,
+            ...feedbackComponents,
+            ...navigationComponents,
+            ...overrideComponents,
         },
     } satisfies MantineThemeOverride;
 };

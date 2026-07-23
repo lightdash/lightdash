@@ -1,0 +1,130 @@
+@media (prefers-reduced-motion: no-preference) {
+    .button,
+    .actionIcon,
+    .closeButton,
+    .chipLabel,
+    .kbd {
+        transition:
+            background-color 140ms var(--app-ease-out),
+            border-color 140ms var(--app-ease-out),
+            box-shadow 140ms var(--app-ease-out),
+            color 140ms var(--app-ease-out),
+            transform 140ms var(--app-ease-out);
+    }
+}
+
+.button[data-variant='filled'],
+.actionIcon[data-variant='filled'] {
+    box-shadow: var(--app-inset-highlight), var(--app-shadow-raised);
+}
+
+.button[data-variant='default'],
+.button[data-variant='outline'],
+.actionIcon[data-variant='default'],
+.actionIcon[data-variant='outline'] {
+    border-color: var(--mantine-color-default-border);
+}
+
+.button[data-variant='filled']:where(
+        :not(:disabled, [data-disabled], [data-loading])
+    ):hover,
+.actionIcon[data-variant='filled']:where(
+        :not(:disabled, [data-disabled], [data-loading])
+    ):hover {
+    box-shadow: var(--app-inset-highlight), var(--app-shadow-raised-hover);
+}
+
+.button:focus-visible,
+.actionIcon:focus-visible,
+.closeButton:focus-visible,
+.kbd:focus-visible {
+    outline: none;
+    box-shadow: var(--app-focus-ring);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .button:where(:not(:disabled, [data-disabled], [data-loading])):active,
+    .actionIcon:where(:not(:disabled, [data-disabled], [data-loading])):active {
+        transform: scale(0.97);
+    }
+}
+
+.button:where(
+    :disabled:not([data-loading]),
+    [data-disabled]:not([data-loading])
+),
+.actionIcon:where(
+    :disabled:not([data-loading]),
+    [data-disabled]:not([data-loading])
+) {
+    opacity: 0.5;
+}
+
+.quiet {
+    color: var(--app-muted);
+}
+
+.quiet:hover {
+    color: var(--mantine-color-text);
+    background-color: var(--mantine-color-default-hover);
+}
+
+.raised,
+.kbd {
+    border: 1px solid var(--app-border-strong);
+    box-shadow: var(--app-shadow-raised), var(--app-inset-highlight);
+}
+
+.anchor {
+    transition: color 140ms ease;
+}
+
+.chipLabel[data-checked] {
+    font-weight: 500;
+}
+
+.checkbox,
+.radio {
+    background-color: transparent;
+    border-color: var(--mantine-primary-color-filled);
+}
+
+.checkbox:checked,
+.checkbox:indeterminate,
+.radio:checked {
+    box-shadow: var(--app-inset-highlight);
+}
+
+.checkbox:focus-visible,
+.radio:focus-visible {
+    outline: none;
+    box-shadow: var(--app-focus-ring);
+}
+
+.switchTrack {
+    --switch-bg: var(--mantine-color-default-hover);
+
+    border: 1px solid var(--mantine-color-default-border);
+}
+
+.switchThumb {
+    background: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-0)
+    );
+    border: 1px solid light-dark(rgba(9, 9, 11, 0.06), rgba(0, 0, 0, 0.35));
+    box-shadow: var(--app-shadow-raised);
+}
+
+.switchInput:checked + .switchTrack {
+    border-color: transparent;
+    box-shadow: var(--app-inset-highlight);
+}
+
+.switchInput:checked + .switchTrack .switchThumb {
+    background: var(--mantine-primary-color-contrast);
+}
+
+.switchInput:focus-visible + .switchTrack {
+    box-shadow: var(--app-focus-ring);
+}

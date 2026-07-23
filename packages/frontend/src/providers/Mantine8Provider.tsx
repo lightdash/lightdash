@@ -6,6 +6,7 @@ import { useMantineColorScheme } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import { cssVariablesResolver } from '../mantine8CssVariablesResolver';
 import { getMantine8ThemeOverride } from '../mantine8Theme';
+import '../mantine8Theme/global.css';
 import CodeHighlightProvider from './CodeHighlightProvider';
 
 type Props = {

@@ -1,0 +1,84 @@
+.input {
+    background-color: transparent;
+    border: 1px solid var(--app-border);
+    box-shadow: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .input {
+        transition:
+            background-color 140ms var(--app-ease-out),
+            border-color 140ms var(--app-ease-out),
+            box-shadow 140ms var(--app-ease-out);
+    }
+}
+
+.input:hover:not(:disabled):not([data-disabled]):not([aria-invalid='true']) {
+    border-color: var(--app-border-strong);
+}
+
+.input:focus,
+.input:focus-within {
+    border-color: var(--mantine-primary-color-filled);
+    box-shadow: var(--app-focus-ring);
+}
+
+.input[aria-invalid='true'] {
+    border-color: var(--mantine-color-error);
+}
+
+.dropdown {
+    padding: 4px;
+    background: var(--mantine-color-body);
+    border: 1px solid var(--app-border);
+    border-radius: var(--mantine-radius-md);
+    box-shadow: var(--mantine-shadow-md);
+}
+
+.option {
+    padding-block: 6px;
+    padding-inline: 9px;
+    border-radius: var(--mantine-radius-sm);
+}
+
+.option:hover:not([data-combobox-disabled]),
+.option[data-combobox-active] {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.option[data-combobox-selected] {
+    color: var(--mantine-primary-color-contrast);
+    background-color: var(--mantine-primary-color-filled);
+}
+
+.pill {
+    display: inline-flex;
+    align-items: center;
+    font-weight: 500;
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+}
+
+.fieldset {
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    box-shadow: var(--app-shadow-raised);
+}
+
+.fieldsetLegend {
+    padding-inline: var(--mantine-spacing-xs);
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.composer,
+.composer:hover,
+.composer:focus,
+.composer:focus-within {
+    padding: 0;
+    background: transparent;
+    border: 0;
+    outline: 0;
+    box-shadow: none;
+}

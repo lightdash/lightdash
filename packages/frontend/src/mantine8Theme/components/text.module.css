@@ -1,0 +1,45 @@
+.eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.meta {
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-xs);
+}
+
+.secondary {
+    color: var(--mantine-color-dimmed);
+}
+
+.label {
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 500;
+    letter-spacing: -0.006em;
+}
+
+.numeric {
+    font-variant-numeric: tabular-nums;
+}
+
+.body {
+    letter-spacing: -0.006em;
+}
+
+.row {
+    width: 100%;
+    padding: 8px 12px;
+    text-align: start;
+    border-radius: var(--mantine-radius-md);
+}
+
+.row:hover {
+    background: var(--mantine-color-default-hover);
+}
+
+.row:focus-visible {
+    outline: none;
+    box-shadow: var(--app-focus-ring);
+}

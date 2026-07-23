@@ -16,12 +16,14 @@ import {
     SIDEBAR_RESIZE_HANDLE_WIDTH,
     SIDEBAR_TOGGLE_RESERVE,
 } from './components/common/Page/constants';
+import { themeCssVariables } from './mantine8Theme/tokens';
 import { LD_FIELD_COLORS } from './mantineTheme';
 
 // Bridges JS layout constants to global CSS variables so CSS modules can
 // reference them without re-declaring the literal values.
 export const cssVariablesResolver: CSSVariablesResolver = () => ({
     variables: {
+        ...themeCssVariables.variables,
         '--navbar-height': `${NAVBAR_HEIGHT}px`,
         '--banner-height': `${BANNER_HEIGHT}px`,
         '--page-header-height': `${PAGE_HEADER_HEIGHT}px`,
@@ -45,6 +47,6 @@ export const cssVariablesResolver: CSSVariablesResolver = () => ({
         '--ld-field-default-bg-hover': LD_FIELD_COLORS.DEFAULT.bgHover,
         '--ld-field-default-color': LD_FIELD_COLORS.DEFAULT.color,
     },
-    light: {},
-    dark: {},
+    light: { ...themeCssVariables.light },
+    dark: { ...themeCssVariables.dark },
 });
