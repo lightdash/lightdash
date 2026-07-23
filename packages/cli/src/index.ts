@@ -885,8 +885,8 @@ const downloadCommand = program
         false,
     )
     .option(
-        '--apps <appUuids...>',
-        'Include specific data apps by UUID (enterprise). Works for apps not added to a space.',
+        '--apps <appReferences...>',
+        'Include specific data apps by UUID or URL (enterprise). Works for apps not added to a space.',
     )
     .option(
         '--include-apps',
@@ -900,7 +900,7 @@ const downloadCommand = program
     )
     .option(
         '--apps-only',
-        'Download only data apps (implies --skip-charts --skip-dashboards --skip-spaces). Requires --apps <appUuids...>, --include-apps, or --include-all.',
+        'Download only data apps (implies --skip-charts --skip-dashboards --skip-spaces). Requires --apps <appReferences...>, --include-apps, or --include-all.',
         false,
     )
     .option(
