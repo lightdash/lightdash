@@ -2512,6 +2512,7 @@ export class AppGenerateService extends BaseService {
                 .run(
                     `cat /tmp/prompt.txt | claude ${sessionFlags} ` +
                         `--model ${claudeModel} ${effortFlag}` +
+                        `--thinking-display summarized ` +
                         `--verbose --output-format stream-json --include-partial-messages ` +
                         `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Read(//tmp/dashboard/**),Read(//tmp/external-data/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Glob(//tmp/dashboard/**),Glob(//tmp/external-data/**),Grep(//app/**),Grep(//tmp/dbt-repo/**),Grep(//tmp/external-data/**)" ` +
                         `${jsonSchemaFlag}--append-system-prompt-file ${AppGenerateService.EFFECTIVE_SKILL_PATH}`,
