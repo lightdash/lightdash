@@ -94,6 +94,14 @@ export const getSystemPromptV2 = (args: {
         ? ''
         : '\n- You cannot execute raw SQL or add custom SQL expressions to a query.';
 
+    // generateVisualization only renders a fixed set of chart types. When the
+    // content tools are available, the agent can fall back to createContent to
+    // build any other chart type as a saved chart, so the limitation is softened
+    // into a fallback instruction rather than a hard "not supported".
+    const chartTypesLimitation = enableContentTools
+        ? '- generateVisualization renders these chart types: bar, horizontal bar, line, area, scatter, pie, funnel, table. If the user asks for a chart type or advanced visualization feature outside this list (e.g. big number, gauge, map, sankey, treemap, or a fully custom visualization), do not refuse or approximate it with an ASCII/markdown chart — build it as a saved chart with createContent instead (see Content tools).'
+        : '- Available chart types: bar, horizontal bar, line, area, scatter, pie, funnel, table. Other chart types are not supported.';
+
     const renderKnowledgeDocument = (doc: AiAgentDocumentContext): string => {
         const { summary } = doc;
         const children: string[] = [
@@ -215,6 +223,7 @@ export const getSystemPromptV2 = (args: {
         )
         .replace('{{cross_explore_join_rule}}', crossExploreJoinRule)
         .replace('{{custom_sql_limitation}}', customSqlLimitation)
+        .replace('{{chart_types_limitation}}', chartTypesLimitation)
         .replace('{{agent_name}}', agentName)
         .replace(
             '{{instructions}}',

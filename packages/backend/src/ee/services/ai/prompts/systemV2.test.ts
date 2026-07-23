@@ -428,6 +428,50 @@ describe('getSystemPromptV2 change-validation policy', () => {
     });
 });
 
+describe('getSystemPromptV2 chart types limitation', () => {
+    test('states other chart types are not supported when content tools are off', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableContentTools: false,
+        });
+        expect(content).toContain(
+            'Available chart types: bar, horizontal bar, line, area, scatter, pie, funnel, table. Other chart types are not supported.',
+        );
+        expect(content).not.toContain('## Content tools');
+    });
+
+    test('offers a createContent fallback for unsupported chart types when content tools are on', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableDataAccess: true,
+            enableContentTools: true,
+        });
+        // The hard "not supported" statement is replaced by a fallback.
+        expect(content).not.toContain('Other chart types are not supported.');
+        expect(content).toContain(
+            'build it as a saved chart with createContent',
+        );
+        // Content tools section spells out the fallback + sidebar link.
+        expect(content).toContain('## Content tools');
+        expect(content).toContain('Fallback for unsupported visualizations');
+        expect(content).toContain('open and iterate on it in the sidebar');
+        expect(content).toContain('you do not need a dashboard');
+    });
+
+    test('leaves no unfilled chart_types_limitation placeholder', () => {
+        expect(
+            promptText({ availableExplores: [], enableContentTools: false }),
+        ).not.toContain('{{chart_types_limitation}}');
+        expect(
+            promptText({
+                availableExplores: [],
+                enableDataAccess: true,
+                enableContentTools: true,
+            }),
+        ).not.toContain('{{chart_types_limitation}}');
+    });
+});
+
 describe('getSystemPromptV2 repo-fs code search caveat', () => {
     const repoFsArgs = {
         availableExplores: [],
