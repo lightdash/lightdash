@@ -292,10 +292,12 @@ mcpRouter.all(
                     grepFieldsEnabled,
                     mcpContentWritesEnabled,
                     scheduledDeliveryEnabled,
+                    runSqlEnabled,
                 ] = await Promise.all([
                     mcpService.isAiGrepFieldsEnabled(req.user!),
                     mcpService.isContentToolsEnabled(req.user!),
                     mcpService.isCreateScheduledDeliveryEnabled(req.user!),
+                    mcpService.isRunSqlEnabled(req.user!, headerProjectUuid),
                 ]);
                 const mcpServer = await mcpService.createServer({
                     projectPinned: headerProjectUuid !== undefined,
@@ -305,7 +307,7 @@ mcpRouter.all(
                     grepFieldsEnabled,
                     mcpContentWritesEnabled,
                     scheduledDeliveryEnabled,
-                    runSqlEnabled: mcpService.isRunSqlEnabled(req.user!),
+                    runSqlEnabled,
                 });
                 const transport = new StreamableHTTPServerTransport({
                     enableJsonResponse: true,
