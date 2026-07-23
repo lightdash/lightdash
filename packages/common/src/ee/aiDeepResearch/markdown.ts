@@ -16,6 +16,7 @@ import {
 
 export const AI_DEEP_RESEARCH_CHART_LANGUAGE = 'chart';
 export const AI_DEEP_RESEARCH_MAX_CHARTS = 8;
+export const AI_DEEP_RESEARCH_MAX_CHART_DESCRIPTION_CHARS = 300;
 export const AI_DEEP_RESEARCH_MAX_INLINE_ROWS = 100;
 export const AI_DEEP_RESEARCH_MAX_INLINE_COLUMNS = 10;
 
@@ -215,16 +216,54 @@ export const buildInlineChartMetricQuery = (
 });
 
 // ---------------------------------------------------------------------------
-// Chart references: charts appear in the markdown as plain links,
-// [Title](#chart-<key>), resolved against the chart definitions.
+// Chart references: chart data is stored separately, while the markdown keeps
+// compact metadata that lets an LLM understand the chart without reading it.
 // ---------------------------------------------------------------------------
 
-const CHART_REF_RE = /\[([^\]\n]*)\]\(#chart-([A-Za-z0-9-]+)\)/g;
+const CHART_REF_RE = /<chart\b([^>]*)>/g;
+const CHART_ATTRIBUTE_RE = /\b(id|title|description)="([^"]*)"/g;
+const HTML_ENTITY_RE = /&(#x[\da-f]+|#\d+|amp|quot|lt|gt);/gi;
+const NAMED_HTML_ENTITIES: Record<string, string> = {
+    amp: '&',
+    quot: '"',
+    lt: '<',
+    gt: '>',
+};
+
+const decodeHtmlEntities = (value: string): string =>
+    value.replace(HTML_ENTITY_RE, (entity, code: string) => {
+        const named = NAMED_HTML_ENTITIES[code.toLowerCase()];
+        if (named) {
+            return named;
+        }
+        const isHex = code.toLowerCase().startsWith('#x');
+        const codePoint = Number.parseInt(
+            code.slice(isHex ? 2 : 1),
+            isHex ? 16 : 10,
+        );
+        return Number.isSafeInteger(codePoint) && codePoint <= 0x10ffff
+            ? String.fromCodePoint(codePoint)
+            : entity;
+    });
+
+const encodeHtmlAttribute = (value: string): string =>
+    value
+        .replaceAll('&', '&amp;')
+        .replaceAll('"', '&quot;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
+
+const escapeMarkdownLabel = (value: string): string =>
+    value
+        .replaceAll('\\', '\\\\')
+        .replaceAll('[', '\\[')
+        .replaceAll(']', '\\]');
 
 export type AiDeepResearchChartRef = {
     key: string;
     title: string;
-    /** Char range of the whole link in the markdown. */
+    description: string;
+    /** Char range of the whole tag in the markdown. */
     start: number;
     end: number;
     raw: string;
@@ -233,7 +272,11 @@ export type AiDeepResearchChartRef = {
 export const getDeepResearchChartRefMarkdown = (
     title: string,
     key: string,
-): string => `[${title}](#chart-${key})`;
+    description: string,
+): string =>
+    `<chart id="${encodeHtmlAttribute(key)}" title="${encodeHtmlAttribute(
+        title,
+    )}" description="${encodeHtmlAttribute(description)}">`;
 
 // ---------------------------------------------------------------------------
 // Legacy fenced ```chart blocks. Kept for the data migration that converts
@@ -408,16 +451,46 @@ export const findDeepResearchChartRefs = (
         match !== null;
         match = CHART_REF_RE.exec(masked)
     ) {
-        refs.push({
-            key: match[2],
-            title: match[1],
-            start: match.index,
-            end: match.index + match[0].length,
-            raw: markdown.slice(match.index, match.index + match[0].length),
-        });
+        const attributes = Object.fromEntries(
+            [...match[1].matchAll(CHART_ATTRIBUTE_RE)].map(
+                ([, name, value]) => [name, value],
+            ),
+        );
+        const id = attributes.id && decodeHtmlEntities(attributes.id);
+        const title = attributes.title && decodeHtmlEntities(attributes.title);
+        const description =
+            attributes.description &&
+            decodeHtmlEntities(attributes.description);
+        const isValid =
+            id &&
+            /^[A-Za-z0-9-]+$/.test(id) &&
+            title &&
+            description &&
+            description.length <= AI_DEEP_RESEARCH_MAX_CHART_DESCRIPTION_CHARS;
+        if (isValid) {
+            refs.push({
+                key: id,
+                title,
+                description,
+                start: match.index,
+                end: match.index + match[0].length,
+                raw: markdown.slice(match.index, match.index + match[0].length),
+            });
+        }
     }
     return refs;
 };
+
+export const renderDeepResearchChartRefs = (markdown: string): string =>
+    spliceDeepResearchRanges(
+        markdown,
+        findDeepResearchChartRefs(markdown).map((ref) => ({
+            match: ref,
+            replacement: `[${escapeMarkdownLabel(ref.title)}](#chart-${
+                ref.key
+            })`,
+        })),
+    );
 
 const CONFIDENCE_TAG_RE = /<confidence\b[^>]*>/g;
 
@@ -475,6 +548,7 @@ const lintHtmlTags = (masked: string): string[] => {
     const errors: string[] = [];
     const allowedTags = new Set([
         ...Object.keys(AI_DEEP_RESEARCH_MARKDOWN_TAGS),
+        'chart',
         'br',
     ]);
     const tagCounts = new Map<string, { open: number; close: number }>();
@@ -490,7 +564,7 @@ const lintHtmlTags = (masked: string): string[] => {
         const name = rawName.toLowerCase();
         if (!allowedTags.has(name)) {
             disallowed.add(rawName);
-        } else if (name !== 'br') {
+        } else if (name !== 'br' && name !== 'chart') {
             const counts = tagCounts.get(name) ?? { open: 0, close: 0 };
             if (slash) counts.close += 1;
             else counts.open += 1;
@@ -522,7 +596,7 @@ const lintHtmlTags = (masked: string): string[] => {
 /**
  * Validates a submitted report: the markdown structure and the referential
  * integrity between chart definitions (tool arguments) and the
- * [title](#chart-key) references in the markdown. Returns actionable errors
+ * <chart> references in the markdown. Returns actionable errors
  * the agent can self-correct from.
  */
 export const lintDeepResearchReport = (
@@ -576,11 +650,11 @@ export const lintDeepResearchReport = (
         });
     });
 
-    // Charts are tool arguments referenced by [title](#chart-<key>) links;
+    // Charts are tool arguments referenced by compact <chart> tags;
     // fenced ```chart blocks are the legacy form and are rejected.
     if (findDeepResearchChartBlocks(markdown).length > 0) {
         errors.push(
-            'Do not embed ```chart code fences in the markdown; define charts in the `charts` argument and reference each one inline with a [Chart title](#chart-<key>) link.',
+            'Do not embed ```chart code fences in the markdown; define charts in the `charts` argument and reference each one inline with a <chart id="..." title="..." description="..."> tag.',
         );
     }
 
@@ -591,9 +665,11 @@ export const lintDeepResearchReport = (
     }
 
     const keyCounts = new Map<string, number>();
+    const chartTitles = new Map<string, string>();
     charts.forEach((chart) => {
         const key = getDeepResearchChartKey(chart);
         keyCounts.set(key, (keyCounts.get(key) ?? 0) + 1);
+        chartTitles.set(key, chart.title);
     });
     keyCounts.forEach((count, key) => {
         if (count > 1) {
@@ -604,16 +680,28 @@ export const lintDeepResearchReport = (
     });
 
     const refs = findDeepResearchChartRefs(markdown);
+    const chartTagCount = masked.match(/<chart\b[^>]*>/g)?.length ?? 0;
+    if (chartTagCount !== refs.length) {
+        errors.push(
+            `Every <chart> tag must have a valid id, a non-empty title, and a non-empty description of at most ${AI_DEEP_RESEARCH_MAX_CHART_DESCRIPTION_CHARS} characters.`,
+        );
+    }
     const refCounts = new Map<string, number>();
     refs.forEach((ref) => {
         refCounts.set(ref.key, (refCounts.get(ref.key) ?? 0) + 1);
+        const chartTitle = chartTitles.get(ref.key);
+        if (chartTitle !== undefined && ref.title !== chartTitle) {
+            errors.push(
+                `Chart ${ref.key} has title "${ref.title}" in the markdown but "${chartTitle}" in the charts argument; use the same title in both places.`,
+            );
+        }
     });
 
     keyCounts.forEach((_, key) => {
         const refCount = refCounts.get(key) ?? 0;
         if (refCount !== 1) {
             errors.push(
-                `Chart ${key} must be referenced exactly once in the markdown as [Chart title](#chart-${key}) (found ${refCount} references).`,
+                `Chart ${key} must be referenced exactly once in the markdown as <chart id="${key}" title="..." description="..."> (found ${refCount} references).`,
             );
         }
     });

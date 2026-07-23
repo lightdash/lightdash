@@ -46,6 +46,11 @@ describe('DeepResearchReport', () => {
             'Enterprise retention by incident exposure',
         );
         expect(
+            screen.queryByText(
+                'Three incident-affected renewals account for most churn in the quarter.',
+            ),
+        ).not.toBeInTheDocument();
+        expect(
             Boolean(
                 setup.compareDocumentPosition(chart) &
                 Node.DOCUMENT_POSITION_FOLLOWING,

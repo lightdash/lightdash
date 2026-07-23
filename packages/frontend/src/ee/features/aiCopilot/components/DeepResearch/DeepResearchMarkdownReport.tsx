@@ -1,5 +1,6 @@
 import {
     AI_DEEP_RESEARCH_MARKDOWN_TAGS,
+    renderDeepResearchChartRefs,
     type AiDeepResearchChartDataMap,
     type AiDeepResearchConfidence,
 } from '@lightdash/common';
@@ -64,9 +65,9 @@ const ConfidenceBadge: FC<{ level: unknown; children?: ReactNode }> = ({
 const CHART_HREF_PREFIX = '#chart-';
 
 /**
- * Chart references arrive as plain links, [Title](#chart-<key>), and hydrate
- * into chart tiles from the run's persisted chart data. Every other link
- * renders as a regular external anchor.
+ * Chart tags are converted to these internal links before rendering and
+ * hydrate into chart tiles from the run's persisted chart data. Every other
+ * link renders as a regular external anchor.
  */
 const ReportLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
     href,
@@ -160,7 +161,7 @@ type Props = {
 
 /**
  * Renders a deep research report markdown document as one linear flow:
- * prose via streamdown, [title](#chart-<key>) references hydrated into
+ * prose via streamdown, <chart> references hydrated into
  * chart tiles from the run's chart data, and the whitelisted
  * callout/confidence tags mapped to house components.
  */
@@ -170,6 +171,10 @@ export const DeepResearchMarkdownReport: FC<Props> = ({
     projectUuid,
     runUuid,
 }) => {
+    const renderMarkdown = useMemo(
+        () => renderDeepResearchChartRefs(markdown),
+        [markdown],
+    );
     const contextValue = useMemo(
         () => ({ projectUuid, runUuid, chartData }),
         [projectUuid, runUuid, chartData],
@@ -181,7 +186,7 @@ export const DeepResearchMarkdownReport: FC<Props> = ({
                 rehypePlugins={REHYPE_PLUGINS}
                 components={MARKDOWN_COMPONENTS}
             >
-                {markdown}
+                {renderMarkdown}
             </AiMarkdown>
         </DeepResearchReportContext.Provider>
     );

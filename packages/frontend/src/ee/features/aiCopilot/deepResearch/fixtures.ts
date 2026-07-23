@@ -35,7 +35,7 @@ const deepResearchReportMarkdownFixture = `Retention fell because three large cu
 
 The renewal cohort joins contracted ARR, renewal outcome, and production incident exposure for the quarter [1].
 
-[${deepResearchChartFixture.title}](#chart-${deepResearchChartQueryUuid})
+<chart id="${deepResearchChartQueryUuid}" title="${deepResearchChartFixture.title}" description="Three incident-affected renewals account for most churn in the quarter.">
 
 The concentration of churn among incident-exposed accounts makes reliability the strongest explanation for the quarter's retention decline.
 

@@ -42,7 +42,7 @@ const reportMarkdown = `Revenue fell after the promotion ended, with high confid
 
 The timing makes the promotion the strongest explanation for the decline.
 
-[Revenue trend](#chart-${QUERY_UUID})
+<chart id="${QUERY_UUID}" title="Revenue trend" description="Revenue declined after the promotion ended.">
 
 The trajectory change aligns with the promotion end date.
 
@@ -177,7 +177,7 @@ describe('AiDeepResearchExecutor', () => {
         expect(() =>
             parseAiDeepResearchReport({
                 markdown: reportMarkdown.replace(
-                    `[Revenue trend](#chart-${QUERY_UUID})`,
+                    `<chart id="${QUERY_UUID}" title="Revenue trend" description="Revenue declined after the promotion ended.">`,
                     '```chart\n{}\n```',
                 ),
                 charts: [],
