@@ -372,10 +372,17 @@ const AssistantBubbleContent: FC<{
         }),
         [canOpenSqlRunner, projectUuid],
     );
+    // After streaming ends there's a brief window where the client has
+    // refetched the thread but the persisted message.message hasn't landed
+    // yet. The streamed content stays in redux keyed to this message, so we
+    // keep it as a fallback to avoid flashing an empty bubble (and a spurious
+    // "No response" notice) until the persisted text arrives.
+    const streamedContent = streamingState?.content ?? '';
     const hasNoResponse =
         !isStreaming &&
         !streamingError &&
         !message.message &&
+        !streamedContent &&
         !isPending &&
         !message.interrupted;
     const shouldShowRetry = hasError || hasNoResponse || !!streamingError;
@@ -391,7 +398,7 @@ const AssistantBubbleContent: FC<{
     const baseMessageContent =
         isStreaming && streamingState
             ? streamingState.content
-            : (message.message ?? '');
+            : message.message || streamedContent;
 
     const referencedArtifactsMarkdown =
         !isStreaming &&
