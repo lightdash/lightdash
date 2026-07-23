@@ -18,7 +18,7 @@
         "@types/node": "20.17.12",
         "@types/react": "19.2.2",
         "@types/react-dom": "19.2.2",
-        "postcss": "8.5.10",
+        "postcss": "8.5.12",
         "typescript": "npm:@typescript/typescript6@6.0.1",
         "typescript-7": "npm:typescript@7.0.1-rc"
     }
