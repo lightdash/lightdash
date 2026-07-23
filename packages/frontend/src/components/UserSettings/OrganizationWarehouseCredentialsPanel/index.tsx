@@ -22,34 +22,25 @@ export const OrganizationWarehouseCredentialsPanel = () => {
         setWarehouseCredentialsToBeDeleted,
     ] = useState<OrganizationWarehouseCredentials | undefined>(undefined);
 
-    if (isLoading) {
-        return (
-            <SettingsPage
-                title="Warehouse credentials"
-                description="Manage shared credentials available across your organization."
-            >
-                <Box pos="relative" mih={120}>
-                    <LoadingOverlay visible />
-                </Box>
-            </SettingsPage>
-        );
-    }
     return (
         <SettingsPage
             title="Warehouse credentials"
             description="Manage shared credentials available across your organization."
             actions={
-                credentials && credentials.length > 0 ? (
-                    <Button
-                        leftSection={<MantineIcon icon={IconPlus} />}
-                        onClick={() => setIsCreatingCredentials(true)}
-                    >
-                        Add credentials
-                    </Button>
-                ) : null
+                <Button
+                    size="xs"
+                    leftSection={<MantineIcon icon={IconPlus} />}
+                    onClick={() => setIsCreatingCredentials(true)}
+                >
+                    Add credentials
+                </Button>
             }
         >
-            {credentials && credentials.length > 0 ? (
+            {isLoading ? (
+                <Box pos="relative" mih={120}>
+                    <LoadingOverlay visible />
+                </Box>
+            ) : credentials && credentials.length > 0 ? (
                 <CredentialsTable
                     credentials={credentials}
                     setWarehouseCredentialsToBeDeleted={
@@ -64,11 +55,7 @@ export const OrganizationWarehouseCredentialsPanel = () => {
                     icon={IconDatabaseCog}
                     title="No warehouse credentials"
                     description="Add shared credentials for projects across your organization."
-                >
-                    <Button onClick={() => setIsCreatingCredentials(true)}>
-                        Add credentials
-                    </Button>
-                </SettingsEmptyState>
+                />
             )}
 
             {!!warehouseCredentialsToBeEdited && (

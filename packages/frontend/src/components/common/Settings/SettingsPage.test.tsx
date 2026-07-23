@@ -2,7 +2,11 @@ import { Button } from '@mantine-8/core';
 import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
-import { SettingsPage } from './SettingsPage';
+import {
+    SettingsPage,
+    SettingsPageActions,
+    SettingsPageDocumentationLink,
+} from './SettingsPage';
 
 describe('SettingsPage', () => {
     it('renders a consistent page heading, description, actions, and content', () => {
@@ -38,5 +42,29 @@ describe('SettingsPage', () => {
             screen.getByRole('heading', { level: 4, name: 'Profile' }),
         ).toBeVisible();
         expect(screen.getByText('Profile content')).toBeVisible();
+    });
+
+    it('renders grouped page actions and external documentation links', () => {
+        renderWithProviders(
+            <SettingsPage
+                title="Users"
+                actions={
+                    <SettingsPageActions>
+                        <SettingsPageDocumentationLink href="https://docs.example.com/users" />
+                        <Button>Add user</Button>
+                    </SettingsPageActions>
+                }
+            >
+                <div>Users content</div>
+            </SettingsPage>,
+        );
+
+        expect(
+            screen.getByRole('link', { name: 'Documentation' }),
+        ).toHaveAttribute('href', 'https://docs.example.com/users');
+        expect(
+            screen.getByRole('link', { name: 'Documentation' }),
+        ).toHaveAttribute('target', '_blank');
+        expect(screen.getByRole('button', { name: 'Add user' })).toBeVisible();
     });
 });

@@ -28,7 +28,6 @@ import {
     IconCalendarTime,
     IconClock,
     IconColumns,
-    IconExternalLink,
     IconFile,
     IconFilter,
     IconFilterExclamation,
@@ -60,7 +59,11 @@ import {
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import { SettingsEmptyState } from '../common/Settings/SettingsEmptyState';
-import { SettingsPage } from '../common/Settings/SettingsPage';
+import {
+    SettingsPage,
+    SettingsPageActions,
+    SettingsPageDocumentationLink,
+} from '../common/Settings/SettingsPage';
 import MaterializationDetailDrawer from './MaterializationDetailDrawer';
 import classes from './PreAggregateMaterializations.module.css';
 import { StatusBadge } from './StatusBadge';
@@ -706,22 +709,8 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 title="Pre-aggregate materializations"
                 description="Overview of all pre-aggregate definitions and their current materialization status."
                 actions={
-                    <Group gap="xs">
-                        <Button
-                            component="a"
-                            href="https://docs.lightdash.com/references/pre-aggregates"
-                            target="_blank"
-                            variant="default"
-                            size="xs"
-                            rightSection={
-                                <MantineIcon
-                                    icon={IconExternalLink}
-                                    size="sm"
-                                />
-                            }
-                        >
-                            Documentation
-                        </Button>
+                    <SettingsPageActions>
+                        <SettingsPageDocumentationLink href="https://docs.lightdash.com/references/pre-aggregates" />
                         <Button
                             size="xs"
                             leftSection={
@@ -732,7 +721,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                         >
                             Rebuild all
                         </Button>
-                    </Group>
+                    </SettingsPageActions>
                 }
             >
                 {requiresUserCredentials && (

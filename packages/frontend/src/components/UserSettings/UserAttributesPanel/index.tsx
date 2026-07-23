@@ -4,6 +4,7 @@ import {
     ActionIcon,
     Anchor,
     Box,
+    Button,
     Group,
     Menu,
     Stack,
@@ -19,6 +20,7 @@ import {
     IconDots,
     IconEdit,
     IconInfoCircle,
+    IconPlus,
     IconTrash,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -34,10 +36,13 @@ import {
     useContentTable,
     type ContentTableColumnDef,
 } from '../../common/ContentTable';
-import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
-import { SettingsPage } from '../../common/Settings/SettingsPage';
+import {
+    SettingsPage,
+    SettingsPageActions,
+    SettingsPageDocumentationLink,
+} from '../../common/Settings/SettingsPage';
 import ForbiddenPanel from '../../ForbiddenPanel';
 import UserAttributeModal from './UserAttributeModal';
 import { UserAttributesTopToolbar } from './UserAttributesTopToolbar';
@@ -259,7 +264,6 @@ const UserAttributesPanel: FC = () => {
         },
         renderTopToolbar: () => (
             <UserAttributesTopToolbar
-                onAddClick={addAttributeModal.open}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
             />
@@ -313,10 +317,6 @@ const UserAttributesPanel: FC = () => {
         return <ForbiddenPanel />;
     }
 
-    if (isInitialLoading) {
-        return <EmptyStateLoader my="xl" title="Loading user attributes" />;
-    }
-
     if (!user.data) return null;
 
     return (
@@ -328,25 +328,16 @@ const UserAttributesPanel: FC = () => {
             }
             description="Define organization metadata used for data access and personalization."
             actions={
-                <Tooltip
-                    multiline
-                    w={400}
-                    withArrow
-                    position="bottom-end"
-                    label="Learn more about using user attributes."
-                >
-                    <ActionIcon
-                        component="a"
-                        href="https://docs.lightdash.com/references/user-attributes"
-                        target="_blank"
-                        rel="noreferrer"
-                        variant="subtle"
-                        color="ldGray.6"
-                        aria-label="Open user attributes documentation"
+                <SettingsPageActions>
+                    <SettingsPageDocumentationLink href="https://docs.lightdash.com/references/user-attributes" />
+                    <Button
+                        size="xs"
+                        leftSection={<MantineIcon icon={IconPlus} />}
+                        onClick={addAttributeModal.open}
                     >
-                        <MantineIcon icon={IconInfoCircle} />
-                    </ActionIcon>
-                </Tooltip>
+                        Add attribute
+                    </Button>
+                </SettingsPageActions>
             }
         >
             <ContentTable table={table} />

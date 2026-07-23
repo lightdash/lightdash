@@ -1,5 +1,5 @@
 import { type AiAgentAdminThreadSummary } from '@lightdash/common';
-import { Button, Drawer, Group } from '@mantine-8/core';
+import { Button, Drawer } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import { IconChartDots, IconMessageCircleShare } from '@tabler/icons-react';
 import { useState } from 'react';
@@ -7,7 +7,10 @@ import LinkButton from '../../../../../../components/common/LinkButton';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../../components/common/MantineModal';
 import { NAVBAR_HEIGHT } from '../../../../../../components/common/Page/constants';
-import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
+import {
+    SettingsPage,
+    SettingsPageActions,
+} from '../../../../../../components/common/Settings/SettingsPage';
 import useHealth from '../../../../../../hooks/health/useHealth';
 import { useAiOrganizationSettings } from '../../../hooks/useAiOrganizationSettings';
 import AiAgentAdminThreadsTable from '../AiAgentAdminThreadsTable';
@@ -47,7 +50,7 @@ export const AiThreadsSettingsPage = () => {
             title="Threads"
             description="Review AI conversations across your organization."
             actions={
-                <Group gap="xs">
+                <SettingsPageActions>
                     {isAnalyticsEmbedEnabled && (
                         <Button
                             onClick={toggleAnalyticsEmbed}
@@ -63,10 +66,11 @@ export const AiThreadsSettingsPage = () => {
                         leftIcon={IconMessageCircleShare}
                         variant="default"
                         radius="md"
+                        size="xs"
                     >
                         New Thread
                     </LinkButton>
-                </Group>
+                </SettingsPageActions>
             }
         >
             {settings?.aiAgentsVisible === false && <AiFeaturesDisabledAlert />}

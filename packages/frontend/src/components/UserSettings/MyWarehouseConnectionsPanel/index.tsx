@@ -43,14 +43,13 @@ export const MyWarehouseConnectionsPanel = () => {
             title="My warehouse connections"
             description="Manage the personal credentials used to connect Lightdash to warehouses."
             actions={
-                credentials && credentials.length > 0 ? (
-                    <Button
-                        leftSection={<MantineIcon icon={IconPlus} />}
-                        onClick={() => setIsCreatingCredentials(true)}
-                    >
-                        Add credentials
-                    </Button>
-                ) : null
+                <Button
+                    size="xs"
+                    leftSection={<MantineIcon icon={IconPlus} />}
+                    onClick={() => setIsCreatingCredentials(true)}
+                >
+                    Add credentials
+                </Button>
             }
         >
             {credentials && credentials.length > 0 ? (
@@ -73,9 +72,6 @@ export const MyWarehouseConnectionsPanel = () => {
                     description="Add personal credentials for projects that require them."
                 >
                     {personalConnectionsCallout}
-                    <Button onClick={() => setIsCreatingCredentials(true)}>
-                        Add credentials
-                    </Button>
                 </SettingsEmptyState>
             )}
 

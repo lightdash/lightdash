@@ -47,10 +47,6 @@ export const CustomRoles = () => {
         [sortedRoles],
     );
 
-    if (listRoles.isLoading) {
-        return <PageSpinner />;
-    }
-
     const hasRoles = sortedRoles.length > 0;
 
     const renderRolesTable = (roles: RoleWithScopes[], level: RoleLevel) =>
@@ -73,9 +69,11 @@ export const CustomRoles = () => {
         <SettingsPage
             title="Custom roles"
             description="Create reusable permission sets for users, groups, and service accounts."
-            actions={hasRoles ? <AddRoleButton size="xs" /> : null}
+            actions={<AddRoleButton size="xs" />}
         >
-            {hasRoles ? (
+            {listRoles.isLoading ? (
+                <PageSpinner />
+            ) : hasRoles ? (
                 <Stack gap="md">
                     <Tabs
                         keepMounted={false}
@@ -148,9 +146,7 @@ export const CustomRoles = () => {
                     icon={IconIdBadge2}
                     title="No custom roles"
                     description="Create a role to define reusable organization or project permissions."
-                >
-                    <AddRoleButton size="md" />
-                </SettingsEmptyState>
+                />
             )}
         </SettingsPage>
     );

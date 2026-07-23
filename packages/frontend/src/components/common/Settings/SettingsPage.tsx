@@ -1,5 +1,7 @@
-import { Box, Group, Stack, Text, Title } from '@mantine-8/core';
+import { Box, Button, Group, Stack, Text, Title } from '@mantine-8/core';
+import { IconExternalLink } from '@tabler/icons-react';
 import { type FC, type PropsWithChildren, type ReactNode } from 'react';
+import MantineIcon from '../MantineIcon';
 import classes from './SettingsPage.module.css';
 
 type SettingsPageProps = {
@@ -10,6 +12,29 @@ type SettingsPageProps = {
 
 const SettingsPageContainer: FC<PropsWithChildren> = ({ children }) => (
     <Box className={classes.container}>{children}</Box>
+);
+
+const SettingsPageActions: FC<PropsWithChildren> = ({ children }) => (
+    <Group gap="xs" wrap="nowrap">
+        {children}
+    </Group>
+);
+
+const SettingsPageDocumentationLink: FC<{
+    href: string;
+    label?: string;
+}> = ({ href, label = 'Documentation' }) => (
+    <Button
+        component="a"
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        variant="default"
+        size="xs"
+        rightSection={<MantineIcon icon={IconExternalLink} size="sm" />}
+    >
+        {label}
+    </Button>
 );
 
 const SettingsPage: FC<PropsWithChildren<SettingsPageProps>> = ({
@@ -53,4 +78,9 @@ const SettingsPage: FC<PropsWithChildren<SettingsPageProps>> = ({
     </Stack>
 );
 
-export { SettingsPage, SettingsPageContainer };
+export {
+    SettingsPage,
+    SettingsPageActions,
+    SettingsPageContainer,
+    SettingsPageDocumentationLink,
+};

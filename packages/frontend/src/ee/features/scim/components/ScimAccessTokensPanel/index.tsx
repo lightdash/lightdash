@@ -31,7 +31,7 @@ const ScimAccessTokensPanel: FC = () => {
             title="SCIM access tokens"
             description="Connect your identity provider and manage tokens used for user provisioning."
             actions={
-                <Button onClick={() => setIsCreatingToken(true)}>
+                <Button size="xs" onClick={() => setIsCreatingToken(true)}>
                     Generate new token
                 </Button>
             }

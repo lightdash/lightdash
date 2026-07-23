@@ -20,6 +20,7 @@ export const AiAgentsSettingsPage = () => {
                     leftIcon={IconRobotFace}
                     variant="default"
                     radius="md"
+                    size="xs"
                 >
                     New Agent
                 </LinkButton>

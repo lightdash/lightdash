@@ -10,7 +10,10 @@ import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { GuidedTour } from '../../../../../../components/common/GuidedTour';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
-import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
+import {
+    SettingsPage,
+    SettingsPageActions,
+} from '../../../../../../components/common/Settings/SettingsPage';
 import { useGuidedTour } from '../../../../../../hooks/useGuidedTour';
 import { useAiOrganizationSettings } from '../../../hooks/useAiOrganizationSettings';
 import { openCreateIssue } from '../../../store/createIssueSlice';
@@ -138,9 +141,9 @@ export const AiReviewsSettingsPage = () => {
                         </>
                     }
                     actions={
-                        <Group gap="xs">
+                        <SettingsPageActions>
                             <Button
-                                size="compact-xs"
+                                size="xs"
                                 leftSection={<MantineIcon icon={IconPlus} />}
                                 onClick={() => dispatch(openCreateIssue(null))}
                             >
@@ -178,13 +181,13 @@ export const AiReviewsSettingsPage = () => {
                             <Button
                                 variant="subtle"
                                 color="gray"
-                                size="compact-xs"
+                                size="xs"
                                 leftSection={<MantineIcon icon={IconRoute} />}
                                 onClick={startTour}
                             >
                                 Take the tour
                             </Button>
-                        </Group>
+                        </SettingsPageActions>
                     }
                 >
                     {settings?.aiAgentsVisible === false && (

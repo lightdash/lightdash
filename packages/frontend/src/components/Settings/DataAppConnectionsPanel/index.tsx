@@ -1,5 +1,5 @@
 import { type ExternalConnection } from '@lightdash/common';
-import { Button, Group, Skeleton, Stack, Text } from '@mantine-8/core';
+import { Button, Skeleton, Stack } from '@mantine-8/core';
 import { IconPlug, IconPlus } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import { useSearchParams } from 'react-router';
@@ -8,6 +8,7 @@ import Callout from '../../common/Callout';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
+import { SettingsPage } from '../../common/Settings/SettingsPage';
 import { AddConnectionWizard } from './AddConnectionWizard';
 import { ConnectionsTable } from './ConnectionsTable';
 import { DeleteConnectionModal } from './DeleteConnectionModal';
@@ -59,50 +60,47 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
 
     return (
         <>
-            <Stack gap="md">
-                {isLoading || (connections && connections.length > 0) ? (
-                    <SettingsCard>
+            <SettingsPage
+                title="Data app connections"
+                description="Manage external connections used by this project's data apps."
+                actions={addConnectionButton}
+            >
+                <Stack gap="md">
+                    {isLoading || (connections && connections.length > 0) ? (
+                        <SettingsCard>
+                            <Stack gap="md">
+                                {dataWarning}
+
+                                {isLoading ? (
+                                    <Stack gap="xs">
+                                        <Skeleton height={48} />
+                                        <Skeleton height={48} />
+                                    </Stack>
+                                ) : (
+                                    <ConnectionsTable
+                                        connections={connections}
+                                        setConnectionToEdit={
+                                            setConnectionToEdit
+                                        }
+                                        setConnectionToDelete={
+                                            setConnectionToDelete
+                                        }
+                                    />
+                                )}
+                            </Stack>
+                        </SettingsCard>
+                    ) : (
                         <Stack gap="md">
-                            <Group justify="space-between">
-                                <Text c="ldGray.6" size="sm">
-                                    External HTTP connections that data apps in
-                                    this project can call. Each app must be
-                                    linked to a connection under an alias.
-                                </Text>
-                                {addConnectionButton}
-                            </Group>
-
                             {dataWarning}
-
-                            {isLoading ? (
-                                <Stack gap="xs">
-                                    <Skeleton height={48} />
-                                    <Skeleton height={48} />
-                                </Stack>
-                            ) : (
-                                <ConnectionsTable
-                                    connections={connections}
-                                    setConnectionToEdit={setConnectionToEdit}
-                                    setConnectionToDelete={
-                                        setConnectionToDelete
-                                    }
-                                />
-                            )}
+                            <SettingsEmptyState
+                                icon={IconPlug}
+                                title="No connections"
+                                description="Create a connection to let data apps call an external HTTP service."
+                            />
                         </Stack>
-                    </SettingsCard>
-                ) : (
-                    <Stack gap="md">
-                        {dataWarning}
-                        <SettingsEmptyState
-                            icon={IconPlug}
-                            title="No connections"
-                            description="Create a connection to let data apps call an external HTTP service."
-                        >
-                            {addConnectionButton}
-                        </SettingsEmptyState>
-                    </Stack>
-                )}
-            </Stack>
+                    )}
+                </Stack>
+            </SettingsPage>
 
             {isCreating && (
                 <AddConnectionWizard

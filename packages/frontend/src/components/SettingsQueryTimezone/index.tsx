@@ -5,7 +5,6 @@ import {
     type Project,
 } from '@lightdash/common';
 import {
-    Anchor,
     Button,
     Flex,
     LoadingOverlay,
@@ -165,17 +164,6 @@ const SettingsQueryTimezone: FC<SettingsQueryTimezoneProps> = ({
                                 session time zone.
                             </>
                         )}
-                    </Text>
-                    <Text c="ldGray.6" fz="xs">
-                        Learn more in our{' '}
-                        <Anchor
-                            href="https://docs.lightdash.com/guides/developer/timezones"
-                            target="_blank"
-                            fz="xs"
-                        >
-                            docs guide
-                        </Anchor>
-                        .
                     </Text>
                 </Stack>
                 <div>

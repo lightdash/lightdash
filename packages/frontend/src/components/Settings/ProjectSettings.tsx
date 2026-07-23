@@ -1,7 +1,12 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
-import { Anchor, Stack, Text, Title } from '@mantine-8/core';
-import { useMemo, type FC, type PropsWithChildren } from 'react';
+import { Stack, Text, Title } from '@mantine-8/core';
+import {
+    useMemo,
+    type FC,
+    type PropsWithChildren,
+    type ReactNode,
+} from 'react';
 import {
     matchPath,
     Navigate,
@@ -24,6 +29,7 @@ import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import {
     SettingsPage,
     SettingsPageContainer,
+    SettingsPageDocumentationLink,
 } from '../common/Settings/SettingsPage';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import CompilationHistory from '../CompilationHistory';
@@ -50,14 +56,16 @@ import SemanticLayerConnectionPanel from './SemanticLayerConnectionPanel';
 type ProjectSettingsPageProps = PropsWithChildren<{
     title: string;
     description: string;
+    actions?: ReactNode;
 }>;
 
 const ProjectSettingsPage: FC<ProjectSettingsPageProps> = ({
     title,
     description,
+    actions,
     children,
 }) => (
-    <SettingsPage title={title} description={description}>
+    <SettingsPage title={title} description={description} actions={actions}>
         {children}
     </SettingsPage>
 );
@@ -127,6 +135,12 @@ const ProjectSettings: FC = () => {
                     <ProjectSettingsPage
                         title="Project access"
                         description="Manage who can access this project and what they can do."
+                        actions={
+                            <SettingsPageDocumentationLink
+                                href="https://docs.lightdash.com/references/roles"
+                                label="Roles documentation"
+                            />
+                        }
                     >
                         <ProjectUserAccess projectUuid={projectUuid} />
                     </ProjectSettingsPage>
@@ -167,14 +181,7 @@ const ProjectSettings: FC = () => {
             },
             {
                 path: `/validator`,
-                element: (
-                    <ProjectSettingsPage
-                        title="Validator"
-                        description="Find content errors and issues across this project."
-                    >
-                        <SettingsValidator projectUuid={projectUuid} />
-                    </ProjectSettingsPage>
-                ),
+                element: <SettingsValidator projectUuid={projectUuid} />,
             },
             {
                 path: `/verifiedContent`,
@@ -232,6 +239,9 @@ const ProjectSettings: FC = () => {
                     <ProjectSettingsPage
                         title="Parameters"
                         description="Review reusable values defined for project queries and content."
+                        actions={
+                            <SettingsPageDocumentationLink href="https://docs.lightdash.com/guides/using-parameters#how-to-use-parameters" />
+                        }
                     >
                         <ProjectParameters projectUuid={projectUuid} />
                     </ProjectSettingsPage>
@@ -243,6 +253,9 @@ const ProjectSettings: FC = () => {
                     <ProjectSettingsPage
                         title="Project time zone"
                         description="Set the default time zone used by this project."
+                        actions={
+                            <SettingsPageDocumentationLink href="https://docs.lightdash.com/guides/developer/timezones" />
+                        }
                     >
                         <SettingsQueryTimezone projectUuid={projectUuid} />
                     </ProjectSettingsPage>
@@ -261,14 +274,7 @@ const ProjectSettings: FC = () => {
             },
             {
                 path: `/compilationHistory`,
-                element: (
-                    <ProjectSettingsPage
-                        title="Compilation history"
-                        description="Review recent dbt compilation runs for this project."
-                    >
-                        <CompilationHistory projectUuid={projectUuid} />
-                    </ProjectSettingsPage>
-                ),
+                element: <CompilationHistory projectUuid={projectUuid} />,
             },
             ...(isPgWireEnabled
                 ? [
@@ -353,6 +359,12 @@ const ProjectSettings: FC = () => {
                               <ProjectSettingsPage
                                   title="CORS"
                                   description="Control which external browser origins can call the Lightdash API."
+                                  actions={
+                                      <SettingsPageDocumentationLink
+                                          href="https://docs.lightdash.com/guides/embedding/how-to-embed-content#cors"
+                                          label="Embedding documentation"
+                                      />
+                                  }
                               >
                                   <SettingsGridCard>
                                       <Stack gap="xs">
@@ -368,20 +380,6 @@ const ProjectSettings: FC = () => {
                                               *.example.com. Use regex only for
                                               advanced patterns.
                                           </Text>
-                                          <Text c="ldGray.6" fz="xs">
-                                              This is commonly needed for
-                                              embedding Lightdash in another
-                                              application.{' '}
-                                              <Anchor
-                                                  inherit
-                                                  href="https://docs.lightdash.com/guides/embedding/how-to-embed-content#cors"
-                                                  target="_blank"
-                                                  rel="noreferrer"
-                                              >
-                                                  Read the embedding docs
-                                              </Anchor>
-                                              .
-                                          </Text>
                                       </Stack>
                                       <CorsSettingsPanel />
                                   </SettingsGridCard>
@@ -395,14 +393,9 @@ const ProjectSettings: FC = () => {
                       {
                           path: `/dataAppConnections`,
                           element: (
-                              <ProjectSettingsPage
-                                  title="Data app connections"
-                                  description="Manage external connections used by this project's data apps."
-                              >
-                                  <DataAppConnectionsPanel
-                                      projectUuid={projectUuid}
-                                  />
-                              </ProjectSettingsPage>
+                              <DataAppConnectionsPanel
+                                  projectUuid={projectUuid}
+                              />
                           ),
                       },
                   ]

@@ -137,8 +137,9 @@ const DesignListPage: FC = () => {
             title="Themes"
             description="Manage shared brand assets and instructions used when building data apps."
             actions={
-                canManage && designs.length > 0 ? (
+                canManage ? (
                     <Button
+                        size="xs"
                         leftSection={<MantineIcon icon={IconPlus} />}
                         variant="default"
                         onClick={() => setCreateOpen(true)}
@@ -160,16 +161,7 @@ const DesignListPage: FC = () => {
                     icon={IconPalette}
                     title="No themes"
                     description="Create a theme to share brand assets and instructions across data apps."
-                >
-                    {canManage ? (
-                        <Button
-                            leftSection={<MantineIcon icon={IconPlus} />}
-                            onClick={() => setCreateOpen(true)}
-                        >
-                            Create theme
-                        </Button>
-                    ) : null}
-                </SettingsEmptyState>
+                />
             ) : (
                 <SettingsCard>
                     <Paper withBorder>

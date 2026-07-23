@@ -17,11 +17,9 @@ const AccessTokensPanel: FC = () => {
             title="Personal access tokens"
             description="Create and revoke tokens used to access the Lightdash API."
             actions={
-                hasAvailableTokens ? (
-                    <Button onClick={() => setIsCreatingToken(true)}>
-                        Generate new token
-                    </Button>
-                ) : null
+                <Button size="xs" onClick={() => setIsCreatingToken(true)}>
+                    Generate new token
+                </Button>
             }
         >
             {hasAvailableTokens ? (
@@ -31,11 +29,7 @@ const AccessTokensPanel: FC = () => {
                     icon={IconKey}
                     title="No tokens"
                     description="Generate a token to access the Lightdash API."
-                >
-                    <Button onClick={() => setIsCreatingToken(true)}>
-                        Generate token
-                    </Button>
-                </SettingsEmptyState>
+                />
             )}
 
             {isCreatingToken && (

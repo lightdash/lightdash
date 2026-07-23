@@ -967,9 +967,7 @@ const ProjectManagementPanel: FC = () => {
         ),
     });
 
-    if (isLoadingProjects || isLoadingLastProject) return null;
-
-    if (projects.length === 0) {
+    if (!isLoadingProjects && !isLoadingLastProject && projects.length === 0) {
         return <Navigate to="/createProject" />;
     }
 
@@ -984,7 +982,7 @@ const ProjectManagementPanel: FC = () => {
                         organizationUuid: user.data?.organizationUuid,
                     }),
                 ) && (
-                    <Button component={Link} to="/createProject">
+                    <Button size="xs" component={Link} to="/createProject">
                         Create project
                     </Button>
                 )

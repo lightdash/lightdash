@@ -1,7 +1,8 @@
 import { Button } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
-import { IconUsersGroup } from '@tabler/icons-react';
+import { IconPlus, IconUsersGroup } from '@tabler/icons-react';
 import { useState } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { SettingsEmptyState } from '../../../components/common/Settings/SettingsEmptyState';
 import { SettingsPage } from '../../../components/common/Settings/SettingsPage';
 import { ServiceAccountsCreateModal } from './ServiceAccountsCreateModal';
@@ -38,9 +39,13 @@ export function ServiceAccountsPage() {
             title="Service accounts"
             description="Manage non-human accounts used for automated access to Lightdash."
             actions={
-                hasAccounts ? (
-                    <Button onClick={open}>Add service account</Button>
-                ) : null
+                <Button
+                    size="xs"
+                    leftSection={<MantineIcon icon={IconPlus} />}
+                    onClick={open}
+                >
+                    Add service account
+                </Button>
             }
         >
             {!isInitialLoading && !hasAccounts ? (
@@ -48,9 +53,7 @@ export function ServiceAccountsPage() {
                     icon={IconUsersGroup}
                     title="No service accounts"
                     description="Create a service account for automated access to Lightdash."
-                >
-                    <Button onClick={open}>Create service account</Button>
-                </SettingsEmptyState>
+                />
             ) : (
                 <ServiceAccountsTable
                     accounts={accountsData ?? []}

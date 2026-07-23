@@ -1,7 +1,6 @@
 import type { ProjectParameterSummary } from '@lightdash/common';
 import {
     ActionIcon,
-    Anchor,
     Badge,
     Box,
     Code,
@@ -175,19 +174,6 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
 
     return (
         <Stack>
-            <Text c="dimmed">
-                Learn more about parameters in our{' '}
-                <Anchor
-                    role="button"
-                    href="https://docs.lightdash.com/guides/using-parameters#how-to-use-parameters"
-                    target="_blank"
-                    rel="noreferrer"
-                >
-                    docs
-                </Anchor>
-                .
-            </Text>
-
             <SettingsCard shadow="none" p={0}>
                 <Paper p="sm" bd={0}>
                     <Group gap="md" align="center">

@@ -33,7 +33,10 @@ const VerifiedDomainsPanel: FC = () => {
             actions={
                 <Menu position="bottom-end" withinPortal>
                     <Menu.Target>
-                        <Button leftSection={<MantineIcon icon={IconPlus} />}>
+                        <Button
+                            size="xs"
+                            leftSection={<MantineIcon icon={IconPlus} />}
+                        >
                             Add domain
                         </Button>
                     </Menu.Target>

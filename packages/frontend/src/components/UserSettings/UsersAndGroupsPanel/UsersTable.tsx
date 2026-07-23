@@ -61,11 +61,7 @@ type PendingRoleChange = {
     roleId: string;
 };
 
-interface UsersTableProps {
-    onInviteClick: () => void;
-}
-
-const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
+const UsersTable: FC = () => {
     const theme = useMantineTheme();
     const { user: activeUser } = useApp();
     const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -500,14 +496,7 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
             };
         },
         renderTopToolbar: () => (
-            <UsersTopToolbar
-                search={search}
-                setSearch={setSearch}
-                isFetching={isFetching || isLoading}
-                currentResultsCount={totalFetched}
-                canInvite={canInvite}
-                onInviteClick={onInviteClick}
-            />
+            <UsersTopToolbar search={search} setSearch={setSearch} />
         ),
         renderBottomToolbar: () => (
             <Box

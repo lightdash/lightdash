@@ -17,11 +17,9 @@ const OAuthClientsPanel: FC = () => {
             title="OAuth applications"
             description="Register applications that authenticate users through Lightdash."
             actions={
-                hasClients ? (
-                    <Button onClick={() => setIsCreating(true)}>
-                        Register new application
-                    </Button>
-                ) : null
+                <Button size="xs" onClick={() => setIsCreating(true)}>
+                    Register new application
+                </Button>
             }
         >
             {hasClients ? (
@@ -31,11 +29,7 @@ const OAuthClientsPanel: FC = () => {
                     icon={IconPlug}
                     title="No OAuth applications"
                     description="Register an OAuth application to let external apps authenticate users via Lightdash."
-                >
-                    <Button onClick={() => setIsCreating(true)}>
-                        Register new application
-                    </Button>
-                </SettingsEmptyState>
+                />
             )}
 
             {isCreating && (

@@ -40,11 +40,10 @@ const fetchSize = 50;
 const GROUP_MEMBERS_PER_PAGE = 2000;
 
 interface GroupsTableProps {
-    onAddClick: () => void;
     onEditGroup: (group: GroupWithMembers) => void;
 }
 
-const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
+const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
     const theme = useMantineTheme();
     const { user: activeUser } = useApp();
     const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -301,14 +300,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
             };
         },
         renderTopToolbar: () => (
-            <GroupsTopToolbar
-                search={search}
-                setSearch={setSearch}
-                isFetching={isFetching || isLoading}
-                currentResultsCount={totalFetched}
-                canManage={canManageGroups}
-                onAddClick={onAddClick}
-            />
+            <GroupsTopToolbar search={search} setSearch={setSearch} />
         ),
         renderBottomToolbar: () => (
             <Box
