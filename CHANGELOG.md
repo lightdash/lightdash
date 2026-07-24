@@ -1,3 +1,10 @@
+# [0.3472.0](https://github.com/lightdash/lightdash/compare/0.3471.1...0.3472.0) (2026-07-24)
+
+
+### Features
+
+* enforce project-scoped SQL chart slugs ([#25939](https://github.com/lightdash/lightdash/issues/25939)) ([e2cb747](https://github.com/lightdash/lightdash/commit/e2cb747cbf80df4bd25633090b926a9dd55775bb))
+
 ## [0.3471.1](https://github.com/lightdash/lightdash/compare/0.3471.0...0.3471.1) (2026-07-24)
 
 
