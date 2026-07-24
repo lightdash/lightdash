@@ -2681,16 +2681,19 @@ export class AppGenerateService extends BaseService {
                 4000,
             );
 
-            if (attempt >= AppGenerateService.MAX_GENERATION_ATTEMPTS) {
+            const classification = classifyClaudeCliFailure(
+                result.stderr,
+                result.stdout,
+            );
+            if (
+                attempt >= AppGenerateService.MAX_GENERATION_ATTEMPTS ||
+                !classification.retryable
+            ) {
                 // On final failure, promote stderr+stdout to info so the
                 // upstream API error (often emitted to stdout in
                 // stream-json mode) is captured in production logs.
-                const classification = classifyClaudeCliFailure(
-                    result.stderr,
-                    result.stdout,
-                );
                 this.logger.info(
-                    `App ${appUuid}: Claude failure (category=${classification.category}, exit=${result.exitCode})`,
+                    `App ${appUuid}: Claude failure (category=${classification.category}, retryable=${classification.retryable}, exit=${result.exitCode}, attempt=${attempt})`,
                 );
                 this.logger.info(
                     `App ${appUuid}: Claude stderr (tail): ${stderrTail}`,
@@ -2698,14 +2701,16 @@ export class AppGenerateService extends BaseService {
                 this.logger.info(
                     `App ${appUuid}: Claude stdout (tail): ${stdoutTail}`,
                 );
-                const message = `Claude generation failed (exit ${result.exitCode}): ${result.stderr}`;
-                if (classification.category === 'unknown') {
-                    throw new Error(message);
-                }
+                // Prefer the CLI's human-readable error over stderr, which is
+                // usually empty in stream-json mode.
+                const message = `Claude generation failed (exit ${result.exitCode}): ${
+                    classification.providerDetail ?? result.stderr
+                }`;
                 throw new ClaudeGenerationError({
                     message,
                     userMessage: classification.userMessage,
                     category: classification.category,
+                    providerDetail: classification.providerDetail,
                 });
             }
 
@@ -3830,20 +3835,35 @@ export class AppGenerateService extends BaseService {
                 this.logger.error(
                     `App ${appUuid}: generation failed after ${totalMs}ms: ${getErrorMessage(error)}`,
                 );
-                // Prefer a classified upstream-API message (quota /
-                // rate-limit / auth / overloaded). Otherwise fall back to
-                // the existing branches: Bedrock failures are often the
-                // model not being enabled in the configured region — point
-                // operators at that instead of the generic "try rephrasing".
+                // Prefer a classified upstream-API message (quota / spend
+                // limit / rate-limit / auth / overloaded). For unclassified
+                // provider errors, show the provider's own message — it's
+                // already human-readable (e.g. "API Error: 400 ..."). Then:
+                // Bedrock failures are often the model not being enabled in
+                // the configured region — point operators at that. The last
+                // resort is honest about not knowing the cause rather than
+                // blaming the user's request — infra failures (connection
+                // loss, sandbox death) land here too.
                 let userMessage: string;
-                if (error instanceof ClaudeGenerationError) {
+                if (
+                    error instanceof ClaudeGenerationError &&
+                    error.userMessage
+                ) {
                     userMessage = error.userMessage;
+                } else if (
+                    error instanceof ClaudeGenerationError &&
+                    error.providerDetail
+                ) {
+                    userMessage = `Couldn't generate the app — the AI provider returned an error: ${AppGenerateService.truncateEnd(
+                        error.providerDetail,
+                        500,
+                    )}`;
                 } else if (claudeCodeEnv.CLAUDE_CODE_USE_BEDROCK === '1') {
                     userMessage =
                         'Failed to generate the app. If this keeps happening, check that the selected model is enabled in your AWS Bedrock region (see server logs).';
                 } else {
                     userMessage =
-                        'Failed to generate app code. Try rephrasing your request.';
+                        'Something unexpected went wrong while generating your app. Please try again.';
                 }
                 const marked = await this.markError(
                     appUuid,
@@ -3978,11 +3998,15 @@ export class AppGenerateService extends BaseService {
                 this.logger.error(
                     `App ${appUuid}: build failed after ${totalMs}ms: ${getErrorMessage(error)}`,
                 );
+                // Auto-fix runs Claude too — a classified upstream failure
+                // there (quota, spend limit, auth) is not a compile problem.
                 const marked = await this.markError(
                     appUuid,
                     version,
                     error,
-                    "The generated code couldn't be compiled. Try again or simplify your request.",
+                    error instanceof ClaudeGenerationError && error.userMessage
+                        ? error.userMessage
+                        : "The generated code couldn't be compiled. Try again or simplify your request.",
                 );
                 if (marked) {
                     this.trackVersionFailed(
