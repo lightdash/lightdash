@@ -18,6 +18,7 @@ import { IconDeviceFloppy, IconDots, IconTerminal2 } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { ROW_HEIGHT_PX } from '../../../../../components/common/Table/constants';
 import { ChartDataTable } from '../../../../../components/DataViz/visualizations/ChartDataTable';
 import { SaveSqlChartModalContent } from '../../../../../features/sqlRunner/components/SaveSqlChartModal';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
@@ -31,6 +32,13 @@ const unwrapRows = (rows: ResultRow[]): RawResultRow[] =>
             Object.entries(row).map(([key, value]) => [key, value.value.raw]),
         ),
     );
+
+// Below this, the panel shrinks to fit the table instead of filling all
+// available height — unlike SQL Runner's results table, which always fills
+// the page. A compact chat panel reads as broken with a mostly-empty card;
+// a full page reads as normal whitespace.
+const MAX_SHRINK_TO_FIT_HEIGHT_PX = 300;
+const TABLE_HEADER_HEIGHT_PX = 34;
 
 const getTableConfig = (columns: ResultColumn[]): VizTableConfig => ({
     metadata: { version: 1 },
@@ -190,11 +198,20 @@ export const AiSqlArtifactVisualization: FC<ContentProps> = ({
         );
     }
 
+    const estimatedContentHeight =
+        TABLE_HEADER_HEIGHT_PX + rows.length * ROW_HEIGHT_PX;
+    const shrinkToFit = estimatedContentHeight <= MAX_SHRINK_TO_FIT_HEIGHT_PX;
+
     return (
-        <Stack gap="md" h="100%" mih={300}>
+        <Stack
+            gap="md"
+            h={shrinkToFit ? undefined : '100%'}
+            mih={shrinkToFit ? undefined : 300}
+        >
             {headerContent}
             <Paper
-                flex={1}
+                flex={shrinkToFit ? undefined : 1}
+                mah={shrinkToFit ? estimatedContentHeight : undefined}
                 mih={0}
                 pos="relative"
                 withBorder
