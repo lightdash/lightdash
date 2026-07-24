@@ -120,6 +120,8 @@ describe('AiAgentMemoryService', () => {
                     featureFlagId === CommercialFeatureFlags.AiCopilot),
         }));
         const findByProjectAndSlug = vi.fn();
+        const findThreadsDueForDistill = vi.fn();
+        const aiAgentMemoryDistill = vi.fn();
         const getAgent = vi.fn().mockResolvedValue({
             uuid: 'agent-1',
             name: 'Agent',
@@ -141,22 +143,53 @@ describe('AiAgentMemoryService', () => {
                 projectUuid === 'project-other' ? 'org-other' : 'org-enabled',
         }));
         const service = new AiAgentMemoryService({
-            aiAgentMemoryModel: { findByProjectAndSlug } as AnyType,
+            aiAgentMemoryModel: {
+                findByProjectAndSlug,
+                findThreadsDueForDistill,
+            } as AnyType,
             aiAgentModel: { getAgent, findThreadOwnership } as AnyType,
             groupsModel: { findUserInGroups } as AnyType,
             projectModel: { getSummary: getProjectSummary } as AnyType,
             featureFlagService: { get: getFlag } as AnyType,
-            schedulerClient: { aiAgentMemoryDistill: vi.fn() },
+            schedulerClient: { aiAgentMemoryDistill },
             distillCall: vi.fn(),
         });
         return {
             service,
             getFlag,
             findByProjectAndSlug,
+            findThreadsDueForDistill,
+            aiAgentMemoryDistill,
             getAgent,
             findThreadOwnership,
         };
     };
+
+    it('enqueues the exact activity watermark selected by the sweep', async () => {
+        const { service, findThreadsDueForDistill, aiAgentMemoryDistill } =
+            build();
+        const latestActivity = new Date('2026-07-22T05:00:00.123Z');
+        findThreadsDueForDistill.mockResolvedValue([
+            {
+                threadUuid: 'thread-enabled',
+                organizationUuid: 'org-enabled',
+                projectUuid: 'project-enabled',
+                latestActivity,
+            },
+        ]);
+
+        await expect(
+            service.sweep(new Date('2026-07-22T12:00:00.000Z')),
+        ).resolves.toBe(1);
+
+        expect(aiAgentMemoryDistill).toHaveBeenCalledWith({
+            organizationUuid: 'org-enabled',
+            projectUuid: 'project-enabled',
+            userUuid: 'system',
+            threadUuid: 'thread-enabled',
+            sweptUpdatedAt: '2026-07-22T05:00:00.123Z',
+        });
+    });
 
     it('returns a project-visible memory with source provenance', async () => {
         const { service, findByProjectAndSlug, getAgent } = build();
