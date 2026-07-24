@@ -594,6 +594,7 @@ export class AiAgentMemoryService extends BaseService {
                 projectUuid: args.thread.projectUuid,
                 agentUuid: args.thread.agentUuid,
                 threadUuid: args.thread.threadUuid,
+                recordIO: copilotConfig.telemetryEnabled,
                 ...getLanguageModelAttribution(model.model),
             }),
             messages: [
