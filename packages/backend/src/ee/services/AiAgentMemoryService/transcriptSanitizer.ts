@@ -1,4 +1,5 @@
 import { type UUID } from '@lightdash/common';
+import { stripMemoryCitations } from '../ai/utils/memoryCitation';
 
 const TOOL_RESULT_LIMIT = 6_000;
 const TOOL_RESULT_HEAD = 4_500;
@@ -55,17 +56,11 @@ type SanitizedTranscript = {
     }>;
 };
 
-const stripCitationMarkers = (value: string): string =>
-    value.replace(
-        /<ld-mem-cite\b[^>]*>\s*<\/ld-mem-cite\s*>|<ld-mem-cite\b[^>]*\/\s*>/gi,
-        '',
-    );
-
 const stripUuids = (value: string): string =>
     value.replace(UUID_PATTERN, '[uuid]');
 
 const sanitizeText = (value: string): string =>
-    stripUuids(stripCitationMarkers(value));
+    stripUuids(stripMemoryCitations(value));
 
 const sanitizeUnknown = (value: unknown): unknown => {
     if (typeof value === 'string') return sanitizeText(value);

@@ -411,6 +411,7 @@ export class AiAgentMemoryModel {
         const query = this.database<AiAgentMemoryTable>(AiAgentMemoryTableName)
             .where('project_uuid', args.projectUuid)
             .where('status', 'active')
+            .orderBy('last_cited_at', 'desc', 'last')
             .orderBy('generated_at', 'desc');
 
         if (args.limit !== undefined) {
@@ -435,5 +436,27 @@ export class AiAgentMemoryModel {
                 pulled_count: this.database.raw('pulled_count + 1'),
                 last_pulled_at: this.database.fn.now(),
             } as never);
+    }
+
+    async incrementCitedForActiveMemories(args: {
+        projectUuid: string;
+        slugs: string[];
+    }): Promise<string[]> {
+        const slugs = [...new Set(args.slugs)];
+        if (slugs.length === 0) return [];
+
+        const rows = await this.database<AiAgentMemoryTable>(
+            AiAgentMemoryTableName,
+        )
+            .where('project_uuid', args.projectUuid)
+            .where('status', 'active')
+            .whereIn('slug', slugs)
+            .update({
+                cited_count: this.database.raw('cited_count + 1'),
+                last_cited_at: this.database.fn.now(),
+            } as never)
+            .returning('slug');
+
+        return rows.map(({ slug }) => slug);
     }
 }

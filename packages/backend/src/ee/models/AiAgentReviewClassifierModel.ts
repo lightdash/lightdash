@@ -81,6 +81,7 @@ import {
     type DbAiAgentReviewRemediationEvent,
     type DbAiAgentTurnSignal,
 } from '../database/entities/aiAgentReviewClassifier';
+import { stripMemoryCitations } from '../services/ai/utils/memoryCitation';
 
 type Dependencies = {
     database: Knex;
@@ -569,7 +570,9 @@ export class AiAgentReviewClassifierModel {
             createdAt: row.signal_created_at,
             runScope: row.run_scope,
             prompt: row.prompt,
-            responsePreview: row.response ? row.response.slice(0, 800) : null,
+            responsePreview: row.response
+                ? stripMemoryCitations(row.response).slice(0, 800)
+                : null,
             errorMessage: row.error_message,
             finding: row.promoted_to_finding
                 ? {
@@ -590,6 +593,9 @@ export class AiAgentReviewClassifierModel {
     ): AiAgentReviewClassifierTurnCandidate {
         const interactionSource =
             row.created_from === 'slack' ? 'slack' : 'app';
+        const assistantResponse = row.response
+            ? stripMemoryCitations(row.response)
+            : null;
         return {
             subject: {
                 type: 'turn_review',
@@ -618,7 +624,7 @@ export class AiAgentReviewClassifierModel {
             targetTurn: {
                 promptUuid: row.ai_prompt_uuid,
                 userPrompt: row.prompt,
-                assistantResponse: row.response,
+                assistantResponse,
                 errorMessage: row.error_message,
                 createdAt: row.prompt_created_at,
                 respondedAt: row.responded_at,
@@ -626,6 +632,9 @@ export class AiAgentReviewClassifierModel {
             contextTurns: (row.previous_turn_context ?? []).map(
                 (contextTurn) => ({
                     ...contextTurn,
+                    assistantResponse: contextTurn.assistantResponse
+                        ? stripMemoryCitations(contextTurn.assistantResponse)
+                        : null,
                     createdAt: new Date(contextTurn.createdAt),
                     respondedAt: contextTurn.respondedAt
                         ? new Date(contextTurn.respondedAt)
@@ -633,7 +642,7 @@ export class AiAgentReviewClassifierModel {
                 }),
             ),
             userPrompt: row.prompt,
-            assistantResponse: row.response,
+            assistantResponse,
             errorMessage: row.error_message,
             humanScore: row.human_score,
             humanFeedback: row.human_feedback,

@@ -524,7 +524,8 @@ describe('AiAgentReviewClassifierModel', () => {
                 agent_uuid: AGENT_UUID,
                 created_from: 'web_app',
                 prompt: 'Show airport volume by country',
-                response: 'Country is not available.',
+                response:
+                    'Country is not available. <ld-mem-cite id="airport-country"></ld-mem-cite>',
                 error_message: null,
                 human_score: null,
                 human_feedback: null,
@@ -543,7 +544,7 @@ describe('AiAgentReviewClassifierModel', () => {
                         promptUuid: '00000000-0000-0000-0000-000000000012',
                         userPrompt: 'Show total airport volume',
                         assistantResponse:
-                            'Airport volume is calculated from scheduled flights.',
+                            'Airport volume is calculated from scheduled flights. <ld-mem-cite id="airport-volume"/>',
                         errorMessage: null,
                         createdAt: SEEN_AT.toISOString(),
                         respondedAt: SEEN_AT.toISOString(),
@@ -566,6 +567,13 @@ describe('AiAgentReviewClassifierModel', () => {
 
             expect(result.subject.assistantPromptUuid).toBe(PROMPT_UUID);
             expect(result.interactionSource).toBe('app');
+            expect(result.assistantResponse).toBe('Country is not available. ');
+            expect(result.targetTurn.assistantResponse).toBe(
+                'Country is not available. ',
+            );
+            expect(result.contextTurns[0]?.assistantResponse).toBe(
+                'Airport volume is calculated from scheduled flights. ',
+            );
             expect(result.tokenUsageTotal).toBe(123);
             expect(result.toolOutcomes).toEqual([
                 {
@@ -1091,7 +1099,8 @@ describe('AiAgentReviewClassifierModel', () => {
                         agentUuid: AGENT_UUID,
                     },
                     prompt: 'Show revenue',
-                    response: 'Revenue is order count.',
+                    response:
+                        'Revenue is order count. <ld-mem-cite id="revenue-definition"></ld-mem-cite>',
                     error_message: null,
                 },
             ]);
@@ -1109,7 +1118,7 @@ describe('AiAgentReviewClassifierModel', () => {
                     signal: 'implicit_correction',
                     promotedToFinding: true,
                     prompt: 'Show revenue',
-                    responsePreview: 'Revenue is order count.',
+                    responsePreview: 'Revenue is order count. ',
                     finding: expect.objectContaining({
                         uuid: TURN_SIGNAL_UUID,
                         reviewItemUuid: FINGERPRINT,
