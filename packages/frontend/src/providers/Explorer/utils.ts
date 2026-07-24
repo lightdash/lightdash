@@ -1,4 +1,9 @@
-import { ChartType, type ChartConfig, type Series } from '@lightdash/common';
+import {
+    ChartType,
+    type ChartConfig,
+    type SavedChart,
+    type Series,
+} from '@lightdash/common';
 import omit from 'lodash/omit';
 import { EMPTY_CARTESIAN_CHART_CONFIG } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { type ConfigCacheMap } from './types';
@@ -42,7 +47,7 @@ export const getValidChartConfig = (
 export const getCachedPivotConfig = (
     chartType: ChartType,
     cachedConfigs?: Partial<ConfigCacheMap>,
-): { columns: string[] } | undefined => {
+): SavedChart['pivotConfig'] => {
     return cachedConfigs?.[chartType]?.pivotConfig;
 };
 

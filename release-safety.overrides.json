@@ -9,6 +9,10 @@
         "0.3462.0": {
             "minPreviousVersion": "0.3461.0",
             "note": "Auto-recorded at release 0.3462.0: a destructive migration here is safe to roll past only when upgrading from 0.3461.0 or later."
+        },
+        "0.3472.0": {
+            "minPreviousVersion": "0.3471.1",
+            "note": "Auto-recorded at release 0.3472.0: a destructive migration here is safe to roll past only when upgrading from 0.3471.1 or later."
         }
     }
 }

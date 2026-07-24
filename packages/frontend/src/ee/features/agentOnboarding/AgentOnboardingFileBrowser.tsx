@@ -15,7 +15,6 @@ import {
     type TreeNodeData,
     useTree,
 } from '@mantine-8/core';
-import { Prism } from '@mantine/prism';
 import {
     IconChevronDown,
     IconChevronRight,
@@ -27,6 +26,7 @@ import {
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import CodeBlock from '../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import {
@@ -94,15 +94,13 @@ const FilePreview: FC<{
     const language = getPreviewLanguage(path);
     if (language) {
         return (
-            <Prism
+            <CodeBlock
+                code={content}
                 language={language}
-                noCopy
-                trim={false}
                 withLineNumbers
+                withCopyButton={false}
                 className={classes.filePreviewCode}
-            >
-                {content}
-            </Prism>
+            />
         );
     }
 

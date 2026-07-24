@@ -33,7 +33,7 @@ const GithubUserSettingsPanel: FC = () => {
             <Box>
                 <Group gap="sm">
                     <Avatar src={githubIcon} size="md" />
-                    <Title order={4}>My GitHub account</Title>
+                    <Title order={5}>My GitHub account</Title>
                 </Group>
             </Box>
 

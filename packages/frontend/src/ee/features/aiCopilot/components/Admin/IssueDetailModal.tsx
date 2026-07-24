@@ -9,7 +9,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure } from '@mantine-8/hooks';
 import {
     IconArrowRight,
     IconExternalLink,

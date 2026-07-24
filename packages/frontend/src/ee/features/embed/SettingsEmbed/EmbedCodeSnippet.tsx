@@ -8,13 +8,13 @@ import {
     type CreateEmbedJwt,
 } from '@lightdash/common';
 import { Anchor, Stack, Tabs, Text, Title } from '@mantine-8/core';
-import { Prism } from '@mantine/prism';
 import {
     IconBrandGolang,
     IconBrandNodejs,
     IconBrandPython,
 } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
+import CodeBlock from '../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
 
@@ -1607,8 +1607,8 @@ const CodeSnippetTabs: FC<{
                 </Tabs.Tab>
             </Tabs.List>
             <Tabs.Panel value="node" pt="xs">
-                <Prism language="javascript" onCopy={onCopySnippet}>
-                    {getBackendCodeSnippet(
+                <CodeBlock
+                    code={getBackendCodeSnippet(
                         SnippetLanguage.NODE,
                         {
                             projectUuid,
@@ -1617,12 +1617,14 @@ const CodeSnippetTabs: FC<{
                         },
                         mode,
                     )}
-                </Prism>
+                    language="javascript"
+                    onCopy={onCopySnippet}
+                />
             </Tabs.Panel>
 
             <Tabs.Panel value="python" pt="xs">
-                <Prism language="python" onCopy={onCopySnippet}>
-                    {getBackendCodeSnippet(
+                <CodeBlock
+                    code={getBackendCodeSnippet(
                         SnippetLanguage.PYTHON,
                         {
                             projectUuid,
@@ -1631,12 +1633,14 @@ const CodeSnippetTabs: FC<{
                         },
                         mode,
                     )}
-                </Prism>
+                    language="python"
+                    onCopy={onCopySnippet}
+                />
             </Tabs.Panel>
 
             <Tabs.Panel value="go" pt="xs">
-                <Prism language="go" onCopy={onCopySnippet}>
-                    {getBackendCodeSnippet(
+                <CodeBlock
+                    code={getBackendCodeSnippet(
                         SnippetLanguage.GO,
                         {
                             projectUuid,
@@ -1645,7 +1649,9 @@ const CodeSnippetTabs: FC<{
                         },
                         mode,
                     )}
-                </Prism>
+                    language="go"
+                    onCopy={onCopySnippet}
+                />
             </Tabs.Panel>
         </Tabs>
     );
@@ -1712,12 +1718,14 @@ const EmbedCodeSnippet: FC<{
                             backend.
                         </Text>
                     </Stack>
-                    <Prism language="tsx" onCopy={handleCopySnippet}>
-                        {getReactSdkFrontendSnippet({
+                    <CodeBlock
+                        code={getReactSdkFrontendSnippet({
                             data,
                             siteUrl,
                         })}
-                    </Prism>
+                        language="tsx"
+                        onCopy={handleCopySnippet}
+                    />
                 </Stack>
             )}
         </Stack>

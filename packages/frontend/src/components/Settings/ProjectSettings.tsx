@@ -1,7 +1,12 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
-import { Anchor, Stack, Text, Title } from '@mantine-8/core';
-import { useMemo, type FC } from 'react';
+import { Stack, Text, Title } from '@mantine-8/core';
+import {
+    useMemo,
+    type FC,
+    type PropsWithChildren,
+    type ReactNode,
+} from 'react';
 import {
     matchPath,
     Navigate,
@@ -21,6 +26,11 @@ import { DocumentTitle } from '../common/DocumentTitle';
 import ErrorState from '../common/ErrorState';
 import PageBreadcrumbs from '../common/PageBreadcrumbs';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
+import {
+    SettingsPage,
+    SettingsPageContainer,
+    SettingsPageDocumentationLink,
+} from '../common/Settings/SettingsPage';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import CompilationHistory from '../CompilationHistory';
 import { DataOps } from '../DataOps';
@@ -42,6 +52,23 @@ import CorsSettingsPanel from '../UserSettings/CorsSettingsPanel';
 import VerifiedContentPanel from '../VerifiedContent/VerifiedContentPanel';
 import DataAppConnectionsPanel from './DataAppConnectionsPanel';
 import SemanticLayerConnectionPanel from './SemanticLayerConnectionPanel';
+
+type ProjectSettingsPageProps = PropsWithChildren<{
+    title: string;
+    description: string;
+    actions?: ReactNode;
+}>;
+
+const ProjectSettingsPage: FC<ProjectSettingsPageProps> = ({
+    title,
+    description,
+    actions,
+    children,
+}) => (
+    <SettingsPage title={title} description={description} actions={actions}>
+        {children}
+    </SettingsPage>
+);
 
 const ProjectSettings: FC = () => {
     const { projectUuid } = useParams<{
@@ -82,29 +109,75 @@ const ProjectSettings: FC = () => {
         return [
             {
                 path: `/settings`,
-                element: <UpdateProjectConnection projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Connection settings"
+                        description="Manage this project's warehouse and dbt connections."
+                    >
+                        <UpdateProjectConnection projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/tablesConfiguration`,
                 element: (
-                    <ProjectTablesConfiguration projectUuid={projectUuid} />
+                    <ProjectSettingsPage
+                        title="Tables configuration"
+                        description="Choose which dbt models are available in this project."
+                    >
+                        <ProjectTablesConfiguration projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
                 ),
             },
             {
                 path: `/projectAccess`,
-                element: <ProjectUserAccess projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Project access"
+                        description="Manage who can access this project and what they can do."
+                        actions={
+                            <SettingsPageDocumentationLink
+                                href="https://docs.lightdash.com/references/roles"
+                                label="Roles documentation"
+                            />
+                        }
+                    >
+                        <ProjectUserAccess projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/appearance`,
-                element: <ProjectAppearance projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Appearance"
+                        description="Customize colors and chart styling for this project."
+                    >
+                        <ProjectAppearance projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/usageAnalytics`,
-                element: <SettingsUsageAnalytics projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Usage analytics"
+                        description="Review how people use this project's content."
+                    >
+                        <SettingsUsageAnalytics projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/scheduledDeliveries`,
-                element: <SettingsScheduler projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Syncs & scheduled deliveries"
+                        description="Configure delivery defaults and manage this project's schedules."
+                    >
+                        <SettingsScheduler projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/validator`,
@@ -112,37 +185,92 @@ const ProjectSettings: FC = () => {
             },
             {
                 path: `/verifiedContent`,
-                element: <VerifiedContentPanel projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Verified content"
+                        description="Review verified charts and dashboards in this project."
+                    >
+                        <VerifiedContentPanel projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/dataOps`,
-                element: <DataOps projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Data ops"
+                        description="Configure workflows for promoting content between projects."
+                    >
+                        <DataOps projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/defaultUserSpaces`,
-                element: <DefaultUserSpaces projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Default user spaces"
+                        description="Choose whether project members receive a personal space automatically."
+                    >
+                        <DefaultUserSpaces projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             ...(isSoftDeleteEnabled
                 ? [
                       {
                           path: `/recentlyDeleted`,
                           element: (
-                              <RecentlyDeletedPage projectUuid={projectUuid} />
+                              <ProjectSettingsPage
+                                  title="Recently deleted"
+                                  description="Review and restore recently deleted project content."
+                              >
+                                  <RecentlyDeletedPage
+                                      projectUuid={projectUuid}
+                                  />
+                              </ProjectSettingsPage>
                           ),
                       },
                   ]
                 : []),
             {
                 path: `/parameters`,
-                element: <ProjectParameters projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Parameters"
+                        description="Review reusable values defined for project queries and content."
+                        actions={
+                            <SettingsPageDocumentationLink href="https://docs.lightdash.com/guides/using-parameters#how-to-use-parameters" />
+                        }
+                    >
+                        <ProjectParameters projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/queryTimezone`,
-                element: <SettingsQueryTimezone projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Project time zone"
+                        description="Set the default time zone used by this project."
+                        actions={
+                            <SettingsPageDocumentationLink href="https://docs.lightdash.com/guides/developer/timezones" />
+                        }
+                    >
+                        <SettingsQueryTimezone projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/previewsConfig`,
-                element: <ProjectPreviewExpiration projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Preview settings"
+                        description="Configure preview project expiration and cleanup."
+                    >
+                        <ProjectPreviewExpiration projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             {
                 path: `/compilationHistory`,
@@ -153,9 +281,14 @@ const ProjectSettings: FC = () => {
                       {
                           path: `/semanticLayer`,
                           element: (
-                              <SemanticLayerConnectionPanel
-                                  projectUuid={projectUuid}
-                              />
+                              <ProjectSettingsPage
+                                  title="Semantic layer"
+                                  description="Configure this project's semantic layer connection."
+                              >
+                                  <SemanticLayerConnectionPanel
+                                      projectUuid={projectUuid}
+                                  />
+                              </ProjectSettingsPage>
                           ),
                       },
                   ]
@@ -165,7 +298,12 @@ const ProjectSettings: FC = () => {
                       {
                           path: `/pullRequests`,
                           element: (
-                              <PullRequestsPage projectUuid={projectUuid} />
+                              <ProjectSettingsPage
+                                  title="Pull requests"
+                                  description="Review pull requests opened for this project's code."
+                              >
+                                  <PullRequestsPage projectUuid={projectUuid} />
+                              </ProjectSettingsPage>
                           ),
                       },
                   ]
@@ -204,17 +342,35 @@ const ProjectSettings: FC = () => {
             },
             {
                 path: '/embed', // commercial route
-                element: <SettingsEmbed projectUuid={projectUuid} />,
+                element: (
+                    <ProjectSettingsPage
+                        title="Embed configuration"
+                        description="Configure embedded access for this project."
+                    >
+                        <SettingsEmbed projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
             },
             ...(user.data?.ability.can('manage', 'Organization')
                 ? [
                       {
                           path: '/embed/cors',
                           element: (
-                              <Stack gap="xl">
+                              <ProjectSettingsPage
+                                  title="CORS"
+                                  description="Control which external browser origins can call the Lightdash API."
+                                  actions={
+                                      <SettingsPageDocumentationLink
+                                          href="https://docs.lightdash.com/guides/embedding/how-to-embed-content#cors"
+                                          label="Embedding documentation"
+                                      />
+                                  }
+                              >
                                   <SettingsGridCard>
                                       <Stack gap="xs">
-                                          <Title order={4}>CORS</Title>
+                                          <Title order={5}>
+                                              Allowed origins
+                                          </Title>
                                           <Text c="ldGray.6" fz="xs">
                                               CORS controls which external
                                               browser origins can call the
@@ -224,24 +380,10 @@ const ProjectSettings: FC = () => {
                                               *.example.com. Use regex only for
                                               advanced patterns.
                                           </Text>
-                                          <Text c="ldGray.6" fz="xs">
-                                              This is commonly needed for
-                                              embedding Lightdash in another
-                                              application.{' '}
-                                              <Anchor
-                                                  inherit
-                                                  href="https://docs.lightdash.com/guides/embedding/how-to-embed-content#cors"
-                                                  target="_blank"
-                                                  rel="noreferrer"
-                                              >
-                                                  Read the embedding docs
-                                              </Anchor>
-                                              .
-                                          </Text>
                                       </Stack>
                                       <CorsSettingsPanel />
                                   </SettingsGridCard>
-                              </Stack>
+                              </ProjectSettingsPage>
                           ),
                       },
                   ]
@@ -302,18 +444,20 @@ const ProjectSettings: FC = () => {
             <DocumentTitle title="Project Settings" />
 
             <Stack gap="xl">
-                <PageBreadcrumbs
-                    items={[
-                        {
-                            title: 'All projects',
-                            to: '/generalSettings/projectManagement',
-                        },
-                        {
-                            title: project.name,
-                            active: true,
-                        },
-                    ]}
-                />
+                <SettingsPageContainer>
+                    <PageBreadcrumbs
+                        items={[
+                            {
+                                title: 'All projects',
+                                to: '/generalSettings/projectManagement',
+                            },
+                            {
+                                title: project.name,
+                                active: true,
+                            },
+                        ]}
+                    />
+                </SettingsPageContainer>
                 {routesElements}
             </Stack>
         </>

@@ -1,6 +1,6 @@
 import type { GeneratedCustomDimension } from '@lightdash/common';
 import { ActionIcon, Text } from '@mantine-8/core';
-import { useHotkeys } from '@mantine/hooks';
+import { useHotkeys } from '@mantine-8/hooks';
 import { IconArrowUp } from '@tabler/icons-react';
 import { type Editor } from '@tiptap/react';
 import { useCallback, useRef, useState, type FC } from 'react';

@@ -13,7 +13,7 @@ import {
 } from '../../types/knex-paginate';
 import { type MetricQuery } from '../../types/metricQuery';
 import { type DashboardParameters } from '../../types/parameters';
-import { type ChartConfig } from '../../types/savedCharts';
+import { type ChartConfig, type SavedChart } from '../../types/savedCharts';
 
 /**
  * Ordered pipeline stages. Index position determines progression — used to
@@ -32,6 +32,14 @@ export const APP_VERSION_STAGE_ORDER = [
 ] as const;
 
 export const APP_VERSION_TERMINAL_STATUSES = ['ready', 'error'] as const;
+
+/**
+ * Error message stamped on a version when the user cancels its build. There is
+ * no dedicated 'cancelled' status — cancellation is an 'error' carrying this
+ * marker, which the pipeline also reads to detect that a previous prompt was
+ * cancelled mid-generation.
+ */
+export const APP_VERSION_CANCELLED_BY_USER = 'Cancelled by user';
 
 export type AppVersionStatus =
     | (typeof APP_VERSION_STAGE_ORDER)[number]
@@ -452,8 +460,8 @@ export type ChartReference = {
     /** Saved visualization config (bar/line/table/big number…) so the agent
      *  can reproduce the chart type and styling, not just the query. */
     chartConfig: ChartConfig;
-    /** Pivot dimensions when the saved chart pivots its results. */
-    pivotConfig: { columns: string[] } | null;
+    /** Saved pivot layout, including ordered row fields when configured. */
+    pivotConfig: NonNullable<SavedChart['pivotConfig']> | null;
     sampleData: ChartSampleData | null; // null when the user did not opt in
     /** Saved chart UUID — surfaced into the sandbox so a linked chart can be
      *  run live via savedChart(uuid). */

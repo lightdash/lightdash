@@ -1,6 +1,6 @@
 import { getAppDisplayName, type DataAppViz } from '@lightdash/common';
 import { Box, Loader, Select, Text, type ComboboxItem } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import { IconPuzzle } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';

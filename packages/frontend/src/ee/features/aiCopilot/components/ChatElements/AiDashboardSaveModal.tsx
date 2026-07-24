@@ -85,6 +85,14 @@ export const AiDashboardSaveModal: FC<Props> = ({
         artifactData.versionUuid,
     );
 
+    const validate = useMemo(
+        () => ({
+            dashboardName: (value: string) =>
+                value.length === 0 ? 'Dashboard name is required' : null,
+        }),
+        [],
+    );
+
     const form = useForm<FormValues>({
         initialValues: {
             dashboardName: dashboardConfig.title,
@@ -92,10 +100,7 @@ export const AiDashboardSaveModal: FC<Props> = ({
             spaceUuid: null,
             newSpaceName: null,
         },
-        validate: {
-            dashboardName: (value: string) =>
-                value.length === 0 ? 'Dashboard name is required' : null,
-        },
+        validate,
     });
 
     const spaceManagement = useSpaceManagement({

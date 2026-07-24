@@ -473,7 +473,7 @@ const getTitleFields = ({
         }
     });
     indexValueTypes.forEach((indexValueType, indexIndex) => {
-        if (indexValueType.type === FieldType.DIMENSION) {
+        if (indexValueType.fieldId) {
             titleFields[hasHeader ? headerValueTypes.length - 1 : 0][
                 indexIndex
             ] = {
@@ -515,6 +515,7 @@ export const convertSqlPivotedRowsToPivotData = ({
         | 'hiddenDimensionFieldIds'
         | 'visibleMetricFieldIds'
         | 'columnOrder'
+        | 'rowFieldIds'
     >; // only use properties that are not part of pivot details metadata
     getField: FieldFunction;
     getFieldLabel: FieldLabelFunction;
@@ -602,14 +603,14 @@ export const convertSqlPivotedRowsToPivotData = ({
     // Filter value columns: visibleMetricFieldIds (allowlist) takes precedence
     // over hiddenMetricFieldIds (blocklist). Cartesian charts use the allowlist
     // to exclude sort-only metrics injected for pivot sorting (PROD-6906).
-    let filteredValuesColumns = pivotDetails.valuesColumns.filter(
+    let visibleValuesColumns = pivotDetails.valuesColumns.filter(
         ({ referenceField }) => isMetricVisibleInPivot(referenceField),
     );
 
     // Apply column limit: keep only the first N unique pivot column groups
     if (columnLimit !== undefined && columnLimit > 0) {
         const seenGroups = new Set<string>();
-        filteredValuesColumns = filteredValuesColumns.filter((col) => {
+        visibleValuesColumns = visibleValuesColumns.filter((col) => {
             const groupKey = col.pivotValues
                 .map(
                     ({ referenceField, value }) => `${referenceField}:${value}`,
@@ -623,44 +624,92 @@ export const convertSqlPivotedRowsToPivotData = ({
         });
     }
 
+    const visibleValueFieldIds = new Set(
+        visibleValuesColumns.map(({ referenceField }) => referenceField),
+    );
+    const rowValueFieldIds = (pivotConfig.rowFieldIds ?? []).filter((fieldId) =>
+        visibleValueFieldIds.has(fieldId),
+    );
+    const rowValueFieldIdSet = new Set(rowValueFieldIds);
+    const firstPivotColumnByMetricFieldId = new Map<
+        string,
+        (typeof visibleValuesColumns)[number]
+    >();
+    // A row value renders the first rendered pivot column's value, so pick per
+    // metric from the same (columnIndex, columnOrder) render order the header
+    // and data columns use below, rather than trusting the input array order.
+    [...visibleValuesColumns]
+        .sort(
+            (a, b) =>
+                Number(a.columnIndex) - Number(b.columnIndex) ||
+                columnOrder.indexOf(a.referenceField) -
+                    columnOrder.indexOf(b.referenceField),
+        )
+        .forEach((column) => {
+            if (!firstPivotColumnByMetricFieldId.has(column.referenceField)) {
+                firstPivotColumnByMetricFieldId.set(
+                    column.referenceField,
+                    column,
+                );
+            }
+        });
+    const filteredValuesColumns = visibleValuesColumns.filter(
+        ({ referenceField }) => !rowValueFieldIdSet.has(referenceField),
+    );
+
     // Get unique base metrics from valuesColumns, preserving order
     const baseMetricsArray = filteredValuesColumns
         .map((col) => col.referenceField)
         .filter((field, index, self) => self.indexOf(field) === index)
         .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b));
+    const effectiveMetricsAsRows =
+        pivotConfig.metricsAsRows && baseMetricsArray.length > 0;
+
+    const configuredRowFieldIds = pivotConfig.rowFieldIds;
+    const rowFieldIds = configuredRowFieldIds
+        ? [
+              ...configuredRowFieldIds.filter(
+                  (fieldId) =>
+                      indexColumns.includes(fieldId) ||
+                      rowValueFieldIdSet.has(fieldId),
+              ),
+              ...indexColumns.filter(
+                  (fieldId) => !configuredRowFieldIds.includes(fieldId),
+              ),
+          ]
+        : indexColumns;
 
     // pivotDetails.groupByColumns comes from PivotConfiguration.groupByColumns,
     // which only contains VISIBLE pivot-column dims. Hidden pivot-column dims
     // that drive sort order (sortOnlyDimensions in PivotConfiguration) are
     // deliberately excluded from groupByColumns before this point, so they
     // never appear as column header rows here. No extra filtering needed.
-    const headerValueTypes = getHeaderValueTypes({
-        metricsAsRows: pivotConfig.metricsAsRows,
-        pivotDimensionNames: (pivotDetails.groupByColumns ?? []).map(
-            ({ reference }) => reference,
-        ),
-    });
+    const headerValueTypes =
+        filteredValuesColumns.length > 0
+            ? getHeaderValueTypes({
+                  metricsAsRows: effectiveMetricsAsRows,
+                  pivotDimensionNames: (pivotDetails.groupByColumns ?? []).map(
+                      ({ reference }) => reference,
+                  ),
+              })
+            : [];
 
-    const indexValueTypes: PivotData['indexValueTypes'] =
-        pivotConfig.metricsAsRows
-            ? [
-                  ...indexColumns.map((col) => ({
-                      type: FieldType.DIMENSION as const,
-                      fieldId: col,
-                  })),
-                  { type: FieldType.METRIC as const },
-              ]
-            : indexColumns.map((col) => ({
-                  type: FieldType.DIMENSION as const,
-                  fieldId: col,
-              }));
+    const rowFieldValueTypes: PivotData['indexValueTypes'] = rowFieldIds.map(
+        (fieldId) =>
+            rowValueFieldIdSet.has(fieldId)
+                ? { type: FieldType.METRIC as const, fieldId }
+                : { type: FieldType.DIMENSION as const, fieldId },
+    );
+    const indexValueTypes: PivotData['indexValueTypes'] = effectiveMetricsAsRows
+        ? [...rowFieldValueTypes, { type: FieldType.METRIC as const }]
+        : rowFieldValueTypes;
 
     // Build header values (pivot dimension values)
     const headerValues: PivotData['headerValues'] = [];
     pivotDetails.groupByColumns?.forEach(({ reference }, index) => {
         headerValues.push([]);
         let columns = filteredValuesColumns;
-        if (pivotConfig.metricsAsRows) {
+        if (effectiveMetricsAsRows) {
             // For metrics as rows, we only need unique combinations of pivot values, excluding per metric duplicates
             columns = Array.from(
                 new Map(
@@ -732,7 +781,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     });
 
     // Add metric labels for columns if not metrics as rows
-    if (!pivotConfig.metricsAsRows && baseMetricsArray.length > 0) {
+    if (!effectiveMetricsAsRows && baseMetricsArray.length > 0) {
         headerValues.push(
             filteredValuesColumns
                 .sort((a, b) => {
@@ -752,21 +801,52 @@ export const convertSqlPivotedRowsToPivotData = ({
     }
 
     const filteredHeaderValues = headerValues.filter((row) => row.length > 0);
+    const renderedHeaderValues =
+        filteredHeaderValues.length > 0 ? filteredHeaderValues : [[]];
 
     // Build index values (row identifiers)
     let indexValues: PivotData['indexValues'];
 
-    if (pivotConfig.metricsAsRows) {
+    const getRowFieldValue = (row: ResultRow, fieldId: string): ResultValue => {
+        if (!rowValueFieldIdSet.has(fieldId)) {
+            return row[fieldId].value;
+        }
+
+        const firstPivotColumn = firstPivotColumnByMetricFieldId.get(fieldId);
+        const value = firstPivotColumn
+            ? row[firstPivotColumn.pivotColumnName]?.value
+            : undefined;
+        const reformatted = reformatCellWithParameters(
+            value,
+            getField(fieldId),
+            parameters,
+        );
+        return (
+            reformatted ?? {
+                raw: null,
+                formatted: formatItemValue(
+                    getField(fieldId),
+                    null,
+                    false,
+                    parameters,
+                ),
+            }
+        );
+    };
+    const getRowFieldValues = (row: ResultRow) =>
+        rowFieldIds.map((fieldId) => ({
+            type: 'value' as const,
+            fieldId,
+            value: getRowFieldValue(row, fieldId),
+            colSpan: 1,
+        }));
+
+    if (effectiveMetricsAsRows) {
         indexValues = rows.reduce<PivotData['indexValues']>((acc, row) => {
             // multiply rows per metric
             baseMetricsArray.forEach((metric) => {
                 acc.push([
-                    ...indexColumns.map((col) => ({
-                        type: 'value' as const,
-                        fieldId: col,
-                        value: row[col].value,
-                        colSpan: 1,
-                    })),
+                    ...getRowFieldValues(row),
                     {
                         type: 'label' as const,
                         fieldId: metric,
@@ -776,21 +856,14 @@ export const convertSqlPivotedRowsToPivotData = ({
             return acc;
         }, []);
     } else {
-        indexValues = rows.map((row) =>
-            indexColumns.map((col) => ({
-                type: 'value' as const,
-                fieldId: col,
-                value: row[col].value,
-                colSpan: 1,
-            })),
-        );
+        indexValues = rows.map(getRowFieldValues);
     }
 
     // Build data values (the actual pivot data)
     let dataValues: PivotData['dataValues'];
 
     // Get unique columns
-    const uniqueColumns = pivotConfig.metricsAsRows
+    const uniqueColumns = effectiveMetricsAsRows
         ? Array.from(
               new Map(
                   filteredValuesColumns.map((col) => [
@@ -806,7 +879,7 @@ export const convertSqlPivotedRowsToPivotData = ({
           )
         : filteredValuesColumns;
 
-    if (pivotConfig.metricsAsRows) {
+    if (effectiveMetricsAsRows) {
         // multiply rows per metric
         dataValues = rows.reduce<PivotData['dataValues']>((acc, row) => {
             baseMetricsArray.forEach((metric) => {
@@ -857,7 +930,10 @@ export const convertSqlPivotedRowsToPivotData = ({
     const fullPivotConfig: PivotConfig = {
         pivotDimensions:
             pivotDetails.groupByColumns?.map((col) => col.reference) || [],
-        metricsAsRows: pivotConfig.metricsAsRows || false,
+        metricsAsRows: effectiveMetricsAsRows,
+        ...(pivotConfig.rowFieldIds && {
+            rowFieldIds: pivotConfig.rowFieldIds,
+        }),
         columnOrder: pivotConfig.columnOrder,
         hiddenMetricFieldIds: pivotConfig.hiddenMetricFieldIds || [],
         ...(pivotConfig.visibleMetricFieldIds && {
@@ -873,7 +949,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     const hasHeader = headerValueTypes.length > 0;
     const hasIndex = indexValueTypes.length > 0;
     const N_DATA_ROWS = hasIndex ? dataValues.length : 1;
-    const N_DATA_COLUMNS = hasHeader ? uniqueColumns.length : 1;
+    const N_DATA_COLUMNS = uniqueColumns.length;
 
     if (fullPivotConfig.rowTotals && hasHeader) {
         // Row totals are exclusively warehouse-computed: look up the value for a
@@ -964,7 +1040,7 @@ export const convertSqlPivotedRowsToPivotData = ({
         filteredValuesColumns,
         totalColumns: indexValueTypes.length,
         dataColumns: N_DATA_COLUMNS,
-        pivotConfig,
+        pivotConfig: fullPivotConfig,
         indexValues,
         hasIndex,
         warehouseColumnTotals,
@@ -1046,13 +1122,15 @@ export const convertSqlPivotedRowsToPivotData = ({
             const combinedRow: ResultRow = {};
 
             // Add index columns
-            indexColumns.forEach((col) => {
-                combinedRow[col] = row[col];
+            rowFieldIds.forEach((fieldId) => {
+                combinedRow[fieldId] = {
+                    value: getRowFieldValue(row, fieldId),
+                };
             });
 
-            if (pivotConfig.metricsAsRows) {
-                // Add metric label with correct index (after all index columns)
-                const labelIndex = indexColumns.length;
+            if (effectiveMetricsAsRows) {
+                // Add metric label with correct index (after all row fields)
+                const labelIndex = rowFieldIds.length;
                 const metricLabel =
                     getFieldLabel(baseMetricsArray[0]) || baseMetricsArray[0];
                 combinedRow[`label-${labelIndex}`] = {
@@ -1068,7 +1146,7 @@ export const convertSqlPivotedRowsToPivotData = ({
                 const pivotDimensions = (pivotDetails.groupByColumns || []).map(
                     (col) => col.reference,
                 );
-                const fieldId = pivotConfig.metricsAsRows
+                const fieldId = effectiveMetricsAsRows
                     ? `${pivotDimensions.join('__')}__${colIndex}`
                     : `${pivotDimensions.join('__')}__${
                           valueCol.referenceField
@@ -1124,16 +1202,16 @@ export const convertSqlPivotedRowsToPivotData = ({
         });
 
     const pivotColumnInfo: PivotColumn[] = [
-        ...indexColumns.map((col) => ({
-            fieldId: col,
+        ...rowFieldIds.map((fieldId) => ({
+            fieldId,
             baseId: undefined,
             underlyingId: undefined,
             columnType: 'indexValue' as const,
         })),
-        ...(pivotConfig.metricsAsRows
+        ...(effectiveMetricsAsRows
             ? [
                   {
-                      fieldId: `label-${indexColumns.length}`,
+                      fieldId: `label-${rowFieldIds.length}`,
                       baseId: undefined,
                       underlyingId: undefined,
                       columnType: 'label' as const,
@@ -1144,7 +1222,7 @@ export const convertSqlPivotedRowsToPivotData = ({
             const pivotDimensions = (pivotDetails.groupByColumns || []).map(
                 (col) => col.reference,
             );
-            const fieldId = pivotConfig.metricsAsRows
+            const fieldId = effectiveMetricsAsRows
                 ? `${pivotDimensions.join('__')}__${colIndex}`
                 : `${pivotDimensions.join('__')}__${
                       valueCol.referenceField
@@ -1152,7 +1230,7 @@ export const convertSqlPivotedRowsToPivotData = ({
 
             return {
                 fieldId,
-                baseId: pivotConfig.metricsAsRows
+                baseId: effectiveMetricsAsRows
                     ? pivotDimensions[0]
                     : valueCol.referenceField,
                 underlyingId: undefined,
@@ -1181,7 +1259,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     const pivotData: PivotData = {
         titleFields,
         headerValueTypes,
-        headerValues: filteredHeaderValues,
+        headerValues: renderedHeaderValues,
         indexValueTypes,
         indexValues,
         dataColumnCount: N_DATA_COLUMNS,
@@ -1191,15 +1269,15 @@ export const convertSqlPivotedRowsToPivotData = ({
         rowTotals,
         columnTotals,
         ...(grandTotals ? { grandTotals } : {}),
-        cellsCount: pivotConfig.metricsAsRows
-            ? indexColumns.length +
+        cellsCount: effectiveMetricsAsRows
+            ? rowFieldIds.length +
               1 + // label column
               uniqueColumns.length +
               (rowTotals ? rowTotals[0].length : 0)
-            : indexColumns.length +
+            : rowFieldIds.length +
               uniqueColumns.length +
               (rowTotals ? rowTotals[0].length : 0),
-        rowsCount: pivotConfig.metricsAsRows
+        rowsCount: effectiveMetricsAsRows
             ? rows.length * baseMetricsArray.length
             : rows.length,
         pivotConfig: fullPivotConfig,
@@ -1241,10 +1319,9 @@ export const convertSqlPivotedRowsToPivotData = ({
         // passthrough value from a *different* input row, surfacing as
         // mismatched images / cross-field template values for repeated row
         // dims (PROD-7873 follow-up to PR #23452).
-        const inputRowsPerOutputRow =
-            pivotConfig.metricsAsRows && baseMetricsArray.length > 0
-                ? baseMetricsArray.length
-                : 1;
+        const inputRowsPerOutputRow = effectiveMetricsAsRows
+            ? baseMetricsArray.length
+            : 1;
         const expectedOutputLength = rows.length * inputRowsPerOutputRow;
         if (
             process.env.NODE_ENV !== 'production' &&

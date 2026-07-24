@@ -52,7 +52,7 @@ const MinimalExplorerContent = memo(() => {
     const { health } = useApp();
 
     // The in-repo useResizeObserver tracks ref changes via setState (unlike
-    // @mantine/hooks' useElementSize, whose [ref.current] effect dep doesn't
+    // @mantine-8/hooks' useElementSize, whose [ref.current] effect dep doesn't
     // re-run on ref attachment). Without this, containerWidth/containerHeight
     // stay at 0 and Vega-Lite charts render at 0x0 in the minimal/export view.
     const [measureRef, { width: containerWidth, height: containerHeight }] =
@@ -143,6 +143,7 @@ const MinimalExplorerContent = memo(() => {
                 minimal
                 chartConfig={savedChart.chartConfig}
                 initialPivotDimensions={savedChart.pivotConfig?.columns}
+                initialPivotRows={savedChart.pivotConfig?.rows}
                 resultsData={resultsData}
                 isLoading={isLoadingQueryResults}
                 columnOrder={savedChart.tableConfig.columnOrder}

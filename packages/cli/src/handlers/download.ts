@@ -164,6 +164,7 @@ export type DownloadHandlerOptions = {
     project?: string;
     languageMap: boolean;
     skipSpaceCreate: boolean;
+    skipSpaceAccess?: boolean; // Upload only: preserve destination access policies
     public: boolean;
     includeCharts: boolean;
     nested: boolean; // Use nested folder structure (projectName/spaceSlug/charts|dashboards)
@@ -2582,6 +2583,7 @@ export const uploadHandler = async (
                         changes,
                         options.skipSpaceCreate,
                         options.public,
+                        options.skipSpaceAccess,
                     ),
             });
         } else if (hasFilters) {

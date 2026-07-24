@@ -1,4 +1,5 @@
 import {
+    flattenAiHints,
     getEffectiveFieldAiHints,
     getFilterTypeFromItemType,
     getMetadataToolDefinition,
@@ -23,9 +24,6 @@ const toolDefinition = getMetadataToolDefinition.for('agent');
 type Dependencies = {
     availableExplores: Explore[];
 };
-
-const flatHint = (hint?: string | string[]): string =>
-    Array.isArray(hint) ? hint.join(' ') : (hint ?? '');
 
 const collapse = (text: string, max = 240): string =>
     text.replace(/\s+/g, ' ').trim().slice(0, max);
@@ -71,7 +69,7 @@ const renderExplore = (explore: Explore): string => {
     if (baseTable?.description) {
         lines.push(`  description: ${collapse(baseTable.description)}`);
     }
-    const hint = flatHint(explore.aiHint);
+    const hint = flattenAiHints(explore.aiHint);
     if (hint) lines.push(`  hint: ${collapse(hint)}`);
     lines.push(`  base table: ${explore.baseTable}`);
     const joined = explore.joinedTables.map((join) => join.table);
@@ -159,7 +157,7 @@ const renderField = (
             `  description: ${collapse(field.description, FIELD_DESCRIPTION_MAX)}`,
         );
     }
-    const hint = flatHint(
+    const hint = flattenAiHints(
         getEffectiveFieldAiHints(field, explore.tables[field.table]),
     );
     if (hint) lines.push(`  hint: ${collapse(hint, FIELD_DESCRIPTION_MAX)}`);
@@ -170,7 +168,7 @@ const buildExploreStructuredResult = (
     explore: Explore,
 ): GetMetadataResult['explores'][number] => {
     const baseTable = explore.tables[explore.baseTable];
-    const hint = flatHint(explore.aiHint);
+    const hint = flattenAiHints(explore.aiHint);
     const dimensionIds = getVisibleFieldIds(
         Object.values(baseTable?.dimensions ?? {}),
     );
@@ -206,7 +204,7 @@ const buildFieldStructuredResult = (
 ): GetMetadataResult['fields'][number] => {
     const { field, isJoined } = found;
     const exploreId = explore.name;
-    const hint = flatHint(
+    const hint = flattenAiHints(
         getEffectiveFieldAiHints(field, explore.tables[field.table]),
     );
     const defaultTimeDimension = getResolvedDefaultTimeDimension(

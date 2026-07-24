@@ -1367,7 +1367,7 @@ export class McpService extends BaseService {
             grepFieldsEnabled: false,
             mcpContentWritesEnabled: true,
             scheduledDeliveryEnabled: true,
-            runSqlEnabled: true,
+            runSqlEnabled: false,
         },
     ): void {
         this.registerTrackedTool(
@@ -3307,7 +3307,7 @@ export class McpService extends BaseService {
             grepFieldsEnabled: options?.grepFieldsEnabled ?? false,
             mcpContentWritesEnabled: options?.mcpContentWritesEnabled ?? true,
             scheduledDeliveryEnabled: options?.scheduledDeliveryEnabled ?? true,
-            runSqlEnabled: options?.runSqlEnabled ?? true,
+            runSqlEnabled: options?.runSqlEnabled ?? false,
         });
         this.mcpServer = originalServer;
 
@@ -3566,14 +3566,48 @@ export class McpService extends BaseService {
     }
 
     /**
-     * Whether the run_sql tool should be registered for this caller. Gated on
-     * manage:SqlRunner so users who can never run SQL (interactive viewers and
-     * below) don't see the tool in tools/list. This is a coarse capability
-     * check — executeAsyncSqlQuery still enforces the permission per-project at
+     * Whether the run_sql tool should be registered for this caller.
+     *
+     * run_sql is gated on manage:SqlRunner. When the session already targets a
+     * known project (pinned via the X-Lightdash-Project header or a prior
+     * set_project), the permission is checked against that concrete project so
+     * the tool stays out of tools/list for a caller who is only a viewer there
+     * — even if they happen to have SqlRunner in some other project. A bare
+     * capability check on a subject *type* returns true whenever any matching
+     * conditional rule exists, which is why the project-scoped check matters.
+     *
+     * Without a resolved project we fall back to the coarse capability check;
+     * executeAsyncSqlQuery still enforces the permission per-project at
      * invocation time.
      */
-    public isRunSqlEnabled(user: SessionUser): boolean {
-        return this.createAuditedAbility(user).can('manage', 'SqlRunner');
+    public async isRunSqlEnabled(
+        user: SessionUser,
+        headerProjectUuid?: string,
+    ): Promise<boolean> {
+        const ability = this.createAuditedAbility(user);
+
+        const projectUuid =
+            headerProjectUuid ??
+            (user.organizationUuid
+                ? (
+                      await this.mcpContextModel.getContext(
+                          user.userUuid,
+                          user.organizationUuid,
+                      )
+                  )?.context.projectUuid
+                : undefined);
+
+        if (projectUuid && user.organizationUuid) {
+            return ability.can(
+                'manage',
+                subject('SqlRunner', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            );
+        }
+
+        return ability.can('manage', 'SqlRunner');
     }
 
     public getLightdashVersion(context: McpProtocolContext): string {

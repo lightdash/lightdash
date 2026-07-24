@@ -6,13 +6,13 @@ import {
     type RawResultRow,
     type ResultRow,
 } from '@lightdash/common';
-import { clsx } from '@mantine/core';
 import {
     getHotkeyHandler,
     useClipboard,
     useDisclosure,
     useTimeout,
-} from '@mantine/hooks';
+} from '@mantine-8/hooks';
+import { clsx } from '@mantine/core';
 import { type Cell } from '@tanstack/react-table';
 import {
     useCallback,

@@ -231,6 +231,7 @@ describe('UserModel', () => {
                 first_name: '',
                 last_name: '',
                 is_active: true,
+                is_setup_complete: true,
             }),
         );
         expect(insertEmail).toHaveBeenCalledWith({

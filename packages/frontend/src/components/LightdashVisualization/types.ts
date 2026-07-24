@@ -152,6 +152,8 @@ export type VisualizationTableConfigProps =
         itemsMap: ItemsMap | undefined;
         columnOrder: string[];
         validPivotDimensions: string[] | undefined;
+        initialPivotRows: string[] | undefined;
+        onPivotRowsChange?: (value: string[] | undefined) => void;
         savedChartUuid: string | undefined;
         dashboardFilters: DashboardFilters | undefined;
         invalidateCache: boolean | undefined;

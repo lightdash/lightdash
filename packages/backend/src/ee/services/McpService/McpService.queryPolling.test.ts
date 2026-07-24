@@ -567,17 +567,17 @@ const makeMcpService = ({
         userAttributesModel,
     } as unknown as ConstructorParameters<typeof McpService>[0]);
 
-    if (grepFieldsEnabled) {
-        mockRegisteredMcpTools.clear();
-        service.setupHandlers({
-            projectPinned: false,
-            aiWritebackEnabled: false,
-            grepFieldsEnabled: true,
-            mcpContentWritesEnabled: true,
-            scheduledDeliveryEnabled: true,
-            runSqlEnabled: true,
-        });
-    }
+    // The constructor registers handlers fail-closed (run_sql off), so
+    // re-register here with run_sql enabled — these tests exercise the tool.
+    mockRegisteredMcpTools.clear();
+    service.setupHandlers({
+        projectPinned: false,
+        aiWritebackEnabled: false,
+        grepFieldsEnabled,
+        mcpContentWritesEnabled: true,
+        scheduledDeliveryEnabled: true,
+        runSqlEnabled: true,
+    });
 
     return {
         aiAgentService,

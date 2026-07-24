@@ -2986,7 +2986,14 @@ export class ProjectModel {
                                       );
                                   }
                                   const createSavedSQL: CloneSavedSQL = {
-                                      ...d,
+                                      // The dashboard UUID is remapped after
+                                      // dashboards are cloned below. Keep the
+                                      // destination project UUID throughout
+                                      // this transaction.
+                                      ...replaceProjectUuid(
+                                          d,
+                                          previewProjectUuid,
+                                      ),
                                       dashboard_uuid: d.dashboard_uuid,
                                       search_vector: undefined,
                                       saved_sql_uuid: undefined,

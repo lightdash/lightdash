@@ -119,14 +119,6 @@ const chartConfigSchema = z
                 'default line. The type of line to display. If area then the area under the line will be filled in.',
             ),
 
-        // Funnel chart specific
-        funnelDataInput: z
-            .enum(['row', 'column'])
-            .nullable()
-            .describe(
-                'How to interpret funnel data. Use "row" when each row represents a funnel stage (most common). Use "column" when comparing multiple funnels side-by-side.',
-            ),
-
         // Common display properties
         xAxisLabel: z
             .string()

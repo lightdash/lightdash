@@ -3,8 +3,40 @@ import {
     buildDashboardAsCodeSchema,
     convertOpenApiToDraft07,
 } from './generateDashboardAsCodeSchema';
+import dashboardAsCodeSchema from './json/dashboard-as-code-1.0.json';
 
 describe('generateDashboardAsCodeSchema', () => {
+    test('generated schema accepts portable tab slugs and legacy tab UUIDs', () => {
+        const ajv = new Ajv({ strict: false, validateFormats: false });
+        const validate = ajv.compile(dashboardAsCodeSchema);
+        const dashboard = {
+            name: 'Dashboard',
+            slug: 'dashboard',
+            spaceSlug: 'space',
+            version: 1,
+            tiles: [],
+        };
+
+        expect(
+            validate({
+                ...dashboard,
+                tabs: [{ slug: 'overview', name: 'Overview', order: 0 }],
+            }),
+        ).toBe(true);
+        expect(
+            validate({
+                ...dashboard,
+                tabs: [
+                    {
+                        uuid: 'legacy-tab-uuid',
+                        name: 'Overview',
+                        order: 0,
+                    },
+                ],
+            }),
+        ).toBe(true);
+    });
+
     test('convertOpenApiToDraft07 rewrites refs and nullable type fields', () => {
         const input = {
             type: 'object',

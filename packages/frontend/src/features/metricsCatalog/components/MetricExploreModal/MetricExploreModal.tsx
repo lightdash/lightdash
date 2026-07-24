@@ -27,7 +27,7 @@ import {
     Tooltip,
     type ModalProps,
 } from '@mantine-8/core';
-import { useHotkeys } from '@mantine/hooks';
+import { useHotkeys } from '@mantine-8/hooks';
 import {
     IconChevronDown,
     IconChevronUp,

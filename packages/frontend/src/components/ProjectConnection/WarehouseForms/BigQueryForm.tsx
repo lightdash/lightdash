@@ -21,7 +21,7 @@ import {
     Switch,
     Tooltip,
 } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import { IconCheck, IconExclamationCircle } from '@tabler/icons-react';
 import {
     useEffect,
@@ -721,7 +721,7 @@ const BigQueryForm: FC<{
                                         if (!file) {
                                             form.setFieldValue(
                                                 'warehouse.keyfileContents',
-                                                null,
+                                                BigQueryDefaultValues.keyfileContents,
                                             );
                                             return;
                                         }
@@ -749,13 +749,13 @@ const BigQueryForm: FC<{
 
                                                     form.setFieldValue(
                                                         'warehouse.keyfileContents',
-                                                        null,
+                                                        BigQueryDefaultValues.keyfileContents,
                                                     );
                                                 }
                                             } else {
                                                 form.setFieldValue(
                                                     'warehouse.keyfileContents',
-                                                    null,
+                                                    BigQueryDefaultValues.keyfileContents,
                                                 );
                                                 setTemporaryFile(null);
                                             }

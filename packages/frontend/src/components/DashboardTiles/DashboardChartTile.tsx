@@ -46,8 +46,8 @@ import {
     Portal,
     Tooltip,
 } from '@mantine-8/core';
+import { useClipboard, useElementSize } from '@mantine-8/hooks';
 import { useMantineColorScheme } from '@mantine/core';
-import { useClipboard, useElementSize } from '@mantine/hooks';
 import {
     IconAlertCircle,
     IconAlertTriangle,
@@ -393,6 +393,7 @@ const ValidDashboardChartTile: FC<{
             <VisualizationProvider
                 chartConfig={chart.chartConfig}
                 initialPivotDimensions={chart.pivotConfig?.columns}
+                initialPivotRows={chart.pivotConfig?.rows}
                 resultsData={resultsDataWithQueryData}
                 isLoading={resultsData.isFetchingRows}
                 onSeriesContextMenu={onSeriesContextMenu}
@@ -543,6 +544,7 @@ const ValidDashboardChartTileMinimal: FC<{
             minimal
             chartConfig={chart.chartConfig}
             initialPivotDimensions={chart.pivotConfig?.columns}
+            initialPivotRows={chart.pivotConfig?.rows}
             resultsData={resultsDataWithQueryData}
             isLoading={resultsData.isFetchingRows}
             onSeriesContextMenu={onSeriesContextMenu}

@@ -38,7 +38,7 @@ const GitlabSettingsPanel: FC = () => {
             <Box>
                 <Group gap="sm">
                     <Avatar src={gitlabIcon} size="md" alt="" />
-                    <Title order={4}>GitLab</Title>
+                    <Title order={5}>GitLab</Title>
                 </Group>
             </Box>
 

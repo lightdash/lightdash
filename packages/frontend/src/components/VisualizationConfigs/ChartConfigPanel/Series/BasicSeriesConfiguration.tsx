@@ -8,7 +8,7 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { Box, Group } from '@mantine-8/core';
-import { useDebouncedState } from '@mantine/hooks';
+import { useDebouncedState } from '@mantine-8/hooks';
 import { IconPalette } from '@tabler/icons-react';
 import { type FC } from 'react';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';

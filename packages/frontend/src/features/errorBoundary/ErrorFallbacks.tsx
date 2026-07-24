@@ -1,7 +1,7 @@
 import { Box, Button, Stack, Text } from '@mantine-8/core';
-import { Prism } from '@mantine/prism';
 import { IconAlertCircle, IconRefresh } from '@tabler/icons-react';
 import { type FC } from 'react';
+import CodeBlock from '../../components/common/CodeBlock/CodeBlock';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
 import { triggerChunkErrorReload } from '../chunkErrorHandler';
 import classes from './ErrorFallbacks.module.css';
@@ -58,16 +58,14 @@ export const GeneralErrorFallback: FC<{ eventId: string; error: unknown }> = ({
                 className={classes.errorDetails}
             >
                 <Text>You can contact support with the following error ID</Text>
-                <Prism
-                    language="javascript"
-                    ta="left"
-                    maw="400"
-                    styles={{ copy: { right: 0 } }}
-                >
-                    {`Error ID: ${eventId}\n${
+                <CodeBlock
+                    code={`Error ID: ${eventId}\n${
                         error instanceof Error ? error.toString() : ''
                     }`}
-                </Prism>
+                    language="javascript"
+                    maw="400"
+                    ta="left"
+                />
             </Stack>
         }
     />

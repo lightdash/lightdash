@@ -13,6 +13,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { subject } from '@casl/ability';
 import {
+    APP_VERSION_CANCELLED_BY_USER,
     assertEmbeddedAuth,
     assertUnreachable,
     checkThemeLimits,
@@ -76,6 +77,7 @@ import {
     type MetricQuery,
     type PromoteAppAction,
     type PromoteAppDiff,
+    type SavedChart,
     type SessionUser,
     type TogglePinnedItemInfo,
 } from '@lightdash/common';
@@ -209,14 +211,11 @@ import { getTemplateInstructions } from './templates';
  * full async service.
  */
 export const buildChartReference = (
-    chart: {
-        name: string;
-        description?: string;
-        tableName: string;
-        metricQuery: MetricQuery;
-        chartConfig: ChartConfig;
-        pivotConfig?: { columns: string[] };
-    },
+    chart: Pick<
+        SavedChart,
+        'name' | 'tableName' | 'metricQuery' | 'chartConfig'
+    > &
+        Partial<Pick<SavedChart, 'description' | 'pivotConfig'>>,
     chartUuid: string,
     linked: boolean,
     sampleData: ChartSampleData | null,
@@ -315,6 +314,27 @@ const DATA_APP_WORKSPACE: PersistentWorkspace = {
     ],
     exclude: ['node_modules'],
 };
+// Kill any in-flight `claude` process before a cancelled sandbox is paused.
+// Native-pause backends (E2B) freeze running processes into the snapshot, so
+// without this the cancelled generation resumes execution the next time the
+// sandbox is resumed. `[c]laude` keeps pkill from matching this command's own
+// shell; pkill exits 1 when nothing matched, hence the trailing `true`. The
+// prompt file is removed so nothing left in the sandbox can replay the
+// cancelled prompt (the next iteration writes a fresh one).
+const INTERRUPT_CLAUDE_COMMAND =
+    "pkill -TERM -f '[c]laude' 2>/dev/null; sleep 1; " +
+    "pkill -KILL -f '[c]laude' 2>/dev/null; rm -f /tmp/prompt.txt 2>/dev/null; true";
+
+// Prepended to the prompt when a version since the last ready one was
+// cancelled: the resumed `--continue` session still ends with the cancelled
+// instruction (and possibly its partial tool calls), and Claude would
+// otherwise treat it as outstanding work to pick back up.
+const CANCELLED_PROMPT_NOTICE =
+    '[System notice] The user cancelled the previous instruction while you were working on it. ' +
+    'Treat that instruction as withdrawn: do not resume, finish, or build on it. ' +
+    'The working tree may contain unfinished changes from the cancelled work. ' +
+    "Act only on the user's new request below.";
+
 // Maximum number of in-progress app builds allowed per project at one time.
 // Prevents trivial sandbox exhaustion via repeated POST /code calls.
 const MAX_CONCURRENT_APP_BUILDS_PER_PROJECT = 5;
@@ -2500,6 +2520,20 @@ export class AppGenerateService extends BaseService {
             turnDurationsMs: number[];
             generationAttemptCount: number;
         }> => {
+            // Bail before spawning claude when the version is no longer in
+            // progress (typically cancelled). This gates the retry and
+            // build-fix paths, which have no advanceStage check between
+            // attempts — without it a cancel could be followed by another
+            // full generation run of the cancelled prompt.
+            const status = await this.appModel.getVersionStatus(
+                appUuid,
+                version,
+            );
+            if (!isAppVersionInProgress(status)) {
+                throw new Error(
+                    `Claude generation aborted — version ${version} is ${status} (likely cancelled)`,
+                );
+            }
             const attemptStartedAfterMs = AppGenerateService.elapsed(start);
             const sessionFlags =
                 continueSession || forceContinue ? '--continue -p' : '-p';
@@ -3680,11 +3714,28 @@ export class AppGenerateService extends BaseService {
                 if (!advanced) {
                     return;
                 }
+                // A resumed sandbox's Claude session may still end with a
+                // prompt the user cancelled mid-run — disavow it so Claude
+                // doesn't treat it as outstanding work. Fresh sandboxes get
+                // a new session (no --continue), so no notice is needed.
+                const previousPromptCancelled =
+                    wasResumed &&
+                    (await this.appModel.hasCancelledVersionSinceLastReady(
+                        appUuid,
+                        version,
+                    ));
+                if (previousPromptCancelled) {
+                    this.logger.info(
+                        `App ${appUuid}: prepending cancelled-prompt notice (a version since the last ready one was cancelled)`,
+                    );
+                }
                 const catalogResult = await this.writeCatalogAndPrompt(
                     sandbox,
                     appUuid,
                     projectUuid,
-                    prompt,
+                    previousPromptCancelled
+                        ? `${CANCELLED_PROMPT_NOTICE}\n\n${prompt}`
+                        : prompt,
                     imageIds,
                     s3Client,
                     bucket,
@@ -6313,8 +6364,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             appUuid,
             version,
             'error',
-            'Cancelled by user',
-            'Cancelled by user',
+            APP_VERSION_CANCELLED_BY_USER,
+            APP_VERSION_CANCELLED_BY_USER,
         );
         if (!updated) {
             throw new ParameterError('This version is not currently building');
@@ -6340,16 +6391,38 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             });
         }
 
-        // Suspend the sandbox to interrupt any running commands while keeping
-        // it resumable for the next iteration (snapshot + destroy on
-        // object-store backends, preserving state).
+        // Kill the in-flight claude process, then suspend the sandbox while
+        // keeping it resumable for the next iteration (snapshot + destroy on
+        // object-store backends, preserving state). The kill must happen
+        // before the pause: on native-pause backends a frozen claude process
+        // would otherwise resume executing the cancelled instruction when the
+        // next iteration resumes the sandbox.
         // The pipeline will catch the resulting error, but markError is now
         // a no-op since the version is already in 'error' state — and
         // pipeline catches gate `trackVersionFailed` on the markError result,
         // so no spurious failed analytics event fires on top of the cancel.
         if (app.sandbox_id) {
             try {
-                await this.getSandboxManager().suspendByUuid(app.sandbox_id);
+                await this.getSandboxManager().suspendByUuid(app.sandbox_id, {
+                    beforeSuspend: async (handle) => {
+                        try {
+                            await handle.commands.run(
+                                INTERRUPT_CLAUDE_COMMAND,
+                                {
+                                    timeoutMs: 15_000,
+                                },
+                            );
+                            this.logger.info(
+                                `App ${appUuid}: interrupted in-flight claude before suspend`,
+                            );
+                        } catch (error) {
+                            // Best-effort — the suspend must still happen.
+                            this.logger.warn(
+                                `App ${appUuid}: failed to interrupt claude before suspend: ${getErrorMessage(error)}`,
+                            );
+                        }
+                    },
+                });
                 this.logger.info(
                     `App ${appUuid}: sandbox suspended after cancel (sandboxUuid=${app.sandbox_id})`,
                 );
@@ -6609,7 +6682,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     async listMyApps(
         user: SessionUser,
         paginateArgs?: { page: number; pageSize: number },
-        options: { excludePreviewProjects?: boolean } = {},
+        options: {
+            excludePreviewProjects?: boolean;
+            projectUuids?: string[];
+            search?: string;
+        } = {},
     ): Promise<{
         data: {
             appUuid: string;
@@ -7314,12 +7391,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     }
 
     /** Escape a string into a safe, single-line double-quoted YAML scalar. */
-    private static yamlQuote(s: string): string {
-        const cleaned = s
-            .replace(/[\r\n\t]+/g, ' ')
-            .replace(/\\/g, '\\\\')
-            .replace(/"/g, '\\"');
-        return `"${cleaned}"`;
+    private static yamlQuote(value: unknown): string {
+        const cleaned = String(value).replace(/[\r\n\t]+/g, ' ');
+        return JSON.stringify(cleaned);
     }
 
     /** Render a single Lightdash parameter as indented YAML lines. */

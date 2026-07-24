@@ -18,6 +18,9 @@ export type DbAiThread = {
     ai_thread_uuid: string;
     share_source_thread_share_uuid: string | null;
     created_at: Date;
+    // Last prompt activity only; don't bump on other thread updates.
+    // Regenerating a response on an existing prompt must bump it.
+    updated_at: Date | null;
     organization_uuid: string;
     project_uuid: string;
     created_from: AiThreadCreatedFrom;
@@ -41,7 +44,7 @@ export type AiThreadTable = Knex.CompositeTableType<
             | 'project_uuid'
             | 'share_source_thread_share_uuid'
             | 'sql_auto_approved_at'
-        >
+        > & { updated_at: Date | Knex.Raw }
     >
 >;
 

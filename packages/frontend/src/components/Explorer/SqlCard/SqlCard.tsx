@@ -13,7 +13,7 @@ import {
     SegmentedControl,
     Tooltip,
 } from '@mantine-8/core';
-import { useHover } from '@mantine/hooks';
+import { useHover } from '@mantine-8/hooks';
 import { IconCheck, IconClipboard } from '@tabler/icons-react';
 import {
     lazy,

@@ -48,6 +48,7 @@ import {
     TableHeaderLabelContainer,
     TableHeaderRegularLabel,
 } from '../components/common/Table/Table.styles';
+import TotalCalculationErrorCell from '../components/common/Table/TotalCalculationErrorCell';
 import {
     columnHelper,
     type TableColumn,
@@ -611,17 +612,20 @@ export const useColumns = (): TableColumn[] => {
     // The results table has no explicit "Show column totals" setting, so the
     // `column_totals` project default decides whether the totals query runs
     const totalsEnabledByDefault = useColumnTotalsEnabledByDefault(projectUuid);
-    const { data: totals, isFetching: isCalculatingTotals } =
-        useAsyncCalculateTotal({
-            projectUuid,
-            sourceQueryUuid,
-            enabled:
-                isInitialQueryReady &&
-                !!sourceQueryUuid &&
-                hasMetricFields &&
-                totalsEnabledByDefault,
-            invalidateCache: validQueryArgs?.invalidateCache,
-        });
+    const {
+        data: totals,
+        error: totalsError,
+        isFetching: isCalculatingTotals,
+    } = useAsyncCalculateTotal({
+        projectUuid,
+        sourceQueryUuid,
+        enabled:
+            isInitialQueryReady &&
+            !!sourceQueryUuid &&
+            hasMetricFields &&
+            totalsEnabledByDefault,
+        invalidateCache: validQueryArgs?.invalidateCache,
+    });
 
     return useMemo(() => {
         if (hasNoActiveFields) {
@@ -693,6 +697,13 @@ export const useColumns = (): TableColumn[] => {
                                 false,
                                 parameters,
                                 timezone,
+                            );
+                        }
+                        if (totalsError && isNumericItem(item)) {
+                            return (
+                                <TotalCalculationErrorCell
+                                    error={totalsError}
+                                />
                             );
                         }
                         if (isCalculatingTotals && isNumericItem(item)) {
@@ -771,6 +782,7 @@ export const useColumns = (): TableColumn[] => {
         invalidActiveItems,
         sorts,
         totals,
+        totalsError,
         isCalculatingTotals,
         exploreData,
         parameters,

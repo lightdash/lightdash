@@ -11,8 +11,7 @@ import {
     Text,
     Avatar,
 } from '@mantine-8/core';
-import { useOs } from '@mantine/hooks';
-import { Prism } from '@mantine/prism';
+import { useOs } from '@mantine-8/hooks';
 import { IconChevronLeft, IconClock } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
@@ -23,6 +22,7 @@ import { useCreateAccessToken } from '../../../hooks/useAccessToken';
 import { useProjects } from '../../../hooks/useProjects';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import CodeBlock from '../../common/CodeBlock/CodeBlock';
 import MantineIcon from '../../common/MantineIcon';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
 import { OnboardingTitle } from './common/OnboardingTitle';
@@ -165,58 +165,48 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                                     </Tabs.List>
 
                                     <Tabs.Panel value="npm" pt="xs">
-                                        <Prism
+                                        <CodeBlock
+                                            code={npmInstall}
                                             language="bash"
                                             onCopy={handleCopy}
-                                            styles={{ copy: { right: 0 } }}
-                                        >
-                                            {npmInstall}
-                                        </Prism>
+                                        />
                                     </Tabs.Panel>
 
                                     <Tabs.Panel value="brew" pt="xs">
-                                        <Prism
+                                        <CodeBlock
+                                            code={brewInstall}
                                             language="bash"
                                             onCopy={handleCopy}
-                                            styles={{ copy: { right: 0 } }}
-                                        >
-                                            {brewInstall}
-                                        </Prism>
+                                        />
                                     </Tabs.Panel>
                                 </Tabs>
                             ) : (
-                                <Prism
+                                <CodeBlock
+                                    code={npmInstall}
                                     language="bash"
                                     onCopy={handleCopy}
-                                    styles={{ copy: { right: 0 } }}
-                                >
-                                    {npmInstall}
-                                </Prism>
+                                />
                             )}
                         </Stack>
 
                         <Stack gap="xs">
                             <Text fw={500}>2. Login to lightdash:</Text>
 
-                            <Prism
+                            <CodeBlock
+                                code={`lightdash login ${siteUrl} --token ${tokenData?.token}`}
                                 language="bash"
                                 onCopy={handleCopy}
-                                styles={{ copy: { right: 0 } }}
-                            >
-                                {`lightdash login ${siteUrl} --token ${tokenData?.token}`}
-                            </Prism>
+                            />
                         </Stack>
 
                         <Stack gap="xs">
                             <Text fw={500}>3. Create project:</Text>
 
-                            <Prism
+                            <CodeBlock
+                                code="lightdash deploy --create"
                                 language="bash"
                                 onCopy={handleCopy}
-                                styles={{ copy: { right: 0 } }}
-                            >
-                                lightdash deploy --create
-                            </Prism>
+                            />
                         </Stack>
                     </Stack>
                 </Stack>

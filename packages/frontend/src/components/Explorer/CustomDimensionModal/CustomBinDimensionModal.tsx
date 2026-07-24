@@ -352,122 +352,131 @@ export const CustomBinDimensionModal: FC<{
     const toggleModal = () =>
         dispatch(explorerActions.toggleCustomDimensionModal());
 
-    const formSchema = z
-        .object({
-            customDimensionLabel: z.string().refine(
-                (label) => {
-                    if (!label) return true;
-                    if (!item) return true;
-                    if (isEditing && label === item.name) return true;
+    const formSchema = useMemo(
+        () =>
+            z
+                .object({
+                    customDimensionLabel: z.string().refine(
+                        (label) => {
+                            if (!label) return true;
+                            if (!item) return true;
+                            if (isEditing && label === item.name) return true;
 
-                    const dimensionName = sanitizeId(
-                        label,
-                        isEditing && isCustomDimension(item)
-                            ? item.dimensionId
-                            : item.name,
-                    );
+                            const dimensionName = sanitizeId(
+                                label,
+                                isEditing && isCustomDimension(item)
+                                    ? item.dimensionId
+                                    : item.name,
+                            );
 
-                    if (
-                        isEditing &&
-                        isCustomDimension(item) &&
-                        dimensionName === item.id
-                    ) {
-                        return true;
-                    }
+                            if (
+                                isEditing &&
+                                isCustomDimension(item) &&
+                                dimensionName === item.id
+                            ) {
+                                return true;
+                            }
 
-                    return !customDimensions?.some(
-                        (customDimension) =>
-                            customDimension.id === dimensionName,
-                    );
-                },
-                { message: 'Dimension with this label already exists' },
-            ),
-            binType: z.nativeEnum(BinType),
-            binConfig: z.object({
-                fixedNumber: z.object({
-                    binNumber: z.number().positive(),
-                }),
-                fixedWidth: z.object({
-                    binWidth: z.number().positive(),
-                }),
-                customRange: z.array(
-                    z
-                        .object({
-                            from: z.number({ coerce: true }).optional(),
-                            to: z.number({ coerce: true }).optional(),
-                        })
-                        .transform((o) => ({ from: o.from, to: o.to })),
-                ),
-                customGroups: z.array(
-                    z.object({
-                        _id: z.string(),
-                        name: z.string(),
-                        values: z.array(
+                            return !customDimensions?.some(
+                                (customDimension) =>
+                                    customDimension.id === dimensionName,
+                            );
+                        },
+                        { message: 'Dimension with this label already exists' },
+                    ),
+                    binType: z.nativeEnum(BinType),
+                    binConfig: z.object({
+                        fixedNumber: z.object({
+                            binNumber: z.number().positive(),
+                        }),
+                        fixedWidth: z.object({
+                            binWidth: z.number().positive(),
+                        }),
+                        customRange: z.array(
+                            z
+                                .object({
+                                    from: z.number({ coerce: true }).optional(),
+                                    to: z.number({ coerce: true }).optional(),
+                                })
+                                .transform((o) => ({ from: o.from, to: o.to })),
+                        ),
+                        customGroups: z.array(
                             z.object({
                                 _id: z.string(),
-                                matchType: z.nativeEnum(GroupValueMatchType),
-                                value: z.string(),
+                                name: z.string(),
+                                values: z.array(
+                                    z.object({
+                                        _id: z.string(),
+                                        matchType:
+                                            z.nativeEnum(GroupValueMatchType),
+                                        value: z.string(),
+                                    }),
+                                ),
                             }),
                         ),
                     }),
-                ),
-            }),
-        })
-        .superRefine((data, ctx) => {
-            if (data.binType === BinType.CUSTOM_GROUP) {
-                data.binConfig.customGroups.forEach((group, groupIndex) => {
-                    if (group.name.trim().length === 0) {
-                        ctx.addIssue({
-                            code: z.ZodIssueCode.too_small,
-                            minimum: 1,
-                            type: 'string',
-                            inclusive: true,
-                            message: 'Group name is required',
-                            path: [
-                                'binConfig',
-                                'customGroups',
-                                groupIndex,
-                                'name',
-                            ],
-                        });
+                })
+                .superRefine((data, ctx) => {
+                    if (data.binType === BinType.CUSTOM_GROUP) {
+                        data.binConfig.customGroups.forEach(
+                            (group, groupIndex) => {
+                                if (group.name.trim().length === 0) {
+                                    ctx.addIssue({
+                                        code: z.ZodIssueCode.too_small,
+                                        minimum: 1,
+                                        type: 'string',
+                                        inclusive: true,
+                                        message: 'Group name is required',
+                                        path: [
+                                            'binConfig',
+                                            'customGroups',
+                                            groupIndex,
+                                            'name',
+                                        ],
+                                    });
+                                }
+                                if (group.values.length === 0) {
+                                    ctx.addIssue({
+                                        code: z.ZodIssueCode.too_small,
+                                        minimum: 1,
+                                        type: 'array',
+                                        inclusive: true,
+                                        message:
+                                            'Each group must have at least one value',
+                                        path: [
+                                            'binConfig',
+                                            'customGroups',
+                                            groupIndex,
+                                            'values',
+                                        ],
+                                    });
+                                }
+                                group.values.forEach((value, valueIndex) => {
+                                    if (value.value.trim().length === 0) {
+                                        ctx.addIssue({
+                                            code: z.ZodIssueCode.too_small,
+                                            minimum: 1,
+                                            type: 'string',
+                                            inclusive: true,
+                                            message: 'Value is required',
+                                            path: [
+                                                'binConfig',
+                                                'customGroups',
+                                                groupIndex,
+                                                'values',
+                                                valueIndex,
+                                                'value',
+                                            ],
+                                        });
+                                    }
+                                });
+                            },
+                        );
                     }
-                    if (group.values.length === 0) {
-                        ctx.addIssue({
-                            code: z.ZodIssueCode.too_small,
-                            minimum: 1,
-                            type: 'array',
-                            inclusive: true,
-                            message: 'Each group must have at least one value',
-                            path: [
-                                'binConfig',
-                                'customGroups',
-                                groupIndex,
-                                'values',
-                            ],
-                        });
-                    }
-                    group.values.forEach((value, valueIndex) => {
-                        if (value.value.trim().length === 0) {
-                            ctx.addIssue({
-                                code: z.ZodIssueCode.too_small,
-                                minimum: 1,
-                                type: 'string',
-                                inclusive: true,
-                                message: 'Value is required',
-                                path: [
-                                    'binConfig',
-                                    'customGroups',
-                                    groupIndex,
-                                    'values',
-                                    valueIndex,
-                                    'value',
-                                ],
-                            });
-                        }
-                    });
-                });
-            }
-        });
+                }),
+        [customDimensions, isEditing, item],
+    );
+    const validate = useMemo(() => zodResolver(formSchema), [formSchema]);
 
     const form = useForm<FormValues>({
         initialValues: {
@@ -486,7 +495,7 @@ export const CustomBinDimensionModal: FC<{
                 customGroups: createDefaultCustomGroups(),
             },
         },
-        validate: zodResolver(formSchema),
+        validate,
     });
 
     const { setFieldValue } = form;

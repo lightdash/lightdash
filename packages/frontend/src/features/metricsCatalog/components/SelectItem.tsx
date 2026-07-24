@@ -1,5 +1,5 @@
 import { Box, Text } from '@mantine-8/core';
-import { mergeRefs, useHover } from '@mantine/hooks';
+import { mergeRefs, useHover } from '@mantine-8/hooks';
 import { forwardRef, type ComponentPropsWithoutRef } from 'react';
 
 const SelectItem = forwardRef<

@@ -409,6 +409,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/manish160993"><img src="https://avatars.githubusercontent.com/u/31579600?v=4?s=100" width="100px;" alt="Manish Biyani"/><br /><sub><b>Manish Biyani</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=manish160993" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/back1ply"><img src="https://avatars.githubusercontent.com/u/45536170?v=4?s=100" width="100px;" alt="Shehab Tarek"/><br /><sub><b>Shehab Tarek</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=back1ply" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/st-lab7"><img src="https://avatars.githubusercontent.com/u/251964580?v=4?s=100" width="100px;" alt="Shota Tsuru"/><br /><sub><b>Shota Tsuru</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=st-lab7" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/ricardophantom"><img src="https://avatars.githubusercontent.com/u/118755742?v=4?s=100" width="100px;" alt="Ricardo Pinho"/><br /><sub><b>Ricardo Pinho</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=ricardophantom" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

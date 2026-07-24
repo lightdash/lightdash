@@ -5,7 +5,7 @@ import {
     type SpaceSummary,
 } from '@lightdash/common';
 import { Paper, Stack, TextInput } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import { useMemo, useState } from 'react';
 import useApp from '../../../providers/App/useApp';
 import AdminContentViewFilter from '../ResourceView/AdminContentViewFilter';

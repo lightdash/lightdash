@@ -10,14 +10,12 @@ import {
     Button,
     Group,
     LoadingOverlay,
-    Paper,
     Popover,
     Radio,
     ScrollArea,
     Stack,
     Text,
     TextInput,
-    Title,
     Tooltip,
 } from '@mantine-8/core';
 import { useDisclosure, useLocalStorage } from '@mantine-8/hooks';
@@ -30,7 +28,6 @@ import {
     IconCalendarTime,
     IconClock,
     IconColumns,
-    IconExternalLink,
     IconFile,
     IconFilter,
     IconFilterExclamation,
@@ -61,7 +58,12 @@ import {
 } from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
-import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import { SettingsEmptyState } from '../common/Settings/SettingsEmptyState';
+import {
+    SettingsPage,
+    SettingsPageActions,
+    SettingsPageDocumentationLink,
+} from '../common/Settings/SettingsPage';
 import MaterializationDetailDrawer from './MaterializationDetailDrawer';
 import classes from './PreAggregateMaterializations.module.css';
 import { StatusBadge } from './StatusBadge';
@@ -703,32 +705,12 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         <>
             <LoadingOverlay visible={isLoadingProject} />
 
-            <Stack gap="md">
-                <Group justify="space-between" align="flex-start">
-                    <Stack gap={2}>
-                        <Title order={5}>Pre-Aggregate Materializations</Title>
-                        <Text c="dimmed" size="xs">
-                            Overview of all pre-aggregate definitions and their
-                            current materialization status.
-                        </Text>
-                    </Stack>
-
-                    <Group gap="xs">
-                        <Button
-                            component="a"
-                            href="https://docs.lightdash.com/references/pre-aggregates"
-                            target="_blank"
-                            variant="default"
-                            size="xs"
-                            rightSection={
-                                <MantineIcon
-                                    icon={IconExternalLink}
-                                    size="sm"
-                                />
-                            }
-                        >
-                            Documentation
-                        </Button>
+            <SettingsPage
+                title="Pre-aggregate materializations"
+                description="Overview of all pre-aggregate definitions and their current materialization status."
+                actions={
+                    <SettingsPageActions>
+                        <SettingsPageDocumentationLink href="https://docs.lightdash.com/references/pre-aggregates" />
                         <Button
                             size="xs"
                             leftSection={
@@ -739,9 +721,9 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                         >
                             Rebuild all
                         </Button>
-                    </Group>
-                </Group>
-
+                    </SettingsPageActions>
+                }
+            >
                 {requiresUserCredentials && (
                     <Callout variant="warning">
                         <Text fz="xs">
@@ -762,17 +744,15 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 )}
 
                 {!isLoading && materializations.length === 0 ? (
-                    <Paper withBorder radius="md" p="xxl">
-                        <SuboptimalState
-                            icon={IconBolt}
-                            title="No pre-aggregates defined yet"
-                            description="Define pre-aggregates in your dbt YAML to serve queries from materialized results instead of hitting your warehouse."
-                        />
-                    </Paper>
+                    <SettingsEmptyState
+                        icon={IconBolt}
+                        title="No pre-aggregates defined yet"
+                        description="Define pre-aggregates in your dbt YAML to serve queries from materialized results instead of hitting your warehouse."
+                    />
                 ) : (
                     <ContentTable table={table} />
                 )}
-            </Stack>
+            </SettingsPage>
 
             <MaterializationDetailDrawer
                 summary={selectedSummary}

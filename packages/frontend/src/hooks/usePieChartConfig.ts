@@ -19,7 +19,7 @@ import {
     type TableCalculation,
     type TableCalculationMetadata,
 } from '@lightdash/common';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import isEmpty from 'lodash/isEmpty';
 import isEqual from 'lodash/isEqual';
 import mapValues from 'lodash/mapValues';

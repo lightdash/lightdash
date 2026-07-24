@@ -568,17 +568,22 @@ export const convertToGroups = (
     return groups;
 };
 
-export const convertToAiHints = (
-    aiHint: string | string[] | undefined,
-): string[] | undefined => {
-    if (!aiHint) {
+export const convertToAiHints = (aiHint: unknown): string[] | undefined => {
+    if (typeof aiHint === 'string') {
+        return aiHint ? [aiHint] : undefined;
+    }
+    if (!Array.isArray(aiHint)) {
         return undefined;
     }
-    if (typeof aiHint === 'string') {
-        return [aiHint];
-    }
-    return aiHint;
+
+    const hints = aiHint.filter(
+        (hint): hint is string => typeof hint === 'string',
+    );
+    return hints.length > 0 ? hints : undefined;
 };
+
+export const flattenAiHints = (aiHint: unknown): string =>
+    convertToAiHints(aiHint)?.join(' ') ?? '';
 
 export const getEffectiveFieldAiHints = (
     field: Pick<Dimension | Metric, 'aiHint' | 'groups'>,

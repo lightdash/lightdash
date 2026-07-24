@@ -40,7 +40,7 @@ overrides:
 
 packageExtensionsChecksum: sha256-dssFMdNh289VAmJNNfz2Un2yyQ65P87lDvF3ZdZoc94=
 
-pnpmfileChecksum: sha256-MpThIPbzl7wRjww3iPI5NpP3QZScl0ioo5/ZQ9GARXg=
+pnpmfileChecksum: sha256-mQsVoz6S6/a3Kqz2QaGrYNULco+R1zUvUxOFKeLrcls=
 
 importers:
 
@@ -1095,6 +1095,9 @@ importers:
       '@lightdash/formula':
         specifier: workspace:*
         version: link:../formula
+      '@mantine-8/code-highlight':
+        specifier: npm:@mantine/code-highlight@8.0.0
+        version: '@mantine/code-highlight@8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)'
       '@mantine-8/core':
         specifier: npm:@mantine/core@8.0.0
         version: '@mantine/core@8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)'
@@ -1107,6 +1110,9 @@ importers:
       '@mantine-8/notifications':
         specifier: npm:@mantine/notifications@8.0.0
         version: '@mantine/notifications@8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)'
+      '@mantine-8/tiptap':
+        specifier: npm:@mantine/tiptap@8.0.0
+        version: '@mantine/tiptap@8.0.0(@tiptap/extension-link@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2))(@tiptap/react@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)'
       '@mantine/core':
         specifier: 6.0.22
         version: 6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -1114,17 +1120,11 @@ importers:
         specifier: 6.0.21
         version: 6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(dayjs@1.11.10)(react@19.2.0)
       '@mantine/form':
-        specifier: 7.5.2
-        version: 7.5.2(react@19.2.0)
+        specifier: 8.0.0
+        version: 8.0.0(react@19.2.0)
       '@mantine/hooks':
         specifier: 6.0.22
         version: 6.0.22(react@19.2.0)
-      '@mantine/prism':
-        specifier: 6.0.21
-        version: 6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@mantine/tiptap':
-        specifier: 6.0.21
-        version: 6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@tabler/icons-react@2.47.0(react@19.2.0))(@tiptap/extension-link@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2))(@tiptap/react@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)
       '@monaco-editor/react':
         specifier: 4.6.0
         version: 4.6.0(monaco-editor@0.44.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -1263,6 +1263,9 @@ importers:
       hast:
         specifier: 1.0.0
         version: 1.0.0
+      highlight.js:
+        specifier: 11.10.0
+        version: 11.10.0
       html2canvas-pro:
         specifier: 1.5.13
         version: 1.5.13
@@ -1286,7 +1289,7 @@ importers:
         version: 4.18.1
       mantine-form-zod-resolver:
         specifier: 1.1.0
-        version: 1.1.0(@mantine/form@7.5.2(react@19.2.0))(zod@3.25.55)
+        version: 1.1.0(@mantine/form@8.0.0(react@19.2.0))(zod@3.25.55)
       moment:
         specifier: 2.29.4
         version: 2.29.4
@@ -4282,6 +4285,12 @@ packages:
     peerDependencies:
       '@langchain/core': '>=0.2.21 <0.4.0'
 
+  '@mantine/code-highlight@8.0.0':
+    resolution: {integrity: sha512-vYMBRWRXpUwLdDbpdPiCwXJ75uXi9gIWWcgbiRiFysglFzO5VhGhnyXYtCocIdqRyQAZLfhz6Q0mYWzqJ3XgmQ==}
+    peerDependencies:
+      react: ^18.x || ^19.x
+      react-dom: ^18.x || ^19.x
+
   '@mantine/core@6.0.22':
     resolution: {integrity: sha512-6kv0eY7n565fyjgS20qUYeCSxg3f1TJ5vurzbP1HHtFXXKSY0bYoqqDoHipFCt6NxsPQGeiC6cC0c/IWIlxoKQ==}
     peerDependencies:
@@ -4303,10 +4312,10 @@ packages:
       dayjs: '>=1.0.0'
       react: '>=16.8.0'
 
-  '@mantine/form@7.5.2':
-    resolution: {integrity: sha512-Kz4UNLvAvxB1utKflt4gr5Uzt1Dxj17thcnlLzB2JX6unzV3OkvC36b5XoXAtuoFxt/RzEyUrp5M38jZLwCLEA==}
+  '@mantine/form@8.0.0':
+    resolution: {integrity: sha512-ErbbEFMEiRsK2Rn0jmFE5ohNJXHSMSbuJsL2vDUVsbIaXo6svw6ockw1WWGdiU8oEGqxM6Pd618yI9cJWNHF3g==}
     peerDependencies:
-      react: ^18.2.0
+      react: ^18.x || ^19.x
 
   '@mantine/hooks@6.0.22':
     resolution: {integrity: sha512-e10//QTN2sAmC4Ryeu5X5L/TsxnrjXMOaGq3dxFPIPsCSwLzyxqySfjzVViWmoPWAj0Ak9MvE2MHFjzmOpA80w==}
@@ -4330,14 +4339,6 @@ packages:
       react: ^18.x || ^19.x
       react-dom: ^18.x || ^19.x
 
-  '@mantine/prism@6.0.21':
-    resolution: {integrity: sha512-M9hDUAuuxiINI7f07V0qlX532UXlOTpBqNcG1WWm80t6C0fHjzkTvFj77QpnGS73+MI88mV8ru458y10bQjTBA==}
-    peerDependencies:
-      '@mantine/core': 6.0.21
-      '@mantine/hooks': 6.0.21
-      react: '>=16.8.0'
-      react-dom: '>=16.8.0'
-
   '@mantine/store@8.0.0':
     resolution: {integrity: sha512-42RWCsXMNuhpX+d/hwr5aHj+HWyi5ltbc0R0xdiUnAmqSB7CHbWxDDLh4+DbmqPrN9pTeYvpPGp3v/CG2vuGBg==}
     peerDependencies:
@@ -4357,15 +4358,13 @@ packages:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
 
-  '@mantine/tiptap@6.0.21':
-    resolution: {integrity: sha512-SeVoMN+STXeeVTg2H4bxLJUjDuZ9ykAm6TSTqDi/vTRxp/v3aokAU8DCD8Z207DNXaRfZ50YByxfo1/uIyndYw==}
+  '@mantine/tiptap@8.0.0':
+    resolution: {integrity: sha512-45GVrwyLWzQl+lXfHpNYvX/qIDCamLyvQnyEpBpyBEdkxEiSeu9dCqE0WF159uST6QsODPMktPPgdzPvcc0psQ==}
     peerDependencies:
-      '@mantine/core': 6.0.21
-      '@mantine/hooks': 6.0.21
-      '@tabler/icons-react': '>=2.1.0'
-      '@tiptap/extension-link': ^2.0.0-beta.202
-      '@tiptap/react': ^2.0.0-beta.202
-      react: '>=16.8.0'
+      '@tiptap/extension-link': '>=2.1.12'
+      '@tiptap/react': '>=2.1.12'
+      react: ^18.x || ^19.x
+      react-dom: ^18.x || ^19.x
 
   '@mantine/utils@6.0.21':
     resolution: {integrity: sha512-33RVDRop5jiWFao3HKd3Yp7A9mEq4HAJxJPTuYm1NkdqX6aTKOQK7wT8v8itVodBp+sb4cJK6ZVdD1UurK/txQ==}
@@ -11288,6 +11287,10 @@ packages:
     resolution: {integrity: sha512-g+HZqgfbpXdCkme/Cd/mZkV0aV3BZZZSugecH03kl38m/Kmdx8jKjBikpDj2cr+Iynv4KpYEviojNdTJActJAg==}
     engines: {node: '>=16.0.0'}
 
+  highlight.js@11.10.0:
+    resolution: {integrity: sha512-SYVnVFswQER+zu1laSya563s+F8VDGt7o35d4utbamowvUNLLMovFqwCLSocpZTz3MgaSRA1IbqRWZv97dtErQ==}
+    engines: {node: '>=12.0.0'}
+
   hoist-non-react-statics@3.3.2:
     resolution: {integrity: sha512-/gGivxi8JPKWNm/W0jSmzcMPpfpPLc3dY/6GxhX2hQ9iGj3aDfklV4ET7NjKpSinLpJ5vafa9iiGIEZg10SfBw==}
 
@@ -14208,11 +14211,6 @@ packages:
   pretty-format@27.5.1:
     resolution: {integrity: sha512-Qb1gy5OrP5+zDf2Bvnzdl3jsTf1qXVMazbvCoKhtKqVs4/YK4ozX4gKQJJVyNe+cajNPn0KoC0MC3FUmaHWEmQ==}
     engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
-
-  prism-react-renderer@1.3.5:
-    resolution: {integrity: sha512-IJ+MSwBWKG+SM3b2SUfdrhC+gu01QkV2KmRQgREThBfSQRoufqRfxfHUxpG1WcaFjP+kojcFyO9Qqtpgt3qLCg==}
-    peerDependencies:
-      react: '>=0.14.9'
 
   process-nextick-args@2.0.1:
     resolution: {integrity: sha512-3ouUOpQhtgrbOa17J7+uxOTpITYWaGP7/AhoR3+A+/1e9skrzelGi/dXzEYyvbxubEF6Wn2ypscTKiKJFFn1ag==}
@@ -20645,6 +20643,17 @@ snapshots:
       '@langchain/core': 0.3.80(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.219.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.8.0(@opentelemetry/api@1.9.0))(openai@4.80.1(encoding@0.1.13)(ws@8.20.0)(zod@3.25.55))
       js-tiktoken: 1.0.16
 
+  '@mantine/code-highlight@8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
+    dependencies:
+      '@mantine/core': 8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@mantine/hooks': 8.0.0(react@19.2.0)
+      clsx: 2.1.1
+      highlight.js: 11.10.0
+      react: 19.2.0
+      react-dom: 19.2.0(react@19.2.0)
+    transitivePeerDependencies:
+      - '@types/react'
+
   '@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
       '@floating-ui/react': 0.19.2(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -20682,7 +20691,7 @@ snapshots:
       dayjs: 1.11.10
       react: 19.2.0
 
-  '@mantine/form@7.5.2(react@19.2.0)':
+  '@mantine/form@8.0.0(react@19.2.0)':
     dependencies:
       fast-deep-equal: 3.1.3
       klona: 2.0.6
@@ -20716,15 +20725,6 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
 
-  '@mantine/prism@6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
-    dependencies:
-      '@mantine/core': 6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@mantine/hooks': 6.0.22(react@19.2.0)
-      '@mantine/utils': 6.0.21(react@19.2.0)
-      prism-react-renderer: 1.3.5(react@19.2.0)
-      react: 19.2.0
-      react-dom: 19.2.0(react@19.2.0)
-
   '@mantine/store@8.0.0(react@19.2.0)':
     dependencies:
       react: 19.2.0
@@ -20745,15 +20745,16 @@ snapshots:
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
 
-  '@mantine/tiptap@6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@tabler/icons-react@2.47.0(react@19.2.0))(@tiptap/extension-link@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2))(@tiptap/react@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)':
+  '@mantine/tiptap@8.0.0(@tiptap/extension-link@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2))(@tiptap/react@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
-      '@mantine/core': 6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@mantine/hooks': 6.0.22(react@19.2.0)
-      '@mantine/utils': 6.0.21(react@19.2.0)
-      '@tabler/icons-react': 2.47.0(react@19.2.0)
+      '@mantine/core': 8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@mantine/hooks': 8.0.0(react@19.2.0)
       '@tiptap/extension-link': 2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)
       '@tiptap/react': 2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       react: 19.2.0
+      react-dom: 19.2.0(react@19.2.0)
+    transitivePeerDependencies:
+      - '@types/react'
 
   '@mantine/utils@6.0.21(react@19.2.0)':
     dependencies:
@@ -29126,6 +29127,8 @@ snapshots:
 
   helmet@7.1.0: {}
 
+  highlight.js@11.10.0: {}
+
   hoist-non-react-statics@3.3.2:
     dependencies:
       react-is: 19.2.0
@@ -30365,9 +30368,9 @@ snapshots:
       - bluebird
       - supports-color
 
-  mantine-form-zod-resolver@1.1.0(@mantine/form@7.5.2(react@19.2.0))(zod@3.25.55):
+  mantine-form-zod-resolver@1.1.0(@mantine/form@8.0.0(react@19.2.0))(zod@3.25.55):
     dependencies:
-      '@mantine/form': 7.5.2(react@19.2.0)
+      '@mantine/form': 8.0.0(react@19.2.0)
       zod: 3.25.55
 
   markdown-it-task-lists@2.1.1: {}
@@ -32386,10 +32389,6 @@ snapshots:
       ansi-regex: 5.0.1
       ansi-styles: 5.2.0
       react-is: 19.2.0
-
-  prism-react-renderer@1.3.5(react@19.2.0):
-    dependencies:
-      react: 19.2.0
 
   process-nextick-args@2.0.1: {}
 

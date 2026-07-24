@@ -186,11 +186,10 @@ jobs:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Fetch base OpenAPI schema
-        run: |
-          git fetch --no-tags --depth=1 origin "${{ github.event.pull_request.base.ref || 'main' }}"
-          git show FETCH_HEAD:packages/backend/src/generated/swagger.json > /tmp/main-swagger.json
+      - name: Checkout base
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
       - name: Setup Socket Firewall
         uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
         with:
@@ -201,10 +200,17 @@ jobs:
           node-version-file: ".nvmrc"
           cache: "pnpm"
           cache-dependency-path: "pnpm-lock.yaml"
-      - name: Install packages
-        run: sfw pnpm install --frozen-lockfile --prefer-offline
-      - name: Generate OpenAPI schema
-        run: pnpm generate-api
+      - name: Generate base OpenAPI schema
+        run: |
+          sfw pnpm install --frozen-lockfile --prefer-offline
+          pnpm generate-api
+          cp packages/backend/src/generated/swagger.json /tmp/base-swagger.json
+      - name: Checkout PR
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Generate PR OpenAPI schema
+        run: |
+          sfw pnpm install --frozen-lockfile --prefer-offline
+          pnpm generate-api
       - name: Check for OpenAPI breaking changes
         if: ${{ !contains(github.event.pull_request.body, 'allow-api-breaking-change') }}
         run: |
@@ -213,7 +219,7 @@ jobs:
             -v /tmp:/tmp \
             -w /work \
             tufin/oasdiff@sha256:1b878e413bfba39a9bbb2ce95d6a2ddf79bacd4eade9420ad422175b011a71c9 \
-            breaking --fail-on ERR /tmp/main-swagger.json packages/backend/src/generated/swagger.json
+            breaking --fail-on ERR /tmp/base-swagger.json packages/backend/src/generated/swagger.json
       - name: Report allowed OpenAPI breaking changes
         if: ${{ contains(github.event.pull_request.body, 'allow-api-breaking-change') }}
         run: echo "Skipping OpenAPI breaking-change check because allow-api-breaking-change is in the PR description."

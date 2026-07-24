@@ -834,7 +834,6 @@ describe('Slack AI agent blocks', () => {
             yAxisMetrics: ['orders_unique_order_count'],
             defaultVizType,
             xAxisDimension: 'orders_order_date_month',
-            funnelDataInput: null,
             secondaryYAxisLabel: null,
             secondaryYAxisMetric: null,
         });
@@ -965,7 +964,6 @@ describe('Slack AI agent blocks', () => {
                             yAxisMetrics: ['orders_order_count'],
                             defaultVizType: 'line',
                             xAxisDimension: 'orders_order_date',
-                            funnelDataInput: null,
                             secondaryYAxisLabel: null,
                             secondaryYAxisMetric: null,
                         },

@@ -45,6 +45,7 @@ const MinimalChartContent = memo(() => {
             minimal
             chartConfig={savedChart.chartConfig}
             initialPivotDimensions={savedChart.pivotConfig?.columns}
+            initialPivotRows={savedChart.pivotConfig?.rows}
             resultsData={resultsData}
             isLoading={isLoadingQueryResults}
             columnOrder={savedChart.tableConfig.columnOrder}
