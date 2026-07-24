@@ -26,6 +26,7 @@ export type AiCallFeature =
     | 'project-router'
     | 'agent-selector'
     | 'review-classifier'
+    | 'ai-agent-memory'
     | 'llm-judge'
     | 'data-app'
     | 'managed-agent';
