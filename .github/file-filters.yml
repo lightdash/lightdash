@@ -23,6 +23,7 @@ backend:
   - "packages/common/**/*"
 
 api_schema:
+  - ".github/workflows/pr.yml"
   - "packages/backend/**/*"
   - "packages/common/**/*"
 
