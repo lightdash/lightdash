@@ -9,10 +9,13 @@ import {
     getItemMap,
     getWebAiChartConfig,
     isActiveFollowUpTool,
+    isAiSqlChartArtifactConfig,
     isToolEditDbtProjectResult,
     isToolSetupPreviewDeployResult,
+    parseAiArtifactChartConfig,
     parseVizConfig,
     SlackPrompt,
+    type AiLegacySemanticChartArtifactConfig,
     type ChartConfig,
     type Explore,
 } from '@lightdash/common';
@@ -535,12 +538,25 @@ export async function getModernArtifactCardBlocks(
     getExplore: (exploreName: string) => Promise<Explore>,
     isImageUrlReachable: (url: string) => Promise<boolean>,
     agentUuid?: string,
-    artifacts?: AiArtifact[],
+    artifacts?: Array<
+        Omit<AiArtifact, 'chartConfig' | 'savedSqlUuid'> & {
+            chartConfig:
+                | AiArtifact['chartConfig']
+                | AiLegacySemanticChartArtifactConfig;
+            savedSqlUuid?: string | null;
+        }
+    >,
     toolResults?: AiAgentToolResult[],
 ): Promise<(Block | KnownBlock)[]> {
     if (!artifacts || artifacts.length === 0) {
         return [];
     }
+
+    const normalizedArtifacts: AiArtifact[] = artifacts.map((artifact) => ({
+        ...artifact,
+        savedSqlUuid: artifact.savedSqlUuid ?? null,
+        chartConfig: parseAiArtifactChartConfig(artifact.chartConfig),
+    }));
 
     const chartImageUrls = (toolResults ?? [])
         .filter(
@@ -579,12 +595,19 @@ export async function getModernArtifactCardBlocks(
             .optional(),
     });
     const getChartVizType = (artifact: AiArtifact): string => {
-        const parsed = vizTypeSchema.safeParse(artifact.chartConfig);
+        if (!artifact.chartConfig) {
+            return 'chart';
+        }
+        if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
+            return 'table';
+        }
+        const parsed = vizTypeSchema.safeParse(artifact.chartConfig.config);
         if (parsed.success && parsed.data.chartConfig?.defaultVizType) {
             return parsed.data.chartConfig.defaultVizType;
         }
         return (
-            parseVizConfig(artifact.chartConfig, maxQueryLimit)?.type ?? 'chart'
+            parseVizConfig(artifact.chartConfig.config, maxQueryLimit)?.type ??
+            'chart'
         );
     };
 
@@ -598,7 +621,13 @@ export async function getModernArtifactCardBlocks(
         if (artifact.chartConfig) {
             const vizType = getChartVizType(artifact);
             if (title) return `chart:${vizType}:${title}`;
-            const viz = parseVizConfig(artifact.chartConfig, maxQueryLimit);
+            if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
+                return `chart:${vizType}:${artifact.chartConfig.sql}`;
+            }
+            const viz = parseVizConfig(
+                artifact.chartConfig.config,
+                maxQueryLimit,
+            );
             const query = viz
                 ? JSON.stringify(
                       { type: viz.type, metricQuery: viz.metricQuery },
@@ -618,7 +647,7 @@ export async function getModernArtifactCardBlocks(
     // Keep the latest version per identity, preserving first-appearance order
     // (Slack allows up to 10 cards).
     const latestByIdentity = new Map<string, AiArtifact>();
-    artifacts.forEach((artifact) => {
+    normalizedArtifacts.forEach((artifact) => {
         const identity = getArtifactIdentity(artifact);
         const existing = latestByIdentity.get(identity);
         if (!existing || artifact.versionNumber > existing.versionNumber) {
@@ -627,15 +656,20 @@ export async function getModernArtifactCardBlocks(
     });
     const dedupedArtifacts = Array.from(latestByIdentity.values()).slice(0, 10);
 
-    const chartArtifacts = dedupedArtifacts.filter((artifact) =>
-        Boolean(artifact.chartConfig),
+    const chartArtifacts = dedupedArtifacts.filter(
+        (artifact) =>
+            Boolean(artifact.chartConfig) &&
+            !isAiSqlChartArtifactConfig(artifact.chartConfig),
     );
 
     const blocks = await Promise.all(
         dedupedArtifacts.map(async (artifact, index) => {
-            if (artifact.chartConfig) {
+            if (
+                artifact.chartConfig &&
+                !isAiSqlChartArtifactConfig(artifact.chartConfig)
+            ) {
                 const vizConfig = parseVizConfig(
-                    artifact.chartConfig,
+                    artifact.chartConfig.config,
                     maxQueryLimit,
                 );
                 if (!vizConfig) {
@@ -687,7 +721,7 @@ export async function getModernArtifactCardBlocks(
                 let pivotConfig: { columns: string[] } | undefined;
                 try {
                     const webAiChartConfig = getWebAiChartConfig({
-                        vizConfig: artifact.chartConfig,
+                        vizConfig: artifact.chartConfig.config,
                         metricQuery: metricQueryWithSql,
                         maxQueryLimit,
                         fieldsMap: getItemMap(
@@ -831,6 +865,104 @@ export async function getModernArtifactCardBlocks(
             type: 'carousel',
             block_id: `ai_agent_artifact_carousel_${slackPrompt.promptUuid}`,
             elements: cards.slice(0, 10),
+        } as unknown as Block,
+    ];
+}
+
+// SQL artifacts aren't persisted for Slack (see the `!isSlack` guard in
+// runSql.ts), so — unlike chart/dashboard cards above — these are built
+// directly from tool calls/results rather than the artifacts table. One card
+// per successful runSql call: each carries its own {sql, limit}, so a turn
+// with multiple runSql calls gets one correctly-scoped card each rather than
+// a single link that can only point at one of them.
+export async function getSqlArtifactCardBlocks(
+    promptUuid: string,
+    toolCalls: Array<{
+        tool_call_id: string;
+        tool_name: string;
+        tool_args: unknown;
+    }>,
+    toolResults: AiAgentToolResult[],
+    createSqlRunnerShareUrl: (
+        sql: string,
+        limit: number | undefined,
+    ) => Promise<string>,
+): Promise<(Block | KnownBlock)[]> {
+    const succeededCallIds = new Set(
+        toolResults
+            .filter(
+                (result) =>
+                    result.toolName === 'runSql' &&
+                    (result.metadata as { status?: string } | null)?.status ===
+                        'success',
+            )
+            .map((result) => result.toolCallId),
+    );
+    const rowCountByCallId = new Map(
+        toolResults
+            .filter((result) => result.toolName === 'runSql')
+            .map((result) => [
+                result.toolCallId,
+                (result.metadata as { rowCount?: number } | null)?.rowCount,
+            ]),
+    );
+
+    const successfulSqlCalls = toolCalls.filter(
+        (call) =>
+            call.tool_name === 'runSql' &&
+            succeededCallIds.has(call.tool_call_id),
+    );
+
+    const cards = await Promise.all(
+        successfulSqlCalls.map(async (call, index) => {
+            const args = call.tool_args as
+                | { sql?: string; limit?: number }
+                | undefined;
+            if (!args?.sql) return undefined;
+
+            const shareUrl = await createSqlRunnerShareUrl(
+                args.sql,
+                args.limit,
+            ).catch(() => undefined);
+            if (!shareUrl) return undefined;
+
+            const rowCount = rowCountByCallId.get(call.tool_call_id);
+
+            return buildSlackCardBlock({
+                blockId: `ai_agent_sql_card_${call.tool_call_id}`,
+                title: 'SQL query results',
+                subtitle:
+                    typeof rowCount === 'number'
+                        ? `${rowCount} row${rowCount === 1 ? '' : 's'}`
+                        : undefined,
+                subtext: 'Open in SQL Runner to inspect, edit, or save.',
+                actions: [
+                    {
+                        type: 'button',
+                        url: shareUrl,
+                        style: 'primary',
+                        action_id: `actions.open_sql_runner_card_button_click.${index}`,
+                        text: {
+                            type: 'plain_text',
+                            text: 'Open in SQL Runner',
+                        },
+                    },
+                ],
+            });
+        }),
+    );
+
+    const cardBlocks = cards.filter((block): block is Block => Boolean(block));
+
+    if (cardBlocks.length <= 1) {
+        return cardBlocks;
+    }
+
+    return [
+        {
+            type: 'carousel',
+            block_id: `ai_agent_sql_carousel_${promptUuid}`,
+            elements: cardBlocks.slice(0, 10),
         } as unknown as Block,
     ];
 }

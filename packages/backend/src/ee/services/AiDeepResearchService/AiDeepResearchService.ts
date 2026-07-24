@@ -624,6 +624,7 @@ export class AiDeepResearchService extends BaseService {
         });
 
         return {
+            source: 'semantic',
             type: AiResultType.QUERY_RESULT,
             query: {
                 queryUuid: query.queryUuid,

@@ -198,6 +198,7 @@ const makeAgentTools = () => {
             updateProgress: noopAsync,
         }),
         runSql: getRunSql({
+            createOrUpdateArtifact: noop,
             getPrompt: noop,
             recordSqlApproval: noop,
             isThreadSqlAutoApproved: noop,

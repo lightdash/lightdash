@@ -1990,8 +1990,9 @@ export class AiAgentToolsService extends BaseService {
                             ),
                         );
                         return {
+                            queryUuid,
                             rows,
-                            columns: Object.keys(rows[0] ?? {}),
+                            columns: Object.keys(queryResults.columns),
                             rowCount: rows.length,
                         };
                     }

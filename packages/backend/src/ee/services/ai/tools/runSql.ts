@@ -3,11 +3,13 @@ import {
     createToolRunSqlArgsSchema,
     isSlackPrompt,
     runSqlToolDefinition,
+    type AiSqlChartArtifactConfig,
     type AnyType,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
 import type {
+    CreateOrUpdateArtifactFn,
     GetPromptFn,
     IsThreadSqlAutoApprovedFn,
     RecordSqlApprovalFn,
@@ -33,6 +35,7 @@ type Dependencies = {
     recordSqlApproval: RecordSqlApprovalFn;
     isThreadSqlAutoApproved: IsThreadSqlAutoApprovedFn;
     storeToolResults: StoreToolResultsFn;
+    createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxQueryLimit: number;
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
@@ -92,6 +95,7 @@ export const getRunSql = ({
     recordSqlApproval,
     isThreadSqlAutoApproved,
     storeToolResults,
+    createOrUpdateArtifact,
     maxQueryLimit,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
@@ -257,10 +261,25 @@ export const getRunSql = ({
                     await updateProgress('Running SQL query...');
                 }
 
+                const effectiveLimit = Math.min(limit, maxQueryLimit);
                 const { rows, columns, rowCount } = await runSqlJob({
                     sql,
-                    limit: Math.min(limit, maxQueryLimit),
+                    limit: effectiveLimit,
                 });
+
+                if (!isSlack) {
+                    await createOrUpdateArtifact({
+                        threadUuid: prompt.threadUuid,
+                        promptUuid: prompt.promptUuid,
+                        artifactType: 'chart',
+                        title: 'SQL query results',
+                        vizConfig: {
+                            source: 'sql',
+                            sql,
+                            limit: effectiveLimit,
+                        } satisfies AiSqlChartArtifactConfig,
+                    });
+                }
 
                 if (rowCount === 0) {
                     await renderState({

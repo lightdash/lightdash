@@ -528,6 +528,7 @@ export const getAgentTools = (
               recordSqlApproval: dependencies.recordSqlApproval,
               isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
               storeToolResults: dependencies.storeToolResults,
+              createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
               maxQueryLimit: args.runSqlMaxLimit,
               autoApproveSql: args.autoApproveSql,
               autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
