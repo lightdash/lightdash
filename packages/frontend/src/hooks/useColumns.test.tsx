@@ -236,9 +236,12 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         const result = getFormattedValueCell(context);
         const { container } = renderWithMantine(result as React.ReactElement);
 
-        // Only the 1px zero baseline divider is present, no colored % bar
+        // Only the 1px zero baseline divider is present, no bar. Bars are the
+        // only elements with a border-radius (the divider's background uses a
+        // CSS var, which jsdom drops from serialized styles — so don't key
+        // this assertion on "background").
         const percentBar = container.querySelector(
-            'div[style*="background"][style*="%"]',
+            'div[style*="border-radius"]',
         );
         expect(percentBar).toBeFalsy();
 
@@ -249,8 +252,9 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
     });
 
     test('all-negative column: bars grow left from the right edge (PROD-8704)', () => {
-        // min=-100, max=-20 => zero clamps to the right edge (100%). value=-20
-        // (closest to zero) => 25% width (20/80); most-negative would fill.
+        // min=-100, max=-20 => scale extends to zero, so range=100 and the
+        // baseline sits exactly at the right edge. value=-20 => 20% width
+        // (|value|/|min|); the most-negative value would fill the track.
         const context = createMockCellContext({
             columnId: 'revenue',
             value: {
@@ -268,10 +272,40 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         const result = getFormattedValueCell(context);
         const { container } = renderWithMantine(result as React.ReactElement);
 
-        const barElement = container.querySelector('div[style*="width: 25%"]');
+        const barElement = container.querySelector('div[style*="width: 20%"]');
         expect(barElement).toBeTruthy();
         // Anchored at the right edge (right: 0%), growing leftward
         expect(barElement?.getAttribute('style') || '').toContain('right: 0%');
+    });
+
+    test('all-negative column: distinct values render distinct widths (PROD-8704)', () => {
+        // Regression: with range=max-min, any value <= -(max - min) clamped to
+        // a full-width bar (-90 and -100 looked identical). With the scale
+        // extended to zero, -90 => 90% and only min itself fills the track.
+        const context = createMockCellContext({
+            columnId: 'revenue',
+            value: {
+                raw: -90,
+                formatted: '-$90',
+            },
+            minMaxMap: {
+                revenue: { min: -100, max: -20 },
+            },
+            columnProperties: {
+                revenue: { displayStyle: 'bar' },
+            },
+        });
+
+        const result = getFormattedValueCell(context);
+        const { container } = renderWithMantine(result as React.ReactElement);
+
+        const barElement = container.querySelector('div[style*="width: 90%"]');
+        expect(barElement).toBeTruthy();
+        expect(
+            container.querySelector(
+                'div[style*="width: 100%"][style*="right"]',
+            ),
+        ).toBeFalsy();
     });
 
     test('should not render bar for zero', () => {

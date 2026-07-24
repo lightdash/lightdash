@@ -27,7 +27,9 @@ export const TableCellBar = ({
     max,
     color = DEFAULT_BAR_COLOR,
 }: TableCellBarProps) => {
-    const range = max - min;
+    // Scale always includes zero (Excel-style automatic axis) so all-negative
+    // columns don't clamp distinct values to identical full-width bars.
+    const range = Math.max(max, 0) - min;
 
     // Diverging mode only kicks in when the column contains negative values.
     // Positive-only columns keep the original left-anchored bar unchanged.
@@ -68,7 +70,16 @@ export const TableCellBar = ({
         const showZeroLine = zeroPercent > 0 && zeroPercent < 100;
 
         bar = (
-            <Box h={BAR_HEIGHT} style={{ position: 'relative', width: '100%' }}>
+            <Box
+                h={BAR_HEIGHT}
+                style={{
+                    position: 'relative',
+                    width: '100%',
+                    // Clip min-width bars from spilling past the track edge
+                    // when the baseline sits very close to it.
+                    overflow: 'hidden',
+                }}
+            >
                 {showZeroLine && (
                     <Box
                         aria-hidden
