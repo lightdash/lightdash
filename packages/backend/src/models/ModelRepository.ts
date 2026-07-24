@@ -148,6 +148,7 @@ export type ModelManifest = {
     preAggregateDailyStatsModel: PreAggregateDailyStatsModel;
     projectParametersModel: ProjectParametersModel;
     /** An implementation signature for these models are not available at this stage */
+    aiAgentMemoryModel: unknown;
     aiAgentModel: unknown;
     projectHomepageModel: unknown;
     aiAgentDocumentModel: unknown;
@@ -810,6 +811,10 @@ export class ModelRepository
 
     public getAiAgentModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiAgentModel');
+    }
+
+    public getAiAgentMemoryModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiAgentMemoryModel');
     }
 
     public getProjectHomepageModel<ModelImplT>(): ModelImplT {
