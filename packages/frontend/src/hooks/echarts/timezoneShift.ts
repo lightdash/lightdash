@@ -205,6 +205,9 @@ export type TimeAxisMode =
           // ref lines still need the browser-independent parse.
           kind: 'plain';
           flipAxes: boolean;
+          // When the raw coordinate is formatted into a timezone, authored
+          // wall-clock values must map back to the corresponding raw instant.
+          wallClockTimezone?: string;
       };
 
 // physicalAxisType must come from the axis actually built for the field
@@ -217,11 +220,13 @@ export const detectTimeAxisMode = ({
     itemsMap,
     resolvedTimezone,
     physicalAxisType,
+    plainWallClockTimezone,
 }: {
     validCartesianConfig: CartesianChart | undefined;
     itemsMap: ItemsMap | undefined;
     resolvedTimezone: string | undefined;
     physicalAxisType: string | undefined;
+    plainWallClockTimezone?: string;
 }): TimeAxisMode | undefined => {
     if (!resolvedTimezone || physicalAxisType !== 'time') return undefined;
     const flipAxes = !!validCartesianConfig?.layout?.flipAxes;
@@ -251,7 +256,11 @@ export const detectTimeAxisMode = ({
             flipAxes,
         };
     }
-    return { kind: 'plain', flipAxes };
+    return {
+        kind: 'plain',
+        flipAxes,
+        wallClockTimezone: plainWallClockTimezone,
+    };
 };
 
 const SHIFTED_DIM_SUFFIX = '_ld_tz_shifted';
@@ -445,18 +454,26 @@ export type MarkLineTimeNormalization = {
     // Zone the axis's plotted coordinates are wall-clock-shifted to; undefined
     // means instants plot at their raw epoch (unshifted or UTC-anchored axis).
     instantTimezone: string | undefined;
+    wallClockTimezone?: string;
     canRescueFromOppositeAxis?: boolean;
 };
 
 const parseTimeAxisMarkLineValue = (
     raw: unknown,
-    { instantTimezone }: Pick<MarkLineTimeNormalization, 'instantTimezone'>,
+    {
+        instantTimezone,
+        wallClockTimezone,
+    }: Pick<MarkLineTimeNormalization, 'instantTimezone' | 'wallClockTimezone'>,
 ): number | undefined => {
     const toShiftedInstant = (ms: number): number | undefined =>
         Number.isFinite(ms)
             ? ms +
               (instantTimezone ? getTimezoneOffsetMs(ms, instantTimezone) : 0)
             : undefined;
+    const toRawWallClockCoordinate = (ms: number): number =>
+        wallClockTimezone
+            ? dayjs.utc(ms).tz(wallClockTimezone, true).valueOf()
+            : ms;
     if (typeof raw === 'number') return toShiftedInstant(raw);
     if (raw instanceof Date) return toShiftedInstant(raw.getTime());
     if (typeof raw !== 'string') return undefined;
@@ -464,9 +481,14 @@ const parseTimeAxisMarkLineValue = (
     const timestamp = parseTimestampValueUTC(value);
     if (timestamp) {
         const ms = timestamp.date.getTime();
-        return timestamp.hasZone ? toShiftedInstant(ms) : ms;
+        return timestamp.hasZone
+            ? toShiftedInstant(ms)
+            : toRawWallClockCoordinate(ms);
     }
-    return parseCalendarValueUTC(value)?.getTime();
+    const calendarMs = parseCalendarValueUTC(value)?.getTime();
+    return calendarMs === undefined
+        ? undefined
+        : toRawWallClockCoordinate(calendarMs);
 };
 
 // Legacy flipped-chart configs key the date by the semantic `xAxis` even when
@@ -605,6 +627,7 @@ export const finalizeTimeAxisOptions = <O extends EchartsOptionsShape>(
             return normalizeMarkLineTimeValues(options, {
                 flipAxes: mode.flipAxes,
                 instantTimezone: undefined,
+                wallClockTimezone: mode.wallClockTimezone,
                 canRescueFromOppositeAxis,
             });
         default:

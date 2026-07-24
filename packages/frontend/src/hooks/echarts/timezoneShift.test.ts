@@ -15,6 +15,7 @@ import {
     resolveAxisTimezone,
     type EchartsOptionsShape,
     type MarkLineTimeNormalization,
+    type TimeAxisMode,
     type TimezoneShiftedField,
 } from './timezoneShift';
 
@@ -1280,6 +1281,22 @@ describe('detectTimeAxisMode', () => {
         expect(result).toEqual({ kind: 'plain', flipAxes: false });
     });
 
+    test('plain carries the timezone used to format its raw coordinates', () => {
+        const result = detectTimeAxisMode({
+            validCartesianConfig: makeCartesian({ xField: 'orders_total' }),
+            itemsMap,
+            resolvedTimezone: TZ,
+            physicalAxisType: 'time',
+            plainWallClockTimezone: TZ,
+        });
+
+        expect(result).toEqual({
+            kind: 'plain',
+            flipAxes: false,
+            wallClockTimezone: TZ,
+        });
+    });
+
     test('propagates flipAxes on every mode', () => {
         const result = detectTimeAxisMode({
             validCartesianConfig: makeCartesian({
@@ -1386,6 +1403,30 @@ describe('finalizeTimeAxisOptions', () => {
         expect(result.series?.[0].encode?.x).toBe('orders_created_hour');
         // Instants keep their raw epoch on an unshifted axis.
         expect(getMarkLineValue(result)).toBe(UTC_MS);
+    });
+
+    test('plain: maps offset-less values onto a timezone-formatted raw axis', () => {
+        const mode: TimeAxisMode = {
+            kind: 'plain',
+            flipAxes: false,
+            wallClockTimezone: TZ,
+        };
+
+        const wallClock = finalizeTimeAxisOptions(
+            makeOptions('2024-01-15 12:00'),
+            mode,
+        );
+        const explicitInstant = finalizeTimeAxisOptions(
+            makeOptions('2024-01-15T12:00:00Z'),
+            mode,
+        );
+
+        // 12:00 as displayed in Tokyo is the raw 03:00Z coordinate. Explicit
+        // instants remain raw because this axis is not coordinate-shifted.
+        expect(getMarkLineValue(wallClock)).toBe(
+            Date.parse('2024-01-15T03:00:00Z'),
+        );
+        expect(getMarkLineValue(explicitInstant)).toBe(UTC_MS);
     });
 
     test('does not rescue from a second physical time axis', () => {

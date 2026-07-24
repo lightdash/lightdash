@@ -12,7 +12,11 @@ vi.mock('../useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: async () => ({ data: { enabled: false } }),
 }));
 
-import useCartesianChartConfig from './useCartesianChartConfig';
+import { type ReferenceLineField } from '../../components/common/ReferenceLine';
+import { finalizeTimeAxisOptions } from '../echarts/timezoneShift';
+import useCartesianChartConfig, {
+    applyReferenceLines,
+} from './useCartesianChartConfig';
 import {
     existingMixedSeries,
     expectedMixedSeriesMap,
@@ -790,6 +794,84 @@ describe('getSeriesGroupedByField', () => {
             getSeriesGroupedByField(Object.values(mergedMixedSeries)),
         ).toStrictEqual(groupedMixedSeries);
     });
+});
+
+describe('reference-line semantic to physical axis integration', () => {
+    const timeField = 'orders_created_day';
+    const valueField = 'orders_revenue';
+    const makeSeries = (): Series[] => [
+        {
+            type: CartesianSeriesType.BAR,
+            yAxisIndex: 0,
+            encode: {
+                xRef: { field: timeField },
+                yRef: { field: valueField },
+            },
+        },
+    ];
+    const editorReferenceLines: ReferenceLineField[] = [
+        {
+            fieldId: timeField,
+            data: {
+                uuid: 'date',
+                name: 'Year start',
+                xAxis: '2024',
+            },
+        },
+        {
+            fieldId: valueField,
+            data: {
+                uuid: 'threshold',
+                name: 'Revenue target',
+                yAxis: '2024',
+            },
+        },
+    ];
+
+    test.each([
+        { orientation: 'vertical', flipAxes: false },
+        { orientation: 'flipped', flipAxes: true },
+    ])(
+        'keeps editor-produced date and numeric lines on their physical axes when $orientation',
+        ({ flipAxes }) => {
+            const series = applyReferenceLines(
+                makeSeries(),
+                {
+                    xField: timeField,
+                    yField: [valueField],
+                    flipAxes,
+                },
+                editorReferenceLines,
+            );
+            const options = { dataset: { source: [] }, series };
+            const timeSlot = flipAxes ? 'yAxis' : 'xAxis';
+            const valueSlot = flipAxes ? 'xAxis' : 'yAxis';
+
+            const flagOn = finalizeTimeAxisOptions(options, {
+                kind: 'plain',
+                flipAxes,
+            });
+            const data = flagOn.series?.[0].markLine?.data ?? [];
+            const dateLine = data.find((line) => line.uuid === 'date');
+            const thresholdLine = data.find(
+                (line) => line.uuid === 'threshold',
+            );
+
+            expect(dateLine?.[timeSlot]).toBe(
+                Date.parse('2024-01-01T00:00:00Z'),
+            );
+            expect(dateLine?.[valueSlot]).toBeUndefined();
+            expect(dateLine?.label?.formatter).toBe('Year start');
+            expect(thresholdLine?.[valueSlot]).toBe('2024');
+            expect(thresholdLine?.[timeSlot]).toBeUndefined();
+
+            // No timezone mode means flag-off options and authored values pass
+            // through by reference, after the normal field-aware axis mapping.
+            expect(finalizeTimeAxisOptions(options, undefined)).toBe(options);
+            expect(series[0].markLine?.data[0][timeSlot]).toBe('2024');
+            expect(series[0].markLine?.data[1][valueSlot]).toBe('2024');
+        },
+    );
 });
 
 describe('useCartesianChartConfig', () => {

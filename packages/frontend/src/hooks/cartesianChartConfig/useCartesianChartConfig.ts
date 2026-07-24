@@ -128,7 +128,7 @@ const dedupeReferenceLines = (referenceLines: ReferenceLineField[]) => {
     });
 };
 
-const applyReferenceLines = (
+export const applyReferenceLines = (
     series: Series[],
     dirtyLayout: Partial<Partial<CompleteCartesianChartLayout>> | undefined,
     referenceLines: ReferenceLineField[],

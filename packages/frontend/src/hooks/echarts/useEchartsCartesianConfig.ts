@@ -3365,6 +3365,31 @@ const useEchartsCartesianConfig = (
         return physicalAxis?.type !== 'time';
     }, [validCartesianConfig?.layout?.flipAxes, axes]);
 
+    const plainWallClockTimezone = useMemo(() => {
+        if (!axisTimezone) return undefined;
+        const physicalAxis = validCartesianConfig?.layout?.flipAxes
+            ? axes.yAxis[0]
+            : axes.xAxis[0];
+        const axisLabel = physicalAxis?.axisLabel;
+        if (
+            !axisLabel ||
+            typeof axisLabel !== 'object' ||
+            !('formatter' in axisLabel) ||
+            typeof axisLabel.formatter !== 'function'
+        ) {
+            return undefined;
+        }
+        const fieldId = validCartesianConfig?.layout?.xField;
+        const field = fieldId ? itemsMap?.[fieldId] : undefined;
+        return getFormatterTimezone(field, new Date(0), axisTimezone);
+    }, [
+        axisTimezone,
+        validCartesianConfig?.layout?.flipAxes,
+        validCartesianConfig?.layout?.xField,
+        axes,
+        itemsMap,
+    ]);
+
     // How the time axis plots its coordinates (instant-shifted, calendar
     // UTC-anchored, or plain). undefined when there is no time axis or
     // timezone support is off — the built options then pass through
@@ -3375,12 +3400,14 @@ const useEchartsCartesianConfig = (
             itemsMap,
             resolvedTimezone,
             physicalAxisType: physicalTimeAxisType,
+            plainWallClockTimezone,
         });
     }, [
         validCartesianConfig,
         itemsMap,
         resolvedTimezone,
         physicalTimeAxisType,
+        plainWallClockTimezone,
     ]);
 
     // Shared by stackedSeriesWithColorAssignments (non-stacked bar styling) and
