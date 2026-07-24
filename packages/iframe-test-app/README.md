@@ -103,5 +103,5 @@ To monitor additional Lightdash events:
 
 - [Lightdash Embedding Environment Variables](https://docs.lightdash.com/self-host/customize-deployment/environment-variables#embedding)
 - [How to Embed Lightdash Content](https://docs.lightdash.com/guides/how-to-embed-content#how-to-embed-content)
-- [Lightdash API Documentation](https://docs.lightdash.com/references/api)
+- [Lightdash API Documentation](https://docs.lightdash.com/api-reference)
 - [Lightdash Dashboard Documentation](https://docs.lightdash.com/get-started/exploring-data/dashboards)
