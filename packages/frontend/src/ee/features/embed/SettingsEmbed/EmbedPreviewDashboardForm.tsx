@@ -81,6 +81,7 @@ type FormValues = {
     dashboardFiltersInteractivity: DashboardFilterInteractivityOptions;
     parameterInteractivity: ParameterInteractivityOptions;
     canExportCsv?: boolean;
+    canExportDashboardCsv?: boolean;
     canExportImages?: boolean;
     externalId?: string;
     canExportPagePdf?: boolean;
@@ -131,6 +132,7 @@ const EmbedPreviewDashboardForm: FC<{
                 enabled: false,
             },
             canExportCsv: false,
+            canExportDashboardCsv: false,
             canExportImages: false,
             canDateZoom: false,
             canExportPagePdf: true,
@@ -176,6 +178,7 @@ const EmbedPreviewDashboardForm: FC<{
                     },
                     parameterInteractivity: values.parameterInteractivity,
                     canExportCsv: values.canExportCsv,
+                    canExportDashboardCsv: values.canExportDashboardCsv,
                     canExportImages: values.canExportImages,
                     isPreview,
                     canDateZoom: values.canDateZoom,
@@ -407,7 +410,16 @@ const EmbedPreviewDashboardForm: FC<{
                                     {...form.getInputProps('canExportCsv', {
                                         type: 'checkbox',
                                     })}
-                                    label="Export CSV"
+                                    label="Export CSV (per tile)"
+                                />
+                                <Switch
+                                    {...form.getInputProps(
+                                        'canExportDashboardCsv',
+                                        {
+                                            type: 'checkbox',
+                                        },
+                                    )}
+                                    label="Export all tiles (CSV/XLSX ZIP)"
                                 />
                                 <Switch
                                     {...form.getInputProps('canExportImages', {

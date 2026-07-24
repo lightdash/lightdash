@@ -236,6 +236,91 @@ describe('Embedded dashboard abilities', () => {
             });
         });
 
+        describe('Dashboard-level CSV/XLSX export (Export all)', () => {
+            it('should allow managing ExportCsv for the bound dashboard when canExportDashboardCsv is true', () => {
+                const embedUser = createEmbedJwt({
+                    content: { canExportDashboardCsv: true },
+                });
+                const ability = defineAbilityForEmbedUser(
+                    embedUser,
+                    dashboardUuid,
+                );
+
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('ExportCsv', {
+                            organizationUuid: organization.organizationUuid,
+                            projectUuid: embed.projectUuid,
+                            metadata: {
+                                dashboardUuid,
+                                dashboardName: 'Dashboard 1',
+                            },
+                        }),
+                    ),
+                ).toBe(true);
+
+                expect(
+                    ability.can(
+                        'view',
+                        subject('JobStatus', {
+                            organizationUuid: organization.organizationUuid,
+                            projectUuid: embed.projectUuid,
+                            createdByUserUuid: 'external-id-1',
+                        }),
+                    ),
+                ).toBe(true);
+            });
+
+            it('should not allow managing ExportCsv for a different dashboard', () => {
+                const embedUser = createEmbedJwt({
+                    content: { canExportDashboardCsv: true },
+                });
+                const ability = defineAbilityForEmbedUser(
+                    embedUser,
+                    dashboardUuid,
+                );
+
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('ExportCsv', {
+                            organizationUuid: organization.organizationUuid,
+                            projectUuid: embed.projectUuid,
+                            metadata: {
+                                dashboardUuid: 'some-other-dashboard',
+                                dashboardName: 'Other dashboard',
+                            },
+                        }),
+                    ),
+                ).toBe(false);
+            });
+
+            it('should not allow managing ExportCsv when canExportDashboardCsv is false', () => {
+                const embedUser = createEmbedJwt({
+                    content: { canExportDashboardCsv: false },
+                });
+                const ability = defineAbilityForEmbedUser(
+                    embedUser,
+                    dashboardUuid,
+                );
+
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('ExportCsv', {
+                            organizationUuid: organization.organizationUuid,
+                            projectUuid: embed.projectUuid,
+                            metadata: {
+                                dashboardUuid,
+                                dashboardName: 'Dashboard 1',
+                            },
+                        }),
+                    ),
+                ).toBe(false);
+            });
+        });
+
         describe('PDF export', () => {
             it('should allow PDF export when canExportPagePdf is true', () => {
                 const embedUser = createEmbedJwt({

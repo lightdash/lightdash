@@ -593,6 +593,7 @@ export class EmbedService extends BaseService {
         const {
             isPreview,
             canExportCsv,
+            canExportDashboardCsv,
             canExportImages,
             canExportPagePdf,
             canDateZoom,
@@ -667,6 +668,7 @@ export class EmbedService extends BaseService {
             dashboardFiltersInteractivity: account.access.filtering,
             parameterInteractivity: account.access.parameters,
             canExportCsv,
+            canExportDashboardCsv,
             canExportImages,
             canExportPagePdf: canExportPagePdf ?? true, // enabled by default for backwards compatibility
             canDateZoom,

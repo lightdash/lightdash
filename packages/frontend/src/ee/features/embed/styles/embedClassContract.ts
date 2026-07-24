@@ -31,6 +31,7 @@ export const EMBED_CLASS_CONTRACT = [
     'ld-dashboard-date-zoom-dropdown', // portalled
     'ld-dashboard-parameter-dropdown', // portalled
     'ld-dashboard-guided-setup', // modal shown while filter rules are unmet (portalled)
+    'ld-dashboard-export-all', // dashboard-level "Export all" (CSV/XLSX ZIP) button
 ] as const satisfies readonly `ld-${EmbedSurface}-${string}`[];
 
 export type EmbedContractClassName = (typeof EMBED_CLASS_CONTRACT)[number];

@@ -1,10 +1,14 @@
+import { subject } from '@casl/ability';
 import {
     EE_SCHEDULER_TASKS,
+    ForbiddenError,
     getErrorMessage,
     getManagedAgentScheduleCron,
     isSchedulerTaskName,
     SCHEDULER_TASKS,
     SchedulerJobStatus,
+    type Account,
+    type ExportContentPayload,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
 import { type OpenIdIdentityModel } from '../../models/OpenIdIdentitiesModel';
@@ -742,6 +746,107 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     },
                 );
             },
+            [SCHEDULER_TASKS.EXPORT_CONTENT]: async (payload, helpers) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.EXPORT_CONTENT,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            const { encodedJwt } = payload;
+                            if (encodedJwt) {
+                                const account =
+                                    await this.resolveEmbedExportAccount(
+                                        helpers.job.id,
+                                        helpers.job.run_at,
+                                        payload,
+                                        encodedJwt,
+                                    );
+                                await this.exportContent(
+                                    helpers.job.id,
+                                    helpers.job.run_at,
+                                    payload,
+                                    account,
+                                );
+                            } else {
+                                await this.exportContent(
+                                    helpers.job.id,
+                                    helpers.job.run_at,
+                                    payload,
+                                );
+                            }
+                        },
+                    ),
+                    helpers.job,
+                    this.lightdashConfig.scheduler.jobTimeout,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: SCHEDULER_TASKS.EXPORT_CONTENT,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                userUuid: payload.userUuid,
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                error: getErrorMessage(e),
+                                createdByUserUuid: payload.userUuid,
+                            },
+                        });
+                    },
+                );
+            },
         };
+    }
+
+    // Rebuilds the anonymous account from the embed JWT (re-verifying
+    // signature and expiry) and re-asserts the export ability against the
+    // payload, so the worker never trusts the queued job. Failures (e.g.
+    // expired token) are logged as job errors so the embed's status poller
+    // surfaces them instead of hanging on a SCHEDULED job forever.
+    private async resolveEmbedExportAccount(
+        jobId: string,
+        scheduledTime: Date,
+        payload: ExportContentPayload,
+        encodedJwt: string,
+    ): Promise<Account> {
+        try {
+            const account = await this.embedService.getAccountFromJwt(
+                payload.projectUuid,
+                encodedJwt,
+            );
+            if (
+                account.user.ability.cannot(
+                    'manage',
+                    subject('ExportCsv', {
+                        organizationUuid: payload.organizationUuid,
+                        projectUuid: payload.projectUuid,
+                        metadata: {
+                            dashboardUuid: payload.resourceUuid,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    'Embed token is not authorized to export this dashboard',
+                );
+            }
+            return account;
+        } catch (e) {
+            await this.schedulerService.logSchedulerJob({
+                task: SCHEDULER_TASKS.EXPORT_CONTENT,
+                jobId,
+                scheduledTime,
+                status: SchedulerJobStatus.ERROR,
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    error: getErrorMessage(e),
+                },
+            });
+            throw e;
+        }
     }
 }
