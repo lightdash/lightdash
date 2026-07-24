@@ -1,3 +1,10 @@
+## [0.3472.3](https://github.com/lightdash/lightdash/compare/0.3472.2...0.3472.3) (2026-07-24)
+
+
+### Bug Fixes
+
+* show total calculation errors in table cells ([#26126](https://github.com/lightdash/lightdash/issues/26126)) ([6a4a840](https://github.com/lightdash/lightdash/commit/6a4a8408dab4009eee702ef9106693bdbe3f0087))
+
 ## [0.3472.2](https://github.com/lightdash/lightdash/compare/0.3472.1...0.3472.2) (2026-07-24)
 
 
