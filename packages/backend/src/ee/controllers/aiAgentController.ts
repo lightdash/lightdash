@@ -16,6 +16,7 @@ import {
     ApiAiAgentEvaluationSummaryListResponse,
     ApiAiAgentExploreAccessSummaryResponse,
     ApiAiAgentMcpServerToolListResponse,
+    ApiAiAgentMemoryResponse,
     ApiAiAgentModelOptionsResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
     ApiAiAgentResponse,
@@ -70,6 +71,7 @@ import {
     assertRegisteredAccount,
     KnexPaginateArgs,
     ParameterError,
+    type UUID,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -97,6 +99,7 @@ import {
 import { BaseController } from '../../controllers/baseController';
 import Logger from '../../logging/logger';
 import { type AiAgentCoderService } from '../services/AiAgentCoderService/AiAgentCoderService';
+import { type AiAgentMemoryService } from '../services/AiAgentMemoryService/AiAgentMemoryService';
 import { type AiAgentService } from '../services/AiAgentService/AiAgentService';
 
 @Route('/api/v1/projects/{projectUuid}/aiAgents')
@@ -487,6 +490,30 @@ export class AiAgentController extends BaseController {
         return {
             status: 'ok',
             results: agent,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{agentUuid}/memories/{slug}')
+    @OperationId('getAiAgentMemory')
+    async getAiAgentMemory(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() slug: string,
+    ): Promise<ApiAiAgentMemoryResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        void agentUuid;
+
+        return {
+            status: 'ok',
+            results: await this.getAiAgentMemoryService().getMemory(
+                toSessionUser(req.account),
+                projectUuid,
+                slug,
+            ),
         };
     }
 
@@ -2040,6 +2067,10 @@ export class AiAgentController extends BaseController {
 
     protected getAiAgentService() {
         return this.services.getAiAgentService<AiAgentService>();
+    }
+
+    protected getAiAgentMemoryService() {
+        return this.services.getAiAgentMemoryService<AiAgentMemoryService>();
     }
 
     protected getAiAgentCoderService() {

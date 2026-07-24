@@ -1,29 +1,37 @@
+import { subject } from '@casl/ability';
 import {
     CommercialFeatureFlags,
     FeatureFlags,
+    ForbiddenError,
     getErrorMessage,
     getFields,
     getItemId,
     isExploreError,
+    NotFoundError,
     ProjectType,
+    type AiAgentMemory,
     type AiAgentMemoryDistillJobPayload,
     type AiProjectContextTypedObjectRef,
     type Explore,
     type ExploreError,
+    type SessionUser,
     type UUID,
 } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { createHash, randomBytes } from 'crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { type GroupsModel } from '../../../models/GroupsModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../../services/BaseService';
 import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import {
     AI_AGENT_MEMORY_THREAD_SOURCES,
     AiAgentMemoryModel,
+    type AiAgentMemoryLineageSource,
     type AiAgentMemoryThread,
 } from '../../models/AiAgentMemoryModel';
+import { type AiAgentModel } from '../../models/AiAgentModel';
 import { defaultAgentOptions } from '../ai/agents/agentV2';
 import { getModel } from '../ai/models';
 import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
@@ -31,6 +39,7 @@ import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
+import { canAccessAiAgentThread } from '../AiAgentService/aiAgentAccess';
 import { distillOutputSchema, type DistillOutput } from './distillSchema';
 import { sanitizeThread } from './transcriptSanitizer';
 
@@ -59,7 +68,9 @@ type MemorySchedulerClient = {
 
 type Dependencies = {
     aiAgentMemoryModel: AiAgentMemoryModel;
-    projectModel: Pick<ProjectModel, 'findExploresFromCache'>;
+    aiAgentModel: Pick<AiAgentModel, 'getAgent' | 'findThreadOwnership'>;
+    groupsModel: Pick<GroupsModel, 'findUserInGroups'>;
+    projectModel: Pick<ProjectModel, 'findExploresFromCache' | 'getSummary'>;
     featureFlagService: FeatureFlagService;
     schedulerClient: MemorySchedulerClient;
 } & (
@@ -103,6 +114,10 @@ export const validateMemoryObjects = (
 export class AiAgentMemoryService extends BaseService {
     private readonly aiAgentMemoryModel: AiAgentMemoryModel;
 
+    private readonly aiAgentModel: Dependencies['aiAgentModel'];
+
+    private readonly groupsModel: Dependencies['groupsModel'];
+
     private readonly projectModel: Dependencies['projectModel'];
 
     private readonly featureFlagService: FeatureFlagService;
@@ -118,6 +133,8 @@ export class AiAgentMemoryService extends BaseService {
     constructor(dependencies: Dependencies) {
         super({ serviceName: 'AiAgentMemoryService' });
         this.aiAgentMemoryModel = dependencies.aiAgentMemoryModel;
+        this.aiAgentModel = dependencies.aiAgentModel;
+        this.groupsModel = dependencies.groupsModel;
         this.projectModel = dependencies.projectModel;
         this.featureFlagService = dependencies.featureFlagService;
         this.schedulerClient = dependencies.schedulerClient;
@@ -125,6 +142,45 @@ export class AiAgentMemoryService extends BaseService {
             dependencies.orgAiCopilotConfigResolver;
         this.distillCall =
             dependencies.distillCall ?? this.distillWithLlm.bind(this);
+    }
+
+    private async canViewSourceThread(
+        user: SessionUser,
+        organizationUuid: string,
+        projectUuid: string,
+        source: AiAgentMemoryLineageSource,
+    ): Promise<boolean> {
+        if (!source.agent_uuid) return false;
+
+        const [agent, ownership] = await Promise.all([
+            this.aiAgentModel.getAgent({
+                organizationUuid,
+                agentUuid: source.agent_uuid,
+            }),
+            this.aiAgentModel.findThreadOwnership({
+                organizationUuid,
+                threadUuid: source.source_thread_uuid ?? '',
+            }),
+        ]);
+        if (
+            !agent ||
+            agent.projectUuid !== projectUuid ||
+            !ownership ||
+            ownership.projectUuid !== projectUuid ||
+            ownership.agentUuid !== source.agent_uuid
+        ) {
+            return false;
+        }
+
+        return canAccessAiAgentThread(
+            user,
+            agent,
+            ownership.ownerUserUuid ?? '',
+            {
+                auditedAbility: this.createAuditedAbility(user),
+                groupsModel: this.groupsModel,
+            },
+        );
     }
 
     private async isEnabled(organizationUuid: UUID): Promise<boolean> {
@@ -171,6 +227,91 @@ export class AiAgentMemoryService extends BaseService {
             });
             return objects;
         }
+    }
+
+    async getMemory(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+    ): Promise<AiAgentMemory> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            this.createAuditedAbility(user).cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError('Cannot view project');
+        }
+
+        const [copilot, memoryFlag] = await Promise.all([
+            this.featureFlagService.get({
+                user,
+                featureFlagId: CommercialFeatureFlags.AiCopilot,
+            }),
+            this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AiAgentMemory,
+            }),
+        ]);
+        if (!copilot.enabled || !memoryFlag.enabled) {
+            throw new NotFoundError(`Memory not found: ${slug}`);
+        }
+
+        const result = await this.aiAgentMemoryModel.findByProjectAndSlug({
+            projectUuid,
+            slug,
+        });
+        if (!result) {
+            throw new NotFoundError(`Memory not found: ${slug}`);
+        }
+
+        const sources = (
+            await Promise.all(
+                result.sources.map(async (source) => {
+                    if (!source.source_thread_uuid || !source.thread_summary) {
+                        return null;
+                    }
+
+                    const hasThreadAccess = await this.canViewSourceThread(
+                        user,
+                        organizationUuid,
+                        projectUuid,
+                        source,
+                    );
+                    return hasThreadAccess
+                        ? {
+                              slug: source.slug,
+                              hasThreadAccess: true as const,
+                              agentUuid: source.agent_uuid,
+                              threadUuid: source.source_thread_uuid,
+                              threadTitle: source.thread_title,
+                              threadSummary: source.thread_summary,
+                          }
+                        : {
+                              slug: source.slug,
+                              hasThreadAccess: false as const,
+                          };
+                }),
+            )
+        ).filter((source) => source !== null);
+
+        return {
+            slug: result.memory.slug,
+            title: result.memory.title,
+            rawMemory: result.memory.raw_memory,
+            terms: result.memory.terms,
+            objects: result.memory.objects,
+            status: result.memory.status,
+            generatedAt: result.memory.generated_at.toISOString(),
+            citedCount: result.memory.cited_count,
+            provenance:
+                result.memory.source_thread_uuid && sources[0]
+                    ? { type: 'source_thread', source: sources[0] }
+                    : { type: 'consolidated', sources },
+            replacementSlug: result.replacement?.slug ?? null,
+        };
     }
 
     async sweep(now = new Date()): Promise<number> {

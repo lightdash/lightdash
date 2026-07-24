@@ -139,6 +139,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiAgentMemoryService({
                     aiAgentMemoryModel:
                         models.getAiAgentMemoryModel<AiAgentMemoryModel>(),
+                    aiAgentModel: models.getAiAgentModel(),
+                    groupsModel: models.getGroupsModel(),
                     projectModel: models.getProjectModel(),
                     featureFlagService: repository.getFeatureFlagService(),
                     schedulerClient:

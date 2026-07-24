@@ -15,6 +15,7 @@ import type {
     ApiAiAgentEvaluationRunResultsResponse,
     ApiAiAgentEvaluationRunSummaryListResponse,
     ApiAiAgentEvaluationSummaryListResponse,
+    ApiAiAgentMemoryResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
     ApiAiAgentReviewItemActivityResponse,
     ApiAiAgentReviewItemPrDiffResponse,
@@ -1236,6 +1237,7 @@ type ApiResults =
     | ApiDownloadAsyncQueryResults
     | ApiDownloadAsyncQueryResultsAsXlsx
     | ApiAiAgentThreadResponse['results']
+    | ApiAiAgentMemoryResponse['results']
     | ApiAiAgentThreadMessageVizResponse['results']
     | ApiAiAgentThreadMessageVizQueryResponse['results']
     | ApiUpdateUserAgentPreferencesResponse['results']

@@ -1,0 +1,56 @@
+.page {
+    min-height: 100%;
+    padding: 32px clamp(20px, 4vw, 48px) 64px;
+    overflow: auto;
+    background: var(--mantine-color-ldGray-0);
+}
+
+.backLink {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    gap: 6px;
+    color: var(--mantine-color-ldGray-6);
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.backLink:hover {
+    color: var(--mantine-color-ldGray-9);
+}
+
+.surface {
+    overflow: hidden;
+    background: light-dark(#fff, var(--mantine-color-dark-7));
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+.header {
+    min-height: 68px;
+    padding: 16px 24px;
+}
+
+.title {
+    margin: 0;
+    color: var(--mantine-color-ldGray-9);
+    font-size: 18px;
+    font-weight: 550;
+    letter-spacing: -0.014em;
+    line-height: 1.4;
+}
+
+.body {
+    padding: 24px;
+}
+
+@media (max-width: 820px) {
+    .page {
+        padding-inline: 16px;
+    }
+
+    .header,
+    .body {
+        padding-inline: 18px;
+    }
+}
