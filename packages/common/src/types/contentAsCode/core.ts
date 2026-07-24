@@ -12,6 +12,7 @@ export enum ContentAsCodeType {
     ALERT = 'alert',
     GOOGLE_SHEETS_SYNC = 'google_sheets_sync',
     VIRTUAL_VIEW = 'virtual_view',
+    EXTERNAL_CONNECTION = 'external_connection',
 }
 
 /**

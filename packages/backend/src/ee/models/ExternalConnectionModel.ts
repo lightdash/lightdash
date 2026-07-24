@@ -1,5 +1,7 @@
 import {
+    AlreadyExistsError,
     EXTERNAL_CONNECTION_DEFAULTS,
+    generateSlug,
     NotFoundError,
     type CreateExternalConnection,
     type ExternalConnection,
@@ -59,6 +61,7 @@ export class ExternalConnectionModel {
             projectUuid: row.project_uuid,
             organizationUuid: row.organization_uuid,
             name: row.name,
+            slug: row.slug,
             type: row.type,
             origin: row.origin,
             instructions: row.instructions,
@@ -96,52 +99,109 @@ export class ExternalConnectionModel {
         };
     }
 
+    /**
+     * Slug uniqueness deliberately spans soft-deleted rows (no `deleted_at`
+     * filter) even though the DB index is partial — deleted connections could
+     * be restored, so their slugs stay reserved. Same house rule as charts
+     * (see generateUniqueSlugScopedToProject in utils/SlugUtils.ts).
+     */
+    private static async generateUniqueSlug(
+        trx: Knex,
+        projectUuid: string,
+        name: string,
+    ): Promise<string> {
+        const baseSlug = generateSlug(name);
+        const matchingSlugs: string[] = await trx(ExternalConnectionsTableName)
+            .where('project_uuid', projectUuid)
+            .where('slug', 'like', `${baseSlug}%`)
+            .pluck('slug');
+        let slug = baseSlug;
+        let inc = 0;
+        while (matchingSlugs.includes(slug)) {
+            inc += 1;
+            slug = `${baseSlug}-${inc}`;
+        }
+        return slug;
+    }
+
+    /**
+     * `options.slug` forces an exact slug (content-as-code create); without it
+     * a unique slug is generated from the name. Forced-slug inserts are
+     * race-safe via the partial unique index — a losing concurrent insert
+     * surfaces as AlreadyExistsError instead of a duplicate row.
+     */
     async create(
         projectUuid: string,
         organizationUuid: string,
         userUuid: string,
         data: CreateExternalConnection,
+        options?: { slug?: string },
     ): Promise<ExternalConnection> {
         return this.database.transaction(async (trx) => {
-            const [row] = await trx(ExternalConnectionsTableName)
-                .insert({
-                    project_uuid: projectUuid,
-                    organization_uuid: organizationUuid,
-                    name: data.name,
-                    type: data.type,
-                    origin: data.origin,
-                    instructions: data.instructions ?? null,
-                    allowed_path_prefixes: JSON.stringify(
-                        data.allowedPathPrefixes,
-                    ),
-                    allowed_methods: JSON.stringify(data.allowedMethods),
-                    allowed_content_types: JSON.stringify(
-                        data.allowedContentTypes,
-                    ),
-                    response_max_bytes:
-                        data.responseMaxBytes ??
-                        EXTERNAL_CONNECTION_DEFAULTS.responseMaxBytes,
-                    request_max_bytes:
-                        data.requestMaxBytes ??
-                        EXTERNAL_CONNECTION_DEFAULTS.requestMaxBytes,
-                    timeout_ms:
-                        data.timeoutMs ??
-                        EXTERNAL_CONNECTION_DEFAULTS.timeoutMs,
-                    rate_limit_per_minute: data.rateLimitPerMinute ?? null,
-                    api_key_name: data.apiKeyName ?? null,
-                    api_key_location: data.apiKeyLocation ?? null,
-                    oauth_scopes: data.oauthScopes?.length
-                        ? JSON.stringify(data.oauthScopes)
-                        : null,
-                    custom_headers:
-                        data.customHeaders &&
-                        Object.keys(data.customHeaders).length
-                            ? JSON.stringify(data.customHeaders)
+            const slug =
+                options?.slug ??
+                (await ExternalConnectionModel.generateUniqueSlug(
+                    trx,
+                    projectUuid,
+                    data.name,
+                ));
+            let row: DbExternalConnection;
+            try {
+                [row] = await trx(ExternalConnectionsTableName)
+                    .insert({
+                        project_uuid: projectUuid,
+                        organization_uuid: organizationUuid,
+                        name: data.name,
+                        slug,
+                        type: data.type,
+                        origin: data.origin,
+                        instructions: data.instructions ?? null,
+                        allowed_path_prefixes: JSON.stringify(
+                            data.allowedPathPrefixes,
+                        ),
+                        allowed_methods: JSON.stringify(data.allowedMethods),
+                        allowed_content_types: JSON.stringify(
+                            data.allowedContentTypes,
+                        ),
+                        response_max_bytes:
+                            data.responseMaxBytes ??
+                            EXTERNAL_CONNECTION_DEFAULTS.responseMaxBytes,
+                        request_max_bytes:
+                            data.requestMaxBytes ??
+                            EXTERNAL_CONNECTION_DEFAULTS.requestMaxBytes,
+                        timeout_ms:
+                            data.timeoutMs ??
+                            EXTERNAL_CONNECTION_DEFAULTS.timeoutMs,
+                        rate_limit_per_minute: data.rateLimitPerMinute ?? null,
+                        api_key_name: data.apiKeyName ?? null,
+                        api_key_location: data.apiKeyLocation ?? null,
+                        oauth_scopes: data.oauthScopes?.length
+                            ? JSON.stringify(data.oauthScopes)
                             : null,
-                    created_by_user_uuid: userUuid,
-                    updated_by_user_uuid: userUuid,
-                })
-                .returning('*');
+                        custom_headers:
+                            data.customHeaders &&
+                            Object.keys(data.customHeaders).length
+                                ? JSON.stringify(data.customHeaders)
+                                : null,
+                        created_by_user_uuid: userUuid,
+                        updated_by_user_uuid: userUuid,
+                    })
+                    .returning('*');
+            } catch (e) {
+                if (
+                    e instanceof Error &&
+                    'code' in e &&
+                    e.code === '23505' &&
+                    'constraint' in e &&
+                    e.constraint ===
+                        'external_connections_project_uuid_slug_unique'
+                ) {
+                    throw new AlreadyExistsError(
+                        `An external connection with slug "${slug}" already exists in this project`,
+                    );
+                }
+                throw e;
+            }
 
             // Never store a secret for a no-auth connection, even if one is
             // supplied — it could only ever be dead weight or a leak risk.
@@ -188,6 +248,10 @@ export class ExternalConnectionModel {
                         project_uuid: targetProjectUuid,
                         organization_uuid: src.organization_uuid,
                         name: src.name,
+                        // Clones keep the source slug: the target preview
+                        // project starts with no connections, so per-project
+                        // uniqueness holds.
+                        slug: src.slug,
                         type: src.type,
                         origin: src.origin,
                         instructions: src.instructions,
@@ -326,6 +390,42 @@ export class ExternalConnectionModel {
                 `${ExternalConnectionsTableName}.external_connection_uuid`,
                 uuid,
             )
+            .whereNull(`${ExternalConnectionsTableName}.deleted_at`)
+            .first<
+                | (DbExternalConnection & { encrypted_payload: Buffer | null })
+                | undefined
+            >(
+                `${ExternalConnectionsTableName}.*`,
+                `${ExternalConnectionSecretsTableName}.encrypted_payload`,
+            );
+
+        if (!row) {
+            return undefined;
+        }
+        return ExternalConnectionModel.mapToExternalConnection(
+            row,
+            row.encrypted_payload !== null,
+        );
+    }
+
+    /** Strips the secret — returns the READ shape only. Live rows only. */
+    async findBySlug(
+        projectUuid: string,
+        organizationUuid: string,
+        slug: string,
+    ): Promise<ExternalConnection | undefined> {
+        const row = await this.database(ExternalConnectionsTableName)
+            .leftJoin(
+                ExternalConnectionSecretsTableName,
+                `${ExternalConnectionSecretsTableName}.external_connection_uuid`,
+                `${ExternalConnectionsTableName}.external_connection_uuid`,
+            )
+            .where(`${ExternalConnectionsTableName}.project_uuid`, projectUuid)
+            .where(
+                `${ExternalConnectionsTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .where(`${ExternalConnectionsTableName}.slug`, slug)
             .whereNull(`${ExternalConnectionsTableName}.deleted_at`)
             .first<
                 | (DbExternalConnection & { encrypted_payload: Buffer | null })

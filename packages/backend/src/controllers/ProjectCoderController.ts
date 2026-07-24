@@ -13,6 +13,9 @@ import {
     type ApiDashboardAsCodeListResponse,
     type ApiDashboardAsCodeUpsertResponse,
     type ApiErrorPayload,
+    type ApiExternalConnectionAsCodeListResponse,
+    type ApiExternalConnectionAsCodeUpsertRequest,
+    type ApiExternalConnectionAsCodeUpsertResponse,
     type ApiGoogleSheetsSyncAsCodeListResponse,
     type ApiGoogleSheetsSyncAsCodeUpsertResponse,
     type ApiScheduledDeliveryAsCodeListResponse,
@@ -25,7 +28,9 @@ import {
     type ApiVirtualViewAsCodeUpsertResponse,
     type ChartAsCode,
     type DashboardAsCode,
+    type ExternalConnectionAsCode,
     type GoogleSheetsSyncAsCode,
+    type RegisteredAccount,
     type ScheduledDeliveryAsCode,
     type SpaceAsCode,
     type SqlChartAsCode,
@@ -67,6 +72,23 @@ type AiAgentCoder = {
         agents: AgentAsCode[],
         force?: boolean,
     ): Promise<ApiAgentAsCodeUpsertResponse['results']>;
+};
+
+type ExternalConnectionCoder = {
+    downloadExternalConnections(
+        account: RegisteredAccount,
+        projectUuid: string,
+        slugs?: string[],
+        offset?: number,
+    ): Promise<ApiExternalConnectionAsCodeListResponse['results']>;
+    upsertExternalConnection(
+        account: RegisteredAccount,
+        projectUuid: string,
+        slug: string,
+        connection: ExternalConnectionAsCode,
+        secret?: string,
+        force?: boolean,
+    ): Promise<ApiExternalConnectionAsCodeUpsertResponse['results']>;
 };
 
 @Route('/api/v1/projects/{projectUuid}')
@@ -330,6 +352,37 @@ export class ProjectCoderController extends BaseController {
                     toSessionUser(req.account),
                     projectUuid,
                     ids,
+                    offset,
+                ),
+        );
+    }
+
+    /**
+     * Get data-app external connections in code representation. Enterprise
+     * only; requires the manage ExternalConnection permission. Secrets are
+     * never included.
+     * @summary List external connections as code
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/code/externalConnections')
+    @OperationId('getCodeExternalConnections')
+    async getExternalConnectionsAsCode(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() slugs?: string[],
+        @Query() offset?: number,
+    ): Promise<ApiExternalConnectionAsCodeListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return codeSuccess(
+            await this.services
+                .getExternalConnectionCoderService<ExternalConnectionCoder>()
+                .downloadExternalConnections(
+                    req.account,
+                    projectUuid,
+                    slugs,
                     offset,
                 ),
         );
@@ -657,6 +710,41 @@ export class ProjectCoderController extends BaseController {
                     toSessionUser(req.account),
                     projectUuid,
                     body.agents,
+                    force,
+                ),
+        );
+    }
+
+    /**
+     * Create or update a data-app external connection from its code
+     * representation. Enterprise only; requires the manage ExternalConnection
+     * permission. The body nests the document under `connection`; the optional
+     * `secret` rides alongside it and is never part of the YAML document.
+     * @summary Upsert external connection as code
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/externalConnections/{slug}')
+    @OperationId('upsertCodeExternalConnection')
+    async upsertExternalConnectionAsCode(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Body() body: ApiExternalConnectionAsCodeUpsertRequest,
+        @Query() force?: boolean,
+    ): Promise<ApiExternalConnectionAsCodeUpsertResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return codeSuccess(
+            await this.services
+                .getExternalConnectionCoderService<ExternalConnectionCoder>()
+                .upsertExternalConnection(
+                    req.account,
+                    projectUuid,
+                    slug,
+                    body.connection,
+                    body.secret,
                     force,
                 ),
         );

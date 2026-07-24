@@ -55,6 +55,9 @@ export type ExternalConnection = {
     projectUuid: string;
     organizationUuid: string;
     name: string;
+    // Portable identity for content-as-code: generated from the name at
+    // create, unique per project among live connections, stable across renames.
+    slug: string;
     type: ExternalConnectionAuthType;
     origin: string;
     instructions: string | null;
