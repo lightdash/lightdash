@@ -1,6 +1,49 @@
 deploy:
   commands:
-    - name: Generating postgres password...
-      command: echo "PGPASSWORD=$(openssl rand -hex 16)" >> "$OKTETO_ENV"
+    - name: Configuring database...
+      command: |
+        set -e
+        # Stable password shared with the snapshot builder
+        # (docker/docker-compose.db-snapshot.yml): a database diverted from a
+        # snapshot keeps the password it was initialised with, because
+        # Postgres ignores POSTGRES_PASSWORD when PGDATA already exists. The
+        # database is only reachable inside the cluster.
+        echo "PGPASSWORD=not-very-secret-preview-db" >> "$OKTETO_ENV"
+
+        # Divert: boot the preview database from the newest pre-seeded
+        # snapshot (built by .github/workflows/preview-db-snapshot.yml on
+        # main) so the entrypoint only runs the branch's delta migrations.
+        # Fall back to a blank volume and the full migrate + seed path when no
+        # snapshot is ready, or when the PR changes the seed data itself
+        # (DB_DIVERT=false, computed from changed files in pr.yml).
+        SNAPSHOT=""
+        if [ "${DB_DIVERT:-true}" = "true" ]; then
+          SNAPSHOT=$(kubectl get volumesnapshots -n db-snapshot \
+            -l app.kubernetes.io/part-of=lightdash-preview-db \
+            --sort-by=.metadata.creationTimestamp \
+            -o jsonpath='{range .items[?(@.status.readyToUse==true)]}{.metadata.name}{"\n"}{end}' \
+            2>/dev/null | tail -n 1 || true)
+        fi
+        if [ -n "$SNAPSHOT" ]; then
+          echo "Diverting preview database to snapshot db-snapshot/$SNAPSHOT"
+          echo "DB_SNAPSHOT_NAME=$SNAPSHOT" >> "$OKTETO_ENV"
+          echo "DB_SNAPSHOT_NAMESPACE=db-snapshot" >> "$OKTETO_ENV"
+        else
+          echo "No preview database snapshot available: migrating and seeding from scratch"
+        fi
+
+        # Recreate the database volume on every deploy (a fresh clone when
+        # diverting, blank otherwise) so each push to the PR still resets the
+        # database: e2e tests start from pristine seed data and edited
+        # migrations are re-applied.
+        kubectl delete statefulset db-preview --ignore-not-found --wait
+        # Previews deployed before db-preview had a volume ran it as a
+        # Deployment; remove it so Okteto can recreate it as a StatefulSet
+        kubectl delete deployment db-preview --ignore-not-found --wait
+        kubectl delete pvc db-data --ignore-not-found --wait
+        # Okteto does not restart a deployment whose spec is unchanged (e.g.
+        # re-running the deploy on the same commit); delete the app so its
+        # entrypoint always re-runs against the recreated database
+        kubectl delete deployment lightdash-preview --ignore-not-found --wait
     - name: Deploying compose...
       command: okteto deploy -f docker/docker-compose.preview.yml

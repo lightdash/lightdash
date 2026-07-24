@@ -2,6 +2,13 @@
 
 ## Okteto Preview Environment
 
+### `preview-db-snapshot.sh <suffix>`
+
+Snapshots the seeded preview database volume in the `db-snapshot` namespace so
+preview environments can divert from it instead of migrating + seeding from
+scratch. Run by `.github/workflows/preview-db-snapshot.yml` on merges to main
+that change migrations, seeds, or the jaffle demo project.
+
 ### `okteto-ssh.sh <pr_number>`
 
 SSH into a preview environment pod.

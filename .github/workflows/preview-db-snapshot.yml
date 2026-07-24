@@ -1,0 +1,63 @@
+name: Preview DB Snapshot
+
+# Rebuilds the pre-seeded database snapshot that preview environments divert
+# from (see okteto.preview.yaml) whenever the data it contains would change.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/backend/src/database/migrations/**"
+      - "packages/backend/src/ee/database/migrations/**"
+      - "packages/backend/src/database/seeds/**"
+      - "packages/backend/src/ee/database/seeds/**"
+      - "examples/full-jaffle-shop-demo/**"
+      # A Postgres image change makes existing snapshots' PGDATA incompatible
+      - "docker/docker-compose.preview.yml"
+      - "docker/docker-compose.db-snapshot.yml"
+      - "scripts/preview-db-snapshot.sh"
+      - ".github/workflows/preview-db-snapshot.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-db-snapshot
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    name: Build and snapshot the preview database
+    runs-on: depot-ubuntu-24.04-4
+    timeout-minutes: 45
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Okteto context
+        uses: okteto/context@5212ce5ebf9d3584bafd33f4a295a8521fc5abe7 # latest
+        with:
+          url: ${{ secrets.OKTETO_CONTEXT }}
+          token: ${{ secrets.OKTETO_TOKEN }}
+
+      - name: Create namespace if missing
+        run: okteto namespace create db-snapshot || true
+
+      - name: Reset builder state
+        run: |
+          okteto kubeconfig
+          # Start from a blank volume so changed seeds and migrations are
+          # fully re-applied instead of hitting the entrypoint's seed guard
+          kubectl -n db-snapshot delete deployment db-snapshot-seeder --ignore-not-found --wait
+          kubectl -n db-snapshot delete statefulset db-snapshot --ignore-not-found --wait
+          kubectl -n db-snapshot delete pvc db-data --ignore-not-found --wait
+
+      - name: Deploy database and seeder
+        run: okteto deploy -f docker/docker-compose.db-snapshot.yml --namespace db-snapshot --name db-snapshot --timeout 30m
+
+      - name: Snapshot the seeded volume
+        run: ./scripts/preview-db-snapshot.sh "${GITHUB_SHA::7}"
