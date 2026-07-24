@@ -36,6 +36,9 @@ import {
     isItemTimezoneAffected,
     isMomentInput,
     isTimestampString,
+    isUnambiguousTemporalString,
+    parseCalendarValueUTC,
+    parseTimestampValueUTC,
     shouldShiftItemTimezone,
     toIsoWithProjectOffset,
 } from './formatting';
@@ -3617,4 +3620,97 @@ describe('Formatting', () => {
             expect(formatItemValue(field, 929_000_000)).toEqual('929M');
         });
     });
+});
+
+describe('parseCalendarValueUTC', () => {
+    test('parses each canonical grain format to the UTC start of its period', () => {
+        expect(parseCalendarValueUTC('2024-07-22')?.toISOString()).toEqual(
+            '2024-07-22T00:00:00.000Z',
+        );
+        expect(parseCalendarValueUTC('2024-07')?.toISOString()).toEqual(
+            '2024-07-01T00:00:00.000Z',
+        );
+        expect(parseCalendarValueUTC('2024-Q3')?.toISOString()).toEqual(
+            '2024-07-01T00:00:00.000Z',
+        );
+        expect(parseCalendarValueUTC('2024')?.toISOString()).toEqual(
+            '2024-01-01T00:00:00.000Z',
+        );
+    });
+
+    test('rejects values outside the canonical formats instead of coercing', () => {
+        expect(parseCalendarValueUTC('42')).toBeUndefined();
+        expect(parseCalendarValueUTC('50.5')).toBeUndefined();
+        expect(parseCalendarValueUTC('')).toBeUndefined();
+        expect(parseCalendarValueUTC('not-a-date')).toBeUndefined();
+        expect(parseCalendarValueUTC('2024-13')).toBeUndefined();
+        expect(parseCalendarValueUTC('2024-Q5')).toBeUndefined();
+        expect(parseCalendarValueUTC('2024-01-15 12:00')).toBeUndefined();
+        expect(parseCalendarValueUTC('2024-01-15T00:00:00Z')).toBeUndefined();
+    });
+});
+
+describe('parseTimestampValueUTC', () => {
+    test('parses offset-less datetimes as naive UTC with hasZone false', () => {
+        expect(parseTimestampValueUTC('2024-01-15 12:00')).toEqual({
+            date: new Date('2024-01-15T12:00:00.000Z'),
+            hasZone: false,
+        });
+        expect(parseTimestampValueUTC('2024-01-15T12:00:00')).toEqual({
+            date: new Date('2024-01-15T12:00:00.000Z'),
+            hasZone: false,
+        });
+        expect(parseTimestampValueUTC('2024-01-15 12:00:00.123456')).toEqual({
+            date: new Date('2024-01-15T12:00:00.123Z'),
+            hasZone: false,
+        });
+    });
+
+    test('parses explicitly zoned datetimes to their instant with hasZone true', () => {
+        expect(parseTimestampValueUTC('2024-01-15T12:00:00Z')).toEqual({
+            date: new Date('2024-01-15T12:00:00.000Z'),
+            hasZone: true,
+        });
+        expect(parseTimestampValueUTC('2024-01-15T12:00:00z')).toEqual({
+            date: new Date('2024-01-15T12:00:00.000Z'),
+            hasZone: true,
+        });
+        expect(parseTimestampValueUTC('2024-01-15 21:00:00+09:00')).toEqual({
+            date: new Date('2024-01-15T12:00:00.000Z'),
+            hasZone: true,
+        });
+        expect(parseTimestampValueUTC('2024-01-15T12:00:00.123-0500')).toEqual({
+            date: new Date('2024-01-15T17:00:00.123Z'),
+            hasZone: true,
+        });
+    });
+
+    test('rejects values outside the canonical shapes instead of coercing', () => {
+        expect(parseTimestampValueUTC('2024-01-15')).toBeUndefined();
+        expect(
+            parseTimestampValueUTC('2024-01-15 12:00 unexpected-suffix'),
+        ).toBeUndefined();
+        expect(parseTimestampValueUTC('42')).toBeUndefined();
+        expect(parseTimestampValueUTC('')).toBeUndefined();
+        expect(parseTimestampValueUTC('2024-01-15 25:00')).toBeUndefined();
+    });
+});
+
+describe('isUnambiguousTemporalString', () => {
+    test.each([
+        '2024-07-22',
+        '2024-07',
+        '2024-Q3',
+        '2024-01-15 12:00',
+        '2024-01-15T12:00:00Z',
+    ])('accepts unambiguous temporal value %s', (value) => {
+        expect(isUnambiguousTemporalString(value)).toBe(true);
+    });
+
+    test.each(['2024', '42', '50.5', '', 'not-a-date', null])(
+        'rejects ambiguous or non-temporal value %s',
+        (value) => {
+            expect(isUnambiguousTemporalString(value)).toBe(false);
+        },
+    );
 });

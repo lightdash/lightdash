@@ -109,8 +109,8 @@ import {
 import { type InfiniteQueryResults } from '../useQueryResults';
 import { getCartesianConditionalFormattingColor } from './cartesianConditionalFormatting';
 import {
-    applyTimezoneShiftToEchartsOptions,
-    detectCalendarTimeAxisField,
+    detectTimeAxisMode,
+    finalizeTimeAxisOptions,
     resolveAxisTimezone,
     TIME_INTERVALS_FOR_CATEGORY_AXIS,
 } from './timezoneShift';
@@ -3346,25 +3346,62 @@ const useEchartsCartesianConfig = (
         timeAxisField,
     ]);
 
-    // Calendar DATEs plotted on an actual `time` axis get their coordinate
-    // encoded as UTC midnight so ECharts' browser-local parse of the bare
-    // `YYYY-MM-DD` can't move the day. Derived from the built axes so
-    // reference-line-forced time axes are covered, and kept separate from
-    // timeAxisField so isTimeAxisShifted stays instant-shift only.
-    const calendarTimeAxisField = useMemo(() => {
+    // Type of the axis the semantic time dimension actually renders on
+    // (xAxis[0], or yAxis[0] when flipped). Derived from the built axes so
+    // reference-line-forced time axes on coarse grains are covered.
+    const physicalTimeAxisType = useMemo(() => {
         const physicalAxis = validCartesianConfig?.layout?.flipAxes
             ? axes.yAxis[0]
             : axes.xAxis[0];
-        return detectCalendarTimeAxisField({
+        return typeof physicalAxis?.type === 'string'
+            ? physicalAxis.type
+            : undefined;
+    }, [validCartesianConfig?.layout?.flipAxes, axes]);
+
+    const plainWallClockTimezone = useMemo(() => {
+        if (!axisTimezone) return undefined;
+        const physicalAxis = validCartesianConfig?.layout?.flipAxes
+            ? axes.yAxis[0]
+            : axes.xAxis[0];
+        const axisLabel = physicalAxis?.axisLabel;
+        if (
+            !axisLabel ||
+            typeof axisLabel !== 'object' ||
+            !('formatter' in axisLabel) ||
+            typeof axisLabel.formatter !== 'function'
+        ) {
+            return undefined;
+        }
+        const fieldId = validCartesianConfig?.layout?.xField;
+        const field = fieldId ? itemsMap?.[fieldId] : undefined;
+        return getFormatterTimezone(field, new Date(0), axisTimezone);
+    }, [
+        axisTimezone,
+        validCartesianConfig?.layout?.flipAxes,
+        validCartesianConfig?.layout?.xField,
+        axes,
+        itemsMap,
+    ]);
+
+    // How the time axis plots its coordinates (instant-shifted, calendar
+    // UTC-anchored, or plain). undefined when there is no time axis or
+    // timezone support is off — the built options then pass through
+    // finalizeTimeAxisOptions untouched.
+    const timeAxisMode = useMemo(() => {
+        return detectTimeAxisMode({
             validCartesianConfig,
             itemsMap,
             resolvedTimezone,
-            physicalAxisType:
-                typeof physicalAxis?.type === 'string'
-                    ? physicalAxis.type
-                    : undefined,
+            physicalAxisType: physicalTimeAxisType,
+            plainWallClockTimezone,
         });
-    }, [validCartesianConfig, itemsMap, resolvedTimezone, axes]);
+    }, [
+        validCartesianConfig,
+        itemsMap,
+        resolvedTimezone,
+        physicalTimeAxisType,
+        plainWallClockTimezone,
+    ]);
 
     // Shared by stackedSeriesWithColorAssignments (non-stacked bar styling) and
     // decoratedSeriesForChart (stacked rounded corners). Same inputs in both
@@ -4433,13 +4470,7 @@ const useEchartsCartesianConfig = (
             }),
         };
 
-        const plottedCoordinateField = timeAxisField ?? calendarTimeAxisField;
-        return plottedCoordinateField
-            ? applyTimezoneShiftToEchartsOptions(
-                  baseOptions,
-                  plottedCoordinateField,
-              )
-            : baseOptions;
+        return finalizeTimeAxisOptions(baseOptions, timeAxisMode);
     }, [
         sortedAxes,
         sortedSeriesForChart,
@@ -4453,8 +4484,7 @@ const useEchartsCartesianConfig = (
         currentGrid,
         theme?.other.chartFont,
         validCartesianConfig,
-        timeAxisField,
-        calendarTimeAxisField,
+        timeAxisMode,
     ]);
 
     if (

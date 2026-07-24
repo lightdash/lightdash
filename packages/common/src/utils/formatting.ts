@@ -356,6 +356,61 @@ export const parseDate = (
     timeInterval: TimeFrames | undefined = TimeFrames.DAY,
 ): Date => moment(str, getDateFormat(timeInterval)).toDate();
 
+// The canonical stored formats for calendar values — what the pickers write
+// via formatDate for each grain family (WEEK shares the DAY format).
+const calendarValueFormats = [
+    TimeFrames.DAY,
+    TimeFrames.MONTH,
+    TimeFrames.QUARTER,
+    TimeFrames.YEAR,
+].map((timeInterval) => getDateFormat(timeInterval));
+
+// Strict UTC parse of a stored calendar value (`2024-07-22`, `2024-07`,
+// `2024-Q3`, `2024`) to the start of its period, browser-independent. Unlike
+// parseDate this accepts only canonical calendar formats and does not
+// leniently coerce other inputs.
+export const parseCalendarValueUTC = (value: string): Date | undefined => {
+    const parsed = moment.utc(value, calendarValueFormats, true);
+    return parsed.isValid() ? parsed.toDate() : undefined;
+};
+
+// Datetime shapes: date + time with an optional T separator, optional seconds
+// and up to microsecond fractions. Zoned variants append moment's Z token
+// (`Z`, `±hh:mm`, `±hhmm`, `±hh`).
+const naiveTimestampFormats = ['HH:mm', 'HH:mm:ss', 'HH:mm:ss.SSSSSS'].flatMap(
+    (time) => [`YYYY-MM-DD ${time}`, `YYYY-MM-DD[T]${time}`],
+);
+const zonedTimestampFormats = naiveTimestampFormats.map(
+    (format) => `${format}Z`,
+);
+
+// Strict UTC parse of a datetime string, classifying whether it carries an
+// explicit zone. A zoned value parses to its instant; an offset-less value
+// parses naive-as-UTC. Both are browser-independent; anything outside the
+// canonical shapes is rejected instead of leniently coerced.
+export const parseTimestampValueUTC = (
+    value: string,
+): { date: Date; hasZone: boolean } | undefined => {
+    const zoned = moment.utc(value, zonedTimestampFormats, true);
+    if (zoned.isValid()) return { date: zoned.toDate(), hasZone: true };
+    const naive = moment.utc(value, naiveTimestampFormats, true);
+    if (naive.isValid()) return { date: naive.toDate(), hasZone: false };
+    return undefined;
+};
+
+// Temporal strings safe to move out of a slot that may also hold a numeric
+// value. Bare years are deliberately excluded because `2024` is equally valid
+// as a calendar year and as a numeric threshold.
+export const isUnambiguousTemporalString = (raw: unknown): raw is string => {
+    if (typeof raw !== 'string') return false;
+    const value = raw.trim();
+    if (value !== '' && Number.isFinite(Number(value))) return false;
+    return (
+        parseTimestampValueUTC(value) !== undefined ||
+        parseCalendarValueUTC(value) !== undefined
+    );
+};
+
 export const parseTimestamp = (
     str: string,
     timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,

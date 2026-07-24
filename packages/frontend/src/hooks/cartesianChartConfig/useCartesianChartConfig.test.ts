@@ -1,8 +1,13 @@
 import {
     CartesianSeriesType,
     createConditionalFormattingConfigWithSingleColor,
+    DimensionType,
+    FieldType,
     getItemMap,
     StackType,
+    TimeFrames,
+    type Dimension,
+    type ItemsMap,
     type Series,
 } from '@lightdash/common';
 import { act, renderHook } from '@testing-library/react';
@@ -12,7 +17,11 @@ vi.mock('../useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: async () => ({ data: { enabled: false } }),
 }));
 
-import useCartesianChartConfig from './useCartesianChartConfig';
+import { type ReferenceLineField } from '../../components/common/ReferenceLine';
+import { finalizeTimeAxisOptions } from '../echarts/timezoneShift';
+import useCartesianChartConfig, {
+    applyReferenceLines,
+} from './useCartesianChartConfig';
 import {
     existingMixedSeries,
     expectedMixedSeriesMap,
@@ -790,6 +799,331 @@ describe('getSeriesGroupedByField', () => {
             getSeriesGroupedByField(Object.values(mergedMixedSeries)),
         ).toStrictEqual(groupedMixedSeries);
     });
+});
+
+describe('reference-line semantic to physical axis integration', () => {
+    const timeField = 'orders_created_day';
+    const valueField = 'orders_revenue';
+    const stringField = 'orders_status';
+    const makeSeries = (yField: string = valueField): Series[] => [
+        {
+            type: CartesianSeriesType.BAR,
+            yAxisIndex: 0,
+            encode: {
+                xRef: { field: timeField },
+                yRef: { field: yField },
+            },
+        },
+    ];
+    const timeFieldItem: Dimension = {
+        fieldType: FieldType.DIMENSION,
+        hidden: false,
+        label: 'Created month',
+        name: timeField,
+        sql: '',
+        table: 'orders',
+        tableLabel: 'Orders',
+        type: DimensionType.DATE,
+        timeInterval: TimeFrames.MONTH,
+    };
+    const valueFieldItem: Dimension = {
+        fieldType: FieldType.DIMENSION,
+        hidden: false,
+        label: 'Revenue',
+        name: valueField,
+        sql: '',
+        table: 'orders',
+        tableLabel: 'Orders',
+        type: DimensionType.NUMBER,
+    };
+    const stringFieldItem: Dimension = {
+        fieldType: FieldType.DIMENSION,
+        hidden: false,
+        label: 'Status',
+        name: stringField,
+        sql: '',
+        table: 'orders',
+        tableLabel: 'Orders',
+        type: DimensionType.STRING,
+    };
+    const itemsMap: ItemsMap = {
+        [timeField]: timeFieldItem,
+        [valueField]: valueFieldItem,
+        [stringField]: stringFieldItem,
+    };
+    const editorReferenceLines: ReferenceLineField[] = [
+        {
+            fieldId: timeField,
+            data: {
+                uuid: 'date',
+                name: 'Year start',
+                xAxis: '2024',
+            },
+        },
+        {
+            fieldId: valueField,
+            data: {
+                uuid: 'threshold',
+                name: 'Revenue target',
+                yAxis: '2024',
+            },
+        },
+    ];
+
+    test.each([
+        { orientation: 'vertical', flipAxes: false },
+        { orientation: 'flipped', flipAxes: true },
+    ])(
+        'keeps editor-produced date and numeric lines on their physical axes when $orientation',
+        ({ flipAxes }) => {
+            const series = applyReferenceLines(
+                makeSeries(),
+                {
+                    xField: timeField,
+                    yField: [valueField],
+                    flipAxes,
+                },
+                editorReferenceLines,
+            );
+            const options = { dataset: { source: [] }, series };
+            const timeSlot = flipAxes ? 'yAxis' : 'xAxis';
+            const valueSlot = flipAxes ? 'xAxis' : 'yAxis';
+
+            const flagOn = finalizeTimeAxisOptions(options, {
+                kind: 'plain',
+                flipAxes,
+            });
+            const data = flagOn.series?.[0].markLine?.data ?? [];
+            const dateLine = data.find((line) => line.uuid === 'date');
+            const thresholdLine = data.find(
+                (line) => line.uuid === 'threshold',
+            );
+
+            expect(dateLine?.[timeSlot]).toBe(
+                Date.parse('2024-01-01T00:00:00Z'),
+            );
+            expect(dateLine?.[valueSlot]).toBeUndefined();
+            expect(dateLine?.label?.formatter).toBe('Year start');
+            expect(thresholdLine?.[valueSlot]).toBe('2024');
+            expect(thresholdLine?.[timeSlot]).toBeUndefined();
+
+            // No timezone mode means flag-off options and authored values pass
+            // through by reference, after the normal field-aware axis mapping.
+            expect(finalizeTimeAxisOptions(options, undefined)).toBe(options);
+            expect(series[0].markLine?.data[0][timeSlot]).toBe('2024');
+            expect(series[0].markLine?.data[1][valueSlot]).toBe('2024');
+        },
+    );
+
+    test.each([
+        {
+            orientation: 'flipped',
+            flipAxes: true,
+            legacyData: { xAxis: '2024-07-15' },
+            expectedTimeSlot: 'yAxis' as const,
+            expectedValueSlot: 'xAxis' as const,
+        },
+        {
+            orientation: 'vertical after flip-save-unflip',
+            flipAxes: false,
+            legacyData: { yAxis: '2024-07-15' },
+            expectedTimeSlot: 'xAxis' as const,
+            expectedValueSlot: 'yAxis' as const,
+        },
+    ])(
+        'repairs a legacy coarse-grain line before axis inference when $orientation',
+        ({ flipAxes, legacyData, expectedTimeSlot, expectedValueSlot }) => {
+            const series = applyReferenceLines(
+                makeSeries(),
+                { xField: timeField, yField: [valueField], flipAxes },
+                [
+                    {
+                        // Legacy extraction attributed the semantic time value
+                        // to the numeric field because it assumed physical keys.
+                        fieldId: valueField,
+                        data: { uuid: 'legacy-date', ...legacyData },
+                    },
+                ],
+                { itemsMap, resolvedTimezone: 'UTC' },
+            );
+            const line = series[0].markLine?.data[0];
+
+            expect(line?.[expectedTimeSlot]).toBe('2024-07-15');
+            expect(line?.[expectedValueSlot]).toBeUndefined();
+
+            const finalized = finalizeTimeAxisOptions(
+                {
+                    dataset: {
+                        source: [{ [timeField]: '2024-07-15' }],
+                    },
+                    series,
+                },
+                { kind: 'calendar', fieldId: timeField, flipAxes },
+            );
+            const finalizedLine = finalized.series?.[0].markLine?.data[0];
+
+            expect(finalizedLine?.[expectedTimeSlot]).toBe(
+                Date.parse('2024-07-15T00:00:00Z'),
+            );
+            expect(finalizedLine?.[expectedValueSlot]).toBeUndefined();
+        },
+    );
+
+    test('repairs an unambiguous explicitly-zoned legacy time value', () => {
+        const series = applyReferenceLines(
+            makeSeries(),
+            { xField: timeField, yField: [valueField], flipAxes: true },
+            [
+                {
+                    fieldId: valueField,
+                    data: {
+                        uuid: 'legacy-zoned',
+                        xAxis: '2024-07-15T12:00:00Z',
+                    },
+                },
+            ],
+            { itemsMap, resolvedTimezone: 'UTC' },
+        );
+
+        expect(series[0].markLine?.data[0].yAxis).toBe('2024-07-15T12:00:00Z');
+        expect(series[0].markLine?.data[0].xAxis).toBeUndefined();
+    });
+
+    test('leaves ambiguous numeric years and flag-off mappings unchanged', () => {
+        const layout = {
+            xField: timeField,
+            yField: [valueField],
+            flipAxes: true,
+        };
+        const numericYear: ReferenceLineField = {
+            fieldId: valueField,
+            data: { uuid: 'threshold', xAxis: '2024' },
+        };
+        const legacyDate: ReferenceLineField = {
+            fieldId: valueField,
+            data: { uuid: 'legacy-date', xAxis: '2024-07-15' },
+        };
+
+        const numericResult = applyReferenceLines(
+            makeSeries(),
+            layout,
+            [numericYear],
+            { itemsMap, resolvedTimezone: 'UTC' },
+        );
+        const flagOffResult = applyReferenceLines(
+            makeSeries(),
+            layout,
+            [legacyDate],
+            { itemsMap, resolvedTimezone: undefined },
+        );
+
+        expect(numericResult[0].markLine?.data[0].xAxis).toBe('2024');
+        expect(numericResult[0].markLine?.data[0].yAxis).toBeUndefined();
+        expect(flagOffResult[0].markLine?.data[0].xAxis).toBe('2024-07-15');
+        expect(flagOffResult[0].markLine?.data[0].yAxis).toBeUndefined();
+    });
+
+    test('does not reinterpret a date-shaped category reference during finalization', () => {
+        const series = applyReferenceLines(
+            makeSeries(stringField),
+            {
+                xField: timeField,
+                yField: [stringField],
+                flipAxes: true,
+            },
+            [
+                {
+                    fieldId: stringField,
+                    data: {
+                        uuid: 'category-date-shape',
+                        xAxis: '2024-07-15',
+                    },
+                },
+            ],
+            { itemsMap, resolvedTimezone: 'UTC' },
+        );
+        const finalized = finalizeTimeAxisOptions(
+            { dataset: { source: [] }, series },
+            { kind: 'plain', flipAxes: true },
+        );
+        const line = finalized.series?.[0].markLine?.data[0];
+
+        expect(line?.xAxis).toBe('2024-07-15');
+        expect(line?.yAxis).toBeUndefined();
+    });
+
+    test.each([
+        {
+            mode: 'flag on',
+            resolvedTimezone: 'UTC',
+            expectedSlot: 'yAxis' as const,
+            clearedSlot: 'xAxis' as const,
+        },
+        {
+            mode: 'flag off',
+            resolvedTimezone: undefined,
+            expectedSlot: 'xAxis' as const,
+            clearedSlot: 'yAxis' as const,
+        },
+    ])(
+        'maps a mis-keyed saved coarse-grain line through the full config hook when $mode',
+        ({ resolvedTimezone, expectedSlot, clearedSlot }) => {
+            const initialSeries = makeSeries()[0];
+            const params: Parameters<typeof useCartesianChartConfig>[0] = {
+                initialChartConfig: {
+                    layout: {
+                        xField: timeField,
+                        yField: [valueField],
+                        flipAxes: true,
+                    },
+                    eChartsConfig: {
+                        series: [
+                            {
+                                ...initialSeries,
+                                markLine: {
+                                    data: [
+                                        {
+                                            uuid: 'legacy-saved-date',
+                                            xAxis: '2024-07-15',
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                    },
+                },
+                pivotKeys: undefined,
+                resultsData: {
+                    rows: [],
+                    metricQuery: {
+                        dimensions: [timeField],
+                        metrics: [valueField],
+                        filters: {},
+                        sorts: [],
+                        limit: 500,
+                        tableCalculations: [],
+                        additionalMetrics: [],
+                    },
+                    hasFetchedAllRows: true,
+                    resolvedTimezone,
+                } as never,
+                columnOrder: [timeField, valueField],
+                itemsMap,
+                stacking: false,
+                cartesianType: undefined,
+                colorPalette: [],
+            };
+            const { result } = renderHook(() =>
+                useCartesianChartConfig(params),
+            );
+            const line =
+                result.current.validConfig.eChartsConfig.series?.[0].markLine
+                    ?.data[0];
+
+            expect(line?.[expectedSlot]).toBe('2024-07-15');
+            expect(line?.[clearedSlot]).toBeUndefined();
+        },
+    );
 });
 
 describe('useCartesianChartConfig', () => {

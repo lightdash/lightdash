@@ -1,12 +1,17 @@
 import {
     assertUnreachable,
     CartesianSeriesType,
+    DimensionType,
+    getItemType,
     getSeriesId,
     hashFieldReference,
     isCompleteEchartsConfig,
     isCompleteLayout,
     isNumericItem,
+    isUnambiguousTemporalString,
+    MetricType,
     StackType,
+    TableCalculationType,
     XAxisSort,
     XAxisSortType,
     type CartesianChart,
@@ -128,14 +133,78 @@ const dedupeReferenceLines = (referenceLines: ReferenceLineField[]) => {
     });
 };
 
-const applyReferenceLines = (
+const isTemporalReferenceField = (
+    item: ItemsMap[string] | undefined,
+): boolean => {
+    if (!item) return false;
+    const type = getItemType(item);
+    return [
+        DimensionType.DATE,
+        DimensionType.TIMESTAMP,
+        MetricType.DATE,
+        MetricType.TIMESTAMP,
+        TableCalculationType.DATE,
+        TableCalculationType.TIMESTAMP,
+    ].includes(type);
+};
+
+const resolveReferenceLineFieldId = (
+    referenceLine: ReferenceLineField,
+    dirtyLayout: Partial<Partial<CompleteCartesianChartLayout>> | undefined,
+    mappingContext:
+        | {
+              itemsMap: ItemsMap | undefined;
+              resolvedTimezone: string | undefined;
+          }
+        | undefined,
+): string | undefined => {
+    const fieldId = getReferenceFieldId(referenceLine);
+    if (
+        mappingContext?.resolvedTimezone === undefined ||
+        referenceLine.fieldRef ||
+        !fieldId
+    ) {
+        return fieldId;
+    }
+    const timeFieldId = dirtyLayout?.xField;
+    if (!timeFieldId || timeFieldId === fieldId || !mappingContext.itemsMap) {
+        return fieldId;
+    }
+    const timeField = mappingContext.itemsMap[timeFieldId];
+    const attributedField = mappingContext.itemsMap[fieldId];
+    if (
+        !isTemporalReferenceField(timeField) ||
+        !isNumericItem(attributedField)
+    ) {
+        return fieldId;
+    }
+    const raw = referenceLine.data.xAxis ?? referenceLine.data.yAxis;
+    return isUnambiguousTemporalString(raw) ? timeFieldId : fieldId;
+};
+
+export const applyReferenceLines = (
     series: Series[],
     dirtyLayout: Partial<Partial<CompleteCartesianChartLayout>> | undefined,
     referenceLines: ReferenceLineField[],
+    mappingContext?: {
+        itemsMap: ItemsMap | undefined;
+        resolvedTimezone: string | undefined;
+    },
 ): Series[] => {
     // Track which reference lines have been applied to visible series
     let appliedReferenceLines: string[] = [];
-    const uniqueReferenceLines = dedupeReferenceLines(referenceLines);
+    const uniqueReferenceLines = dedupeReferenceLines(referenceLines).map(
+        (referenceLine) => {
+            const fieldId = resolveReferenceLineFieldId(
+                referenceLine,
+                dirtyLayout,
+                mappingContext,
+            );
+            return fieldId === getReferenceFieldId(referenceLine)
+                ? referenceLine
+                : { ...referenceLine, fieldId };
+        },
+    );
 
     return series.map((serie) => {
         // If series is filtered out or hidden, ensure it has no markLine
@@ -1230,6 +1299,10 @@ const useCartesianChartConfig = ({
                     newSeries,
                     dirtyLayout,
                     referenceLines,
+                    {
+                        itemsMap,
+                        resolvedTimezone: resultsData.resolvedTimezone,
+                    },
                 );
 
                 return {
