@@ -51,14 +51,29 @@ type StartCalculateTotalArgs = {
     invalidateCache?: boolean;
 };
 
+const getMockTotalError = (kind: CalculateTotalKind) => {
+    if (!import.meta.env.DEV) return undefined;
+
+    const mockedKinds = new URLSearchParams(window.location.search)
+        .get('mockTotalErrors')
+        ?.split(',');
+
+    return mockedKinds?.includes('all') || mockedKinds?.includes(kind)
+        ? new Error(`Mock ${kind} calculation error`)
+        : undefined;
+};
+
 const startCalculateTotalQuery = ({
     projectUuid,
     sourceQueryUuid,
     kind,
     subtotalDimensions,
     invalidateCache,
-}: StartCalculateTotalArgs) =>
-    lightdashApi<ApiExecuteAsyncMetricQueryResults>({
+}: StartCalculateTotalArgs) => {
+    const mockError = getMockTotalError(kind);
+    if (mockError) return Promise.reject(mockError);
+
+    return lightdashApi<ApiExecuteAsyncMetricQueryResults>({
         url: `/projects/${projectUuid}/query/${sourceQueryUuid}/calculate-total`,
         version: 'v2',
         method: 'POST',
@@ -68,6 +83,7 @@ const startCalculateTotalQuery = ({
             invalidateCache,
         }),
     });
+};
 
 // Single wide row of totals. Keys are pivoted SQL column names for pivoted
 // sources, plain metric field ids otherwise.

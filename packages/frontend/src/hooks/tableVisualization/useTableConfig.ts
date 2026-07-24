@@ -266,13 +266,16 @@ const useTableConfig = (
         isInitialQueryReady &&
         !!resultsData?.queryUuid &&
         !!tableChartConfig?.showColumnCalculation;
-    const { data: asyncTotals, isFetching: isCalculatingColumnTotals } =
-        useAsyncCalculateTotal({
-            projectUuid,
-            sourceQueryUuid: resultsData?.queryUuid,
-            enabled: canFetchAsyncTotals,
-            invalidateCache,
-        });
+    const {
+        data: asyncTotals,
+        error: columnTotalsError,
+        isFetching: isCalculatingColumnTotals,
+    } = useAsyncCalculateTotal({
+        projectUuid,
+        sourceQueryUuid: resultsData?.queryUuid,
+        enabled: canFetchAsyncTotals,
+        invalidateCache,
+    });
 
     // Index dimension field ids the warehouse row-total query groups by — the
     // worker keys each rendered row's total by these. Row totals are exclusively
@@ -290,14 +293,17 @@ const useTableConfig = (
         !!resultsData?.queryUuid &&
         !!tableChartConfig?.showRowCalculation &&
         !!resultsData?.pivotDetails;
-    const { data: asyncRowTotals, isFetching: isCalculatingRowTotals } =
-        useAsyncCalculateRowTotal({
-            projectUuid,
-            sourceQueryUuid: resultsData?.queryUuid,
-            indexFieldIds: rowTotalIndexFieldIds,
-            enabled: canFetchAsyncRowTotals,
-            invalidateCache,
-        });
+    const {
+        data: asyncRowTotals,
+        error: rowTotalsError,
+        isFetching: isCalculatingRowTotals,
+    } = useAsyncCalculateRowTotal({
+        projectUuid,
+        sourceQueryUuid: resultsData?.queryUuid,
+        indexFieldIds: rowTotalIndexFieldIds,
+        enabled: canFetchAsyncRowTotals,
+        invalidateCache,
+    });
 
     const canFetchAsyncGrandTotals =
         isInitialQueryReady &&
@@ -305,39 +311,48 @@ const useTableConfig = (
         !!resultsData?.pivotDetails &&
         !!tableChartConfig?.showColumnCalculation &&
         !!tableChartConfig?.showRowCalculation;
-    const { data: asyncGrandTotals, isFetching: isCalculatingGrandTotals } =
-        useAsyncCalculateGrandTotal({
-            projectUuid,
-            sourceQueryUuid: resultsData?.queryUuid,
-            enabled: canFetchAsyncGrandTotals,
-            invalidateCache,
-        });
+    const {
+        data: asyncGrandTotals,
+        error: grandTotalsError,
+        isFetching: isCalculatingGrandTotals,
+    } = useAsyncCalculateGrandTotal({
+        projectUuid,
+        sourceQueryUuid: resultsData?.queryUuid,
+        enabled: canFetchAsyncGrandTotals,
+        invalidateCache,
+    });
 
-    const { data: groupedSubtotals, isFetching: isCalculatingSubtotals } =
-        useAsyncCalculateSubtotals({
-            projectUuid,
-            sourceQueryUuid: resultsData?.queryUuid,
-            dimensions: resultsData?.metricQuery?.dimensions,
-            columnOrder,
-            pivotDimensions,
-            enabled: isInitialQueryReady && showSubtotals && canUseSubtotals,
-            invalidateCache,
-        });
-    const { data: groupedRowSubtotals, isFetching: isCalculatingRowSubtotals } =
-        useAsyncCalculateRowSubtotals({
-            projectUuid,
-            sourceQueryUuid: resultsData?.queryUuid,
-            dimensions: resultsData?.metricQuery?.dimensions,
-            columnOrder,
-            pivotDimensions,
-            enabled:
-                isInitialQueryReady &&
-                showSubtotals &&
-                canUseSubtotals &&
-                !!tableChartConfig?.showRowCalculation &&
-                (pivotDimensions?.length ?? 0) > 0,
-            invalidateCache,
-        });
+    const {
+        data: groupedSubtotals,
+        error: columnSubtotalsError,
+        isFetching: isCalculatingSubtotals,
+    } = useAsyncCalculateSubtotals({
+        projectUuid,
+        sourceQueryUuid: resultsData?.queryUuid,
+        dimensions: resultsData?.metricQuery?.dimensions,
+        columnOrder,
+        pivotDimensions,
+        enabled: isInitialQueryReady && showSubtotals && canUseSubtotals,
+        invalidateCache,
+    });
+    const {
+        data: groupedRowSubtotals,
+        error: rowSubtotalsError,
+        isFetching: isCalculatingRowSubtotals,
+    } = useAsyncCalculateRowSubtotals({
+        projectUuid,
+        sourceQueryUuid: resultsData?.queryUuid,
+        dimensions: resultsData?.metricQuery?.dimensions,
+        columnOrder,
+        pivotDimensions,
+        enabled:
+            isInitialQueryReady &&
+            showSubtotals &&
+            canUseSubtotals &&
+            !!tableChartConfig?.showRowCalculation &&
+            (pivotDimensions?.length ?? 0) > 0,
+        invalidateCache,
+    });
 
     const columns = useMemo(() => {
         if (!selectedItemIds || !itemsMap) {
@@ -359,8 +374,10 @@ const useTableConfig = (
             columnOrder,
             totals: asyncTotals,
             totalsLoading: isCalculatingColumnTotals,
+            totalsError: columnTotalsError,
             groupedSubtotals,
             subtotalsLoading: isCalculatingSubtotals,
+            subtotalsError: columnSubtotalsError,
             parameters,
         });
     }, [
@@ -375,8 +392,10 @@ const useTableConfig = (
         getFieldLabelOverride,
         asyncTotals,
         isCalculatingColumnTotals,
+        columnTotalsError,
         groupedSubtotals,
         isCalculatingSubtotals,
+        columnSubtotalsError,
         parameters,
     ]);
     const worker = useWorker(createWorker);
@@ -782,6 +801,11 @@ const useTableConfig = (
             isPivotResultStale,
             canUseSubtotals,
             groupedSubtotals,
+            columnTotalsError,
+            rowTotalsError,
+            grandTotalsError,
+            columnSubtotalsError,
+            rowSubtotalsError,
             isCalculatingColumnTotals,
             isCalculatingRowTotals,
             isCalculatingRowSubtotals,
@@ -834,6 +858,11 @@ const useTableConfig = (
             isPivotResultStale,
             canUseSubtotals,
             groupedSubtotals,
+            columnTotalsError,
+            rowTotalsError,
+            grandTotalsError,
+            columnSubtotalsError,
+            rowSubtotalsError,
             isCalculatingColumnTotals,
             isCalculatingRowTotals,
             isCalculatingRowSubtotals,
