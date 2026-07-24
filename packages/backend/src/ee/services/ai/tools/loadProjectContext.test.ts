@@ -1,6 +1,8 @@
 import type { ProjectContextEntry } from '@lightdash/common';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import Logger from '../../../../logging/logger';
 import { getLoadProjectContext } from './loadProjectContext';
+import type { ProjectContextSearchEntry } from './memoryProjectContext';
 
 const entries: ProjectContextEntry[] = [
     {
@@ -39,8 +41,21 @@ const entries: ProjectContextEntry[] = [
     },
 ];
 
-const run = (patterns?: string[]) => {
-    const tool = getLoadProjectContext({ getDocument: async () => entries });
+const run = (
+    patterns?: string[],
+    options: {
+        entries?: ProjectContextSearchEntry[];
+        includeMemories?: boolean;
+        onEntriesLoaded?: (
+            loaded: ProjectContextSearchEntry[],
+        ) => Promise<void>;
+    } = {},
+) => {
+    const tool = getLoadProjectContext({
+        getDocument: async () => options.entries ?? entries,
+        includeMemories: options.includeMemories,
+        onEntriesLoaded: options.onEntriesLoaded,
+    });
     // Tool.execute is (args, options); options is unused here.
     return (
         tool.execute as unknown as (
@@ -67,8 +82,9 @@ describe('loadProjectContext tool', () => {
     it('loads only matching entries when patterns are given', async () => {
         const res = await run(['revenue']);
         expect(res.metadata.entryIds).toEqual(['arr-def']);
-        expect(res.result).toContain('ARR means annual recurring revenue');
-        expect(res.result).not.toContain('onboarding');
+        expect(res.result).toBe(
+            '- id: arr-def; kind: context; terms: arr, revenue; content: ARR means annual recurring revenue',
+        );
     });
 
     it('renders typed refs with owning explores', async () => {
@@ -89,5 +105,42 @@ describe('loadProjectContext tool', () => {
         expect(res.result).toContain('No context entry matched');
         expect(res.result).toContain('arr-def');
         expect(res.result).toContain('sao-def');
+    });
+
+    it('labels memory hits and records only selected entries', async () => {
+        const onEntriesLoaded = vi.fn().mockResolvedValue(undefined);
+        const memoryEntry: ProjectContextSearchEntry = {
+            id: 'completed-order-revenue',
+            kind: 'context',
+            content: 'Use completed orders for recognized revenue.',
+            terms: ['recognized revenue'],
+            objects: [],
+            source: 'memory',
+        };
+        const res = await run(['recognized revenue'], {
+            entries: [{ ...entries[2], source: 'context' }, memoryEntry],
+            includeMemories: true,
+            onEntriesLoaded,
+        });
+
+        expect(res.result).toContain('source: memory; kind: context;');
+        expect(onEntriesLoaded).toHaveBeenCalledWith([memoryEntry]);
+    });
+
+    it('returns entries when pull telemetry fails', async () => {
+        const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
+        const res = await run(['revenue'], {
+            includeMemories: true,
+            onEntriesLoaded: vi
+                .fn()
+                .mockRejectedValue(new Error('telemetry failed')),
+        });
+
+        expect(res.result).toContain('ARR means annual recurring revenue');
+        expect(res.metadata.entryIds).toEqual(['arr-def']);
+        expect(warn).toHaveBeenCalledWith(
+            '[ProjectContext] failed to record loaded entries',
+            expect.any(Error),
+        );
     });
 });

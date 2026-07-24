@@ -11,10 +11,10 @@ import { compileMatcher } from './grepFieldsIndex';
  * content). An entry matches if it hits ANY pattern; results are ranked by how
  * many patterns they hit (matched-first). Empty patterns → all entries.
  */
-export const filterProjectContext = (
-    entries: ProjectContextEntry[],
+export const filterProjectContext = <T extends ProjectContextEntry>(
+    entries: T[],
     patterns: string[],
-): ProjectContextEntry[] => {
+): T[] => {
     if (patterns.length === 0) return entries;
     const matchers = patterns.map(compileMatcher);
     return entries

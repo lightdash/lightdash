@@ -300,6 +300,36 @@ describe('AiAgentMemoryModel integration', () => {
         });
     });
 
+    it('increments pull telemetry without changing citation telemetry', async () => {
+        const sourceThreadUuid = await createThread();
+        const memory = await model.upsertSourceThreadMemory(
+            memoryInput(sourceThreadUuid),
+        );
+        const citedAt = new Date('2026-07-22T11:00:00Z');
+        await database(AiAgentMemoryTableName)
+            .where('ai_agent_memory_uuid', memory.ai_agent_memory_uuid)
+            .update({ cited_count: 3, last_cited_at: citedAt });
+
+        const before = new Date();
+        await model.incrementPulledForActiveMemories({
+            projectUuid: SEED_PROJECT.project_uuid,
+            slugs: [memory.slug, memory.slug],
+        });
+        const updated = await database(AiAgentMemoryTableName)
+            .where('ai_agent_memory_uuid', memory.ai_agent_memory_uuid)
+            .first();
+
+        expect(updated).toMatchObject({
+            pulled_count: 1,
+            cited_count: 3,
+            last_cited_at: citedAt,
+        });
+        expect(updated?.last_pulled_at).not.toBeNull();
+        expect(updated!.last_pulled_at!.getTime()).toBeGreaterThanOrEqual(
+            before.getTime(),
+        );
+    });
+
     it('upserts one ledger row and clears stale outcome details', async () => {
         const aiThreadUuid = await createThread();
         const memory = await model.upsertSourceThreadMemory(
