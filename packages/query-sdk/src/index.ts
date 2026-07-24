@@ -18,6 +18,15 @@ export { LightdashProvider, useLightdashClient } from './LightdashProvider';
 export { createApiTransport, type FetchAdapter } from './apiTransport';
 export { createPostMessageTransport } from './postMessageTransport';
 
+// Feature manifest (also exported via the "./features" subpath for hosts)
+export {
+    SDK_FEATURES,
+    SDK_FEATURE_KEYS,
+    SDK_MANIFEST_MESSAGE_TYPE,
+    type SdkFeature,
+    type SdkManifestMessage,
+} from './features';
+
 // Types
 export type {
     AdditionalMetric,

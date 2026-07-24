@@ -162,6 +162,12 @@ const isQueryResultGet = (method: string, path: string): boolean =>
     method.toUpperCase() === 'GET' &&
     /^\/api\/v2\/projects\/[^/]+\/query\/[^/]+$/.test(path);
 
+/** Capability manifest reported by the iframe SDK bundle. */
+export type SdkManifest = {
+    sdkVersion: string;
+    features: string[];
+};
+
 export type ElementSelectedEvent = {
     /** Bracketed reference produced by the iframe inspector, e.g. `[button "Save"]`. */
     label: string;
@@ -232,6 +238,13 @@ export type UseAppSdkBridgeParams = {
     onLineageAvailable?: () => void;
     onLineageSelected?: (event: { queryUuid: string }) => void;
     /**
+     * Fires when the iframe SDK reports its capability manifest
+     * (`lightdash:sdk:manifest`) — sent by SDKs new enough to have a feature
+     * registry. Old bundles never send it; the parent owns the "no manifest
+     * yet" timeout that classifies them as legacy.
+     */
+    onSdkManifest?: (manifest: SdkManifest) => void;
+    /**
      * When provided, external-connection fetches proxied through this bridge
      * are reported for the external-requests inspector tab — mirrors
      * `onQueryEvent` for metric queries. Emits `pending` when the fetch starts
@@ -263,6 +276,7 @@ export function useAppSdkBridge({
     onExternalRequestEvent,
     dataAppVizContext,
     onUrlStateChange,
+    onSdkManifest,
 }: UseAppSdkBridgeParams) {
     // Embed mode adapts the bridge's outgoing fetches in two ways:
     //   - Attaches the embed JWT header in lieu of session cookies
@@ -319,6 +333,31 @@ export function useAppSdkBridge({
 
             if (data?.type === 'lightdash:inspect:available') {
                 onInspectorAvailable?.();
+                return;
+            }
+
+            if (data?.type === 'lightdash:sdk:manifest') {
+                if (!onSdkManifest) return;
+                // Untrusted app payload: require sane strings, cap sizes, and
+                // drop anything malformed rather than partially trusting it.
+                const sdkVersion: unknown = data.sdkVersion;
+                const features: unknown = data.features;
+                if (
+                    typeof sdkVersion !== 'string' ||
+                    sdkVersion.length === 0 ||
+                    sdkVersion.length > 50 ||
+                    !Array.isArray(features) ||
+                    features.length > 200 ||
+                    !features.every(
+                        (f: unknown): f is string =>
+                            typeof f === 'string' &&
+                            f.length > 0 &&
+                            f.length <= 100,
+                    )
+                ) {
+                    return;
+                }
+                onSdkManifest({ sdkVersion, features });
                 return;
             }
 
@@ -890,6 +929,7 @@ export function useAppSdkBridge({
             onExternalRequestEvent,
             pushDataAppVizContext,
             onUrlStateChange,
+            onSdkManifest,
             health.data,
             user.data,
         ],

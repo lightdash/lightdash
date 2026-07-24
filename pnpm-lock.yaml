@@ -1665,6 +1665,9 @@ importers:
         specifier: ^18.x || ^19.x
         version: 19.2.0
     devDependencies:
+      '@types/node':
+        specifier: 22.13.1
+        version: 22.13.1
       '@types/react':
         specifier: 19.2.2
         version: 19.2.2
@@ -1679,7 +1682,7 @@ importers:
         version: typescript@7.0.1-rc
       vitest:
         specifier: 4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.0)(@types/node@24.3.1)(jsdom@26.1.0(canvas@3.2.1))(vite@7.3.5(@types/node@24.3.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3))
+        version: 4.1.6(@opentelemetry/api@1.9.0)(@types/node@22.13.1)(jsdom@26.1.0(canvas@3.2.1))(vite@7.3.5(@types/node@22.13.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3))
 
   packages/sdk-next-test-app:
     dependencies:
@@ -14378,7 +14381,6 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
-
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.15.2:
@@ -25140,7 +25142,6 @@ snapshots:
       magic-string: 0.30.21
     optionalDependencies:
       vite: 7.3.5(@types/node@22.13.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3)
-    optional: true
 
   '@vitest/mocker@4.1.6(vite@7.3.5(@types/node@24.3.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3))':
     dependencies:
@@ -35558,7 +35559,6 @@ snapshots:
       terser: 5.46.1
       tsx: 4.19.4
       yaml: 2.8.3
-    optional: true
 
   vite@7.3.5(@types/node@24.3.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3):
     dependencies:
@@ -35626,7 +35626,6 @@ snapshots:
       jsdom: 26.1.0(canvas@3.2.1)
     transitivePeerDependencies:
       - msw
-    optional: true
 
   vitest@4.1.6(@opentelemetry/api@1.9.0)(@types/node@24.3.1)(jsdom@24.0.0(canvas@3.2.1))(vite@7.3.5(@types/node@24.3.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3)):
     dependencies:
