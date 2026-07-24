@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     extractableTimeFrames,
     isCalendarValueItem,
     isDimension,
@@ -179,6 +180,74 @@ export const detectCalendarTimeAxisField = ({
         timezone: 'UTC',
         flipAxes: !!validCartesianConfig.layout?.flipAxes,
     };
+};
+
+// The single descriptor for how the physical time axis plots its coordinates.
+// undefined means no time axis or timezone support off — no rewrite at all.
+export type TimeAxisMode =
+    | {
+          // Instant values rewritten to project-tz wall-clock; ref-line
+          // instants get the same shift.
+          kind: 'instant-shifted';
+          fieldId: string;
+          timezone: string;
+          flipAxes: boolean;
+      }
+    | {
+          // Calendar DATEs anchored to UTC midnight; the date itself is
+          // never shifted.
+          kind: 'calendar';
+          fieldId: string;
+          flipAxes: boolean;
+      }
+    | {
+          // Time axis whose coordinates stay raw (e.g. UTC project);
+          // ref lines still need the browser-independent parse.
+          kind: 'plain';
+          flipAxes: boolean;
+      };
+
+// physicalAxisType must come from the axis actually built for the field
+// (xAxis[0], or yAxis[0] when flipped). Requiring `time` here is safe for the
+// instant path too: shiftable instants are DATE/TIMESTAMP fields whose grains
+// are excluded from the category-axis downgrade, so they always build a
+// `time` axis.
+export const detectTimeAxisMode = ({
+    validCartesianConfig,
+    itemsMap,
+    resolvedTimezone,
+    physicalAxisType,
+}: {
+    validCartesianConfig: CartesianChart | undefined;
+    itemsMap: ItemsMap | undefined;
+    resolvedTimezone: string | undefined;
+    physicalAxisType: string | undefined;
+}): TimeAxisMode | undefined => {
+    if (!resolvedTimezone || physicalAxisType !== 'time') return undefined;
+    const flipAxes = !!validCartesianConfig?.layout?.flipAxes;
+    const shifted = detectTimezoneShiftedField({
+        validCartesianConfig,
+        itemsMap,
+        resolvedTimezone,
+    });
+    if (shifted) {
+        return {
+            kind: 'instant-shifted',
+            fieldId: shifted.fieldId,
+            timezone: shifted.timezone,
+            flipAxes,
+        };
+    }
+    const calendar = detectCalendarTimeAxisField({
+        validCartesianConfig,
+        itemsMap,
+        resolvedTimezone,
+        physicalAxisType,
+    });
+    if (calendar) {
+        return { kind: 'calendar', fieldId: calendar.fieldId, flipAxes };
+    }
+    return { kind: 'plain', flipAxes };
 };
 
 const SHIFTED_DIM_SUFFIX = '_ld_tz_shifted';
@@ -388,13 +457,53 @@ const parseTimeAxisMarkLineValue = (
     return parseCalendarValueUTC(value)?.getTime();
 };
 
+// Legacy flipped-chart configs key the date by the semantic `xAxis` even when
+// the date renders on physical Y, stranding it in the value-axis slot where
+// ECharts drops the line. Read the time slot, rescuing a wall-clock string
+// out of the value slot when the time slot is empty.
+const readTimeAxisSlot = (
+    entry: Record<string, unknown>,
+    timeSlot: string,
+    valueSlot: string,
+): { raw: unknown; stranded: boolean } => {
+    const timeValue = entry[timeSlot];
+    const timeSlotEmpty =
+        timeValue === undefined || timeValue === null || timeValue === '';
+    const valueSlotValue = entry[valueSlot];
+    if (
+        timeSlotEmpty &&
+        typeof valueSlotValue === 'string' &&
+        isWallClockTimeString(valueSlotValue.trim())
+    ) {
+        return { raw: valueSlotValue, stranded: true };
+    }
+    return { raw: timeValue, stranded: false };
+};
+
+// After numericizing, default labels would echo the epoch ms: ECharts' own
+// default label formatter echoes the value, and the reference-line style
+// formatter renders `name || value`. Keep the author's text by naming
+// unnamed entries and providing a plain formatter where none exists.
+const authoredLabelProps = (
+    entry: Record<string, unknown>,
+    text: string,
+): Record<string, unknown> => {
+    const props: Record<string, unknown> = {};
+    if (entry.name === undefined || entry.name === '') {
+        props.name = text;
+    }
+    const label = isPlainObject(entry.label) ? entry.label : undefined;
+    if (label?.formatter === undefined) {
+        props.label = { ...label, formatter: text };
+    }
+    return props;
+};
+
 // Runs on the final options for every physical time axis when timezone
 // support is on (shifted or not): reference lines carry user-authored strings
-// that ECharts would otherwise parse browser-locally. Also rescues a
-// time-formatted value stranded in the value-axis slot by semantic keying
-// (a dead entry today — ECharts drops a date string aimed at a value axis)
-// into the time slot. Series-relative marks (type 'average' etc.) carry no
-// axis position and are skipped, including any stale slot values on them.
+// that ECharts would otherwise parse browser-locally. Series-relative marks
+// (type 'average' etc.) carry no axis position and are skipped, including any
+// stale slot values on them.
 export const normalizeMarkLineTimeValues = <O extends EchartsOptionsShape>(
     options: O,
     normalization: MarkLineTimeNormalization,
@@ -410,43 +519,69 @@ export const normalizeMarkLineTimeValues = <O extends EchartsOptionsShape>(
         let mutated = false;
         const newData = markLine.data.map((entry) => {
             if (!isPlainObject(entry) || entry.type !== undefined) return entry;
-            const timeValue = entry[timeSlot];
-            const stranded =
-                (timeValue === undefined ||
-                    timeValue === null ||
-                    timeValue === '') &&
-                typeof entry[valueSlot] === 'string' &&
-                isWallClockTimeString((entry[valueSlot] as string).trim());
-            const raw = stranded ? entry[valueSlot] : timeValue;
+            const { raw, stranded } = readTimeAxisSlot(
+                entry,
+                timeSlot,
+                valueSlot,
+            );
             if (raw === undefined || raw === null) return entry;
             const ms = parseTimeAxisMarkLineValue(raw, normalization);
             if (ms === undefined) return entry;
             mutated = true;
-            const next: Record<string, unknown> = {
+            return {
                 ...entry,
+                ...(typeof raw === 'string'
+                    ? authoredLabelProps(entry, raw.trim())
+                    : {}),
                 [timeSlot]: ms,
+                ...(stranded ? { [valueSlot]: undefined } : {}),
             };
-            if (stranded) next[valueSlot] = undefined;
-            // After numericizing, default labels would echo the epoch ms:
-            // ECharts' own default label formatter echoes the value, and the
-            // reference-line style formatter renders `name || value`. Keep the
-            // author's text by naming unnamed entries and providing a
-            // formatter where none exists.
-            if (typeof raw === 'string') {
-                const text = raw.trim();
-                if (next.name === undefined || next.name === '') {
-                    next.name = text;
-                }
-                const label = isPlainObject(entry.label)
-                    ? entry.label
-                    : undefined;
-                if (label?.formatter === undefined) {
-                    next.label = { ...label, formatter: text };
-                }
-            }
-            return next;
         });
         return mutated ? { ...s, markLine: { ...markLine, data: newData } } : s;
     });
     return { ...options, series };
+};
+
+// The one entry point the chart hook calls on its built options: applies the
+// coordinate rewrite the mode calls for, then the ref-line normalization
+// every time axis needs. No mode, no rewrite — flag-off options pass through
+// untouched.
+export const finalizeTimeAxisOptions = <O extends EchartsOptionsShape>(
+    options: O,
+    mode: TimeAxisMode | undefined,
+): O => {
+    if (!mode) return options;
+    switch (mode.kind) {
+        case 'instant-shifted': {
+            const shifted = applyTimezoneShiftToEchartsOptions(options, {
+                fieldId: mode.fieldId,
+                timezone: mode.timezone,
+                flipAxes: mode.flipAxes,
+            });
+            return normalizeMarkLineTimeValues(shifted, {
+                flipAxes: mode.flipAxes,
+                instantTimezone: mode.timezone,
+            });
+        }
+        case 'calendar': {
+            // The 'UTC' target is a zero-offset transport anchor encoding the
+            // calendar day as UTC midnight, not a timezone conversion.
+            const anchored = applyTimezoneShiftToEchartsOptions(options, {
+                fieldId: mode.fieldId,
+                timezone: 'UTC',
+                flipAxes: mode.flipAxes,
+            });
+            return normalizeMarkLineTimeValues(anchored, {
+                flipAxes: mode.flipAxes,
+                instantTimezone: undefined,
+            });
+        }
+        case 'plain':
+            return normalizeMarkLineTimeValues(options, {
+                flipAxes: mode.flipAxes,
+                instantTimezone: undefined,
+            });
+        default:
+            return assertUnreachable(mode, 'Unknown time axis mode');
+    }
 };

@@ -109,9 +109,8 @@ import {
 import { type InfiniteQueryResults } from '../useQueryResults';
 import { getCartesianConditionalFormattingColor } from './cartesianConditionalFormatting';
 import {
-    applyTimezoneShiftToEchartsOptions,
-    detectCalendarTimeAxisField,
-    normalizeMarkLineTimeValues,
+    detectTimeAxisMode,
+    finalizeTimeAxisOptions,
     resolveAxisTimezone,
     TIME_INTERVALS_FOR_CATEGORY_AXIS,
 } from './timezoneShift';
@@ -3359,12 +3358,12 @@ const useEchartsCartesianConfig = (
             : undefined;
     }, [validCartesianConfig?.layout?.flipAxes, axes]);
 
-    // Calendar DATEs plotted on an actual `time` axis get their coordinate
-    // encoded as UTC midnight so ECharts' browser-local parse of the bare
-    // `YYYY-MM-DD` can't move the day. Kept separate from timeAxisField so
-    // isTimeAxisShifted stays instant-shift only.
-    const calendarTimeAxisField = useMemo(() => {
-        return detectCalendarTimeAxisField({
+    // How the time axis plots its coordinates (instant-shifted, calendar
+    // UTC-anchored, or plain). undefined when there is no time axis or
+    // timezone support is off — the built options then pass through
+    // finalizeTimeAxisOptions untouched.
+    const timeAxisMode = useMemo(() => {
+        return detectTimeAxisMode({
             validCartesianConfig,
             itemsMap,
             resolvedTimezone,
@@ -4444,23 +4443,7 @@ const useEchartsCartesianConfig = (
             }),
         };
 
-        const plottedCoordinateField = timeAxisField ?? calendarTimeAxisField;
-        const shiftedOptions = plottedCoordinateField
-            ? applyTimezoneShiftToEchartsOptions(
-                  baseOptions,
-                  plottedCoordinateField,
-              )
-            : baseOptions;
-        // Reference-line values are user-authored strings; on any time axis
-        // they need the browser-independent parse rule, including unshifted
-        // axes (e.g. UTC projects) where no plotted-coordinate field exists.
-        if (physicalTimeAxisType === 'time' && resolvedTimezone) {
-            return normalizeMarkLineTimeValues(shiftedOptions, {
-                flipAxes: !!flipAxes,
-                instantTimezone: timeAxisField?.timezone,
-            });
-        }
-        return shiftedOptions;
+        return finalizeTimeAxisOptions(baseOptions, timeAxisMode);
     }, [
         sortedAxes,
         sortedSeriesForChart,
@@ -4474,10 +4457,7 @@ const useEchartsCartesianConfig = (
         currentGrid,
         theme?.other.chartFont,
         validCartesianConfig,
-        timeAxisField,
-        calendarTimeAxisField,
-        physicalTimeAxisType,
-        resolvedTimezone,
+        timeAxisMode,
     ]);
 
     if (
