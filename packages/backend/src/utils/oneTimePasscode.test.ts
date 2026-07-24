@@ -1,4 +1,3 @@
-import { LightdashMode } from '@lightdash/common';
 import {
     EMAIL_ONE_TIME_PASSCODE_EXPIRY_SECONDS,
     EMAIL_ONE_TIME_PASSCODE_MAX_ATTEMPTS,
@@ -12,13 +11,12 @@ import {
 
 describe('oneTimePasscode', () => {
     describe('generateOneTimePasscode', () => {
-        it('returns 000000 in DEV and PR modes', () => {
-            expect(generateOneTimePasscode(LightdashMode.DEV)).toBe('000000');
-            expect(generateOneTimePasscode(LightdashMode.PR)).toBe('000000');
+        it('returns 000000 when the fixed passcode is enabled', () => {
+            expect(generateOneTimePasscode(true)).toBe('000000');
         });
 
         it('returns a zero-padded 6-digit code otherwise', () => {
-            const code = generateOneTimePasscode(LightdashMode.DEFAULT);
+            const code = generateOneTimePasscode(false);
             expect(code).toMatch(/^\d{6}$/);
         });
     });

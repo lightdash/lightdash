@@ -1323,6 +1323,7 @@ export type LightdashConfig = {
     postmark: PostmarkConfig;
     rudder: RudderConfig;
     mode: LightdashMode;
+    allowFixedOtpPasscode: boolean;
     license: {
         licenseKey: string | null;
     };
@@ -2375,6 +2376,17 @@ export const parseConfig = (): LightdashConfig => {
 
     const mode = lightdashMode || LightdashMode.DEFAULT;
 
+    // Fixed OTP passcodes are a convenience for local/preview instances and
+    // must be explicitly opted into; they are never enabled in default mode.
+    const allowFixedOtpPasscode =
+        (mode === LightdashMode.DEV || mode === LightdashMode.PR) &&
+        process.env.ALLOW_FIXED_OTP_PASSCODE === 'true';
+    if (allowFixedOtpPasscode) {
+        console.warn(
+            'WARNING: ALLOW_FIXED_OTP_PASSCODE is enabled — one-time passcodes are fixed to 000000. Only enable this on instances that are not publicly reachable.',
+        );
+    }
+
     const siteUrl = process.env.SITE_URL || 'http://localhost:8080';
     if (
         process.env.NODE_ENV !== 'development' &&
@@ -2480,6 +2492,7 @@ export const parseConfig = (): LightdashConfig => {
 
     return {
         mode,
+        allowFixedOtpPasscode,
         cookieSameSite: iframeEmbeddingEnabled ? 'none' : 'lax',
         license: {
             licenseKey,

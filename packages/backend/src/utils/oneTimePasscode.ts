@@ -1,4 +1,3 @@
-import { LightdashMode } from '@lightdash/common';
 import { randomInt } from 'crypto';
 
 /**
@@ -17,11 +16,12 @@ export const EMAIL_ONE_TIME_PASSCODE_MAX_ATTEMPTS = 5;
 export const EMAIL_ONE_TIME_PASSCODE_RESEND_COOLDOWN_SECONDS = 30;
 
 /**
- * Generates a 6-digit passcode. In DEV/PR mode it is always `000000` so local
- * and preview environments can verify without a real inbox.
+ * Generates a 6-digit passcode. When `allowFixedPasscode` is set (instances
+ * that explicitly opt in via ALLOW_FIXED_OTP_PASSCODE) it is always `000000`
+ * so local environments can verify without a real inbox.
  */
-export const generateOneTimePasscode = (mode: LightdashMode): string =>
-    mode === LightdashMode.PR || mode === LightdashMode.DEV
+export const generateOneTimePasscode = (allowFixedPasscode: boolean): string =>
+    allowFixedPasscode
         ? '000000'
         : randomInt(999999).toString().padStart(6, '0');
 
