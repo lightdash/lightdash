@@ -5,6 +5,7 @@ import {
     SEED_ORG_1,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
+    type AiAgentMemoryDistillJobPayload,
     type AiThreadCreatedFrom,
 } from '@lightdash/common';
 import type { Knex } from 'knex';
@@ -727,6 +728,7 @@ describe('AiAgentMemoryModel integration', () => {
             organizationUuid: SEED_ORG_1.organization_uuid,
             projectUuid: SEED_PROJECT.project_uuid,
             userUuid: 'system',
+            sweptUpdatedAt: idleAt.toISOString(),
         };
 
         await expect(
@@ -774,6 +776,7 @@ describe('AiAgentMemoryModel integration', () => {
                 projectUuid: SEED_PROJECT.project_uuid,
                 userUuid: 'system',
                 threadUuid,
+                sweptUpdatedAt: activity.toISOString(),
             }),
         ).resolves.toBe('skipped');
         expect(distillCall).not.toHaveBeenCalled();
@@ -822,8 +825,140 @@ describe('AiAgentMemoryModel integration', () => {
             projectUuid: SEED_PROJECT.project_uuid,
             userUuid: 'system',
             threadUuid,
+            sweptUpdatedAt: '2026-07-22T05:00:00.000Z',
         });
         expect(distillCall).not.toHaveBeenCalled();
+    });
+
+    it('keeps a resumed thread due after distilling its swept watermark', async () => {
+        const now = new Date('2026-07-22T12:00:00Z');
+        const sweptActivity = new Date('2026-07-22T05:00:00Z');
+        const resumedActivity = new Date('2026-07-22T05:05:00Z');
+        const threadUuid = await createThread();
+        await createPrompt(threadUuid, sweptActivity);
+        const distillCall = vi
+            .fn<AiAgentMemoryDistillCall>()
+            .mockResolvedValue({
+                result: {
+                    type: 'no_op',
+                    reason: 'no_positive_evidence',
+                },
+            });
+        const service = buildService(distillCall);
+        const jobKey = `ai-agent-memory-distill:${threadUuid}`;
+
+        await service.sweep(now);
+        const graphileClient = await schedulerClient.graphileUtils;
+        const job = await graphileClient.withPgClient(async (client) => {
+            const result = await client.query<{
+                payload: AiAgentMemoryDistillJobPayload;
+            }>('SELECT payload FROM graphile_worker.jobs WHERE key = $1', [
+                jobKey,
+            ]);
+            return result.rows[0];
+        });
+        expect(job?.payload.sweptUpdatedAt).toBe(sweptActivity.toISOString());
+
+        await createPrompt(threadUuid, resumedActivity);
+        await expect(service.distillThread(job!.payload)).resolves.toBe(
+            'no_op',
+        );
+        expect(distillCall).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                thread: expect.objectContaining({
+                    latestActivity: resumedActivity,
+                    turns: expect.arrayContaining([
+                        expect.objectContaining({ createdAt: sweptActivity }),
+                        expect.objectContaining({ createdAt: resumedActivity }),
+                    ]),
+                }),
+            }),
+        );
+        await expect(
+            database(AiAgentThreadDistillTableName)
+                .where('ai_thread_uuid', threadUuid)
+                .first(),
+        ).resolves.toMatchObject({
+            outcome: 'no_op',
+            distilled_up_to: sweptActivity,
+        });
+
+        const candidates = await model.findThreadsDueForDistill({
+            idleBefore: resumedActivity,
+            activityFloor: new Date(
+                resumedActivity.getTime() - 24 * 60 * 60 * 1000,
+            ),
+        });
+        expect(candidates).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    threadUuid,
+                    latestActivity: resumedActivity,
+                }),
+            ]),
+        );
+        await expect(service.distillThread(job!.payload)).resolves.toBe(
+            'skipped',
+        );
+    });
+
+    it('ignores missing, invalid, and future swept watermarks', async () => {
+        const activity = new Date('2026-07-22T05:00:00Z');
+        const [missing, invalid, future] = await Promise.all([
+            createThread(),
+            createThread(),
+            createThread(),
+        ]);
+        await Promise.all(
+            [missing, invalid, future].map((threadUuid) =>
+                createPrompt(threadUuid, activity),
+            ),
+        );
+        const distillCall = vi
+            .fn<AiAgentMemoryDistillCall>()
+            .mockResolvedValue({
+                result: {
+                    type: 'no_op',
+                    reason: 'no_positive_evidence',
+                },
+            });
+        const service = buildService(distillCall);
+        const base = {
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            userUuid: 'system',
+        };
+        const payloads = [
+            {
+                ...base,
+                threadUuid: missing,
+            } as unknown as AiAgentMemoryDistillJobPayload,
+            {
+                ...base,
+                threadUuid: invalid,
+                sweptUpdatedAt: 'not-a-date',
+            },
+            {
+                ...base,
+                threadUuid: future,
+                sweptUpdatedAt: new Date(
+                    activity.getTime() + 60 * 1000,
+                ).toISOString(),
+            },
+        ];
+
+        await Promise.all(
+            payloads.map((payload) =>
+                expect(service.distillThread(payload)).resolves.toBe('skipped'),
+            ),
+        );
+
+        expect(distillCall).not.toHaveBeenCalled();
+        await expect(
+            database(AiAgentThreadDistillTableName)
+                .whereIn('ai_thread_uuid', [missing, invalid, future])
+                .select(),
+        ).resolves.toHaveLength(0);
     });
 
     it('aborts before persistence and records the exact activity watermark', async () => {
@@ -852,6 +987,7 @@ describe('AiAgentMemoryModel integration', () => {
                 projectUuid: SEED_PROJECT.project_uuid,
                 userUuid: 'system',
                 threadUuid,
+                sweptUpdatedAt: activity.toISOString(),
             },
             controller.signal,
         );
@@ -906,6 +1042,7 @@ describe('AiAgentMemoryModel integration', () => {
             projectUuid: SEED_PROJECT.project_uuid,
             userUuid: 'system',
             threadUuid,
+            sweptUpdatedAt: firstActivity.toISOString(),
         };
 
         await expect(service.distillThread(payload)).resolves.toBe('memory');
@@ -933,7 +1070,13 @@ describe('AiAgentMemoryModel integration', () => {
 
         const secondActivity = new Date('2026-07-22T05:05:00Z');
         await createPrompt(threadUuid, secondActivity);
-        await expect(service.distillThread(payload)).resolves.toBe('no_op');
+        const resumedPayload = {
+            ...payload,
+            sweptUpdatedAt: secondActivity.toISOString(),
+        };
+        await expect(service.distillThread(resumedPayload)).resolves.toBe(
+            'no_op',
+        );
 
         const memories = await database(AiAgentMemoryTableName).where(
             'source_thread_uuid',
@@ -949,7 +1092,9 @@ describe('AiAgentMemoryModel integration', () => {
             no_op_reason: 'no_positive_evidence',
             distilled_up_to: secondActivity,
         });
-        await expect(service.distillThread(payload)).resolves.toBe('skipped');
+        await expect(service.distillThread(resumedPayload)).resolves.toBe(
+            'skipped',
+        );
         expect(distillCall).toHaveBeenCalledTimes(2);
     });
 
@@ -993,6 +1138,7 @@ describe('AiAgentMemoryModel integration', () => {
                 projectUuid: SEED_PROJECT.project_uuid,
                 userUuid: 'system',
                 threadUuid,
+                sweptUpdatedAt: activity.toISOString(),
             }),
         ).resolves.toBe('memory');
 

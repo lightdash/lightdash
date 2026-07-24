@@ -347,6 +347,7 @@ export class AiAgentMemoryService extends BaseService {
                     projectUuid: candidate.projectUuid,
                     userUuid: 'system',
                     threadUuid: candidate.threadUuid,
+                    sweptUpdatedAt: candidate.latestActivity.toISOString(),
                 }),
             ),
         );
@@ -357,6 +358,18 @@ export class AiAgentMemoryService extends BaseService {
         payload: AiAgentMemoryDistillJobPayload,
         abortSignal?: AbortSignal,
     ): Promise<'disabled' | 'skipped' | 'memory' | 'no_op' | 'failed'> {
+        const sweptUpdatedAt =
+            typeof payload.sweptUpdatedAt === 'string'
+                ? new Date(payload.sweptUpdatedAt)
+                : undefined;
+        if (
+            !sweptUpdatedAt ||
+            Number.isNaN(sweptUpdatedAt.getTime()) ||
+            sweptUpdatedAt.toISOString() !== payload.sweptUpdatedAt
+        ) {
+            return 'skipped';
+        }
+
         if (!(await this.isEnabled(payload.organizationUuid))) {
             return 'disabled';
         }
@@ -372,9 +385,13 @@ export class AiAgentMemoryService extends BaseService {
             return 'skipped';
         }
 
+        if (sweptUpdatedAt.getTime() > thread.latestActivity.getTime()) {
+            return 'skipped';
+        }
+
         if (
             thread.distilledUpTo !== null &&
-            thread.distilledUpTo.getTime() >= thread.latestActivity.getTime()
+            thread.distilledUpTo.getTime() >= sweptUpdatedAt.getTime()
         ) {
             return 'skipped';
         }
@@ -396,7 +413,7 @@ export class AiAgentMemoryService extends BaseService {
                 aiThreadUuid: thread.threadUuid,
                 outcome: 'skipped',
                 distillPromptHash: null,
-                distilledUpTo: thread.latestActivity,
+                distilledUpTo: sweptUpdatedAt,
             });
             return 'skipped';
         }
@@ -417,7 +434,7 @@ export class AiAgentMemoryService extends BaseService {
                     outcome: 'no_op',
                     noOpReason: output.result.reason,
                     distillPromptHash,
-                    distilledUpTo: thread.latestActivity,
+                    distilledUpTo: sweptUpdatedAt,
                 });
                 return 'no_op';
             }
@@ -446,7 +463,7 @@ export class AiAgentMemoryService extends BaseService {
                 aiThreadUuid: thread.threadUuid,
                 outcome: 'memory',
                 distillPromptHash,
-                distilledUpTo: thread.latestActivity,
+                distilledUpTo: sweptUpdatedAt,
             });
             return 'memory';
         } catch (error) {
@@ -456,7 +473,7 @@ export class AiAgentMemoryService extends BaseService {
                 outcome: 'failed',
                 errorMessage,
                 distillPromptHash: await distillPromptHashPromise,
-                distilledUpTo: thread.latestActivity,
+                distilledUpTo: sweptUpdatedAt,
             });
             this.logger.warn('Dropping AI agent memory distill', {
                 threadUuid: thread.threadUuid,

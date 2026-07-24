@@ -59,6 +59,7 @@ describe('CommercialSchedulerClient.aiAgentMemoryDistill', () => {
             organizationUuid: 'org-1',
             projectUuid: 'project-1',
             userUuid: 'system',
+            sweptUpdatedAt: '2026-07-22T05:00:00.000Z',
         };
 
         await client.aiAgentMemoryDistill(payload);
