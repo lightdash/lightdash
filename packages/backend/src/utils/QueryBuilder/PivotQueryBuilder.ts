@@ -81,6 +81,10 @@ export class PivotQueryBuilder {
         limit?: number,
         itemsMap?: ItemsMap,
     ) {
+        PivotQueryBuilder.validatePivotReferences(
+            pivotConfiguration,
+            warehouseSqlBuilder.getFieldQuoteChar(),
+        );
         this.sql = sql;
         this.pivotConfiguration = pivotConfiguration;
         this.limit = limit;
@@ -88,6 +92,34 @@ export class PivotQueryBuilder {
         this.itemsMap = itemsMap ?? {};
         this.pivotTableCalculations = this.identifyPivotTableCalculations();
         this.implicitMetricReferences = this.getImplicitMetricReferences();
+    }
+
+    /**
+     * Pivot column references are interpolated into quoted SQL identifiers, so
+     * a reference containing the field quote character would break out of the
+     * quoted identifier. Reject them up front.
+     */
+    private static validatePivotReferences(
+        pivotConfiguration: PivotConfiguration,
+        quoteChar: string,
+    ): void {
+        const references = [
+            ...normalizeIndexColumns(pivotConfiguration.indexColumn),
+            ...(pivotConfiguration.valuesColumns ?? []),
+            ...(pivotConfiguration.sortOnlyColumns ?? []),
+            ...(pivotConfiguration.groupByColumns ?? []),
+            ...(pivotConfiguration.sortBy ?? []),
+            ...(pivotConfiguration.sortOnlyDimensions ?? []),
+            ...(pivotConfiguration.passthroughDimensions ?? []),
+            ...(pivotConfiguration.pivotColumnsOrder ?? []),
+        ].map((col) => col.reference);
+
+        const invalid = references.filter((ref) => ref.includes(quoteChar));
+        if (invalid.length > 0) {
+            throw new ParameterError(
+                `Invalid pivot column reference(s): ${invalid.join(', ')}`,
+            );
+        }
     }
 
     /**

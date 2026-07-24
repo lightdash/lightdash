@@ -1948,6 +1948,124 @@ SELECT * FROM group_by_query LIMIT 50`);
         });
     });
 
+    describe('Pivot column reference validation', () => {
+        const quoteCharConfigs: Array<[string, object]> = [
+            [
+                'indexColumn',
+                {
+                    indexColumn: [
+                        { reference: 'da"te', type: VizIndexType.TIME },
+                    ],
+                },
+            ],
+            [
+                'valuesColumns',
+                {
+                    valuesColumns: [
+                        {
+                            reference: 'event_id") AS "pwn',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                },
+            ],
+            [
+                'sortOnlyColumns',
+                {
+                    sortOnlyColumns: [
+                        {
+                            reference: 'ev"ent_id',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                },
+            ],
+            [
+                'groupByColumns',
+                { groupByColumns: [{ reference: 'cat"egory' }] },
+            ],
+            [
+                'sortBy',
+                {
+                    sortBy: [
+                        {
+                            reference: 'da"te',
+                            direction: SortByDirection.ASC,
+                        },
+                    ],
+                },
+            ],
+            [
+                'sortOnlyDimensions',
+                { sortOnlyDimensions: [{ reference: 'cat"egory' }] },
+            ],
+            [
+                'passthroughDimensions',
+                { passthroughDimensions: [{ reference: 'cat"egory' }] },
+            ],
+            [
+                'pivotColumnsOrder',
+                { pivotColumnsOrder: [{ reference: 'cat"egory' }] },
+            ],
+        ];
+
+        test.each(quoteCharConfigs)(
+            'Should reject a %s reference containing the field quote character',
+            (_name, override) => {
+                const pivotConfiguration = {
+                    indexColumn: [
+                        { reference: 'date', type: VizIndexType.TIME },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'event_id',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'category' }],
+                    sortBy: undefined,
+                    ...override,
+                };
+
+                expect(
+                    () =>
+                        new PivotQueryBuilder(
+                            baseSql,
+                            pivotConfiguration,
+                            mockWarehouseSqlBuilder,
+                        ),
+                ).toThrow(ParameterError);
+            },
+        );
+
+        test('Should accept references without the field quote character', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'event_id',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category name' }],
+                sortBy: [
+                    {
+                        reference: 'category name',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            expect(builder.toSql()).toContain('"category name"');
+        });
+    });
+
     describe('Limit handling', () => {
         test('Should use default limit of 500 when no limit specified', () => {
             const pivotConfiguration = {
