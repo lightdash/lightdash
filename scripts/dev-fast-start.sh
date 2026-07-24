@@ -536,8 +536,8 @@ else
     if [ -n "$STALE_IMPORTS" ]; then
         echo "Stale imports in routes.ts:$STALE_IMPORTS"
         echo "Regenerating API artifacts..."
-        pnpm generate-api:fast >/dev/null 2>&1 \
-            || fail "generate-api" "pnpm generate-api:fast failed while regenerating stale routes.ts"
+        pnpm generate-api >/dev/null 2>&1 \
+            || fail "generate-api" "pnpm generate-api failed while regenerating stale routes.ts"
         echo "OK: regenerated API artifacts"
     else
         echo "OK: generated routes resolve"

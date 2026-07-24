@@ -18,8 +18,15 @@
             "node",
             "vite/client",
             "vite-plugin-svgr/client",
-            "@testing-library/jest-dom"
+            "@testing-library/jest-dom",
+            "@testing-library/jest-dom/vitest",
+            "vitest/globals"
         ],
+        "paths": {
+            "better-ajv-errors": [
+                "../common/node_modules/better-ajv-errors/typings.d.ts"
+            ]
+        },
         "noUncheckedIndexedAccess": false, // TODO fix errors, then enable
         "tsBuildInfoFile": "dist/.tsbuildinfo"
     },

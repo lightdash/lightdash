@@ -12,8 +12,10 @@
         "tsBuildInfoFile": "dist/.tsbuildinfo",
         "importHelpers": true,
         "noUncheckedIndexedAccess": false,
-        "ignoreDeprecations": "6.0",
-        "moduleResolution": "node10",
+        "moduleResolution": "bundler",
+        "paths": {
+            "better-ajv-errors": ["./node_modules/better-ajv-errors/typings.d.ts"]
+        },
         "resolveJsonModule": true,
         "skipLibCheck": true,
         "types": ["node", "vitest/globals"]
