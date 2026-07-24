@@ -6,7 +6,7 @@
         "tag": "tsx assign-tag.ts"
     },
     "dependencies": {
-        "e2b": "2.15.0",
+        "e2b": "2.36.0",
         "tsx": "4.0.0"
     }
 }
