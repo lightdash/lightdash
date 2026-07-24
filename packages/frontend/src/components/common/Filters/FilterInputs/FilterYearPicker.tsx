@@ -1,14 +1,17 @@
-import { useDisclosure } from '@mantine-8/hooks';
 import {
     YearPicker,
     YearPickerInput,
     type YearPickerInputProps,
-} from '@mantine/dates';
-import dayjs from 'dayjs';
+} from '@mantine-8/dates';
+import { useDisclosure } from '@mantine-8/hooks';
 import { type FC } from 'react';
 import InvalidDateInput from './InvalidDateInput';
+import { formatMantineDate, parseMantineDate } from './mantineDateAdapter';
 
-type Props = Omit<YearPickerInputProps, 'value' | 'onChange'> & {
+type Props = Omit<
+    YearPickerInputProps,
+    'value' | 'defaultValue' | 'onChange' | 'minDate' | 'maxDate'
+> & {
     value: Date | null;
     onChange: (value: Date) => void;
     invalidValue?: string;
@@ -21,9 +24,11 @@ const FilterYearPicker: FC<Props> = ({
 }) => {
     const [isPopoverOpen, { open, close, toggle }] = useDisclosure();
 
-    const yearValue = value ? dayjs(value).toDate() : null;
-    const handleChange = (date: Date | null | Date[]) => {
-        if (!date || Array.isArray(date)) return;
+    const yearValue = formatMantineDate(value);
+    const handleChange = (mantineValue: unknown) => {
+        if (typeof mantineValue !== 'string') return;
+        const date = parseMantineDate(mantineValue);
+        if (!date) return;
         onChange(date);
         close();
     };
@@ -39,11 +44,12 @@ const FilterYearPicker: FC<Props> = ({
                 {({ close: closeInvalidInput }) => (
                     <YearPicker
                         value={null}
-                        minDate={dayjs().year(1000).toDate()}
-                        maxDate={dayjs().year(9999).toDate()}
+                        minDate="1000-01-01"
+                        maxDate="9999-12-31"
                         onChange={(date) => {
-                            if (!date || Array.isArray(date)) return;
-                            onChange(date);
+                            const parsedDate = parseMantineDate(date);
+                            if (!parsedDate) return;
+                            onChange(parsedDate);
                             closeInvalidInput();
                         }}
                     />
@@ -56,8 +62,8 @@ const FilterYearPicker: FC<Props> = ({
         <YearPickerInput
             w="100%"
             size="xs"
-            minDate={dayjs().year(1000).toDate()}
-            maxDate={dayjs().year(9999).toDate()}
+            minDate="1000-01-01"
+            maxDate="9999-12-31"
             onClick={toggle}
             {...props}
             popoverProps={{

@@ -40,7 +40,7 @@ overrides:
 
 packageExtensionsChecksum: sha256-dssFMdNh289VAmJNNfz2Un2yyQ65P87lDvF3ZdZoc94=
 
-pnpmfileChecksum: sha256-mQsVoz6S6/a3Kqz2QaGrYNULco+R1zUvUxOFKeLrcls=
+pnpmfileChecksum: sha256-kzIO6Gr9MqEiNEd7541leEQObE2LSk+g2h3O0OfNqZY=
 
 importers:
 
@@ -1101,6 +1101,9 @@ importers:
       '@mantine-8/core':
         specifier: npm:@mantine/core@8.0.0
         version: '@mantine/core@8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)'
+      '@mantine-8/dates':
+        specifier: npm:@mantine/dates@8.0.0
+        version: '@mantine/dates@8.0.0(@types/react@19.2.2)(dayjs@1.11.10)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)'
       '@mantine-8/hooks':
         specifier: npm:@mantine/hooks@8.0.0
         version: '@mantine/hooks@8.0.0(react@19.2.0)'
@@ -1116,9 +1119,6 @@ importers:
       '@mantine/core':
         specifier: 6.0.22
         version: 6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@mantine/dates':
-        specifier: 6.0.21
-        version: 6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(dayjs@1.11.10)(react@19.2.0)
       '@mantine/form':
         specifier: 8.0.0
         version: 8.0.0(react@19.2.0)
@@ -4304,13 +4304,12 @@ packages:
       react: ^18.x || ^19.x
       react-dom: ^18.x || ^19.x
 
-  '@mantine/dates@6.0.21':
-    resolution: {integrity: sha512-nSX7MxNkHyyDJqEJOT7Wg930jBfgWz+3pnoWo601cYDvFjh5GgcRz66v36rnMJFK1/56k5G9rWzUOzuM94j6hg==}
+  '@mantine/dates@8.0.0':
+    resolution: {integrity: sha512-LQuDk8/tmFgZnqAGCuM+addTLHF/0lcyxYJgZbuQu1S+7WrbR58g04KzdQNg25UOBDydInRJIWAtiN/7fJFGmg==}
     peerDependencies:
-      '@mantine/core': 6.0.21
-      '@mantine/hooks': 6.0.21
       dayjs: '>=1.0.0'
-      react: '>=16.8.0'
+      react: ^18.x || ^19.x
+      react-dom: ^18.x || ^19.x
 
   '@mantine/form@8.0.0':
     resolution: {integrity: sha512-ErbbEFMEiRsK2Rn0jmFE5ohNJXHSMSbuJsL2vDUVsbIaXo6svw6ockw1WWGdiU8oEGqxM6Pd618yI9cJWNHF3g==}
@@ -4365,11 +4364,6 @@ packages:
       '@tiptap/react': '>=2.1.12'
       react: ^18.x || ^19.x
       react-dom: ^18.x || ^19.x
-
-  '@mantine/utils@6.0.21':
-    resolution: {integrity: sha512-33RVDRop5jiWFao3HKd3Yp7A9mEq4HAJxJPTuYm1NkdqX6aTKOQK7wT8v8itVodBp+sb4cJK6ZVdD1UurK/txQ==}
-    peerDependencies:
-      react: '>=16.8.0'
 
   '@mantine/utils@6.0.22':
     resolution: {integrity: sha512-RSKlNZvxhMCkOFZ6slbYvZYbWjHUM+PxDQnupIOxIdsTZQQjx/BFfrfJ7kQFOP+g7MtpOds8weAetEs5obwMOQ==}
@@ -20683,13 +20677,16 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
 
-  '@mantine/dates@6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(dayjs@1.11.10)(react@19.2.0)':
+  '@mantine/dates@8.0.0(@types/react@19.2.2)(dayjs@1.11.10)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
-      '@mantine/core': 6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@mantine/hooks': 6.0.22(react@19.2.0)
-      '@mantine/utils': 6.0.21(react@19.2.0)
+      '@mantine/core': 8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@mantine/hooks': 8.0.0(react@19.2.0)
+      clsx: 2.1.1
       dayjs: 1.11.10
       react: 19.2.0
+      react-dom: 19.2.0(react@19.2.0)
+    transitivePeerDependencies:
+      - '@types/react'
 
   '@mantine/form@8.0.0(react@19.2.0)':
     dependencies:
@@ -20755,10 +20752,6 @@ snapshots:
       react-dom: 19.2.0(react@19.2.0)
     transitivePeerDependencies:
       - '@types/react'
-
-  '@mantine/utils@6.0.21(react@19.2.0)':
-    dependencies:
-      react: 19.2.0
 
   '@mantine/utils@6.0.22(react@19.2.0)':
     dependencies:

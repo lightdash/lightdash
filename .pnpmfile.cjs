@@ -13,6 +13,18 @@ const remapPeerDependencies = [
         newVersion: '8.0.0',
     },
     {
+        package: '@mantine/dates',
+        packageVersion: '8.0.0',
+        peerDependency: '@mantine/core',
+        newVersion: '8.0.0',
+    },
+    {
+        package: '@mantine/dates',
+        packageVersion: '8.0.0',
+        peerDependency: '@mantine/hooks',
+        newVersion: '8.0.0',
+    },
+    {
         package: '@mantine/notifications',
         packageVersion: '8.0.0',
         peerDependency: '@mantine/core',

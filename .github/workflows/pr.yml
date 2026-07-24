@@ -101,6 +101,8 @@ jobs:
           cache-dependency-path: "pnpm-lock.yaml"
       - name: Install packages
         run: sfw pnpm install --frozen-lockfile --prefer-offline
+      - name: Check Mantine v8 extension peer identity
+        run: pnpm -F frontend check:mantine-peer-identity
       - name: Build
         run: pnpm build:fast
       - name: Run quality checks in parallel

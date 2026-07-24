@@ -1,13 +1,20 @@
 import { Flex, Text } from '@mantine-8/core';
-import { type DateInputProps, type DayOfWeek } from '@mantine/dates';
+import { type DateInputProps, type DayOfWeek } from '@mantine-8/dates';
 import dayjs from 'dayjs';
-import { useState, type FC } from 'react';
+import { type FC } from 'react';
 import FilterDatePicker from './FilterDatePicker';
 import styles from './FilterDateRangePicker.module.css';
+import { useDraftDate } from './useDraftDate';
 
 interface Props extends Omit<
     DateInputProps,
-    'firstDayOfWeek' | 'getDayProps' | 'value' | 'onChange'
+    | 'firstDayOfWeek'
+    | 'getDayProps'
+    | 'value'
+    | 'defaultValue'
+    | 'onChange'
+    | 'minDate'
+    | 'maxDate'
 > {
     startValue: Date | null;
     endValue: Date | null;
@@ -27,8 +34,8 @@ const FilterDateRangePicker: FC<Props> = ({
     invalidEndValue,
     ...rest
 }) => {
-    const [date1, setDate1] = useState(startValue);
-    const [date2, setDate2] = useState(endValue);
+    const [date1, setDate1] = useDraftDate(startValue);
+    const [date2, setDate2] = useDraftDate(endValue);
 
     return (
         <Flex align="center" w="100%" gap="xxs">
