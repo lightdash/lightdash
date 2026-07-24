@@ -232,6 +232,11 @@ const SimpleTable: FC<SimpleTableProps> = ({
         showSubtotalsExpanded,
         showRowGrouping,
         updateColumnProperty,
+        columnTotalsError,
+        rowTotalsError,
+        grandTotalsError,
+        columnSubtotalsError,
+        rowSubtotalsError,
         isCalculatingColumnTotals,
         isCalculatingRowTotals,
         isCalculatingRowSubtotals,
@@ -333,6 +338,11 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 isColumnTotalsLoading={
                                     isCalculatingColumnTotals
                                 }
+                                columnTotalsError={columnTotalsError}
+                                rowTotalsError={rowTotalsError}
+                                grandTotalsError={grandTotalsError}
+                                columnSubtotalsError={columnSubtotalsError}
+                                rowSubtotalsError={rowSubtotalsError}
                                 isRowTotalsLoading={isCalculatingRowTotals}
                                 isRowSubtotalsLoading={
                                     isCalculatingRowSubtotals
@@ -364,6 +374,11 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 isColumnTotalsLoading={
                                     isCalculatingColumnTotals
                                 }
+                                columnTotalsError={columnTotalsError}
+                                rowTotalsError={rowTotalsError}
+                                grandTotalsError={grandTotalsError}
+                                columnSubtotalsError={columnSubtotalsError}
+                                rowSubtotalsError={rowSubtotalsError}
                                 isRowTotalsLoading={isCalculatingRowTotals}
                                 isRowSubtotalsLoading={
                                     isCalculatingRowSubtotals

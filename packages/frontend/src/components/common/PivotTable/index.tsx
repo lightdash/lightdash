@@ -84,6 +84,7 @@ import { CELL_HEIGHT } from '../LightTable/constants';
 import MantineIcon from '../MantineIcon';
 import { ROW_NUMBER_COLUMN_ID } from '../Table/constants';
 import { getGroupedRowModelLightdash } from '../Table/getGroupedRowModelLightdash';
+import TotalCalculationErrorCell from '../Table/TotalCalculationErrorCell';
 import { columnHelper, type TableColumn } from '../Table/types';
 import { useColumnResize } from '../Table/useColumnResize';
 import { countSubRows } from '../Table/utils';
@@ -186,6 +187,16 @@ type PivotTableProps = BoxProps & // TODO: remove this
         showRowGrouping?: boolean;
         /** Column-total footer cells render a loading skeleton while their async query is in flight. */
         isColumnTotalsLoading?: boolean;
+        /** Error returned by the column-total query. */
+        columnTotalsError?: unknown;
+        /** Error returned by the row-total query. */
+        rowTotalsError?: unknown;
+        /** Error returned by the grand-total query. */
+        grandTotalsError?: unknown;
+        /** Error returned by a column-subtotal query. */
+        columnSubtotalsError?: unknown;
+        /** Error returned by a row-subtotal query. */
+        rowSubtotalsError?: unknown;
         /** Row-total cells render a loading skeleton while their async query is in flight. */
         isRowTotalsLoading?: boolean;
         /** Grouped row-total cells render a loading skeleton while row subtotals are in flight. */
@@ -226,6 +237,11 @@ const PivotTable: FC<PivotTableProps> = ({
     showSubtotalsExpanded = false,
     showRowGrouping = false,
     isColumnTotalsLoading = false,
+    columnTotalsError,
+    rowTotalsError,
+    grandTotalsError,
+    columnSubtotalsError,
+    rowSubtotalsError,
     isRowTotalsLoading = false,
     isRowSubtotalsLoading = false,
     isGrandTotalsLoading = false,
@@ -579,6 +595,21 @@ const PivotTable: FC<PivotTableProps> = ({
                                     return null;
                                 }
 
+                                const subtotalError = isRowTotal
+                                    ? rowSubtotalsError
+                                    : columnSubtotalsError;
+                                if (
+                                    subtotalValue === undefined &&
+                                    subtotalError &&
+                                    (isRowTotal || isNumericItem(item))
+                                ) {
+                                    return (
+                                        <TotalCalculationErrorCell
+                                            error={subtotalError}
+                                        />
+                                    );
+                                }
+
                                 if (
                                     subtotalValue === undefined &&
                                     (isRowTotal
@@ -632,6 +663,8 @@ const PivotTable: FC<PivotTableProps> = ({
         parameters,
         isSubtotalsLoading,
         isRowSubtotalsLoading,
+        columnSubtotalsError,
+        rowSubtotalsError,
     ]);
 
     // Minimum table width so auto columns don't get squeezed to zero
@@ -2157,9 +2190,21 @@ const PivotTable: FC<PivotTableProps> = ({
                                           (isDataColumn || isRowTotal) ? (
                                             metricSubtotalValue === undefined &&
                                             (isRowTotal
-                                                ? isRowSubtotalsLoading
-                                                : isSubtotalsLoading) &&
-                                            isNumericItem(item) ? (
+                                                ? rowSubtotalsError
+                                                : columnSubtotalsError) ? (
+                                                <TotalCalculationErrorCell
+                                                    error={
+                                                        isRowTotal
+                                                            ? rowSubtotalsError
+                                                            : columnSubtotalsError
+                                                    }
+                                                />
+                                            ) : metricSubtotalValue ===
+                                                  undefined &&
+                                              (isRowTotal
+                                                  ? isRowSubtotalsLoading
+                                                  : isSubtotalsLoading) &&
+                                              isNumericItem(item) ? (
                                                 <Skeleton
                                                     height={16}
                                                     width="min(60%, 50px)"
@@ -2268,7 +2313,12 @@ const PivotTable: FC<PivotTableProps> = ({
                                             )
                                         ) : cell.getIsPlaceholder() ||
                                           isBlankMergeDataCell ? null : isRowTotal &&
-                                          isRowTotalsLoading ? (
+                                          value?.raw == null &&
+                                          rowTotalsError ? (
+                                            <TotalCalculationErrorCell
+                                                error={rowTotalsError}
+                                            />
+                                        ) : isRowTotal && isRowTotalsLoading ? (
                                             <Skeleton
                                                 height={16}
                                                 width="min(60%, 50px)"
@@ -2414,6 +2464,16 @@ const PivotTable: FC<PivotTableProps> = ({
                                         >
                                             {value.formatted}
                                         </Table.CellHead>
+                                    ) : columnTotalsError ? (
+                                        <Table.CellHead
+                                            key={`column-total-${totalRowIndex}-${totalColIndex}`}
+                                            withAlignRight
+                                            isMinimal={isMinimal}
+                                        >
+                                            <TotalCalculationErrorCell
+                                                error={columnTotalsError}
+                                            />
+                                        </Table.CellHead>
                                     ) : isColumnTotalsLoading ? (
                                         <Table.CellHead
                                             key={`column-total-${totalRowIndex}-${totalColIndex}`}
@@ -2476,6 +2536,18 @@ const PivotTable: FC<PivotTableProps> = ({
                                                       )}
                                                   >
                                                       {value.formatted}
+                                                  </Table.CellHead>
+                                              ) : grandTotalsError ? (
+                                                  <Table.CellHead
+                                                      key={`grand-total-${totalRowIndex}-${index}`}
+                                                      withAlignRight
+                                                      isMinimal={isMinimal}
+                                                  >
+                                                      <TotalCalculationErrorCell
+                                                          error={
+                                                              grandTotalsError
+                                                          }
+                                                      />
                                                   </Table.CellHead>
                                               ) : isGrandTotalsLoading ? (
                                                   <Table.CellHead

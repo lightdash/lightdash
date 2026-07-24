@@ -21,6 +21,7 @@ import {
     TableHeaderLabelContainer,
     TableHeaderRegularLabel,
 } from '../../components/common/Table/Table.styles';
+import TotalCalculationErrorCell from '../../components/common/Table/TotalCalculationErrorCell';
 import {
     columnHelper,
     type TableColumn,
@@ -39,8 +40,10 @@ type Args = {
     columnOrder: string[];
     totals?: Record<string, number>;
     totalsLoading?: boolean;
+    totalsError?: unknown;
     groupedSubtotals?: Record<string, Record<string, number>[]>;
     subtotalsLoading?: boolean;
+    subtotalsError?: unknown;
     parameters?: ParametersValuesMap;
 };
 
@@ -186,8 +189,10 @@ const getDataAndColumns = ({
     columnOrder,
     totals,
     totalsLoading,
+    totalsError,
     groupedSubtotals,
     subtotalsLoading,
+    subtotalsError,
     parameters,
 }: Args): Array<TableHeader | TableColumn> => {
     // Deduplicate columnOrder to prevent duplicate columns if the same field appears multiple times
@@ -263,6 +268,13 @@ const getDataAndColumns = ({
                                 parameters,
                             );
                         }
+                        if (totalsError && isNumericItem(item)) {
+                            return (
+                                <TotalCalculationErrorCell
+                                    error={totalsError}
+                                />
+                            );
+                        }
                         if (totalsLoading && isNumericItem(item)) {
                             return (
                                 <Skeleton
@@ -318,6 +330,18 @@ const getDataAndColumns = ({
 
                             if (subtotalValue === null) {
                                 return null;
+                            }
+
+                            if (
+                                subtotalValue === undefined &&
+                                subtotalsError &&
+                                isNumericItem(item)
+                            ) {
+                                return (
+                                    <TotalCalculationErrorCell
+                                        error={subtotalsError}
+                                    />
+                                );
                             }
 
                             if (
