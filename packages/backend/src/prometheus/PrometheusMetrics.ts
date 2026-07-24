@@ -56,6 +56,17 @@ const SCHEDULED_CONTEXTS: ReadonlySet<string> = new Set<string>([
     QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
 ]);
 
+export const AI_AGENT_MEMORY_DISTILL_OUTCOMES = [
+    'disabled',
+    'skipped',
+    'memory',
+    'no_op',
+    'failed',
+] as const;
+
+export type AiAgentMemoryDistillOutcome =
+    (typeof AI_AGENT_MEMORY_DISTILL_OUTCOMES)[number];
+
 export function getQueryContextLabel(
     context: string,
 ): 'interactive' | 'scheduled' {
@@ -96,6 +107,15 @@ export default class PrometheusMetrics {
     public aiAgentStreamFirstChunkHistogram: prometheus.Histogram | null = null;
 
     public aiAgentTTFTHistogram: prometheus.Histogram | null = null;
+
+    // AI agent memory background pipeline (sweep + distill jobs)
+    public aiAgentMemoryDistillCounter: prometheus.Counter<'outcome'> | null =
+        null;
+
+    public aiAgentMemoryDistillDurationHistogram: prometheus.Histogram<'outcome'> | null =
+        null;
+
+    public aiAgentMemorySweepEnqueuedCounter: prometheus.Counter | null = null;
 
     // repoShell (read-only repo VFS) GitHub API latency
     public repoFsGithubTreeDurationHistogram: prometheus.Histogram | null =
@@ -470,6 +490,34 @@ export default class PrometheusMetrics {
                     ...rest,
                 });
 
+                // AI agent memory background pipeline
+                this.aiAgentMemoryDistillCounter = new prometheus.Counter({
+                    name: 'ai_agent_memory_distill_total',
+                    help: 'AI agent memory distill jobs by outcome (disabled | skipped | memory | no_op | failed)',
+                    labelNames: ['outcome'],
+                    ...rest,
+                });
+
+                this.aiAgentMemoryDistillDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'ai_agent_memory_distill_duration_ms',
+                        help: 'AI agent memory distill job duration in ms by outcome',
+                        labelNames: ['outcome'],
+                        buckets: [
+                            100, 250, 500, 1000, 2500, 5000, 10000, 20000,
+                            30000, 60000, 120000, 300000,
+                        ],
+                        ...rest,
+                    });
+
+                this.aiAgentMemorySweepEnqueuedCounter = new prometheus.Counter(
+                    {
+                        name: 'ai_agent_memory_sweep_enqueued_total',
+                        help: 'Threads enqueued for memory distill by the sweep job',
+                        ...rest,
+                    },
+                );
+
                 // repoShell GitHub API latency (per-request round-trips)
                 const githubRequestBuckets = [
                     25, 50, 100, 150, 200, 300, 500, 750, 1000, 2000, 5000,
@@ -617,6 +665,13 @@ export default class PrometheusMetrics {
                 AI_WRITEBACK_STAGES.forEach((stage) => {
                     this.aiWritebackStageDurationHistogram?.zero({ stage });
                 });
+                AI_AGENT_MEMORY_DISTILL_OUTCOMES.forEach((outcome) => {
+                    this.aiAgentMemoryDistillCounter?.inc({ outcome }, 0);
+                    this.aiAgentMemoryDistillDurationHistogram?.zero({
+                        outcome,
+                    });
+                });
+                this.aiAgentMemorySweepEnqueuedCounter?.inc(0);
 
                 // Initialize pre-aggregate metrics
                 this.preAggregateMatchCounter = new prometheus.Counter({
@@ -1435,6 +1490,21 @@ export default class PrometheusMetrics {
                 rl.used,
             );
         }
+    }
+
+    public trackAiAgentMemoryDistill(
+        outcome: AiAgentMemoryDistillOutcome,
+        durationMs: number,
+    ) {
+        this.aiAgentMemoryDistillCounter?.inc({ outcome });
+        this.aiAgentMemoryDistillDurationHistogram?.observe(
+            { outcome },
+            durationMs,
+        );
+    }
+
+    public incrementAiAgentMemorySweepEnqueued(count: number) {
+        this.aiAgentMemorySweepEnqueuedCounter?.inc(count);
     }
 
     public observeAiWritebackSandboxCreateDuration(durationMs: number) {
