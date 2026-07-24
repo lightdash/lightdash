@@ -105,6 +105,8 @@ const schedulerWorkerFactory = (context: {
             context.models.getOrganizationSettingsModel(),
         emailWhitelabelService:
             context.serviceRepository.getEmailWhitelabelService(),
+        warehouseConnectCodeModel:
+            context.models.getWarehouseConnectCodeModel(),
         workerHealth: context.workerHealth,
         resolveOrganizationName: createOrganizationNameResolver(
             context.models.getOrganizationModel(),

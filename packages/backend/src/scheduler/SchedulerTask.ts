@@ -161,6 +161,7 @@ import type { PreAggregateMaterializationService } from '../ee/services/PreAggre
 import Logger from '../logging/logger';
 import type { ExecutionContextInfo } from '../logging/winston';
 import { OrganizationSettingsModel } from '../models/OrganizationSettingsModel';
+import { WarehouseConnectCodeModel } from '../models/WarehouseConnectCodeModel';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { SCHEDULER_POLLING_OPTIONS } from '../services/AsyncQueryService/types';
 import type { CatalogService } from '../services/CatalogService/CatalogService';
@@ -238,6 +239,7 @@ export type SchedulerTaskArguments = {
     preAggregateMaterializationService: PreAggregateMaterializationService;
     organizationSettingsModel: OrganizationSettingsModel;
     emailWhitelabelService: EmailWhitelabelService;
+    warehouseConnectCodeModel: WarehouseConnectCodeModel;
 };
 
 /**
@@ -423,6 +425,8 @@ export default class SchedulerTask {
 
     protected readonly emailWhitelabelService: EmailWhitelabelService;
 
+    protected readonly warehouseConnectCodeModel: WarehouseConnectCodeModel;
+
     constructor(args: SchedulerTaskArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
@@ -453,6 +457,7 @@ export default class SchedulerTask {
             args.preAggregateMaterializationService;
         this.organizationSettingsModel = args.organizationSettingsModel;
         this.emailWhitelabelService = args.emailWhitelabelService;
+        this.warehouseConnectCodeModel = args.warehouseConnectCodeModel;
     }
 
     /**

@@ -70,7 +70,8 @@ export class WarehouseConnectController extends BaseController {
 
     /**
      * Retrieves credentials deposited against a connect code created by the
-     * current user. Returns them once and deletes the code
+     * current user. Returns them until the code expires; expired codes are
+     * deleted by a scheduled cleanup job
      * @summary Claim connect code
      */
     @Middlewares([isAuthenticated])
