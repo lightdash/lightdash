@@ -112,6 +112,7 @@ export type AiAgentEditDbtProjectPipelineJobPayload = TraceTaskBase & {
 
 export type AiAgentMemoryDistillJobPayload = TraceTaskBase & {
     threadUuid: UUID;
+    sweptUpdatedAt: string;
 };
 
 export const EE_SCHEDULER_TASKS = {
