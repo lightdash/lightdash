@@ -1400,6 +1400,10 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "negativeColor": {
+                        "type": "string",
+                        "description": "Color for negative bars in diverging bar display (hex code). Falls back to `color` when unset."
+                    },
                     "color": {
                         "type": "string",
                         "description": "Color for bar display style (hex code)"
@@ -49464,7 +49468,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3474.0",
+        "version": "0.3475.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

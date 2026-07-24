@@ -1,3 +1,16 @@
+# [0.3475.0](https://github.com/lightdash/lightdash/compare/0.3474.0...0.3475.0) (2026-07-24)
+
+
+### Bug Fixes
+
+* classify data app generation failures and fail fast when retries can't help ([#26150](https://github.com/lightdash/lightdash/issues/26150)) ([c2768e4](https://github.com/lightdash/lightdash/commit/c2768e4fdda79536473959f3e8235696247973c0))
+* compile BigQuery day-grain truncations to partition-prunable DATE forms ([#26128](https://github.com/lightdash/lightdash/issues/26128)) ([220b9f2](https://github.com/lightdash/lightdash/commit/220b9f257be9134778ee90e0b075b5cb4e80e54c))
+
+
+### Features
+
+* **frontend:** add optional negative bar color for in-cell table bars ([#25414](https://github.com/lightdash/lightdash/issues/25414)) ([da2b5fb](https://github.com/lightdash/lightdash/commit/da2b5fb78e622e5adc0c894e833780c4eb299ac1))
+
 # [0.3474.0](https://github.com/lightdash/lightdash/compare/0.3473.0...0.3474.0) (2026-07-24)
 
 

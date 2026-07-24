@@ -1452,6 +1452,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 width: { dataType: 'double' },
+                negativeColor: { dataType: 'string' },
                 color: { dataType: 'string' },
                 displayStyle: {
                     dataType: 'union',
