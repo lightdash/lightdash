@@ -411,7 +411,6 @@ export class AiAgentMemoryModel {
         const query = this.database<AiAgentMemoryTable>(AiAgentMemoryTableName)
             .where('project_uuid', args.projectUuid)
             .where('status', 'active')
-            .orderByRaw('last_cited_at DESC NULLS LAST')
             .orderBy('generated_at', 'desc');
 
         if (args.limit !== undefined) {

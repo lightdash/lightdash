@@ -1,15 +1,12 @@
 import type { ProjectContextEntry } from '@lightdash/common';
+import type { AiAgentMemoryBlockEntry } from '../utils/memoryBlock';
 
 export type ProjectContextSearchEntry = ProjectContextEntry & {
     source?: 'context' | 'memory';
 };
 
-export type MemorySearchEntry = Pick<
-    ProjectContextEntry,
-    'content' | 'terms' | 'objects'
-> & {
-    slug: string;
-};
+export type MemorySearchEntry = AiAgentMemoryBlockEntry &
+    Pick<ProjectContextEntry, 'terms'>;
 
 export const getProjectContextSearchEntries = ({
     projectContext,

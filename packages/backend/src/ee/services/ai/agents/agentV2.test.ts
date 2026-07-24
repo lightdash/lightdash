@@ -1,5 +1,7 @@
+import type { ModelMessage } from 'ai';
 import type { AiAgentArgs, AiAgentDependencies } from '../types/aiAgent';
 import {
+    buildMessagesWithMemoryBlock,
     getAgentTools,
     normalizeToolOutput,
     type AgentMcpToolSetup,
@@ -150,4 +152,59 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).not.toContain('closePullRequest');
         expect(names).not.toContain('getPullRequestDiff');
     });
+});
+
+describe('getAgentMessages memory injection', () => {
+    const systemPrompt: ModelMessage = {
+        role: 'system',
+        content: 'Cached system prompt',
+        providerOptions: {
+            anthropic: { cacheControl: { type: 'ephemeral' } },
+        },
+    };
+    const messageHistory: ModelMessage[] = [
+        { role: 'user', content: 'Question' },
+    ];
+
+    it('injects an uncached user message immediately after the system prompt', () => {
+        const withoutBlock = buildMessagesWithMemoryBlock({
+            systemPrompt,
+            messageHistory,
+            memoryEnabled: true,
+            memoryBlock: null,
+        });
+        const withBlock = buildMessagesWithMemoryBlock({
+            systemPrompt,
+            messageHistory,
+            memoryEnabled: true,
+            memoryBlock: '<ld-memories></ld-memories>',
+        });
+
+        expect(withBlock[0]).toEqual(withoutBlock[0]);
+        expect(withBlock[0]).toBe(systemPrompt);
+        expect(withBlock[1]).toEqual({
+            role: 'user',
+            content: '<ld-memories></ld-memories>',
+        });
+        expect(withBlock[1]).not.toHaveProperty('providerOptions');
+        expect(withBlock[2]).toEqual({ role: 'user', content: 'Question' });
+    });
+
+    it.each([
+        { memoryEnabled: false, block: '<ld-memories></ld-memories>' },
+        { memoryEnabled: true, block: null },
+    ])(
+        'does not inject for disabled or empty memory',
+        ({ memoryEnabled, block }) => {
+            const messages = buildMessagesWithMemoryBlock({
+                systemPrompt,
+                messageHistory,
+                memoryEnabled,
+                memoryBlock: block,
+            });
+
+            expect(messages).toHaveLength(2);
+            expect(messages[1]).toEqual({ role: 'user', content: 'Question' });
+        },
+    );
 });
