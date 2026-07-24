@@ -1,3 +1,26 @@
+# [0.3473.0](https://github.com/lightdash/lightdash/compare/0.3472.3...0.3473.0) (2026-07-24)
+
+
+### Bug Fixes
+
+* **cli:** filter uploads when apps are selected ([#26147](https://github.com/lightdash/lightdash/issues/26147)) ([e574904](https://github.com/lightdash/lightdash/commit/e574904780336264905730197cd9ce49a78a98aa))
+* **e2e:** update user attribute button label ([#26142](https://github.com/lightdash/lightdash/issues/26142)) ([29116ca](https://github.com/lightdash/lightdash/commit/29116caec019e0429557ebb25b7b1be447e25fd4))
+* preserve AI memory sweep watermark ([#26137](https://github.com/lightdash/lightdash/issues/26137)) ([17955f6](https://github.com/lightdash/lightdash/commit/17955f69eeccd4ea997fd03dbbc566bc680178ae))
+
+
+### Features
+
+* add AI agent memory citations ([#25936](https://github.com/lightdash/lightdash/issues/25936)) ([b98a6d1](https://github.com/lightdash/lightdash/commit/b98a6d1c3c0fb965161c4b299b3a42c6d549387e))
+* add AI agent memory page ([#25950](https://github.com/lightdash/lightdash/issues/25950)) ([5f922f7](https://github.com/lightdash/lightdash/commit/5f922f7de1b120cd86d165e413d9dd624559410e))
+* add AI agent memory pull read ([#25920](https://github.com/lightdash/lightdash/issues/25920)) ([1861a40](https://github.com/lightdash/lightdash/commit/1861a4033c1caa5d7fd3a7c08b5c8560c368061f))
+* add AI agent memory storage ([#25911](https://github.com/lightdash/lightdash/issues/25911)) ([f1f4b17](https://github.com/lightdash/lightdash/commit/f1f4b170798110ec6ba91781beb97d73ede0a0d9))
+* add AI agent memory write path ([#25914](https://github.com/lightdash/lightdash/issues/25914)) ([3fddc96](https://github.com/lightdash/lightdash/commit/3fddc9684fc8c5061156da5f7aa82147f65f5048))
+* **ai:** visualize runSql results as artifacts ([#26127](https://github.com/lightdash/lightdash/issues/26127)) ([a36f7d7](https://github.com/lightdash/lightdash/commit/a36f7d740b80f8aeba7b3e80fc93aea219be9404))
+* allow typing in data app prompt box while AI is generating ([#26138](https://github.com/lightdash/lightdash/issues/26138)) ([06e6704](https://github.com/lightdash/lightdash/commit/06e67045ad7723df23364973552a3ad91f7ca4d6))
+* inject AI agent memory projection ([#25928](https://github.com/lightdash/lightdash/issues/25928)) ([3c9341a](https://github.com/lightdash/lightdash/commit/3c9341aa94bbf874b49acc42a6111cf4d39bae92))
+* keep app state in scheduled deliveries ([#26139](https://github.com/lightdash/lightdash/issues/26139)) ([beb198e](https://github.com/lightdash/lightdash/commit/beb198e6997d7d6623953b7dd07fec46919022ac))
+* track AI agent memory analytics ([#26143](https://github.com/lightdash/lightdash/issues/26143)) ([8bdc538](https://github.com/lightdash/lightdash/commit/8bdc538916de3f513ce8c55b5086d1f6bcfd5aaa))
+
 ## [0.3472.3](https://github.com/lightdash/lightdash/compare/0.3472.2...0.3472.3) (2026-07-24)
 
 

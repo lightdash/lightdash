@@ -17132,6 +17132,10 @@
                     }
                 ]
             },
+            "SchedulerAppState": {
+                "$ref": "#/components/schemas/Record_string.unknown_",
+                "description": "A data app's shareable URL state (the page's `?state=` param, parsed),\nsnapshotted onto the scheduler so the delivery renders that view.\nKeep the size cap in sync with MAX_URL_STATE_CHARS in\npackages/query-sdk/src/urlState.ts and useAppUrlStateSync."
+            },
             "AppScheduler": {
                 "allOf": [
                     {
@@ -17139,6 +17143,9 @@
                     },
                     {
                         "properties": {
+                            "appState": {
+                                "$ref": "#/components/schemas/SchedulerAppState"
+                            },
                             "appUuid": {
                                 "type": "string"
                             },
@@ -19624,6 +19631,205 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "AiProjectContextTypedObjectRef": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["explore"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "type": "string"
+                            },
+                            "explore": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["field"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["fieldId", "explore", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AiAgentMemorySource": {
+                "allOf": [
+                    {
+                        "properties": {
+                            "slug": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["slug"],
+                        "type": "object"
+                    },
+                    {
+                        "anyOf": [
+                            {
+                                "properties": {
+                                    "hasThreadAccess": {
+                                        "type": "boolean",
+                                        "enum": [false],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["hasThreadAccess"],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "threadSummary": {
+                                        "type": "string"
+                                    },
+                                    "threadTitle": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "threadUuid": {
+                                        "type": "string"
+                                    },
+                                    "agentUuid": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "hasThreadAccess": {
+                                        "type": "boolean",
+                                        "enum": [true],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": [
+                                    "threadSummary",
+                                    "threadTitle",
+                                    "threadUuid",
+                                    "agentUuid",
+                                    "hasThreadAccess"
+                                ],
+                                "type": "object"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "AiAgentMemory": {
+                "properties": {
+                    "replacementSlug": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "provenance": {
+                        "anyOf": [
+                            {
+                                "properties": {
+                                    "source": {
+                                        "$ref": "#/components/schemas/AiAgentMemorySource"
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "enum": ["source_thread"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["source", "type"],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "sources": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/AiAgentMemorySource"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "enum": ["consolidated"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["sources", "type"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "citedCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "generatedAt": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["active", "superseded", "retired"]
+                    },
+                    "objects": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiProjectContextTypedObjectRef"
+                        },
+                        "type": "array"
+                    },
+                    "terms": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "rawMemory": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "replacementSlug",
+                    "provenance",
+                    "citedCount",
+                    "generatedAt",
+                    "status",
+                    "objects",
+                    "terms",
+                    "rawMemory",
+                    "title",
+                    "slug"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiAgentMemory_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiAgentMemory"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentMemoryResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentMemory_"
+            },
             "AiAgentMcpServerTool": {
                 "allOf": [
                     {
@@ -20554,41 +20760,6 @@
             "AiAgentReviewItemPrState": {
                 "type": "string",
                 "enum": ["open", "merged", "closed"]
-            },
-            "AiProjectContextTypedObjectRef": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["explore"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["name", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "fieldId": {
-                                "type": "string"
-                            },
-                            "explore": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["field"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["fieldId", "explore", "type"],
-                        "type": "object"
-                    }
-                ]
             },
             "AiProjectContextObjectRef": {
                 "anyOf": [
@@ -21990,6 +22161,13 @@
                                                                         "type": "string",
                                                                         "nullable": true
                                                                     },
+                                                                    "status": {
+                                                                        "type": "string",
+                                                                        "enum": [
+                                                                            "resolved"
+                                                                        ],
+                                                                        "nullable": false
+                                                                    },
                                                                     "explore": {
                                                                         "properties": {
                                                                             "requiredFilters": {
@@ -22050,20 +22228,13 @@
                                                                             "name"
                                                                         ],
                                                                         "type": "object"
-                                                                    },
-                                                                    "status": {
-                                                                        "type": "string",
-                                                                        "enum": [
-                                                                            "resolved"
-                                                                        ],
-                                                                        "nullable": false
                                                                     }
                                                                 },
                                                                 "required": [
                                                                     "fields",
                                                                     "rationale",
-                                                                    "explore",
-                                                                    "status"
+                                                                    "status",
+                                                                    "explore"
                                                                 ],
                                                                 "type": "object"
                                                             },
@@ -23402,6 +23573,10 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "savedSqlUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "savedDashboardUuid": {
                         "type": "string",
                         "nullable": true
@@ -23431,6 +23606,7 @@
                     "threadUuid",
                     "promptUuid",
                     "savedQueryUuid",
+                    "savedSqlUuid",
                     "savedDashboardUuid",
                     "versionCreatedAt",
                     "verifiedByUserUuid",
@@ -23572,15 +23748,79 @@
                     },
                     "type": {
                         "$ref": "#/components/schemas/AiResultType"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": ["semantic"],
+                        "nullable": false
                     }
                 },
-                "required": ["metadata", "query", "type"],
+                "required": ["metadata", "query", "type", "source"],
                 "type": "object"
             },
-            "ApiAiAgentThreadMessageVizQueryResponse": {
+            "AiResultType.TABLE_RESULT": {
+                "enum": ["table"],
+                "type": "string"
+            },
+            "ApiExecuteAsyncSqlQueryResults": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiExecuteAsyncQueryResultsCommon"
+                    },
+                    {
+                        "properties": {},
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiAiAgentSqlArtifactVizQuery": {
+                "properties": {
+                    "metadata": {
+                        "$ref": "#/components/schemas/AiVizMetadata"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "query": {
+                        "$ref": "#/components/schemas/ApiExecuteAsyncSqlQueryResults"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/AiResultType.TABLE_RESULT"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": ["sql"],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "metadata",
+                    "limit",
+                    "sql",
+                    "query",
+                    "type",
+                    "source"
+                ],
+                "type": "object"
+            },
+            "ApiAiAgentArtifactVizQuery": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiAiAgentThreadMessageVizQuery"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ApiAiAgentSqlArtifactVizQuery"
+                    }
+                ]
+            },
+            "ApiAiAgentArtifactVizQueryResponse": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/ApiAiAgentThreadMessageVizQuery"
+                        "$ref": "#/components/schemas/ApiAiAgentArtifactVizQuery"
                     },
                     "status": {
                         "type": "string",
@@ -23662,6 +23902,20 @@
             },
             "ApiCloneAiAgentThreadShareResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiAgentThreadSummary_"
+            },
+            "ApiAiAgentThreadMessageVizQueryResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiAiAgentThreadMessageVizQuery"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
             },
             "Pick_AiAgentEvaluation.evalUuid_": {
                 "properties": {
@@ -36400,6 +36654,8 @@
                     "sweepStaleAppLocks",
                     "sweepStaleAiWritebackRuns",
                     "sweepStaleAiDeepResearchRuns",
+                    "sweepAiAgentMemoryThreads",
+                    "aiAgentMemoryDistill",
                     "cleanMcpToolCalls",
                     "handleScheduledDelivery",
                     "sendSlackNotification",
@@ -46982,17 +47238,6 @@
                     }
                 ]
             },
-            "ApiExecuteAsyncSqlQueryResults": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/ApiExecuteAsyncQueryResultsCommon"
-                    },
-                    {
-                        "properties": {},
-                        "type": "object"
-                    }
-                ]
-            },
             "ApiSuccess_ApiExecuteAsyncSqlQueryResults_": {
                 "properties": {
                     "results": {
@@ -49219,7 +49464,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3472.3",
+        "version": "0.3473.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -55611,6 +55856,60 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/memories/{slug}": {
+            "get": {
+                "operationId": "getAiAgentMemory",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentMemoryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "slug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/mcpServers": {
             "get": {
                 "operationId": "listAgentMcpServers",
@@ -57215,7 +57514,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiAiAgentThreadMessageVizQueryResponse"
+                                    "$ref": "#/components/schemas/ApiAiAgentArtifactVizQueryResponse"
                                 }
                             }
                         }
@@ -57511,6 +57810,85 @@
                                     }
                                 },
                                 "required": ["savedDashboardUuid"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/savedSql": {
+            "patch": {
+                "operationId": "updateArtifactVersionSavedSql",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "artifactUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "versionUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "savedSqlUuid": {
+                                        "type": "string",
+                                        "nullable": true
+                                    }
+                                },
+                                "required": ["savedSqlUuid"],
                                 "type": "object"
                             }
                         }
