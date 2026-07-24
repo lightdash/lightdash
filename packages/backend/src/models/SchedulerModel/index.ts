@@ -196,6 +196,7 @@ export class SchedulerModel {
                 dashboardUuid: null,
                 savedSqlUuid: null,
                 appUuid: scheduler.app_uuid,
+                appState: scheduler.app_state ?? undefined,
             };
         }
         throw new UnexpectedServerError(
@@ -247,6 +248,7 @@ export class SchedulerModel {
                 ),
                 custom_viewport_width: newScheduler.customViewportWidth ?? null,
                 selected_tabs: newScheduler.selectedTabs ?? null,
+                app_state: null,
             };
         }
         if (isChartCreateScheduler(newScheduler)) {
@@ -262,6 +264,7 @@ export class SchedulerModel {
                 ),
                 custom_viewport_width: null,
                 selected_tabs: null,
+                app_state: null,
             };
         }
         if (isSqlChartScheduler(newScheduler)) {
@@ -275,6 +278,7 @@ export class SchedulerModel {
                 parameters: null,
                 custom_viewport_width: null,
                 selected_tabs: null,
+                app_state: null,
             };
         }
         if (isAppCreateScheduler(newScheduler)) {
@@ -288,6 +292,7 @@ export class SchedulerModel {
                 parameters: null,
                 custom_viewport_width: null,
                 selected_tabs: null,
+                app_state: SchedulerModel.toJsonColumn(newScheduler.appState),
             };
         }
         throw new UnexpectedServerError(
@@ -1247,6 +1252,7 @@ export class SchedulerModel {
                     parameters: SchedulerModel.toJsonColumn(
                         scheduler.parameters,
                     ),
+                    app_state: SchedulerModel.toJsonColumn(scheduler.appState),
                     custom_viewport_width:
                         scheduler.customViewportWidth ?? null,
                     thresholds: SchedulerModel.toJsonColumn(

@@ -1,12 +1,13 @@
 import { type ItemsMap } from '@lightdash/common';
 import { useDebouncedValue } from '@mantine-8/hooks';
-import { useState, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import {
     selectParameterDefinitions,
     selectParameters,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import { readAppUrlState } from '../../apps/hooks/useAppUrlStateSync';
 import {
     useAppSchedulerCreateMutation,
     useAppSchedulers,
@@ -99,6 +100,10 @@ export const AppSchedulersModal: FC<AppSchedulersProps> = ({
     const schedulersQuery = useAppSchedulers({ projectUuid, appUuid });
     const createMutation = useAppSchedulerCreateMutation(projectUuid);
 
+    // The modal only mounts while open, and its hosts (builder/viewer) sync
+    // app state into ?state= — so this is the view the user is looking at.
+    const currentAppState = useMemo(readAppUrlState, []);
+
     return (
         <SchedulerModal
             resourceUuid={appUuid}
@@ -106,6 +111,10 @@ export const AppSchedulersModal: FC<AppSchedulersProps> = ({
             schedulersQuery={schedulersQuery}
             createMutation={createMutation}
             isApp
+            currentAppState={currentAppState}
+            initialFormValues={
+                currentAppState ? { appState: currentAppState } : undefined
+            }
             {...modalProps}
         />
     );

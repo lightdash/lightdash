@@ -21,10 +21,12 @@ import {
     isSqlChartScheduler,
     isUserWithOrg,
     isValidFrequency,
+    isValidSchedulerAppState,
     isValidTimezone,
     JobStatusType,
     KnexPaginateArgs,
     KnexPaginatedData,
+    MAX_SCHEDULER_APP_STATE_CHARS,
     MissingConfigError,
     NotFoundError,
     ParameterError,
@@ -546,6 +548,17 @@ export class SchedulerService extends BaseService {
         return this.schedulerModel.attachLatestRunToSchedulers(schedulers);
     }
 
+    // App state is user-supplied JSON destined for a render URL — reject
+    // anything that isn't a plain object within the shareable-URL size cap.
+    private static validateAppState(appState: unknown): void {
+        if (appState === undefined || appState === null) return;
+        if (!isValidSchedulerAppState(appState)) {
+            throw new ParameterError(
+                `App state must be a plain JSON object under ${MAX_SCHEDULER_APP_STATE_CHARS} characters`,
+            );
+        }
+    }
+
     private async checkAppScheduledDeliveryAccess(
         user: SessionUser,
         appUuid: string,
@@ -629,6 +642,9 @@ export class SchedulerService extends BaseService {
         if (!isValidTimezone(newScheduler.timezone)) {
             throw new ParameterError('Timezone string is not valid');
         }
+        SchedulerService.validateAppState(
+            'appState' in newScheduler ? newScheduler.appState : undefined,
+        );
 
         return this.schedulerModel.createScheduler({
             ...newScheduler,
@@ -737,6 +753,8 @@ export class SchedulerService extends BaseService {
                 'Targets is required and must be an array',
             );
         }
+
+        SchedulerService.validateAppState(updatedScheduler.appState);
 
         // Validate Google Sheets file if format is GSHEETS
         if (updatedScheduler.format === SchedulerFormat.GSHEETS) {

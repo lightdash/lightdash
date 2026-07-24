@@ -5,6 +5,7 @@ import {
     type ParameterDefinitions,
     type ParametersValuesMap,
     type SchedulerAndTargets,
+    type SchedulerAppState,
 } from '@lightdash/common';
 import {
     Box,
@@ -60,6 +61,8 @@ interface Props {
     isApp?: boolean;
     isThresholdAlert?: boolean;
     itemsMap?: ItemsMap;
+    /** App deliveries only: the app state currently reflected in the page URL. */
+    currentAppState?: SchedulerAppState | null;
     currentParameterValues?: ParametersValuesMap;
     availableParameters?: ParameterDefinitions;
     /** undefined = create mode, string = edit mode */
@@ -78,6 +81,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
     isApp,
     isThresholdAlert,
     itemsMap,
+    currentAppState,
     currentParameterValues,
     availableParameters,
     onClose,
@@ -191,6 +195,8 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
                         dashboard={dashboard}
                         savedSchedulerData={savedSchedulerData}
                         isApp={!!isApp}
+                        appUuid={isApp ? resourceUuid : undefined}
+                        currentAppState={currentAppState}
                         isDashboardTabsAvailable={isDashboardTabsAvailable}
                         currentParameterValues={currentParameterValues}
                         availableParameters={availableParameters}
