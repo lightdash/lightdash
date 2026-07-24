@@ -98,6 +98,7 @@ import {
     SavedChartsTableName,
     SavedChartVersionsTableName,
 } from '../../database/entities/savedCharts';
+import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { DbUser, UserTableName } from '../../database/entities/users';
 import { isUniqueConstraintViolation } from '../../database/errors';
@@ -4866,6 +4867,21 @@ export class AiAgentModel {
             .where({
                 ai_artifact_version_uuid: artifactVersionUuid,
             });
+    }
+
+    async isSavedSqlInProject(
+        savedSqlUuid: string,
+        projectUuid: string,
+    ): Promise<boolean> {
+        const row = await this.database(SavedSqlTableName)
+            .select('saved_sql_uuid')
+            .where({
+                saved_sql_uuid: savedSqlUuid,
+                project_uuid: projectUuid,
+            })
+            .whereNull('deleted_at')
+            .first();
+        return row !== undefined;
     }
 
     async setArtifactVersionVerified(

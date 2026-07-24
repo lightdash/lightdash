@@ -5280,6 +5280,14 @@ export class AiAgentService extends BaseService {
         }
 
         if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
+            // Embed viewers are scoped by user attributes, which raw SQL bypasses.
+            if (runtimeOptions) {
+                throw new ForbiddenError(
+                    'SQL artifacts are not available in embedded AI agents',
+                );
+            }
+
+            // Re-executes as the viewer — same trust model as viewing a saved SQL chart.
             const query = await this.asyncQueryService.executeAsyncSqlQuery({
                 account: fromSession(user),
                 projectUuid,
@@ -5299,6 +5307,7 @@ export class AiAgentService extends BaseService {
                     artifactId: artifactUuid,
                     artifactVersionId: versionUuid,
                     vizType: AiResultType.TABLE_RESULT,
+                    source: 'sql',
                 },
             });
 
@@ -5349,6 +5358,7 @@ export class AiAgentService extends BaseService {
                 artifactId: artifactUuid,
                 artifactVersionId: versionUuid,
                 vizType: parsedVizConfig.type,
+                source: 'semantic',
             },
         });
 
@@ -5717,6 +5727,19 @@ export class AiAgentService extends BaseService {
         if (!hasAccess) {
             throw new ForbiddenError(
                 'Insufficient permissions to update this artifact',
+            );
+        }
+
+        if (
+            'savedSqlUuid' in update &&
+            update.savedSqlUuid !== null &&
+            !(await this.aiAgentModel.isSavedSqlInProject(
+                update.savedSqlUuid,
+                agent.projectUuid,
+            ))
+        ) {
+            throw new NotFoundError(
+                `Saved SQL chart not found in project: ${update.savedSqlUuid}`,
             );
         }
 

@@ -363,7 +363,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             </div>
         );
 
-        if (isAiAgentSqlArtifactVizQuery(queryExecutionHandle.data)) {
+        if (sqlVizQueryData) {
             return (
                 <div className={styles.floatingPanel}>
                     <div
@@ -378,13 +378,17 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             );
         }
 
+        if (!semanticVizQueryData || !semanticChartConfig) {
+            return null;
+        }
+
         return (
             <div className={styles.floatingPanel}>
                 <div className={styles.floatingContent}>
                     <AiVisualizationRenderer
-                        vizQueryData={semanticVizQueryData!}
+                        vizQueryData={semanticVizQueryData}
                         results={queryResults}
-                        chartConfig={semanticChartConfig!}
+                        chartConfig={semanticChartConfig}
                         selectedChartType={selectedChartType}
                         headerContent={floatingHead}
                     />

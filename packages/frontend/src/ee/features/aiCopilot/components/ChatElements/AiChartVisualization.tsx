@@ -26,6 +26,10 @@ import { useAiAgentArtifactVizQuery } from '../../hooks/useProjectAiAgents';
 import { clearArtifact } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
+import {
+    AiSqlArtifactActions,
+    AiSqlArtifactVisualization,
+} from './AiSqlArtifactVisualization';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
 import { ViewSqlButton } from './ViewSqlButton';
 
@@ -54,11 +58,11 @@ export const AiChartVisualization: FC<Props> = ({
     const [selectedChartType, setSelectedChartType] =
         useState<AiAgentChartTypeOption | null>(null);
 
-    const semanticChartConfig = isAiSqlChartArtifactConfig(
-        artifactData.chartConfig,
-    )
-        ? null
-        : artifactData.chartConfig?.config;
+    const isSqlArtifact = isAiSqlChartArtifactConfig(artifactData.chartConfig);
+    const semanticChartConfig =
+        artifactData.chartConfig?.source === 'semantic'
+            ? artifactData.chartConfig.config
+            : null;
 
     const vizConfig = useMemo(() => {
         if (!semanticChartConfig) return null;
@@ -72,7 +76,7 @@ export const AiChartVisualization: FC<Props> = ({
             artifactUuid,
             versionUuid,
         },
-        { enabled: !!vizConfig },
+        { enabled: !!vizConfig || isSqlArtifact },
     );
 
     const semanticVizQueryData =
@@ -80,10 +84,15 @@ export const AiChartVisualization: FC<Props> = ({
         !isAiAgentSqlArtifactVizQuery(queryExecutionHandle.data)
             ? queryExecutionHandle.data
             : undefined;
+    const sqlVizQueryData =
+        queryExecutionHandle.data &&
+        isAiAgentSqlArtifactVizQuery(queryExecutionHandle.data)
+            ? queryExecutionHandle.data
+            : undefined;
 
     const queryResults = useInfiniteQueryResults(
         projectUuid,
-        semanticVizQueryData?.query.queryUuid,
+        queryExecutionHandle.data?.query.queryUuid,
     );
 
     const { data: compiledSql } = useCompiledSqlFromMetricQuery({
@@ -93,7 +102,8 @@ export const AiChartVisualization: FC<Props> = ({
     });
 
     const isQueryLoading =
-        queryExecutionHandle.isLoading || queryResults.isFetchingRows;
+        queryExecutionHandle.isLoading ||
+        (!isSqlArtifact && queryResults.isFetchingRows);
     const isQueryError = queryExecutionHandle.isError || queryResults.error;
 
     if (isQueryLoading) {
@@ -133,6 +143,50 @@ export const AiChartVisualization: FC<Props> = ({
                     </Stack>
                 </Paper>
             </Stack>
+        );
+    }
+
+    if (sqlVizQueryData) {
+        const sqlHeaderContent = (
+            <Group gap="md" align="start">
+                <Stack gap={0} flex={1}>
+                    <Title order={5}>{sqlVizQueryData.metadata.title}</Title>
+                    <Text c="dimmed" size="xs">
+                        {sqlVizQueryData.metadata.description}
+                    </Text>
+                </Stack>
+                <Group gap="sm" display={isMobile ? 'none' : 'flex'}>
+                    <AiSqlArtifactActions
+                        projectUuid={projectUuid}
+                        agentUuid={agentUuid}
+                        artifactUuid={artifactUuid}
+                        versionUuid={versionUuid}
+                        savedSqlUuid={artifactData.savedSqlUuid}
+                        sql={sqlVizQueryData.sql}
+                        limit={sqlVizQueryData.limit}
+                        title={sqlVizQueryData.metadata.title ?? 'SQL results'}
+                        description={sqlVizQueryData.metadata.description}
+                        columns={Object.values(queryResults.columns ?? {})}
+                    />
+                    {showCloseButton && (
+                        <ActionIcon
+                            size="sm"
+                            variant="subtle"
+                            color="ldGray.4"
+                            onClick={() => dispatch(clearArtifact())}
+                        >
+                            <MantineIcon icon={IconX} />
+                        </ActionIcon>
+                    )}
+                </Group>
+            </Group>
+        );
+
+        return (
+            <AiSqlArtifactVisualization
+                results={queryResults}
+                headerContent={sqlHeaderContent}
+            />
         );
     }
 
