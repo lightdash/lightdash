@@ -428,6 +428,10 @@ export const lightdashConfigMock: LightdashConfig = {
         azureSandboxesDataAppDiskImage: null,
         azureSandboxesAiWritebackGroup: null,
         azureSandboxesAiWritebackDiskImage: null,
+        gcpCloudRun: {
+            sandboxUrl: null,
+            sandboxSecret: null,
+        },
         e2bAgentOnboardingTemplateName: 'lightdash-agent-onboarding',
         e2bAgentOnboardingTemplateTag: 'test',
         e2bCodingAgentTemplateName: 'lightdash-ai-coding-agent',

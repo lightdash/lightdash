@@ -1321,9 +1321,15 @@ export class AiWritebackService extends BaseService {
                     sandboxProvider === 'azure-sandboxes'
                         ? this.getAzureSandboxesConfig()
                         : null,
-                // Object-store snapshots are only for the Docker backend (no
-                // native pause); native-pause providers (E2B, Lambda, Azure
-                // Sandboxes) never touch S3, so don't construct a client.
+                // AI writeback on Cloud Run needs its own gateway service (the
+                // writeback toolchain image is baked into the gateway
+                // deployment); unsupported until one exists — the factory
+                // throws a clear config error if selected.
+                gcpCloudRun: null,
+                // Object-store snapshots are only for the backends with no
+                // native pause (Docker, GCP Cloud Run); native-pause providers
+                // (E2B, Lambda, Azure Sandboxes) never touch S3, so don't
+                // construct a client.
                 snapshotStore:
                     sandboxProvider === 'docker'
                         ? new S3SnapshotStore({
