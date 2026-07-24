@@ -34,6 +34,10 @@
     min-height: 0;
 }
 
+.sqlArtifactContent {
+    padding-bottom: var(--mantine-spacing-md);
+}
+
 /* Same outer chrome as the chart panel, but no pill clearance — the
  * dashboard's own header + scrollable tile list lives directly inside. */
 .dashboardContent {

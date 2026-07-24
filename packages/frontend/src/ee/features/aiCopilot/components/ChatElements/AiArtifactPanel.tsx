@@ -38,7 +38,10 @@ import styles from './AiArtifactPanel.module.css';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
 import { AiChartVisualization } from './AiChartVisualization';
 import { AiDashboardVisualization } from './AiDashboardVisualization';
-import { AiSqlArtifactVisualization } from './AiSqlArtifactVisualization';
+import {
+    AiSqlArtifactActions,
+    AiSqlArtifactVisualization,
+} from './AiSqlArtifactVisualization';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
 import { ChatElementsUtils } from './utils';
 
@@ -131,11 +134,13 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             !isAiAgentSqlArtifactVizQuery(queryExecutionHandle.data)
                 ? queryExecutionHandle.data
                 : undefined;
-        const queryUuid =
+        const sqlVizQueryData =
             queryExecutionHandle.data &&
             isAiAgentSqlArtifactVizQuery(queryExecutionHandle.data)
-                ? queryExecutionHandle.data.queryUuid
-                : semanticVizQueryData?.query.queryUuid;
+                ? queryExecutionHandle.data
+                : undefined;
+        const queryUuid =
+            sqlVizQueryData?.queryUuid ?? semanticVizQueryData?.query.queryUuid;
 
         const queryResults = useInfiniteQueryResults(
             artifact.projectUuid,
@@ -309,7 +314,13 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                     )}
                 </Stack>
                 <Group gap={2} className={styles.headRight}>
-                    {!isSqlArtifact && (
+                    {sqlVizQueryData ? (
+                        <AiSqlArtifactActions
+                            projectUuid={artifact.projectUuid}
+                            sql={sqlVizQueryData.sql}
+                            limit={sqlVizQueryData.limit}
+                        />
+                    ) : (
                         <AiChartQuickOptions
                             message={message}
                             projectUuid={artifact.projectUuid}
@@ -349,7 +360,9 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         if (isAiAgentSqlArtifactVizQuery(queryExecutionHandle.data)) {
             return (
                 <div className={styles.floatingPanel}>
-                    <div className={styles.floatingContent}>
+                    <div
+                        className={`${styles.floatingContent} ${styles.sqlArtifactContent}`}
+                    >
                         <AiSqlArtifactVisualization
                             projectUuid={artifact.projectUuid}
                             vizQueryData={queryExecutionHandle.data}

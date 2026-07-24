@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     ChartKind,
     isVizTableConfig,
@@ -5,32 +6,40 @@ import {
     type RawResultRow,
     type ResultRow,
 } from '@lightdash/common';
-import { Box, Center, Loader, Stack } from '@mantine-8/core';
-import { useEffect, useMemo, type FC, type ReactNode } from 'react';
-import { Provider } from 'react-redux';
-import { resetChartState } from '../../../../../components/DataViz/store/actions/commonChartActions';
 import {
-    selectCompleteConfigByKind,
-    selectPivotChartDataByKind,
-} from '../../../../../components/DataViz/store/selectors';
-import ChartView from '../../../../../components/DataViz/visualizations/ChartView';
+    ActionIcon,
+    Box,
+    Button,
+    Center,
+    Loader,
+    Paper,
+    Stack,
+    Tooltip,
+} from '@mantine-8/core';
+import { IconDeviceFloppy, IconTerminal2 } from '@tabler/icons-react';
+import { useEffect, useMemo, useState, type FC, type ReactNode } from 'react';
+import { Provider } from 'react-redux';
+import { Link } from 'react-router';
+import MantineIcon from '../../../../../components/common/MantineIcon';
+import { resetChartState } from '../../../../../components/DataViz/store/actions/commonChartActions';
+import { selectCompleteConfigByKind } from '../../../../../components/DataViz/store/selectors';
 import { Table } from '../../../../../components/DataViz/visualizations/Table';
-import { VisualizationSwitcher } from '../../../../../components/DataViz/VisualizationSwitcher';
+import { SaveSqlChartModal } from '../../../../../features/sqlRunner/components/SaveSqlChartModal';
 import { store, type RootState } from '../../../../../features/sqlRunner/store';
 import {
     useAppDispatch,
     useAppSelector,
 } from '../../../../../features/sqlRunner/store/hooks';
 import {
-    EditorTabs,
     hydrateSqlQueryResults,
     resetState,
-    selectActiveChartType,
     selectSqlRunnerResultsRunner,
-    setActiveEditorTab,
     setSelectedChartType,
+    updateName,
 } from '../../../../../features/sqlRunner/store/sqlRunnerSlice';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
+import useApp from '../../../../../providers/App/useApp';
 
 const unwrapRows = (rows: ResultRow[]): RawResultRow[] =>
     rows.map((row) =>
@@ -44,6 +53,81 @@ type ContentProps = {
     vizQueryData: ApiAiAgentSqlArtifactVizQuery;
     results: InfiniteQueryResults;
     headerContent: ReactNode;
+};
+
+type ActionsProps = {
+    projectUuid: string;
+    sql: string;
+    limit: number;
+};
+
+export const AiSqlArtifactActions: FC<ActionsProps> = ({
+    projectUuid,
+    sql,
+    limit,
+}) => {
+    const { user } = useApp();
+    const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+    const hasLoadedColumns = useAppSelector(
+        (state) => state.sqlRunner.sqlColumns !== undefined,
+    );
+    const canManageCustomSql = !!user.data?.ability.can(
+        'manage',
+        subject('CustomSql', {
+            organizationUuid: user.data.organizationUuid,
+            projectUuid,
+        }),
+    );
+    const canCreateChartInSpace = useCreateInAnySpaceAccess(
+        projectUuid,
+        'SavedChart',
+    );
+    const canSave = canManageCustomSql && canCreateChartInSpace;
+    const saveDisabled = !canSave || !hasLoadedColumns;
+
+    return (
+        <>
+            <Button
+                component={Link}
+                to={{
+                    pathname: `/projects/${projectUuid}/sql-runner`,
+                }}
+                state={{ sql, limit }}
+                size="compact-xs"
+                variant="default"
+                leftSection={<MantineIcon icon={IconTerminal2} size={13} />}
+            >
+                Continue exploring in SQL Runner
+            </Button>
+            <Tooltip
+                label={
+                    canSave
+                        ? 'Save SQL chart'
+                        : "You don't have permission to save SQL charts"
+                }
+                position="bottom"
+                withArrow
+            >
+                <Box component="span">
+                    <ActionIcon
+                        size="sm"
+                        variant="subtle"
+                        color="ldGray.6"
+                        disabled={saveDisabled}
+                        onClick={() => setIsSaveModalOpen(true)}
+                        aria-label="Save SQL chart"
+                    >
+                        <MantineIcon icon={IconDeviceFloppy} />
+                    </ActionIcon>
+                </Box>
+            </Tooltip>
+            <SaveSqlChartModal
+                key={`${isSaveModalOpen}-saveSqlArtifact`}
+                opened={isSaveModalOpen}
+                onClose={() => setIsSaveModalOpen(false)}
+            />
+        </>
+    );
 };
 
 const AiSqlArtifactVisualizationContent: FC<ContentProps> = ({
@@ -63,12 +147,15 @@ const AiSqlArtifactVisualizationContent: FC<ContentProps> = ({
         dispatch(resetState());
         dispatch(resetChartState());
         dispatch(setSelectedChartType(ChartKind.TABLE));
+        dispatch(
+            updateName(vizQueryData.metadata.title ?? 'Untitled SQL query'),
+        );
 
         return () => {
             dispatch(resetState());
             dispatch(resetChartState());
         };
-    }, [dispatch]);
+    }, [dispatch, vizQueryData.metadata.title]);
 
     useEffect(() => {
         if (columns.length === 0) return;
@@ -92,30 +179,18 @@ const AiSqlArtifactVisualizationContent: FC<ContentProps> = ({
         }
     }, [results]);
 
-    const selectedChartType =
-        useAppSelector(selectActiveChartType) ?? ChartKind.TABLE;
     const resultsRunner = useAppSelector((state) =>
         selectSqlRunnerResultsRunner(state),
     );
-    const currentVizConfig = useAppSelector((state) =>
-        selectCompleteConfigByKind(state as RootState, selectedChartType),
+    const tableConfig = useAppSelector((state) =>
+        selectCompleteConfigByKind(state as RootState, ChartKind.TABLE),
     );
-    const pivotedChartInfo = useAppSelector((state) =>
-        selectPivotChartDataByKind(state as RootState, selectedChartType),
-    );
-
-    const handleChartTypeChange = (chartKind: ChartKind) => {
-        dispatch(setSelectedChartType(chartKind));
-        if (chartKind !== ChartKind.TABLE) {
-            dispatch(setActiveEditorTab(EditorTabs.VISUALIZATION));
-        }
-    };
 
     if (
         results.isInitialLoading ||
         results.isFetchingFirstPage ||
         columns.length === 0 ||
-        !currentVizConfig
+        !isVizTableConfig(tableConfig)
     ) {
         return (
             <Center h={300}>
@@ -131,29 +206,21 @@ const AiSqlArtifactVisualizationContent: FC<ContentProps> = ({
     return (
         <Stack gap="md" h="100%" mih={300}>
             {headerContent}
-            <Box ml="auto">
-                <VisualizationSwitcher
-                    selectedChartType={selectedChartType}
-                    setSelectedChartType={handleChartTypeChange}
+            <Paper
+                flex={1}
+                mih={0}
+                pos="relative"
+                withBorder
+                radius="md"
+                bg="ldGray.0"
+                style={{ overflow: 'hidden' }}
+            >
+                <Table
+                    resultsRunner={resultsRunner}
+                    columnsConfig={tableConfig.columns}
+                    flexProps={{ mah: '100%', h: '100%' }}
                 />
-            </Box>
-            <Box flex={1} mih={0} pos="relative">
-                {isVizTableConfig(currentVizConfig) ? (
-                    <Table
-                        resultsRunner={resultsRunner}
-                        columnsConfig={currentVizConfig.columns}
-                        flexProps={{ mah: '100%', h: '100%' }}
-                    />
-                ) : (
-                    <ChartView
-                        config={currentVizConfig}
-                        spec={pivotedChartInfo?.data?.getChartSpec()}
-                        isLoading={pivotedChartInfo?.loading ?? false}
-                        error={pivotedChartInfo?.error}
-                        style={{ height: '100%', minHeight: 300 }}
-                    />
-                )}
-            </Box>
+            </Paper>
         </Stack>
     );
 };
