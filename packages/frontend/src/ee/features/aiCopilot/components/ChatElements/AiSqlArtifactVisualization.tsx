@@ -8,15 +8,13 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Box,
-    Button,
     Center,
     Loader,
+    Menu,
     Paper,
     Stack,
-    Tooltip,
 } from '@mantine-8/core';
-import { IconDeviceFloppy, IconTerminal2 } from '@tabler/icons-react';
+import { IconDeviceFloppy, IconDots, IconTerminal2 } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC, type ReactNode } from 'react';
 import { Provider } from 'react-redux';
 import { Link } from 'react-router';
@@ -87,40 +85,38 @@ export const AiSqlArtifactActions: FC<ActionsProps> = ({
 
     return (
         <>
-            <Button
-                component={Link}
-                to={{
-                    pathname: `/projects/${projectUuid}/sql-runner`,
-                }}
-                state={{ sql, limit }}
-                size="compact-xs"
-                variant="default"
-                leftSection={<MantineIcon icon={IconTerminal2} size={13} />}
-            >
-                Continue exploring in SQL Runner
-            </Button>
-            <Tooltip
-                label={
-                    canSave
-                        ? 'Save SQL chart'
-                        : "You don't have permission to save SQL charts"
-                }
-                position="bottom"
-                withArrow
-            >
-                <Box component="span">
+            <Menu withArrow position="bottom-end">
+                <Menu.Target>
                     <ActionIcon
                         size="sm"
                         variant="subtle"
-                        color="ldGray.6"
+                        color="ldGray.9"
+                        aria-label="SQL artifact actions"
+                    >
+                        <MantineIcon icon={IconDots} size="lg" />
+                    </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
+                    <Menu.Label>Quick actions</Menu.Label>
+                    <Menu.Item
+                        component={Link}
+                        to={{
+                            pathname: `/projects/${projectUuid}/sql-runner`,
+                        }}
+                        state={{ sql, limit }}
+                        leftSection={<MantineIcon icon={IconTerminal2} />}
+                    >
+                        Continue exploring in SQL Runner
+                    </Menu.Item>
+                    <Menu.Item
                         disabled={saveDisabled}
                         onClick={() => setIsSaveModalOpen(true)}
-                        aria-label="Save SQL chart"
+                        leftSection={<MantineIcon icon={IconDeviceFloppy} />}
                     >
-                        <MantineIcon icon={IconDeviceFloppy} />
-                    </ActionIcon>
-                </Box>
-            </Tooltip>
+                        Save
+                    </Menu.Item>
+                </Menu.Dropdown>
+            </Menu>
             <SaveSqlChartModal
                 key={`${isSaveModalOpen}-saveSqlArtifact`}
                 opened={isSaveModalOpen}
