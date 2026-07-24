@@ -804,13 +804,14 @@ describe('getSeriesGroupedByField', () => {
 describe('reference-line semantic to physical axis integration', () => {
     const timeField = 'orders_created_day';
     const valueField = 'orders_revenue';
-    const makeSeries = (): Series[] => [
+    const stringField = 'orders_status';
+    const makeSeries = (yField: string = valueField): Series[] => [
         {
             type: CartesianSeriesType.BAR,
             yAxisIndex: 0,
             encode: {
                 xRef: { field: timeField },
-                yRef: { field: valueField },
+                yRef: { field: yField },
             },
         },
     ];
@@ -835,9 +836,20 @@ describe('reference-line semantic to physical axis integration', () => {
         tableLabel: 'Orders',
         type: DimensionType.NUMBER,
     };
+    const stringFieldItem: Dimension = {
+        fieldType: FieldType.DIMENSION,
+        hidden: false,
+        label: 'Status',
+        name: stringField,
+        sql: '',
+        table: 'orders',
+        tableLabel: 'Orders',
+        type: DimensionType.STRING,
+    };
     const itemsMap: ItemsMap = {
         [timeField]: timeFieldItem,
         [valueField]: valueFieldItem,
+        [stringField]: stringFieldItem,
     };
     const editorReferenceLines: ReferenceLineField[] = [
         {
@@ -993,6 +1005,30 @@ describe('reference-line semantic to physical axis integration', () => {
         expect(numericResult[0].markLine?.data[0].yAxis).toBeUndefined();
         expect(flagOffResult[0].markLine?.data[0].xAxis).toBe('2024-07-15');
         expect(flagOffResult[0].markLine?.data[0].yAxis).toBeUndefined();
+    });
+
+    test('does not reinterpret a date-shaped category reference as a time line', () => {
+        const series = applyReferenceLines(
+            makeSeries(stringField),
+            {
+                xField: timeField,
+                yField: [stringField],
+                flipAxes: true,
+            },
+            [
+                {
+                    fieldId: stringField,
+                    data: {
+                        uuid: 'category-date-shape',
+                        xAxis: '2024-07-15',
+                    },
+                },
+            ],
+            { itemsMap, resolvedTimezone: 'UTC' },
+        );
+
+        expect(series[0].markLine?.data[0].xAxis).toBe('2024-07-15');
+        expect(series[0].markLine?.data[0].yAxis).toBeUndefined();
     });
 
     test.each([

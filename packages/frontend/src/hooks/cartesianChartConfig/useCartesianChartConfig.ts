@@ -185,7 +185,7 @@ const resolveReferenceLineFieldId = (
     const attributedField = mappingContext.itemsMap[fieldId];
     if (
         !isTemporalReferenceField(timeField) ||
-        isTemporalReferenceField(attributedField)
+        !isNumericItem(attributedField)
     ) {
         return fieldId;
     }
