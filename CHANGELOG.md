@@ -1,3 +1,10 @@
+## [0.3472.2](https://github.com/lightdash/lightdash/compare/0.3472.1...0.3472.2) (2026-07-24)
+
+
+### Bug Fixes
+
+* invalidate cancelled prompt on next data app generation ([#26094](https://github.com/lightdash/lightdash/issues/26094)) ([ed14f39](https://github.com/lightdash/lightdash/commit/ed14f39aba8a8819b23a340a41622264304cd4c0))
+
 ## [0.3472.1](https://github.com/lightdash/lightdash/compare/0.3472.0...0.3472.1) (2026-07-24)
 
 
