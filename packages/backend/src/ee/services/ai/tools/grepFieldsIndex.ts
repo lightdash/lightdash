@@ -1,5 +1,6 @@
 import {
     convertFieldRefToFieldId,
+    flattenAiHints,
     getDefaultTimeDimension,
     getEffectiveFieldAiHints,
     getFieldIdForDateDimension,
@@ -9,10 +10,6 @@ import {
     type CompiledTable,
     type Explore,
 } from '@lightdash/common';
-
-/** aiHint can be a string or string[]; flatten to one space-joined string. */
-const flatHint = (hint?: string | string[]): string =>
-    Array.isArray(hint) ? hint.join(' ') : (hint ?? '');
 
 type DefaultTimeDimensionFieldIds = {
     defaultTimeDimension: string;
@@ -105,7 +102,7 @@ export const buildExploreIndex = (explores: Explore[]): ExploreEntry[] =>
         haystack: [
             explore.name,
             explore.label,
-            flatHint(explore.aiHint),
+            flattenAiHints(explore.aiHint),
             ...(explore.tags ?? []),
         ]
             .filter(Boolean)
@@ -137,7 +134,7 @@ export const buildFieldIndex = (
                 if (!field.hidden) {
                     const fieldId = `${field.table}_${field.name}`;
                     const description = field.description ?? '';
-                    const aiHint = flatHint(
+                    const aiHint = flattenAiHints(
                         getEffectiveFieldAiHints(field, table),
                     );
                     const nameHaystack = [fieldId, field.label]

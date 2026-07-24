@@ -7316,12 +7316,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     }
 
     /** Escape a string into a safe, single-line double-quoted YAML scalar. */
-    private static yamlQuote(s: string): string {
-        const cleaned = s
-            .replace(/[\r\n\t]+/g, ' ')
-            .replace(/\\/g, '\\\\')
-            .replace(/"/g, '\\"');
-        return `"${cleaned}"`;
+    private static yamlQuote(value: unknown): string {
+        const cleaned = String(value).replace(/[\r\n\t]+/g, ' ');
+        return JSON.stringify(cleaned);
     }
 
     /** Render a single Lightdash parameter as indented YAML lines. */

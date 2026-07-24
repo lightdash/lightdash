@@ -36,7 +36,7 @@ type FieldSpec = {
     name: string;
     label?: string;
     description?: string;
-    aiHint?: string;
+    aiHint?: string | string[];
     groups?: string[];
 };
 
@@ -315,6 +315,33 @@ describe('buildFieldIndex haystack scope', () => {
         );
         expect(compileMatcher('zephyr')(entry.hintHaystack)).toBe(true);
     });
+
+    it('ignores malformed field and group hints while keeping valid hints', () => {
+        const malformedExplore = makeExplore({
+            name: 'payments',
+            groupDetails: {
+                settlements: {
+                    label: 'Settlements',
+                    aiHint: { invalid: true } as unknown as string[],
+                },
+            },
+            fields: [
+                {
+                    name: 'total_revenue',
+                    aiHint: [
+                        'Canonical revenue metric.',
+                        { Formula: 'clicks + keys' },
+                    ] as unknown as string[],
+                    groups: ['settlements'],
+                },
+            ],
+        });
+
+        expect(() => buildFieldIndex([malformedExplore])).not.toThrow();
+        const [entry] = buildFieldIndex([malformedExplore]);
+        expect(entry.aiHint).toBe('Canonical revenue metric.');
+        expect(entry.hintHaystack).not.toContain('[object object]');
+    });
 });
 
 describe('buildExploreIndex', () => {
@@ -334,6 +361,19 @@ describe('buildExploreIndex', () => {
         const matches = compileMatcher('comment');
         const hits = index.filter((e) => matches(e.haystack));
         expect(hits.map((e) => e.exploreName)).toEqual(['learner_reviews']);
+    });
+
+    it('ignores malformed explore-level hints', () => {
+        const malformedExplore = makeExplore({
+            name: 'orders',
+            aiHint: { Formula: 'clicks + keys' } as unknown as string[],
+            fields: [{ name: 'status' }],
+        });
+
+        expect(() => buildExploreIndex([malformedExplore])).not.toThrow();
+        expect(buildExploreIndex([malformedExplore])[0].haystack).not.toContain(
+            '[object object]',
+        );
     });
 });
 

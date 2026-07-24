@@ -7,7 +7,6 @@ const metadataSchemaId =
 const defaultTimeDimensionValidator = ManifestValidator.getValidator(
     `${metadataSchemaId}#/definitions/DefaultTimeDimension`,
 );
-
 const withMeta = (meta: Record<string, unknown>): DbtRawModelNode =>
     ({ ...model, meta }) as unknown as DbtRawModelNode;
 
@@ -77,6 +76,60 @@ describe('DefaultTimeDimension metadata schema', () => {
                 field: 'created_at',
                 interval: 'MONTH',
             }),
+        ).toEqual([true, undefined]);
+    });
+});
+
+describe('AI hint manifest compatibility', () => {
+    test('does not invalidate an explore with malformed optional hints', () => {
+        const malformedHint = { Formula: 'clicks + keys' };
+        const modelWithMalformedHints = {
+            ...model,
+            meta: {
+                ai_hint: malformedHint,
+                group_details: {
+                    finance: {
+                        label: 'Finance',
+                        ai_hint: [malformedHint],
+                    },
+                },
+                metrics: {
+                    revenue: {
+                        type: 'sum',
+                        sql: '${TABLE}.revenue',
+                        ai_hint: [malformedHint],
+                    },
+                },
+            },
+            columns: {
+                myColumnName: {
+                    ...model.columns.myColumnName,
+                    config: {
+                        meta: {
+                            metrics: {
+                                revenue: {
+                                    type: 'sum',
+                                    ai_hint: [malformedHint],
+                                },
+                            },
+                            dimension: { ai_hint: [malformedHint] },
+                            additional_dimensions: {
+                                normalized_name: {
+                                    type: 'string',
+                                    sql: '${TABLE}.name',
+                                    ai_hint: [malformedHint],
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        } as unknown as DbtRawModelNode;
+
+        expect(
+            new ManifestValidator(DbtManifestVersion.V12).isModelValid(
+                modelWithMalformedHints,
+            ),
         ).toEqual([true, undefined]);
     });
 });
