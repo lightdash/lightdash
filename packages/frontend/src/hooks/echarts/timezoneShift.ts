@@ -3,7 +3,6 @@ import {
     extractableTimeFrames,
     isCalendarValueItem,
     isDimension,
-    isUnambiguousTemporalString,
     parseCalendarValueUTC,
     parseTimestampValueUTC,
     shouldShiftItemTimezone,
@@ -436,16 +435,15 @@ export const applyTimezoneShiftToEchartsOptions = <
 // calendar value in the canonical picker formats (parseCalendarValueUTC) — is
 // a wall-clock position on the axis as the viewer sees it: parsed naive as
 // UTC, plotted directly, no offset. Both reads are browser-independent by
-// construction. Anything else (numeric metric values stranded in the wrong
-// slot by semantic keying, empty strings, garbage) is left untouched rather
-// than leniently coerced.
+// construction. Other inputs are left untouched rather than leniently
+// coerced. Axis ownership is resolved earlier while field identity is still
+// available; this pass never infers it from the value's shape.
 export type MarkLineTimeNormalization = {
     flipAxes: boolean;
     // Zone the axis's plotted coordinates are wall-clock-shifted to; undefined
     // means instants plot at their raw epoch (unshifted or UTC-anchored axis).
     instantTimezone: string | undefined;
     wallClockTimezone?: string;
-    canRescueFromOppositeAxis?: boolean;
 };
 
 const parseTimeAxisMarkLineValue = (
@@ -479,31 +477,6 @@ const parseTimeAxisMarkLineValue = (
     return calendarMs === undefined
         ? undefined
         : toRawWallClockCoordinate(calendarMs);
-};
-
-// Legacy flipped-chart configs key the date by the semantic `xAxis` even when
-// the date renders on physical Y, stranding it in the value-axis slot where
-// ECharts drops the line. Read the time slot, rescuing a wall-clock string
-// out of the value slot when the time slot is empty.
-const readTimeAxisSlot = (
-    entry: Record<string, unknown>,
-    timeSlot: string,
-    valueSlot: string,
-    canRescue: boolean,
-): { raw: unknown; stranded: boolean } => {
-    const timeValue = entry[timeSlot];
-    const timeSlotEmpty =
-        timeValue === undefined || timeValue === null || timeValue === '';
-    const valueSlotValue = entry[valueSlot];
-    if (
-        canRescue &&
-        timeSlotEmpty &&
-        typeof valueSlotValue === 'string' &&
-        isUnambiguousTemporalString(valueSlotValue)
-    ) {
-        return { raw: valueSlotValue, stranded: true };
-    }
-    return { raw: timeValue, stranded: false };
 };
 
 // After numericizing, default labels would echo the epoch ms: ECharts' own
@@ -541,7 +514,6 @@ export const normalizeMarkLineTimeValues = <O extends EchartsOptionsShape>(
 ): O => {
     if (!options.series) return options;
     const timeSlot = normalization.flipAxes ? 'yAxis' : 'xAxis';
-    const valueSlot = normalization.flipAxes ? 'xAxis' : 'yAxis';
     const series = options.series.map((s) => {
         const markLine = s.markLine;
         if (!isPlainObject(markLine) || !Array.isArray(markLine.data)) {
@@ -550,12 +522,7 @@ export const normalizeMarkLineTimeValues = <O extends EchartsOptionsShape>(
         let mutated = false;
         const newData = markLine.data.map((entry) => {
             if (!isPlainObject(entry) || entry.type !== undefined) return entry;
-            const { raw, stranded } = readTimeAxisSlot(
-                entry,
-                timeSlot,
-                valueSlot,
-                normalization.canRescueFromOppositeAxis !== false,
-            );
+            const raw = entry[timeSlot];
             if (raw === undefined || raw === null) return entry;
             const ms = parseTimeAxisMarkLineValue(raw, normalization);
             if (ms === undefined) return entry;
@@ -566,7 +533,6 @@ export const normalizeMarkLineTimeValues = <O extends EchartsOptionsShape>(
                     ? authoredLabelProps(entry, raw.trim())
                     : {}),
                 [timeSlot]: ms,
-                ...(stranded ? { [valueSlot]: undefined } : {}),
             };
         });
         return mutated ? { ...s, markLine: { ...markLine, data: newData } } : s;
@@ -581,9 +547,6 @@ export const normalizeMarkLineTimeValues = <O extends EchartsOptionsShape>(
 export const finalizeTimeAxisOptions = <O extends EchartsOptionsShape>(
     options: O,
     mode: TimeAxisMode | undefined,
-    {
-        canRescueFromOppositeAxis = true,
-    }: { canRescueFromOppositeAxis?: boolean } = {},
 ): O => {
     if (!mode) return options;
     switch (mode.kind) {
@@ -596,7 +559,6 @@ export const finalizeTimeAxisOptions = <O extends EchartsOptionsShape>(
             return normalizeMarkLineTimeValues(shifted, {
                 flipAxes: mode.flipAxes,
                 instantTimezone: mode.timezone,
-                canRescueFromOppositeAxis,
             });
         }
         case 'calendar': {
@@ -610,7 +572,6 @@ export const finalizeTimeAxisOptions = <O extends EchartsOptionsShape>(
             return normalizeMarkLineTimeValues(anchored, {
                 flipAxes: mode.flipAxes,
                 instantTimezone: undefined,
-                canRescueFromOppositeAxis,
             });
         }
         case 'plain':
@@ -618,7 +579,6 @@ export const finalizeTimeAxisOptions = <O extends EchartsOptionsShape>(
                 flipAxes: mode.flipAxes,
                 instantTimezone: undefined,
                 wallClockTimezone: mode.wallClockTimezone,
-                canRescueFromOppositeAxis,
             });
         default:
             return assertUnreachable(mode, 'Unknown time axis mode');

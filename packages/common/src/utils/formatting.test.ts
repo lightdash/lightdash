@@ -3642,7 +3642,7 @@ describe('parseCalendarValueUTC', () => {
         expect(parseCalendarValueUTC('42')).toBeUndefined();
         expect(parseCalendarValueUTC('50.5')).toBeUndefined();
         expect(parseCalendarValueUTC('')).toBeUndefined();
-        expect(parseCalendarValueUTC('garbage')).toBeUndefined();
+        expect(parseCalendarValueUTC('not-a-date')).toBeUndefined();
         expect(parseCalendarValueUTC('2024-13')).toBeUndefined();
         expect(parseCalendarValueUTC('2024-Q5')).toBeUndefined();
         expect(parseCalendarValueUTC('2024-01-15 12:00')).toBeUndefined();
@@ -3688,7 +3688,7 @@ describe('parseTimestampValueUTC', () => {
     test('rejects values outside the canonical shapes instead of coercing', () => {
         expect(parseTimestampValueUTC('2024-01-15')).toBeUndefined();
         expect(
-            parseTimestampValueUTC('2024-01-15 12:00 garbage'),
+            parseTimestampValueUTC('2024-01-15 12:00 unexpected-suffix'),
         ).toBeUndefined();
         expect(parseTimestampValueUTC('42')).toBeUndefined();
         expect(parseTimestampValueUTC('')).toBeUndefined();
@@ -3707,7 +3707,7 @@ describe('isUnambiguousTemporalString', () => {
         expect(isUnambiguousTemporalString(value)).toBe(true);
     });
 
-    test.each(['2024', '42', '50.5', '', 'garbage', null])(
+    test.each(['2024', '42', '50.5', '', 'not-a-date', null])(
         'rejects ambiguous or non-temporal value %s',
         (value) => {
             expect(isUnambiguousTemporalString(value)).toBe(false);

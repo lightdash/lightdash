@@ -3358,13 +3358,6 @@ const useEchartsCartesianConfig = (
             : undefined;
     }, [validCartesianConfig?.layout?.flipAxes, axes]);
 
-    const canRescueFromOppositeAxis = useMemo(() => {
-        const physicalAxis = validCartesianConfig?.layout?.flipAxes
-            ? axes.xAxis[0]
-            : axes.yAxis[0];
-        return physicalAxis?.type !== 'time';
-    }, [validCartesianConfig?.layout?.flipAxes, axes]);
-
     const plainWallClockTimezone = useMemo(() => {
         if (!axisTimezone) return undefined;
         const physicalAxis = validCartesianConfig?.layout?.flipAxes
@@ -4477,9 +4470,7 @@ const useEchartsCartesianConfig = (
             }),
         };
 
-        return finalizeTimeAxisOptions(baseOptions, timeAxisMode, {
-            canRescueFromOppositeAxis,
-        });
+        return finalizeTimeAxisOptions(baseOptions, timeAxisMode);
     }, [
         sortedAxes,
         sortedSeriesForChart,
@@ -4494,7 +4485,6 @@ const useEchartsCartesianConfig = (
         theme?.other.chartFont,
         validCartesianConfig,
         timeAxisMode,
-        canRescueFromOppositeAxis,
     ]);
 
     if (

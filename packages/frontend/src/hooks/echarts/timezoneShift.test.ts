@@ -981,7 +981,7 @@ describe('normalizeMarkLineTimeValues', () => {
             { uuid: 'a', xAxis: '42' },
             { uuid: 'b', xAxis: '50.5' },
             { uuid: 'c', xAxis: '' },
-            { uuid: 'd', xAxis: 'garbage' },
+            { uuid: 'd', xAxis: 'not-a-date' },
             { uuid: 'e', xAxis: '2024-13' },
         ];
         const options = makeMarkLineSeries(data);
@@ -1023,60 +1023,12 @@ describe('normalizeMarkLineTimeValues', () => {
         ]);
     });
 
-    test('rescues a date value stranded in the value-axis slot and clears the source', () => {
-        // Semantic keying stores the date under xAxis even when flipped; the
-        // date lives on physical Y, so ECharts drops the line entirely today.
-        const flipped = normalizeMarkLineTimeValues(
-            makeMarkLineSeries([{ uuid: 'a', xAxis: '2020-07-05' }]),
-            { ...identity, flipAxes: true },
-        );
-        expect(getMarkLineData(flipped)).toEqual([
-            {
-                uuid: 'a',
-                yAxis: Date.parse('2020-07-05T00:00:00Z'),
-                xAxis: undefined,
-                name: '2020-07-05',
-                label: { formatter: '2020-07-05' },
-            },
-        ]);
-
-        // Orientation-generic: flip→save→unflip can strand a date in yAxis.
-        const vertical = normalizeMarkLineTimeValues(
-            makeMarkLineSeries([{ uuid: 'b', yAxis: '2020-07-05' }]),
-            identity,
-        );
-        expect(getMarkLineData(vertical)).toEqual([
-            {
-                uuid: 'b',
-                xAxis: Date.parse('2020-07-05T00:00:00Z'),
-                yAxis: undefined,
-                name: '2020-07-05',
-                label: { formatter: '2020-07-05' },
-            },
-        ]);
-    });
-
-    test('rescues an explicitly-zoned timestamp stranded in the value-axis slot', () => {
-        const result = normalizeMarkLineTimeValues(
-            makeMarkLineSeries([{ uuid: 'a', yAxis: '2024-01-15T12:00:00Z' }]),
-            identity,
-        );
-
-        expect(getMarkLineData(result)).toEqual([
-            {
-                uuid: 'a',
-                xAxis: UTC_MS,
-                yAxis: undefined,
-                name: '2024-01-15T12:00:00Z',
-                label: { formatter: '2024-01-15T12:00:00Z' },
-            },
-        ]);
-    });
-
-    test('never rescues numeric strings from the value axis', () => {
+    test('never infers time-axis ownership from opposite-slot value shapes', () => {
         const data = [
-            { uuid: 'a', yAxis: '50' },
-            { uuid: 'b', yAxis: '2024', name: 'Revenue target' },
+            { uuid: 'a', yAxis: '2020-07-05' },
+            { uuid: 'b', yAxis: '2024-01-15T12:00:00Z' },
+            { uuid: 'c', yAxis: '50' },
+            { uuid: 'd', yAxis: '2024', name: 'Revenue target' },
         ];
         const options = makeMarkLineSeries(data);
 
@@ -1085,8 +1037,11 @@ describe('normalizeMarkLineTimeValues', () => {
         expect(getMarkLineData(result)).toEqual(data);
     });
 
-    test('never rescues a numeric year string when flipped', () => {
-        const data = [{ uuid: 'a', xAxis: '2024', name: 'Revenue target' }];
+    test('never infers time-axis ownership from the opposite slot when flipped', () => {
+        const data = [
+            { uuid: 'a', xAxis: '2020-07-05' },
+            { uuid: 'b', xAxis: '2024', name: 'Revenue target' },
+        ];
         const options = makeMarkLineSeries(data);
 
         const result = normalizeMarkLineTimeValues(options, {
@@ -1097,19 +1052,7 @@ describe('normalizeMarkLineTimeValues', () => {
         expect(getMarkLineData(result)).toEqual(data);
     });
 
-    test('never rescues a line from another physical time axis', () => {
-        const data = [{ uuid: 'a', yAxis: '2024-02-01' }];
-        const options = makeMarkLineSeries(data);
-
-        const result = normalizeMarkLineTimeValues(options, {
-            ...identity,
-            canRescueFromOppositeAxis: false,
-        });
-
-        expect(getMarkLineData(result)).toEqual(data);
-    });
-
-    test('does not rescue when the time slot is occupied', () => {
+    test('normalizes only the time slot when both slots are occupied', () => {
         const options = makeMarkLineSeries([
             { uuid: 'a', xAxis: '2024-01-15', yAxis: '2024-02-01' },
         ]);
@@ -1446,18 +1389,17 @@ describe('finalizeTimeAxisOptions', () => {
         expect(getMarkLineValue(explicitInstant)).toBe(UTC_MS);
     });
 
-    test('does not rescue from a second physical time axis', () => {
+    test('leaves opposite-axis values untouched during finalization', () => {
         const data = [{ yAxis: '2024-02-01' }];
         const options: EchartsOptionsShape = {
             dataset: { source: [] },
             series: [{ markLine: { data } }],
         };
 
-        const result = finalizeTimeAxisOptions(
-            options,
-            { kind: 'plain', flipAxes: false },
-            { canRescueFromOppositeAxis: false },
-        );
+        const result = finalizeTimeAxisOptions(options, {
+            kind: 'plain',
+            flipAxes: false,
+        });
 
         expect(
             (result.series?.[0].markLine as { data: unknown[] }).data,

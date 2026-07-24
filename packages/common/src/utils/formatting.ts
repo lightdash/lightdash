@@ -367,8 +367,8 @@ const calendarValueFormats = [
 
 // Strict UTC parse of a stored calendar value (`2024-07-22`, `2024-07`,
 // `2024-Q3`, `2024`) to the start of its period, browser-independent. Unlike
-// parseDate this rejects anything outside the canonical formats — numeric
-// strings, datetimes, garbage — instead of leniently coercing them.
+// parseDate this accepts only canonical calendar formats and does not
+// leniently coerce other inputs.
 export const parseCalendarValueUTC = (value: string): Date | undefined => {
     const parsed = moment.utc(value, calendarValueFormats, true);
     return parsed.isValid() ? parsed.toDate() : undefined;

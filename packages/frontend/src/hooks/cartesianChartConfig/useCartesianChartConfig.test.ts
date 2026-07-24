@@ -950,6 +950,22 @@ describe('reference-line semantic to physical axis integration', () => {
 
             expect(line?.[expectedTimeSlot]).toBe('2024-07-15');
             expect(line?.[expectedValueSlot]).toBeUndefined();
+
+            const finalized = finalizeTimeAxisOptions(
+                {
+                    dataset: {
+                        source: [{ [timeField]: '2024-07-15' }],
+                    },
+                    series,
+                },
+                { kind: 'calendar', fieldId: timeField, flipAxes },
+            );
+            const finalizedLine = finalized.series?.[0].markLine?.data[0];
+
+            expect(finalizedLine?.[expectedTimeSlot]).toBe(
+                Date.parse('2024-07-15T00:00:00Z'),
+            );
+            expect(finalizedLine?.[expectedValueSlot]).toBeUndefined();
         },
     );
 
@@ -1007,7 +1023,7 @@ describe('reference-line semantic to physical axis integration', () => {
         expect(flagOffResult[0].markLine?.data[0].yAxis).toBeUndefined();
     });
 
-    test('does not reinterpret a date-shaped category reference as a time line', () => {
+    test('does not reinterpret a date-shaped category reference during finalization', () => {
         const series = applyReferenceLines(
             makeSeries(stringField),
             {
@@ -1026,9 +1042,14 @@ describe('reference-line semantic to physical axis integration', () => {
             ],
             { itemsMap, resolvedTimezone: 'UTC' },
         );
+        const finalized = finalizeTimeAxisOptions(
+            { dataset: { source: [] }, series },
+            { kind: 'plain', flipAxes: true },
+        );
+        const line = finalized.series?.[0].markLine?.data[0];
 
-        expect(series[0].markLine?.data[0].xAxis).toBe('2024-07-15');
-        expect(series[0].markLine?.data[0].yAxis).toBeUndefined();
+        expect(line?.xAxis).toBe('2024-07-15');
+        expect(line?.yAxis).toBeUndefined();
     });
 
     test.each([
