@@ -1,4 +1,5 @@
 import { type MetricQuery } from '../../../../../types/metricQuery';
+import { isMetricsOnlyFunnel } from '../../shared/isMetricsOnlyFunnel';
 import { type AiAgentChartTypeOption } from '../types';
 
 /**
@@ -11,10 +12,7 @@ export const getAvailableChartTypes = (
 
     if (metricQuery.metrics.length > 0 && metricQuery.dimensions.length > 0) {
         types.push('bar', 'horizontal', 'line', 'scatter', 'pie', 'funnel');
-    } else if (
-        metricQuery.dimensions.length === 0 &&
-        metricQuery.metrics.length >= 2
-    ) {
+    } else if (isMetricsOnlyFunnel(metricQuery)) {
         // Single-row results can still render a funnel with one stage per metric
         types.push('funnel');
     }

@@ -105,5 +105,19 @@ describe('getRunQueryChartConfig', () => {
                 },
             });
         });
+
+        it('falls back to table for a metrics-only query with a single metric', () => {
+            const config = getRunQueryChartConfig({
+                queryTool: buildQueryTool({
+                    defaultVizType: 'funnel',
+                    dimensions: [],
+                    metrics: ['orders_order_count'],
+                }),
+                metricQuery: buildMetricQuery([], ['orders_order_count']),
+                fieldsMap: {},
+            });
+
+            expect(config.type).toBe(ChartType.TABLE);
+        });
     });
 });

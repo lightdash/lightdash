@@ -1,4 +1,5 @@
 import { type MetricQuery } from '../../../../../types/metricQuery';
+import { isMetricsOnlyFunnel } from '../../shared/isMetricsOnlyFunnel';
 import { type AiAgentChartTypeOption } from '../types';
 
 /**
@@ -32,8 +33,7 @@ export const canRenderAsChart = (
             return (
                 (metricQuery.dimensions.length > 0 &&
                     metricQuery.metrics.length > 0) ||
-                (metricQuery.dimensions.length === 0 &&
-                    metricQuery.metrics.length >= 2)
+                isMetricsOnlyFunnel(metricQuery)
             );
         default:
             return false;
