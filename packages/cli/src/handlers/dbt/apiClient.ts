@@ -125,6 +125,7 @@ export type ContentAsCodeUploadPermissions = {
     scheduledDeliveries: boolean;
     googleSheets: boolean;
     dataApps: boolean;
+    externalConnections: boolean;
 };
 
 export const getContentAsCodeUploadPermissions = async (
@@ -214,6 +215,10 @@ export const getContentAsCodeUploadPermissions = async (
                 'manage',
                 subject('DataApp', { ...accessibleResourceSubject }),
             ),
+        externalConnections: ability.can(
+            'manage',
+            subject('ExternalConnection', { ...baseSubject }),
+        ),
     };
 };
 

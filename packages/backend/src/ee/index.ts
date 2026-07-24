@@ -80,6 +80,7 @@ import { PreAggregationDuckDbClient } from './services/AsyncQueryService/PreAggr
 import { CommercialCacheService } from './services/CommercialCacheService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
 import { EmbedService } from './services/EmbedService/EmbedService';
+import { ExternalConnectionCoderService } from './services/ExternalConnectionCoderService/ExternalConnectionCoderService';
 import { ExternalConnectionService } from './services/ExternalConnectionService/ExternalConnectionService';
 import { GoogleServiceAccountTokenProvider } from './services/ExternalConnectionService/GoogleServiceAccountTokenProvider';
 import { ManagedAgentService } from './services/ManagedAgentService/ManagedAgentService';
@@ -635,6 +636,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getSpacePermissionService(),
                     googleTokenProvider:
                         new GoogleServiceAccountTokenProvider(),
+                }),
+            externalConnectionCoderService: ({ models, context, repository }) =>
+                new ExternalConnectionCoderService({
+                    lightdashConfig: context.lightdashConfig,
+                    externalConnectionModel:
+                        models.getExternalConnectionModel(),
+                    externalConnectionService:
+                        repository.getExternalConnectionService<ExternalConnectionService>(),
                 }),
             slackIntegrationService: ({ models, context, clients }) =>
                 new CommercialSlackIntegrationService({

@@ -3,6 +3,7 @@ export * from './agentOnboarding/types';
 export * from './aiDeepResearch/markdown';
 export * from './aiDeepResearch/types';
 export * from './aiWriteback/types';
+export * from './externalConnections/coder';
 export * from './externalConnections/types';
 export * from './AiRouter';
 export * from './apps/types';

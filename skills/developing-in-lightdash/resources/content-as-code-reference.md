@@ -19,6 +19,7 @@ Content as code has two separate scopes. A project command never includes organi
 | Alerts | No | `--include-alerts` or `--include-all` | `alerts/**/*.yml` |
 | Scheduled deliveries | No | `--include-scheduled-deliveries` or `--include-all` | `scheduled-deliveries/**/*.yml` |
 | Google Sheets syncs | No | `--include-google-sheets` or `--include-all` | `google-sheets/**/*.yml` |
+| External connections | No | `--include-external-connections`, `--external-connections <slugs...>`, or `--include-all` | `external-connections/*.yml` |
 | Data apps | No | `--include-apps`, `--apps <uuids...>`, or `--include-all` | `apps/<app-folder>/` |
 
 `--include-all` requests every optional project resource available to the caller. Project-wide data-app downloads are capped at 50 by default; raise the cap with `--apps-limit <number>`. Data apps are multi-file bundles rather than YAML resources and remain opt-in during upload with `--include-apps` or `--apps <uuids...>`.
@@ -47,12 +48,69 @@ If custom roles fail, dependent users and groups are skipped. If users fail, dep
 
 Organization documents use their resource folders to determine their type and do not require a `contentType` property. Do not add one merely to make them look like project documents.
 
+## External Connections (Enterprise)
+
+External connections are project-scoped third-party HTTP APIs that data apps fetch from at runtime. Managing them requires Lightdash Enterprise and the admin-only `manage:ExternalConnection` permission — for both download and upload. Under `--include-all` an unavailable server or missing permission is warned about and skipped; the explicit `--external-connections <slugs...>` and `--include-external-connections` flags fail instead.
+
+Each connection is one document in `external-connections/<slug>.yml`:
+
+```yaml
+allowedContentTypes:
+  - application/json
+allowedMethods:
+  - GET
+  - POST
+allowedPathPrefixes:
+  - /v1/
+apiKeyLocation: header # header | query; only for type api_key
+apiKeyName: Authorization
+contentType: external_connection
+customHeaders: null # static non-secret headers, e.g. anthropic-version
+instructions: | # freeform usage guidance injected into app generation
+  Use /v1/charges for payments. Paginate with starting_after.
+name: Stripe API
+oauthScopes: null # only for type google_service_account
+origin: https://api.stripe.com # https, bare host, no path
+rateLimitPerMinute: null
+requestMaxBytes: 262144
+responseMaxBytes: 1048576
+slug: stripe-api
+timeoutMs: 10000
+type: api_key # none | api_key | bearer_token | google_service_account
+version: 1
+```
+
+Identity and behavior rules:
+
+- The project-scoped `slug` is the identity. It is generated from the name at creation and stays stable across renames — renaming via `name` updates the same connection; changing the `slug` creates a new one. Deleting a file never deletes the remote connection.
+- `instructions` is the field an agent should invest in: it is injected into data-app generation prompts, so document auth quirks, useful endpoints, pagination, and response caveats there.
+- `lightdash lint` does not validate these documents; the server validates on upload (https-only bare-host origin, method/content-type allowlists, per-auth-type requirements) and returns actionable errors.
+
+### Secrets
+
+Secrets never appear in YAML files or downloads. At upload the CLI reads the environment variable `LIGHTDASH_EXTERNAL_CONNECTION_SECRET_<SLUG>` (slug uppercased, hyphens → underscores; e.g. `stripe-api` → `LIGHTDASH_EXTERNAL_CONNECTION_SECRET_STRIPE_API`) and sends its value with the document:
+
+- **Creating** a connection of type `api_key`, `bearer_token`, or `google_service_account` requires the variable to be set — the upload fails otherwise, naming the expected variable. For `google_service_account` the value is the service-account keyfile JSON.
+- **Updating** without the variable keeps the stored secret unchanged. With the variable set, an unchanged secret reports no changes; a different value rotates it.
+- Clearing a secret is not supported as code — use the settings UI.
+- Never write a `secret` key into the YAML. The CLI strips it with a warning rather than uploading it, but it should not be in version control in the first place.
+
+### Authoring a new connection
+
+To wire a data app to a new API, an agent can author the config directly instead of using the settings UI:
+
+1. Read the target API's documentation: base host, auth scheme, useful endpoints, pagination.
+2. Write `external-connections/<slug>.yml` with the narrowest `allowedMethods` and `allowedPathPrefixes` the app needs (`GET`-only unless writes are required), and detailed `instructions`.
+3. Have the secret exported as `LIGHTDASH_EXTERNAL_CONNECTION_SECRET_<SLUG>` — never pasted into a file.
+4. `lightdash upload --external-connections <slug>` and check the action summary.
+5. Linking the connection to a specific data app is a separate step done in Lightdash (app builder or API), not through content as code.
+
 ## What Is Not Included
 
 Content as code does not manage:
 
 - dbt or Lightdash semantic-layer models, metrics, dimensions, or joins; use `lightdash deploy`;
-- warehouse credentials, secrets, or external-service authentication;
+- warehouse credentials, secrets, or external-service authentication — external connection *configs* are managed, but their secrets travel only through environment variables at upload time (see [External Connections](#external-connections-enterprise));
 - general project and organization settings outside the registered resources;
 - every data app when the project contains more than the configured apps limit;
 - resources that the authenticated user cannot read or that are unavailable on the server edition.
@@ -87,6 +145,7 @@ Use filters for small, isolated edits:
 lightdash download --charts revenue-by-month --path ./lightdash
 lightdash download --dashboards executive-summary --path ./lightdash
 lightdash download --agents sales-agent --path ./lightdash
+lightdash download --external-connections stripe-api --path ./lightdash
 lightdash download --spaces-only --path ./lightdash
 ```
 

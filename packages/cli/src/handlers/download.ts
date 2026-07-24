@@ -14,6 +14,8 @@ import {
     ApiDashboardAsCodeListResponse,
     ApiDashboardValidationResponse,
     ApiEmbedProjectAppsResponse,
+    ApiExternalConnectionAsCodeListResponse,
+    ApiExternalConnectionAsCodeUpsertResponse,
     ApiGoogleSheetsSyncAsCodeListResponse,
     ApiGoogleSheetsSyncAsCodeUpsertResponse,
     ApiImportAppCodeResponse,
@@ -28,6 +30,7 @@ import {
     computeCustomDependencies,
     ContentAsCodeType as ContentAsCodeTypeEnum,
     DashboardAsCode,
+    ExternalConnectionAsCode,
     generateSlug,
     getErrorMessage,
     GoogleSheetsSyncAsCode,
@@ -95,6 +98,7 @@ import {
 import {
     AI_AGENT_CODE_RESOURCE,
     ALERT_CODE_RESOURCE,
+    EXTERNAL_CONNECTION_CODE_RESOURCE,
     GOOGLE_SHEETS_CODE_RESOURCE,
     SCHEDULED_DELIVERY_CODE_RESOURCE,
     VIRTUAL_VIEW_CODE_RESOURCE,
@@ -154,6 +158,7 @@ export type DownloadHandlerOptions = {
     googleSheets: string[];
     scheduledDeliveries: string[];
     virtualViews: string[];
+    externalConnections: string[]; // external connection slugs (enterprise)
     apps?: string[]; // specific app UUIDs or URLs (enterprise); absent = no explicit selection
     includeAgents?: boolean;
     includeApps?: boolean; // download: all of the project's apps, capped at --apps-limit; upload: all app folders on disk
@@ -178,10 +183,12 @@ export type DownloadHandlerOptions = {
     skipGoogleSheets: boolean;
     skipScheduledDeliveries: boolean;
     skipVirtualViews: boolean;
+    skipExternalConnections: boolean;
     includeAlerts: boolean;
     includeGoogleSheets: boolean;
     includeScheduledDeliveries: boolean;
     includeVirtualViews: boolean;
+    includeExternalConnections: boolean;
     includeAll: boolean;
     appsOnly?: boolean; // download only: implies skipCharts + skipDashboards + skipSpaces
     stripPivotSeries: boolean; // Strip per-value pivot series config for portable chart YAML
@@ -215,6 +222,7 @@ const hasUploadFilters = ({
     googleSheets,
     scheduledDeliveries,
     virtualViews,
+    externalConnections,
     apps,
 }: Pick<
     DownloadHandlerOptions,
@@ -226,6 +234,7 @@ const hasUploadFilters = ({
     | 'googleSheets'
     | 'scheduledDeliveries'
     | 'virtualViews'
+    | 'externalConnections'
     | 'apps'
 >): boolean =>
     !spacesOnly &&
@@ -237,6 +246,7 @@ const hasUploadFilters = ({
         googleSheets,
         scheduledDeliveries,
         virtualViews,
+        externalConnections,
         apps ?? [],
     ].some((filters) => filters.length > 0);
 
@@ -1031,6 +1041,198 @@ const upsertVirtualViews = async (
     return changes;
 };
 
+export const getExternalConnectionSecretEnvVar = (slug: string): string =>
+    `LIGHTDASH_EXTERNAL_CONNECTION_SECRET_${slug
+        .replace(/-/g, '_')
+        .toUpperCase()}`;
+
+const EXTERNAL_CONNECTION_SECRET_TYPES = new Set([
+    'api_key',
+    'bearer_token',
+    'google_service_account',
+]);
+
+/**
+ * External connections are enterprise-only and admin-gated; when the download
+ * was reached implicitly through --include-all these statuses mean "not
+ * available here" rather than a real failure: 403 = missing
+ * manage:ExternalConnection, 404 = pre-feature server, 422 = OSS server with
+ * no EE coder service provider (MissingConfigError).
+ */
+const isExternalConnectionsUnavailableError = (error: unknown): boolean =>
+    error instanceof LightdashError &&
+    [403, 404, 422].includes(error.statusCode);
+
+const downloadExternalConnections = async (
+    projectId: string,
+    slugs: string[],
+    implicit: boolean,
+    customPath?: string,
+): Promise<number> => {
+    const slugQuery = slugs.map((slug) => ['slugs', slug] as [string, string]);
+    let offset = 0;
+    let total = 0;
+    const connections: ExternalConnectionAsCode[] = [];
+
+    try {
+        do {
+            const query = new URLSearchParams([
+                ...slugQuery,
+                ['offset', String(offset)],
+            ]).toString();
+            const results = await lightdashApi<
+                ApiExternalConnectionAsCodeListResponse['results']
+            >({
+                method: 'GET',
+                url: `/api/v1/projects/${projectId}/code/externalConnections?${query}`,
+                body: undefined,
+            });
+
+            connections.push(...results.externalConnections);
+            results.missingSlugs.forEach((slug) =>
+                GlobalState.log(
+                    styles.warning(
+                        `External connection "${slug}" was not found`,
+                    ),
+                ),
+            );
+            offset = results.offset;
+            total = results.total;
+        } while (offset < total);
+    } catch (error) {
+        if (implicit && isExternalConnectionsUnavailableError(error)) {
+            GlobalState.log(
+                styles.warning(
+                    'Skipping external connections: they require Lightdash Enterprise and the manage:ExternalConnection permission.',
+                ),
+            );
+            GlobalState.debug(
+                `Could not download external connections: ${getErrorMessage(error)}`,
+            );
+            return 0;
+        }
+        throw error;
+    }
+
+    await writeCodeResourceDocuments({
+        definition: EXTERNAL_CONNECTION_CODE_RESOURCE,
+        basePath: getDownloadFolder(customPath),
+        documents: connections,
+        pruneOtherDocuments: slugs.length === 0,
+    });
+
+    const secretEnvVars = connections
+        .filter(({ type }) => EXTERNAL_CONNECTION_SECRET_TYPES.has(type))
+        .map(({ slug }) => getExternalConnectionSecretEnvVar(slug));
+    if (secretEnvVars.length > 0) {
+        GlobalState.log(
+            styles.warning(
+                `Secrets are never downloaded. To create these connections on another instance, set:\n\t${secretEnvVars.join('\n\t')}`,
+            ),
+        );
+    }
+
+    return connections.length;
+};
+
+const readExternalConnectionFiles = async (
+    customPath?: string,
+): Promise<ExternalConnectionAsCode[]> => {
+    const result = await readCodeResourceFiles({
+        definition: EXTERNAL_CONNECTION_CODE_RESOURCE,
+        basePath: getDownloadFolder(customPath),
+    });
+    assertCodeResourceFilesValid(result);
+    return result.files.map(({ document }) => document);
+};
+
+const upsertExternalConnections = async (
+    projectId: string,
+    slugs: string[],
+    changes: Record<string, number>,
+    force: boolean,
+    canUpload: boolean,
+    customPath?: string,
+): Promise<Record<string, number>> => {
+    const connections = await readExternalConnectionFiles(customPath);
+    const selected = slugs.length
+        ? connections.filter(({ slug }) => slugs.includes(slug))
+        : connections;
+    const selectedSlugs = new Set(selected.map(({ slug }) => slug));
+    slugs
+        .filter((slug) => !selectedSlugs.has(slug))
+        .forEach((slug) =>
+            GlobalState.log(
+                styles.warning(
+                    `External connection "${slug}" was not found locally`,
+                ),
+            ),
+        );
+    if (selected.length > 0 && !canUpload) {
+        GlobalState.log(
+            styles.error(
+                `Error uploading external connections: the manage:ExternalConnection permission is required (enterprise feature)`,
+            ),
+        );
+        return changes;
+    }
+    for (const connection of selected.sort((left, right) =>
+        left.slug.localeCompare(right.slug),
+    )) {
+        const envVar = getExternalConnectionSecretEnvVar(connection.slug);
+        const envValue = process.env[envVar];
+        const secret =
+            envValue !== undefined && envValue !== '' ? envValue : undefined;
+        if (envValue === '') {
+            GlobalState.log(
+                styles.warning(
+                    `Environment variable ${envVar} is set but empty; treating the secret as not provided.`,
+                ),
+            );
+        }
+        // The parser keeps unknown keys, so a secret authored into the YAML
+        // would otherwise be sent verbatim — strip it and tell the user.
+        if ('secret' in connection) {
+            delete (connection as Record<string, unknown>).secret;
+            GlobalState.log(
+                styles.warning(
+                    `Ignoring "secret" in the file for "${connection.slug}" — secrets must never be stored in YAML. Set ${envVar} instead.`,
+                ),
+            );
+        }
+        try {
+            const result = await lightdashApi<
+                ApiExternalConnectionAsCodeUpsertResponse['results']
+            >({
+                method: 'POST',
+                url: `/api/v1/projects/${projectId}/code/externalConnections/${encodeURIComponent(
+                    connection.slug,
+                )}?force=${force}`,
+                body: JSON.stringify({
+                    connection,
+                    ...(secret !== undefined ? { secret } : {}),
+                }),
+            });
+            const action = `external connections ${getPromoteAction(result.action)}`;
+            changes[action] = (changes[action] ?? 0) + 1;
+        } catch (error) {
+            const errorKey = 'external connections with errors';
+            changes[errorKey] = (changes[errorKey] ?? 0) + 1;
+            const secretHint =
+                secret === undefined &&
+                EXTERNAL_CONNECTION_SECRET_TYPES.has(connection.type)
+                    ? `\n\tSet ${envVar} to provide the secret for "${connection.slug}" — secrets are read from the environment at upload time and never stored in YAML.`
+                    : '';
+            GlobalState.log(
+                styles.error(
+                    `Error upserting external connection:\n\t"${connection.name}" (slug: "${connection.slug}")\n\t${getErrorMessage(error)}${secretHint}`,
+                ),
+            );
+        }
+    }
+    return changes;
+};
+
 type ScheduledContentAsCode =
     | ScheduledDeliveryAsCode
     | AlertAsCode
@@ -1394,6 +1596,7 @@ export const downloadHandler = async (
         options.includeGoogleSheets = false;
         options.includeScheduledDeliveries = false;
         options.includeVirtualViews = false;
+        options.includeExternalConnections = false;
     }
 
     if (options.spacesOnly) {
@@ -1410,12 +1613,14 @@ export const downloadHandler = async (
         options.googleSheets = [];
         options.scheduledDeliveries = [];
         options.virtualViews = [];
+        options.externalConnections = [];
         options.includeAgents = false;
         options.includeApps = false;
         options.includeAlerts = false;
         options.includeGoogleSheets = false;
         options.includeScheduledDeliveries = false;
         options.includeVirtualViews = false;
+        options.includeExternalConnections = false;
     }
 
     if (options.rootSpaces && options.nested) {
@@ -1744,6 +1949,30 @@ export const downloadHandler = async (
                         projectId,
                         options.googleSheets,
                         ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC,
+                        options.path,
+                    ),
+                detail: (total) => `${total} downloaded`,
+            });
+        }
+
+        if (
+            includeAllOptionalContent ||
+            options.includeExternalConnections ||
+            options.externalConnections.length > 0
+        ) {
+            // Only --include-all is implicit: unavailable (non-EE / no
+            // permission) then warns and skips instead of failing the download
+            const implicit =
+                includeAllOptionalContent &&
+                !options.includeExternalConnections &&
+                options.externalConnections.length === 0;
+            await output.runItem({
+                label: 'External connections',
+                action: () =>
+                    downloadExternalConnections(
+                        projectId,
+                        options.externalConnections,
+                        implicit,
                         options.path,
                     ),
                 detail: (total) => `${total} downloaded`,
@@ -2482,7 +2711,8 @@ export const uploadHandler = async (
             options.alerts.length > 0 ||
             options.googleSheets.length > 0 ||
             options.scheduledDeliveries.length > 0 ||
-            options.virtualViews.length > 0);
+            options.virtualViews.length > 0 ||
+            options.externalConnections.length > 0);
     const shouldReconcileSpaces =
         !isOrganizationUpload && !options.skipSpaces && !hasFilters;
     let preflightSpaceFiles: SpaceCodeFile[] = [];
@@ -2837,6 +3067,31 @@ export const uploadHandler = async (
                             options.force,
                             ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC,
                             uploadPermissions.googleSheets,
+                            options.path,
+                        ),
+                });
+            }
+        }
+
+        if (!options.skipExternalConnections) {
+            if (hasFilters && options.externalConnections.length === 0) {
+                GlobalState.log(
+                    styles.warning(
+                        `No external connection filters provided, skipping`,
+                    ),
+                );
+            } else {
+                changes = await runUploadChangesPhase({
+                    output,
+                    label: 'External connections',
+                    changes,
+                    action: () =>
+                        upsertExternalConnections(
+                            projectId,
+                            options.externalConnections,
+                            changes,
+                            options.force,
+                            uploadPermissions.externalConnections,
                             options.path,
                         ),
                 });
@@ -3209,7 +3464,9 @@ export const testHelpers = {
     getFlatSpaceFileNames,
     getDashboardChartSlugs,
     hasUploadFilters,
+    isExternalConnectionsUnavailableError,
     readAiAgentFiles,
+    readExternalConnectionFiles,
     readSpaceFiles,
     readSpaceNames,
     sanitizeChartForDownload,
@@ -3217,6 +3474,7 @@ export const testHelpers = {
     shouldDownloadAiAgents,
     sortSpaceFilesParentFirst,
     summarizeUploadChanges,
+    upsertExternalConnections,
     upsertSpaces,
     upsertVirtualViews,
     validateSpaceIdentity,

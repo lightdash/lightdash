@@ -176,6 +176,7 @@ interface ServiceManifest {
     cacheService: unknown;
     serviceAccountService: unknown;
     externalConnectionService: unknown;
+    externalConnectionCoderService: unknown;
     instanceConfigurationService: unknown;
     managedAgentService: unknown;
     mcpService: unknown;
@@ -1571,6 +1572,12 @@ export class ServiceRepository
         ExternalConnectionServiceImplT,
     >(): ExternalConnectionServiceImplT {
         return this.getService('externalConnectionService');
+    }
+
+    public getExternalConnectionCoderService<
+        ExternalConnectionCoderServiceImplT,
+    >(): ExternalConnectionCoderServiceImplT {
+        return this.getService('externalConnectionCoderService');
     }
 
     public getOrganizationWarehouseCredentialsService<

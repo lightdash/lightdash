@@ -108,6 +108,10 @@ lightdash upload --charts my-chart --dashboards my-dashboard
 
 # Upload dashboard with all its referenced charts
 lightdash upload --dashboards my-dashboard --include-charts
+
+# Data-app external connections (enterprise; secrets via env var — see Content as Code)
+lightdash download --include-external-connections
+LIGHTDASH_EXTERNAL_CONNECTION_SECRET_STRIPE_API=sk-... lightdash upload --external-connections stripe-api
 ```
 
 ## SQL Runner
