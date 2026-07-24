@@ -4,6 +4,7 @@ import {
     type AiDeepResearchEventPayload,
     type AiDeepResearchEventPayloadMap,
     type AiDeepResearchEventType,
+    type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchProgress,
     type AiDeepResearchRunStatus,
 } from '@lightdash/common';
@@ -25,11 +26,14 @@ type CreateAiDeepResearchRun = {
     organizationUuid: string;
     projectUuid: string;
     createdByUserUuid: string;
-    aiThreadUuid: string | null;
-    promptUuid: string | null;
+    agentUuid: string;
+    aiThreadUuid: string;
+    promptUuid: string;
     toolCallId: string | null;
     prompt: string;
+    selectedMcpServerUuids: string[];
     budget: AiDeepResearchBudget;
+    executionContextSnapshot: AiDeepResearchExecutionContextSnapshot;
 };
 
 type EventCursor = {
@@ -75,11 +79,16 @@ export class AiDeepResearchRunModel {
                     organization_uuid: data.organizationUuid,
                     project_uuid: data.projectUuid,
                     created_by_user_uuid: data.createdByUserUuid,
+                    agent_uuid: data.agentUuid,
                     ai_thread_uuid: data.aiThreadUuid,
                     prompt_uuid: data.promptUuid,
                     tool_call_id: data.toolCallId,
                     prompt: data.prompt,
+                    selected_mcp_server_uuids: JSON.stringify(
+                        data.selectedMcpServerUuids,
+                    ) as unknown as string[],
                     budget_snapshot: data.budget,
+                    execution_context_snapshot: data.executionContextSnapshot,
                 })
                 .returning('*');
 
@@ -91,6 +100,20 @@ export class AiDeepResearchRunModel {
             );
             return run;
         });
+    }
+
+    async updateExecutionContextSnapshot(
+        aiDeepResearchRunUuid: string,
+        snapshot: AiDeepResearchExecutionContextSnapshot,
+    ): Promise<void> {
+        await this.database<AiDeepResearchRunsTable>(
+            AiDeepResearchRunsTableName,
+        )
+            .where('ai_deep_research_run_uuid', aiDeepResearchRunUuid)
+            .update({
+                execution_context_snapshot: snapshot,
+                updated_at: new Date(),
+            });
     }
 
     async findByUuid(
@@ -117,6 +140,22 @@ export class AiDeepResearchRunModel {
             .first();
     }
 
+    async findByPromptScoped(args: {
+        promptUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+        createdByUserUuid: string;
+    }): Promise<DbAiDeepResearchRun | undefined> {
+        return this.database<AiDeepResearchRunsTable>(
+            AiDeepResearchRunsTableName,
+        )
+            .where('prompt_uuid', args.promptUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .where('project_uuid', args.projectUuid)
+            .where('created_by_user_uuid', args.createdByUserUuid)
+            .first();
+    }
+
     async findByThreadScoped(args: {
         aiThreadUuid: string;
         organizationUuid: string;
@@ -131,6 +170,19 @@ export class AiDeepResearchRunModel {
             .where('project_uuid', args.projectUuid)
             .where('created_by_user_uuid', args.createdByUserUuid)
             .orderBy('created_at', 'asc');
+    }
+
+    async deleteUnstartedFailedRun(
+        aiDeepResearchRunUuid: string,
+    ): Promise<boolean> {
+        const deleted = await this.database<AiDeepResearchRunsTable>(
+            AiDeepResearchRunsTableName,
+        )
+            .where('ai_deep_research_run_uuid', aiDeepResearchRunUuid)
+            .where('status', 'failed')
+            .whereNull('started_at')
+            .delete();
+        return deleted > 0;
     }
 
     async claimQueuedRun(
@@ -162,22 +214,6 @@ export class AiDeepResearchRunModel {
             );
             return run;
         });
-    }
-
-    async setClaudeSessionId(
-        aiDeepResearchRunUuid: string,
-        claudeSessionId: string,
-    ): Promise<boolean> {
-        const updated = await this.database<AiDeepResearchRunsTable>(
-            AiDeepResearchRunsTableName,
-        )
-            .where('ai_deep_research_run_uuid', aiDeepResearchRunUuid)
-            .where('status', 'running')
-            .update({
-                claude_session_id: claudeSessionId,
-                updated_at: this.database.fn.now() as unknown as Date,
-            });
-        return updated > 0;
     }
 
     async touch(aiDeepResearchRunUuid: string): Promise<boolean> {

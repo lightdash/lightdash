@@ -1,5 +1,6 @@
 import {
     assertRegisteredAccount,
+    ForbiddenError,
     type AiDeepResearchRequestBody,
     type ApiAiAgentThreadMessageVizQueryResponse,
     type ApiAiDeepResearchEventsResponse,
@@ -52,6 +53,11 @@ export class AiDeepResearchController extends BaseController {
         @Body() body: AiDeepResearchRequestBody,
     ): Promise<ApiAiDeepResearchRunResponse> {
         assertRegisteredAccount(req.account);
+        if (req.account.authentication.type !== 'session') {
+            throw new ForbiddenError(
+                'Deep Research must be started from a signed-in browser session',
+            );
+        }
         this.setStatus(202);
         return {
             status: 'ok',
@@ -59,9 +65,11 @@ export class AiDeepResearchController extends BaseController {
                 user: toSessionUser(req.account),
                 projectUuid,
                 prompt: body.prompt,
+                agentUuid: body.agentUuid,
                 effort: body.effort,
                 aiThreadUuid: body.threadUuid,
                 promptUuid: body.promptUuid,
+                mcpServerUuids: body.mcpServerUuids,
             }),
         };
     }

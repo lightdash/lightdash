@@ -37,7 +37,9 @@ import {
     type DeepResearchDepth,
     type StartDeepResearchArgs,
 } from '../../deepResearch/types';
+import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
+import { useDeepResearchComposer } from '../../hooks/useDeepResearchComposer';
 import {
     useCreateAiAgentThreadMessageSteerMutation,
     useInterruptAiAgentThreadMessageMutation,
@@ -179,7 +181,6 @@ export const AgentChatInput = ({
     const [composerMode, setComposerMode] = useState<AgentComposerMode>('ask');
     const [deepResearchDepth, setDeepResearchDepth] =
         useState<DeepResearchDepth>('standard');
-    const [isStartingDeepResearch, setIsStartingDeepResearch] = useState(false);
     const [deepResearchHeaderTarget, setDeepResearchHeaderTarget] =
         useState<Element | null>(null);
     const navigate = useNavigate();
@@ -488,8 +489,24 @@ export const AgentChatInput = ({
     const showDisabledBanner = disabled && disabledReason;
     const isThreadInput = Boolean(threadUuid);
     const canStartDeepResearch = Boolean(
-        onStartDeepResearch && messageCount === 0,
+        onStartDeepResearch && !isEmbedAiAgentRoute(),
     );
+    const {
+        isPreflightReady: isDeepResearchPreflightReady,
+        isStarting: isStartingDeepResearch,
+        isLoadingMcpServers,
+        mcpServerError,
+        mcpServers,
+        selectedMcpServerUuids,
+        setSelectedMcpServerUuids,
+        startDeepResearch,
+    } = useDeepResearchComposer({
+        projectUuid,
+        agentUuid,
+        canStart: canStartDeepResearch && !disabled && !loading,
+        enabled: canStartDeepResearch && composerMode === 'deep_research',
+        onStart: onStartDeepResearch,
+    });
     const showSqlModeControl = Boolean(onSqlModeChange && !disabled);
     const activeMessageUuid = threadStream?.isStreaming
         ? threadStream.messageUuid
@@ -507,27 +524,21 @@ export const AgentChatInput = ({
     const handleStartDeepResearch = async () => {
         const ed = editorRef.current;
         const question = ed?.getText().trim() ?? '';
-        if (
-            !question ||
-            !onStartDeepResearch ||
-            !canStartDeepResearch ||
-            isStartingDeepResearch
-        ) {
+        if (!question) {
+            return;
+        }
+        if (disabled || loading) {
             return;
         }
 
-        setIsStartingDeepResearch(true);
-        try {
-            await onStartDeepResearch({
-                question,
-                depth: deepResearchDepth,
-            });
-            if (clearOnSubmitRef.current) {
-                ed?.commands.clearContent();
-                setValueState('');
-            }
-        } finally {
-            setIsStartingDeepResearch(false);
+        const started = await startDeepResearch({
+            question,
+            depth: deepResearchDepth,
+            mcpServerUuids: selectedMcpServerUuids,
+        });
+        if (started && clearOnSubmitRef.current) {
+            ed?.commands.clearContent();
+            setValueState('');
         }
     };
 
@@ -609,6 +620,11 @@ export const AgentChatInput = ({
             <DeepResearchPreflight
                 depth={deepResearchDepth}
                 onDepthChange={setDeepResearchDepth}
+                mcpServers={mcpServers}
+                selectedMcpServerUuids={selectedMcpServerUuids}
+                onSelectedMcpServerUuidsChange={setSelectedMcpServerUuids}
+                isLoadingMcpServers={isLoadingMcpServers}
+                mcpServerError={mcpServerError}
             />
         ) : null;
     const deepResearchControlPortal =
@@ -815,7 +831,13 @@ export const AgentChatInput = ({
                                         ? styles.deepResearchSubmitButton
                                         : ''
                                 }`}
-                                disabled={disabled || !hasValue}
+                                disabled={
+                                    disabled ||
+                                    !hasValue ||
+                                    (composerMode === 'deep_research' &&
+                                        (loading ||
+                                            !isDeepResearchPreflightReady))
+                                }
                                 loading={
                                     composerMode === 'deep_research'
                                         ? isStartingDeepResearch
@@ -1020,7 +1042,13 @@ export const AgentChatInput = ({
                                         ? styles.deepResearchSubmitButton
                                         : ''
                                 }`}
-                                disabled={disabled || !hasValue}
+                                disabled={
+                                    disabled ||
+                                    !hasValue ||
+                                    (composerMode === 'deep_research' &&
+                                        (loading ||
+                                            !isDeepResearchPreflightReady))
+                                }
                                 loading={
                                     composerMode === 'deep_research'
                                         ? isStartingDeepResearch

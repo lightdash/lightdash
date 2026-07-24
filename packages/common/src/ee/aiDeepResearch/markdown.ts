@@ -19,6 +19,7 @@ export const AI_DEEP_RESEARCH_MAX_CHARTS = 8;
 export const AI_DEEP_RESEARCH_MAX_CHART_DESCRIPTION_CHARS = 300;
 export const AI_DEEP_RESEARCH_MAX_INLINE_ROWS = 100;
 export const AI_DEEP_RESEARCH_MAX_INLINE_COLUMNS = 10;
+export const AI_DEEP_RESEARCH_MAX_REPORT_MARKDOWN_CHARS = 60_000;
 
 /**
  * Whitelisted HTML tags allowed in report markdown, mapped to their allowed
@@ -738,3 +739,28 @@ export const lintDeepResearchReport = (
 
     return errors;
 };
+
+export const aiDeepResearchReportInputSchema = z.object({
+    markdown: z.string().min(1).max(AI_DEEP_RESEARCH_MAX_REPORT_MARKDOWN_CHARS),
+    charts: z
+        .array(aiDeepResearchChartDefinitionSchema)
+        .max(AI_DEEP_RESEARCH_MAX_CHARTS)
+        .default([]),
+});
+
+export const aiDeepResearchReportSchema =
+    aiDeepResearchReportInputSchema.superRefine(
+        ({ markdown, charts }, context) => {
+            for (const message of lintDeepResearchReport(markdown, charts)) {
+                context.addIssue({
+                    code: 'custom',
+                    path: ['markdown'],
+                    message,
+                });
+            }
+        },
+    );
+
+export type AiDeepResearchSubmittedReport = z.infer<
+    typeof aiDeepResearchReportSchema
+>;

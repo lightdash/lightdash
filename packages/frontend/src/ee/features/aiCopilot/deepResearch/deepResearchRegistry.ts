@@ -19,10 +19,20 @@ const readRegistry = (): DeepResearchRunRegistration[] => {
                       item !== null &&
                       'runUuid' in item &&
                       typeof item.runUuid === 'string' &&
+                      'agentUuid' in item &&
+                      typeof item.agentUuid === 'string' &&
                       'userUuid' in item &&
                       typeof item.userUuid === 'string' &&
                       'threadUuid' in item &&
-                      typeof item.threadUuid === 'string',
+                      typeof item.threadUuid === 'string' &&
+                      'promptUuid' in item &&
+                      typeof item.promptUuid === 'string' &&
+                      'mcpServerUuids' in item &&
+                      Array.isArray(item.mcpServerUuids) &&
+                      item.mcpServerUuids.every(
+                          (serverUuid: unknown) =>
+                              typeof serverUuid === 'string',
+                      ),
               )
             : [];
     } catch {
@@ -53,7 +63,9 @@ export const replaceDeepResearchRun = (
     registration: DeepResearchRunRegistration,
 ) => {
     const registrations = readRegistry().filter(
-        (item) => item.runUuid !== previousRunUuid,
+        (item) =>
+            item.runUuid !== previousRunUuid &&
+            item.promptUuid !== registration.promptUuid,
     );
     emitChange([...registrations, registration]);
 };
@@ -70,6 +82,33 @@ export const updateDeepResearchRun = (
         ),
     );
 };
+
+export const findRetryableDeepResearchRun = ({
+    projectUuid,
+    agentUuid,
+    threadUuid,
+    userUuid,
+    question,
+}: {
+    projectUuid: string;
+    agentUuid: string;
+    threadUuid: string;
+    userUuid: string | undefined;
+    question: string;
+}): DeepResearchRunRegistration | undefined =>
+    readRegistry()
+        .filter(
+            (registration) =>
+                registration.projectUuid === projectUuid &&
+                registration.agentUuid === agentUuid &&
+                registration.threadUuid === threadUuid &&
+                registration.userUuid === userUuid &&
+                registration.question === question &&
+                registration.state === 'start_failed',
+        )
+        .sort((left, right) =>
+            right.createdAt.localeCompare(left.createdAt),
+        )[0];
 
 const subscribe = (onStoreChange: () => void) => {
     const handleChange = () => {
@@ -103,6 +142,17 @@ export const useDeepResearchRunsForThread = (
 };
 
 const COMPOSER_EVENT = 'lightdash:deep-research-composer-prompt';
+
+export const restoreDeepResearchComposerPrompt = (
+    threadUuid: string,
+    prompt: string,
+) => {
+    window.dispatchEvent(
+        new CustomEvent(COMPOSER_EVENT, {
+            detail: { threadUuid, prompt },
+        }),
+    );
+};
 
 export const subscribeToDeepResearchComposerPrompt = (
     listener: (detail: { threadUuid: string; prompt: string }) => void,

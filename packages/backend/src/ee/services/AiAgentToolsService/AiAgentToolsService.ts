@@ -141,6 +141,7 @@ export type AiAgentToolsRuntimeContext = {
     spaceAccess: string[] | null;
     userAttributeOverrides?: UserAttributeValueMap;
     agentUuid?: string;
+    onWarehouseQuery?: () => void | Promise<void>;
 };
 
 export type McpRuntimeSuccess<TData> = {
@@ -437,7 +438,10 @@ export class AiAgentToolsService extends BaseService {
 
                 const dbAttributes =
                     await this.userAttributesModel.getAttributeValuesForOrgMember(
-                        { organizationUuid, userUuid: user.userUuid },
+                        {
+                            organizationUuid,
+                            userUuid: user.userUuid,
+                        },
                     );
                 const userAttributes = mergeUserAttributes(
                     dbAttributes,
@@ -1843,6 +1847,7 @@ export class AiAgentToolsService extends BaseService {
                     >[1],
                 );
 
+                await context.onWarehouseQuery?.();
                 return this.asyncQueryService.executeMetricQueryAndGetResults({
                     account: context.account,
                     projectUuid: context.projectUuid,
@@ -1881,6 +1886,7 @@ export class AiAgentToolsService extends BaseService {
                         `Chart not found: ${args.chartUuid}`,
                     );
 
+                    await context.onWarehouseQuery?.();
                     return this.asyncQueryService.executeSavedChartQueryAndGetResults(
                         {
                             account: context.account,
@@ -1920,6 +1926,7 @@ export class AiAgentToolsService extends BaseService {
                     );
                 }
 
+                await context.onWarehouseQuery?.();
                 return this.asyncQueryService.executeDashboardChartQueryAndGetResults(
                     {
                         account: context.account,
@@ -1945,6 +1952,7 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.runSqlJob`,
             { sql: sql.slice(0, 500), limit },
             async () => {
+                await context.onWarehouseQuery?.();
                 const { queryUuid } =
                     await this.asyncQueryService.executeAsyncSqlQuery({
                         account: context.account,
@@ -2175,6 +2183,7 @@ export class AiAgentToolsService extends BaseService {
                     );
                 }
 
+                await context.onWarehouseQuery?.();
                 const dimensionFilters = args.filters?.dimensions;
                 const andFilters =
                     dimensionFilters && 'and' in dimensionFilters
@@ -2204,9 +2213,7 @@ export class AiAgentToolsService extends BaseService {
                     `[ai-field-values] done source=${context.source} ` +
                         `fieldId=${args.fieldId} elapsedMs=${
                             Date.now() - startedAt
-                        } resultCount=${
-                            Array.isArray(output) ? output.length : 'n/a'
-                        }`,
+                        } resultCount=${Array.isArray(output) ? output.length : 'n/a'}`,
                 );
                 return output;
             },

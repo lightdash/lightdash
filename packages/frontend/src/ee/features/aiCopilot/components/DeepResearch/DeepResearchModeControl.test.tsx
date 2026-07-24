@@ -15,7 +15,15 @@ const ModeHarness = () => {
         <>
             <DeepResearchModeControl mode={mode} onModeChange={setMode} />
             {mode === 'deep_research' && (
-                <DeepResearchPreflight depth={depth} onDepthChange={setDepth} />
+                <DeepResearchPreflight
+                    depth={depth}
+                    onDepthChange={setDepth}
+                    mcpServers={[]}
+                    selectedMcpServerUuids={[]}
+                    onSelectedMcpServerUuidsChange={() => undefined}
+                    isLoadingMcpServers={false}
+                    mcpServerError={null}
+                />
             )}
         </>
     );
@@ -49,8 +57,12 @@ describe('DeepResearchModeControl', () => {
             screen.getByRole('region', { name: 'Deep research settings' }),
         ).toBeInTheDocument();
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-        expect(screen.getByText('Project data')).toBeInTheDocument();
-        expect(screen.getByText('Public web')).toBeInTheDocument();
+        expect(
+            screen.getByText('Agent context and project data'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('This agent has no MCP servers attached.'),
+        ).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Start research' }),
         ).not.toBeInTheDocument();

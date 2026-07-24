@@ -1,11 +1,13 @@
 import {
     AiAgent,
     AiAgentDocumentContext,
+    AiDeepResearchBudget,
     AiMcpServer,
     AiMcpServerConnectionStatus,
     AiWritebackAttribution,
     ProjectContextEntry,
     WarehouseTypes,
+    type AiDeepResearchExecutionContextSnapshot,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
@@ -105,6 +107,23 @@ export type AiAgentRequestingUser = {
     groups: string[];
 };
 
+export type AiAgentExecutionConfig =
+    | {
+          mode: 'standard';
+          maxSteps: number;
+          budget?: never;
+          onStepUsage?: never;
+      }
+    | {
+          mode: 'deep_research';
+          maxSteps: number;
+          budget: AiDeepResearchBudget;
+          onStepUsage?: (tokens: number) => void | Promise<void>;
+          onExecutionContextResolved?: (
+              snapshot: AiDeepResearchExecutionContextSnapshot,
+          ) => void | Promise<void>;
+      };
+
 export type AiAgentArgs = AnyAiModel & {
     // Whether this turn runs on a Lightdash-managed or self-managed (BYO) key.
     // Stamped by the model builder and carried through for usage analytics.
@@ -162,6 +181,7 @@ export type AiAgentArgs = AnyAiModel & {
     warehouseType: WarehouseTypes | null;
     warehouseSchema: string | null;
     availableSkills: AiAgentSkillReference[];
+    modelReasoningEnabled: boolean | null;
 
     findExploresFieldSearchSize: number;
     findFieldsPageSize: number;
@@ -172,6 +192,7 @@ export type AiAgentArgs = AnyAiModel & {
     siteUrl: string;
     canManageAgent: boolean;
     toolHints: string[];
+    execution: AiAgentExecutionConfig;
     /**
      * When true, the first tool hint is *forced* on the opening step
      * (toolChoice), not just suggested — used by the review Build-fix run to

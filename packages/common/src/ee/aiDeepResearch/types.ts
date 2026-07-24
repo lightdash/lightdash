@@ -38,6 +38,63 @@ export type AiDeepResearchBudget = {
     maxResultRows: number;
 };
 
+export type AiDeepResearchExecutionContextSnapshot = {
+    schemaVersion: 1;
+    resolutionStage: 'preflight' | 'execution';
+    capturedAt: string;
+    agent: {
+        uuid: string;
+        name: string;
+        version: number;
+        updatedAt: string;
+        hasInstruction: boolean;
+        tags: string[] | null;
+        spaceAccess: string[];
+        enableDataAccess: boolean;
+        enableSelfImprovement: boolean;
+        enableContentTools: boolean;
+        enableUserContext: boolean;
+    };
+    model: {
+        provider: string | null;
+        modelName: string | null;
+        reasoningEnabled: boolean | null;
+        keyManagement: 'lightdash-managed' | 'self-managed' | null;
+    };
+    tools: {
+        availableToolNames: string[];
+        selectedMcpServers: {
+            uuid: string;
+            name: string;
+            enabledToolNames: string[];
+        }[];
+    };
+    knowledgeDocuments: {
+        uuid: string;
+        name: string;
+        updatedAt: string;
+        alwaysIncludeInContext: boolean;
+    }[];
+    repository: {
+        projectContextEnabled: boolean | null;
+        aiWritebackEnabled: boolean | null;
+        codingAgentEnabled: boolean | null;
+        previewDeploySetupEnabled: boolean | null;
+        repoDiscoveryEnabled: boolean | null;
+        repoFsRoot: string | null;
+        repoFsSupportsCodeSearch: boolean | null;
+        availableSkillNames: string[];
+    };
+    effectivePermissions: {
+        canManageAgent: boolean;
+        canRunSql: boolean;
+        canUseDataTools: boolean;
+        canUseContentTools: boolean;
+        canUseSelfImprovementTools: boolean;
+        autoApproveSql: boolean;
+    };
+};
+
 export const AI_DEEP_RESEARCH_EFFORTS = [
     'low',
     'medium',
@@ -49,12 +106,16 @@ export type AiDeepResearchEffort = (typeof AI_DEEP_RESEARCH_EFFORTS)[number];
 
 export type AiDeepResearchRequestBody = {
     prompt: string;
+    /** Agent whose complete runtime configuration will execute this run. */
+    agentUuid: string;
     /** Server-owned execution budget tier. Defaults to medium. */
     effort?: AiDeepResearchEffort;
     /** Agent thread to attach the run to. Must be owned by the caller. */
-    threadUuid?: string;
-    /** Thread message that captured this prompt. Requires threadUuid. */
-    promptUuid?: string;
+    threadUuid: string;
+    /** Thread message that captured this prompt. */
+    promptUuid: string;
+    /** Agent-attached MCP servers enabled for this run. */
+    mcpServerUuids: string[];
 };
 
 export const AI_DEEP_RESEARCH_CONFIDENCE_LEVELS = [
@@ -201,8 +262,10 @@ export type AiDeepResearchEvent =
 export type AiDeepResearchRun = {
     aiDeepResearchRunUuid: string;
     projectUuid: string;
-    aiThreadUuid: string | null;
-    promptUuid: string | null;
+    agentUuid: string;
+    aiThreadUuid: string;
+    promptUuid: string;
+    mcpServerUuids: string[];
     prompt: string;
     status: AiDeepResearchRunStatus;
     /** The report narrative with compact <chart> references. */
@@ -210,6 +273,7 @@ export type AiDeepResearchRun = {
     /** Render data for each referenced chart, keyed by chart key. */
     resultChartData: AiDeepResearchChartDataMap | null;
     budget: AiDeepResearchBudget;
+    executionContextSnapshot: AiDeepResearchExecutionContextSnapshot | null;
     errorMessage: string | null;
     cancellationRequestedAt: string | null;
     createdAt: string;

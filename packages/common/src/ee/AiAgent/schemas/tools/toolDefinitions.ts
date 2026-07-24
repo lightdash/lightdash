@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { aiDeepResearchReportInputSchema } from '../../../aiDeepResearch/markdown';
 import {
     MCP_TOOL_GET_AI_WRITEBACK_STATUS_DESCRIPTION,
     MCP_TOOL_RUN_AI_WRITEBACK_DESCRIPTION,
@@ -1116,6 +1117,30 @@ export const readPinnedThreadToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolReadPinnedThreadOutputSchema },
 });
 
+const submitResearchReportOutputSchema = z.object({
+    result: z.string(),
+    metadata: z.object({ status: z.enum(['success', 'error']) }),
+});
+
+export const AI_DEEP_RESEARCH_REPORT_TOOL_NAME = 'submitResearchReport';
+
+export const submitResearchReportToolDefinition: ToolDefinitionWithoutMcpOutput<
+    typeof AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
+    typeof aiDeepResearchReportInputSchema,
+    typeof aiDeepResearchReportInputSchema,
+    typeof submitResearchReportOutputSchema
+> = defineTool({
+    name: AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
+    title: 'Submit research report',
+    description:
+        'Save the best current Deep Research report. Submit once useful findings are available and again when the investigation is complete.',
+    availability: ['agent'],
+    inputSchema: aiDeepResearchReportInputSchema,
+    agent: {
+        outputSchema: submitResearchReportOutputSchema,
+    },
+});
+
 /** @deprecated Legacy agent tool kept for historical tool calls. */
 export const findChartsToolDefinition: ToolDefinitionWithoutMcpOutput<
     'findCharts',
@@ -1487,6 +1512,7 @@ type AgentToolDefinitionsByName = {
     listKnowledgeDocuments: typeof listKnowledgeDocumentsToolDefinition;
     getKnowledgeDocumentContent: typeof getKnowledgeDocumentContentToolDefinition;
     readPinnedThread: typeof readPinnedThreadToolDefinition;
+    submitResearchReport: typeof submitResearchReportToolDefinition;
     findCharts: typeof findChartsToolDefinition;
     findDashboards: typeof findDashboardsToolDefinition;
     generateBarVizConfig: typeof generateBarVizConfigToolDefinition;
@@ -1540,6 +1566,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     listKnowledgeDocuments: listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContent: getKnowledgeDocumentContentToolDefinition,
     readPinnedThread: readPinnedThreadToolDefinition,
+    submitResearchReport: submitResearchReportToolDefinition,
     findCharts: findChartsToolDefinition,
     findDashboards: findDashboardsToolDefinition,
     generateBarVizConfig: generateBarVizConfigToolDefinition,
@@ -1595,6 +1622,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContentToolDefinition,
     readPinnedThreadToolDefinition,
+    submitResearchReportToolDefinition,
     findChartsToolDefinition,
     findDashboardsToolDefinition,
     generateBarVizConfigToolDefinition,

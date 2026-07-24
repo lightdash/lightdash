@@ -13,12 +13,15 @@ import { DeepResearchRunCard } from './DeepResearchRunCard';
 
 const DeepResearchThreadRun = ({
     registration,
+    canRetry,
 }: {
     registration: DeepResearchRunRegistration;
+    canRetry: boolean;
 }) => {
     const runQuery = useDeepResearchRun(registration);
     const continueMutation = useContinueDeepResearchMutation({
         projectUuid: registration.projectUuid,
+        agentUuid: registration.agentUuid,
         threadUuid: registration.threadUuid,
     });
 
@@ -47,12 +50,18 @@ const DeepResearchThreadRun = ({
                             size="xs"
                             w="fit-content"
                             loading={continueMutation.isLoading}
-                            onClick={() =>
+                            disabled={!canRetry}
+                            onClick={() => {
+                                if (!canRetry) {
+                                    return;
+                                }
                                 continueMutation.mutate({
                                     question: registration.question,
                                     depth: registration.depth,
-                                })
-                            }
+                                    promptUuid: registration.promptUuid,
+                                    mcpServerUuids: registration.mcpServerUuids,
+                                });
+                            }}
                         >
                             Try again
                         </Button>
@@ -105,9 +114,11 @@ const DeepResearchThreadRun = ({
 export const DeepResearchThreadRuns = ({
     projectUuid,
     threadUuid,
+    canRetry = false,
 }: {
     projectUuid: string;
     threadUuid: string;
+    canRetry?: boolean;
 }) => {
     const user = useUser(true);
     const userUuid = user.data?.userUuid;
@@ -147,6 +158,7 @@ export const DeepResearchThreadRuns = ({
                 <DeepResearchThreadRun
                     key={registration.runUuid}
                     registration={registration}
+                    canRetry={canRetry}
                 />
             ))}
         </Stack>

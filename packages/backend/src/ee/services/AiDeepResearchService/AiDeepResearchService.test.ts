@@ -9,6 +9,7 @@ import {
     QueryExecutionContext,
     QueryHistoryStatus,
     type AiDeepResearchBudget,
+    type AiDeepResearchExecutionContextSnapshot,
     type MemberAbility,
     type SessionUser,
 } from '@lightdash/common';
@@ -20,6 +21,54 @@ const budget: AiDeepResearchBudget = {
     maxToolCalls: 20,
     maxWarehouseQueries: 10,
     maxResultRows: 1_000,
+};
+
+const executionContextSnapshot: AiDeepResearchExecutionContextSnapshot = {
+    schemaVersion: 1,
+    resolutionStage: 'preflight',
+    capturedAt: '2026-07-24T10:00:00.000Z',
+    agent: {
+        uuid: 'agent-1',
+        name: 'Research agent',
+        version: 2,
+        updatedAt: '2026-07-24T09:00:00.000Z',
+        hasInstruction: true,
+        tags: null,
+        spaceAccess: [],
+        enableDataAccess: true,
+        enableSelfImprovement: false,
+        enableContentTools: false,
+        enableUserContext: false,
+    },
+    model: {
+        provider: null,
+        modelName: null,
+        reasoningEnabled: null,
+        keyManagement: null,
+    },
+    tools: {
+        availableToolNames: [],
+        selectedMcpServers: [],
+    },
+    knowledgeDocuments: [],
+    repository: {
+        projectContextEnabled: null,
+        aiWritebackEnabled: null,
+        codingAgentEnabled: null,
+        previewDeploySetupEnabled: null,
+        repoDiscoveryEnabled: null,
+        repoFsRoot: null,
+        repoFsSupportsCodeSearch: null,
+        availableSkillNames: [],
+    },
+    effectivePermissions: {
+        canManageAgent: false,
+        canRunSql: true,
+        canUseDataTools: true,
+        canUseContentTools: false,
+        canUseSelfImprovementTools: false,
+        autoApproveSql: true,
+    },
 };
 
 const effortBudgets = [
@@ -133,15 +182,17 @@ const runRow = (overrides: Record<string, unknown> = {}) => ({
     organization_uuid: 'org-1',
     project_uuid: 'project-1',
     created_by_user_uuid: 'user-1',
-    ai_thread_uuid: null,
-    prompt_uuid: null,
+    agent_uuid: 'agent-1',
+    ai_thread_uuid: 'thread-1',
+    prompt_uuid: 'prompt-1',
     tool_call_id: null,
     prompt: 'Investigate revenue',
     status: 'queued',
-    claude_session_id: null,
+    selected_mcp_server_uuids: ['mcp-1'],
     result_markdown: null,
     result_chart_data: null,
     budget_snapshot: budget,
+    execution_context_snapshot: executionContextSnapshot,
     error_message: null,
     cancellation_requested_at: null,
     started_at: null,
@@ -155,6 +206,7 @@ const buildService = (
     overrides: {
         model?: Record<string, unknown>;
         aiAgentModel?: Record<string, unknown>;
+        aiAgentService?: Record<string, unknown>;
         projectModel?: Record<string, unknown>;
         featureFlagModel?: Record<string, unknown>;
         schedulerClient?: Record<string, unknown>;
@@ -168,6 +220,7 @@ const buildService = (
         create: vi.fn().mockResolvedValue(runRow()),
         findByUuid: vi.fn().mockResolvedValue(runRow()),
         findByUuidScoped: vi.fn().mockResolvedValue(runRow()),
+        findByPromptScoped: vi.fn().mockResolvedValue(undefined),
         claimQueuedRun: vi
             .fn()
             .mockResolvedValue(runRow({ status: 'running' })),
@@ -184,20 +237,38 @@ const buildService = (
         ),
         listEvents: vi.fn().mockResolvedValue([]),
         appendProgressEvent: vi.fn().mockResolvedValue(true),
-        setClaudeSessionId: vi.fn().mockResolvedValue(true),
         touch: vi.fn().mockResolvedValue(true),
         findByThreadScoped: vi.fn().mockResolvedValue([]),
         markStaleRunsAsFailed: vi.fn().mockResolvedValue([]),
+        deleteUnstartedFailedRun: vi.fn().mockResolvedValue(true),
         ...overrides.model,
     };
     const aiAgentModel = {
         findThreadOwnership: vi.fn().mockResolvedValue({
             threadUuid: 'thread-1',
             projectUuid: 'project-1',
-            agentUuid: null,
+            agentUuid: 'agent-1',
             ownerUserUuid: 'user-1',
         }),
+        findWebAppPrompt: vi.fn().mockResolvedValue({
+            promptUuid: 'prompt-1',
+            threadUuid: 'thread-1',
+            projectUuid: 'project-1',
+            agentUuid: 'agent-1',
+            createdByUserUuid: 'user-1',
+            prompt: 'Investigate revenue',
+            response: null,
+            errorMessage: null,
+        }),
+        getToolCallsAndResultsForPrompt: vi.fn().mockResolvedValue([]),
         ...overrides.aiAgentModel,
+    };
+    const aiAgentService = {
+        assertDeepResearchAccess: vi.fn().mockResolvedValue(undefined),
+        validateDeepResearchMcpSelection: vi
+            .fn()
+            .mockResolvedValue(executionContextSnapshot),
+        ...overrides.aiAgentService,
     };
     const projectModel = {
         getSummary: vi.fn().mockResolvedValue({ organizationUuid: 'org-1' }),
@@ -236,6 +307,7 @@ const buildService = (
     const service = new AiDeepResearchService({
         aiDeepResearchRunModel: model as AnyType,
         aiAgentModel: aiAgentModel as AnyType,
+        aiAgentService: aiAgentService as AnyType,
         projectModel: projectModel as AnyType,
         featureFlagModel: featureFlagModel as AnyType,
         schedulerClient: schedulerClient as AnyType,
@@ -248,6 +320,7 @@ const buildService = (
         service,
         model,
         aiAgentModel,
+        aiAgentService,
         projectModel,
         featureFlagModel,
         schedulerClient,
@@ -258,28 +331,65 @@ const buildService = (
     };
 };
 
+const validCreateRunArgs = () => ({
+    user: userWithProjectAccess(),
+    projectUuid: 'project-1',
+    prompt: 'Investigate revenue',
+    agentUuid: 'agent-1',
+    aiThreadUuid: 'thread-1',
+    promptUuid: 'prompt-1',
+    mcpServerUuids: ['mcp-1'],
+});
+
 describe('AiDeepResearchService', () => {
     describe('createRun', () => {
-        it('persists the run before enqueueing a uniquely addressable job', async () => {
-            const { service, model, schedulerClient, featureFlagModel } =
-                buildService();
+        it('preflights and persists the exact agent, prompt, and MCP selection before enqueueing', async () => {
+            const {
+                service,
+                model,
+                aiAgentModel,
+                aiAgentService,
+                schedulerClient,
+                featureFlagModel,
+            } = buildService();
 
             const run = await service.createRun({
-                user: userWithProjectAccess(),
-                projectUuid: 'project-1',
+                ...validCreateRunArgs(),
                 prompt: '  Investigate revenue  ',
+                mcpServerUuids: ['mcp-1', 'mcp-1', 'mcp-2'],
                 budget,
             });
 
+            expect(aiAgentModel.findThreadOwnership).toHaveBeenCalledWith({
+                organizationUuid: 'org-1',
+                threadUuid: 'thread-1',
+            });
+            expect(aiAgentModel.findWebAppPrompt).toHaveBeenCalledWith(
+                'prompt-1',
+            );
+            expect(
+                aiAgentService.validateDeepResearchMcpSelection,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({ userUuid: 'user-1' }),
+                {
+                    projectUuid: 'project-1',
+                    agentUuid: 'agent-1',
+                    mcpServerUuids: ['mcp-1', 'mcp-2'],
+                    modelConfig: null,
+                },
+            );
             expect(model.create).toHaveBeenCalledWith({
                 organizationUuid: 'org-1',
                 projectUuid: 'project-1',
                 createdByUserUuid: 'user-1',
-                aiThreadUuid: null,
-                promptUuid: null,
+                agentUuid: 'agent-1',
+                aiThreadUuid: 'thread-1',
+                promptUuid: 'prompt-1',
                 toolCallId: null,
                 prompt: 'Investigate revenue',
+                selectedMcpServerUuids: ['mcp-1', 'mcp-2'],
                 budget,
+                executionContextSnapshot,
             });
             expect(schedulerClient.aiDeepResearch).toHaveBeenCalledWith({
                 aiDeepResearchRunUuid: 'run-1',
@@ -294,113 +404,10 @@ describe('AiDeepResearchService', () => {
             expect(run.status).toBe('queued');
         });
 
-        it('persists the thread link when the caller owns the thread', async () => {
-            const { service, model, aiAgentModel } = buildService();
-
-            await service.createRun({
-                user: userWithProjectAccess(),
-                projectUuid: 'project-1',
-                prompt: 'Investigate revenue',
-                budget,
-                aiThreadUuid: 'thread-1',
-            });
-
-            expect(aiAgentModel.findThreadOwnership).toHaveBeenCalledWith({
-                organizationUuid: 'org-1',
-                threadUuid: 'thread-1',
-            });
-            expect(model.create).toHaveBeenCalledWith(
-                expect.objectContaining({ aiThreadUuid: 'thread-1' }),
-            );
-        });
-
-        it('persists the prompt link alongside its thread', async () => {
-            const { service, model } = buildService();
-
-            await service.createRun({
-                user: userWithProjectAccess(),
-                projectUuid: 'project-1',
-                prompt: 'Investigate revenue',
-                budget,
-                aiThreadUuid: 'thread-1',
-                promptUuid: 'prompt-1',
-            });
-
-            expect(model.create).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    aiThreadUuid: 'thread-1',
-                    promptUuid: 'prompt-1',
-                }),
-            );
-        });
-
-        it('rejects a prompt link without its thread', async () => {
-            const { service, model } = buildService();
-
-            await expect(
-                service.createRun({
-                    user: userWithProjectAccess(),
-                    projectUuid: 'project-1',
-                    prompt: 'Investigate revenue',
-                    budget,
-                    promptUuid: 'prompt-1',
-                }),
-            ).rejects.toBeInstanceOf(ParameterError);
-            expect(model.create).not.toHaveBeenCalled();
-        });
-
-        it.each([
-            ['missing', undefined],
-            [
-                'owned by another user',
-                {
-                    threadUuid: 'thread-1',
-                    projectUuid: 'project-1',
-                    agentUuid: null,
-                    ownerUserUuid: 'user-2',
-                },
-            ],
-            [
-                'in another project',
-                {
-                    threadUuid: 'thread-1',
-                    projectUuid: 'project-2',
-                    agentUuid: null,
-                    ownerUserUuid: 'user-1',
-                },
-            ],
-        ] as const)(
-            'rejects a thread link that is %s',
-            async (_case, ownership) => {
-                const { service, model } = buildService({
-                    aiAgentModel: {
-                        findThreadOwnership: vi
-                            .fn()
-                            .mockResolvedValue(ownership),
-                    },
-                });
-
-                await expect(
-                    service.createRun({
-                        user: userWithProjectAccess(),
-                        projectUuid: 'project-1',
-                        prompt: 'Investigate revenue',
-                        budget,
-                        aiThreadUuid: 'thread-1',
-                    }),
-                ).rejects.toBeInstanceOf(NotFoundError);
-                expect(model.create).not.toHaveBeenCalled();
-            },
-        );
-
         it('uses the server-owned default budget when none is provided', async () => {
             const { service, model } = buildService();
 
-            await service.createRun({
-                user: userWithProjectAccess(),
-                projectUuid: 'project-1',
-                prompt: 'Investigate revenue',
-            });
+            await service.createRun(validCreateRunArgs());
 
             expect(model.create).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -409,17 +416,150 @@ describe('AiDeepResearchService', () => {
             );
         });
 
+        it('returns the existing run when the same prompt is retried', async () => {
+            const { service, model, aiAgentService, schedulerClient } =
+                buildService({
+                    model: {
+                        findByPromptScoped: vi.fn().mockResolvedValue(runRow()),
+                    },
+                });
+
+            const run = await service.createRun(validCreateRunArgs());
+
+            expect(run.aiDeepResearchRunUuid).toBe('run-1');
+            expect(
+                aiAgentService.validateDeepResearchMcpSelection,
+            ).not.toHaveBeenCalled();
+            expect(
+                aiAgentService.assertDeepResearchAccess,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({ userUuid: 'user-1' }),
+                {
+                    agentUuid: 'agent-1',
+                    organizationUuid: 'org-1',
+                    projectUuid: 'project-1',
+                    threadUuid: 'thread-1',
+                },
+            );
+            expect(model.create).not.toHaveBeenCalled();
+            expect(schedulerClient.aiDeepResearch).toHaveBeenCalledWith({
+                aiDeepResearchRunUuid: 'run-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+                userUuid: 'user-1',
+            });
+        });
+
+        it('rejects an idempotent retry after current agent access is revoked', async () => {
+            const accessError = new ForbiddenError(
+                'Deep Research access was revoked',
+            );
+            const { service, schedulerClient } = buildService({
+                model: {
+                    findByPromptScoped: vi.fn().mockResolvedValue(
+                        runRow({
+                            status: 'completed',
+                            result_markdown: 'Private result',
+                        }),
+                    ),
+                },
+                aiAgentService: {
+                    assertDeepResearchAccess: vi
+                        .fn()
+                        .mockRejectedValue(accessError),
+                },
+            });
+
+            await expect(service.createRun(validCreateRunArgs())).rejects.toBe(
+                accessError,
+            );
+            expect(schedulerClient.aiDeepResearch).not.toHaveBeenCalled();
+        });
+
+        it('returns the concurrent winner when prompt uniqueness races', async () => {
+            const findByPromptScoped = vi
+                .fn()
+                .mockResolvedValueOnce(undefined)
+                .mockResolvedValueOnce(runRow());
+            const { service, model, schedulerClient } = buildService({
+                model: {
+                    findByPromptScoped,
+                    create: vi.fn().mockRejectedValue(new Error('duplicate')),
+                },
+            });
+
+            const run = await service.createRun(validCreateRunArgs());
+
+            expect(run.aiDeepResearchRunUuid).toBe('run-1');
+            expect(model.create).toHaveBeenCalledOnce();
+            expect(schedulerClient.aiDeepResearch).toHaveBeenCalledWith({
+                aiDeepResearchRunUuid: 'run-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+                userUuid: 'user-1',
+            });
+        });
+
+        it('rejects a prompt body that differs from the persisted message', async () => {
+            const { service, model } = buildService();
+
+            await expect(
+                service.createRun({
+                    ...validCreateRunArgs(),
+                    prompt: 'A different question',
+                }),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(model.findByPromptScoped).not.toHaveBeenCalled();
+            expect(model.create).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            {
+                state: 'answered',
+                aiAgentModel: {
+                    findWebAppPrompt: vi.fn().mockResolvedValue({
+                        promptUuid: 'prompt-1',
+                        threadUuid: 'thread-1',
+                        projectUuid: 'project-1',
+                        agentUuid: 'agent-1',
+                        createdByUserUuid: 'user-1',
+                        prompt: 'Investigate revenue',
+                        response: 'An existing answer',
+                        errorMessage: null,
+                    }),
+                },
+            },
+            {
+                state: 'previously executed',
+                aiAgentModel: {
+                    getToolCallsAndResultsForPrompt: vi
+                        .fn()
+                        .mockResolvedValue([{ toolCall: {} }]),
+                },
+            },
+        ])(
+            'rejects a $state prompt before MCP preflight',
+            async ({ aiAgentModel }) => {
+                const { service, model, aiAgentService } = buildService({
+                    aiAgentModel,
+                });
+
+                await expect(
+                    service.createRun(validCreateRunArgs()),
+                ).rejects.toBeInstanceOf(ParameterError);
+                expect(
+                    aiAgentService.validateDeepResearchMcpSelection,
+                ).not.toHaveBeenCalled();
+                expect(model.create).not.toHaveBeenCalled();
+            },
+        );
+
         it.each(effortBudgets)(
             'maps $effort effort to its server-owned budget',
             async ({ effort, budget: expectedBudget }) => {
                 const { service, model } = buildService();
 
-                await service.createRun({
-                    user: userWithProjectAccess(),
-                    projectUuid: 'project-1',
-                    prompt: 'Investigate revenue',
-                    effort,
-                });
+                await service.createRun({ ...validCreateRunArgs(), effort });
 
                 expect(model.create).toHaveBeenCalledWith(
                     expect.objectContaining({
@@ -434,13 +574,46 @@ describe('AiDeepResearchService', () => {
 
             await expect(
                 service.createRun({
-                    user: userWithProjectAccess(),
-                    projectUuid: 'project-1',
+                    ...validCreateRunArgs(),
                     prompt: '   ',
                 }),
             ).rejects.toBeInstanceOf(ParameterError);
             expect(model.create).not.toHaveBeenCalled();
         });
+
+        it.each([
+            {
+                principal: 'service account',
+                user: {
+                    ...userWithProjectAccess(),
+                    serviceAccount: { uuid: 'service-account-1' },
+                },
+            },
+            {
+                principal: 'impersonated user',
+                user: {
+                    ...userWithProjectAccess(),
+                    impersonation: {
+                        adminId: 'admin-1',
+                        adminEmail: 'admin@example.com',
+                        adminRole: 'admin',
+                    },
+                },
+            },
+        ])(
+            'rejects background execution for a $principal',
+            async ({ user }) => {
+                const { service, model } = buildService();
+
+                await expect(
+                    service.createRun({
+                        ...validCreateRunArgs(),
+                        user,
+                    }),
+                ).rejects.toBeInstanceOf(ForbiddenError);
+                expect(model.create).not.toHaveBeenCalled();
+            },
+        );
 
         it('rejects run creation when Deep Research is disabled', async () => {
             const { service, model } = buildService({
@@ -454,9 +627,7 @@ describe('AiDeepResearchService', () => {
 
             await expect(
                 service.createRun({
-                    user: userWithProjectAccess(),
-                    projectUuid: 'project-1',
-                    prompt: 'Investigate revenue',
+                    ...validCreateRunArgs(),
                 }),
             ).rejects.toBeInstanceOf(ForbiddenError);
             expect(model.create).not.toHaveBeenCalled();
@@ -479,66 +650,8 @@ describe('AiDeepResearchService', () => {
 
             await expect(
                 service.createRun({
+                    ...validCreateRunArgs(),
                     user,
-                    projectUuid: 'project-1',
-                    prompt: 'Investigate revenue',
-                }),
-            ).rejects.toBeInstanceOf(ForbiddenError);
-            expect(featureFlagModel.get).not.toHaveBeenCalled();
-            expect(model.create).not.toHaveBeenCalled();
-        });
-
-        it('rejects run creation without permission to create the temporary PAT', async () => {
-            const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
-            can('view', 'Project', {
-                organizationUuid: 'org-1',
-                projectUuid: 'project-1',
-            });
-            can('create', 'AiDeepResearch', {
-                organizationUuid: 'org-1',
-                projectUuid: 'project-1',
-            });
-            const user = {
-                ...userWithProjectAccess(),
-                ability: build(),
-            } as SessionUser;
-            const { service, model, featureFlagModel } = buildService();
-
-            await expect(
-                service.createRun({
-                    user,
-                    projectUuid: 'project-1',
-                    prompt: 'Investigate revenue',
-                }),
-            ).rejects.toBeInstanceOf(ForbiddenError);
-            expect(featureFlagModel.get).not.toHaveBeenCalled();
-            expect(model.create).not.toHaveBeenCalled();
-        });
-
-        it('rejects run creation without permission to delete the temporary PAT', async () => {
-            const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
-            can('view', 'Project', {
-                organizationUuid: 'org-1',
-                projectUuid: 'project-1',
-            });
-            can('create', 'AiDeepResearch', {
-                organizationUuid: 'org-1',
-                projectUuid: 'project-1',
-            });
-            can('create', 'PersonalAccessToken', {
-                organizationUuid: 'org-1',
-            });
-            const user = {
-                ...userWithProjectAccess(),
-                ability: build(),
-            } as SessionUser;
-            const { service, model, featureFlagModel } = buildService();
-
-            await expect(
-                service.createRun({
-                    user,
-                    projectUuid: 'project-1',
-                    prompt: 'Investigate revenue',
                 }),
             ).rejects.toBeInstanceOf(ForbiddenError);
             expect(featureFlagModel.get).not.toHaveBeenCalled();
@@ -566,9 +679,8 @@ describe('AiDeepResearchService', () => {
 
             await expect(
                 service.createRun({
+                    ...validCreateRunArgs(),
                     user,
-                    projectUuid: 'project-1',
-                    prompt: 'Investigate revenue',
                 }),
             ).rejects.toBeInstanceOf(ForbiddenError);
             expect(featureFlagModel.get).not.toHaveBeenCalled();
@@ -592,13 +704,66 @@ describe('AiDeepResearchService', () => {
 
             await expect(
                 service.createRun({
+                    ...validCreateRunArgs(),
                     user,
-                    projectUuid: 'project-1',
-                    prompt: 'Investigate revenue',
                 }),
             ).rejects.toBeInstanceOf(ForbiddenError);
             expect(featureFlagModel.get).not.toHaveBeenCalled();
             expect(model.create).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            [
+                'thread',
+                {
+                    aiAgentModel: {
+                        findThreadOwnership: vi
+                            .fn()
+                            .mockResolvedValue(undefined),
+                    },
+                },
+            ],
+            [
+                'prompt',
+                {
+                    aiAgentModel: {
+                        findWebAppPrompt: vi.fn().mockResolvedValue(undefined),
+                    },
+                },
+            ],
+        ])(
+            'rejects an inaccessible %s before MCP preflight',
+            async (_name, overrides) => {
+                const { service, model, aiAgentService } =
+                    buildService(overrides);
+
+                await expect(
+                    service.createRun(validCreateRunArgs()),
+                ).rejects.toBeInstanceOf(NotFoundError);
+                expect(
+                    aiAgentService.validateDeepResearchMcpSelection,
+                ).not.toHaveBeenCalled();
+                expect(model.create).not.toHaveBeenCalled();
+            },
+        );
+
+        it('fails during preflight without persisting or enqueueing', async () => {
+            const preflightError = new ParameterError(
+                'MCP connection required',
+            );
+            const { service, model, schedulerClient } = buildService({
+                aiAgentService: {
+                    validateDeepResearchMcpSelection: vi
+                        .fn()
+                        .mockRejectedValue(preflightError),
+                },
+            });
+
+            await expect(service.createRun(validCreateRunArgs())).rejects.toBe(
+                preflightError,
+            );
+            expect(model.create).not.toHaveBeenCalled();
+            expect(schedulerClient.aiDeepResearch).not.toHaveBeenCalled();
         });
 
         it('marks the durable run failed when enqueueing fails', async () => {
@@ -611,15 +776,16 @@ describe('AiDeepResearchService', () => {
 
             await expect(
                 service.createRun({
-                    user: userWithProjectAccess(),
-                    projectUuid: 'project-1',
-                    prompt: 'Investigate revenue',
+                    ...validCreateRunArgs(),
                     budget,
                 }),
             ).rejects.toThrow('queue unavailable');
             expect(model.markFailed).toHaveBeenCalledWith(
                 'run-1',
                 'Deep Research could not finish. Please try again.',
+            );
+            expect(model.deleteUnstartedFailedRun).toHaveBeenCalledWith(
+                'run-1',
             );
         });
 
@@ -628,9 +794,7 @@ describe('AiDeepResearchService', () => {
 
             await expect(
                 service.createRun({
-                    user: userWithProjectAccess(),
-                    projectUuid: 'project-1',
-                    prompt: 'Investigate revenue',
+                    ...validCreateRunArgs(),
                     budget: { ...budget, maxTokens: 0 },
                 }),
             ).rejects.toBeInstanceOf(ParameterError);
@@ -642,9 +806,7 @@ describe('AiDeepResearchService', () => {
 
             await expect(
                 service.createRun({
-                    user: userWithProjectAccess(),
-                    projectUuid: 'project-1',
-                    prompt: 'Investigate revenue',
+                    ...validCreateRunArgs(),
                     budget: {
                         ...budget,
                         maxTokens: 4_000_000 + 1,
@@ -702,8 +864,27 @@ describe('AiDeepResearchService', () => {
             expect(projectModel.getSummary).not.toHaveBeenCalled();
         });
 
-        it('returns the model cancellation outcome for queued runs', async () => {
-            const { service, model } = buildService();
+        it('returns a redacted model cancellation outcome for queued runs', async () => {
+            const { service, model, aiAgentService } = buildService({
+                model: {
+                    requestCancellation: vi.fn().mockResolvedValue(
+                        runRow({
+                            status: 'cancelled',
+                            cancellation_requested_at: new Date(),
+                            completed_at: new Date(),
+                            result_markdown: 'Private result',
+                            result_chart_data: {
+                                private: { source: 'inline' },
+                            },
+                        }),
+                    ),
+                },
+                aiAgentService: {
+                    assertDeepResearchAccess: vi
+                        .fn()
+                        .mockRejectedValue(new ForbiddenError()),
+                },
+            });
 
             const run = await service.cancelRun(
                 userWithProjectAccess(),
@@ -714,6 +895,40 @@ describe('AiDeepResearchService', () => {
             expect(model.requestCancellation).toHaveBeenCalledWith('run-1');
             expect(run.status).toBe('cancelled');
             expect(run.cancellationRequestedAt).not.toBeNull();
+            expect(run.resultMarkdown).toBeNull();
+            expect(run.resultChartData).toBeNull();
+            expect(run.executionContextSnapshot).toBeNull();
+            expect(
+                aiAgentService.assertDeepResearchAccess,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('revalidates current agent and thread access before returning a run', async () => {
+            const accessError = new ForbiddenError(
+                'Deep Research access was revoked',
+            );
+            const { service, aiAgentService } = buildService({
+                aiAgentService: {
+                    assertDeepResearchAccess: vi
+                        .fn()
+                        .mockRejectedValue(accessError),
+                },
+            });
+
+            await expect(
+                service.getRun(userWithProjectAccess(), 'project-1', 'run-1'),
+            ).rejects.toBe(accessError);
+            expect(
+                aiAgentService.assertDeepResearchAccess,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({ userUuid: 'user-1' }),
+                {
+                    agentUuid: 'agent-1',
+                    organizationUuid: 'org-1',
+                    projectUuid: 'project-1',
+                    threadUuid: 'thread-1',
+                },
+            );
         });
 
         it("does not expose another creator's run to a project viewer", async () => {
@@ -783,6 +998,28 @@ describe('AiDeepResearchService', () => {
             expect(runs[0].aiThreadUuid).toBe('thread-1');
             expect(runs[0].prompt).toBe('Investigate revenue');
         });
+
+        it('revalidates current agent and thread access before listing runs', async () => {
+            const accessError = new ForbiddenError(
+                'Deep Research access was revoked',
+            );
+            const { service, model } = buildService({
+                aiAgentService: {
+                    assertDeepResearchAccess: vi
+                        .fn()
+                        .mockRejectedValue(accessError),
+                },
+            });
+
+            await expect(
+                service.listRunsForThread(
+                    userWithProjectAccess(),
+                    'project-1',
+                    'thread-1',
+                ),
+            ).rejects.toBe(accessError);
+            expect(model.findByThreadScoped).not.toHaveBeenCalled();
+        });
     });
 
     describe('executeRun', () => {
@@ -814,6 +1051,7 @@ describe('AiDeepResearchService', () => {
         it('snapshots chart evidence returned by this research run', async () => {
             const verifiedQuery = {
                 queryUuid: chart.queryUuid,
+                createdAt: new Date('2026-07-14T12:00:00.000Z'),
                 context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
                 projectUuid: 'project-1',
                 organizationUuid: 'org-1',
@@ -977,6 +1215,49 @@ describe('AiDeepResearchService', () => {
             expect(persisted).toContain(
                 'Some proposed charts were omitted because their query evidence could not be verified.',
             );
+        });
+
+        it('omits a replayed same-user query that predates this run', async () => {
+            const { service, model, resultsFileStorageClient } = buildService({
+                executor: vi.fn().mockResolvedValue({
+                    status: 'completed',
+                    report: chartReport,
+                    warehouseQueryUuids: [chart.queryUuid],
+                }),
+                queryHistoryModel: {
+                    getByQueryUuid: vi.fn().mockResolvedValue({
+                        queryUuid: chart.queryUuid,
+                        createdAt: new Date('2026-07-12T12:00:00.000Z'),
+                        context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                        projectUuid: 'project-1',
+                        organizationUuid: 'org-1',
+                        createdByUserUuid: 'user-1',
+                        createdByActorType: 'pat',
+                        status: QueryHistoryStatus.READY,
+                        resultsFileName: 'old-evidence.jsonl',
+                        resultsExpiresAt: null,
+                        totalRowCount: 1,
+                        metricQuery: {
+                            dimensions: ['orders_order_month'],
+                            metrics: ['orders_total_revenue'],
+                        },
+                        fields: {
+                            orders_order_month: {
+                                name: 'orders_order_month',
+                            },
+                        },
+                    }),
+                },
+            });
+
+            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
+
+            expect(
+                resultsFileStorageClient.getDownloadStream,
+            ).not.toHaveBeenCalled();
+            const [, persisted, chartData] = model.markCompleted.mock.calls[0];
+            expect(chartData).toEqual({});
+            expect(persisted).toContain('*(chart omitted:');
         });
 
         it('omits chart fields that are absent from the verified query', async () => {

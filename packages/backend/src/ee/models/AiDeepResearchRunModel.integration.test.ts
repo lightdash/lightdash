@@ -3,9 +3,20 @@ import {
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
     type AiDeepResearchBudget,
+    type AiDeepResearchExecutionContextSnapshot,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { getTestContext } from '../../vitest.setup.integration';
+import {
+    AiPromptTableName,
+    AiThreadTableName,
+    type AiPromptTable,
+    type AiThreadTable,
+} from '../database/entities/ai';
+import {
+    AiAgentTableName,
+    type AiAgentTable,
+} from '../database/entities/aiAgent';
 import {
     AiDeepResearchEventsTableName,
     AiDeepResearchRunsTableName,
@@ -20,17 +31,126 @@ const budget: AiDeepResearchBudget = {
     maxResultRows: 1_000,
 };
 
+const executionContextSnapshot: AiDeepResearchExecutionContextSnapshot = {
+    schemaVersion: 1,
+    resolutionStage: 'preflight',
+    capturedAt: '2026-07-24T10:00:00.000Z',
+    agent: {
+        uuid: 'placeholder',
+        name: 'Research agent',
+        version: 2,
+        updatedAt: '2026-07-24T09:00:00.000Z',
+        hasInstruction: false,
+        tags: null,
+        spaceAccess: [],
+        enableDataAccess: true,
+        enableSelfImprovement: false,
+        enableContentTools: true,
+        enableUserContext: false,
+    },
+    model: {
+        provider: null,
+        modelName: null,
+        reasoningEnabled: null,
+        keyManagement: null,
+    },
+    tools: {
+        availableToolNames: [],
+        selectedMcpServers: [],
+    },
+    knowledgeDocuments: [],
+    repository: {
+        projectContextEnabled: null,
+        aiWritebackEnabled: null,
+        codingAgentEnabled: null,
+        previewDeploySetupEnabled: null,
+        repoDiscoveryEnabled: null,
+        repoFsRoot: null,
+        repoFsSupportsCodeSearch: null,
+        availableSkillNames: [],
+    },
+    effectivePermissions: {
+        canManageAgent: false,
+        canRunSql: true,
+        canUseDataTools: true,
+        canUseContentTools: true,
+        canUseSelfImprovementTools: false,
+        autoApproveSql: true,
+    },
+};
+
 const report =
     'Intro.\n\n## Finding\n\n<confidence level="high">ok</confidence>\n\n## Conclusion\n\n- done';
 
 describe('AiDeepResearchRunModel integration', () => {
     let database: Knex;
     let model: AiDeepResearchRunModel;
+    let agentUuid = '';
+    let threadUuid = '';
+    let promptUuid = '';
     const runUuids = new Set<string>();
 
-    beforeAll(() => {
+    beforeAll(async () => {
         database = getTestContext().db;
         model = new AiDeepResearchRunModel({ database });
+        const [agent] = await database<AiAgentTable>(AiAgentTableName)
+            .insert({
+                organization_uuid: SEED_ORG_1.organization_uuid,
+                project_uuid: SEED_PROJECT.project_uuid,
+                name: 'Deep Research integration agent',
+                slug: `deep-research-integration-${crypto.randomUUID()}`,
+                description: null,
+                image_url: null,
+                image_url_source: null,
+                tags: null,
+                enable_data_access: true,
+                enable_self_improvement: false,
+                enable_content_tools: true,
+                enable_user_context: false,
+                admin_only: false,
+                model_config: null,
+                is_system: false,
+                version: 2,
+            })
+            .returning('ai_agent_uuid');
+        agentUuid = agent.ai_agent_uuid;
+
+        const [thread] = await database<AiThreadTable>(AiThreadTableName)
+            .insert({
+                organization_uuid: SEED_ORG_1.organization_uuid,
+                project_uuid: SEED_PROJECT.project_uuid,
+                created_from: 'web_app',
+                agent_uuid: agentUuid,
+            })
+            .returning('ai_thread_uuid');
+        threadUuid = thread.ai_thread_uuid;
+
+        const [prompt] = await database<AiPromptTable>(AiPromptTableName)
+            .insert({
+                ai_thread_uuid: threadUuid,
+                created_by_user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+                prompt: 'Deep Research integration prompt',
+            })
+            .returning('ai_prompt_uuid');
+        promptUuid = prompt.ai_prompt_uuid;
+    });
+
+    afterAll(async () => {
+        if (promptUuid) {
+            await database(AiPromptTableName)
+                .where('ai_prompt_uuid', promptUuid)
+                .delete();
+        }
+        if (threadUuid) {
+            await database(AiThreadTableName)
+                .where('ai_thread_uuid', threadUuid)
+                .delete();
+        }
+        if (agentUuid) {
+            await database(AiAgentTableName)
+                .where('ai_agent_uuid', agentUuid)
+                .delete();
+        }
     });
 
     afterEach(async () => {
@@ -48,11 +168,20 @@ describe('AiDeepResearchRunModel integration', () => {
             organizationUuid: SEED_ORG_1.organization_uuid,
             projectUuid: SEED_PROJECT.project_uuid,
             createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
-            aiThreadUuid: null,
-            promptUuid: null,
+            agentUuid,
+            aiThreadUuid: threadUuid,
+            promptUuid,
             toolCallId: null,
             prompt: `Integration race ${crypto.randomUUID()}`,
+            selectedMcpServerUuids: [],
             budget,
+            executionContextSnapshot: {
+                ...executionContextSnapshot,
+                agent: {
+                    ...executionContextSnapshot.agent,
+                    uuid: agentUuid,
+                },
+            },
         });
         runUuids.add(run.ai_deep_research_run_uuid);
         return run;

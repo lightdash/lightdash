@@ -3,6 +3,7 @@ import {
     type AiDeepResearchChartDataMap,
     type AiDeepResearchEventPayload,
     type AiDeepResearchEventType,
+    type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchRunStatus,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -14,15 +15,17 @@ export type DbAiDeepResearchRun = {
     organization_uuid: string;
     project_uuid: string;
     created_by_user_uuid: string;
-    ai_thread_uuid: string | null;
-    prompt_uuid: string | null;
+    agent_uuid: string;
+    ai_thread_uuid: string;
+    prompt_uuid: string;
     tool_call_id: string | null;
     prompt: string;
     status: AiDeepResearchRunStatus;
-    claude_session_id: string | null;
+    selected_mcp_server_uuids: string[];
     result_markdown: string | null;
     result_chart_data: AiDeepResearchChartDataMap | null;
     budget_snapshot: AiDeepResearchBudget;
+    execution_context_snapshot: AiDeepResearchExecutionContextSnapshot;
     error_message: string | null;
     cancellation_requested_at: Date | null;
     started_at: Date | null;
@@ -38,17 +41,19 @@ export type AiDeepResearchRunsTable = Knex.CompositeTableType<
         | 'organization_uuid'
         | 'project_uuid'
         | 'created_by_user_uuid'
+        | 'agent_uuid'
         | 'ai_thread_uuid'
         | 'prompt_uuid'
         | 'tool_call_id'
         | 'prompt'
+        | 'selected_mcp_server_uuids'
         | 'budget_snapshot'
+        | 'execution_context_snapshot'
     >,
     Partial<
         Pick<
             DbAiDeepResearchRun,
             | 'status'
-            | 'claude_session_id'
             | 'result_markdown'
             | 'result_chart_data'
             | 'error_message'
@@ -56,6 +61,7 @@ export type AiDeepResearchRunsTable = Knex.CompositeTableType<
             | 'started_at'
             | 'completed_at'
             | 'updated_at'
+            | 'execution_context_snapshot'
         >
     >
 >;

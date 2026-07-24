@@ -17,6 +17,7 @@ import useUser from '../../../../hooks/user/useUser';
 import {
     registerDeepResearchRun,
     replaceDeepResearchRun,
+    restoreDeepResearchComposerPrompt,
     updateDeepResearchRun,
 } from '../deepResearch/deepResearchRegistry';
 import {
@@ -121,29 +122,41 @@ const refreshDeepResearchChart = (
         body: JSON.stringify({}),
     }) as Promise<ApiAiAgentThreadMessageVizQueryResponse['results']>;
 
-export const useStartDeepResearchMutation = ({
-    projectUuid,
-    threadUuid,
-}: {
-    projectUuid: string;
+type StartMutationVariables = StartDeepResearchArgs & {
+    promptUuid: string;
+};
+
+type StartMutationIds = {
+    agentUuid: string;
     threadUuid: string;
-}) => {
+};
+
+const useStartDeepResearchMutationBase = <
+    Variables extends StartMutationVariables,
+>(
+    projectUuid: string,
+    getIds: (variables: Variables) => StartMutationIds,
+) => {
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     const user = useUser(true);
     return useMutation<
         AiDeepResearchRun,
         ApiError,
-        StartDeepResearchArgs & { promptUuid?: string },
+        Variables,
         { optimisticRunUuid: string; createdAt: string }
     >({
         onMutate: (variables) => {
+            const { agentUuid, threadUuid } = getIds(variables);
             const optimisticRunUuid = `starting-${crypto.randomUUID()}`;
             const createdAt = new Date().toISOString();
             registerDeepResearchRun({
                 runUuid: optimisticRunUuid,
                 projectUuid,
+                agentUuid,
                 threadUuid,
+                promptUuid: variables.promptUuid,
+                mcpServerUuids: variables.mcpServerUuids,
                 userUuid: user.data?.userUuid ?? '',
                 question: variables.question,
                 depth: variables.depth,
@@ -152,18 +165,26 @@ export const useStartDeepResearchMutation = ({
             });
             return { optimisticRunUuid, createdAt };
         },
-        mutationFn: ({ question, depth, promptUuid }) =>
-            startDeepResearch(projectUuid, {
-                prompt: question,
-                effort: DEEP_RESEARCH_DEPTH_CONFIG[depth].effort,
+        mutationFn: (variables) => {
+            const { agentUuid, threadUuid } = getIds(variables);
+            return startDeepResearch(projectUuid, {
+                prompt: variables.question,
+                agentUuid,
+                effort: DEEP_RESEARCH_DEPTH_CONFIG[variables.depth].effort,
                 threadUuid,
-                promptUuid,
-            }),
+                promptUuid: variables.promptUuid,
+                mcpServerUuids: variables.mcpServerUuids,
+            });
+        },
         onSuccess: (run, variables, context) => {
+            const { agentUuid, threadUuid } = getIds(variables);
             replaceDeepResearchRun(context?.optimisticRunUuid ?? '', {
                 runUuid: run.aiDeepResearchRunUuid,
                 projectUuid,
+                agentUuid,
                 threadUuid,
+                promptUuid: variables.promptUuid,
+                mcpServerUuids: variables.mcpServerUuids,
                 userUuid: user.data?.userUuid ?? '',
                 question: variables.question,
                 depth: variables.depth,
@@ -186,6 +207,8 @@ export const useStartDeepResearchMutation = ({
                     errorMessage: error.message,
                 });
             }
+            const { threadUuid } = getIds(_variables);
+            restoreDeepResearchComposerPrompt(threadUuid, _variables.question);
             showToastApiError({
                 title: 'Could not start research',
                 apiError: error,
@@ -194,72 +217,28 @@ export const useStartDeepResearchMutation = ({
     });
 };
 
-export const useStartDeepResearchForThreadMutation = (projectUuid: string) => {
-    const queryClient = useQueryClient();
-    const { showToastApiError } = useToaster();
-    const user = useUser(true);
-    return useMutation<
-        AiDeepResearchRun,
-        ApiError,
-        StartDeepResearchArgs & { threadUuid: string; promptUuid?: string },
-        { optimisticRunUuid: string; createdAt: string }
-    >({
-        onMutate: (variables) => {
-            const optimisticRunUuid = `starting-${crypto.randomUUID()}`;
-            const createdAt = new Date().toISOString();
-            registerDeepResearchRun({
-                runUuid: optimisticRunUuid,
-                projectUuid,
-                threadUuid: variables.threadUuid,
-                userUuid: user.data?.userUuid ?? '',
-                question: variables.question,
-                depth: variables.depth,
-                createdAt,
-                state: 'starting',
-            });
-            return { optimisticRunUuid, createdAt };
-        },
-        mutationFn: ({ question, depth, threadUuid, promptUuid }) =>
-            startDeepResearch(projectUuid, {
-                prompt: question,
-                effort: DEEP_RESEARCH_DEPTH_CONFIG[depth].effort,
-                threadUuid,
-                promptUuid,
-            }),
-        onSuccess: (run, variables, context) => {
-            replaceDeepResearchRun(context?.optimisticRunUuid ?? '', {
-                runUuid: run.aiDeepResearchRunUuid,
-                projectUuid,
-                threadUuid: variables.threadUuid,
-                userUuid: user.data?.userUuid ?? '',
-                question: variables.question,
-                depth: variables.depth,
-                createdAt: context?.createdAt ?? new Date().toISOString(),
-                state: 'started',
-            });
-            void queryClient.invalidateQueries({
-                queryKey: [
-                    DEEP_RESEARCH_QUERY_KEY,
-                    projectUuid,
-                    'thread',
-                    variables.threadUuid,
-                ],
-            });
-        },
-        onError: ({ error }, _variables, context) => {
-            if (context) {
-                updateDeepResearchRun(context.optimisticRunUuid, {
-                    state: 'start_failed',
-                    errorMessage: error.message,
-                });
-            }
-            showToastApiError({
-                title: 'Could not start research',
-                apiError: error,
-            });
-        },
-    });
-};
+export const useStartDeepResearchMutation = ({
+    projectUuid,
+    agentUuid,
+    threadUuid,
+}: {
+    projectUuid: string;
+    agentUuid: string;
+    threadUuid: string;
+}) =>
+    useStartDeepResearchMutationBase<StartMutationVariables>(
+        projectUuid,
+        () => ({ agentUuid, threadUuid }),
+    );
+
+type StartForThreadMutationVariables = StartMutationVariables &
+    StartMutationIds;
+
+export const useStartDeepResearchForThreadMutation = (projectUuid: string) =>
+    useStartDeepResearchMutationBase<StartForThreadMutationVariables>(
+        projectUuid,
+        ({ agentUuid, threadUuid }) => ({ agentUuid, threadUuid }),
+    );
 
 export const useDeepResearchThreadRuns = (
     projectUuid: string | undefined,
@@ -375,8 +354,10 @@ export const useDeepResearchChartLiveQuery = ({
 
 export const useContinueDeepResearchMutation = ({
     projectUuid,
+    agentUuid,
     threadUuid,
 }: {
     projectUuid: string;
+    agentUuid: string;
     threadUuid: string;
-}) => useStartDeepResearchMutation({ projectUuid, threadUuid });
+}) => useStartDeepResearchMutation({ projectUuid, agentUuid, threadUuid });

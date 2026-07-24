@@ -42,6 +42,7 @@ type Props = {
     renderArtifactsInline?: boolean;
     showAddToEvalsButton?: boolean;
     onDashboardLinkClick?: (url: string) => void;
+    canRetryDeepResearch?: boolean;
 };
 
 const CompactionDivider = () => (
@@ -101,6 +102,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     renderArtifactsInline = false,
     showAddToEvalsButton = false,
     onDashboardLinkClick,
+    canRetryDeepResearch = false,
 }) => {
     const viewport = useRef<HTMLDivElement>(null);
     const { data: mcpServers } = useAgentAiMcpServers(projectUuid, agentUuid, {
@@ -235,6 +237,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                             <DeepResearchThreadRuns
                                 projectUuid={projectUuid}
                                 threadUuid={thread.uuid}
+                                canRetry={canRetryDeepResearch}
                             />
                         )}
                     </Stack>

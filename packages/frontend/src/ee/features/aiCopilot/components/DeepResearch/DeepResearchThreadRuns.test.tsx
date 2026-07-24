@@ -1,10 +1,18 @@
 import { screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { deepResearchRunFixture } from '../../deepResearch/fixtures';
+import { type DeepResearchRunRegistration } from '../../deepResearch/types';
 import { DeepResearchThreadRuns } from './DeepResearchThreadRuns';
 
-const { useDeepResearchRunMock } = vi.hoisted(() => ({
+const {
+    continueDeepResearchMock,
+    localRegistrationsMock,
+    useDeepResearchRunMock,
+} = vi.hoisted(() => ({
+    continueDeepResearchMock: vi.fn(),
+    localRegistrationsMock: vi.fn(),
     useDeepResearchRunMock: vi.fn(),
 }));
 
@@ -13,23 +21,12 @@ vi.mock('../../../../../hooks/user/useUser', () => ({
 }));
 
 vi.mock('../../deepResearch/deepResearchRegistry', () => ({
-    useDeepResearchRunsForThread: () => [
-        {
-            runUuid: 'run-1',
-            projectUuid: 'project-1',
-            threadUuid: 'thread-1',
-            userUuid: 'user-1',
-            question: 'Why did enterprise retention fall in Q2?',
-            depth: 'standard',
-            createdAt: '2026-07-15T09:00:00.000Z',
-            state: 'started',
-        },
-    ],
+    useDeepResearchRunsForThread: localRegistrationsMock,
 }));
 
 vi.mock('../../hooks/useDeepResearch', () => ({
     useContinueDeepResearchMutation: () => ({
-        mutate: vi.fn(),
+        mutate: continueDeepResearchMock,
         isLoading: false,
     }),
     useDeepResearchRun: useDeepResearchRunMock,
@@ -41,11 +38,32 @@ vi.mock('./DeepResearchRunCard', () => ({
 }));
 
 describe('DeepResearchThreadRuns', () => {
-    const renderThreadRuns = () =>
+    const registration: DeepResearchRunRegistration = {
+        runUuid: 'run-1',
+        projectUuid: 'project-1',
+        agentUuid: 'agent-1',
+        threadUuid: 'thread-1',
+        promptUuid: 'prompt-1',
+        mcpServerUuids: ['mcp-1'],
+        userUuid: 'user-1',
+        question: 'Why did enterprise retention fall in Q2?',
+        depth: 'standard',
+        createdAt: '2026-07-15T09:00:00.000Z',
+        state: 'started',
+    };
+
+    beforeEach(() => {
+        localRegistrationsMock.mockReturnValue([registration]);
+        continueDeepResearchMock.mockReset();
+        useDeepResearchRunMock.mockReset();
+    });
+
+    const renderThreadRuns = (canRetry = false) =>
         renderWithProviders(
             <DeepResearchThreadRuns
                 projectUuid="project-1"
                 threadUuid="thread-1"
+                canRetry={canRetry}
             />,
         );
 
@@ -99,5 +117,36 @@ describe('DeepResearchThreadRuns', () => {
         expect(
             screen.queryByText('Saved deep research result'),
         ).not.toBeInTheDocument();
+    });
+
+    it('does not retry a failed start while the thread is busy', async () => {
+        const user = userEvent.setup();
+        localRegistrationsMock.mockReturnValue([
+            { ...registration, state: 'start_failed' },
+        ]);
+
+        renderThreadRuns(false);
+
+        const retryButton = screen.getByRole('button', { name: 'Try again' });
+        expect(retryButton).toBeDisabled();
+        await user.click(retryButton);
+        expect(continueDeepResearchMock).not.toHaveBeenCalled();
+    });
+
+    it('retries a failed start with its original prompt while idle', async () => {
+        const user = userEvent.setup();
+        localRegistrationsMock.mockReturnValue([
+            { ...registration, state: 'start_failed' },
+        ]);
+
+        renderThreadRuns(true);
+        await user.click(screen.getByRole('button', { name: 'Try again' }));
+
+        expect(continueDeepResearchMock).toHaveBeenCalledWith({
+            question: registration.question,
+            depth: registration.depth,
+            promptUuid: registration.promptUuid,
+            mcpServerUuids: registration.mcpServerUuids,
+        });
     });
 });

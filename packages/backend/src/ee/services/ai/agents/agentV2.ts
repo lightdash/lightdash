@@ -3,6 +3,7 @@ import {
     AnyType,
     assertUnreachable,
     Explore,
+    type AiDeepResearchExecutionContextSnapshot,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -20,6 +21,7 @@ import {
     languageModelUsageToTokens,
 } from '../../../../analytics/aiUsage';
 import Logger from '../../../../logging/logger';
+import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { getAnalyzeFieldImpact } from '../tools/analyzeFieldImpact';
 import { getClosePullRequest } from '../tools/closePullRequest';
@@ -67,6 +69,7 @@ import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
+import { getSubmitResearchReport } from '../tools/submitResearchReport';
 import { getSyncDbtProject } from '../tools/syncDbtProject';
 import { getUpdateUserName } from '../tools/updateUserName';
 import type {
@@ -97,7 +100,7 @@ const createAiAgentLogger =
         }
     };
 
-const STEP_CAP = 40;
+export const DEFAULT_AGENT_MAX_STEPS = 40;
 
 const PERSIST_TIMEOUT_MS = 10_000;
 
@@ -236,6 +239,87 @@ export type AgentMcpToolSetup = {
     closeMcpClients: () => Promise<void>;
 };
 
+export const buildDeepResearchExecutionContextSnapshot = (
+    args: AiAgentArgs,
+    tools: ToolSet,
+    mcpToolSetup: AgentMcpToolSetup,
+): AiDeepResearchExecutionContextSnapshot => ({
+    schemaVersion: 1,
+    resolutionStage: 'execution',
+    capturedAt: new Date().toISOString(),
+    agent: {
+        uuid: args.agentSettings.uuid,
+        name: args.agentSettings.name,
+        version: args.agentSettings.version,
+        updatedAt: args.agentSettings.updatedAt.toISOString(),
+        hasInstruction: Boolean(args.agentSettings.instruction),
+        tags: args.agentSettings.tags,
+        spaceAccess: args.agentSettings.spaceAccess,
+        enableDataAccess: args.agentSettings.enableDataAccess,
+        enableSelfImprovement: args.agentSettings.enableSelfImprovement,
+        enableContentTools: args.agentSettings.enableContentTools,
+        enableUserContext: args.agentSettings.enableUserContext,
+    },
+    model: {
+        provider: args.model.provider,
+        modelName: getAiAgentModelName(args.model),
+        reasoningEnabled: args.modelReasoningEnabled,
+        keyManagement: args.keyManagement,
+    },
+    tools: {
+        availableToolNames: Object.keys(tools).sort(),
+        selectedMcpServers: args.mcpServers.map((server) => ({
+            uuid: server.uuid,
+            name: server.name,
+            enabledToolNames: Object.entries(
+                mcpToolSetup.mcpToolNameToServerUuid,
+            )
+                .filter(([, serverUuid]) => serverUuid === server.uuid)
+                .map(([toolName]) => toolName)
+                .sort(),
+        })),
+    },
+    knowledgeDocuments: args.knowledgeDocuments.map((document) => ({
+        uuid: document.uuid,
+        name: document.name,
+        updatedAt: document.updatedAt.toISOString(),
+        alwaysIncludeInContext: document.alwaysIncludeInContext,
+    })),
+    repository: {
+        projectContextEnabled: args.projectContextEnabled,
+        aiWritebackEnabled: args.enableAiWriteback,
+        codingAgentEnabled: args.enableCodingAgent,
+        previewDeploySetupEnabled: args.enablePreviewDeploySetup,
+        repoDiscoveryEnabled: args.enableRepoDiscovery,
+        repoFsRoot: args.repoFsRoot,
+        repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
+        availableSkillNames: args.availableSkills
+            .map((skill) => skill.name)
+            .sort(),
+    },
+    effectivePermissions: {
+        canManageAgent: args.canManageAgent,
+        canRunSql: args.canRunSql,
+        canUseDataTools: args.enableDataAccess,
+        canUseContentTools: args.enableDataAccess && args.enableContentTools,
+        canUseSelfImprovementTools: args.canManageAgent,
+        autoApproveSql: args.autoApproveSql,
+    },
+});
+
+const persistDeepResearchExecutionContext = async (
+    args: AiAgentArgs,
+    tools: ToolSet,
+    mcpToolSetup: AgentMcpToolSetup,
+): Promise<void> => {
+    if (args.execution.mode !== 'deep_research') {
+        return;
+    }
+    await args.execution.onExecutionContextResolved?.(
+        buildDeepResearchExecutionContextSnapshot(args, tools, mcpToolSetup),
+    );
+};
+
 export const normalizeToolOutput = (
     output: unknown,
 ): { result: string; metadata?: AgentToolOutput['metadata'] } => {
@@ -283,9 +367,28 @@ const QUERY_RETRY_CAP_TOOL_NAME = '__query_retry_cap';
 
 export const defaultAgentOptions = {
     toolChoice: 'auto' as const,
-    stopWhen: stepCountIs(STEP_CAP),
+    stopWhen: stepCountIs(DEFAULT_AGENT_MAX_STEPS),
     maxRetries: 6, // Increased for Bedrock rate limits
 };
+
+const buildStopWhenPromptInterrupted =
+    (
+        args: AiAgentArgs,
+        dependencies: AiAgentDependencies,
+        logger: ReturnType<typeof createAiAgentLogger>,
+    ) =>
+    async () => {
+        const interrupted = await dependencies.isPromptInterrupted(
+            args.promptUuid,
+        );
+        if (interrupted) {
+            logger(
+                'Stop When',
+                `Stopping generation for interrupted prompt UUID: ${args.promptUuid}`,
+            );
+        }
+        return interrupted;
+    };
 
 /**
  * When forceToolHints is set, force the first hinted tool on the opening step
@@ -684,6 +787,10 @@ export const getAgentTools = (
             : null;
     const generateHashes = getGenerateHashes();
     const generateUuids = getGenerateUuids();
+    const submitResearchReport =
+        args.execution.mode === 'deep_research'
+            ? getSubmitResearchReport()
+            : null;
 
     const listProjects = getListProjects({
         listProjects: dependencies.listProjects,
@@ -775,6 +882,7 @@ export const getAgentTools = (
         ...(describeWarehouseTable ? { describeWarehouseTable } : {}),
         ...(loadSkill ? { loadSkill } : {}),
         ...(loadProjectContext ? { loadProjectContext } : {}),
+        ...(submitResearchReport ? { submitResearchReport } : {}),
     };
 
     const mergedTools = { ...tools, ...mcpToolSetup.tools };
@@ -792,9 +900,26 @@ export const getAgentTools = (
 // the tool already returned, so without this the Slack/UI card stays empty until
 // the first tool completes. The streaming path emits this from its 'tool-call'
 // chunk instead, so this wrap is only applied in the non-streaming path.
-const withEarlyToolProgress = (
+const getFinalAsyncIterableOutput = async (output: AnyType) => {
+    if (
+        !output ||
+        typeof output !== 'object' ||
+        typeof output[Symbol.asyncIterator] !== 'function'
+    ) {
+        return output;
+    }
+
+    let finalOutput: AnyType;
+    for await (const partialOutput of output as AsyncIterable<AnyType>) {
+        finalOutput = partialOutput;
+    }
+    return finalOutput;
+};
+
+export const withEarlyToolProgress = (
     tools: ToolSet,
     updateProgress: AiAgentDependencies['updateProgress'],
+    waitForProgress: boolean,
 ): ToolSet =>
     Object.fromEntries(
         Object.entries(tools).map(([toolName, toolDef]) => {
@@ -807,13 +932,22 @@ const withEarlyToolProgress = (
                 {
                     ...toolDef,
                     execute: (input: AnyType, options: AnyType) => {
-                        void updateProgress(
+                        const progress = updateProgress(
                             summarizeToolCall(toolName, input) ??
                                 `Running ${toolName}...`,
                             toolName,
                             options?.toolCallId,
                             'in_progress',
-                        ).catch((error) => {
+                        );
+                        if (waitForProgress) {
+                            return progress.then(() =>
+                                getFinalAsyncIterableOutput(
+                                    originalExecute(input, options),
+                                ),
+                            );
+                        }
+
+                        void progress.catch((error) => {
                             Logger.debug(
                                 '[AiAgent] Failed to emit early tool progress:',
                                 error,
@@ -885,10 +1019,21 @@ const getAgentMessages = (
     // system prompt only advertises that it exists (when enabled + non-empty).
     const hasProjectContext =
         args.projectContextEnabled && args.projectContext.length > 0;
-
+    const deepResearchBudgetInstruction =
+        args.execution.mode === 'deep_research'
+            ? `Run limits: at most ${args.execution.budget.maxToolCalls} tool calls, ${args.execution.budget.maxWarehouseQueries} warehouse queries, ${args.execution.budget.maxResultRows} rows per query result, and ${args.execution.budget.maxTokens} total model tokens. Submit the best report available before a limit is exhausted.`
+            : null;
+    const instructions = [
+        args.agentSettings.instruction,
+        args.execution.mode === 'deep_research'
+            ? AI_DEEP_RESEARCH_INSTRUCTIONS
+            : null,
+        deepResearchBudgetInstruction,
+    ].filter((instruction): instruction is string => !!instruction);
     const systemPrompt = getSystemPromptV2({
         agentName: args.agentSettings.name,
-        instructions: args.agentSettings.instruction || undefined,
+        instructions:
+            instructions.length > 0 ? instructions.join('\n\n') : undefined,
         requestingUser: args.requestingUser,
         availableExplores,
         availableSkills: args.availableSkills,
@@ -962,10 +1107,12 @@ export const generateAgentResponse = async ({
     args,
     dependencies,
     mcpToolSetup,
+    abortSignal,
 }: {
     args: AiAgentArgs;
     dependencies: AiAgentDependencies;
     mcpToolSetup: AgentMcpToolSetup;
+    abortSignal?: AbortSignal;
 }): Promise<string> => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger(
@@ -978,6 +1125,7 @@ export const generateAgentResponse = async ({
     );
     const startTime = Date.now();
     const modelName = getAiAgentModelName(args.model);
+    let generatedTokenUsage = 0;
 
     try {
         const [availableExplores, memoryBlock] = await Promise.all([
@@ -1000,7 +1148,9 @@ export const generateAgentResponse = async ({
                 verifiedFieldUsage,
             ),
             dependencies.updateProgress,
+            args.execution.mode === 'deep_research',
         );
+        await persistDeepResearchExecutionContext(args, tools, mcpToolSetup);
         const messages = getAgentMessages(
             args,
             availableExplores,
@@ -1022,10 +1172,20 @@ export const generateAgentResponse = async ({
             'generateAgentResponse',
             args,
         );
+        const stopWhenPromptInterrupted = buildStopWhenPromptInterrupted(
+            args,
+            dependencies,
+            logger,
+        );
         const result = await generateText({
             ...defaultAgentOptions,
             ...args.callOptions,
             prepareStep,
+            stopWhen: [
+                stepCountIs(args.execution.maxSteps),
+                stopWhenPromptInterrupted,
+            ],
+            abortSignal,
             providerOptions: args.providerOptions,
             model: args.model,
             tools,
@@ -1129,62 +1289,74 @@ export const generateAgentResponse = async ({
                         `Storing ${step.toolResults.length} tool results.`,
                     );
 
+                    const toolResults = step.toolResults.filter(
+                        (
+                            toolResult,
+                        ): toolResult is NonNullable<typeof toolResult> =>
+                            toolResult !== null,
+                    );
+                    const progressUpdates = toolResults.map((toolResult) =>
+                        dependencies.updateProgress(
+                            summarizeToolResult(
+                                toolResult.toolName,
+                                toolResult.output as AnyType,
+                            ),
+                            toolResult.toolName,
+                            toolResult.toolCallId,
+                            isPendingToolResult(toolResult.output as AnyType)
+                                ? 'in_progress'
+                                : 'complete',
+                        ),
+                    );
+                    if (args.execution.mode === 'deep_research') {
+                        await Promise.all(progressUpdates);
+                    } else {
+                        void Promise.all(progressUpdates).catch((error) => {
+                            Logger.debug(
+                                '[AiAgent][On Step Finish] Failed to update tool progress:',
+                                error,
+                            );
+                        });
+                    }
+
                     await dependencies.storeToolResults(
-                        step.toolResults
-                            .filter(
-                                (
-                                    toolResult,
-                                ): toolResult is NonNullable<
-                                    typeof toolResult
-                                > => toolResult !== null,
-                            )
-                            .map((toolResult) => {
-                                logger(
-                                    'On Step Finish',
-                                    `Storing tool result for Prompt UUID ${
-                                        args.promptUuid
-                                    }: ${toolResult.toolName} (ID: ${
-                                        toolResult.toolCallId
-                                    }) (RESULT: ${JSON.stringify(toolResult.output)})`,
-                                );
-                                void dependencies
-                                    .updateProgress(
-                                        summarizeToolResult(
-                                            toolResult.toolName,
-                                            toolResult.output as AnyType,
-                                        ),
-                                        toolResult.toolName,
-                                        toolResult.toolCallId,
-                                        isPendingToolResult(
-                                            toolResult.output as AnyType,
-                                        )
-                                            ? 'in_progress'
-                                            : 'complete',
-                                    )
-                                    .catch((error) => {
-                                        Logger.debug(
-                                            '[AiAgent][On Step Finish] Failed to update tool progress:',
-                                            error,
-                                        );
-                                    });
-                                const output = normalizeToolOutput(
-                                    toolResult.output,
-                                );
-                                return {
-                                    promptUuid: args.promptUuid,
-                                    toolCallId: toolResult.toolCallId,
-                                    toolName: toolResult.toolName,
-                                    result: output.result,
-                                    metadata: output.metadata,
-                                };
-                            }),
+                        toolResults.map((toolResult) => {
+                            logger(
+                                'On Step Finish',
+                                `Storing tool result for Prompt UUID ${
+                                    args.promptUuid
+                                }: ${toolResult.toolName} (ID: ${
+                                    toolResult.toolCallId
+                                }) (RESULT: ${JSON.stringify(toolResult.output)})`,
+                            );
+                            const output = normalizeToolOutput(
+                                toolResult.output,
+                            );
+                            return {
+                                promptUuid: args.promptUuid,
+                                toolCallId: toolResult.toolCallId,
+                                toolName: toolResult.toolName,
+                                result: output.result,
+                                metadata: output.metadata,
+                            };
+                        }),
                     );
                 }
 
-                void dependencies.updatePrompt({
-                    response: step.text,
-                    promptUuid: args.promptUuid,
-                });
+                const stepTokens = step.usage.totalTokens ?? 0;
+                generatedTokenUsage += stepTokens;
+                if (args.execution.mode === 'deep_research') {
+                    await dependencies.updatePrompt({
+                        promptUuid: args.promptUuid,
+                        tokenUsage: { totalTokens: generatedTokenUsage },
+                    });
+                } else {
+                    void dependencies.updatePrompt({
+                        response: step.text,
+                        promptUuid: args.promptUuid,
+                    });
+                }
+                await args.execution.onStepUsage?.(stepTokens);
             },
             experimental_telemetry: telemetry,
         });
@@ -1196,17 +1368,19 @@ export const generateAgentResponse = async ({
             `Generation complete. Result text length: ${result.text.length}, finishReason: ${result.finishReason}`,
         );
 
-        if (result.steps.length >= STEP_CAP && !result.text) {
+        if (result.steps.length >= args.execution.maxSteps && !result.text) {
             throw new AiAgentStepCapReachedError(result.steps.length);
         }
 
-        await dependencies.updatePrompt({
-            promptUuid: args.promptUuid,
-            response: result.text,
-            tokenUsage: {
-                totalTokens: result.usage.totalTokens ?? 0,
-            },
-        });
+        if (args.execution.mode !== 'deep_research') {
+            await dependencies.updatePrompt({
+                promptUuid: args.promptUuid,
+                response: result.text,
+                tokenUsage: {
+                    totalTokens: result.usage.totalTokens ?? 0,
+                },
+            });
+        }
 
         const totalTime = Date.now() - startTime;
         dependencies.perf.measureGenerateResponseTime(totalTime);
@@ -1231,10 +1405,12 @@ export const generateAgentResponse = async ({
             'Something went wrong while generating the response. Please try again.',
         );
 
-        await dependencies.updatePrompt({
-            promptUuid: args.promptUuid,
-            errorMessage: userFacingMessage,
-        });
+        if (args.execution.mode !== 'deep_research') {
+            await dependencies.updatePrompt({
+                promptUuid: args.promptUuid,
+                errorMessage: userFacingMessage,
+            });
+        }
 
         throw error;
     } finally {
@@ -1297,6 +1473,7 @@ export const streamAgentResponse = async ({
             mcpToolSetup,
             verifiedFieldUsage,
         );
+        await persistDeepResearchExecutionContext(args, tools, mcpToolSetup);
         const messages = getAgentMessages(
             args,
             availableExplores,
@@ -1314,24 +1491,20 @@ export const streamAgentResponse = async ({
             tools,
             logger,
         });
-        const stopWhenPromptInterrupted = async () => {
-            const interrupted = await dependencies.isPromptInterrupted(
-                args.promptUuid,
-            );
-            if (interrupted) {
-                logger(
-                    'Stream Agent Response',
-                    `Stopping stream for interrupted prompt UUID: ${args.promptUuid}`,
-                );
-            }
-            return interrupted;
-        };
+        const stopWhenPromptInterrupted = buildStopWhenPromptInterrupted(
+            args,
+            dependencies,
+            logger,
+        );
         const telemetry = getAgentTelemetryConfig('streamAgentResponse', args);
         const result = streamText({
             ...defaultAgentOptions,
             ...args.callOptions,
             prepareStep,
-            stopWhen: [stepCountIs(STEP_CAP), stopWhenPromptInterrupted],
+            stopWhen: [
+                stepCountIs(args.execution.maxSteps),
+                stopWhenPromptInterrupted,
+            ],
             providerOptions: args.providerOptions,
             model: args.model,
             tools,
@@ -1582,7 +1755,7 @@ export const streamAgentResponse = async ({
                     .flatMap((step) => step.text || [])
                     .join('\n');
 
-                const stepCapReached = steps.length >= STEP_CAP;
+                const stepCapReached = steps.length >= args.execution.maxSteps;
 
                 // The AI SDK holds the stream open until onFinish resolves, so
                 // the HTTP stream only closes once the response is persisted —

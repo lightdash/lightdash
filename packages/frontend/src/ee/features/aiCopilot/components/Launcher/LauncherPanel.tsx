@@ -26,6 +26,7 @@ import { createPath, useLocation, useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
+import { findRetryableDeepResearchRun } from '../../deepResearch/deepResearchRegistry';
 import { type StartDeepResearchArgs } from '../../deepResearch/types';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import { useDashboardPageContextCuration } from '../../hooks/useDashboardPageContextCuration';
@@ -217,7 +218,7 @@ const NewThreadPanel: FC<{
         useStartDeepResearchForThreadMutation(projectUuid);
 
     const handleStartDeepResearch = useCallback(
-        async ({ question, depth }: StartDeepResearchArgs) => {
+        async ({ question, depth, mcpServerUuids }: StartDeepResearchArgs) => {
             if (!concreteAgent || !isPinnedContextReady) {
                 return;
             }
@@ -231,7 +232,10 @@ const NewThreadPanel: FC<{
             await startDeepResearch.mutateAsync({
                 question,
                 depth,
+                agentUuid: concreteAgent.uuid,
                 threadUuid: thread.uuid,
+                promptUuid: thread.firstMessage.uuid,
+                mcpServerUuids,
             });
         },
         [
@@ -473,6 +477,7 @@ const ExistingThreadPanel: FC<{
     });
     const startDeepResearch = useStartDeepResearchMutation({
         projectUuid,
+        agentUuid: agent.uuid,
         threadUuid: threadId,
     });
 
@@ -494,10 +499,17 @@ const ExistingThreadPanel: FC<{
         });
 
     const isThreadFromCurrentUser = thread?.user.uuid === user?.data?.userUuid;
+    const isBusy = Boolean(isCreatingMessage || isStreaming || isPending);
+    const isInputDisabled =
+        thread?.createdFrom === 'slack' || !isThreadFromCurrentUser;
     const contentMentionItems = useMemo(
         () => contextItemsToContentMentionSuggestions(threadContext, 'thread'),
         [threadContext],
     );
+    const firstAssistantMessage = thread?.messages?.find(
+        (message) => message.role === 'assistant',
+    );
+    const modelConfig = firstAssistantMessage?.modelConfig ?? undefined;
 
     const handleSubmit = ({
         message,
@@ -512,10 +524,6 @@ const ExistingThreadPanel: FC<{
             typeof createAgentThreadMessage
         >[0]['optimisticContext'];
     }) => {
-        const firstAssistantMessage = thread?.messages?.find(
-            (m) => m.role === 'assistant',
-        );
-        const modelConfig = firstAssistantMessage?.modelConfig ?? undefined;
         const curatedContext = curateContext({ context, optimisticContext });
 
         void createAgentThreadMessage({
@@ -533,12 +541,30 @@ const ExistingThreadPanel: FC<{
     const handleStartDeepResearch = async ({
         question,
         depth,
-    }: Parameters<typeof startDeepResearch.mutateAsync>[0]) => {
-        await createAgentThreadMessage({
-            prompt: question,
-            skipAgentResponse: true,
+        mcpServerUuids,
+    }: StartDeepResearchArgs) => {
+        const retryableRun = findRetryableDeepResearchRun({
+            projectUuid,
+            agentUuid: agent.uuid,
+            threadUuid: threadId,
+            userUuid: user?.data?.userUuid,
+            question,
         });
-        await startDeepResearch.mutateAsync({ question, depth });
+        const promptUuid =
+            retryableRun?.promptUuid ??
+            (
+                await createAgentThreadMessage({
+                    prompt: question,
+                    modelConfig,
+                    skipAgentResponse: true,
+                })
+            ).uuid;
+        await startDeepResearch.mutateAsync({
+            question,
+            depth,
+            mcpServerUuids,
+            promptUuid,
+        });
     };
 
     const headerTitle =
@@ -592,14 +618,12 @@ const ExistingThreadPanel: FC<{
                     agentUuid={agent.uuid}
                     renderArtifactsInline
                     onDashboardLinkClick={handleDashboardLinkClick}
+                    canRetryDeepResearch={!isInputDisabled && !isBusy}
                 >
                     <AgentChatInput
-                        disabled={
-                            thread.createdFrom === 'slack' ||
-                            !isThreadFromCurrentUser
-                        }
+                        disabled={isInputDisabled}
                         disabledReason="This thread is read-only. To continue the conversation, reply in Slack."
-                        loading={isCreatingMessage || isStreaming || isPending}
+                        loading={isBusy}
                         onSubmit={handleSubmit}
                         onStartDeepResearch={
                             deepResearchFlag.data?.enabled

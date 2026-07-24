@@ -60,6 +60,7 @@ export const ToolNameSchema = z.enum([
     'listKnowledgeDocuments',
     'getKnowledgeDocumentContent',
     'readPinnedThread',
+    'submitResearchReport',
 ]);
 
 export type ToolName = z.infer<typeof ToolNameSchema>;
@@ -120,6 +121,7 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     listKnowledgeDocuments: 'Listing knowledge documents',
     getKnowledgeDocumentContent: 'Reading knowledge document',
     readPinnedThread: 'Reading pinned conversation',
+    submitResearchReport: 'Saving research report',
 });
 
 // after-tool-call messages
@@ -174,6 +176,7 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         listKnowledgeDocuments: 'Listed knowledge documents',
         getKnowledgeDocumentContent: 'Read knowledge document',
         readPinnedThread: 'Read pinned conversation',
+        submitResearchReport: 'Saved research report',
     });
 
 export const AVAILABLE_VISUALIZATION_TYPES = VisualizationTools;
