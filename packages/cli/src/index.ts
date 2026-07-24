@@ -476,6 +476,10 @@ program
         validateWarehouseColumnsDescription,
         false,
     )
+    .option(
+        '--no-partial-compilation',
+        'Fail when a field or join cannot be compiled instead of returning a partial explore',
+    )
     .action(compileHandler);
 
 program
@@ -610,6 +614,10 @@ program
         validateWarehouseColumnsDescription,
         false,
     )
+    .option(
+        '--no-partial-compilation',
+        'Fail when a field or join cannot be compiled instead of returning a partial explore',
+    )
     .action(previewHandler);
 
 program
@@ -740,6 +748,10 @@ program
         '--validate-warehouse-columns',
         validateWarehouseColumnsDescription,
         false,
+    )
+    .option(
+        '--no-partial-compilation',
+        'Fail when a field or join cannot be compiled instead of returning a partial explore',
     )
     .action(startPreviewHandler);
 
@@ -1166,6 +1178,10 @@ program
         validateWarehouseColumnsDescription,
         false,
     )
+    .option(
+        '--no-partial-compilation',
+        'Fail when a field or join cannot be compiled instead of returning a partial explore',
+    )
     .action(deployHandler);
 
 program
@@ -1268,6 +1284,10 @@ program
     .option(
         '--exclude-spaces <spaceSlugs...>',
         'Skip validation errors for charts and dashboards in these spaces (and their sub-spaces). Spaces must be visible to your credentials',
+    )
+    .option(
+        '--no-partial-compilation',
+        'Fail when a field or join cannot be compiled instead of returning a partial explore',
     )
     .action(validateHandler);
 

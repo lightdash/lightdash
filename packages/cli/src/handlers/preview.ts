@@ -48,6 +48,7 @@ type PreviewHandlerOptions = DbtCompileOptions & {
     expiresIn?: string;
     disableTimestampConversion?: boolean;
     validateWarehouseColumns: boolean;
+    partialCompilation?: boolean;
 };
 
 type StopPreviewHandlerOptions = {

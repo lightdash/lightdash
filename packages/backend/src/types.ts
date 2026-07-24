@@ -19,7 +19,7 @@ export interface ProjectAdapter {
      * Compile all explores
      * @param trackingParams - Optional tracking parameters to track the compilation and lightdash project config (lightdash.config.yml) overrides
      * @param loadSources - Whether to load source information for each explore
-     * @param allowPartialCompilation - When true, fields that fail to compile will be marked with errors instead of failing the entire explore
+     * @param allowPartialCompilation - When false, a field compilation failure fails the entire explore. Defaults to true.
      * @returns A promise that resolves to an array of explores or explore errors
      */
     compileAllExplores(

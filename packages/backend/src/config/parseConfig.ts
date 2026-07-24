@@ -1574,14 +1574,6 @@ export type LightdashConfig = {
     editYamlInUi: {
         enabled: boolean;
     };
-    /**
-     * When enabled, fields that fail to compile will be marked with a
-     * compilationError instead of causing the entire explore to fail.
-     * This allows users to still access other fields in the explore.
-     */
-    partialCompilation: {
-        enabled: boolean;
-    };
     funnelBuilder: {
         enabled: boolean;
     };
@@ -3094,9 +3086,6 @@ export const parseConfig = (): LightdashConfig => {
         analyticsEmbedSecret: process.env.ANALYTICS_EMBED_SECRET,
         editYamlInUi: {
             enabled: process.env.EDIT_YAML_IN_UI_ENABLED === 'true',
-        },
-        partialCompilation: {
-            enabled: process.env.PARTIAL_COMPILATION_ENABLED !== 'false',
         },
         funnelBuilder: {
             enabled:
