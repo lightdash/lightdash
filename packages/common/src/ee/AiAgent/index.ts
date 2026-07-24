@@ -642,6 +642,29 @@ export type ApiAiAgentThreadMessageVizQueryResponse = {
     results: ApiAiAgentThreadMessageVizQuery;
 };
 
+export type ApiAiAgentSqlArtifactVizQuery = {
+    source: 'sql';
+    type: AiResultType.TABLE_RESULT;
+    queryUuid: string;
+    sql: string;
+    limit: number;
+    metadata: AiVizMetadata;
+};
+
+export type ApiAiAgentArtifactVizQuery =
+    | ApiAiAgentThreadMessageVizQuery
+    | ApiAiAgentSqlArtifactVizQuery;
+
+export const isAiAgentSqlArtifactVizQuery = (
+    query: ApiAiAgentArtifactVizQuery,
+): query is ApiAiAgentSqlArtifactVizQuery =>
+    'source' in query && query.source === 'sql';
+
+export type ApiAiAgentArtifactVizQueryResponse = {
+    status: 'ok';
+    results: ApiAiAgentArtifactVizQuery;
+};
+
 export type AiAgentUserPreferences = {
     defaultAgentUuid: AiAgent['uuid'];
 };
@@ -739,6 +762,19 @@ export type ApiAiAgentExploreAccessSummaryResponse = ApiSuccess<
     AiAgentExploreAccessSummary[]
 >;
 
+export type AiSqlChartArtifactConfig = {
+    source: 'sql';
+    sql: string;
+    limit: number;
+    queryUuid: string;
+};
+
+export type AiSemanticChartArtifactConfig =
+    | ToolTableVizArgs
+    | ToolTimeSeriesArgs
+    | ToolVerticalBarArgs
+    | ToolRunQueryArgs;
+
 export type AiArtifact = {
     artifactUuid: string;
     threadUuid: string;
@@ -753,16 +789,28 @@ export type AiArtifact = {
     description: string | null;
     // We store raw tool calls
     chartConfig:
-        | ToolTableVizArgs
-        | ToolTimeSeriesArgs
-        | ToolVerticalBarArgs
-        | ToolRunQueryArgs
+        | AiSemanticChartArtifactConfig
+        | AiSqlChartArtifactConfig
         | null;
     dashboardConfig: ToolDashboardArgs | null;
     versionCreatedAt: Date;
     verifiedByUserUuid: string | null;
     verifiedAt: Date | null;
 };
+
+export const isAiSqlChartArtifactConfig = (
+    config: unknown,
+): config is AiSqlChartArtifactConfig =>
+    typeof config === 'object' &&
+    config !== null &&
+    'source' in config &&
+    config.source === 'sql' &&
+    'sql' in config &&
+    typeof config.sql === 'string' &&
+    'limit' in config &&
+    typeof config.limit === 'number' &&
+    'queryUuid' in config &&
+    typeof config.queryUuid === 'string';
 
 export type AiArtifactTSOACompat = Omit<
     AiArtifact,

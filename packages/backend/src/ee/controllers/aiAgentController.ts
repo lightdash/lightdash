@@ -8,6 +8,7 @@ import {
     ApiAgentReadinessScoreResponse,
     ApiAgentSuggestionsResponse,
     ApiAiAgentArtifactResponseTSOACompat,
+    ApiAiAgentArtifactVizQueryResponse,
     ApiAiAgentAvatarUploadResponse,
     ApiAiAgentEvaluationResponse,
     ApiAiAgentEvaluationRunResponse,
@@ -1525,7 +1526,7 @@ export class AiAgentController extends BaseController {
         @Path() agentUuid: string,
         @Path() artifactUuid: string,
         @Path() versionUuid: string,
-    ): Promise<ApiAiAgentThreadMessageVizQueryResponse> {
+    ): Promise<ApiAiAgentArtifactVizQueryResponse> {
         this.setStatus(200);
 
         if (req.account?.authentication.type === 'jwt') {

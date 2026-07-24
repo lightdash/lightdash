@@ -66,6 +66,7 @@ const makeTool = ({
     const dependencies = {
         updateProgress: vi.fn().mockResolvedValue(undefined),
         runSqlJob: vi.fn().mockResolvedValue({
+            queryUuid: 'query-uuid',
             rows: [{ answer: 1 }],
             columns: ['answer'],
             rowCount: 1,
@@ -78,6 +79,7 @@ const makeTool = ({
         recordSqlApproval,
         isThreadSqlAutoApproved: vi.fn().mockResolvedValue(false),
         storeToolResults: vi.fn().mockResolvedValue(undefined),
+        createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),
         autoApproveSql,
         autoApproveSqlUserUuid,
         maxQueryLimit,
@@ -128,6 +130,61 @@ describe('getRunSql', () => {
             'Awaiting approval to run SQL...',
         );
         expect(output.metadata?.status).toBe('success');
+    });
+
+    it('creates a SQL-backed chart artifact for web results', async () => {
+        const { tool, dependencies } = makeTool({
+            autoApproveSql: true,
+        });
+
+        await executeRunSql(tool);
+
+        expect(dependencies.createOrUpdateArtifact).toHaveBeenCalledWith({
+            threadUuid: 'thread-uuid',
+            promptUuid: 'prompt-uuid',
+            artifactType: 'chart',
+            title: 'SQL query results',
+            vizConfig: {
+                source: 'sql',
+                sql: 'select 1 as answer',
+                limit: 500,
+                queryUuid: 'query-uuid',
+            },
+        });
+    });
+
+    it('creates an artifact even when the SQL result has no rows', async () => {
+        const { tool, dependencies } = makeTool({
+            autoApproveSql: true,
+        });
+        dependencies.runSqlJob.mockResolvedValueOnce({
+            queryUuid: 'empty-query-uuid',
+            rows: [],
+            columns: ['answer'],
+            rowCount: 0,
+        });
+
+        const output = await executeRunSql(tool);
+
+        expect(output.metadata?.status).toBe('success');
+        expect(dependencies.createOrUpdateArtifact).toHaveBeenCalledWith(
+            expect.objectContaining({
+                vizConfig: expect.objectContaining({
+                    queryUuid: 'empty-query-uuid',
+                }),
+            }),
+        );
+    });
+
+    it('does not create a web artifact for Slack results', async () => {
+        const { tool, dependencies } = makeTool({
+            autoApproveSql: true,
+            prompt: makeSlackPrompt(),
+        });
+
+        await executeRunSql(tool);
+
+        expect(dependencies.createOrUpdateArtifact).not.toHaveBeenCalled();
     });
 
     it('clamps a requested limit above maxQueryLimit when calling runSqlJob', async () => {

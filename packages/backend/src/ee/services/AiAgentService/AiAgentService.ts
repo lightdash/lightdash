@@ -38,6 +38,7 @@ import {
     AlreadyExistsError,
     AnonymousAccount,
     AnyType,
+    ApiAiAgentArtifactVizQuery,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
@@ -75,6 +76,7 @@ import {
     GITHUB_MCP_SERVER_URL,
     hasAiAgentAccessToSpace,
     InsufficientGitPermissionsError,
+    isAiSqlChartArtifactConfig,
     isAiWritebackRunInProgress,
     isGitProjectType,
     isSlackMessageTooLongError,
@@ -5237,7 +5239,7 @@ export class AiAgentService extends BaseService {
             versionUuid: string;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
         },
-    ): Promise<ApiAiAgentThreadMessageVizQuery> {
+    ): Promise<ApiAiAgentArtifactVizQuery> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
@@ -5275,6 +5277,20 @@ export class AiAgentService extends BaseService {
             throw new ParameterError(
                 'Chart config not found for this artifact',
             );
+        }
+
+        if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
+            return {
+                source: 'sql',
+                type: AiResultType.TABLE_RESULT,
+                queryUuid: artifact.chartConfig.queryUuid,
+                sql: artifact.chartConfig.sql,
+                limit: artifact.chartConfig.limit,
+                metadata: {
+                    title: artifact.title,
+                    description: artifact.description,
+                },
+            };
         }
 
         const parsedVizConfig = parseVizConfig(

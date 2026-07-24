@@ -2,9 +2,12 @@ import {
     AiResultType,
     getGroupByDimensions,
     getWebAiChartConfig,
+    isAiAgentSqlArtifactVizQuery,
+    isAiSqlChartArtifactConfig,
     parseVizConfig,
     type AiAgentChartTypeOption,
     type AiAgentMessageAssistant,
+    type AiSemanticChartArtifactConfig,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -35,6 +38,7 @@ import styles from './AiArtifactPanel.module.css';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
 import { AiChartVisualization } from './AiChartVisualization';
 import { AiDashboardVisualization } from './AiDashboardVisualization';
+import { AiSqlArtifactVisualization } from './AiSqlArtifactVisualization';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
 import { ChatElementsUtils } from './utils';
 
@@ -97,10 +101,20 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             artifactData?.artifactType === 'chart' &&
             !!artifactData.chartConfig;
 
+        const isSqlArtifact = isAiSqlChartArtifactConfig(
+            artifactData?.chartConfig,
+        );
+        const semanticChartConfig = isSqlArtifact
+            ? null
+            : (artifactData?.chartConfig as
+                  | AiSemanticChartArtifactConfig
+                  | null
+                  | undefined);
+
         const vizConfig = useMemo(() => {
-            if (!isFloatingChart || !artifactData?.chartConfig) return null;
-            return parseVizConfig(artifactData.chartConfig);
-        }, [isFloatingChart, artifactData?.chartConfig]);
+            if (!isFloatingChart || !semanticChartConfig) return null;
+            return parseVizConfig(semanticChartConfig);
+        }, [isFloatingChart, semanticChartConfig]);
 
         const queryExecutionHandle = useAiAgentArtifactVizQuery(
             {
@@ -109,19 +123,29 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                 artifactUuid: artifact.artifactUuid,
                 versionUuid: artifact.versionUuid,
             },
-            { enabled: isFloatingChart && !!vizConfig },
+            { enabled: (isFloatingChart && !!vizConfig) || isSqlArtifact },
         );
+
+        const semanticVizQueryData =
+            queryExecutionHandle.data &&
+            !isAiAgentSqlArtifactVizQuery(queryExecutionHandle.data)
+                ? queryExecutionHandle.data
+                : undefined;
+        const queryUuid =
+            queryExecutionHandle.data &&
+            isAiAgentSqlArtifactVizQuery(queryExecutionHandle.data)
+                ? queryExecutionHandle.data.queryUuid
+                : semanticVizQueryData?.query.queryUuid;
 
         const queryResults = useInfiniteQueryResults(
             artifact.projectUuid,
-            queryExecutionHandle?.data?.query.queryUuid,
+            queryUuid,
         );
 
         const { data: compiledSql } = useCompiledSqlFromMetricQuery({
-            tableName:
-                queryExecutionHandle?.data?.query.metricQuery?.exploreName,
+            tableName: semanticVizQueryData?.query.metricQuery?.exploreName,
             projectUuid: artifact.projectUuid,
-            metricQuery: queryExecutionHandle?.data?.query.metricQuery,
+            metricQuery: semanticVizQueryData?.query.metricQuery,
         });
 
         // Same parse the renderer does — needed so the floating pill can
@@ -130,23 +154,23 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         const parsedChartConfig = useMemo(() => {
             if (!isFloatingChart) return null;
             if (
-                !queryExecutionHandle.data ||
-                !artifactData?.chartConfig ||
-                !queryExecutionHandle.data.query.metricQuery
+                !semanticVizQueryData ||
+                !semanticChartConfig ||
+                !semanticVizQueryData.query.metricQuery
             ) {
                 return null;
             }
             return getWebAiChartConfig({
-                vizConfig: artifactData.chartConfig,
-                metricQuery: queryExecutionHandle.data.query.metricQuery,
+                vizConfig: semanticChartConfig,
+                metricQuery: semanticVizQueryData.query.metricQuery,
                 maxQueryLimit: health?.query.maxLimit,
-                fieldsMap: queryExecutionHandle.data.query.fields,
+                fieldsMap: semanticVizQueryData.query.fields,
                 overrideChartType: selectedChartType ?? undefined,
             });
         }, [
             isFloatingChart,
-            queryExecutionHandle.data,
-            artifactData?.chartConfig,
+            semanticVizQueryData,
+            semanticChartConfig,
             health?.query.maxLimit,
             selectedChartType,
         ]);
@@ -226,7 +250,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
 
         // Inline variant (admin verified-content view): no floating chrome,
         // no pill — legacy chrome owned by AiChartVisualization.
-        if (variant === 'inline') {
+        if (variant === 'inline' && !isSqlArtifact) {
             return (
                 <Box {...ChatElementsUtils.centeredElementProps} p="md">
                     <Stack gap="md" h="100%">
@@ -249,7 +273,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         // inputs.
         if (
             queryExecutionHandle.isLoading ||
-            queryResults.isFetchingRows ||
+            (!isSqlArtifact && queryResults.isFetchingRows) ||
             !queryExecutionHandle.data ||
             queryResults.error
         ) {
@@ -270,7 +294,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             queryExecutionHandle.data.metadata.title ?? 'Untitled chart';
         const description =
             queryExecutionHandle.data.metadata.description ?? null;
-        const metricQuery = queryExecutionHandle.data.query.metricQuery;
+        const metricQuery = semanticVizQueryData?.query.metricQuery;
 
         const floatingHead = (
             <div className={styles.head}>
@@ -285,18 +309,20 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                     )}
                 </Stack>
                 <Group gap={2} className={styles.headRight}>
-                    <AiChartQuickOptions
-                        message={message}
-                        projectUuid={artifact.projectUuid}
-                        agentUuid={artifact.agentUuid}
-                        artifactData={artifactData}
-                        saveChartOptions={{
-                            name: title,
-                            description: description,
-                            linkToMessage: true,
-                        }}
-                        compiledSql={compiledSql?.query}
-                    />
+                    {!isSqlArtifact && (
+                        <AiChartQuickOptions
+                            message={message}
+                            projectUuid={artifact.projectUuid}
+                            agentUuid={artifact.agentUuid}
+                            artifactData={artifactData}
+                            saveChartOptions={{
+                                name: title,
+                                description: description,
+                                linkToMessage: true,
+                            }}
+                            compiledSql={compiledSql?.query}
+                        />
+                    )}
                     {showCloseButton && (
                         <>
                             <Divider
@@ -320,13 +346,28 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             </div>
         );
 
+        if (isAiAgentSqlArtifactVizQuery(queryExecutionHandle.data)) {
+            return (
+                <div className={styles.floatingPanel}>
+                    <div className={styles.floatingContent}>
+                        <AiSqlArtifactVisualization
+                            projectUuid={artifact.projectUuid}
+                            vizQueryData={queryExecutionHandle.data}
+                            results={queryResults}
+                            headerContent={floatingHead}
+                        />
+                    </div>
+                </div>
+            );
+        }
+
         return (
             <div className={styles.floatingPanel}>
                 <div className={styles.floatingContent}>
                     <AiVisualizationRenderer
-                        vizQueryData={queryExecutionHandle.data}
+                        vizQueryData={semanticVizQueryData!}
                         results={queryResults}
-                        chartConfig={artifactData.chartConfig!}
+                        chartConfig={semanticChartConfig!}
                         selectedChartType={selectedChartType}
                         headerContent={floatingHead}
                     />

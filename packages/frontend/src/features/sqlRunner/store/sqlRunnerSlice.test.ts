@@ -1,6 +1,7 @@
-import { WarehouseTypes } from '@lightdash/common';
+import { DimensionType, WarehouseTypes } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    hydrateSqlQueryResults,
     initialState,
     setState,
     setWarehouseConnectionType,
@@ -45,5 +46,44 @@ describe('sqlRunnerSlice warehouseConnectionType', () => {
         );
 
         expect(restored.warehouseConnectionType).toBe(WarehouseTypes.POSTGRES);
+    });
+});
+
+describe('sqlRunnerSlice hydrateSqlQueryResults', () => {
+    it('hydrates raw SQL results and creates a visible table config', () => {
+        const state = reducer(
+            undefined,
+            hydrateSqlQueryResults({
+                projectUuid: 'project-uuid',
+                queryUuid: 'query-uuid',
+                sql: 'select 1 as answer',
+                limit: 500,
+                fileUrl: undefined,
+                columns: [
+                    {
+                        reference: 'answer',
+                        type: DimensionType.NUMBER,
+                    },
+                ],
+                results: [{ answer: 1 }],
+            }),
+        );
+
+        expect(state).toMatchObject({
+            projectUuid: 'project-uuid',
+            queryUuid: 'query-uuid',
+            sql: 'select 1 as answer',
+            limit: 500,
+            sqlRows: [{ answer: 1 }],
+            resultsTableConfig: {
+                columns: {
+                    answer: {
+                        visible: true,
+                        reference: 'answer',
+                        label: 'answer',
+                    },
+                },
+            },
+        });
     });
 });

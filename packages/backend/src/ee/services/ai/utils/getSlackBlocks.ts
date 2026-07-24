@@ -9,6 +9,7 @@ import {
     getItemMap,
     getWebAiChartConfig,
     isActiveFollowUpTool,
+    isAiSqlChartArtifactConfig,
     isToolEditDbtProjectResult,
     isToolSetupPreviewDeployResult,
     parseVizConfig,
@@ -579,6 +580,9 @@ export async function getModernArtifactCardBlocks(
             .optional(),
     });
     const getChartVizType = (artifact: AiArtifact): string => {
+        if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
+            return 'table';
+        }
         const parsed = vizTypeSchema.safeParse(artifact.chartConfig);
         if (parsed.success && parsed.data.chartConfig?.defaultVizType) {
             return parsed.data.chartConfig.defaultVizType;
@@ -598,6 +602,9 @@ export async function getModernArtifactCardBlocks(
         if (artifact.chartConfig) {
             const vizType = getChartVizType(artifact);
             if (title) return `chart:${vizType}:${title}`;
+            if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
+                return `chart:${vizType}:${artifact.chartConfig.sql}`;
+            }
             const viz = parseVizConfig(artifact.chartConfig, maxQueryLimit);
             const query = viz
                 ? JSON.stringify(
@@ -627,13 +634,18 @@ export async function getModernArtifactCardBlocks(
     });
     const dedupedArtifacts = Array.from(latestByIdentity.values()).slice(0, 10);
 
-    const chartArtifacts = dedupedArtifacts.filter((artifact) =>
-        Boolean(artifact.chartConfig),
+    const chartArtifacts = dedupedArtifacts.filter(
+        (artifact) =>
+            Boolean(artifact.chartConfig) &&
+            !isAiSqlChartArtifactConfig(artifact.chartConfig),
     );
 
     const blocks = await Promise.all(
         dedupedArtifacts.map(async (artifact, index) => {
-            if (artifact.chartConfig) {
+            if (
+                artifact.chartConfig &&
+                !isAiSqlChartArtifactConfig(artifact.chartConfig)
+            ) {
                 const vizConfig = parseVizConfig(
                     artifact.chartConfig,
                     maxQueryLimit,

@@ -1,6 +1,7 @@
 import type {
     AiAgent,
     AiAgentThreadFilters,
+    ApiAiAgentArtifactVizQuery,
     ApiAiAgentAvatarUploadResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
     ApiAiAgentResponse,
@@ -1624,7 +1625,7 @@ const getAiAgentArtifactVizQuery = async (args: {
     artifactUuid: string;
     versionUuid: string;
 }) =>
-    lightdashApi<ApiAiAgentThreadMessageVizQuery>({
+    lightdashApi<ApiAiAgentArtifactVizQuery>({
         url: `${getAiAgentApiBase(args.projectUuid)}/${
             args.agentUuid
         }/artifacts/${args.artifactUuid}/versions/${
@@ -1646,10 +1647,7 @@ export const useAiAgentArtifactVizQuery = (
         artifactUuid: string;
         versionUuid: string;
     },
-    useQueryOptions?: UseQueryOptions<
-        ApiAiAgentThreadMessageVizQuery,
-        ApiError
-    >,
+    useQueryOptions?: UseQueryOptions<ApiAiAgentArtifactVizQuery, ApiError>,
 ) => {
     const navigate = useNavigate();
     const { data: activeProjectUuid } = useActiveProject();
@@ -1658,7 +1656,7 @@ export const useAiAgentArtifactVizQuery = (
     const { showToastApiError } = useToaster();
     const isEmbed = isEmbedAiAgentRoute();
 
-    return useQuery<ApiAiAgentThreadMessageVizQuery, ApiError>({
+    return useQuery<ApiAiAgentArtifactVizQuery, ApiError>({
         queryKey: [
             AI_AGENTS_KEY,
             'artifact-viz-query',

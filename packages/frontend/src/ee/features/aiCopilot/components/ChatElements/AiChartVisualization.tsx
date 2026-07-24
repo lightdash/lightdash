@@ -1,4 +1,6 @@
 import {
+    isAiAgentSqlArtifactVizQuery,
+    isAiSqlChartArtifactConfig,
     parseVizConfig,
     type AiAgentChartTypeOption,
     type AiAgentMessageAssistant,
@@ -52,10 +54,16 @@ export const AiChartVisualization: FC<Props> = ({
     const [selectedChartType, setSelectedChartType] =
         useState<AiAgentChartTypeOption | null>(null);
 
+    const semanticChartConfig = isAiSqlChartArtifactConfig(
+        artifactData.chartConfig,
+    )
+        ? null
+        : artifactData.chartConfig;
+
     const vizConfig = useMemo(() => {
-        if (!artifactData?.chartConfig) return null;
-        return parseVizConfig(artifactData.chartConfig);
-    }, [artifactData?.chartConfig]);
+        if (!semanticChartConfig) return null;
+        return parseVizConfig(semanticChartConfig);
+    }, [semanticChartConfig]);
 
     const queryExecutionHandle = useAiAgentArtifactVizQuery(
         {
@@ -67,15 +75,21 @@ export const AiChartVisualization: FC<Props> = ({
         { enabled: !!vizConfig },
     );
 
+    const semanticVizQueryData =
+        queryExecutionHandle.data &&
+        !isAiAgentSqlArtifactVizQuery(queryExecutionHandle.data)
+            ? queryExecutionHandle.data
+            : undefined;
+
     const queryResults = useInfiniteQueryResults(
         projectUuid,
-        queryExecutionHandle?.data?.query.queryUuid,
+        semanticVizQueryData?.query.queryUuid,
     );
 
     const { data: compiledSql } = useCompiledSqlFromMetricQuery({
-        tableName: queryExecutionHandle.data?.query.metricQuery?.exploreName,
+        tableName: semanticVizQueryData?.query.metricQuery?.exploreName,
         projectUuid,
-        metricQuery: queryExecutionHandle.data?.query.metricQuery,
+        metricQuery: semanticVizQueryData?.query.metricQuery,
     });
 
     const isQueryLoading =
@@ -122,18 +136,16 @@ export const AiChartVisualization: FC<Props> = ({
         );
     }
 
-    if (!queryExecutionHandle.data || !vizConfig) {
+    if (!semanticVizQueryData || !vizConfig || !semanticChartConfig) {
         return null;
     }
 
     const inlineHeaderContent = (
         <Group gap="md" align="start">
             <Stack gap={0} flex={1}>
-                <Title order={5}>
-                    {queryExecutionHandle.data.metadata.title}
-                </Title>
+                <Title order={5}>{semanticVizQueryData.metadata.title}</Title>
                 <Text c="dimmed" size="xs">
-                    {queryExecutionHandle.data.metadata.description}
+                    {semanticVizQueryData.metadata.description}
                 </Text>
             </Stack>
             <Group gap="sm" display={isMobile ? 'none' : 'flex'}>
@@ -144,9 +156,8 @@ export const AiChartVisualization: FC<Props> = ({
                     agentUuid={agentUuid}
                     artifactData={artifactData}
                     saveChartOptions={{
-                        name: queryExecutionHandle.data.metadata.title,
-                        description:
-                            queryExecutionHandle.data.metadata.description,
+                        name: semanticVizQueryData.metadata.title,
+                        description: semanticVizQueryData.metadata.description,
                         linkToMessage: true,
                     }}
                     compiledSql={compiledSql?.query}
@@ -167,9 +178,9 @@ export const AiChartVisualization: FC<Props> = ({
 
     return (
         <AiVisualizationRenderer
-            vizQueryData={queryExecutionHandle.data}
+            vizQueryData={semanticVizQueryData}
             results={queryResults}
-            chartConfig={artifactData.chartConfig!}
+            chartConfig={semanticChartConfig}
             selectedChartType={selectedChartType}
             onChartTypeChange={setSelectedChartType}
             headerContent={inlineHeaderContent}

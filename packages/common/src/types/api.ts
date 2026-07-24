@@ -10,6 +10,7 @@ import type {
     ApiAiAgentAdminConversationsResponse,
     ApiAiAgentAdminPromptActivityResponse,
     ApiAiAgentArtifactResponse,
+    ApiAiAgentArtifactVizQueryResponse,
     ApiAiAgentEvaluationResponse,
     ApiAiAgentEvaluationRunResponse,
     ApiAiAgentEvaluationRunResultsResponse,
@@ -1238,6 +1239,7 @@ type ApiResults =
     | ApiAiAgentThreadResponse['results']
     | ApiAiAgentThreadMessageVizResponse['results']
     | ApiAiAgentThreadMessageVizQueryResponse['results']
+    | ApiAiAgentArtifactVizQueryResponse['results']
     | ApiUpdateUserAgentPreferencesResponse['results']
     | ApiGetUserAgentPreferencesResponse[`results`]
     | ApiGetProjectParametersResults
