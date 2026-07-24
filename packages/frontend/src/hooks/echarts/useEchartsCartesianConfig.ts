@@ -2,6 +2,7 @@ import {
     applyCustomFormat,
     applyRoundedCornersToStackData,
     assertUnreachable,
+    assignSeriesZByOrder,
     buildCartesianTooltipFormatter,
     calculateDynamicBorderRadius,
     CartesianSeriesType,
@@ -3201,18 +3202,6 @@ export const relocateMarkLinesToVisibleSeries = (
         };
     });
 };
-
-// Position-derived paint order (earlier in the list = behind). Kept within
-// [2, 3) so every series stays below reference-line marks (ECharts markLine
-// default z is 5), which must always paint on top of the data.
-const SERIES_Z_BASE = 2;
-export const assignSeriesZByOrder = (
-    series: EChartsSeries[],
-): EChartsSeries[] =>
-    series.map((serie, index) => ({
-        ...serie,
-        z: SERIES_Z_BASE + index / series.length,
-    }));
 
 const useEchartsCartesianConfig = (
     validCartesianConfigLegend?: LegendValues,

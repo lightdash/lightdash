@@ -1,7 +1,9 @@
 import {
+    assignSeriesZByOrder,
     CartesianSeriesType,
     createConditionalFormattingConfigWithSingleColor,
     DimensionType,
+    REFERENCE_LINE_Z,
     FieldType,
     FilterOperator,
     TimeFrames,
@@ -20,7 +22,6 @@ import { describe, expect, test, vi } from 'vitest';
 import {
     applyConditionalFormattingToStackedSeries,
     applyLegendPlacementToGrid,
-    assignSeriesZByOrder,
     filterSeriesWithNoData,
     getAxisDefaultMaxValue,
     getAxisDefaultMinValue,
@@ -2535,10 +2536,6 @@ describe('applyConditionalFormattingToStackedSeries', () => {
 });
 
 describe('assignSeriesZByOrder', () => {
-    // ECharts markLine (reference lines) default z; series must stay below it
-    // so reference lines always paint on top of the data.
-    const MARKLINE_DEFAULT_Z = 5;
-
     const mkSeries = (type: CartesianSeriesType, name: string): EChartsSeries =>
         ({ type, name }) as unknown as EChartsSeries;
 
@@ -2564,20 +2561,37 @@ describe('assignSeriesZByOrder', () => {
         expect(barZ).toBeGreaterThan(areaZ);
     });
 
-    test('keeps every series z below the markLine default, even with many series', () => {
-        // Reference lines rely on markLine default z (5) painting above the
-        // data; a large series count must not push any series up to/over it.
+    test('keeps every series z below the reference-line z, even with many series', () => {
         const many = Array.from({ length: 40 }, (_, i) =>
             mkSeries(CartesianSeriesType.BAR, `s${i}`),
         );
 
         const result = assignSeriesZByOrder(many);
 
-        result.forEach((s) => expect(s.z!).toBeLessThan(MARKLINE_DEFAULT_Z));
+        result.forEach((s) => expect(s.z!).toBeLessThan(REFERENCE_LINE_Z));
         // still strictly ordered
         for (let i = 1; i < result.length; i += 1) {
             expect(result[i].z!).toBeGreaterThan(result[i - 1].z!);
         }
+    });
+
+    test('pins markLine z so persisted config cannot sink reference lines', () => {
+        const withRefLine = {
+            ...mkSeries(CartesianSeriesType.AREA, 'area'),
+            markLine: { z: 1, data: [{ yAxis: 5 }] },
+        } as unknown as EChartsSeries;
+
+        const result = assignSeriesZByOrder([
+            withRefLine,
+            mkSeries(CartesianSeriesType.BAR, 'bar'),
+        ]);
+
+        expect(result[0].markLine).toMatchObject({
+            z: REFERENCE_LINE_Z,
+            data: [{ yAxis: 5 }],
+        });
+        // series without a markLine don't gain one
+        expect(result[1].markLine).toBeUndefined();
     });
 
     test('preserves other series properties and does not mutate the input', () => {

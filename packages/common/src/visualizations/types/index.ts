@@ -404,8 +404,7 @@ export type EChartsSeries = {
         baseFieldId: string;
     };
     clip?: boolean;
-    // Paint order; derived from series-list position so a bar can sit in front
-    // of a line. Set by assignSeriesZByOrder.
+    // Paint order, derived from series-list position by assignSeriesZByOrder
     z?: number;
 };
 

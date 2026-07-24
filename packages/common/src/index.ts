@@ -369,6 +369,7 @@ export * from './utils/virtualView';
 export * from './utils/warehouse';
 export * from './visualizations/CartesianChartDataModel';
 export * from './visualizations/helpers/getCartesianAxisFormatterConfig';
+export * from './visualizations/helpers/seriesZOrder';
 export * from './visualizations/helpers/styles/axisStyles';
 export * from './visualizations/helpers/styles/barChartStyles';
 export * from './visualizations/helpers/styles/gridStyles';
