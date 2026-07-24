@@ -197,6 +197,9 @@ export default function MinimalApp() {
                 onIframeLoad={handleIframeLoad}
                 onQueryEvent={handleQueryEvent}
                 onScreenshotAvailabilityChange={handleScreenshotAvailable}
+                // Seeds the app from ?state= so scheduled deliveries with a
+                // saved app state screenshot that view, not the default one.
+                urlStateSync
             />
             {isReady && (
                 <ScreenshotReadyIndicator

@@ -37,6 +37,7 @@ const SchedulersModal: FC<
         | 'createMutation'
         | 'isChart'
         | 'isApp'
+        | 'currentAppState'
         | 'currentParameterValues'
         | 'availableParameters'
     > & {
@@ -70,6 +71,7 @@ const SchedulersModal: FC<
     isApp = false,
     isThresholdAlert,
     itemsMap,
+    currentAppState,
     currentParameterValues,
     availableParameters,
     onClose = () => {},
@@ -249,6 +251,7 @@ const SchedulersModal: FC<
                 isApp={isApp}
                 isThresholdAlert={isThresholdAlert}
                 itemsMap={itemsMap}
+                currentAppState={currentAppState}
                 currentParameterValues={currentParameterValues}
                 availableParameters={availableParameters}
             />

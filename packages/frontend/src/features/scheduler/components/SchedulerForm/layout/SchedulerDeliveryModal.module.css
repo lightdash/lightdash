@@ -177,6 +177,11 @@
     color: var(--mantine-color-dimmed);
 }
 
+.appStateUrl {
+    word-break: break-all;
+    white-space: pre-wrap;
+}
+
 .preview {
     border-left: 1px solid var(--mantine-color-default-border);
     background: var(--mantine-color-default);

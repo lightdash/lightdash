@@ -43,6 +43,7 @@ import {
     GoogleSheetsQuotaError,
     GoogleSheetsTransientError,
     GsheetsNotificationPayload,
+    isAppCreateScheduler,
     isChartScheduler,
     isChartValidationError,
     isCreateScheduler,
@@ -668,6 +669,19 @@ export default class SchedulerTask {
                 'dateZoom',
                 exportOptions.dateZoomGranularity.toLowerCase(),
             );
+        }
+
+        // App schedulers can snapshot the app's shareable URL state: seed the
+        // headless render with it and link recipients to the same view.
+        const appState = isAppCreateScheduler(scheduler)
+            ? scheduler.appState
+            : undefined;
+        if (appState) {
+            const encodedAppState = JSON.stringify(appState);
+            minimalRenderUrl.searchParams.set('state', encodedAppState);
+            deliveryUrl += `${
+                deliveryUrl.endsWith('?') ? '' : '&'
+            }state=${encodeURIComponent(encodedAppState)}`;
         }
 
         switch (format) {

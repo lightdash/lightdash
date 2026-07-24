@@ -177,11 +177,30 @@ export type SqlChartScheduler = SchedulerBase & {
     appUuid: null;
 };
 
+/**
+ * A data app's shareable URL state (the page's `?state=` param, parsed),
+ * snapshotted onto the scheduler so the delivery renders that view.
+ * Keep the size cap in sync with MAX_URL_STATE_CHARS in
+ * packages/query-sdk/src/urlState.ts and useAppUrlStateSync.
+ */
+export type SchedulerAppState = Record<string, unknown>;
+
+export const MAX_SCHEDULER_APP_STATE_CHARS = 4096;
+
+export const isValidSchedulerAppState = (
+    value: unknown,
+): value is SchedulerAppState =>
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    JSON.stringify(value).length <= MAX_SCHEDULER_APP_STATE_CHARS;
+
 export type AppScheduler = SchedulerBase & {
     savedChartUuid: null;
     dashboardUuid: null;
     savedSqlUuid: null;
     appUuid: string;
+    appState?: SchedulerAppState;
 };
 
 export const isAppScheduler = (
@@ -348,6 +367,7 @@ export type UpdateSchedulerAndTargets = Pick<
     parameters?: ParametersValuesMap;
     customViewportWidth?: number;
     selectedTabs?: string[] | null;
+    appState?: SchedulerAppState | null;
     targets: Array<
         | CreateSchedulerTarget
         | UpdateSchedulerSlackTarget

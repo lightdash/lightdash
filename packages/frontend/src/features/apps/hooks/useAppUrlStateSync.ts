@@ -13,22 +13,34 @@ const MAX_URL_STATE_CHARS = 4096;
 // change so iframe reloads always re-seed the current view.
 const URL_WRITE_DEBOUNCE_MS = 300;
 
-/** The page's ?state= param, or null when absent/oversized/not a JSON map. */
-const readValidatedSeed = (): string | null => {
-    const raw = new URLSearchParams(window.location.search).get(
-        URL_STATE_PARAM,
-    );
+const parseValidatedState = (
+    raw: string | null,
+): Record<string, unknown> | null => {
     if (!raw || raw.length > MAX_URL_STATE_CHARS) return null;
     try {
         const parsed: unknown = JSON.parse(raw);
         return typeof parsed === 'object' &&
             parsed !== null &&
             !Array.isArray(parsed)
-            ? raw
+            ? (parsed as Record<string, unknown>)
             : null;
     } catch {
         return null;
     }
+};
+
+/** The page's ?state= param parsed to a map, or null when absent/oversized/invalid. */
+export const readAppUrlState = (): Record<string, unknown> | null =>
+    parseValidatedState(
+        new URLSearchParams(window.location.search).get(URL_STATE_PARAM),
+    );
+
+/** The page's ?state= param, or null when absent/oversized/not a JSON map. */
+const readValidatedSeed = (): string | null => {
+    const raw = new URLSearchParams(window.location.search).get(
+        URL_STATE_PARAM,
+    );
+    return parseValidatedState(raw) ? raw : null;
 };
 
 const writeUrlStateParam = (encoded: string | null) => {
