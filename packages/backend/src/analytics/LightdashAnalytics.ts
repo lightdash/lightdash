@@ -2736,6 +2736,66 @@ export type AiAgentReviewEvent =
     | AiAgentReviewItemWritebackCompletedEvent
     | AiAgentReviewItemWritebackFailedEvent;
 
+export type AiAgentMemoryGeneratedEvent = BaseTrack & {
+    event: 'ai_agent_memory.generated';
+    anonymousId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string | null;
+        memoryId: string;
+        channel: 'web' | 'slack';
+        isRedistill: boolean;
+        objectCount: number;
+        unresolvedObjectCount: number;
+    };
+};
+
+export type AiAgentMemoryGenerationFailedEvent = BaseTrack & {
+    event: 'ai_agent_memory.generation_failed';
+    anonymousId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string | null;
+        channel: 'web' | 'slack';
+        failureStage: 'distillation' | 'persistence';
+        errorType: string;
+    };
+};
+
+export type AiAgentMemoryCitedEvent = BaseTrack & {
+    event: 'ai_agent_memory.cited';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        memoryId: string;
+        citationCount: number;
+        channel: 'web' | 'slack';
+    };
+};
+
+export type AiAgentMemoryViewedEvent = BaseTrack & {
+    event: 'ai_agent_memory.viewed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string | null;
+        memoryId: string;
+        status: 'active' | 'superseded' | 'retired';
+        provenanceType: 'source_thread' | 'consolidated';
+    };
+};
+
+export type AiAgentMemoryEvent =
+    | AiAgentMemoryGeneratedEvent
+    | AiAgentMemoryGenerationFailedEvent
+    | AiAgentMemoryCitedEvent
+    | AiAgentMemoryViewedEvent;
+
 export type AiRouterConfigUpdatedEvent = BaseTrack & {
     event: 'ai_router.config_updated';
     userId: string;
@@ -2944,6 +3004,7 @@ type TypedEvent =
     | AiAgentSuggestionSubmitEvent
     | AiAgentPullRequestViewedEvent
     | AiAgentReviewEvent
+    | AiAgentMemoryEvent
     | AiRouterConfigUpdatedEvent
     | AiRouterInstructionsUpdatedEvent
     | AiRouterMessageRoutedEvent

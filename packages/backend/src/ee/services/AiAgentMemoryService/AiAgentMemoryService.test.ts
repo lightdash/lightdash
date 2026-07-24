@@ -143,6 +143,7 @@ describe('AiAgentMemoryService', () => {
                 projectUuid === 'project-other' ? 'org-other' : 'org-enabled',
         }));
         const service = new AiAgentMemoryService({
+            analytics: { track: vi.fn() } as AnyType,
             aiAgentMemoryModel: {
                 findByProjectAndSlug,
                 findThreadsDueForDistill,

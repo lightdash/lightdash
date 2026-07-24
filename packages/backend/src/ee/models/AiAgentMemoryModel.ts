@@ -580,7 +580,7 @@ export class AiAgentMemoryModel {
     async incrementCitedForActiveMemories(args: {
         projectUuid: string;
         slugs: string[];
-    }): Promise<string[]> {
+    }): Promise<Array<{ memoryId: string; slug: string }>> {
         const slugs = [...new Set(args.slugs)];
         if (slugs.length === 0) return [];
 
@@ -594,8 +594,11 @@ export class AiAgentMemoryModel {
                 cited_count: this.database.raw('cited_count + 1'),
                 last_cited_at: this.database.fn.now(),
             } as never)
-            .returning('slug');
+            .returning(['ai_agent_memory_uuid', 'slug']);
 
-        return rows.map(({ slug }) => slug);
+        return rows.map(({ ai_agent_memory_uuid: memoryId, slug }) => ({
+            memoryId,
+            slug,
+        }));
     }
 }

@@ -21,6 +21,12 @@ import { generateObject } from 'ai';
 import { createHash, randomBytes } from 'crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import {
+    type AiAgentMemoryGeneratedEvent,
+    type AiAgentMemoryGenerationFailedEvent,
+    type AiAgentMemoryViewedEvent,
+    type LightdashAnalytics,
+} from '../../../analytics/LightdashAnalytics';
 import { type GroupsModel } from '../../../models/GroupsModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../../services/BaseService';
@@ -66,7 +72,13 @@ type MemorySchedulerClient = {
     ) => Promise<unknown>;
 };
 
+type MemoryServiceAnalyticsEvent =
+    | AiAgentMemoryGeneratedEvent
+    | AiAgentMemoryGenerationFailedEvent
+    | AiAgentMemoryViewedEvent;
+
 type Dependencies = {
+    analytics: LightdashAnalytics;
     aiAgentMemoryModel: AiAgentMemoryModel;
     aiAgentModel: Pick<AiAgentModel, 'getAgent' | 'findThreadOwnership'>;
     groupsModel: Pick<GroupsModel, 'findUserInGroups'>;
@@ -112,6 +124,8 @@ export const validateMemoryObjects = (
 };
 
 export class AiAgentMemoryService extends BaseService {
+    private readonly analytics: LightdashAnalytics;
+
     private readonly aiAgentMemoryModel: AiAgentMemoryModel;
 
     private readonly aiAgentModel: Dependencies['aiAgentModel'];
@@ -132,6 +146,7 @@ export class AiAgentMemoryService extends BaseService {
 
     constructor(dependencies: Dependencies) {
         super({ serviceName: 'AiAgentMemoryService' });
+        this.analytics = dependencies.analytics;
         this.aiAgentMemoryModel = dependencies.aiAgentMemoryModel;
         this.aiAgentModel = dependencies.aiAgentModel;
         this.groupsModel = dependencies.groupsModel;
@@ -142,6 +157,17 @@ export class AiAgentMemoryService extends BaseService {
             dependencies.orgAiCopilotConfigResolver;
         this.distillCall =
             dependencies.distillCall ?? this.distillWithLlm.bind(this);
+    }
+
+    private track(event: MemoryServiceAnalyticsEvent): void {
+        try {
+            this.analytics.track(event);
+        } catch (error) {
+            this.logger.warn('Unable to track AI agent memory analytics', {
+                event: event.event,
+                error: getErrorMessage(error),
+            });
+        }
     }
 
     private async canViewSourceThread(
@@ -297,7 +323,7 @@ export class AiAgentMemoryService extends BaseService {
             )
         ).filter((source) => source !== null);
 
-        return {
+        const response: AiAgentMemory = {
             slug: result.memory.slug,
             title: result.memory.title,
             rawMemory: result.memory.raw_memory,
@@ -312,6 +338,23 @@ export class AiAgentMemoryService extends BaseService {
                     : { type: 'consolidated', sources },
             replacementSlug: result.replacement?.slug ?? null,
         };
+
+        this.track({
+            event: 'ai_agent_memory.viewed',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                agentId: result.memory.agent_uuid,
+                memoryId: result.memory.ai_agent_memory_uuid,
+                status: result.memory.status,
+                provenanceType: result.memory.source_thread_uuid
+                    ? 'source_thread'
+                    : 'consolidated',
+            },
+        });
+
+        return response;
     }
 
     async sweep(now = new Date()): Promise<number> {
@@ -418,6 +461,9 @@ export class AiAgentMemoryService extends BaseService {
             return 'skipped';
         }
 
+        let failureStage: AiAgentMemoryGenerationFailedEvent['properties']['failureStage'] =
+            'distillation';
+        let memoryGenerated = false;
         try {
             abortSignal?.throwIfAborted();
             const output = await this.distillCall({
@@ -444,20 +490,37 @@ export class AiAgentMemoryService extends BaseService {
                 output.result.objects,
             );
             abortSignal?.throwIfAborted();
-            await this.aiAgentMemoryModel.upsertSourceThreadMemory({
-                organizationUuid: thread.organizationUuid,
-                projectUuid: thread.projectUuid,
-                agentUuid: thread.agentUuid,
-                userUuid: thread.userUuid,
-                sourceThreadUuid: thread.threadUuid,
-                slug: `${output.result.slug}-${randomBytes(4).toString('hex')}`,
-                title: output.result.title,
-                rawMemory: output.result.raw_memory,
-                threadSummary: output.result.thread_summary,
-                terms: output.result.terms,
-                objects: output.result.objects,
-                unresolvedObjects,
-                generatedAt: new Date(),
+            failureStage = 'persistence';
+            const memory =
+                await this.aiAgentMemoryModel.upsertSourceThreadMemory({
+                    organizationUuid: thread.organizationUuid,
+                    projectUuid: thread.projectUuid,
+                    agentUuid: thread.agentUuid,
+                    userUuid: thread.userUuid,
+                    sourceThreadUuid: thread.threadUuid,
+                    slug: `${output.result.slug}-${randomBytes(4).toString('hex')}`,
+                    title: output.result.title,
+                    rawMemory: output.result.raw_memory,
+                    threadSummary: output.result.thread_summary,
+                    terms: output.result.terms,
+                    objects: output.result.objects,
+                    unresolvedObjects,
+                    generatedAt: new Date(),
+                });
+            memoryGenerated = true;
+            this.track({
+                event: 'ai_agent_memory.generated',
+                anonymousId: thread.organizationUuid,
+                properties: {
+                    organizationId: thread.organizationUuid,
+                    projectId: thread.projectUuid,
+                    agentId: thread.agentUuid,
+                    memoryId: memory.ai_agent_memory_uuid,
+                    channel: thread.createdFrom === 'slack' ? 'slack' : 'web',
+                    isRedistill: thread.distilledUpTo !== null,
+                    objectCount: output.result.objects.length,
+                    unresolvedObjectCount: unresolvedObjects.length,
+                },
             });
             await this.aiAgentMemoryModel.upsertThreadDistill({
                 aiThreadUuid: thread.threadUuid,
@@ -479,6 +542,24 @@ export class AiAgentMemoryService extends BaseService {
                 threadUuid: thread.threadUuid,
                 error: errorMessage,
             });
+            if (!memoryGenerated) {
+                this.track({
+                    event: 'ai_agent_memory.generation_failed',
+                    anonymousId: thread.organizationUuid,
+                    properties: {
+                        organizationId: thread.organizationUuid,
+                        projectId: thread.projectUuid,
+                        agentId: thread.agentUuid,
+                        channel:
+                            thread.createdFrom === 'slack' ? 'slack' : 'web',
+                        failureStage,
+                        errorType:
+                            error instanceof Error
+                                ? error.name
+                                : 'UnknownError',
+                    },
+                });
+            }
             return 'failed';
         }
     }

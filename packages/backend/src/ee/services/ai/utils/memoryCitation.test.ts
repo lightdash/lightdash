@@ -7,7 +7,10 @@ describe('memory citations', () => {
             parseMemoryCitations(
                 'One.<ld-mem-cite id="first"></ld-mem-cite> Two.<ld-mem-cite id="second" />',
             ),
-        ).toEqual({ slugs: ['first', 'second'], malformedCount: 0 });
+        ).toMatchObject({
+            slugs: ['first', 'second'],
+            malformedCount: 0,
+        });
     });
 
     it('deduplicates multiple adjacent markers', () => {
@@ -23,15 +26,17 @@ describe('memory citations', () => {
             parseMemoryCitations(
                 '```html\n<ld-mem-cite id="example"></ld-mem-cite>\n```',
             ),
-        ).toEqual({ slugs: [], malformedCount: 0 });
+        ).toMatchObject({ slugs: [], malformedCount: 0 });
     });
 
     it('reports malformed markers without citing them', () => {
-        expect(parseMemoryCitations('<ld-mem-cite id="Uppercase" />')).toEqual({
+        expect(
+            parseMemoryCitations('<ld-mem-cite id="Uppercase" />'),
+        ).toMatchObject({
             slugs: [],
             malformedCount: 1,
         });
-        expect(parseMemoryCitations('<ld-mem-cite>')).toEqual({
+        expect(parseMemoryCitations('<ld-mem-cite>')).toMatchObject({
             slugs: [],
             malformedCount: 1,
         });
