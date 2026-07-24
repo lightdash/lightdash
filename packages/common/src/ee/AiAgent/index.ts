@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type {
     AnyType,
     ApiExecuteAsyncMetricQueryResults,
+    ApiExecuteAsyncSqlQueryResults,
     ApiSuccess,
     ApiSuccessEmpty,
     CacheMetadata,
@@ -632,6 +633,7 @@ export type AiVizMetadata = {
 };
 
 export type ApiAiAgentThreadMessageVizQuery = {
+    source: 'semantic';
     type: AiResultType;
     query: ApiExecuteAsyncMetricQueryResults;
     metadata: AiVizMetadata;
@@ -645,7 +647,7 @@ export type ApiAiAgentThreadMessageVizQueryResponse = {
 export type ApiAiAgentSqlArtifactVizQuery = {
     source: 'sql';
     type: AiResultType.TABLE_RESULT;
-    queryUuid: string;
+    query: ApiExecuteAsyncSqlQueryResults;
     sql: string;
     limit: number;
     metadata: AiVizMetadata;
@@ -657,8 +659,7 @@ export type ApiAiAgentArtifactVizQuery =
 
 export const isAiAgentSqlArtifactVizQuery = (
     query: ApiAiAgentArtifactVizQuery,
-): query is ApiAiAgentSqlArtifactVizQuery =>
-    'source' in query && query.source === 'sql';
+): query is ApiAiAgentSqlArtifactVizQuery => query.source === 'sql';
 
 export type ApiAiAgentArtifactVizQueryResponse = {
     status: 'ok';
@@ -766,14 +767,22 @@ export type AiSqlChartArtifactConfig = {
     source: 'sql';
     sql: string;
     limit: number;
-    queryUuid: string;
 };
 
-export type AiSemanticChartArtifactConfig =
+export type AiLegacySemanticChartArtifactConfig =
     | ToolTableVizArgs
     | ToolTimeSeriesArgs
     | ToolVerticalBarArgs
     | ToolRunQueryArgs;
+
+export type AiSemanticChartArtifactConfig = {
+    source: 'semantic';
+    config: AiLegacySemanticChartArtifactConfig;
+};
+
+export type AiChartArtifactConfig =
+    | AiSemanticChartArtifactConfig
+    | AiSqlChartArtifactConfig;
 
 export type AiArtifact = {
     artifactUuid: string;
@@ -781,17 +790,14 @@ export type AiArtifact = {
     promptUuid: string | null;
     artifactType: 'chart' | 'dashboard';
     savedQueryUuid: string | null;
+    savedSqlUuid: string | null;
     savedDashboardUuid: string | null;
     createdAt: Date;
     versionNumber: number;
     versionUuid: string;
     title: string | null;
     description: string | null;
-    // We store raw tool calls
-    chartConfig:
-        | AiSemanticChartArtifactConfig
-        | AiSqlChartArtifactConfig
-        | null;
+    chartConfig: AiChartArtifactConfig | null;
     dashboardConfig: ToolDashboardArgs | null;
     versionCreatedAt: Date;
     verifiedByUserUuid: string | null;
@@ -808,9 +814,7 @@ export const isAiSqlChartArtifactConfig = (
     'sql' in config &&
     typeof config.sql === 'string' &&
     'limit' in config &&
-    typeof config.limit === 'number' &&
-    'queryUuid' in config &&
-    typeof config.queryUuid === 'string';
+    typeof config.limit === 'number';
 
 export type AiArtifactTSOACompat = Omit<
     AiArtifact,

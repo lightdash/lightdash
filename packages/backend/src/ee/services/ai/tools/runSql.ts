@@ -262,7 +262,7 @@ export const getRunSql = ({
                 }
 
                 const effectiveLimit = Math.min(limit, maxQueryLimit);
-                const { queryUuid, rows, columns, rowCount } = await runSqlJob({
+                const { rows, columns, rowCount } = await runSqlJob({
                     sql,
                     limit: effectiveLimit,
                 });
@@ -277,7 +277,6 @@ export const getRunSql = ({
                             source: 'sql',
                             sql,
                             limit: effectiveLimit,
-                            queryUuid,
                         } satisfies AiSqlChartArtifactConfig,
                     });
                 }

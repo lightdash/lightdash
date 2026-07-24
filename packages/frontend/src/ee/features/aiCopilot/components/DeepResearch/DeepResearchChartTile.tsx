@@ -58,6 +58,7 @@ export const DeepResearchChartTile = ({
 
     const snapshotVizQueryData = useMemo<ApiAiAgentThreadMessageVizQuery>(
         () => ({
+            source: 'semantic',
             type: AiResultType.QUERY_RESULT,
             query: {
                 queryUuid: chart.queryUuid ?? chartKey,

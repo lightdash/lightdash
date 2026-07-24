@@ -12,8 +12,10 @@ import {
     isAiSqlChartArtifactConfig,
     isToolEditDbtProjectResult,
     isToolSetupPreviewDeployResult,
+    parseAiArtifactChartConfig,
     parseVizConfig,
     SlackPrompt,
+    type AiLegacySemanticChartArtifactConfig,
     type ChartConfig,
     type Explore,
 } from '@lightdash/common';
@@ -536,12 +538,25 @@ export async function getModernArtifactCardBlocks(
     getExplore: (exploreName: string) => Promise<Explore>,
     isImageUrlReachable: (url: string) => Promise<boolean>,
     agentUuid?: string,
-    artifacts?: AiArtifact[],
+    artifacts?: Array<
+        Omit<AiArtifact, 'chartConfig' | 'savedSqlUuid'> & {
+            chartConfig:
+                | AiArtifact['chartConfig']
+                | AiLegacySemanticChartArtifactConfig;
+            savedSqlUuid?: string | null;
+        }
+    >,
     toolResults?: AiAgentToolResult[],
 ): Promise<(Block | KnownBlock)[]> {
     if (!artifacts || artifacts.length === 0) {
         return [];
     }
+
+    const normalizedArtifacts: AiArtifact[] = artifacts.map((artifact) => ({
+        ...artifact,
+        savedSqlUuid: artifact.savedSqlUuid ?? null,
+        chartConfig: parseAiArtifactChartConfig(artifact.chartConfig),
+    }));
 
     const chartImageUrls = (toolResults ?? [])
         .filter(
@@ -580,15 +595,19 @@ export async function getModernArtifactCardBlocks(
             .optional(),
     });
     const getChartVizType = (artifact: AiArtifact): string => {
+        if (!artifact.chartConfig) {
+            return 'chart';
+        }
         if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
             return 'table';
         }
-        const parsed = vizTypeSchema.safeParse(artifact.chartConfig);
+        const parsed = vizTypeSchema.safeParse(artifact.chartConfig.config);
         if (parsed.success && parsed.data.chartConfig?.defaultVizType) {
             return parsed.data.chartConfig.defaultVizType;
         }
         return (
-            parseVizConfig(artifact.chartConfig, maxQueryLimit)?.type ?? 'chart'
+            parseVizConfig(artifact.chartConfig.config, maxQueryLimit)?.type ??
+            'chart'
         );
     };
 
@@ -605,7 +624,10 @@ export async function getModernArtifactCardBlocks(
             if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
                 return `chart:${vizType}:${artifact.chartConfig.sql}`;
             }
-            const viz = parseVizConfig(artifact.chartConfig, maxQueryLimit);
+            const viz = parseVizConfig(
+                artifact.chartConfig.config,
+                maxQueryLimit,
+            );
             const query = viz
                 ? JSON.stringify(
                       { type: viz.type, metricQuery: viz.metricQuery },
@@ -625,7 +647,7 @@ export async function getModernArtifactCardBlocks(
     // Keep the latest version per identity, preserving first-appearance order
     // (Slack allows up to 10 cards).
     const latestByIdentity = new Map<string, AiArtifact>();
-    artifacts.forEach((artifact) => {
+    normalizedArtifacts.forEach((artifact) => {
         const identity = getArtifactIdentity(artifact);
         const existing = latestByIdentity.get(identity);
         if (!existing || artifact.versionNumber > existing.versionNumber) {
@@ -647,7 +669,7 @@ export async function getModernArtifactCardBlocks(
                 !isAiSqlChartArtifactConfig(artifact.chartConfig)
             ) {
                 const vizConfig = parseVizConfig(
-                    artifact.chartConfig,
+                    artifact.chartConfig.config,
                     maxQueryLimit,
                 );
                 if (!vizConfig) {
@@ -699,7 +721,7 @@ export async function getModernArtifactCardBlocks(
                 let pivotConfig: { columns: string[] } | undefined;
                 try {
                     const webAiChartConfig = getWebAiChartConfig({
-                        vizConfig: artifact.chartConfig,
+                        vizConfig: artifact.chartConfig.config,
                         metricQuery: metricQueryWithSql,
                         maxQueryLimit,
                         fieldsMap: getItemMap(

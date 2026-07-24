@@ -10,7 +10,6 @@ import { getChartConfigAndOptions } from '../../../components/DataViz/transforme
 import { type startAppListening } from './listenerMiddleware';
 import {
     EditorTabs,
-    hydrateSqlQueryResults,
     selectSqlRunnerResultsRunner,
     setActiveEditorTab,
     setSelectedChartType,
@@ -27,7 +26,7 @@ export const addSqlRunnerQueryListener = (
     startListening: typeof startAppListening,
 ) => {
     startListening({
-        matcher: isAnyOf(runSqlQuery.fulfilled, hydrateSqlQueryResults),
+        actionCreator: runSqlQuery.fulfilled,
         effect: async (_, listenerApi) => {
             const state = listenerApi.getState();
             const resultsRunner = selectSqlRunnerResultsRunner(state);

@@ -7,7 +7,6 @@ import {
     parseVizConfig,
     type AiAgentChartTypeOption,
     type AiAgentMessageAssistant,
-    type AiSemanticChartArtifactConfig,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -107,12 +106,10 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         const isSqlArtifact = isAiSqlChartArtifactConfig(
             artifactData?.chartConfig,
         );
-        const semanticChartConfig = isSqlArtifact
-            ? null
-            : (artifactData?.chartConfig as
-                  | AiSemanticChartArtifactConfig
-                  | null
-                  | undefined);
+        const semanticChartConfig =
+            artifactData?.chartConfig?.source === 'semantic'
+                ? artifactData.chartConfig.config
+                : null;
 
         const vizConfig = useMemo(() => {
             if (!isFloatingChart || !semanticChartConfig) return null;
@@ -140,7 +137,9 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                 ? queryExecutionHandle.data
                 : undefined;
         const queryUuid =
-            sqlVizQueryData?.queryUuid ?? semanticVizQueryData?.query.queryUuid;
+            queryExecutionHandle.data && 'query' in queryExecutionHandle.data
+                ? queryExecutionHandle.data.query.queryUuid
+                : undefined;
 
         const queryResults = useInfiniteQueryResults(
             artifact.projectUuid,
@@ -317,8 +316,15 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                     {sqlVizQueryData ? (
                         <AiSqlArtifactActions
                             projectUuid={artifact.projectUuid}
+                            agentUuid={artifact.agentUuid}
+                            artifactUuid={artifact.artifactUuid}
+                            versionUuid={artifact.versionUuid}
+                            savedSqlUuid={artifactData.savedSqlUuid}
                             sql={sqlVizQueryData.sql}
                             limit={sqlVizQueryData.limit}
+                            title={title}
+                            description={description}
+                            columns={Object.values(queryResults.columns ?? {})}
                         />
                     ) : (
                         <AiChartQuickOptions
@@ -364,8 +370,6 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                         className={`${styles.floatingContent} ${styles.sqlArtifactContent}`}
                     >
                         <AiSqlArtifactVisualization
-                            projectUuid={artifact.projectUuid}
-                            vizQueryData={queryExecutionHandle.data}
                             results={queryResults}
                             headerContent={floatingHead}
                         />

@@ -16,7 +16,6 @@ import type { PayloadAction, SerializedError } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { createSelector } from 'reselect';
 import { type MonacoHighlightChar } from '../components/SqlEditor';
-import { type ResultsAndColumns } from '../hooks/useSqlQueryRun';
 import { SqlRunnerResultsRunnerFrontend } from '../runners/SqlRunnerResultsRunnerFrontend';
 import { createHistoryReducer, withHistory, type WithHistory } from './history';
 import { prepareAndFetchChartData, runSqlQuery } from './thunks';
@@ -188,42 +187,6 @@ export const sqlRunnerSlice = createSlice({
         },
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
-        },
-        hydrateSqlQueryResults: (
-            state,
-            action: PayloadAction<
-                ResultsAndColumns & {
-                    projectUuid: string;
-                    sql: string;
-                    limit: number;
-                }
-            >,
-        ) => {
-            state.projectUuid = action.payload.projectUuid;
-            state.sql = action.payload.sql;
-            state.limit = action.payload.limit;
-            state.queryUuid = action.payload.queryUuid;
-            state.fileUrl = action.payload.fileUrl;
-            state.sqlColumns = action.payload.columns;
-            state.sqlRows = action.payload.results;
-            state.queryError = undefined;
-            state.queryIsLoading = false;
-            state.hasUnrunChanges = false;
-
-            state.resultsTableConfig = {
-                columns: Object.fromEntries(
-                    action.payload.columns.map((column) => [
-                        column.reference,
-                        {
-                            visible: true,
-                            reference: column.reference,
-                            label: column.reference,
-                            frozen: true,
-                            order: undefined,
-                        },
-                    ]),
-                ),
-            };
         },
         updateParameterValue: (
             state,
@@ -461,7 +424,6 @@ export const sqlRunnerSlice = createSlice({
 export const {
     toggleActiveTable,
     setProjectUuid,
-    hydrateSqlQueryResults,
     setFetchResultsOnLoad,
     updateName,
     setSql,

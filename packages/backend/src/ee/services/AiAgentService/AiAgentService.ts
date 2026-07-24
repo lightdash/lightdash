@@ -5280,10 +5280,32 @@ export class AiAgentService extends BaseService {
         }
 
         if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
+            const query = await this.asyncQueryService.executeAsyncSqlQuery({
+                account: fromSession(user),
+                projectUuid,
+                sql: artifact.chartConfig.sql,
+                limit: artifact.chartConfig.limit,
+                context: QueryExecutionContext.AI,
+            });
+
+            this.analytics.track({
+                event: 'ai_agent.artifact_viz_query',
+                userId: user.userUuid,
+                properties: {
+                    projectId: projectUuid,
+                    organizationId: organizationUuid,
+                    agentId: agent.uuid,
+                    agentName: agent.name,
+                    artifactId: artifactUuid,
+                    artifactVersionId: versionUuid,
+                    vizType: AiResultType.TABLE_RESULT,
+                },
+            });
+
             return {
                 source: 'sql',
                 type: AiResultType.TABLE_RESULT,
-                queryUuid: artifact.chartConfig.queryUuid,
+                query,
                 sql: artifact.chartConfig.sql,
                 limit: artifact.chartConfig.limit,
                 metadata: {
@@ -5294,7 +5316,7 @@ export class AiAgentService extends BaseService {
         }
 
         const parsedVizConfig = parseVizConfig(
-            artifact.chartConfig,
+            artifact.chartConfig.config,
             this.lightdashConfig.ai.copilot.maxQueryLimit,
         );
         if (!parsedVizConfig) {
@@ -5305,7 +5327,7 @@ export class AiAgentService extends BaseService {
             user,
             projectUuid,
             parsedVizConfig.metricQuery,
-            artifact.chartConfig,
+            artifact.chartConfig.config,
         );
 
         const metadata = {
@@ -5331,6 +5353,7 @@ export class AiAgentService extends BaseService {
         });
 
         return {
+            source: 'semantic',
             type: parsedVizConfig.type,
             query,
             metadata,
@@ -5470,6 +5493,7 @@ export class AiAgentService extends BaseService {
         });
 
         return {
+            source: 'semantic',
             type: parsedVizConfig.type,
             query,
             metadata,
@@ -5636,13 +5660,15 @@ export class AiAgentService extends BaseService {
             agentUuid,
             artifactUuid,
             versionUuid,
-            savedDashboardUuid,
+            ...update
         }: {
             agentUuid: string;
             artifactUuid: string;
             versionUuid: string;
-            savedDashboardUuid: string | null;
-        },
+        } & (
+            | { savedDashboardUuid: string | null }
+            | { savedSqlUuid: string | null }
+        ),
     ): Promise<void> {
         const { organizationUuid } = user;
         if (!organizationUuid)
@@ -5694,9 +5720,7 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        await this.aiAgentModel.updateArtifactVersion(versionUuid, {
-            savedDashboardUuid,
-        });
+        await this.aiAgentModel.updateArtifactVersion(versionUuid, update);
     }
 
     async getVerifiedSavedArtifactContent(

@@ -58,7 +58,7 @@ export const AiChartVisualization: FC<Props> = ({
         artifactData.chartConfig,
     )
         ? null
-        : artifactData.chartConfig;
+        : artifactData.chartConfig?.config;
 
     const vizConfig = useMemo(() => {
         if (!semanticChartConfig) return null;

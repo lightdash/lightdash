@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { ChartKind } from '@lightdash/common';
+import {
+    ChartKind,
+    type AllVizChartConfig,
+    type ApiCreateSqlChart,
+} from '@lightdash/common';
 import { Button, Stack, Textarea, TextInput } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
@@ -41,36 +45,35 @@ type Props = Pick<MantineModalProps, 'opened' | 'onClose'>;
 
 const SAVE_CHART_FORM_ID = 'save-sql-chart-form';
 
-export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
-    const dispatch = useAppDispatch();
+type SaveSqlChartModalContentProps = Props & {
+    projectUuid: string;
+    name: string;
+    description: string | null;
+    sql: string;
+    limit: number;
+    currentVizConfig: AllVizChartConfig;
+    hasUnrunChanges: boolean;
+    redirectOnSuccess?: boolean;
+    onSaved?: (
+        data: ApiCreateSqlChart['results'],
+        name: string,
+    ) => void | Promise<void>;
+};
+
+export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
+    opened,
+    onClose,
+    projectUuid,
+    name,
+    description,
+    sql,
+    limit,
+    currentVizConfig,
+    hasUnrunChanges,
+    redirectOnSuccess,
+    onSaved,
+}) => {
     const { user } = useApp();
-    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const hasUnrunChanges = useAppSelector(
-        (state) => state.sqlRunner.hasUnrunChanges,
-    );
-
-    const name = useAppSelector((state) => state.sqlRunner.name);
-    const description = useAppSelector((state) => state.sqlRunner.description);
-
-    const sql = useAppSelector((state) => state.sqlRunner.sql);
-    const limit = useAppSelector((state) => state.sqlRunner.limit);
-
-    const selectedChartType = useAppSelector(
-        (state) => state.sqlRunner.selectedChartType,
-    );
-
-    const activeEditorTab = useAppSelector(
-        (state) => state.sqlRunner.activeEditorTab,
-    );
-
-    const currentVizConfig = useAppSelector((state) =>
-        selectCompleteConfigByKind(
-            state,
-            activeEditorTab === EditorTabs.SQL
-                ? ChartKind.TABLE
-                : selectedChartType,
-        ),
-    );
 
     const initialStep = hasUnrunChanges
         ? ModalStep.Warning
@@ -138,7 +141,10 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
     const {
         mutateAsync: createSavedSqlChart,
         isLoading: isCreatingSavedSqlChart,
-    } = useCreateSqlChartMutation(projectUuid);
+    } = useCreateSqlChartMutation(projectUuid, {
+        redirectOnSuccess,
+        onSuccess: (data) => onSaved?.(data, form.values.name),
+    });
 
     const handleOnSubmit = useCallback(async () => {
         if (spaces.length === 0) {
@@ -163,7 +169,6 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
                     spaceUuid: spaceUuid,
                 });
 
-                dispatch(updateName(form.values.name));
                 onClose();
             } catch (_) {
                 // Error is handled in useCreateSqlChartMutation
@@ -180,7 +185,6 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
         sql,
         createSavedSqlChart,
         limit,
-        dispatch,
         onClose,
     ]);
 
@@ -328,5 +332,49 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
                 </form>
             )}
         </MantineModal>
+    );
+};
+
+export const SaveSqlChartModal: FC<Props> = (props) => {
+    const dispatch = useAppDispatch();
+    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+    const hasUnrunChanges = useAppSelector(
+        (state) => state.sqlRunner.hasUnrunChanges,
+    );
+    const name = useAppSelector((state) => state.sqlRunner.name);
+    const description = useAppSelector((state) => state.sqlRunner.description);
+    const sql = useAppSelector((state) => state.sqlRunner.sql);
+    const limit = useAppSelector((state) => state.sqlRunner.limit);
+    const selectedChartType = useAppSelector(
+        (state) => state.sqlRunner.selectedChartType,
+    );
+    const activeEditorTab = useAppSelector(
+        (state) => state.sqlRunner.activeEditorTab,
+    );
+    const currentVizConfig = useAppSelector((state) =>
+        selectCompleteConfigByKind(
+            state,
+            activeEditorTab === EditorTabs.SQL
+                ? ChartKind.TABLE
+                : selectedChartType,
+        ),
+    );
+
+    if (!currentVizConfig) return null;
+
+    return (
+        <SaveSqlChartModalContent
+            {...props}
+            projectUuid={projectUuid}
+            name={name}
+            description={description}
+            sql={sql}
+            limit={limit ?? DEFAULT_SQL_LIMIT}
+            currentVizConfig={currentVizConfig}
+            hasUnrunChanges={hasUnrunChanges}
+            onSaved={(_, savedName) => {
+                dispatch(updateName(savedName));
+            }}
+        />
     );
 };

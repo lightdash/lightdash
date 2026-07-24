@@ -148,7 +148,6 @@ describe('getRunSql', () => {
                 source: 'sql',
                 sql: 'select 1 as answer',
                 limit: 500,
-                queryUuid: 'query-uuid',
             },
         });
     });
@@ -169,9 +168,11 @@ describe('getRunSql', () => {
         expect(output.metadata?.status).toBe('success');
         expect(dependencies.createOrUpdateArtifact).toHaveBeenCalledWith(
             expect.objectContaining({
-                vizConfig: expect.objectContaining({
-                    queryUuid: 'empty-query-uuid',
-                }),
+                vizConfig: {
+                    source: 'sql',
+                    sql: 'select 1 as answer',
+                    limit: 500,
+                },
             }),
         );
     });

@@ -66,6 +66,7 @@ import {
     NotFoundError,
     NotImplementedError,
     ParameterError,
+    parseAiArtifactChartConfig,
     ProjectType,
     PullRequestProvider,
     SlackPrompt,
@@ -4851,12 +4852,17 @@ export class AiAgentModel {
 
     async updateArtifactVersion(
         artifactVersionUuid: string,
-        update: Pick<AiArtifact, 'savedDashboardUuid'>,
+        update:
+            | Pick<AiArtifact, 'savedDashboardUuid'>
+            | Pick<AiArtifact, 'savedSqlUuid'>,
     ): Promise<void> {
+        const dbUpdate =
+            'savedDashboardUuid' in update
+                ? { saved_dashboard_uuid: update.savedDashboardUuid }
+                : { saved_sql_uuid: update.savedSqlUuid };
+
         await this.database(AiArtifactVersionsTableName)
-            .update({
-                saved_dashboard_uuid: update.savedDashboardUuid,
-            } satisfies Partial<DbAiArtifactVersion>)
+            .update(dbUpdate satisfies Partial<DbAiArtifactVersion>)
             .where({
                 ai_artifact_version_uuid: artifactVersionUuid,
             });
@@ -6675,6 +6681,7 @@ export class AiAgentModel {
                             ? data.vizConfig
                             : null,
                     saved_query_uuid: null,
+                    saved_sql_uuid: null,
                     saved_dashboard_uuid: null,
                 })
                 .returning('*');
@@ -6688,13 +6695,14 @@ export class AiAgentModel {
                 threadUuid: artifact.ai_thread_uuid,
                 artifactType: artifact.artifact_type as 'chart' | 'dashboard',
                 savedQueryUuid: version.saved_query_uuid,
+                savedSqlUuid: version.saved_sql_uuid,
                 savedDashboardUuid: version.saved_dashboard_uuid,
                 createdAt: artifact.created_at,
                 versionNumber: version.version_number,
                 versionUuid: version.ai_artifact_version_uuid,
                 title: version.title,
                 description: version.description,
-                chartConfig: version.chart_config as AiArtifact['chartConfig'],
+                chartConfig: parseAiArtifactChartConfig(version.chart_config),
                 dashboardConfig:
                     version.dashboard_config as AiArtifact['dashboardConfig'],
                 promptUuid: version.ai_prompt_uuid,
@@ -6759,6 +6767,7 @@ export class AiAgentModel {
                             ? data.vizConfig
                             : null,
                     saved_query_uuid: null,
+                    saved_sql_uuid: null,
                     saved_dashboard_uuid: null,
                 })
                 .returning('*');
@@ -6772,13 +6781,14 @@ export class AiAgentModel {
                 threadUuid: artifact.ai_thread_uuid,
                 artifactType: artifact.artifact_type,
                 savedQueryUuid: version.saved_query_uuid,
+                savedSqlUuid: version.saved_sql_uuid,
                 savedDashboardUuid: version.saved_dashboard_uuid,
                 createdAt: artifact.created_at,
                 versionNumber: version.version_number,
                 versionUuid: version.ai_artifact_version_uuid,
                 title: version.title,
                 description: version.description,
-                chartConfig: version.chart_config as AiArtifact['chartConfig'],
+                chartConfig: parseAiArtifactChartConfig(version.chart_config),
                 dashboardConfig:
                     version.dashboard_config as AiArtifact['dashboardConfig'],
                 promptUuid: version.ai_prompt_uuid,
@@ -6846,6 +6856,7 @@ export class AiAgentModel {
                 threadUuid: `${AiArtifactsTableName}.ai_thread_uuid`,
                 artifactType: `${AiArtifactsTableName}.artifact_type`,
                 savedQueryUuid: `${AiArtifactVersionsTableName}.saved_query_uuid`,
+                savedSqlUuid: `${AiArtifactVersionsTableName}.saved_sql_uuid`,
                 savedDashboardUuid: `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
                 createdAt: `${AiArtifactsTableName}.created_at`,
                 versionNumber: `${AiArtifactVersionsTableName}.version_number`,
@@ -6899,7 +6910,10 @@ export class AiAgentModel {
             throw new NotFoundError(`Artifact ${identifier} not found`);
         }
 
-        return result;
+        return {
+            ...result,
+            chartConfig: parseAiArtifactChartConfig(result.chartConfig),
+        };
     }
 
     async findArtifactsByThreadUuid(
@@ -6914,6 +6928,7 @@ export class AiAgentModel {
                     threadUuid: `${AiArtifactsTableName}.ai_thread_uuid`,
                     artifactType: `${AiArtifactsTableName}.artifact_type`,
                     savedQueryUuid: `${AiArtifactVersionsTableName}.saved_query_uuid`,
+                    savedSqlUuid: `${AiArtifactVersionsTableName}.saved_sql_uuid`,
                     savedDashboardUuid: `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
                     createdAt: `${AiArtifactsTableName}.created_at`,
                     versionNumber: `${AiArtifactVersionsTableName}.version_number`,
@@ -6956,7 +6971,10 @@ export class AiAgentModel {
             }
 
             const results = await query;
-            return results;
+            return results.map((result) => ({
+                ...result,
+                chartConfig: parseAiArtifactChartConfig(result.chartConfig),
+            }));
         });
     }
 
@@ -6970,6 +6988,7 @@ export class AiAgentModel {
                 threadUuid: `${AiArtifactsTableName}.ai_thread_uuid`,
                 artifactType: `${AiArtifactsTableName}.artifact_type`,
                 savedQueryUuid: `${AiArtifactVersionsTableName}.saved_query_uuid`,
+                savedSqlUuid: `${AiArtifactVersionsTableName}.saved_sql_uuid`,
                 savedDashboardUuid: `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
                 createdAt: `${AiArtifactsTableName}.created_at`,
                 versionNumber: `${AiArtifactVersionsTableName}.version_number`,
@@ -6989,7 +7008,13 @@ export class AiAgentModel {
                 `${AiArtifactsTableName}.ai_artifact_uuid`,
             )
             .where(`${AiArtifactVersionsTableName}.ai_prompt_uuid`, promptUuid)
-            .orderBy(`${AiArtifactVersionsTableName}.created_at`, 'asc');
+            .orderBy(`${AiArtifactVersionsTableName}.created_at`, 'asc')
+            .then((results) =>
+                results.map((result) => ({
+                    ...result,
+                    chartConfig: parseAiArtifactChartConfig(result.chartConfig),
+                })),
+            );
     }
 
     async updateThreadTitle({
