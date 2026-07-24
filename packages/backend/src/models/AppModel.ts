@@ -1,4 +1,5 @@
 import {
+    APP_VERSION_CANCELLED_BY_USER,
     DATA_APP_VIZ_TEMPLATE,
     NotFoundError,
     ProjectType,
@@ -315,6 +316,34 @@ export class AppModel {
             .orderBy('version', 'desc')
             .first();
         return row ?? null;
+    }
+
+    /**
+     * Whether any version between the latest ready version and `beforeVersion`
+     * (both exclusive) was cancelled by the user. The persistent Claude session
+     * of a resumed sandbox still ends with a cancelled instruction until a
+     * later generation supersedes it, so the pipeline uses this to decide
+     * whether to disavow that instruction in the next prompt.
+     */
+    async hasCancelledVersionSinceLastReady(
+        appId: string,
+        beforeVersion: number,
+    ): Promise<boolean> {
+        const lastReady = await this.database(AppVersionsTableName)
+            .where({ app_id: appId, status: 'ready' })
+            .max('version as version')
+            .first<{ version: number | null }>();
+        const cancelled = await this.database(AppVersionsTableName)
+            .where({
+                app_id: appId,
+                status: 'error',
+                error: APP_VERSION_CANCELLED_BY_USER,
+            })
+            .andWhere('version', '>', lastReady?.version ?? 0)
+            .andWhere('version', '<', beforeVersion)
+            .select('version')
+            .first();
+        return cancelled !== undefined;
     }
 
     async appImageExists(appId: string, imageId: string): Promise<boolean> {
