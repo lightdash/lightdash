@@ -111,6 +111,7 @@ import { getCartesianConditionalFormattingColor } from './cartesianConditionalFo
 import {
     applyTimezoneShiftToEchartsOptions,
     detectCalendarTimeAxisField,
+    normalizeMarkLineTimeValues,
     resolveAxisTimezone,
     TIME_INTERVALS_FOR_CATEGORY_AXIS,
 } from './timezoneShift';
@@ -3346,25 +3347,35 @@ const useEchartsCartesianConfig = (
         timeAxisField,
     ]);
 
-    // Calendar DATEs plotted on an actual `time` axis get their coordinate
-    // encoded as UTC midnight so ECharts' browser-local parse of the bare
-    // `YYYY-MM-DD` can't move the day. Derived from the built axes so
-    // reference-line-forced time axes are covered, and kept separate from
-    // timeAxisField so isTimeAxisShifted stays instant-shift only.
-    const calendarTimeAxisField = useMemo(() => {
+    // Type of the axis the semantic time dimension actually renders on
+    // (xAxis[0], or yAxis[0] when flipped). Derived from the built axes so
+    // reference-line-forced time axes on coarse grains are covered.
+    const physicalTimeAxisType = useMemo(() => {
         const physicalAxis = validCartesianConfig?.layout?.flipAxes
             ? axes.yAxis[0]
             : axes.xAxis[0];
+        return typeof physicalAxis?.type === 'string'
+            ? physicalAxis.type
+            : undefined;
+    }, [validCartesianConfig?.layout?.flipAxes, axes]);
+
+    // Calendar DATEs plotted on an actual `time` axis get their coordinate
+    // encoded as UTC midnight so ECharts' browser-local parse of the bare
+    // `YYYY-MM-DD` can't move the day. Kept separate from timeAxisField so
+    // isTimeAxisShifted stays instant-shift only.
+    const calendarTimeAxisField = useMemo(() => {
         return detectCalendarTimeAxisField({
             validCartesianConfig,
             itemsMap,
             resolvedTimezone,
-            physicalAxisType:
-                typeof physicalAxis?.type === 'string'
-                    ? physicalAxis.type
-                    : undefined,
+            physicalAxisType: physicalTimeAxisType,
         });
-    }, [validCartesianConfig, itemsMap, resolvedTimezone, axes]);
+    }, [
+        validCartesianConfig,
+        itemsMap,
+        resolvedTimezone,
+        physicalTimeAxisType,
+    ]);
 
     // Shared by stackedSeriesWithColorAssignments (non-stacked bar styling) and
     // decoratedSeriesForChart (stacked rounded corners). Same inputs in both
@@ -4434,12 +4445,22 @@ const useEchartsCartesianConfig = (
         };
 
         const plottedCoordinateField = timeAxisField ?? calendarTimeAxisField;
-        return plottedCoordinateField
+        const shiftedOptions = plottedCoordinateField
             ? applyTimezoneShiftToEchartsOptions(
                   baseOptions,
                   plottedCoordinateField,
               )
             : baseOptions;
+        // Reference-line values are user-authored strings; on any time axis
+        // they need the browser-independent parse rule, including unshifted
+        // axes (e.g. UTC projects) where no plotted-coordinate field exists.
+        if (physicalTimeAxisType === 'time' && resolvedTimezone) {
+            return normalizeMarkLineTimeValues(shiftedOptions, {
+                flipAxes: !!flipAxes,
+                instantTimezone: timeAxisField?.timezone,
+            });
+        }
+        return shiftedOptions;
     }, [
         sortedAxes,
         sortedSeriesForChart,
@@ -4455,6 +4476,8 @@ const useEchartsCartesianConfig = (
         validCartesianConfig,
         timeAxisField,
         calendarTimeAxisField,
+        physicalTimeAxisType,
+        resolvedTimezone,
     ]);
 
     if (

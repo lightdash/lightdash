@@ -9,8 +9,10 @@ import { describe, expect, test } from 'vitest';
 import {
     applyTimezoneShiftToEchartsOptions,
     detectCalendarTimeAxisField,
+    normalizeMarkLineTimeValues,
     resolveAxisTimezone,
     type EchartsOptionsShape,
+    type MarkLineTimeNormalization,
     type TimezoneShiftedField,
 } from './timezoneShift';
 
@@ -806,14 +808,19 @@ describe('applyTimezoneShiftToEchartsOptions calendar DATE anchoring (timezone U
     });
 });
 
-// Reference lines must ride the same transform as the plotted coordinates:
-// ECharts parses a raw date-only markLine value as browser-local midnight, so
-// an untransformed line sits offset from its (rewritten) bars.
-describe('applyTimezoneShiftToEchartsOptions markLine values', () => {
-    const calendarDay: TimezoneShiftedField = {
-        fieldId: 'orders_created_day',
-        timezone: 'UTC',
+// Reference-line values are user-authored strings; normalizeMarkLineTimeValues
+// defines the stored-value → position rule. Explicit-zone strings, numbers,
+// and Dates are instants (shifted like the data points); offset-less strings
+// in the strict grain formats are wall-clock positions plotted directly with
+// no offset (browser-independent); everything else is untouched.
+describe('normalizeMarkLineTimeValues', () => {
+    const identity: MarkLineTimeNormalization = {
         flipAxes: false,
+        instantTimezone: undefined,
+    };
+    const shiftedTokyo: MarkLineTimeNormalization = {
+        flipAxes: false,
+        instantTimezone: TZ,
     };
 
     const makeMarkLineSeries = (
@@ -830,26 +837,272 @@ describe('applyTimezoneShiftToEchartsOptions markLine values', () => {
             }
         ).data;
 
-    test('anchors a calendar date-only xAxis line to its UTC-midnight epoch', () => {
+    test('plots a date-only value at the visible day boundary on a shifted axis', () => {
         const options = makeMarkLineSeries([
-            { uuid: 'a', xAxis: '2024-07-22', name: 'Launch' },
+            { uuid: 'a', xAxis: '2024-01-15', name: 'Jan 15' },
         ]);
 
-        const result = applyTimezoneShiftToEchartsOptions(options, calendarDay);
+        const result = normalizeMarkLineTimeValues(options, shiftedTokyo);
 
+        // Wall-clock position: NOT offset by the +9h display shift.
         expect(getMarkLineData(result)).toEqual([
             {
                 uuid: 'a',
-                xAxis: Date.parse('2024-07-22T00:00:00Z'),
-                name: 'Launch',
+                xAxis: Date.parse('2024-01-15T00:00:00Z'),
+                name: 'Jan 15',
+                label: { formatter: '2024-01-15' },
             },
         ]);
     });
 
-    test('shifts an instant xAxis line by the project timezone offset', () => {
+    test('preserves the author text as the default label when numericizing', () => {
+        const options = makeMarkLineSeries([
+            // no formatter → gains one so the label is not the epoch number
+            {
+                uuid: 'a',
+                xAxis: '2024-01-16 06:00',
+                label: { position: 'end' },
+            },
+            // an existing formatter always wins
+            {
+                uuid: 'b',
+                xAxis: '2024-01-15',
+                label: { position: 'end', formatter: 'Launch' },
+            },
+            // numbers were always numeric; no label is invented for them
+            { uuid: 'c', xAxis: UTC_MS },
+        ]);
+
+        const result = normalizeMarkLineTimeValues(options, identity);
+
+        // Unnamed entries are named after the author text: the shared
+        // reference-line style formatter renders `name || value`.
+        expect(getMarkLineData(result)[0].name).toBe('2024-01-16 06:00');
+        expect(getMarkLineData(result)[0].label).toEqual({
+            position: 'end',
+            formatter: '2024-01-16 06:00',
+        });
+        expect(getMarkLineData(result)[1].label).toEqual({
+            position: 'end',
+            formatter: 'Launch',
+        });
+        expect(getMarkLineData(result)[2].name).toBeUndefined();
+        expect(getMarkLineData(result)[2].label).toBeUndefined();
+    });
+
+    test('plots an offset-less datetime at its wall-clock position, browser-independent', () => {
+        const options = makeMarkLineSeries([
+            { uuid: 'a', xAxis: '2024-01-15 12:00' },
+            { uuid: 'b', xAxis: '2024-01-15T12:00:00' },
+        ]);
+
+        const result = normalizeMarkLineTimeValues(options, shiftedTokyo);
+
+        expect(getMarkLineData(result)[0].xAxis).toBe(UTC_MS);
+        expect(getMarkLineData(result)[1].xAxis).toBe(UTC_MS);
+    });
+
+    test('shifts explicit-zone instants by the axis wall-clock offset', () => {
         const options = makeMarkLineSeries([
             { uuid: 'a', xAxis: '2024-01-15T12:00:00Z' },
+            { uuid: 'b', xAxis: '2024-01-15 21:00:00+09:00' },
         ]);
+
+        const result = normalizeMarkLineTimeValues(options, shiftedTokyo);
+
+        expect(getMarkLineData(result)[0].xAxis).toBe(SHIFTED_MS);
+        // 21:00+09:00 is the same instant as 12:00Z.
+        expect(getMarkLineData(result)[1].xAxis).toBe(SHIFTED_MS);
+    });
+
+    test('keeps instants at their raw epoch on unshifted axes', () => {
+        const options = makeMarkLineSeries([
+            { uuid: 'a', xAxis: '2024-01-15T12:00:00Z' },
+            { uuid: 'b', xAxis: UTC_MS },
+        ]);
+
+        const result = normalizeMarkLineTimeValues(options, identity);
+
+        expect(getMarkLineData(result)[0].xAxis).toBe(UTC_MS);
+        expect(getMarkLineData(result)[1].xAxis).toBe(UTC_MS);
+    });
+
+    test('shifts numeric epoch values like instants on shifted axes', () => {
+        const options = makeMarkLineSeries([{ uuid: 'a', xAxis: UTC_MS }]);
+
+        const result = normalizeMarkLineTimeValues(options, shiftedTokyo);
+
+        expect(getMarkLineData(result)[0].xAxis).toBe(SHIFTED_MS);
+    });
+
+    test('parses month, year, and quarter grain values to their period start', () => {
+        const options = makeMarkLineSeries([
+            { uuid: 'a', xAxis: '2024-07' },
+            { uuid: 'b', xAxis: '2024' },
+            { uuid: 'c', xAxis: '2024-Q3' },
+        ]);
+
+        const result = normalizeMarkLineTimeValues(options, identity);
+
+        expect(getMarkLineData(result)[0].xAxis).toBe(
+            Date.parse('2024-07-01T00:00:00Z'),
+        );
+        expect(getMarkLineData(result)[1].xAxis).toBe(
+            Date.parse('2024-01-01T00:00:00Z'),
+        );
+        expect(getMarkLineData(result)[2].xAxis).toBe(
+            Date.parse('2024-07-01T00:00:00Z'),
+        );
+    });
+
+    test('places a wall-clock value inside a DST spring-forward gap deterministically', () => {
+        // 02:30 on 2024-03-10 does not exist in America/New_York; as a naive
+        // wall-clock position it still lands between the 02:00 and 03:00
+        // slots of the merged wall-clock axis.
+        const options = makeMarkLineSeries([
+            { uuid: 'a', xAxis: '2024-03-10 02:30' },
+        ]);
+
+        const result = normalizeMarkLineTimeValues(options, {
+            flipAxes: false,
+            instantTimezone: 'America/New_York',
+        });
+
+        expect(getMarkLineData(result)[0].xAxis).toBe(
+            Date.parse('2024-03-10T02:30:00Z'),
+        );
+    });
+
+    test('leaves non-time strings untouched', () => {
+        const data = [
+            { uuid: 'a', xAxis: '42' },
+            { uuid: 'b', xAxis: '50.5' },
+            { uuid: 'c', xAxis: '' },
+            { uuid: 'd', xAxis: 'garbage' },
+            { uuid: 'e', xAxis: '2024-13' },
+        ];
+        const options = makeMarkLineSeries(data);
+
+        const result = normalizeMarkLineTimeValues(options, shiftedTokyo);
+
+        expect(getMarkLineData(result)).toEqual(data);
+    });
+
+    test('skips series-relative marks even when they carry stale slot values', () => {
+        const data = [
+            { uuid: 'a', type: 'average' },
+            { uuid: 'b', type: 'average', xAxis: '2024-01-15' },
+        ];
+        const options = makeMarkLineSeries(data);
+
+        const result = normalizeMarkLineTimeValues(options, shiftedTokyo);
+
+        expect(getMarkLineData(result)).toEqual(data);
+    });
+
+    test('targets the yAxis slot when flipped', () => {
+        const options = makeMarkLineSeries([
+            { uuid: 'a', yAxis: '2024-07-22' },
+        ]);
+
+        const result = normalizeMarkLineTimeValues(options, {
+            ...identity,
+            flipAxes: true,
+        });
+
+        expect(getMarkLineData(result)).toEqual([
+            {
+                uuid: 'a',
+                yAxis: Date.parse('2024-07-22T00:00:00Z'),
+                name: '2024-07-22',
+                label: { formatter: '2024-07-22' },
+            },
+        ]);
+    });
+
+    test('rescues a date value stranded in the value-axis slot and clears the source', () => {
+        // Semantic keying stores the date under xAxis even when flipped; the
+        // date lives on physical Y, so ECharts drops the line entirely today.
+        const flipped = normalizeMarkLineTimeValues(
+            makeMarkLineSeries([{ uuid: 'a', xAxis: '2020-07-05' }]),
+            { ...identity, flipAxes: true },
+        );
+        expect(getMarkLineData(flipped)).toEqual([
+            {
+                uuid: 'a',
+                yAxis: Date.parse('2020-07-05T00:00:00Z'),
+                xAxis: undefined,
+                name: '2020-07-05',
+                label: { formatter: '2020-07-05' },
+            },
+        ]);
+
+        // Orientation-generic: flip→save→unflip can strand a date in yAxis.
+        const vertical = normalizeMarkLineTimeValues(
+            makeMarkLineSeries([{ uuid: 'b', yAxis: '2020-07-05' }]),
+            identity,
+        );
+        expect(getMarkLineData(vertical)).toEqual([
+            {
+                uuid: 'b',
+                xAxis: Date.parse('2020-07-05T00:00:00Z'),
+                yAxis: undefined,
+                name: '2020-07-05',
+                label: { formatter: '2020-07-05' },
+            },
+        ]);
+    });
+
+    test('never rescues numeric strings from the value axis', () => {
+        const data = [{ uuid: 'a', yAxis: '50' }];
+        const options = makeMarkLineSeries(data);
+
+        const result = normalizeMarkLineTimeValues(options, identity);
+
+        expect(getMarkLineData(result)).toEqual(data);
+    });
+
+    test('does not rescue when the time slot is occupied', () => {
+        const options = makeMarkLineSeries([
+            { uuid: 'a', xAxis: '2024-01-15', yAxis: '2024-02-01' },
+        ]);
+
+        const result = normalizeMarkLineTimeValues(options, identity);
+
+        expect(getMarkLineData(result)).toEqual([
+            {
+                uuid: 'a',
+                xAxis: Date.parse('2024-01-15T00:00:00Z'),
+                yAxis: '2024-02-01',
+                name: '2024-01-15',
+                label: { formatter: '2024-01-15' },
+            },
+        ]);
+    });
+
+    test('leaves options without series and series without markLine untouched', () => {
+        const noSeries: EchartsOptionsShape = { dataset: { source: [] } };
+        expect(normalizeMarkLineTimeValues(noSeries, identity)).toBe(noSeries);
+
+        const noMarkLine: EchartsOptionsShape = {
+            dataset: { source: [] },
+            series: [{ data: [] }],
+        };
+        expect(
+            normalizeMarkLineTimeValues(noMarkLine, identity).series?.[0],
+        ).toEqual({ data: [] });
+    });
+});
+
+// The dataset/encode walker no longer touches markLine values — that is
+// normalizeMarkLineTimeValues' job, run for every flag-on time axis.
+describe('applyTimezoneShiftToEchartsOptions markLine values', () => {
+    test('passes markLine data through unchanged', () => {
+        const data = [{ uuid: 'a', xAxis: '2024-07-22' }];
+        const options: EchartsOptionsShape = {
+            dataset: { source: [] },
+            series: [{ markLine: { symbol: 'none', data } }],
+        };
 
         const result = applyTimezoneShiftToEchartsOptions(options, {
             fieldId: 'orders_created_day',
@@ -857,47 +1110,9 @@ describe('applyTimezoneShiftToEchartsOptions markLine values', () => {
             flipAxes: false,
         });
 
-        expect(getMarkLineData(result)[0].xAxis).toBe(SHIFTED_MS);
-    });
-
-    test('transforms the yAxis slot and leaves xAxis alone when flipped', () => {
-        const options = makeMarkLineSeries([
-            { uuid: 'a', yAxis: '2024-07-22' },
-            { uuid: 'b', xAxis: '2024-07-23' },
-        ]);
-
-        const result = applyTimezoneShiftToEchartsOptions(options, {
-            ...calendarDay,
-            flipAxes: true,
-        });
-
-        expect(getMarkLineData(result)).toEqual([
-            { uuid: 'a', yAxis: Date.parse('2024-07-22T00:00:00Z') },
-            { uuid: 'b', xAxis: '2024-07-23' },
-        ]);
-    });
-
-    test('leaves value-axis lines and series-relative marks untouched', () => {
-        const data = [
-            { uuid: 'a', yAxis: '50' },
-            { uuid: 'b', type: 'average' },
-        ];
-        const options = makeMarkLineSeries(data);
-
-        const result = applyTimezoneShiftToEchartsOptions(options, calendarDay);
-
-        expect(getMarkLineData(result)).toEqual(data);
-    });
-
-    test('leaves series without markLine untouched', () => {
-        const options: EchartsOptionsShape = {
-            dataset: { source: [] },
-            series: [{ data: [] }],
-        };
-
-        const result = applyTimezoneShiftToEchartsOptions(options, calendarDay);
-
-        expect(result.series?.[0]).toEqual({ data: [] });
+        expect((result.series?.[0].markLine as { data: unknown }).data).toEqual(
+            data,
+        );
     });
 });
 

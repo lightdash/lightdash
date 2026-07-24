@@ -2,6 +2,8 @@ import {
     extractableTimeFrames,
     isCalendarValueItem,
     isDimension,
+    parseCalendarValueUTC,
+    parseTimestampValueUTC,
     shouldShiftItemTimezone,
     TimeFrames,
     type CartesianChart,
@@ -321,39 +323,9 @@ const shiftBareArraySeriesData = (
     });
 };
 
-// Reference lines carry raw axis values that ECharts would parse differently
-// from the rewritten data coordinates, leaving the line offset from its bars.
-// Run the time-axis slot (xAxis, or yAxis when flipped) through the same
-// transform. Value-axis slots and series-relative marks (type 'average' etc.,
-// which carry no axis value) are untouched.
-const shiftSeriesMarkLineValues = (
-    series: EchartsSeriesShape[],
-    shifted: TimezoneShiftedField,
-): EchartsSeriesShape[] => {
-    const axisKey = shifted.flipAxes ? 'yAxis' : 'xAxis';
-    return series.map((s) => {
-        const markLine = s.markLine;
-        if (!isPlainObject(markLine) || !Array.isArray(markLine.data)) {
-            return s;
-        }
-        let mutated = false;
-        const newData = markLine.data.map((entry) => {
-            if (!isPlainObject(entry)) return entry;
-            const raw = entry[axisKey];
-            if (raw === undefined || raw === null) return entry;
-            const shiftedMs = shiftRawToTimezoneWallClockMs(
-                raw,
-                shifted.timezone,
-            );
-            if (shiftedMs === undefined) return entry;
-            mutated = true;
-            return { ...entry, [axisKey]: shiftedMs };
-        });
-        return mutated ? { ...s, markLine: { ...markLine, data: newData } } : s;
-    });
-};
-
-// Run last on the built echarts options — the rest of the pipeline stays in UTC.
+// Run last on the built echarts options — the rest of the pipeline stays in
+// UTC. Dataset and encode rewrite only; markLine values are handled by the
+// separate normalizeMarkLineTimeValues pass.
 export const applyTimezoneShiftToEchartsOptions = <
     O extends EchartsOptionsShape,
 >(
@@ -369,9 +341,112 @@ export const applyTimezoneShiftToEchartsOptions = <
     return {
         ...options,
         dataset: shiftDatasetSources(options.dataset, shifted, shiftedDim),
-        series: shiftSeriesMarkLineValues(
-            shiftBareArraySeriesData(renamedSeries, shifted),
-            shifted,
-        ),
+        series: shiftBareArraySeriesData(renamedSeries, shifted),
     };
+};
+
+// A reference line's stored value aimed at the time axis is one of exactly two
+// things. A number, Date, or datetime string with an explicit zone
+// (parseTimestampValueUTC hasZone) is an instant: parsed, then given the same
+// transform as the data points (wall-clock shift on shifted axes, identity
+// otherwise). An offset-less string — a datetime without a zone, or a
+// calendar value in the canonical picker formats (parseCalendarValueUTC) — is
+// a wall-clock position on the axis as the viewer sees it: parsed naive as
+// UTC, plotted directly, no offset. Both reads are browser-independent by
+// construction. Anything else (numeric metric values stranded in the wrong
+// slot by semantic keying, empty strings, garbage) is left untouched rather
+// than leniently coerced.
+const isWallClockTimeString = (value: string): boolean =>
+    parseTimestampValueUTC(value)?.hasZone === false ||
+    parseCalendarValueUTC(value) !== undefined;
+
+export type MarkLineTimeNormalization = {
+    flipAxes: boolean;
+    // Zone the axis's plotted coordinates are wall-clock-shifted to; undefined
+    // means instants plot at their raw epoch (unshifted or UTC-anchored axis).
+    instantTimezone: string | undefined;
+};
+
+const parseTimeAxisMarkLineValue = (
+    raw: unknown,
+    { instantTimezone }: Pick<MarkLineTimeNormalization, 'instantTimezone'>,
+): number | undefined => {
+    const toShiftedInstant = (ms: number): number | undefined =>
+        Number.isFinite(ms)
+            ? ms +
+              (instantTimezone ? getTimezoneOffsetMs(ms, instantTimezone) : 0)
+            : undefined;
+    if (typeof raw === 'number') return toShiftedInstant(raw);
+    if (raw instanceof Date) return toShiftedInstant(raw.getTime());
+    if (typeof raw !== 'string') return undefined;
+    const value = raw.trim();
+    const timestamp = parseTimestampValueUTC(value);
+    if (timestamp) {
+        const ms = timestamp.date.getTime();
+        return timestamp.hasZone ? toShiftedInstant(ms) : ms;
+    }
+    return parseCalendarValueUTC(value)?.getTime();
+};
+
+// Runs on the final options for every physical time axis when timezone
+// support is on (shifted or not): reference lines carry user-authored strings
+// that ECharts would otherwise parse browser-locally. Also rescues a
+// time-formatted value stranded in the value-axis slot by semantic keying
+// (a dead entry today — ECharts drops a date string aimed at a value axis)
+// into the time slot. Series-relative marks (type 'average' etc.) carry no
+// axis position and are skipped, including any stale slot values on them.
+export const normalizeMarkLineTimeValues = <O extends EchartsOptionsShape>(
+    options: O,
+    normalization: MarkLineTimeNormalization,
+): O => {
+    if (!options.series) return options;
+    const timeSlot = normalization.flipAxes ? 'yAxis' : 'xAxis';
+    const valueSlot = normalization.flipAxes ? 'xAxis' : 'yAxis';
+    const series = options.series.map((s) => {
+        const markLine = s.markLine;
+        if (!isPlainObject(markLine) || !Array.isArray(markLine.data)) {
+            return s;
+        }
+        let mutated = false;
+        const newData = markLine.data.map((entry) => {
+            if (!isPlainObject(entry) || entry.type !== undefined) return entry;
+            const timeValue = entry[timeSlot];
+            const stranded =
+                (timeValue === undefined ||
+                    timeValue === null ||
+                    timeValue === '') &&
+                typeof entry[valueSlot] === 'string' &&
+                isWallClockTimeString((entry[valueSlot] as string).trim());
+            const raw = stranded ? entry[valueSlot] : timeValue;
+            if (raw === undefined || raw === null) return entry;
+            const ms = parseTimeAxisMarkLineValue(raw, normalization);
+            if (ms === undefined) return entry;
+            mutated = true;
+            const next: Record<string, unknown> = {
+                ...entry,
+                [timeSlot]: ms,
+            };
+            if (stranded) next[valueSlot] = undefined;
+            // After numericizing, default labels would echo the epoch ms:
+            // ECharts' own default label formatter echoes the value, and the
+            // reference-line style formatter renders `name || value`. Keep the
+            // author's text by naming unnamed entries and providing a
+            // formatter where none exists.
+            if (typeof raw === 'string') {
+                const text = raw.trim();
+                if (next.name === undefined || next.name === '') {
+                    next.name = text;
+                }
+                const label = isPlainObject(entry.label)
+                    ? entry.label
+                    : undefined;
+                if (label?.formatter === undefined) {
+                    next.label = { ...label, formatter: text };
+                }
+            }
+            return next;
+        });
+        return mutated ? { ...s, markLine: { ...markLine, data: newData } } : s;
+    });
+    return { ...options, series };
 };
