@@ -72,7 +72,7 @@ type ResolvedConnectionValues = {
 };
 
 const PAT_EXPIRY_DAYS = 365;
-const PAT_NETWORK_POLICY_BYPASS_MINUTES = 1440;
+const PAT_NETWORK_POLICY_BYPASS_MINUTES = 60;
 const KEY_VERIFICATION_ATTEMPTS = 3;
 const KEY_VERIFICATION_RETRY_DELAY_MS = 5_000;
 
@@ -403,6 +403,9 @@ const createDurableCredential = async (
         const expiresAt = new Date(
             dependencies.now().getTime() +
                 PAT_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+        );
+        dependencies.write(
+            `The token bypasses your Snowflake network policy for the next ${PAT_NETWORK_POLICY_BYPASS_MINUTES} minutes so this connection can be verified. Allowlist Lightdash's IP addresses in your network policy to keep it working afterwards.`,
         );
         return {
             credentials: {
