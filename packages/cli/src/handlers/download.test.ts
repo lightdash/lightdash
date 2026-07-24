@@ -29,7 +29,7 @@ const {
     downloadSpaces,
     getDashboardChartSlugs,
     getFlatSpaceFileNames,
-    hasUploadFilters,
+    hasContentFilters,
     readAiAgentFiles,
     readSpaceFiles,
     readSpaceNames,
@@ -43,9 +43,9 @@ const {
     writeSpaceFiles,
 } = testHelpers;
 
-const makeUploadFilterOptions = (
-    overrides: Partial<Parameters<typeof hasUploadFilters>[0]> = {},
-): Parameters<typeof hasUploadFilters>[0] => ({
+const makeContentFilterOptions = (
+    overrides: Partial<Parameters<typeof hasContentFilters>[0]> = {},
+): Parameters<typeof hasContentFilters>[0] => ({
     spacesOnly: false,
     charts: [],
     dashboards: [],
@@ -58,23 +58,23 @@ const makeUploadFilterOptions = (
     ...overrides,
 });
 
-describe('hasUploadFilters', () => {
-    it('treats explicit apps as a filtered upload', () => {
+describe('hasContentFilters', () => {
+    it('treats explicit apps as a filtered download and upload', () => {
         expect(
-            hasUploadFilters(
-                makeUploadFilterOptions({ apps: ['app-reference'] }),
+            hasContentFilters(
+                makeContentFilterOptions({ apps: ['app-reference'] }),
             ),
         ).toBe(true);
     });
 
-    it('keeps an unfiltered upload unfiltered', () => {
-        expect(hasUploadFilters(makeUploadFilterOptions())).toBe(false);
+    it('keeps an unfiltered content operation unfiltered', () => {
+        expect(hasContentFilters(makeContentFilterOptions())).toBe(false);
     });
 
     it('does not treat content selections as filters in spaces-only mode', () => {
         expect(
-            hasUploadFilters(
-                makeUploadFilterOptions({
+            hasContentFilters(
+                makeContentFilterOptions({
                     spacesOnly: true,
                     apps: ['app-reference'],
                 }),

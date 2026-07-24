@@ -903,7 +903,7 @@ const downloadCommand = program
     )
     .option(
         '--apps <appReferences...>',
-        'Include specific data apps by UUID or URL (enterprise). Works for apps not added to a space.',
+        'Download only specified data apps by UUID or URL (enterprise). Works for apps not added to a space.',
     )
     .option(
         '--include-apps',
@@ -1015,7 +1015,7 @@ const uploadCommand = program
     .option('--gzip', 'Enable gzip compression for request bodies', false)
     .option(
         '--apps <appReferences...>',
-        'Upload specific data apps by UUID or URL (enterprise).',
+        'Upload only specified data apps by UUID or URL (enterprise).',
     )
     .option(
         '--include-apps',
