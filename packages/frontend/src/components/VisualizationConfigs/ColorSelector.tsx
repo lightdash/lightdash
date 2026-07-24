@@ -36,6 +36,7 @@ interface Props {
     // custom value to clear.
     onColorReset?: () => void;
     resetLabel?: string;
+    ariaLabel?: string;
     readOnly?: boolean;
     colorSwatchProps?: Omit<ColorSwatchProps, 'color'>;
     withAlpha?: boolean;
@@ -49,6 +50,7 @@ const ColorSelector: FC<Props> = ({
     onColorChange,
     onColorReset,
     resetLabel = 'Reset color',
+    ariaLabel = 'Select color',
     readOnly = false,
     colorSwatchProps,
     withAlpha = false,
@@ -123,7 +125,7 @@ const ColorSelector: FC<Props> = ({
                     {...colorSwatchProps}
                     role="button"
                     tabIndex={0}
-                    aria-label="Select color"
+                    aria-label={ariaLabel}
                     onClick={handleSwatchClick}
                     onKeyDown={handleSwatchKeyDown}
                     className={clsx(

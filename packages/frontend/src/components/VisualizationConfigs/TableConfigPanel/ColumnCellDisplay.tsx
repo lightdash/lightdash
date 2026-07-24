@@ -85,6 +85,7 @@ export const ColumnCellDisplay: FC = () => {
                             <ColorSelector
                                 color={barColor}
                                 swatches={colorPalette}
+                                ariaLabel="Select positive bar color"
                                 onColorChange={(color) => {
                                     chartConfig.updateColumnProperty(fieldId, {
                                         color,
@@ -122,6 +123,7 @@ export const ColumnCellDisplay: FC = () => {
                                                     <ColorSelector
                                                         color={negativeBarColor}
                                                         swatches={colorPalette}
+                                                        ariaLabel="Select negative bar color"
                                                         onColorChange={(
                                                             newColor,
                                                         ) => {

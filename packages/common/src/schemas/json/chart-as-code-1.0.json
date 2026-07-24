@@ -478,6 +478,10 @@
                     "description": "Custom display name for the column",
                     "type": "string"
                 },
+                "negativeColor": {
+                    "description": "Color for negative bars in diverging bar display (hex code). Falls back to `color` when unset.",
+                    "type": "string"
+                },
                 "visible": {
                     "description": "Whether the column is visible",
                     "type": "boolean"
