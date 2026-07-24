@@ -319,6 +319,7 @@ export default function AppPreviewTest() {
                     <AppHeaderActions
                         projectUuid={projectUuid}
                         appUuid={appUuid}
+                        upgrade={null}
                         appName={appName}
                         appDescription={appDescription}
                         appSpaceUuid={appSpaceUuid}

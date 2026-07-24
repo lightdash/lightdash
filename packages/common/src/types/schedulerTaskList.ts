@@ -56,6 +56,10 @@ export type AppGeneratePipelineJobPayload = TraceTaskBase & {
     template?: DataAppTemplate; // starter template selected on creation; absent on iteration
     imageIds?: string[];
     isIteration: boolean;
+    // Upgrade-as-iteration: the worker destroys the app's sandbox (carrying
+    // the Claude session best-effort) so this run cold-starts on the current
+    // template image. Absent on ordinary jobs.
+    isUpgrade?: boolean;
     chartReferences?: ChartReference[];
     // Structural snapshot of the attached dashboard (tabs, tile layout,
     // filters). Written into the sandbox as a layout blueprint alongside the

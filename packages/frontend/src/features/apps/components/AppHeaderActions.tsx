@@ -3,7 +3,7 @@ import {
     isApiError,
     type AppVersionStatus,
 } from '@lightdash/common';
-import { ActionIcon, Menu, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Menu, Text, Tooltip } from '@mantine-8/core';
 import {
     IconArrowsUpDown,
     IconCamera,
@@ -16,12 +16,14 @@ import {
     IconPhotoX,
     IconRefresh,
     IconSend,
+    IconSparkles,
     IconTrash,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState, type FC, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal from '../../../components/common/MantineModal';
 import AppDeleteModal from '../../../components/common/modal/AppDeleteModal';
 import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -34,6 +36,7 @@ import {
 import { useCanCreateDataApp } from '../hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../hooks/useCanEditDataApp';
 import { useDuplicateApp } from '../hooks/useDuplicateApp';
+import { useUpgradeApp } from '../hooks/useUpgradeApp';
 import {
     DataAppFavoriteMenuItem,
     FavoritePersonalDataAppModal,
@@ -73,6 +76,9 @@ type Props = {
      *  looking at. Null when the iframe hasn't announced screenshot
      *  capability — the modal then falls back to a default-state render. */
     capturePreviewScreenshot: (() => Promise<File>) | null;
+    /** Upgrade action for the builder surface; null on surfaces without an
+     *  upgrade flow (the viewer). `disabled` while a build is in flight. */
+    upgrade: { disabled: boolean } | null;
 };
 
 /**
@@ -101,6 +107,7 @@ const AppHeaderActions: FC<Props> = ({
     navItem,
     captureThumbnail,
     capturePreviewScreenshot,
+    upgrade,
 }) => {
     const navigate = useNavigate();
 
@@ -163,6 +170,7 @@ const AppHeaderActions: FC<Props> = ({
     ]);
 
     const [schedulerModalOpen, setSchedulerModalOpen] = useState(false);
+    const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
     const [isMoveToSpaceOpen, setIsMoveToSpaceOpen] = useState(false);
     const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
@@ -181,6 +189,14 @@ const AppHeaderActions: FC<Props> = ({
             },
         );
     }, [duplicateMutate, navigate, projectUuid, appUuid]);
+
+    const { mutate: upgradeMutate, isLoading: isUpgrading } = useUpgradeApp();
+    const handleUpgrade = useCallback(() => {
+        upgradeMutate(
+            { projectUuid, appUuid, body: {} },
+            { onSuccess: () => setIsUpgradeModalOpen(false) },
+        );
+    }, [upgradeMutate, projectUuid, appUuid]);
 
     return (
         <>
@@ -247,6 +263,17 @@ const AppHeaderActions: FC<Props> = ({
                         </Menu.Item>
                     )}
                     {(canEdit || canDuplicate) && <Menu.Divider />}
+                    {canEdit && upgrade && (
+                        <Menu.Item
+                            leftSection={
+                                <MantineIcon icon={IconSparkles} size={14} />
+                            }
+                            disabled={upgrade.disabled || isUpgrading}
+                            onClick={() => setIsUpgradeModalOpen(true)}
+                        >
+                            Upgrade app
+                        </Menu.Item>
+                    )}
                     {canEdit && (
                         <Menu.Item
                             leftSection={
@@ -337,6 +364,25 @@ const AppHeaderActions: FC<Props> = ({
                 </Menu.Dropdown>
             </Menu>
 
+            {isUpgradeModalOpen && upgrade && (
+                <MantineModal
+                    opened
+                    onClose={() => setIsUpgradeModalOpen(false)}
+                    title="Upgrade app"
+                    icon={IconSparkles}
+                    confirmLabel="Upgrade"
+                    confirmLoading={isUpgrading}
+                    onConfirm={handleUpgrade}
+                >
+                    <Text size="sm">
+                        Upgrading rebuilds this app on the latest template
+                        (newest SDK, components, and agent skills). The agent
+                        fixes anything the new template breaks, then offers
+                        newly available features in chat — nothing is added
+                        until you ask.
+                    </Text>
+                </MantineModal>
+            )}
             {isUpdateModalOpen && (
                 <AppUpdateModal
                     opened

@@ -372,6 +372,37 @@ export type ApiDuplicateAppResponse = ApiSuccess<{
     version: number;
 }>;
 
+/**
+ * A feature the frontend's SDK registry says may be new to this app.
+ * Mirrors the SdkFeature shape from @lightdash/query-sdk/features.
+ */
+export type UpgradeCandidateFeature = {
+    key: string;
+    label: string;
+    description: string;
+};
+
+/**
+ * What the app's running bundle reported about itself via the SDK's
+ * `lightdash:sdk:manifest` message. Both fields absent for legacy bundles
+ * whose SDK predates feature reporting. Forwarded into the upgrade prompt —
+ * the backend does not validate against any registry.
+ *
+ * candidateFeatures is the authoritative "possibly new" list computed by the
+ * frontend from its own SDK registry — the in-sandbox agent only verifies and
+ * filters it, never discovers features on its own.
+ */
+export type UpgradeAppRequestBody = {
+    reportedSdkVersion?: string;
+    reportedFeatures?: string[];
+    candidateFeatures?: UpgradeCandidateFeature[];
+};
+
+export type ApiUpgradeAppResponse = ApiSuccess<{
+    appUuid: string;
+    version: number;
+}>;
+
 export type PromoteAppAction = 'create' | 'update';
 
 /**
