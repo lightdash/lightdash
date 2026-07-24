@@ -75,7 +75,18 @@ type SchedulerClientArguments = {
     featureFlagModel: FeatureFlagModel;
 };
 
-const SCHEDULED_JOB_MAX_ATTEMPTS = 1;
+// Base max attempts for scheduled jobs. Configurable via the
+// SCHEDULER_MAX_ATTEMPTS env var (parsed in parseConfig into
+// lightdashConfig.scheduler.maxAttempts), defaulting to 1 to preserve
+// existing behavior. Mutated once from lightdashConfig when the
+// SchedulerClient is constructed so the static addJob default below picks up
+// the operator-configured value.
+const DEFAULT_SCHEDULER_MAX_ATTEMPTS = 1;
+let scheduledJobMaxAttempts = DEFAULT_SCHEDULER_MAX_ATTEMPTS;
+
+export const setScheduledJobMaxAttempts = (maxAttempts: number) => {
+    scheduledJobMaxAttempts = Math.max(1, Math.floor(maxAttempts));
+};
 
 // Name of the per-org graphile named queue that serializes an organization's
 // recurring scheduled deliveries. One queue per org → at most one delivery
@@ -141,6 +152,7 @@ export class SchedulerClient {
         this.analytics = analytics;
         this.schedulerModel = schedulerModel;
         this.featureFlagModel = featureFlagModel;
+        setScheduledJobMaxAttempts(lightdashConfig.scheduler.maxAttempts);
         this.graphileUtils = makeWorkerUtils({
             connectionString: lightdashConfig.database.connectionUri,
         })
@@ -233,7 +245,7 @@ export class SchedulerClient {
         payload: TaskPayloadMap[T],
         scheduledAt: Date,
         priority: JobPriority,
-        maxAttempts: number = SCHEDULED_JOB_MAX_ATTEMPTS,
+        maxAttempts: number = scheduledJobMaxAttempts,
         explicitJobKey?: string,
         queueName?: string,
     ) {
@@ -461,13 +473,13 @@ export class SchedulerClient {
               }
             : scheduler;
 
-        let maxAttempts = SCHEDULED_JOB_MAX_ATTEMPTS;
+        let maxAttempts = scheduledJobMaxAttempts;
         if (
             isCreateScheduler(scheduler) &&
             scheduler.format === SchedulerFormat.IMAGE &&
             !!scheduler.dashboardUuid
         ) {
-            maxAttempts = SCHEDULED_JOB_MAX_ATTEMPTS + 1;
+            maxAttempts = scheduledJobMaxAttempts + 1;
         }
 
         const id = await SchedulerClient.addJob(

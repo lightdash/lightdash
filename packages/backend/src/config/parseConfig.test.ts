@@ -1148,6 +1148,30 @@ describe('scheduler poll interval', () => {
     });
 });
 
+describe('scheduler max attempts', () => {
+    test('should default max attempts to 1', () => {
+        const config = parseConfig();
+
+        expect(config.scheduler.maxAttempts).toBe(1);
+    });
+
+    test('should parse max attempts from environment variable', () => {
+        process.env.SCHEDULER_MAX_ATTEMPTS = '3';
+
+        const config = parseConfig();
+
+        expect(config.scheduler.maxAttempts).toBe(3);
+    });
+
+    test('should clamp invalid max attempts to 1', () => {
+        process.env.SCHEDULER_MAX_ATTEMPTS = '0';
+
+        const config = parseConfig();
+
+        expect(config.scheduler.maxAttempts).toBe(1);
+    });
+});
+
 test('should set groups.enabled only when the environment variable is set', () => {
     const undefinedConfig = parseConfig();
     expect(undefinedConfig.groups.enabled).toBeUndefined();
