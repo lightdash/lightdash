@@ -1744,10 +1744,30 @@ describe('AiWritebackService.mergePullRequest', () => {
             .fn()
             .mockResolvedValue({ jobUuid: 'job-1' });
         const get = vi.fn().mockResolvedValue(gitProject());
+        const claimAiWritebackMergedAnalyticsByProjectAndUrl = vi.fn(
+            async (projectUuid: string, prUrl: string) => ({
+                organizationUuid: ORG,
+                projectUuid,
+                createdByUserUuid: 'u1',
+                provider: prUrl.includes('merge_requests')
+                    ? PullRequestProvider.GITLAB
+                    : PullRequestProvider.GITHUB,
+                owner: 'acme',
+                repo: 'analytics',
+                prNumber: prUrl.includes('merge_requests') ? 3 : 7,
+                prUrl,
+                threadId: 'thread-1',
+                promptId: 'prompt-1',
+                workstream: 'dbt-writeback',
+            }),
+        );
         const service = buildService({
             projectModel: { get } as AnyType,
             ciService: { mergePullRequest } as AnyType,
             projectService: { scheduleCompileProject } as AnyType,
+            pullRequestsModel: {
+                claimAiWritebackMergedAnalyticsByProjectAndUrl,
+            } as AnyType,
             ...overrides,
         });
         return { service, mergePullRequest, scheduleCompileProject, get };

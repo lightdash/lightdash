@@ -21,6 +21,7 @@ import {
     OrganizationMemberRole,
     PinnedItem,
     ProjectMemberRole,
+    PullRequestProvider,
     QueryExecutionContext,
     QueryHistoryStatus,
     RequestMethod,
@@ -40,7 +41,6 @@ import {
     type AppVersionDependencyEntry,
     type DataAppClaudeModel,
     type DataAppTemplate,
-    type PullRequestProvider,
 } from '@lightdash/common';
 import Analytics, {
     Track as AnalyticsTrack,
@@ -50,6 +50,7 @@ import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
 import { type ExternalConnectionEvent } from '../ee/analytics';
+import type { AiWritebackMergedAnalyticsContext } from '../models/PullRequestsModel';
 import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { VERSION } from '../version';
 import type { AiUsageEvent } from './aiUsage';
@@ -1793,10 +1794,6 @@ export type AiWritebackFailedEvent = BaseTrack & {
     };
 };
 
-// Fired when a user merges a write-back PR from the chat PR card. Only
-// successful merges are tracked — the merge endpoint throws on conflicts,
-// stale heads, or blocked branches, so this is a server-authoritative count of
-// PRs that actually landed (not merge-button clicks).
 export type AiWritebackMergedEvent = BaseTrack & {
     event: 'ai_writeback.merged';
     userId: string;
@@ -1819,6 +1816,41 @@ export type AiWritebackMergedEvent = BaseTrack & {
         workstream: AiWritebackWorkstream;
     };
 };
+
+export const buildAiWritebackMergedEvent = ({
+    context,
+    mergeCommitSha,
+    compileScheduled,
+}: {
+    context: AiWritebackMergedAnalyticsContext;
+    mergeCommitSha: string | null;
+    compileScheduled: boolean;
+}): AiWritebackMergedEvent => ({
+    event: 'ai_writeback.merged',
+    userId: context.createdByUserUuid ?? ANONYMOUS_TRACKING_UUID,
+    properties: {
+        organizationId: context.organizationUuid,
+        projectId: context.projectUuid,
+        threadId: context.threadId,
+        promptId: context.promptId,
+        prUrl: context.prUrl,
+        owner:
+            context.provider === PullRequestProvider.GITHUB
+                ? context.owner
+                : null,
+        repo:
+            context.provider === PullRequestProvider.GITHUB
+                ? context.repo
+                : null,
+        pullNumber:
+            context.provider === PullRequestProvider.GITHUB
+                ? context.prNumber
+                : null,
+        mergeCommitSha,
+        compileScheduled,
+        workstream: context.workstream,
+    },
+});
 
 export type AiWritebackEvent =
     | AiWritebackStartedEvent

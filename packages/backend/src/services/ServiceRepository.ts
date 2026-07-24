@@ -510,6 +510,7 @@ export class ServiceRepository
                     gitUserCredentialsModel:
                         this.models.getGitUserCredentialsModel(),
                     userModel: this.models.getUserModel(),
+                    pullRequestsModel: this.models.getPullRequestsModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                 }),
