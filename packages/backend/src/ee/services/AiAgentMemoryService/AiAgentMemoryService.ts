@@ -29,6 +29,8 @@ import {
 } from '../../../analytics/LightdashAnalytics';
 import { type GroupsModel } from '../../../models/GroupsModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
+import { type AiAgentMemoryDistillOutcome } from '../../../prometheus/PrometheusMetrics';
 import { BaseService } from '../../../services/BaseService';
 import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import {
@@ -85,6 +87,7 @@ type Dependencies = {
     projectModel: Pick<ProjectModel, 'findExploresFromCache' | 'getSummary'>;
     featureFlagService: FeatureFlagService;
     schedulerClient: MemorySchedulerClient;
+    prometheusMetrics?: PrometheusMetrics;
 } & (
     | {
           orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
@@ -138,6 +141,8 @@ export class AiAgentMemoryService extends BaseService {
 
     private readonly schedulerClient: MemorySchedulerClient;
 
+    private readonly prometheusMetrics: PrometheusMetrics | undefined;
+
     private readonly orgAiCopilotConfigResolver:
         | OrgAiCopilotConfigResolver
         | undefined;
@@ -153,6 +158,7 @@ export class AiAgentMemoryService extends BaseService {
         this.projectModel = dependencies.projectModel;
         this.featureFlagService = dependencies.featureFlagService;
         this.schedulerClient = dependencies.schedulerClient;
+        this.prometheusMetrics = dependencies.prometheusMetrics;
         this.orgAiCopilotConfigResolver =
             dependencies.orgAiCopilotConfigResolver;
         this.distillCall =
@@ -394,13 +400,27 @@ export class AiAgentMemoryService extends BaseService {
                 }),
             ),
         );
+        this.prometheusMetrics?.incrementAiAgentMemorySweepEnqueued(due.length);
         return due.length;
     }
 
     async distillThread(
         payload: AiAgentMemoryDistillJobPayload,
         abortSignal?: AbortSignal,
-    ): Promise<'disabled' | 'skipped' | 'memory' | 'no_op' | 'failed'> {
+    ): Promise<AiAgentMemoryDistillOutcome> {
+        const startTime = Date.now();
+        const outcome = await this.runDistillThread(payload, abortSignal);
+        this.prometheusMetrics?.trackAiAgentMemoryDistill(
+            outcome,
+            Date.now() - startTime,
+        );
+        return outcome;
+    }
+
+    private async runDistillThread(
+        payload: AiAgentMemoryDistillJobPayload,
+        abortSignal?: AbortSignal,
+    ): Promise<AiAgentMemoryDistillOutcome> {
         const sweptUpdatedAt =
             typeof payload.sweptUpdatedAt === 'string'
                 ? new Date(payload.sweptUpdatedAt)

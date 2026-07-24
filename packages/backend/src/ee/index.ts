@@ -135,7 +135,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
 
     return {
         serviceProviders: {
-            aiAgentMemoryService: ({ models, clients, context, repository }) =>
+            aiAgentMemoryService: ({
+                models,
+                clients,
+                context,
+                repository,
+                prometheusMetrics,
+            }) =>
                 new AiAgentMemoryService({
                     analytics: context.lightdashAnalytics,
                     aiAgentMemoryModel:
@@ -146,6 +152,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     featureFlagService: repository.getFeatureFlagService(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
+                    prometheusMetrics,
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:
