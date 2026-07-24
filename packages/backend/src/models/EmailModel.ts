@@ -81,9 +81,11 @@ export class EmailModel {
     async createPrimaryEmailOtp({
         passcode,
         userUuid,
+        resetAttemptsIfOtpCreatedBefore,
     }: {
         passcode: string;
         userUuid: string;
+        resetAttemptsIfOtpCreatedBefore: Date;
     }): Promise<EmailStatus> {
         const hashedPasscode = await bcrypt.hash(
             passcode,
@@ -103,7 +105,10 @@ export class EmailModel {
                 UPDATE
                     SET passcode = EXCLUDED.passcode,
                     created_at = DEFAULT,
-                    number_of_attempts = DEFAULT
+                    number_of_attempts = CASE
+                        WHEN email_one_time_passcodes.created_at < ? THEN 0
+                        ELSE email_one_time_passcodes.number_of_attempts
+                    END
                 RETURNING email_id
             )
             SELECT emails.email, emails.is_verified, email_one_time_passcodes.created_at, email_one_time_passcodes.number_of_attempts
@@ -113,7 +118,7 @@ export class EmailModel {
             INNER JOIN inserted 
                 ON inserted.email_id = emails.email_id
         `,
-            [hashedPasscode, userUuid],
+            [hashedPasscode, userUuid, resetAttemptsIfOtpCreatedBefore],
         );
         return this.getPrimaryEmailStatus(userUuid);
     }

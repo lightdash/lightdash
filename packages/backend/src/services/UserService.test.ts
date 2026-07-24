@@ -917,9 +917,10 @@ describe('UserService', () => {
                 userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
                 userModel.hasPassword.mockResolvedValueOnce(false);
                 userModel.hasOpenIdIdentity.mockResolvedValueOnce(false);
-                emailModel.getPrimaryEmailStatus.mockResolvedValueOnce(
-                    activeOtp(),
-                );
+                const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+                emailModel.getPrimaryEmailStatus
+                    .mockResolvedValueOnce(activeOtp(0, twoMinutesAgo))
+                    .mockResolvedValueOnce(activeOtp(0, twoMinutesAgo));
 
                 await service.requestEmailOtpLogin('email');
 
@@ -932,6 +933,27 @@ describe('UserService', () => {
                         onboardingFlow: 'new',
                     },
                 });
+            });
+
+            test('does not re-issue an OTP within the resend interval', async () => {
+                const service = createUserService(lightdashConfigMock, {
+                    featureFlagModel: createFeatureFlagModel(true),
+                });
+                userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
+                userModel.hasPassword.mockResolvedValueOnce(false);
+                userModel.hasOpenIdIdentity.mockResolvedValueOnce(false);
+                emailModel.getPrimaryEmailStatus.mockResolvedValueOnce(
+                    activeOtp(),
+                );
+
+                await expect(
+                    service.requestEmailOtpLogin('email'),
+                ).resolves.toBeUndefined();
+
+                expect(emailModel.createPrimaryEmailOtp).not.toHaveBeenCalled();
+                expect(
+                    emailClient.sendOneTimePasscodeEmail,
+                ).not.toHaveBeenCalled();
             });
         });
 
