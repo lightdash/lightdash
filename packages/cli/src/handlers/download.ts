@@ -206,7 +206,7 @@ const shouldDownloadAiAgents = ({
     appsOnly !== true &&
     (includeAll === true || includeAgents === true || agents.length > 0);
 
-const hasUploadFilters = ({
+const hasContentFilters = ({
     spacesOnly,
     charts,
     dashboards,
@@ -1424,7 +1424,7 @@ export const downloadHandler = async (
         );
     }
 
-    const hasFilters = hasUploadFilters(options);
+    const hasFilters = hasContentFilters(options);
     const shouldDownloadSpaces =
         !isOrganizationDownload && !options.skipSpaces && !hasFilters;
     let skipEmbeddedSpaces = !hasFilters || options.skipSpaces;
@@ -2474,15 +2474,7 @@ export const uploadHandler = async (
     }
 
     const isOrganizationUpload = options.organization === true;
-    const hasFilters =
-        !options.spacesOnly &&
-        (options.charts.length > 0 ||
-            options.dashboards.length > 0 ||
-            options.agents.length > 0 ||
-            options.alerts.length > 0 ||
-            options.googleSheets.length > 0 ||
-            options.scheduledDeliveries.length > 0 ||
-            options.virtualViews.length > 0);
+    const hasFilters = hasContentFilters(options);
     const shouldReconcileSpaces =
         !isOrganizationUpload && !options.skipSpaces && !hasFilters;
     let preflightSpaceFiles: SpaceCodeFile[] = [];
@@ -3208,7 +3200,7 @@ export const testHelpers = {
     downloadSpaces,
     getFlatSpaceFileNames,
     getDashboardChartSlugs,
-    hasUploadFilters,
+    hasContentFilters,
     readAiAgentFiles,
     readSpaceFiles,
     readSpaceNames,
