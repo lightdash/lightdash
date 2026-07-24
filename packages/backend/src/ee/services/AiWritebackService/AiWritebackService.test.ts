@@ -1756,6 +1756,8 @@ describe('AiWritebackService.mergePullRequest', () => {
                 repo: 'analytics',
                 prNumber: prUrl.includes('merge_requests') ? 3 : 7,
                 prUrl,
+                threadId: 'thread-1',
+                promptId: 'prompt-1',
                 workstream: 'dbt-writeback',
             }),
         );
