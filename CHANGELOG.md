@@ -1,3 +1,11 @@
+## [0.3471.1](https://github.com/lightdash/lightdash/compare/0.3471.0...0.3471.1) (2026-07-24)
+
+
+### Bug Fixes
+
+* harden AI hint parsing ([#26069](https://github.com/lightdash/lightdash/issues/26069)) ([fc2e6f8](https://github.com/lightdash/lightdash/commit/fc2e6f8bfa749b6ec6df8e8a76068ce5ccbd29db))
+* show friendly data app failure messages ([#26070](https://github.com/lightdash/lightdash/issues/26070)) ([cef887d](https://github.com/lightdash/lightdash/commit/cef887d4f46806659cacc31b5e809796346c8504))
+
 # [0.3471.0](https://github.com/lightdash/lightdash/compare/0.3470.3...0.3471.0) (2026-07-23)
 
 
