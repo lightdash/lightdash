@@ -1,5 +1,6 @@
 import {
     extractableTimeFrames,
+    isCalendarValueItem,
     isDimension,
     shouldShiftItemTimezone,
     TimeFrames,
@@ -82,9 +83,9 @@ const detectTimezoneShiftedField = ({
         return undefined;
     }
     const flipAxes = !!validCartesianConfig.layout?.flipAxes;
-    const timeFieldId = flipAxes
-        ? validCartesianConfig.layout?.yField?.[0]
-        : validCartesianConfig.layout?.xField;
+    // xField is the semantic time dimension even when flipped: series encoding
+    // and getEchartAxes both move it to the physical Y axis, keyed by fieldId.
+    const timeFieldId = validCartesianConfig.layout?.xField;
     if (!timeFieldId) return undefined;
     const field = itemsMap[timeFieldId];
     if (!field || !isDimension(field)) return undefined;
@@ -132,6 +133,49 @@ export const resolveAxisTimezone = (params: {
         timeAxisField: undefined,
         axisTimezone: params.resolvedTimezone,
         axisDisplayTimezone: undefined,
+    };
+};
+
+// Same shape the option walker consumes, but for a calendar value the 'UTC'
+// target is a zero-offset transport anchor, not a timezone conversion — the
+// DATE itself is never shifted.
+export type CalendarTimeAxisField = TimezoneShiftedField;
+
+// A calendar DATE (plain DATE column, DATE metric/table calc, or a
+// day-or-coarser TIMESTAMP trunc, which compiles to a real DATE) carries no
+// instant. ECharts parses a bare `YYYY-MM-DD` on a `time` axis as
+// browser-LOCAL midnight, so with `useUTC: true` positive-offset browsers
+// label it one day early. Encoding the plotted coordinate as UTC midnight
+// keeps the calendar day fixed for every viewer.
+//
+// Gated on the response's resolvedTimezone: only flag-on results emit bare
+// calendar values (flag-off keeps full ISO strings and must stay untouched).
+// The timezone string is only the mode signal and is never applied to the
+// DATE. physicalAxisType must come from the axis actually built for the
+// field (xAxis[0], or yAxis[0] when flipped) so reference-line-forced time
+// axes on coarse grains are covered and category axes are left alone.
+export const detectCalendarTimeAxisField = ({
+    validCartesianConfig,
+    itemsMap,
+    resolvedTimezone,
+    physicalAxisType,
+}: {
+    validCartesianConfig: CartesianChart | undefined;
+    itemsMap: ItemsMap | undefined;
+    resolvedTimezone: string | undefined;
+    physicalAxisType: string | undefined;
+}): CalendarTimeAxisField | undefined => {
+    if (!resolvedTimezone || physicalAxisType !== 'time') return undefined;
+    if (!validCartesianConfig || !itemsMap) return undefined;
+    // xField is the semantic dimension; flipAxes only moves it to physical Y.
+    const fieldId = validCartesianConfig.layout?.xField;
+    if (!fieldId) return undefined;
+    const field = itemsMap[fieldId];
+    if (!field || !isCalendarValueItem(field)) return undefined;
+    return {
+        fieldId,
+        timezone: 'UTC',
+        flipAxes: !!validCartesianConfig.layout?.flipAxes,
     };
 };
 
@@ -277,6 +321,38 @@ const shiftBareArraySeriesData = (
     });
 };
 
+// Reference lines carry raw axis values that ECharts would parse differently
+// from the rewritten data coordinates, leaving the line offset from its bars.
+// Run the time-axis slot (xAxis, or yAxis when flipped) through the same
+// transform. Value-axis slots and series-relative marks (type 'average' etc.,
+// which carry no axis value) are untouched.
+const shiftSeriesMarkLineValues = (
+    series: EchartsSeriesShape[],
+    shifted: TimezoneShiftedField,
+): EchartsSeriesShape[] => {
+    const axisKey = shifted.flipAxes ? 'yAxis' : 'xAxis';
+    return series.map((s) => {
+        const markLine = s.markLine;
+        if (!isPlainObject(markLine) || !Array.isArray(markLine.data)) {
+            return s;
+        }
+        let mutated = false;
+        const newData = markLine.data.map((entry) => {
+            if (!isPlainObject(entry)) return entry;
+            const raw = entry[axisKey];
+            if (raw === undefined || raw === null) return entry;
+            const shiftedMs = shiftRawToTimezoneWallClockMs(
+                raw,
+                shifted.timezone,
+            );
+            if (shiftedMs === undefined) return entry;
+            mutated = true;
+            return { ...entry, [axisKey]: shiftedMs };
+        });
+        return mutated ? { ...s, markLine: { ...markLine, data: newData } } : s;
+    });
+};
+
 // Run last on the built echarts options — the rest of the pipeline stays in UTC.
 export const applyTimezoneShiftToEchartsOptions = <
     O extends EchartsOptionsShape,
@@ -293,6 +369,9 @@ export const applyTimezoneShiftToEchartsOptions = <
     return {
         ...options,
         dataset: shiftDatasetSources(options.dataset, shifted, shiftedDim),
-        series: shiftBareArraySeriesData(renamedSeries, shifted),
+        series: shiftSeriesMarkLineValues(
+            shiftBareArraySeriesData(renamedSeries, shifted),
+            shifted,
+        ),
     };
 };
