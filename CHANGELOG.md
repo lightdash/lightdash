@@ -1,3 +1,16 @@
+# [0.3474.0](https://github.com/lightdash/lightdash/compare/0.3473.0...0.3474.0) (2026-07-24)
+
+
+### Bug Fixes
+
+* **skills:** hide Claude skills from public discovery ([#26141](https://github.com/lightdash/lightdash/issues/26141)) ([f688bbb](https://github.com/lightdash/lightdash/commit/f688bbb55bf8398f0166dd0419298bc7bac2fdbe))
+
+
+### Features
+
+* **cli:** add partial compilation opt-out ([#25986](https://github.com/lightdash/lightdash/issues/25986)) ([109235e](https://github.com/lightdash/lightdash/commit/109235e809013cd052e3ad20731b2bb8cf916672))
+* **frontend:** support negative values in in-cell table bars ([#25410](https://github.com/lightdash/lightdash/issues/25410)) ([eeecde0](https://github.com/lightdash/lightdash/commit/eeecde010da22e1c8a502703f6fc314129e0781d))
+
 # [0.3473.0](https://github.com/lightdash/lightdash/compare/0.3472.3...0.3473.0) (2026-07-24)
 
 
