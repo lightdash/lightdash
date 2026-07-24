@@ -3,7 +3,16 @@ import {
     isApiError,
     type AppVersionStatus,
 } from '@lightdash/common';
-import { ActionIcon, Menu, Text, Tooltip } from '@mantine-8/core';
+import {
+    ActionIcon,
+    Badge,
+    Indicator,
+    List,
+    Menu,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
 import {
     IconArrowsUpDown,
     IconCamera,
@@ -36,6 +45,7 @@ import {
 import { useCanCreateDataApp } from '../hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../hooks/useCanEditDataApp';
 import { useDuplicateApp } from '../hooks/useDuplicateApp';
+import { type SdkUpgradeOffer } from '../hooks/useSdkUpgradeStatus';
 import { useUpgradeApp } from '../hooks/useUpgradeApp';
 import {
     DataAppFavoriteMenuItem,
@@ -76,9 +86,10 @@ type Props = {
      *  looking at. Null when the iframe hasn't announced screenshot
      *  capability — the modal then falls back to a default-state render. */
     capturePreviewScreenshot: (() => Promise<File>) | null;
-    /** Upgrade action for the builder surface; null on surfaces without an
-     *  upgrade flow (the viewer). `disabled` while a build is in flight. */
-    upgrade: { disabled: boolean } | null;
+    /** Upgrade offer derived from the live preview's SDK manifest (see
+     *  `useSdkUpgradeStatus`). Null on surfaces without an upgrade flow (the
+     *  viewer). `disabled` while a build is already in flight. */
+    upgrade: (SdkUpgradeOffer & { disabled: boolean }) | null;
 };
 
 /**
@@ -191,12 +202,31 @@ const AppHeaderActions: FC<Props> = ({
     }, [duplicateMutate, navigate, projectUuid, appUuid]);
 
     const { mutate: upgradeMutate, isLoading: isUpgrading } = useUpgradeApp();
+    const upgradeAvailable =
+        canEdit &&
+        upgrade !== null &&
+        (upgrade.status === 'stale' || upgrade.status === 'legacy');
     const handleUpgrade = useCallback(() => {
+        if (!upgrade) return;
         upgradeMutate(
-            { projectUuid, appUuid, body: {} },
+            {
+                projectUuid,
+                appUuid,
+                body: {
+                    ...(upgrade.reportedSdkVersion !== null
+                        ? { reportedSdkVersion: upgrade.reportedSdkVersion }
+                        : {}),
+                    ...(upgrade.reportedFeatures !== null
+                        ? { reportedFeatures: upgrade.reportedFeatures }
+                        : {}),
+                    ...(upgrade.candidateFeatures.length > 0
+                        ? { candidateFeatures: upgrade.candidateFeatures }
+                        : {}),
+                },
+            },
             { onSuccess: () => setIsUpgradeModalOpen(false) },
         );
-    }, [upgradeMutate, projectUuid, appUuid]);
+    }, [upgrade, upgradeMutate, projectUuid, appUuid]);
 
     return (
         <>
@@ -225,14 +255,21 @@ const AppHeaderActions: FC<Props> = ({
                 onOpen={() => setMenuOpened(true)}
             >
                 <Menu.Target>
-                    <ActionIcon
-                        variant="subtle"
-                        size="sm"
-                        color="ldGray.6"
-                        aria-label="App actions"
+                    <Indicator
+                        disabled={!upgradeAvailable}
+                        color="blue"
+                        size={8}
+                        offset={2}
                     >
-                        <MantineIcon icon={IconDots} size={16} />
-                    </ActionIcon>
+                        <ActionIcon
+                            variant="subtle"
+                            size="sm"
+                            color="ldGray.6"
+                            aria-label="App actions"
+                        >
+                            <MantineIcon icon={IconDots} size={16} />
+                        </ActionIcon>
+                    </Indicator>
                 </Menu.Target>
                 <Menu.Dropdown>
                     {navItem}
@@ -267,6 +304,17 @@ const AppHeaderActions: FC<Props> = ({
                         <Menu.Item
                             leftSection={
                                 <MantineIcon icon={IconSparkles} size={14} />
+                            }
+                            rightSection={
+                                upgradeAvailable ? (
+                                    <Badge
+                                        size="xs"
+                                        variant="light"
+                                        color="blue"
+                                    >
+                                        New
+                                    </Badge>
+                                ) : undefined
                             }
                             disabled={upgrade.disabled || isUpgrading}
                             onClick={() => setIsUpgradeModalOpen(true)}
@@ -374,13 +422,46 @@ const AppHeaderActions: FC<Props> = ({
                     confirmLoading={isUpgrading}
                     onConfirm={handleUpgrade}
                 >
-                    <Text size="sm">
-                        Upgrading rebuilds this app on the latest template
-                        (newest SDK, components, and agent skills). The agent
-                        fixes anything the new template breaks, then offers
-                        newly available features in chat — nothing is added
-                        until you ask.
-                    </Text>
+                    <Stack gap="sm">
+                        {upgrade.status === 'stale' ? (
+                            <>
+                                <Text size="sm">
+                                    Upgrading rebuilds this app on the latest
+                                    template. New since this app was built:
+                                </Text>
+                                <List spacing="xs" size="sm">
+                                    {upgrade.newFeatures.map((feature) => (
+                                        <List.Item key={feature.key}>
+                                            <Text size="sm" fw={500} span>
+                                                {feature.label}
+                                            </Text>{' '}
+                                            <Text size="sm" c="dimmed" span>
+                                                — {feature.description}
+                                            </Text>
+                                        </List.Item>
+                                    ))}
+                                </List>
+                                <Text size="sm" c="dimmed">
+                                    The agent fixes anything the new template
+                                    breaks, then offers these features in chat —
+                                    nothing is added until you ask.
+                                </Text>
+                            </>
+                        ) : upgrade.status === 'current' ? (
+                            <Text size="sm">
+                                This app is already on the latest SDK. Upgrading
+                                again rebuilds it on a fresh copy of the current
+                                template.
+                            </Text>
+                        ) : (
+                            <Text size="sm">
+                                This app was built on an older SDK. Upgrading
+                                rebuilds it on the latest template, and the
+                                agent will offer newly available features in
+                                chat — nothing is added until you ask.
+                            </Text>
+                        )}
+                    </Stack>
                 </MantineModal>
             )}
             {isUpdateModalOpen && (

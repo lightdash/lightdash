@@ -12,7 +12,8 @@
         "paths": {
             "better-ajv-errors": [
                 "../common/node_modules/better-ajv-errors/typings.d.ts"
-            ]
+            ],
+            "@lightdash/query-sdk/features": ["../query-sdk/src/features.ts"]
         },
         "tsBuildInfoFile": "dist/.tsgo.tsbuildinfo"
     }

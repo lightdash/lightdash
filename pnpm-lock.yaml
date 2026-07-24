@@ -1095,6 +1095,9 @@ importers:
       '@lightdash/formula':
         specifier: workspace:*
         version: link:../formula
+      '@lightdash/query-sdk':
+        specifier: workspace:*
+        version: link:../query-sdk
       '@mantine-8/code-highlight':
         specifier: npm:@mantine/code-highlight@8.0.0
         version: '@mantine/code-highlight@8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)'
