@@ -1,4 +1,5 @@
 import { Box, Text } from '@mantine-8/core';
+import { type ReactNode } from 'react';
 
 type TableCellBarProps = {
     value: number;
@@ -11,23 +12,121 @@ type TableCellBarProps = {
     color?: string;
 };
 
+const BAR_HEIGHT = '20px';
+const MIN_BAR_WIDTH = '2px';
+const DEFAULT_BAR_COLOR = '#5470c6';
+
+const clamp = (n: number, lo: number, hi: number) =>
+    Math.max(lo, Math.min(hi, n));
+
 export const TableCellBar = ({
     value,
     formatted,
     maxLabel,
     min,
     max,
-    color = '#5470c6',
+    color = DEFAULT_BAR_COLOR,
 }: TableCellBarProps) => {
-    // Calculate bar width percentage
-    const range = max - min;
-    const percentage =
-        range > 0
-            ? Math.max(0, Math.min(100, ((value - min) / range) * 100))
-            : 0;
+    // Scale always includes zero (Excel-style automatic axis) so all-negative
+    // columns don't clamp distinct values to identical full-width bars.
+    const range = Math.max(max, 0) - min;
 
-    // Only show bar for positive numbers
-    const showBar = value > 0;
+    // Diverging mode only kicks in when the column contains negative values.
+    // Positive-only columns keep the original left-anchored bar unchanged.
+    const isDiverging = min < 0 && range > 0;
+
+    let bar: ReactNode;
+
+    if (!isDiverging) {
+        // Positive-only (or zero range): left-anchored fill from the far left.
+        const percentage =
+            range > 0 ? clamp(((value - min) / range) * 100, 0, 100) : 0;
+
+        bar =
+            value > 0 ? (
+                <Box
+                    h={BAR_HEIGHT}
+                    w={`${percentage}%`}
+                    bg={color}
+                    maw="100%"
+                    // Always show a visible bar for positive values
+                    miw={MIN_BAR_WIDTH}
+                    style={{ borderRadius: '2px' }}
+                />
+            ) : (
+                <Box />
+            );
+    } else {
+        // Diverging mode: the zero baseline is placed proportionally along the
+        // track (Excel-style "automatic axis"). Positive bars grow right of
+        // zero, negative bars grow left. When every value is negative
+        // (max <= 0) the zero line clamps to the right edge so all bars grow
+        // leftward from it.
+        const zeroPercent = clamp(((0 - min) / range) * 100, 0, 100);
+        const positiveWidth =
+            value > 0 ? clamp((value / range) * 100, 0, 100 - zeroPercent) : 0;
+        const negativeWidth =
+            value < 0 ? clamp((-value / range) * 100, 0, zeroPercent) : 0;
+        const showZeroLine = zeroPercent > 0 && zeroPercent < 100;
+
+        bar = (
+            <Box
+                h={BAR_HEIGHT}
+                style={{
+                    position: 'relative',
+                    width: '100%',
+                    // Clip min-width bars from spilling past the track edge
+                    // when the baseline sits very close to it.
+                    overflow: 'hidden',
+                }}
+            >
+                {showZeroLine && (
+                    <Box
+                        aria-hidden
+                        style={{
+                            position: 'absolute',
+                            left: `${zeroPercent}%`,
+                            top: 0,
+                            bottom: 0,
+                            width: '1px',
+                            transform: 'translateX(-0.5px)',
+                            backgroundColor: 'var(--mantine-color-ldGray-3)',
+                        }}
+                    />
+                )}
+                {value > 0 && (
+                    <Box
+                        h={BAR_HEIGHT}
+                        bg={color}
+                        miw={MIN_BAR_WIDTH}
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            // Left edge sits on the zero line, grows rightward.
+                            left: `${zeroPercent}%`,
+                            width: `${positiveWidth}%`,
+                            borderRadius: '0 2px 2px 0',
+                        }}
+                    />
+                )}
+                {value < 0 && (
+                    <Box
+                        h={BAR_HEIGHT}
+                        bg={color}
+                        miw={MIN_BAR_WIDTH}
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            // Right edge sits on the zero line, grows leftward.
+                            right: `${100 - zeroPercent}%`,
+                            width: `${negativeWidth}%`,
+                            borderRadius: '2px 0 0 2px',
+                        }}
+                    />
+                )}
+            </Box>
+        );
+    }
 
     return (
         <Box
@@ -39,21 +138,7 @@ export const TableCellBar = ({
                 gap: '4px',
             }}
         >
-            {showBar ? (
-                <Box
-                    h="20px"
-                    w={`${percentage}%`}
-                    bg={color}
-                    maw="100%"
-                    // Always show visible bar for positive values
-                    miw="2px"
-                    style={{
-                        borderRadius: '2px',
-                    }}
-                />
-            ) : (
-                <Box />
-            )}
+            {bar}
             {/* Label gutter: when this row isn't the widest, an invisible
                 sizer holds the column's widest label so the gutter width stays
                 constant across every row. The visible label is right-aligned. */}
