@@ -1,3 +1,10 @@
+## [0.3476.1](https://github.com/lightdash/lightdash/compare/0.3476.0...0.3476.1) (2026-07-24)
+
+
+### Bug Fixes
+
+* **echarts:** deterministic reference line values on time axes ([#26145](https://github.com/lightdash/lightdash/issues/26145)) ([d460497](https://github.com/lightdash/lightdash/commit/d4604974155187c7a0dd8e57df5e28814a9dd417))
+
 # [0.3476.0](https://github.com/lightdash/lightdash/compare/0.3475.0...0.3476.0) (2026-07-24)
 
 
