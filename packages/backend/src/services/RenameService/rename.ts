@@ -849,6 +849,9 @@ export const renameSavedChart = ({
     if (chart.pivotConfig && containsModelName(chart.pivotConfig)) {
         updatedChart.pivotConfig = {
             columns: replaceList(updatedChart.pivotConfig?.columns || []),
+            ...(updatedChart.pivotConfig?.rows && {
+                rows: replaceList(updatedChart.pivotConfig.rows),
+            }),
         };
     }
 

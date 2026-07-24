@@ -1,9 +1,9 @@
+import { useDisclosure } from '@mantine-8/hooks';
 import {
     MonthPicker,
     MonthPickerInput,
     type MonthPickerInputProps,
 } from '@mantine/dates';
-import { useDisclosure } from '@mantine/hooks';
 import dayjs from 'dayjs';
 import { type FC } from 'react';
 import InvalidDateInput from './InvalidDateInput';

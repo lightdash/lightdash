@@ -120,10 +120,14 @@ const buildService = (overrides: Record<string, AnyType> = {}) =>
             getValidUserToken: vi.fn().mockResolvedValue(undefined),
         } as AnyType,
         gitlabAppInstallationsModel: {} as AnyType,
-        aiWritebackThreadModel: { findByAiThreadUuid: vi.fn() } as AnyType,
+        aiWritebackThreadModel: {
+            findByAiThreadUuid: vi.fn(),
+            findByProjectUuidAndPrUrl: vi.fn().mockResolvedValue(null),
+        } as AnyType,
         aiWritebackRunModel: {
             create: vi.fn(),
             findByUuid: vi.fn(),
+            findLatestByProjectUuidAndPrUrl: vi.fn().mockResolvedValue(null),
             updateStageIfInProgress: vi.fn().mockResolvedValue(undefined),
             markReady: vi.fn().mockResolvedValue(true),
             markError: vi.fn().mockResolvedValue(true),
@@ -1805,7 +1809,19 @@ describe('AiWritebackService.mergePullRequest', () => {
 
     it('tracks ai_writeback.merged with the parsed PR context on a successful git merge', async () => {
         const track = vi.fn();
-        const { service } = setup({ analytics: { track } as AnyType });
+        const { service } = setup({
+            analytics: { track } as AnyType,
+            aiWritebackThreadModel: {
+                findByProjectUuidAndPrUrl: vi
+                    .fn()
+                    .mockResolvedValue(threadRow(PR_7)),
+            } as AnyType,
+            aiWritebackRunModel: {
+                findLatestByProjectUuidAndPrUrl: vi.fn().mockResolvedValue({
+                    prompt_uuid: 'prompt-1',
+                }),
+            } as AnyType,
+        });
         await service.mergePullRequest({ ...mergeArgs, user: userWithOrg });
         expect(track).toHaveBeenCalledTimes(1);
         expect(track).toHaveBeenCalledWith({
@@ -1814,12 +1830,15 @@ describe('AiWritebackService.mergePullRequest', () => {
             properties: {
                 organizationId: ORG,
                 projectId: 'p1',
+                threadId: 'thread-1',
+                promptId: 'prompt-1',
                 prUrl: PR_7,
                 owner: 'acme',
                 repo: 'analytics',
                 pullNumber: 7,
                 mergeCommitSha: 'sha-7',
                 compileScheduled: true,
+                workstream: 'dbt-writeback',
             },
         });
     });
@@ -1876,6 +1895,48 @@ describe('AiWritebackService.mergePullRequest', () => {
                 }),
             }),
         );
+    });
+});
+
+describe('AiWritebackService.startTracking', () => {
+    it('assembles explicit thread and prompt properties for agent and API runs', () => {
+        const track = vi.fn();
+        const service = buildService({ analytics: { track } as AnyType });
+        const startTracking = (service as AnyType).startTracking.bind(service);
+
+        startTracking({
+            user: { userUuid: 'u1' },
+            projectUuid: 'p1',
+            turn: turnContext(),
+            workstream: 'dbt-writeback',
+            aiThreadUuid: 'thread-1',
+            promptUuid: 'prompt-1',
+        });
+        expect(track).toHaveBeenLastCalledWith({
+            event: 'ai_writeback.started',
+            userId: 'u1',
+            properties: expect.objectContaining({
+                threadId: 'thread-1',
+                promptId: 'prompt-1',
+            }),
+        });
+
+        startTracking({
+            user: { userUuid: 'u1' },
+            projectUuid: 'p1',
+            turn: turnContext(),
+            workstream: 'dbt-writeback',
+            aiThreadUuid: undefined,
+            promptUuid: undefined,
+        });
+        expect(track).toHaveBeenLastCalledWith({
+            event: 'ai_writeback.started',
+            userId: 'u1',
+            properties: expect.objectContaining({
+                threadId: null,
+                promptId: null,
+            }),
+        });
     });
 });
 

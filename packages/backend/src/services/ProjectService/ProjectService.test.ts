@@ -426,6 +426,40 @@ describe('ProjectService', () => {
         ).toMatchObject({ onboardingFlow: 'new' });
     });
 
+    test.each([
+        [RedshiftAuthenticationType.IAM, RedshiftAuthenticationType.IAM],
+        [undefined, RedshiftAuthenticationType.PASSWORD],
+    ])(
+        'includes Redshift authentication type %s in project analytics properties',
+        (authenticationType, expectedAuthenticationType) => {
+            expect(
+                ProjectService.getAnalyticProperties(
+                    {
+                        name: projectWithSensitiveFields.name,
+                        type: projectWithSensitiveFields.type,
+                        dbtConnection: projectWithSensitiveFields.dbtConnection,
+                        warehouseConnection: {
+                            type: WarehouseTypes.REDSHIFT,
+                            host: 'localhost',
+                            user: 'analytics',
+                            password: 'password',
+                            port: 5439,
+                            dbname: 'analytics',
+                            schema: 'public',
+                            authenticationType,
+                        },
+                    },
+                    projectUuid,
+                    user,
+                    RequestMethod.WEB_APP,
+                    'new',
+                ),
+            ).toMatchObject({
+                authenticationType: expectedAuthenticationType,
+            });
+        },
+    );
+
     test('does not compile and removes a preview when copying fails', async () => {
         const previewProjectUuid = 'failed-preview-project-uuid';
         (

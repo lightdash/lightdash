@@ -835,8 +835,20 @@ export const upsertSpaces = async (
     changes: Record<string, number>,
     skipSpaceCreate: boolean,
     publicSpaceCreate: boolean,
+    skipSpaceAccess: boolean = false,
 ): Promise<Record<string, number>> => {
     if (files.length === 0) return changes;
+
+    if (
+        skipSpaceAccess &&
+        files.some(({ space }) => space.access !== undefined)
+    ) {
+        GlobalState.log(
+            styles.warning(
+                'Space access policies will be skipped. Existing destination access will be preserved; new spaces will use default access.',
+            ),
+        );
+    }
 
     const failedPaths = new Set<string>();
     const skippedPaths = new Set<string>();
@@ -867,10 +879,13 @@ export const upsertSpaces = async (
             );
         } else {
             try {
+                const spaceToUpload = skipSpaceAccess
+                    ? { ...space, access: undefined }
+                    : space;
                 const params = new URLSearchParams({
                     skipSpaceCreate: String(skipSpaceCreate),
                     publicSpaceCreate: String(
-                        publicSpaceCreate && space.access === undefined,
+                        publicSpaceCreate && spaceToUpload.access === undefined,
                     ),
                 });
                 const result = await lightdashApi<
@@ -878,7 +893,7 @@ export const upsertSpaces = async (
                 >({
                     method: 'POST',
                     url: `/api/v1/projects/${projectId}/code/spaces?${params.toString()}`,
-                    body: JSON.stringify(space),
+                    body: JSON.stringify(spaceToUpload),
                 });
                 const action = getSpacePromoteAction(result.action);
                 const key = `spaces ${action}`;
@@ -908,12 +923,29 @@ export const upsertSpaces = async (
                         ),
                     );
                 } else {
+                    const errorMessage = getErrorMessage(error);
+                    const accessIdentityError =
+                        errorMessage.includes(
+                            ' is not a member of this organization',
+                        ) ||
+                        errorMessage.includes(
+                            ' does not exist in this organization',
+                        ) ||
+                        errorMessage.includes(
+                            ' is ambiguous in this organization',
+                        ) ||
+                        errorMessage.includes(
+                            ' cannot be assigned through space access as code',
+                        );
+                    const skipAccessHint = accessIdentityError
+                        ? '\nHint: use --skip-space-access to upload the space without applying its access policy.'
+                        : '';
                     failedPaths.add(space.slug);
                     changes['spaces with errors'] =
                         (changes['spaces with errors'] ?? 0) + 1;
                     GlobalState.log(
                         styles.error(
-                            `Error upserting space "${space.slug}" (${filePath}): ${getErrorMessage(error)}`,
+                            `Error upserting space "${space.slug}" (${filePath}): ${errorMessage}${skipAccessHint}`,
                         ),
                     );
                 }

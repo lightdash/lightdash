@@ -57,6 +57,7 @@ import { getListWarehouseTables } from '../tools/listWarehouseTables';
 import { getListWorkstreams } from '../tools/listWorkstreams';
 import { getLoadProjectContext } from '../tools/loadProjectContext';
 import { getLoadSkill } from '../tools/loadSkill';
+import { getProjectContextSearchEntries } from '../tools/memoryProjectContext';
 import { getReadContent } from '../tools/readContent';
 import { getReadPinnedThread } from '../tools/readPinnedThread';
 import { getResolveUrl } from '../tools/resolveUrl';
@@ -79,6 +80,7 @@ import {
     AiAgentStepCapReachedError,
     getUserFacingErrorMessage,
 } from '../utils/errorMessages';
+import { renderMemoryBlock } from '../utils/memoryBlock';
 import {
     isPendingToolResult,
     summarizeToolCall,
@@ -96,6 +98,70 @@ const createAiAgentLogger =
     };
 
 const STEP_CAP = 40;
+
+const PERSIST_TIMEOUT_MS = 10_000;
+
+/**
+ * Decorates updatePrompt with the stream-close contract: awaiting it never
+ * throws and never holds the HTTP stream open past PERSIST_TIMEOUT_MS (the
+ * write continues in the background on timeout). If persisting a response
+ * fails outright, the update degrades to an error marker so a later page load
+ * shows a retry card instead of a silently vanished answer.
+ */
+const makeStreamSafePersist = (
+    updatePrompt: AiAgentDependencies['updatePrompt'],
+    modelName: string,
+) => {
+    const report = (error: unknown) => {
+        Logger.error('[AiAgent][Persist] Failed to persist prompt', error);
+        Sentry.captureException(error, {
+            tags: { 'ai.model': modelName },
+        });
+    };
+
+    const bounded = async (
+        update: Parameters<AiAgentDependencies['updatePrompt']>[0],
+    ): Promise<'persisted' | 'timeout' | 'failed'> => {
+        let timer: NodeJS.Timeout | undefined;
+        try {
+            const persist = updatePrompt(update);
+            const outcome = await Promise.race([
+                persist.then(() => 'persisted' as const),
+                new Promise<'timeout'>((resolve) => {
+                    timer = setTimeout(
+                        () => resolve('timeout'),
+                        PERSIST_TIMEOUT_MS,
+                    );
+                }),
+            ]);
+            if (outcome === 'timeout') {
+                Logger.warn(
+                    `[AiAgent][Persist] Persist exceeded ${PERSIST_TIMEOUT_MS}ms, continuing in background`,
+                );
+                persist.catch(report);
+            }
+            return outcome;
+        } catch (error) {
+            report(error);
+            return 'failed';
+        } finally {
+            clearTimeout(timer);
+        }
+    };
+
+    return async (
+        update: Parameters<AiAgentDependencies['updatePrompt']>[0],
+    ): Promise<void> => {
+        const outcome = await bounded(update);
+        if (outcome === 'failed' && update.response !== undefined) {
+            await bounded({
+                promptUuid: update.promptUuid,
+                errorMessage:
+                    'Something went wrong while saving the response. Please try again.',
+            });
+        }
+    };
+};
 
 const withToolHints = (
     messageHistory: ModelMessage[],
@@ -361,6 +427,7 @@ export const getAgentTools = (
                 userId: args.userId,
                 telemetryEnabled: args.telemetryEnabled,
                 model: args.model,
+                keyManagement: args.keyManagement,
             },
         },
         {
@@ -461,6 +528,7 @@ export const getAgentTools = (
               recordSqlApproval: dependencies.recordSqlApproval,
               isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
               storeToolResults: dependencies.storeToolResults,
+              createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
               maxQueryLimit: args.runSqlMaxLimit,
               autoApproveSql: args.autoApproveSql,
               autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
@@ -625,11 +693,30 @@ export const getAgentTools = (
         getProjectInfo: dependencies.getProjectInfo,
     });
 
-    const loadProjectContext = args.projectContextEnabled
-        ? getLoadProjectContext({
-              getDocument: dependencies.getProjectContextDocument,
-          })
-        : null;
+    const loadProjectContext =
+        args.projectContextEnabled || args.aiAgentMemoryEnabled
+            ? getLoadProjectContext({
+                  getDocument: async () => {
+                      const [projectContext, memories] = await Promise.all([
+                          args.projectContextEnabled
+                              ? dependencies.getProjectContextDocument()
+                              : Promise.resolve([]),
+                          args.aiAgentMemoryEnabled
+                              ? dependencies.getAiAgentMemoryContextEntries()
+                              : Promise.resolve([]),
+                      ]);
+                      return getProjectContextSearchEntries({
+                          projectContext,
+                          memories,
+                          memoryEnabled: args.aiAgentMemoryEnabled,
+                      });
+                  },
+                  includeMemories: args.aiAgentMemoryEnabled,
+                  onEntriesLoaded: args.aiAgentMemoryEnabled
+                      ? dependencies.incrementAiAgentMemoryPulls
+                      : undefined,
+              })
+            : null;
 
     const enableContentTools = args.enableDataAccess && args.enableContentTools;
 
@@ -758,11 +845,30 @@ const getUnauthenticatedMcpServerNames = (
         .map((server) => server.serverName);
 };
 
+export const buildMessagesWithMemoryBlock = ({
+    systemPrompt,
+    messageHistory,
+    memoryEnabled,
+    memoryBlock,
+}: {
+    systemPrompt: ModelMessage;
+    messageHistory: ModelMessage[];
+    memoryEnabled: boolean;
+    memoryBlock: string | null;
+}): ModelMessage[] => [
+    systemPrompt,
+    ...(memoryEnabled && memoryBlock
+        ? [{ role: 'user' as const, content: memoryBlock }]
+        : []),
+    ...messageHistory,
+];
+
 const getAgentMessages = (
     args: AiAgentArgs,
     availableExplores: Explore[],
     mcpToolSetup: AgentMcpToolSetup,
     verifiedFieldUsage: Map<string, number>,
+    memoryBlock: string | null,
 ) => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
@@ -780,37 +886,40 @@ const getAgentMessages = (
     const hasProjectContext =
         args.projectContextEnabled && args.projectContext.length > 0;
 
-    const messages = [
-        getSystemPromptV2({
-            agentName: args.agentSettings.name,
-            instructions: args.agentSettings.instruction || undefined,
-            requestingUser: args.requestingUser,
-            availableExplores,
-            availableSkills: args.availableSkills,
-            knowledgeDocuments: args.knowledgeDocuments,
-            hasProjectContext,
-            enableDataAccess: args.enableDataAccess,
-            enableAiWriteback: args.enableAiWriteback,
-            writebackAttribution: args.writebackAttribution,
-            enableCodingAgent: args.enableCodingAgent,
-            siteUrl: args.siteUrl,
-            enableRepoDiscovery: args.enableRepoDiscovery,
-            repoFsRoot: args.repoFsRoot,
-            repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
-            enableGrepFields: args.enableGrepFields,
-            enableContentTools:
-                args.enableDataAccess && args.enableContentTools,
-            slackChannelId: args.slackChannelId,
-            canRunSql: args.canRunSql,
-            warehouseType: args.warehouseType,
-            warehouseSchema: args.warehouseSchema,
-            unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
-                args,
-                mcpToolSetup,
-            ),
-        }),
-        ...messageHistory,
-    ];
+    const systemPrompt = getSystemPromptV2({
+        agentName: args.agentSettings.name,
+        instructions: args.agentSettings.instruction || undefined,
+        requestingUser: args.requestingUser,
+        availableExplores,
+        availableSkills: args.availableSkills,
+        knowledgeDocuments: args.knowledgeDocuments,
+        hasProjectContext,
+        enableAiAgentMemory: args.aiAgentMemoryEnabled,
+        enableDataAccess: args.enableDataAccess,
+        enableAiWriteback: args.enableAiWriteback,
+        writebackAttribution: args.writebackAttribution,
+        enableCodingAgent: args.enableCodingAgent,
+        siteUrl: args.siteUrl,
+        enableRepoDiscovery: args.enableRepoDiscovery,
+        repoFsRoot: args.repoFsRoot,
+        repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
+        enableGrepFields: args.enableGrepFields,
+        enableContentTools: args.enableDataAccess && args.enableContentTools,
+        slackChannelId: args.slackChannelId,
+        canRunSql: args.canRunSql,
+        warehouseType: args.warehouseType,
+        warehouseSchema: args.warehouseSchema,
+        unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
+            args,
+            mcpToolSetup,
+        ),
+    });
+    const messages = buildMessagesWithMemoryBlock({
+        systemPrompt,
+        messageHistory,
+        memoryEnabled: args.aiAgentMemoryEnabled,
+        memoryBlock,
+    });
 
     logger('Agent Messages', `Retrieved ${messages.length} messages.`);
 
@@ -839,6 +948,16 @@ const getAgentMessages = (
     return messages;
 };
 
+const getMemoryBlock = async (
+    args: AiAgentArgs,
+    dependencies: AiAgentDependencies,
+): Promise<string | null> => {
+    if (!args.aiAgentMemoryEnabled) return null;
+    return renderMemoryBlock(
+        await dependencies.getAiAgentMemoryContextEntries(),
+    );
+};
+
 export const generateAgentResponse = async ({
     args,
     dependencies,
@@ -861,7 +980,10 @@ export const generateAgentResponse = async ({
     const modelName = getAiAgentModelName(args.model);
 
     try {
-        const availableExplores = await dependencies.listExplores();
+        const [availableExplores, memoryBlock] = await Promise.all([
+            dependencies.listExplores(),
+            getMemoryBlock(args, dependencies),
+        ]);
         // Verified-chart usage powers verified-first ranking in grep discovery;
         // degrade to an empty map if it can't be fetched.
         const verifiedFieldUsage = args.enableGrepFields
@@ -884,6 +1006,7 @@ export const generateAgentResponse = async ({
             availableExplores,
             mcpToolSetup,
             verifiedFieldUsage,
+            memoryBlock,
         );
         logger(
             'Generate Agent Response',
@@ -1143,6 +1266,10 @@ export const streamAgentResponse = async ({
     let firstTextTime: number | null = null;
     let mcpClientsClosed = false;
     const modelName = getAiAgentModelName(args.model);
+    const persistPrompt = makeStreamSafePersist(
+        dependencies.updatePrompt,
+        modelName,
+    );
 
     const cleanupMcpClients = async () => {
         if (mcpClientsClosed) {
@@ -1154,7 +1281,10 @@ export const streamAgentResponse = async ({
     };
 
     try {
-        const availableExplores = await dependencies.listExplores();
+        const [availableExplores, memoryBlock] = await Promise.all([
+            dependencies.listExplores(),
+            getMemoryBlock(args, dependencies),
+        ]);
         const verifiedFieldUsage = args.enableGrepFields
             ? await dependencies
                   .getVerifiedFieldUsage()
@@ -1172,6 +1302,7 @@ export const streamAgentResponse = async ({
             availableExplores,
             mcpToolSetup,
             verifiedFieldUsage,
+            memoryBlock,
         );
         logger(
             'Stream Agent Response',
@@ -1453,8 +1584,11 @@ export const streamAgentResponse = async ({
 
                 const stepCapReached = steps.length >= STEP_CAP;
 
+                // The AI SDK holds the stream open until onFinish resolves, so
+                // the HTTP stream only closes once the response is persisted —
+                // the client's post-stream refetch then reads persisted content.
                 if (stepCapReached && !completeResponse) {
-                    void dependencies.updatePrompt({
+                    await persistPrompt({
                         promptUuid: args.promptUuid,
                         errorMessage: getUserFacingErrorMessage(
                             new AiAgentStepCapReachedError(steps.length),
@@ -1464,7 +1598,7 @@ export const streamAgentResponse = async ({
                         },
                     });
                 } else {
-                    void dependencies.updatePrompt({
+                    await persistPrompt({
                         response: completeResponse,
                         promptUuid: args.promptUuid,
                         tokenUsage: {
@@ -1512,7 +1646,7 @@ export const streamAgentResponse = async ({
                 delayInMs: 20,
                 chunking: 'word',
             }),
-            onError: ({ error }) => {
+            onError: async ({ error }) => {
                 console.error(error);
                 const errorMessage =
                     error instanceof Error ? error.message : 'Unknown error';
@@ -1532,7 +1666,7 @@ export const streamAgentResponse = async ({
                     'Something went wrong while streaming the response. Please try again.',
                 );
 
-                void dependencies.updatePrompt({
+                await persistPrompt({
                     promptUuid: args.promptUuid,
                     errorMessage: userFacingMessage,
                 });

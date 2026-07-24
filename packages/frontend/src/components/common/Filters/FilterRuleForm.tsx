@@ -132,7 +132,6 @@ const FilterRuleForm: FC<Props> = memo(
                     label={isRequiredLabel}
                     disabled={!isFieldSelectDisabled}
                     withinPortal
-                    variant="xs"
                     multiline
                 >
                     <Box>
@@ -215,7 +214,6 @@ const FilterRuleForm: FC<Props> = memo(
                             label={isRequiredLabel}
                             disabled={!isRequired}
                             withinPortal
-                            variant="xs"
                             multiline
                         >
                             <span>
@@ -231,12 +229,7 @@ const FilterRuleForm: FC<Props> = memo(
                             </span>
                         </Tooltip>
                     ) : isRequired ? (
-                        <Tooltip
-                            label={isRequiredLabel}
-                            withinPortal
-                            variant="xs"
-                            multiline
-                        >
+                        <Tooltip label={isRequiredLabel} withinPortal multiline>
                             <span>
                                 <ActionIcon variant="subtle" disabled>
                                     <IconDots size="20" />

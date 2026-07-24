@@ -64,7 +64,7 @@ const DeepResearchThreadRun = ({
     if (runQuery.isLoading) {
         return <Skeleton h={190} radius="md" />;
     }
-    if (runQuery.isError || runQuery.eventsQuery.isError) {
+    if (runQuery.isError && !runQuery.data) {
         return (
             <Paper p="lg" radius="md" withBorder aria-label="Deep research run">
                 <Stack gap="sm">

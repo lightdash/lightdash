@@ -1,6 +1,6 @@
 import { type CatalogField } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
-import { getDefaultZIndex, Portal, px, useMantineTheme } from '@mantine/core';
+import { Box, Portal } from '@mantine-8/core';
+import { getDefaultZIndex, px, useMantineTheme } from '@mantine/core';
 import MarkdownPreview, {
     type MarkdownPreviewProps,
 } from '@uiw/react-markdown-preview';

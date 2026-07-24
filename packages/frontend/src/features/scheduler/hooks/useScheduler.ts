@@ -14,7 +14,7 @@ import {
     type SchedulerRunLog,
     type SchedulerRunStatus,
 } from '@lightdash/common';
-import { notifications } from '@mantine/notifications';
+import { notifications } from '@mantine-8/notifications';
 import {
     useInfiniteQuery,
     useMutation,

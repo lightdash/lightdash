@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { ExploreType, type SummaryExplore } from '@lightdash/common';
 import { TextInput, Stack, ActionIcon } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import {
     IconAlertCircle,
     IconAlertTriangle,

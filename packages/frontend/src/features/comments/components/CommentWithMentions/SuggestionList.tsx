@@ -1,8 +1,8 @@
-import { Button, Card } from '@mantine-8/core';
-import { List, Tooltip } from '@mantine/core';
+import { Button, Card, List, Tooltip } from '@mantine-8/core';
 import { type SuggestionProps } from '@tiptap/suggestion';
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { type SuggestionsItem } from '../../types';
+import classes from './SuggestionList.module.css';
 
 export type SuggestionListRef = {
     onKeyDown: (props: { event: KeyboardEvent }) => boolean;
@@ -68,17 +68,10 @@ export const SuggestionList = forwardRef<
                 withPadding={false}
                 listStyleType="none"
                 mah={120}
-                styles={(theme) => ({
-                    root: {
-                        overflowY: 'auto',
-                    },
-                    itemWrapper: {
-                        width: '100%',
-                        '&:hover': {
-                            backgroundColor: theme.colors.blue['1'],
-                        },
-                    },
-                })}
+                classNames={{
+                    root: classes.root,
+                    itemWrapper: classes.itemWrapper,
+                }}
             >
                 {props.items.map((item, index) => (
                     <List.Item key={index} fz="xs">

@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
     canInvite: true,
     hasUser: true,
     needsProject: true,
+    hasPlaygroundProjects: true,
     inviteLink: undefined as InviteLink | undefined,
     createInvite: vi.fn(),
     updateUser: vi.fn(),
@@ -27,7 +28,12 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../providers/App/useApp', () => ({
     default: () => ({
-        health: { data: { hasEmailClient: true } },
+        health: {
+            data: {
+                hasEmailClient: true,
+                hasPlaygroundProjects: mocks.hasPlaygroundProjects,
+            },
+        },
         user: {
             data: mocks.hasUser
                 ? {
@@ -55,7 +61,9 @@ vi.mock('../hooks/useInviteLink', () => ({
 }));
 
 vi.mock('../hooks/organization/useOrganization', () => ({
-    useOrganization: () => ({ data: { needsProject: mocks.needsProject } }),
+    useOrganization: () => ({
+        data: { organizationUuid: 'org-1', needsProject: mocks.needsProject },
+    }),
 }));
 
 vi.mock('@sentry/react', () => ({ captureException: vi.fn() }));
@@ -134,6 +142,7 @@ describe('OnboardingInviteExpert', () => {
         mocks.canInvite = true;
         mocks.hasUser = true;
         mocks.needsProject = true;
+        mocks.hasPlaygroundProjects = true;
         mocks.inviteLink = undefined;
         mocks.createInvite.mockResolvedValue({});
         mocks.updateUser.mockResolvedValue({});
@@ -173,6 +182,7 @@ describe('OnboardingInviteExpert', () => {
         expect(mocks.updateUser).not.toHaveBeenCalled();
         expect(mocks.track).toHaveBeenCalledWith({
             name: EventName.SETUP_INVITE_SENT,
+            properties: { organizationId: 'org-1' },
         });
 
         await waitFor(() => {
@@ -302,6 +312,30 @@ describe('OnboardingInviteExpert', () => {
             expect(mocks.createInvite).toHaveBeenCalled();
         });
         expect(mocks.ensurePlayground).not.toHaveBeenCalled();
+        expect(currentPath).toBe('/onboarding/invite-expert');
+    });
+
+    it('skips provisioning when the instance has no playground projects', async () => {
+        mocks.hasPlaygroundProjects = false;
+        const { rerenderPage } = renderPage();
+        await submitInvite();
+
+        await waitFor(() => {
+            expect(mocks.createInvite).toHaveBeenCalled();
+        });
+        expect(mocks.ensurePlayground).not.toHaveBeenCalled();
+        expect(screen.queryByText(/Preparing your playground/)).toBeNull();
+
+        mocks.inviteLink = {
+            email: 'expert@example.com',
+            inviteUrl: 'https://lightdash.test/invite/abc',
+        };
+        rerenderPage();
+
+        expect(await screen.findByText('Invite ready')).toBeInTheDocument();
+        expect(
+            screen.queryByText(/couldn't set up a sample project/i),
+        ).toBeNull();
         expect(currentPath).toBe('/onboarding/invite-expert');
     });
 

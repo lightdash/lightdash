@@ -243,7 +243,6 @@ const AiAgentAdminThreadsTable = ({
                 return (
                     <Tooltip
                         withinPortal
-                        variant="xs"
                         label={thread.title || 'Untitled Thread'}
                         disabled={!isTruncated.isTruncated}
                         multiline
@@ -313,11 +312,7 @@ const AiAgentAdminThreadsTable = ({
             Cell: ({ row }) => {
                 const thread = row.original;
                 return (
-                    <Tooltip
-                        withinPortal
-                        variant="xs"
-                        label={thread.user.email}
-                    >
+                    <Tooltip withinPortal label={thread.user.email}>
                         <Text c="ldGray.9" fz="sm" fw={400}>
                             {thread.user.name}
                         </Text>

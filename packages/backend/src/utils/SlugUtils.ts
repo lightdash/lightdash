@@ -155,6 +155,12 @@ export const generateUniqueSlugScopedToProject = async (
                 .pluck(`${DashboardsTableName}.slug`);
             break;
         case SavedSqlTableName:
+            matchingSlugs = await trx(SavedSqlTableName)
+                .where(`${SavedSqlTableName}.project_uuid`, projectUuid)
+                .select(`${SavedSqlTableName}.slug`)
+                .where(`${SavedSqlTableName}.slug`, 'like', `${baseSlug}%`)
+                .pluck(`${SavedSqlTableName}.slug`);
+            break;
         case SpaceTableName:
             throw new Error('Not implemented');
         default:

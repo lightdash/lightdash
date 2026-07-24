@@ -27,7 +27,7 @@ import {
 } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
-import { useTableStyles } from '../../../../../hooks/styles/useTableStyles';
+import tableStyles from '../../../../../hooks/styles/tableStyles.module.css';
 import {
     useDeleteScimToken,
     useScimTokenList,
@@ -132,8 +132,6 @@ const TokenItem: FC<{
 export const TokensTable = () => {
     const { data } = useScimTokenList();
 
-    const { cx, classes } = useTableStyles();
-
     const [tokenToDelete, setTokenToDelete] = useState<
         ServiceAccount | undefined
     >();
@@ -148,7 +146,9 @@ export const TokensTable = () => {
     return (
         <>
             <Paper withBorder style={{ overflow: 'hidden' }}>
-                <Table className={cx(classes.root, classes.alignLastTdRight)}>
+                <Table
+                    className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
+                >
                     <Table.Thead>
                         <Table.Tr>
                             <Table.Th className={classesModule.nameColumn}>

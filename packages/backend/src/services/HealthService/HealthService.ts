@@ -221,6 +221,11 @@ export class HealthService extends BaseService {
                 },
             },
             hasEmailClient: !!this.lightdashConfig.smtp,
+            // Deliberately not isEnterpriseEnabled(): that check is `!==
+            // undefined` against a string|null config value, so it is true
+            // even without a license. Existing consumers rely on that
+            // behaviour; this new field must not (see PROD-9154).
+            hasPlaygroundProjects: !!this.lightdashConfig.license.licenseKey,
             hasEmailWhitelabel: !!this.lightdashConfig.postmark.accountToken,
             hasHeadlessBrowser:
                 this.lightdashConfig.headlessBrowser?.host !== undefined,

@@ -9,7 +9,7 @@ import {
     Tooltip,
     useMantineColorScheme,
 } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import {
     Editor,
     type BeforeMount,
@@ -265,7 +265,6 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                 <Tooltip
                     withinPortal={true}
                     maw={350}
-                    variant="xs"
                     multiline
                     label="Use this input to enhance chart tooltips with additional content. You can incorporate HTML code and include dynamic values using the format ${variable_name}.
                                 Click here to read more about this on our docs."

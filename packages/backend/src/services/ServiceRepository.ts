@@ -153,6 +153,7 @@ interface ServiceManifest {
     /** An implementation signature for these services are not available at this stage */
     aiWritebackService: unknown;
     aiDeepResearchService: unknown;
+    aiAgentMemoryService: unknown;
     onboardingAgentService: unknown;
     aiAgentReviewNotificationService: unknown;
     writebackPreviewService: unknown;
@@ -329,6 +330,7 @@ export class ServiceRepository
             () =>
                 new AdminNotificationService({
                     lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
                     emailClient: this.clients.getEmailClient(),
                     organizationMemberProfileModel:
                         this.models.getOrganizationMemberProfileModel(),
@@ -712,6 +714,7 @@ export class ServiceRepository
             'persistentDownloadFileService',
             () =>
                 new PersistentDownloadFileService({
+                    analytics: this.context.lightdashAnalytics,
                     lightdashConfig: this.context.lightdashConfig,
                     persistentDownloadFileModel:
                         this.models.getPersistentDownloadFileModel(),
@@ -1388,6 +1391,12 @@ export class ServiceRepository
         AiDeepResearchServiceImplT,
     >(): AiDeepResearchServiceImplT {
         return this.getService('aiDeepResearchService');
+    }
+
+    public getAiAgentMemoryService<
+        AiAgentMemoryServiceImplT,
+    >(): AiAgentMemoryServiceImplT {
+        return this.getService('aiAgentMemoryService');
     }
 
     public getOnboardingAgentService<

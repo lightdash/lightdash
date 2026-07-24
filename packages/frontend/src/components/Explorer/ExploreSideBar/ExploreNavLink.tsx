@@ -13,7 +13,7 @@ import {
     Paper,
     Stack,
 } from '@mantine-8/core';
-import { useToggle } from '@mantine/hooks';
+import { useToggle } from '@mantine-8/hooks';
 import {
     IconAlertTriangle,
     IconInfoCircle,

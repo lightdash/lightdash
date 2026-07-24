@@ -1,0 +1,109 @@
+.colorBlue {
+    --toast-0: var(--mantine-color-blue-0);
+    --toast-1: var(--mantine-color-blue-1);
+    --toast-2: var(--mantine-color-blue-2);
+    --toast-3: var(--mantine-color-blue-3);
+    --toast-4: var(--mantine-color-blue-4);
+    --toast-7: var(--mantine-color-blue-7);
+    --toast-9: var(--mantine-color-blue-9);
+}
+
+.colorGreen {
+    --toast-0: var(--mantine-color-green-0);
+    --toast-1: var(--mantine-color-green-1);
+    --toast-2: var(--mantine-color-green-2);
+    --toast-3: var(--mantine-color-green-3);
+    --toast-4: var(--mantine-color-green-4);
+    --toast-7: var(--mantine-color-green-7);
+    --toast-9: var(--mantine-color-green-9);
+}
+
+.colorRed {
+    --toast-0: var(--mantine-color-red-0);
+    --toast-1: var(--mantine-color-red-1);
+    --toast-2: var(--mantine-color-red-2);
+    --toast-3: var(--mantine-color-red-3);
+    --toast-4: var(--mantine-color-red-4);
+    --toast-7: var(--mantine-color-red-7);
+    --toast-9: var(--mantine-color-red-9);
+}
+
+.colorIndigo {
+    --toast-0: var(--mantine-color-indigo-0);
+    --toast-1: var(--mantine-color-indigo-1);
+    --toast-2: var(--mantine-color-indigo-2);
+    --toast-3: var(--mantine-color-indigo-3);
+    --toast-4: var(--mantine-color-indigo-4);
+    --toast-7: var(--mantine-color-indigo-7);
+    --toast-9: var(--mantine-color-indigo-9);
+}
+
+.colorYellow {
+    --toast-0: var(--mantine-color-yellow-0);
+    --toast-1: var(--mantine-color-yellow-1);
+    --toast-2: var(--mantine-color-yellow-2);
+    --toast-3: var(--mantine-color-yellow-3);
+    --toast-4: var(--mantine-color-yellow-4);
+    --toast-7: var(--mantine-color-yellow-7);
+    --toast-9: var(--mantine-color-yellow-9);
+}
+
+.root {
+    /* darken/lighten from the v6 theme.fn become color-mix */
+    --toast-text: light-dark(var(--toast-9), var(--toast-2));
+
+    background: light-dark(
+        color-mix(in srgb, var(--toast-0), white 50%),
+        color-mix(in srgb, var(--toast-9), black 60%)
+    );
+    border: 1px solid light-dark(var(--toast-2), var(--toast-9));
+    border-radius: var(--mantine-radius-md);
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+.title {
+    color: light-dark(
+        color-mix(in srgb, var(--toast-9), black 10%),
+        var(--toast-1)
+    );
+    font-weight: 700;
+}
+
+.titleNoMargin {
+    margin-bottom: 0;
+}
+
+.description {
+    color: light-dark(
+        color-mix(in srgb, var(--toast-9), black 40%),
+        var(--toast-3)
+    );
+}
+
+.closeButton {
+    padding: 4px;
+    color: light-dark(var(--toast-9), var(--toast-2));
+
+    &:hover {
+        background: light-dark(
+            var(--toast-1),
+            color-mix(in srgb, var(--toast-9), black 40%)
+        );
+    }
+}
+
+.icon {
+    background-color: transparent;
+    color: light-dark(var(--toast-7), var(--toast-4));
+    padding: 4px;
+}
+
+.loader {
+    padding: var(--mantine-spacing-xxs);
+}
+
+.subtitle {
+    color: var(--toast-text);
+    font-size: 12px;
+    width: 100%;
+}

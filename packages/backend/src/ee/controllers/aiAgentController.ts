@@ -8,6 +8,7 @@ import {
     ApiAgentReadinessScoreResponse,
     ApiAgentSuggestionsResponse,
     ApiAiAgentArtifactResponseTSOACompat,
+    ApiAiAgentArtifactVizQueryResponse,
     ApiAiAgentAvatarUploadResponse,
     ApiAiAgentEvaluationResponse,
     ApiAiAgentEvaluationRunResponse,
@@ -16,6 +17,7 @@ import {
     ApiAiAgentEvaluationSummaryListResponse,
     ApiAiAgentExploreAccessSummaryResponse,
     ApiAiAgentMcpServerToolListResponse,
+    ApiAiAgentMemoryResponse,
     ApiAiAgentModelOptionsResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
     ApiAiAgentResponse,
@@ -70,6 +72,7 @@ import {
     assertRegisteredAccount,
     KnexPaginateArgs,
     ParameterError,
+    type UUID,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -97,6 +100,7 @@ import {
 import { BaseController } from '../../controllers/baseController';
 import Logger from '../../logging/logger';
 import { type AiAgentCoderService } from '../services/AiAgentCoderService/AiAgentCoderService';
+import { type AiAgentMemoryService } from '../services/AiAgentMemoryService/AiAgentMemoryService';
 import { type AiAgentService } from '../services/AiAgentService/AiAgentService';
 
 @Route('/api/v1/projects/{projectUuid}/aiAgents')
@@ -487,6 +491,30 @@ export class AiAgentController extends BaseController {
         return {
             status: 'ok',
             results: agent,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{agentUuid}/memories/{slug}')
+    @OperationId('getAiAgentMemory')
+    async getAiAgentMemory(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() slug: string,
+    ): Promise<ApiAiAgentMemoryResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        void agentUuid;
+
+        return {
+            status: 'ok',
+            results: await this.getAiAgentMemoryService().getMemory(
+                toSessionUser(req.account),
+                projectUuid,
+                slug,
+            ),
         };
     }
 
@@ -1525,7 +1553,7 @@ export class AiAgentController extends BaseController {
         @Path() agentUuid: string,
         @Path() artifactUuid: string,
         @Path() versionUuid: string,
-    ): Promise<ApiAiAgentThreadMessageVizQueryResponse> {
+    ): Promise<ApiAiAgentArtifactVizQueryResponse> {
         this.setStatus(200);
 
         if (req.account?.authentication.type === 'jwt') {
@@ -1689,6 +1717,39 @@ export class AiAgentController extends BaseController {
                 artifactUuid,
                 versionUuid,
                 savedDashboardUuid: body.savedDashboardUuid,
+            },
+        );
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Patch(
+        '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/savedSql',
+    )
+    @OperationId('updateArtifactVersionSavedSql')
+    async updateArtifactVersionSavedSql(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() artifactUuid: string,
+        @Path() versionUuid: string,
+        @Body() body: { savedSqlUuid: string | null },
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        await this.getAiAgentService().updateArtifactVersion(
+            toSessionUser(req.account),
+            {
+                agentUuid,
+                artifactUuid,
+                versionUuid,
+                savedSqlUuid: body.savedSqlUuid,
             },
         );
 
@@ -2040,6 +2101,10 @@ export class AiAgentController extends BaseController {
 
     protected getAiAgentService() {
         return this.services.getAiAgentService<AiAgentService>();
+    }
+
+    protected getAiAgentMemoryService() {
+        return this.services.getAiAgentMemoryService<AiAgentMemoryService>();
     }
 
     protected getAiAgentCoderService() {

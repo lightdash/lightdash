@@ -57,6 +57,7 @@ export type VisualizationProviderProps = {
     minimal?: boolean;
     chartConfig: ChartConfig;
     initialPivotDimensions: string[] | undefined;
+    initialPivotRows?: string[];
     unsavedMetricQuery?: MetricQuery;
     resultsData: InfiniteQueryResults & {
         metricQuery?: MetricQuery;
@@ -73,6 +74,7 @@ export type VisualizationProviderProps = {
     onChartTypeChange?: (value: ChartType) => void;
     onChartConfigChange?: (value: ChartConfig) => void;
     onPivotDimensionsChange?: (value: string[] | undefined) => void;
+    onPivotRowsChange?: (value: string[] | undefined) => void;
     savedChartUuid?: string;
     dashboardFilters?: DashboardFilters;
     invalidateCache?: boolean;
@@ -94,6 +96,7 @@ const VisualizationProvider: FC<
 > = ({
     minimal = false,
     initialPivotDimensions,
+    initialPivotRows,
     resultsData,
     isLoading,
     columnOrder,
@@ -102,6 +105,7 @@ const VisualizationProvider: FC<
     onSeriesContextMenu,
     onChartTypeChange,
     onPivotDimensionsChange,
+    onPivotRowsChange,
     children,
     savedChartUuid,
     dashboardFilters,
@@ -513,6 +517,8 @@ const VisualizationProvider: FC<
                     resultsData={lastValidResultsData}
                     columnOrder={defaultColumnOrder}
                     validPivotDimensions={validPivotDimensions}
+                    initialPivotRows={initialPivotRows}
+                    onPivotRowsChange={onPivotRowsChange}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                     savedChartUuid={savedChartUuid}

@@ -76,7 +76,9 @@ const userModel = {
     addProjectMemberships: vi.fn(async () => undefined),
     getOrganizationsForUser: vi.fn(async () => [sessionUser]),
     findUserByEmail: vi.fn<UserModel['findUserByEmail']>(async () => undefined),
-    createPendingUser: vi.fn(async () => newUser),
+    createPendingUser: vi.fn<UserModel['createPendingUser']>(
+        async () => newUser,
+    ),
     findSessionUserByPrimaryEmail: vi.fn(async () => sessionUser),
     findServiceAccountByUserUuid: vi.fn(async () => undefined),
     joinOrg: vi.fn(async () => sessionUser),
@@ -416,9 +418,31 @@ describe('UserService', () => {
 
         test('registers an email-only user when the feature is enabled', async () => {
             const featureFlagModel = createFeatureFlagModel(true);
-            const service = createUserService(lightdashConfigMock, {
-                featureFlagModel,
-            });
+            const service = createUserService(
+                {
+                    ...lightdashConfigMock,
+                    smtp: {
+                        host: 'localhost',
+                        port: 587,
+                        secure: false,
+                        allowInvalidCertificate: false,
+                        useAuth: false,
+                        auth: {
+                            user: '',
+                            pass: undefined,
+                            accessToken: undefined,
+                        },
+                        sender: {
+                            name: 'Lightdash',
+                            email: 'lightdash@example.com',
+                        },
+                        inlineImageCid: false,
+                    },
+                },
+                {
+                    featureFlagModel,
+                },
+            );
             const loginMethodAllowedSpy = vi
                 .spyOn(service, 'isLoginMethodAllowed')
                 .mockResolvedValue(true);
@@ -437,11 +461,15 @@ describe('UserService', () => {
                 user: undefined,
                 featureFlagId: FeatureFlags.NewOnboarding,
             });
-            expect(userModel.createUser).toHaveBeenCalledWith({
-                firstName: '',
-                lastName: '',
-                email: 'email-only@example.com',
-            });
+            expect(vi.mocked(userModel.createUser)).toHaveBeenCalledWith(
+                {
+                    firstName: '',
+                    lastName: '',
+                    email: 'email-only@example.com',
+                },
+                true,
+                false,
+            );
             expect(loginMethodAllowedSpy).toHaveBeenCalledWith(
                 'email-only@example.com',
                 'email',
@@ -462,6 +490,28 @@ describe('UserService', () => {
                     isOrganizationCreator: true,
                 },
             });
+        });
+
+        test('rejects an email-only user without an email server', async () => {
+            const featureFlagModel = createFeatureFlagModel(true);
+            const service = createUserService(
+                { ...lightdashConfigMock, smtp: undefined },
+                {
+                    featureFlagModel,
+                },
+            );
+
+            await expect(
+                service.registerOrActivateUser({
+                    email: 'email-only@example.com',
+                }),
+            ).rejects.toThrow(
+                new ForbiddenError(
+                    'Email-only signup requires an email server to be configured',
+                ),
+            );
+
+            expect(userModel.createUser).not.toHaveBeenCalled();
         });
 
         test('rejects an email-only user when the feature is disabled', async () => {
@@ -506,12 +556,16 @@ describe('UserService', () => {
                 user: undefined,
                 featureFlagId: FeatureFlags.NewOnboarding,
             });
-            expect(userModel.createUser).toHaveBeenCalledWith({
-                firstName: 'Full',
-                lastName: 'User',
-                email: 'full@example.com',
-                password: 'password1!',
-            });
+            expect(vi.mocked(userModel.createUser)).toHaveBeenCalledWith(
+                {
+                    firstName: 'Full',
+                    lastName: 'User',
+                    email: 'full@example.com',
+                    password: 'password1!',
+                },
+                true,
+                undefined,
+            );
             expect(sendOneTimePasscodeSpy).toHaveBeenCalledWith(
                 sessionUser,
                 'signup_verification',
@@ -2239,9 +2293,11 @@ describe('UserService', () => {
             expect(
                 userModel.createUser as import('vitest').Mock,
             ).toHaveBeenCalledTimes(1);
-            expect(
-                userModel.createUser as import('vitest').Mock,
-            ).toBeCalledWith(openIdUser);
+            expect(vi.mocked(userModel.createUser)).toBeCalledWith(
+                openIdUser,
+                true,
+                undefined,
+            );
             expect(
                 userModel.activateUser as import('vitest').Mock,
             ).toHaveBeenCalledTimes(0);
@@ -2710,9 +2766,17 @@ describe('UserService', () => {
                     inviteUser,
                 ),
             ).toEqual(inviteLink);
-            expect(
-                userModel.createPendingUser as import('vitest').Mock,
-            ).toHaveBeenCalledTimes(1);
+            expect(vi.mocked(userModel.createPendingUser)).toHaveBeenCalledWith(
+                sessionUser.organizationUuid,
+                {
+                    email: inviteUser.email,
+                    firstName: '',
+                    lastName: '',
+                    role: OrganizationMemberRole.MEMBER,
+                },
+                true,
+                undefined,
+            );
             expect(
                 inviteLinkModel.upsert as import('vitest').Mock,
             ).toHaveBeenCalledTimes(1);
@@ -2766,6 +2830,8 @@ describe('UserService', () => {
                     lastName: '',
                     role: OrganizationMemberRole.ADMIN,
                 },
+                true,
+                undefined,
             );
             expect(vi.mocked(inviteLinkModel.upsert)).toHaveBeenCalledWith(
                 expect.any(String),

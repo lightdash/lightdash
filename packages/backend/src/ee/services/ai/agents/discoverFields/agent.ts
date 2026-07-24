@@ -63,6 +63,7 @@ export type DiscoverFieldsAgentArgs = {
         | 'userId'
         | 'telemetryEnabled'
         | 'model'
+        | 'keyManagement'
     >;
 };
 

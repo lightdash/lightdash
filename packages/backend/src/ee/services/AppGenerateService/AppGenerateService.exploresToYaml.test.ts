@@ -136,4 +136,59 @@ describe('AppGenerateService.exploresToYaml', () => {
             metricCount: 2,
         });
     });
+
+    it('drops malformed AI hints without failing YAML generation', () => {
+        const explore = {
+            name: 'orders',
+            baseTable: 'orders',
+            joinedTables: [],
+            tables: {
+                orders: {
+                    metrics: {
+                        total_revenue: {
+                            name: 'total_revenue',
+                            type: 'sum',
+                            aiHint: [{ Formula: 'clicks + keys' }],
+                        },
+                    },
+                    dimensions: {
+                        status: {
+                            name: 'status',
+                            type: 'string',
+                            aiHint: [
+                                'Valid hint with a control character: \u0000',
+                                { invalid: true },
+                            ],
+                            groups: ['broken'],
+                        },
+                    },
+                    groupDetails: {
+                        broken: {
+                            label: 'Broken',
+                            aiHint: { invalid: true },
+                        },
+                    },
+                },
+            },
+        } as unknown as Explore;
+
+        const result = exploresToYaml([explore]);
+        const parsed = parseYaml(result.yaml) as {
+            models: Array<{
+                meta?: {
+                    metrics?: Record<string, { ai_hints?: string[] }>;
+                };
+                columns?: Array<{ name: string; ai_hints?: string[] }>;
+            }>;
+        };
+        const orders = parsed.models[0];
+
+        expect(orders?.meta?.metrics?.total_revenue).not.toHaveProperty(
+            'ai_hints',
+        );
+        expect(orders?.columns?.[0]?.ai_hints).toEqual([
+            'Valid hint with a control character: \u0000',
+        ]);
+        expect(result.yaml).not.toContain('[object Object]');
+    });
 });

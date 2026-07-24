@@ -35,6 +35,7 @@ import {
     isValidTimezone,
     KnexPaginateArgs,
     KnexPaginatedData,
+    MetricType,
     MissingConfigError,
     NotFoundError,
     ParameterError,
@@ -118,6 +119,17 @@ type SavedChartServiceArguments = {
 type GoogleSheetValidationOptions = {
     validateGoogleSheet: boolean;
 };
+
+const TABLE_CALCULATION_FUNCTIONS = [
+    { name: 'total', pattern: /\btotal\b/i },
+    { name: 'row_total', pattern: /\brow_total\b/i },
+    { name: 'row', pattern: /\brow\b/i },
+    { name: 'offset', pattern: /\boffset\b/i },
+    { name: 'index', pattern: /\bindex\b/i },
+    { name: 'lookup', pattern: /\blookup\b/i },
+    { name: 'offset_list', pattern: /\boffset_list\b/i },
+    { name: 'list', pattern: /\blist\b/i },
+] as const;
 
 export class SavedChartService
     extends BaseService
@@ -389,6 +401,47 @@ export class SavedChartService
                     : undefined,
             parametersCount: Object.keys(savedChart.parameters || {}).length,
             ...countCustomDimensionsInMetricQuery(savedChart.metricQuery),
+            ...SavedChartService.getChartConfigEventProperties(savedChart),
+        };
+    }
+
+    static getChartConfigEventProperties(savedChart: SavedChartDAO) {
+        const tableConfig =
+            savedChart.chartConfig.type === ChartType.TABLE
+                ? savedChart.chartConfig.config
+                : undefined;
+        const cartesianConfig =
+            savedChart.chartConfig.type === ChartType.CARTESIAN
+                ? savedChart.chartConfig.config
+                : undefined;
+        const rowLimit = tableConfig?.rowLimit ?? cartesianConfig?.rowLimit;
+        const columnLimit = cartesianConfig?.columnLimit;
+
+        return {
+            hasRowLimit: rowLimit !== undefined,
+            rowLimitCount: rowLimit?.count ?? null,
+            hasColumnLimit: columnLimit !== undefined,
+            columnLimit: columnLimit ?? null,
+            customColumnWidthsCount: Object.values(
+                tableConfig?.columns ?? {},
+            ).filter((column) => column.width !== undefined).length,
+            tableCalculationFunctions: TABLE_CALCULATION_FUNCTIONS.filter(
+                ({ pattern }) =>
+                    savedChart.metricQuery.tableCalculations.some(
+                        (tableCalculation) =>
+                            (isSqlTableCalculation(tableCalculation) &&
+                                pattern.test(tableCalculation.sql)) ||
+                            (isFormulaTableCalculation(tableCalculation) &&
+                                pattern.test(tableCalculation.formula)),
+                    ),
+            ).map(({ name }) => name),
+            hasAverageDistinctAdditionalMetric:
+                savedChart.metricQuery.additionalMetrics?.some(
+                    (metric) => metric.type === MetricType.AVERAGE_DISTINCT,
+                ) ?? false,
+            numCustomGroupBinCustomDimensions:
+                countCustomDimensionsInMetricQuery(savedChart.metricQuery)
+                    .numCustomGroupBinCustomDimensions,
         };
     }
 
@@ -836,6 +889,7 @@ export class SavedChartService
                     cachedExplore?.type === ExploreType.VIRTUAL
                         ? cachedExplore.name
                         : undefined,
+                ...SavedChartService.getChartConfigEventProperties(savedChart),
             },
         });
         if (dashboardUuid && !savedChart.dashboardUuid) {
@@ -967,20 +1021,28 @@ export class SavedChartService
     ): Promise<SavedChart[]> {
         const auditedAbility = this.createAuditedAbility(user);
         const spaceAccessPromises = data.map(async (chart) => {
-            const { inheritsFromOrgOrProject, access, organizationUuid } =
-                await this.spacePermissionService.getSpaceAccessContext(
-                    user.userUuid,
-                    chart.spaceUuid,
-                );
-            return auditedAbility.can(
-                'update',
-                subject('SavedChart', {
-                    organizationUuid,
-                    projectUuid,
-                    inheritsFromOrgOrProject,
-                    access,
-                    metadata: { savedChartUuid: chart.uuid },
-                }),
+            const { spaceUuid: currentSpaceUuid } =
+                await this.savedChartModel.getSummary(chart.uuid);
+            const spaceContexts = await Promise.all(
+                [currentSpaceUuid, chart.spaceUuid].map((spaceUuid) =>
+                    this.spacePermissionService.getSpaceAccessContext(
+                        user.userUuid,
+                        spaceUuid,
+                    ),
+                ),
+            );
+            return spaceContexts.every(
+                ({ inheritsFromOrgOrProject, access, organizationUuid }) =>
+                    auditedAbility.can(
+                        'update',
+                        subject('SavedChart', {
+                            organizationUuid,
+                            projectUuid,
+                            inheritsFromOrgOrProject,
+                            access,
+                            metadata: { savedChartUuid: chart.uuid },
+                        }),
+                    ),
             );
         });
 
@@ -2287,7 +2349,7 @@ export class SavedChartService
             await this.hasAccess(
                 'update',
                 { user, projectUuid },
-                { savedChartUuid },
+                { savedChartUuid, spaceUuid: targetSpaceUuid },
             );
         }
 

@@ -1,7 +1,7 @@
 import { FeatureFlags } from '@lightdash/common';
 import { Flex, Group, Loader, Text, Button } from '@mantine-8/core';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import { useMantineTheme } from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
 import Editor, { type EditorProps, type Monaco } from '@monaco-editor/react';
 import { type IDisposable, type languages } from 'monaco-editor';
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';

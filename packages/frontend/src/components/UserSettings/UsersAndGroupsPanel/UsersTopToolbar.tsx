@@ -1,35 +1,22 @@
 import {
     ActionIcon,
-    Button,
     Group,
     TextInput,
     Tooltip,
     useMantineTheme,
     type GroupProps,
 } from '@mantine-8/core';
-import { IconPlus, IconSearch, IconX } from '@tabler/icons-react';
+import { IconSearch, IconX } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 
 type UsersTopToolbarProps = GroupProps & {
     search: string;
     setSearch: (value: string) => void;
-    isFetching: boolean;
-    currentResultsCount: number;
-    canInvite: boolean;
-    onInviteClick: () => void;
 };
 
 export const UsersTopToolbar: FC<UsersTopToolbarProps> = memo(
-    ({
-        search,
-        setSearch,
-        isFetching,
-        currentResultsCount,
-        canInvite,
-        onInviteClick,
-        ...props
-    }) => {
+    ({ search, setSearch, ...props }) => {
         const theme = useMantineTheme();
 
         return (
@@ -42,7 +29,6 @@ export const UsersTopToolbar: FC<UsersTopToolbarProps> = memo(
                 <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
                     <Tooltip
                         withinPortal
-                        variant="xs"
                         label="Search by name, email, or role"
                     >
                         <TextInput
@@ -78,17 +64,6 @@ export const UsersTopToolbar: FC<UsersTopToolbarProps> = memo(
                         />
                     </Tooltip>
                 </Group>
-
-                {canInvite && (
-                    <Button
-                        size="xs"
-                        leftSection={<MantineIcon icon={IconPlus} />}
-                        onClick={onInviteClick}
-                        style={{ flexShrink: 0 }}
-                    >
-                        Add user
-                    </Button>
-                )}
             </Group>
         );
     },

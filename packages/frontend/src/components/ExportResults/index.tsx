@@ -10,14 +10,13 @@ import {
     Alert,
     Button,
     Group,
-    NumberInput,
     Paper,
     SegmentedControl,
     Stack,
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import { notifications } from '@mantine/notifications';
+import { notifications } from '@mantine-8/notifications';
 import {
     IconHelpCircle,
     IconInfoCircle,
@@ -32,6 +31,7 @@ import { scheduleDownloadQuery } from '../../hooks/useQueryResults';
 import useUser from '../../hooks/user/useUser';
 import { Can } from '../../providers/Ability';
 import MantineIcon from '../common/MantineIcon';
+import { NumberInput } from '../common/NumberInput';
 import { Limit } from './types';
 
 type ExportCsvRenderProps = {

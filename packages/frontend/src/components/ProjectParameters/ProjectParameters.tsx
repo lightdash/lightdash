@@ -1,7 +1,6 @@
 import type { ProjectParameterSummary } from '@lightdash/common';
 import {
     ActionIcon,
-    Anchor,
     Badge,
     Box,
     Code,
@@ -20,7 +19,7 @@ import {
 import { useDebouncedValue, useDisclosure } from '@mantine-8/hooks';
 import { IconEye, IconSearch, IconVariable, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
-import { useTableStyles } from '../../hooks/styles/useTableStyles';
+import tableStyles from '../../hooks/styles/tableStyles.module.css';
 import { useProjectParametersList } from '../../hooks/useProjectParameters';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
@@ -63,7 +62,6 @@ const ConfigModal: FC<ConfigModalProps> = ({
 );
 
 const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
-    const { cx, classes } = useTableStyles();
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [page, setPage] = useState(1);
@@ -176,23 +174,10 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
 
     return (
         <Stack>
-            <Text c="dimmed">
-                Learn more about parameters in our{' '}
-                <Anchor
-                    role="button"
-                    href="https://docs.lightdash.com/guides/using-parameters#how-to-use-parameters"
-                    target="_blank"
-                    rel="noreferrer"
-                >
-                    docs
-                </Anchor>
-                .
-            </Text>
-
             <SettingsCard shadow="none" p={0}>
                 <Paper p="sm" bd={0}>
                     <Group gap="md" align="center">
-                        <Title order={5}>Parameters</Title>
+                        <Title order={5}>Defined parameters</Title>
                     </Group>
 
                     <Box mt="sm">
@@ -219,7 +204,7 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
 
                 <Table
                     withRowBorders
-                    className={cx(classes.root, classes.alignLastTdRight)}
+                    className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
                 >
                     <Table.Thead>
                         <Table.Tr>

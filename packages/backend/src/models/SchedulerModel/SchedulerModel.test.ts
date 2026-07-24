@@ -1,6 +1,6 @@
 import { AnyType, SchedulerJobStatus, SchedulerLog } from '@lightdash/common';
 import knex from 'knex';
-import { MockClient } from 'knex-mock-client';
+import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { SchedulerTableName } from '../../database/entities/scheduler';
 import { SchedulerModel } from './index';
 
@@ -124,6 +124,53 @@ describe('Scheduler model test', () => {
                     );
                 }
             });
+        });
+    });
+
+    describe('getAllSchedulers', () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const model = new SchedulerModel({ database });
+        let tracker: Tracker;
+
+        beforeAll(() => {
+            tracker = getTracker();
+        });
+
+        afterEach(() => {
+            tracker.reset();
+        });
+
+        const schedulerSelectSql = () =>
+            tracker.history.select.find((query) =>
+                query.sql.includes(`from "${SchedulerTableName}"`),
+            )?.sql;
+
+        it('includes active human creators or existing service accounts', async () => {
+            tracker.on
+                .select(/to_regclass/)
+                .response([{ has_service_accounts: true }]);
+            tracker.on.select(SchedulerTableName).response([]);
+
+            await model.getAllSchedulers();
+
+            const sql = schedulerSelectSql();
+            expect(sql).toContain('"users"."is_active"');
+            expect(sql).toContain(
+                'exists (select * from "service_accounts" where service_accounts.service_account_user_uuid = scheduler.created_by)',
+            );
+        });
+
+        it('omits the service account clause when the table is absent (OSS)', async () => {
+            tracker.on
+                .select(/to_regclass/)
+                .response([{ has_service_accounts: false }]);
+            tracker.on.select(SchedulerTableName).response([]);
+
+            await model.getAllSchedulers();
+
+            const sql = schedulerSelectSql();
+            expect(sql).toContain('"users"."is_active"');
+            expect(sql).not.toContain('service_accounts');
         });
     });
 

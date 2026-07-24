@@ -1,6 +1,7 @@
 import { type FeatureFlags } from '@lightdash/common';
 import type {
     AiWritebackSource,
+    AiWritebackWorkstream,
     PullRequestProvider,
     SessionUser,
     SupportedDbtVersions,
@@ -140,7 +141,7 @@ export type CodingAgentSetup = {
  */
 export type CodingAgentConfig = {
     /** Tags logs/analytics and selects the few remaining mode branches. */
-    mode: 'dbt-writeback' | 'general';
+    mode: AiWritebackWorkstream;
     /**
      * The rollout feature flag this mode is gated behind (CodingAgent for the
      * general agent). Undefined for dbt writeback, which is always enabled.
@@ -348,6 +349,7 @@ export type AiWritebackRunArgs = {
      */
     startNewPullRequest?: boolean;
     aiThreadUuid?: string;
+    promptUuid?: string;
     /**
      * Identifies the trigger surface so logs, metrics, and analytics can
      * group runs by where they originated. Required so adding new triggers

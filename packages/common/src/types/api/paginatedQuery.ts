@@ -162,17 +162,19 @@ export const getDateZoomFromRequestParameters = (
     params && 'dateZoom' in params ? params.dateZoom : undefined;
 
 /**
- * Kinds of totals derivable from an executed pivot query. Follow-up PRs
- * will widen the union to enable the commented-out variants below.
+ * Kinds of totals derivable from an executed pivot query.
  */
-export type CalculateTotalKind = 'columnTotal' | 'rowTotal' | 'columnSubtotal';
-// | 'rowSubtotal'
-// | 'grandTotal';
+export type CalculateTotalKind =
+    | 'grandTotal'
+    | 'columnTotal'
+    | 'rowTotal'
+    | 'columnSubtotal'
+    | 'rowSubtotal';
 
 export type ExecuteAsyncCalculateTotalRequestParams = {
     kind: CalculateTotalKind;
-    // Required for `columnSubtotal`: the dimensions this subtotal level groups
-    // by (the pivot groupBy columns are added from the source query).
+    // Required for subtotal kinds: the dimensions this subtotal level groups
+    // by. Column subtotals also add the pivot groupBy columns.
     subtotalDimensions?: string[];
     invalidateCache?: boolean;
 };

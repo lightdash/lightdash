@@ -100,7 +100,6 @@ export const JsonCellModal: FC<ModalProps> = ({ value, opened, onClose }) => {
                         <Tooltip
                             label={copied ? 'Copied JSON' : 'Copy JSON'}
                             withinPortal
-                            variant="xs"
                         >
                             <ActionIcon
                                 color={copied ? 'teal' : 'gray'}

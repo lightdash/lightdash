@@ -18,6 +18,7 @@ the [Frontend Style Guide](STYLE_GUIDE.md). Key points:
 
 -   **Modals**: Always use `MantineModal` from `components/common/MantineModal`. See `stories/Modal.stories.tsx` for examples.
 -   **Callouts**: Use `Callout` from `components/common/Callout` with variants: `danger`, `warning`, `info`
+-   **Number inputs**: Always use `NumberInput` from `components/common/NumberInput`. Prefer `onNumberChange` (fires `number`, or `undefined` on clear; never transient strings). Integer-only by default; decimal fields opt in via `decimalScale={n}` or `decimalScale="unlimited"`. Raw `onChange` only for `form.getInputProps()` spreads.
 
 ## ⚛️ State Management
 

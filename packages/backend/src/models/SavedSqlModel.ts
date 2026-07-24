@@ -1,6 +1,7 @@
 import {
     AllVizChartConfig,
     CreateSqlChart,
+    generateSlug,
     NotFoundError,
     ResolvedProjectColorPalette,
     SpaceSummary,
@@ -24,7 +25,10 @@ import {
 } from '../database/entities/savedSql';
 import { DbSpace, SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
-import { generateUniqueSlug } from '../utils/SlugUtils';
+import {
+    acquireProjectSlugLock,
+    generateUniqueSlugScopedToProject,
+} from '../utils/SlugUtils';
 
 type SelectSavedSql = Pick<
     DbSavedSql,
@@ -337,10 +341,21 @@ export class SavedSqlModel {
         savedSqlVersionUuid: string;
     }> {
         return this.database.transaction(async (trx) => {
-            // Use provided slug or generate one from the name
-            const finalSlug =
-                data.slug ??
-                (await generateUniqueSlug(trx, SavedSqlTableName, data.name));
+            let finalSlug = data.slug;
+            if (finalSlug === undefined) {
+                const baseSlug = generateSlug(data.name);
+                await acquireProjectSlugLock(
+                    trx,
+                    projectUuid,
+                    `saved-sql:${baseSlug}`,
+                );
+                finalSlug = await generateUniqueSlugScopedToProject(
+                    trx,
+                    projectUuid,
+                    SavedSqlTableName,
+                    baseSlug,
+                );
+            }
 
             const [{ saved_sql_uuid: savedSqlUuid, slug }] = await trx(
                 SavedSqlTableName,

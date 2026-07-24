@@ -11,9 +11,9 @@ import {
     Skeleton,
     ActionIcon,
     SegmentedControl,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
-import { useHover } from '@mantine/hooks';
+import { useHover } from '@mantine-8/hooks';
 import { IconCheck, IconClipboard } from '@tabler/icons-react';
 import {
     lazy,
@@ -113,7 +113,6 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
                     <CopyButton value={formattedSql} timeout={2000}>
                         {({ copied, copy }) => (
                             <Tooltip
-                                variant="xs"
                                 label={
                                     copied ? 'Copied to clipboard' : 'Copy SQL'
                                 }

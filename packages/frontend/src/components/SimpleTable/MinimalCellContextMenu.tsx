@@ -1,6 +1,6 @@
 import { isDimension, isField, type ResultValue } from '@lightdash/common';
 import { Menu } from '@mantine-8/core';
-import { useClipboard } from '@mantine/hooks';
+import { useClipboard } from '@mantine-8/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { useCallback, useMemo, type FC } from 'react';

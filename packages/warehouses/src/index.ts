@@ -1,5 +1,6 @@
 export * from './ssh/sshTunnel';
 export * from './types';
+export * from './validateWarehouseColumnReferences';
 export * from './warehouseClientFromCredentials';
 export * from './warehouseClients/AthenaWarehouseClient';
 export * from './warehouseClients/BigqueryWarehouseClient';

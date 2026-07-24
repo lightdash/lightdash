@@ -1,7 +1,10 @@
 import type { ApiErrorDetail } from '@lightdash/common';
-import { Box, Stack, Button } from '@mantine-8/core';
-import { useMantineColorScheme, useMantineTheme } from '@mantine/core';
-import { notifications, type NotificationProps } from '@mantine/notifications';
+import { Box, Button, Stack } from '@mantine-8/core';
+import {
+    notifications,
+    type NotificationData as MantineNotificationData,
+} from '@mantine-8/notifications';
+import { clsx } from '@mantine/core';
 import {
     IconAlertCircleFilled,
     IconAlertTriangleFilled,
@@ -16,11 +19,17 @@ import MantineIcon from '../../components/common/MantineIcon';
 import ApiErrorDisplay from './ApiErrorDisplay';
 import MultipleToastBody from './MultipleToastBody';
 import { type NotificationData } from './types';
+import styles from './useToaster.module.css';
+
+const colorClasses: Record<string, string> = {
+    blue: styles.colorBlue,
+    green: styles.colorGreen,
+    red: styles.colorRed,
+    indigo: styles.colorIndigo,
+    yellow: styles.colorYellow,
+};
 
 const useToaster = () => {
-    const theme = useMantineTheme();
-    const { colorScheme } = useMantineColorScheme();
-    const isDark = colorScheme === 'dark';
     const openedKeys = useRef(new Set<string>());
     const currentErrors = useRef<Record<string, NotificationData[]>>({});
 
@@ -31,59 +40,24 @@ const useToaster = () => {
             action,
             color = 'blue',
             autoClose = 5000,
-            // isError = false,
             ...rest
         }: NotificationData) => {
             const commonProps = {
                 autoClose,
                 color,
-                styles: {
-                    loader: {
-                        padding: theme.spacing.xxs,
-                    },
-                    root: {
-                        background: isDark
-                            ? theme.fn.darken(theme.colors[color][9], 0.6)
-                            : theme.fn.lighten(theme.colors[color][0], 0.5),
-                        border: `1px solid ${
-                            isDark
-                                ? theme.colors[color][9]
-                                : theme.colors[color][2]
-                        }`,
-                        borderRadius: theme.radius.md,
-                        boxShadow: theme.shadows.subtle,
-                    },
-                    title: {
-                        color: isDark
-                            ? theme.colors[color][1]
-                            : theme.fn.darken(theme.colors[color][9], 0.1),
-                        fontWeight: 700,
-                        marginBottom: !subtitle && !action ? 0 : undefined,
-                    },
-                    description: {
-                        color: isDark
-                            ? theme.colors[color][3]
-                            : theme.fn.darken(theme.colors[color][9], 0.4),
-                    },
-                    closeButton: {
-                        ':hover': {
-                            background: isDark
-                                ? theme.fn.darken(theme.colors[color][9], 0.4)
-                                : theme.colors[color][1],
-                        },
-                        padding: '4px',
-                        color: isDark
-                            ? theme.colors[color][2]
-                            : theme.colors[color][9],
-                    },
-                    icon: {
-                        backgroundColor: 'transparent',
-                        color: isDark
-                            ? theme.colors[color][4]
-                            : theme.colors[color][7],
-                        size: '12px',
-                        padding: '4px',
-                    },
+                classNames: {
+                    root: clsx(
+                        styles.root,
+                        colorClasses[color] ?? styles.colorBlue,
+                    ),
+                    title: clsx(
+                        styles.title,
+                        !subtitle && !action && styles.titleNoMargin,
+                    ),
+                    description: styles.description,
+                    closeButton: styles.closeButton,
+                    icon: styles.icon,
+                    loader: styles.loader,
                 },
                 message:
                     subtitle || action ? (
@@ -99,22 +73,12 @@ const useToaster = () => {
                                     ]}
                                     style={{
                                         backgroundColor: 'transparent',
-                                        color: isDark
-                                            ? theme.colors[color][2]
-                                            : theme.colors[color][9],
+                                        color: 'var(--toast-text)',
                                         fontSize: '12px',
                                     }}
                                 />
                             ) : (
-                                <Box
-                                    c={
-                                        isDark
-                                            ? theme.colors[color][2]
-                                            : theme.colors[color][9]
-                                    }
-                                    fz="xs"
-                                    w="100%"
-                                >
+                                <Box className={styles.subtitle}>
                                     {subtitle}
                                 </Box>
                             )}
@@ -141,7 +105,7 @@ const useToaster = () => {
                             )}
                         </Stack>
                     ) : undefined,
-                onClose: (props: NotificationProps) => {
+                onClose: (props: MantineNotificationData) => {
                     rest.onClose?.(props);
                     if (props.id) {
                         openedKeys.current.delete(props.id);
@@ -162,7 +126,7 @@ const useToaster = () => {
                 ...rest,
             });
         },
-        [isDark, theme],
+        [],
     );
 
     const showToastSuccess = useCallback(

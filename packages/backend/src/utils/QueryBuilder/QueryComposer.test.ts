@@ -167,6 +167,7 @@ describe('QueryComposer', () => {
             { kind: 'columnTotal', subtotalDimensions: undefined },
             { kind: 'rowTotal', subtotalDimensions: undefined },
             { kind: 'columnSubtotal', subtotalDimensions: ['table1_dim1'] },
+            { kind: 'rowSubtotal', subtotalDimensions: ['table1_dim1'] },
         ];
 
         it.each(CASES)(

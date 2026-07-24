@@ -1,4 +1,5 @@
 import {
+    isAppScheduler,
     isChartScheduler,
     isCreateSchedulerGoogleChatTarget,
     isCreateSchedulerMsTeamsTarget,
@@ -17,6 +18,7 @@ import {
     type ParametersValuesMap,
     type SchedulerAiAugmentation,
     type SchedulerAndTargets,
+    type SchedulerAppState,
     type SchedulerCsvOptions,
     type SchedulerImageOptions,
     type SchedulerPdfOptions,
@@ -50,10 +52,12 @@ export interface SchedulerFormValues {
     parameters?: ParametersValuesMap;
     customViewportWidth?: number;
     selectedTabs?: string[] | null;
+    /** App deliveries only: snapshot of the app's shareable URL state. */
+    appState?: SchedulerAppState | null;
     thresholds?: Array<{
         fieldId: string;
         operator: ThresholdOperator;
-        value: number;
+        value: number | '';
     }>;
     includeLinks: boolean;
     notificationFrequency?: NotificationFrequency;
@@ -91,6 +95,7 @@ export const DEFAULT_VALUES: SchedulerFormValues = {
     parameters: undefined,
     customViewportWidth: undefined,
     selectedTabs: null,
+    appState: null,
     thresholds: [],
     includeLinks: true,
     aiAugmentation: null,
@@ -202,6 +207,9 @@ export const getFormValuesFromScheduler = (
             chartFilters: schedulerData.filters,
             parameters: schedulerData.parameters,
         }),
+        ...(isAppScheduler(schedulerData) && {
+            appState: schedulerData.appState ?? null,
+        }),
         thresholds: schedulerData.thresholds,
         notificationFrequency: schedulerData.notificationFrequency,
         includeLinks: schedulerData.includeLinks !== false,
@@ -294,7 +302,16 @@ export const transformFormValues = (
             filters: values.chartFilters,
             parameters: values.parameters,
         }),
-        thresholds: values.thresholds,
+        thresholds: values.thresholds?.filter(
+            (
+                threshold,
+            ): threshold is typeof threshold & {
+                value: number;
+            } => typeof threshold.value === 'number',
+        ),
+        ...(resourceType === 'app' && {
+            appState: values.appState ?? undefined,
+        }),
         enabled: true,
         notificationFrequency:
             'notificationFrequency' in values

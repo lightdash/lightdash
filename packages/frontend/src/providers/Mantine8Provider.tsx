@@ -6,6 +6,7 @@ import { useMantineColorScheme } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import { cssVariablesResolver } from '../mantine8CssVariablesResolver';
 import { getMantine8ThemeOverride } from '../mantine8Theme';
+import CodeHighlightProvider from './CodeHighlightProvider';
 
 type Props = {
     themeOverride?: MantineThemeOverride;
@@ -43,7 +44,7 @@ const Mantine8Provider: FC<React.PropsWithChildren<Props>> = ({
             getRootElement={getRootElement}
             classNamesPrefix="mantine-8"
         >
-            {children}
+            <CodeHighlightProvider>{children}</CodeHighlightProvider>
         </MantineProviderBase>
     );
 };

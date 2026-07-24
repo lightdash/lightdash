@@ -1,5 +1,4 @@
 import { Box, Flex, Text, Button } from '@mantine-8/core';
-import { noop } from '@mantine/utils';
 import { IconAlertCircle, IconRefresh, IconTable } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import {
@@ -24,6 +23,8 @@ import DashboardHeaderContextMenu from './DashboardHeaderContextMenu';
 import ExplorerPivotTable from './ExplorerPivotTable';
 import MinimalCellContextMenu from './MinimalCellContextMenu';
 import PivotRerunState from './PivotRerunState';
+
+const noop = () => undefined;
 
 type SimpleTableProps = {
     isDashboard: boolean;
@@ -231,8 +232,15 @@ const SimpleTable: FC<SimpleTableProps> = ({
         showSubtotalsExpanded,
         showRowGrouping,
         updateColumnProperty,
+        columnTotalsError,
+        rowTotalsError,
+        grandTotalsError,
+        columnSubtotalsError,
+        rowSubtotalsError,
         isCalculatingColumnTotals,
         isCalculatingRowTotals,
+        isCalculatingRowSubtotals,
+        isCalculatingGrandTotals,
         isCalculatingSubtotals,
     } = visualizationConfig.chartConfig;
 
@@ -330,7 +338,16 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 isColumnTotalsLoading={
                                     isCalculatingColumnTotals
                                 }
+                                columnTotalsError={columnTotalsError}
+                                rowTotalsError={rowTotalsError}
+                                grandTotalsError={grandTotalsError}
+                                columnSubtotalsError={columnSubtotalsError}
+                                rowSubtotalsError={rowSubtotalsError}
                                 isRowTotalsLoading={isCalculatingRowTotals}
+                                isRowSubtotalsLoading={
+                                    isCalculatingRowSubtotals
+                                }
+                                isGrandTotalsLoading={isCalculatingGrandTotals}
                                 isSubtotalsLoading={isCalculatingSubtotals}
                                 {...rest}
                             />
@@ -357,7 +374,16 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 isColumnTotalsLoading={
                                     isCalculatingColumnTotals
                                 }
+                                columnTotalsError={columnTotalsError}
+                                rowTotalsError={rowTotalsError}
+                                grandTotalsError={grandTotalsError}
+                                columnSubtotalsError={columnSubtotalsError}
+                                rowSubtotalsError={rowSubtotalsError}
                                 isRowTotalsLoading={isCalculatingRowTotals}
+                                isRowSubtotalsLoading={
+                                    isCalculatingRowSubtotals
+                                }
+                                isGrandTotalsLoading={isCalculatingGrandTotals}
                                 isSubtotalsLoading={isCalculatingSubtotals}
                                 {...rest}
                             />

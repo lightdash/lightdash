@@ -4,7 +4,7 @@ import {
     type ApiError,
     type Job,
 } from '@lightdash/common';
-import { notifications } from '@mantine/notifications';
+import { notifications } from '@mantine-8/notifications';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {

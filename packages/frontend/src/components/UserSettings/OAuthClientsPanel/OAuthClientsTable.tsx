@@ -17,7 +17,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { useTableStyles } from '../../../hooks/styles/useTableStyles';
+import tableStyles from '../../../hooks/styles/tableStyles.module.css';
 import { useDeleteOAuthClient } from '../../../hooks/useOAuthClients';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
@@ -146,11 +146,11 @@ const OAuthClientRow: FC<{
 export const OAuthClientsTable: FC<{
     clients: OAuthClientSummary[];
 }> = ({ clients }) => {
-    const { cx, classes } = useTableStyles();
-
     return (
         <Paper withBorder style={{ overflow: 'hidden' }}>
-            <Table className={cx(classes.root, classes.alignLastTdRight)}>
+            <Table
+                className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
+            >
                 <Table.Thead>
                     <Table.Tr>
                         <Table.Th className={classesModule.nameColumn}>

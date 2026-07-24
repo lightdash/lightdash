@@ -3,13 +3,31 @@
     overflow: auto;
 }
 
+.checkboxBody {
+    align-items: center;
+}
+
 .checkboxLabel {
+    display: flex;
+    align-items: center;
     padding-inline-start: var(--mantine-spacing-xs);
 }
 
 .inlineDropdowns :global(.mantine-Select-dropdown),
-.inlineDropdowns :global(.mantine-MultiSelect-dropdown) {
-    position: static;
-    width: 100%;
+.inlineDropdowns :global(.mantine-MultiSelect-dropdown),
+.inlineDropdowns :global(.mantine-8-Select-dropdown),
+.inlineDropdowns :global(.mantine-8-MultiSelect-dropdown),
+.inlineDropdowns :global(.mantine-8-TagsInput-dropdown),
+.inlineDropdowns :global(.mantine-8-Combobox-dropdown) {
+    position: static !important;
+    width: 100% !important;
     margin-top: 4px;
+    transform: none !important;
+}
+
+.inlineDropdown {
+    position: static !important;
+    width: 100% !important;
+    margin-top: 4px;
+    transform: none !important;
 }

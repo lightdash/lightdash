@@ -77,10 +77,16 @@ type GenericEvent = {
         | EventName.METRICS_CATALOG_TREES_CANVAS_MODE_CLICKED
         | EventName.BIGQUERY_SSO_SIGNIN_CLICKED
         | EventName.SNOWFLAKE_CLI_SSO_COMMAND_COPIED
-        | EventName.SETUP_INVITE_SENT
         | EventName.PLAYGROUND_PROJECT_ENTERED
         | EventName.AGENT_SETUP_PROMPT_COPIED;
     properties?: {};
+};
+
+type SetupInviteSentEvent = {
+    name: EventName.SETUP_INVITE_SENT;
+    properties: {
+        organizationId: string;
+    };
 };
 
 type DocumentationClickedEvent = {
@@ -701,6 +707,7 @@ type CreateProjectColumnsDefinedButtonClickedEvent = {
 
 export type EventData =
     | GenericEvent
+    | SetupInviteSentEvent
     | CreateProjectButtonClickedEvent
     | CreateProjectFailedEvent
     | SignupFormSubmittedEvent

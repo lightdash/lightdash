@@ -1,6 +1,6 @@
 import { type ResourceViewChartItem } from '@lightdash/common';
 import { Box, Flex, Group, Paper, Text, Tooltip } from '@mantine-8/core';
-import { useDisclosure, useHover } from '@mantine/hooks';
+import { useDisclosure, useHover } from '@mantine-8/hooks';
 import { IconCircleCheckFilled, IconEye } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import { ResourceIcon, ResourceIndicator } from '../../ResourceIcon';
@@ -78,7 +78,6 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
                 <Tooltip
                     label={item.data.description}
                     position="top"
-                    variant="xs"
                     maw={400}
                     multiline
                     disabled={!item.data.description}

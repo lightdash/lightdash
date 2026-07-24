@@ -290,17 +290,22 @@ template, so Docker is the working local path anyway. Public docs:
 
 ### Setup (one-time per machine)
 
-1. **Build the two local images** (heavy — `lightdash-sandbox:local` ~2.3GB for data apps,
-   `lightdash-ai-writeback:local` ~5GB for writeback; rebuild only when the toolchain changes):
+1. **Build the three local images** (heavy — `lightdash-sandbox:local` ~2.3GB for data apps,
+   `lightdash-ai-writeback:local` ~5GB for writeback, `lightdash-agent-onboarding:local`
+   ~2.2GB for managed onboarding runs; rebuild only when the toolchain changes).
+   `dev-fast-start.sh` builds any that are missing whenever the env file has
+   `SANDBOX_PROVIDER=docker`, so normally there is nothing to do by hand:
    ```bash
    ./sandboxes/data-apps/build-local-image.sh        # -> lightdash-sandbox:local
    ./sandboxes/ai-writeback/build-local-image.sh     # -> lightdash-ai-writeback:local
+   ./sandboxes/agent-onboarding/build-local-image.sh # -> lightdash-agent-onboarding:local
    ```
 2. **Env** (the `ee` profile writes `SANDBOX_PROVIDER=docker`; the image vars default, set only to override):
    ```bash
    SANDBOX_PROVIDER=docker
    # SANDBOX_DOCKER_IMAGE=lightdash-sandbox:local
    # SANDBOX_AI_WRITEBACK_DOCKER_IMAGE=lightdash-ai-writeback:local
+   # SANDBOX_AGENT_ONBOARDING_DOCKER_IMAGE=lightdash-agent-onboarding:local
    ```
    Requires `ANTHROPIC_API_KEY` (agent) and MinIO up (snapshots tar to object storage).
 
@@ -313,6 +318,12 @@ template, so Docker is the working local path anyway. Public docs:
   show `SANDBOX_PROVIDER=docker`.
 - **After an OrbStack/Docker restart**, MinIO + NATS may not come back (gen needs MinIO) and
   the graphile worker can zombie — re-run shared compose up and restart the scheduler.
+- **A sandbox feature failing with `(HTTP code 404) ... No such image: lightdash-<name>:local`**
+  means that local image was never built on this machine (each new sandbox type ships its own
+  image — agent-onboarding arrived with #25902). Run the matching
+  `./sandboxes/<dir>/build-local-image.sh`, or re-run `./scripts/dev-fast-start.sh`, which
+  builds missing sandbox images automatically. No PM2 restart needed — the image is resolved
+  at container launch.
 
 ### Verify
 

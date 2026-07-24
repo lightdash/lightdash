@@ -388,28 +388,34 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                 <Stack gap="xs">
                     <ConnectionTestResult response={testMutation.data} />
 
-                    <TextInput
-                        label="Sample label (optional)"
-                        placeholder="e.g. Current weather Berlin"
-                        size="xs"
-                        {...form.getInputProps('sampleLabel')}
-                    />
+                    {testMutation.data.status < 300 && (
+                        <>
+                            <TextInput
+                                label="Sample label (optional)"
+                                placeholder="e.g. Current weather Berlin"
+                                size="xs"
+                                {...form.getInputProps('sampleLabel')}
+                            />
 
-                    <Group>
-                        <Button
-                            type="button"
-                            size="xs"
-                            variant="outline"
-                            onClick={() => handleSaveSample(testMutation.data!)}
-                            loading={saveSampleMutation.isLoading}
-                        >
-                            Save as sample
-                        </Button>
-                        <Text fz="xs" c="ldGray.6">
-                            Saved samples ground Claude in the API&apos;s
-                            response shape.
-                        </Text>
-                    </Group>
+                            <Group>
+                                <Button
+                                    type="button"
+                                    size="xs"
+                                    variant="outline"
+                                    onClick={() =>
+                                        handleSaveSample(testMutation.data!)
+                                    }
+                                    loading={saveSampleMutation.isLoading}
+                                >
+                                    Save as sample
+                                </Button>
+                                <Text fz="xs" c="ldGray.6">
+                                    Saved samples ground Claude in the
+                                    API&apos;s response shape.
+                                </Text>
+                            </Group>
+                        </>
+                    )}
                 </Stack>
             )}
 

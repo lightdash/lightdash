@@ -1,6 +1,8 @@
 import {
     convertColumnMetric,
     convertModelMetric,
+    convertToAiHints,
+    flattenAiHints,
     getEffectiveFieldAiHints,
     getModelsFromManifest,
     patchPathParts,
@@ -8,6 +10,47 @@ import {
 } from './dbt';
 import { DimensionType, MetricType } from './field';
 import { TimeFrames } from './timeFrames';
+
+describe('convertToAiHints', () => {
+    it('normalizes strings and arrays of strings', () => {
+        expect(convertToAiHints('Use the canonical value.')).toEqual([
+            'Use the canonical value.',
+        ]);
+        expect(convertToAiHints(['First hint.', 'Second hint.'])).toEqual([
+            'First hint.',
+            'Second hint.',
+        ]);
+    });
+
+    it('drops non-string values without discarding valid array entries', () => {
+        expect(
+            convertToAiHints([
+                'Valid hint.',
+                { Formula: 'clicks + keys' },
+                null,
+                42,
+                false,
+            ]),
+        ).toEqual(['Valid hint.']);
+        expect(convertToAiHints({ Formula: 'clicks + keys' })).toBeUndefined();
+        expect(convertToAiHints(42)).toBeUndefined();
+        expect(convertToAiHints(null)).toBeUndefined();
+    });
+
+    it('returns undefined when no usable hints remain', () => {
+        expect(convertToAiHints('')).toBeUndefined();
+        expect(convertToAiHints([])).toBeUndefined();
+        expect(
+            convertToAiHints([{ Formula: 'clicks + keys' }]),
+        ).toBeUndefined();
+    });
+
+    it('flattens only validated hints', () => {
+        expect(
+            flattenAiHints(['First hint.', { invalid: true }, 'Second hint.']),
+        ).toBe('First hint. Second hint.');
+    });
+});
 
 describe('getEffectiveFieldAiHints', () => {
     it('combines field and group hints without changing their source metadata', () => {
@@ -35,6 +78,36 @@ describe('getEffectiveFieldAiHints', () => {
         expect(field.aiHint).toEqual([
             'Use as the canonical value.',
             'Shared guidance.',
+        ]);
+    });
+
+    it('ignores malformed field and group hints', () => {
+        const field = {
+            aiHint: [
+                'Valid field hint.',
+                { Formula: 'clicks + keys' },
+            ] as unknown as string[],
+            groups: ['settlements', 'broken'],
+        };
+        const table = {
+            groupDetails: {
+                settlements: {
+                    label: 'Settlements',
+                    aiHint: [
+                        { invalid: true },
+                        'Valid group hint.',
+                    ] as unknown as string[],
+                },
+                broken: {
+                    label: 'Broken',
+                    aiHint: { invalid: true } as unknown as string[],
+                },
+            },
+        };
+
+        expect(getEffectiveFieldAiHints(field, table)).toEqual([
+            'Valid field hint.',
+            'Valid group hint.',
         ]);
     });
 });

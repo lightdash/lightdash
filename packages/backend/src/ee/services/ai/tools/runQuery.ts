@@ -228,7 +228,10 @@ export const getRunQuery = ({
                         artifactType: 'chart',
                         title: toolArgs.title,
                         description: toolArgs.description,
-                        vizConfig: expandedToolArgs,
+                        vizConfig: {
+                            source: 'semantic',
+                            config: expandedToolArgs,
+                        },
                     });
 
                 // Early artifact creation for non-data-access mode

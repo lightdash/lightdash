@@ -595,7 +595,7 @@ export class AiWritebackService extends BaseService {
                 args.user,
                 args.projectUuid,
             );
-            this.trackMerged(args.user, args.projectUuid, {
+            await this.trackMerged(args.user, args.projectUuid, {
                 prUrl: args.prUrl,
                 mergeCommitSha: result.sha,
                 compileScheduled,
@@ -610,7 +610,7 @@ export class AiWritebackService extends BaseService {
      * throws back into the merge flow. Owner/repo/pullNumber are parsed from the
      * PR URL where possible (github.com links), and left null otherwise.
      */
-    private trackMerged(
+    private async trackMerged(
         user: SessionUser,
         projectUuid: string,
         properties: {
@@ -618,7 +618,7 @@ export class AiWritebackService extends BaseService {
             mergeCommitSha: string | null;
             compileScheduled: boolean;
         },
-    ): void {
+    ): Promise<void> {
         let parsed: {
             owner: string;
             repo: string;
@@ -629,18 +629,41 @@ export class AiWritebackService extends BaseService {
         } catch {
             parsed = null;
         }
+        let threadId: string | null = null;
+        let promptId: string | null = null;
+        let workstream: CodingAgentConfig['mode'] = 'dbt-writeback';
+        try {
+            const thread =
+                await this.aiWritebackThreadModel.findByProjectUuidAndPrUrl(
+                    projectUuid,
+                    properties.prUrl,
+                );
+            workstream = thread?.workstream ?? workstream;
+            threadId = thread?.ai_thread_uuid ?? null;
+            const run =
+                await this.aiWritebackRunModel.findLatestByProjectUuidAndPrUrl(
+                    projectUuid,
+                    properties.prUrl,
+                );
+            promptId = run?.prompt_uuid ?? null;
+        } catch {
+            workstream = 'dbt-writeback';
+        }
         this.analytics.track({
             event: 'ai_writeback.merged',
             userId: user.userUuid,
             properties: {
                 organizationId: user.organizationUuid ?? '',
                 projectId: projectUuid,
+                threadId,
+                promptId,
                 prUrl: properties.prUrl,
                 owner: parsed?.owner ?? null,
                 repo: parsed?.repo ?? null,
                 pullNumber: parsed?.pullNumber ?? null,
                 mergeCommitSha: properties.mergeCommitSha,
                 compileScheduled: properties.compileScheduled,
+                workstream,
             },
         });
     }
@@ -1943,7 +1966,14 @@ export class AiWritebackService extends BaseService {
             throw error;
         }
 
-        const tracker = this.startTracking({ user, projectUuid, turn });
+        const tracker = this.startTracking({
+            user,
+            projectUuid,
+            turn,
+            workstream: config.mode,
+            aiThreadUuid,
+            promptUuid: args.promptUuid,
+        });
 
         let failureStage: AiWritebackFailureStage = 'install';
         let stageStartedAt = Date.now();
@@ -2136,6 +2166,7 @@ export class AiWritebackService extends BaseService {
                 prTitle,
                 prDescription,
                 prSummary,
+                workstream: config.mode,
                 // The general agent must never commit CI/workflow files (R3);
                 // dbt writeback may (preview-deploy setup). Secrets are denied
                 // in both regardless.
@@ -3021,17 +3052,26 @@ export class AiWritebackService extends BaseService {
         user,
         projectUuid,
         turn,
+        workstream,
+        aiThreadUuid,
+        promptUuid,
     }: {
         user: SessionUser;
         projectUuid: string;
         turn: TurnContext;
+        workstream: CodingAgentConfig['mode'];
+        aiThreadUuid: string | undefined;
+        promptUuid: string | undefined;
     }) {
         const eventBase = {
             organizationId: turn.organizationUuid,
             projectId: projectUuid,
+            threadId: aiThreadUuid ?? null,
+            promptId: promptUuid ?? null,
             owner: turn.gitConnection.owner,
             repo: turn.gitConnection.repo,
             isResume: turn.isResume,
+            workstream,
         };
         const startedAt = Date.now();
 
@@ -4024,6 +4064,7 @@ export class AiWritebackService extends BaseService {
         prTitle,
         prDescription,
         prSummary,
+        workstream,
         denyCiPaths,
     }: {
         sandbox: SandboxHandle;
@@ -4039,6 +4080,7 @@ export class AiWritebackService extends BaseService {
         prTitle: string | null;
         prDescription: string | null;
         prSummary: string | null;
+        workstream: CodingAgentConfig['mode'];
         /** Reject the commit if it touches CI/workflow paths (general agent). */
         denyCiPaths: boolean;
     }): Promise<AppliedChanges> {
@@ -4097,6 +4139,7 @@ export class AiWritebackService extends BaseService {
                     sandboxUuid,
                     prUrl: targetPrUrl,
                     summary: prSummary,
+                    workstream,
                 });
             }
 
@@ -4139,6 +4182,7 @@ export class AiWritebackService extends BaseService {
             sandboxUuid,
             prUrl,
             summary: prSummary,
+            workstream,
         });
 
         return {
@@ -4195,6 +4239,7 @@ export class AiWritebackService extends BaseService {
         sandboxUuid,
         prUrl,
         summary,
+        workstream,
     }: {
         turn: TurnContext;
         projectUuid: string;
@@ -4203,6 +4248,7 @@ export class AiWritebackService extends BaseService {
         sandboxUuid: string;
         prUrl: string;
         summary: string | null;
+        workstream: CodingAgentConfig['mode'];
     }): Promise<void> {
         const pullRequest = await this.pullRequestsModel.findOrCreate({
             organizationUuid: turn.organizationUuid,
@@ -4227,6 +4273,7 @@ export class AiWritebackService extends BaseService {
                 projectDbtSourceUuid: turn.projectDbtSourceUuid,
                 // Record the repo so a thread can resume its latest PR per repo.
                 targetRepo: `${turn.gitConnection.owner}/${turn.gitConnection.repo}`,
+                workstream,
             });
         }
     }

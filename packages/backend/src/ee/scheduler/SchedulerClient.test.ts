@@ -1,4 +1,4 @@
-import { AnyType, EE_SCHEDULER_TASKS } from '@lightdash/common';
+import { AnyType, EE_SCHEDULER_TASKS, JobPriority } from '@lightdash/common';
 import {
     aiAgentReviewRunAt,
     CommercialSchedulerClient,
@@ -42,6 +42,36 @@ describe('CommercialSchedulerClient.aiDeepResearch', () => {
             expect.objectContaining({
                 maxAttempts: 1,
                 jobKey: 'ai-deep-research:run-1',
+            }),
+        );
+    });
+});
+
+describe('CommercialSchedulerClient.aiAgentMemoryDistill', () => {
+    it('enqueues one keyed attempt per thread', async () => {
+        const addJob = vi.fn().mockResolvedValue({ id: 'job-1' });
+        const client = Object.create(
+            CommercialSchedulerClient.prototype,
+        ) as CommercialSchedulerClient;
+        client.graphileUtils = Promise.resolve({ addJob } as AnyType);
+        const payload = {
+            threadUuid: 'thread-1',
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            userUuid: 'system',
+            sweptUpdatedAt: '2026-07-22T05:00:00.000Z',
+        };
+
+        await client.aiAgentMemoryDistill(payload);
+
+        expect(addJob).toHaveBeenCalledWith(
+            EE_SCHEDULER_TASKS.AI_AGENT_MEMORY_DISTILL,
+            payload,
+            expect.objectContaining({
+                maxAttempts: 1,
+                jobKey: 'ai-agent-memory-distill:thread-1',
+                queueName: 'ai-agent-memory-distill:project-1',
+                priority: JobPriority.LOW,
             }),
         );
     });

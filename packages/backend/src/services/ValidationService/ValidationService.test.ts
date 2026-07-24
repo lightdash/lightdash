@@ -5,9 +5,12 @@ import {
     FilterOperator,
     TableCalculationTemplateType,
     TableSelectionType,
+    ValidationErrorType,
+    ValidationSourceType,
     ValidationTarget,
     WindowFunctionType,
 } from '@lightdash/common';
+import { validateWarehouseColumnReferences } from '@lightdash/warehouses';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -29,12 +32,24 @@ import {
     explore,
     exploreError,
     exploreWithJoin,
+    exploreWithMixedWarnings,
+    exploreWithNonWarehouseWarnings,
     exploreWithoutDimension,
     exploreWithoutMetric,
+    exploreWithWarehouseColumnError,
     project,
     tableConfiguration,
     user,
 } from './ValidationService.mock';
+
+vi.mock('@lightdash/warehouses', async (importOriginal) => {
+    const original =
+        await importOriginal<typeof import('@lightdash/warehouses')>();
+    return {
+        ...original,
+        validateWarehouseColumnReferences: vi.fn(),
+    };
+});
 
 const savedChartModel = {
     findChartsForValidation: vi.fn(async () => [chartForValidation]),
@@ -49,6 +64,7 @@ const projectModel = {
     findExploresFromCache: vi.fn(async () => ({
         [explore.name]: explore,
     })),
+    findVirtualViewsFromCache: vi.fn(async () => ({})),
     getExploreFromCache: vi.fn(async () => explore),
     getAllExploresFromCache: vi.fn(async () => ({
         [explore.name]: explore,
@@ -204,6 +220,50 @@ describe('validation', () => {
             "The chart 'Test chart' is broken on this dashboard.",
         ];
         expect(errors.map((error) => error.error)).toEqual(expectedErrors);
+    });
+
+    it('Should create table validation errors from CLI warehouse diagnostics without probing the warehouse', async () => {
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            [exploreWithWarehouseColumnError],
+        );
+
+        expect(errors).toHaveLength(1);
+        expect({ ...errors[0], createdAt: undefined }).toEqual({
+            createdAt: undefined,
+            name: 'valid_explore',
+            error: 'Warehouse rejected ${TABLE}.missing_column',
+            errorType: ValidationErrorType.Model,
+            modelName: 'valid_explore',
+            projectUuid: 'projectUuid',
+            source: ValidationSourceType.Table,
+        });
+        expect(validateWarehouseColumnReferences).not.toHaveBeenCalled();
+    });
+
+    it('Should ignore cached explore warnings unrelated to warehouse columns', async () => {
+        (
+            projectModel.findExploresFromCache as import('vitest').Mock
+        ).mockImplementationOnce(async () => [exploreWithNonWarehouseWarnings]);
+
+        const errors =
+            await validationService.generateValidation('projectUuid');
+
+        expect(errors).toEqual([]);
+    });
+
+    it('Should create only the warehouse table error from mixed CLI diagnostics', async () => {
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            [exploreWithMixedWarnings],
+        );
+
+        expect(errors).toHaveLength(1);
+        expect(errors[0]).toMatchObject({
+            error: 'Warehouse rejected ${TABLE}.missing_column',
+            errorType: ValidationErrorType.Model,
+            source: ValidationSourceType.Table,
+        });
     });
 
     it('Should validate project with table errors', async () => {

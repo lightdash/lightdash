@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type {
     AnyType,
     ApiExecuteAsyncMetricQueryResults,
+    ApiExecuteAsyncSqlQueryResults,
     ApiSuccess,
     ApiSuccessEmpty,
     CacheMetadata,
@@ -15,6 +16,7 @@ import type {
     ToolVerticalBarArgs,
 } from '../..';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
+import { type AiProjectContextTypedObjectRef } from './projectContext';
 import {
     type AiAgentModelConfig,
     type AiPromptContext,
@@ -335,6 +337,36 @@ export type ApiAiAgentResponse = {
     results: AiAgent;
 };
 
+export type AiAgentMemorySource = {
+    slug: string;
+} & (
+    | { hasThreadAccess: false }
+    | {
+          hasThreadAccess: true;
+          agentUuid: string | null;
+          threadUuid: string;
+          threadTitle: string | null;
+          threadSummary: string;
+      }
+);
+
+export type AiAgentMemory = {
+    slug: string;
+    title: string;
+    rawMemory: string;
+    terms: string[];
+    objects: AiProjectContextTypedObjectRef[];
+    status: 'active' | 'superseded' | 'retired';
+    generatedAt: string;
+    citedCount: number;
+    provenance:
+        | { type: 'source_thread'; source: AiAgentMemorySource }
+        | { type: 'consolidated'; sources: AiAgentMemorySource[] };
+    replacementSlug: string | null;
+};
+
+export type ApiAiAgentMemoryResponse = ApiSuccess<AiAgentMemory>;
+
 export type ApiAiAgentAvatarUploadResponse = ApiSuccess<AiAgent>;
 
 export type ApiAiAgentSummaryResponse = {
@@ -632,6 +664,7 @@ export type AiVizMetadata = {
 };
 
 export type ApiAiAgentThreadMessageVizQuery = {
+    source: 'semantic';
     type: AiResultType;
     query: ApiExecuteAsyncMetricQueryResults;
     metadata: AiVizMetadata;
@@ -640,6 +673,28 @@ export type ApiAiAgentThreadMessageVizQuery = {
 export type ApiAiAgentThreadMessageVizQueryResponse = {
     status: 'ok';
     results: ApiAiAgentThreadMessageVizQuery;
+};
+
+export type ApiAiAgentSqlArtifactVizQuery = {
+    source: 'sql';
+    type: AiResultType.TABLE_RESULT;
+    query: ApiExecuteAsyncSqlQueryResults;
+    sql: string;
+    limit: number;
+    metadata: AiVizMetadata;
+};
+
+export type ApiAiAgentArtifactVizQuery =
+    | ApiAiAgentThreadMessageVizQuery
+    | ApiAiAgentSqlArtifactVizQuery;
+
+export const isAiAgentSqlArtifactVizQuery = (
+    query: ApiAiAgentArtifactVizQuery,
+): query is ApiAiAgentSqlArtifactVizQuery => query.source === 'sql';
+
+export type ApiAiAgentArtifactVizQueryResponse = {
+    status: 'ok';
+    results: ApiAiAgentArtifactVizQuery;
 };
 
 export type AiAgentUserPreferences = {
@@ -739,30 +794,58 @@ export type ApiAiAgentExploreAccessSummaryResponse = ApiSuccess<
     AiAgentExploreAccessSummary[]
 >;
 
+export type AiSqlChartArtifactConfig = {
+    source: 'sql';
+    sql: string;
+    limit: number;
+};
+
+export type AiLegacySemanticChartArtifactConfig =
+    | ToolTableVizArgs
+    | ToolTimeSeriesArgs
+    | ToolVerticalBarArgs
+    | ToolRunQueryArgs;
+
+export type AiSemanticChartArtifactConfig = {
+    source: 'semantic';
+    config: AiLegacySemanticChartArtifactConfig;
+};
+
+export type AiChartArtifactConfig =
+    | AiSemanticChartArtifactConfig
+    | AiSqlChartArtifactConfig;
+
 export type AiArtifact = {
     artifactUuid: string;
     threadUuid: string;
     promptUuid: string | null;
     artifactType: 'chart' | 'dashboard';
     savedQueryUuid: string | null;
+    savedSqlUuid: string | null;
     savedDashboardUuid: string | null;
     createdAt: Date;
     versionNumber: number;
     versionUuid: string;
     title: string | null;
     description: string | null;
-    // We store raw tool calls
-    chartConfig:
-        | ToolTableVizArgs
-        | ToolTimeSeriesArgs
-        | ToolVerticalBarArgs
-        | ToolRunQueryArgs
-        | null;
+    chartConfig: AiChartArtifactConfig | null;
     dashboardConfig: ToolDashboardArgs | null;
     versionCreatedAt: Date;
     verifiedByUserUuid: string | null;
     verifiedAt: Date | null;
 };
+
+export const isAiSqlChartArtifactConfig = (
+    config: unknown,
+): config is AiSqlChartArtifactConfig =>
+    typeof config === 'object' &&
+    config !== null &&
+    'source' in config &&
+    config.source === 'sql' &&
+    'sql' in config &&
+    typeof config.sql === 'string' &&
+    'limit' in config &&
+    typeof config.limit === 'number';
 
 export type AiArtifactTSOACompat = Omit<
     AiArtifact,

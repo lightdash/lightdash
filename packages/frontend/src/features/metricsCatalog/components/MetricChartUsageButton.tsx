@@ -49,7 +49,6 @@ export const MetricChartUsageButton = ({
     return (
         <Tooltip
             withinPortal
-            variant="xs"
             disabled={!canViewChartUsage}
             openDelay={200}
             maw={250}

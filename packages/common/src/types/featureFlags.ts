@@ -134,6 +134,9 @@ export enum FeatureFlags {
      */
     AiDeepResearch = 'ai-deep-research',
 
+    /** Enable project-scoped AI agent memory runtime. */
+    AiAgentMemory = 'ai-agent-memory',
+
     /**
      * @deprecated Rolled out to all customers. Keep for persisted feature flag config only.
      */

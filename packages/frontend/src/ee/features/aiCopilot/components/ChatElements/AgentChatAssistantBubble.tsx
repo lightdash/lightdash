@@ -63,8 +63,13 @@ import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactInline } from './AiArtifactInline';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
+import {
+    MEMORY_CITATION_ALLOWED_TAGS,
+    MEMORY_CITATION_COMPONENTS,
+} from './memoryCitationConfig';
 import { MessageModelIndicator } from './MessageModelIndicator';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
+import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
 import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
 import { AiEditRepoToolCall } from './ToolCalls/AiEditRepoToolCall';
 import { ImproveContextToolCall } from './ToolCalls/ImproveContextToolCall';
@@ -313,12 +318,14 @@ const AssistantBubbleContent: FC<{
     message: AiAgentMessageAssistant;
     projectUuid: string;
     agentUuid: string;
+    isLastMessage: boolean;
     mcpServers?: AiMcpServer[];
     onDashboardLinkClick?: (url: string) => void;
 }> = ({
     message,
     projectUuid,
     agentUuid,
+    isLastMessage,
     mcpServers,
     onDashboardLinkClick,
 }) => {
@@ -372,10 +379,17 @@ const AssistantBubbleContent: FC<{
         }),
         [canOpenSqlRunner, projectUuid],
     );
+    // After streaming ends there's a brief window where the client has
+    // refetched the thread but the persisted message.message hasn't landed
+    // yet. The streamed content stays in redux keyed to this message, so we
+    // keep it as a fallback to avoid flashing an empty bubble (and a spurious
+    // "No response" notice) until the persisted text arrives.
+    const streamedContent = streamingState?.content ?? '';
     const hasNoResponse =
         !isStreaming &&
         !streamingError &&
         !message.message &&
+        !streamedContent &&
         !isPending &&
         !message.interrupted;
     const shouldShowRetry = hasError || hasNoResponse || !!streamingError;
@@ -391,7 +405,7 @@ const AssistantBubbleContent: FC<{
     const baseMessageContent =
         isStreaming && streamingState
             ? streamingState.content
-            : (message.message ?? '');
+            : message.message || streamedContent;
 
     const referencedArtifactsMarkdown =
         !isStreaming &&
@@ -513,28 +527,32 @@ const AssistantBubbleContent: FC<{
                                 </Text>
                             </Stack>
                         </Alert>
-                        <Button
-                            size="xs"
-                            variant="default"
-                            color="ldDark.5"
-                            leftSection={
-                                <MantineIcon
-                                    icon={IconRefresh}
-                                    size="sm"
-                                    color="ldGray.7"
-                                />
-                            }
-                            onClick={() =>
-                                handleRetry({
-                                    projectUuid,
-                                    agentUuid,
-                                    threadUuid: message.threadUuid,
-                                    messageUuid: message.uuid,
-                                })
-                            }
-                        >
-                            Try again
-                        </Button>
+                        {/* Retry re-runs the thread's latest prompt, so only
+                            offer it on the message it would actually re-run */}
+                        {isLastMessage && (
+                            <Button
+                                size="xs"
+                                variant="default"
+                                color="ldDark.5"
+                                leftSection={
+                                    <MantineIcon
+                                        icon={IconRefresh}
+                                        size="sm"
+                                        color="ldGray.7"
+                                    />
+                                }
+                                onClick={() =>
+                                    handleRetry({
+                                        projectUuid,
+                                        agentUuid,
+                                        threadUuid: message.threadUuid,
+                                        messageUuid: message.uuid,
+                                    })
+                                }
+                            >
+                                Try again
+                            </Button>
+                        )}
                     </Group>
                 </Paper>
             )}
@@ -583,14 +601,19 @@ const AssistantBubbleContent: FC<{
                     const finalAnswerMd = latestTextSeg ? (
                         <AiMarkdown
                             isStreaming={isStreaming}
+                            allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
                             className={
                                 isStreaming
                                     ? styles.streamingNarration
                                     : undefined
                             }
-                            rehypePlugins={[rehypeAiAgentContentLinks]}
+                            rehypePlugins={[
+                                rehypeAiAgentContentLinks,
+                                rehypeMemoryCitationIndices,
+                            ]}
                             plugins={markdownPlugins}
                             components={{
+                                ...MEMORY_CITATION_COMPONENTS,
                                 a: ({ node, children, ...props }) => {
                                     const contentType =
                                         'data-content-type' in props &&
@@ -774,9 +797,14 @@ const AssistantBubbleContent: FC<{
                         {messageContent.length > 0 ? (
                             <AiMarkdown
                                 className={styles.persistedAnswer}
-                                rehypePlugins={[rehypeAiAgentContentLinks]}
+                                allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
+                                rehypePlugins={[
+                                    rehypeAiAgentContentLinks,
+                                    rehypeMemoryCitationIndices,
+                                ]}
                                 plugins={markdownPlugins}
                                 components={{
+                                    ...MEMORY_CITATION_COMPONENTS,
                                     a: ({ node, children, ...props }) => {
                                         const contentType =
                                             'data-content-type' in props &&
@@ -847,6 +875,7 @@ const AssistantBubbleContent: FC<{
 
 type Props = {
     message: AiAgentMessageAssistant;
+    isLastMessage: boolean;
     isActive?: boolean;
     debug?: boolean;
     projectUuid: string;
@@ -861,6 +890,7 @@ type Props = {
 export const AssistantBubble: FC<Props> = memo(
     ({
         message,
+        isLastMessage,
         isActive = false,
         debug = false,
         projectUuid,
@@ -962,6 +992,7 @@ export const AssistantBubble: FC<Props> = memo(
                     message={message}
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
+                    isLastMessage={isLastMessage}
                     mcpServers={mcpServers}
                     onDashboardLinkClick={onDashboardLinkClick}
                 />

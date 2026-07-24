@@ -40,7 +40,10 @@ type DashboardTileAsCodeBase = {
      * @maximum 36
      */
     w: DashboardTile['w'];
-    tabUuid: DashboardTile['tabUuid'];
+    /** Portable reference to the dashboard tab containing this tile. */
+    tabSlug?: string | null;
+    /** Legacy project-local tab reference. Accepted on upload for backwards compatibility. */
+    tabUuid?: DashboardTile['tabUuid'];
 };
 
 export type DashboardChartTileAsCode = DashboardTileAsCodeBase & {
@@ -92,7 +95,10 @@ export type DashboardTileWithSlug = DashboardTile & {
 };
 
 export type DashboardTabAsCode = {
-    uuid: DashboardTab['uuid'];
+    /** Portable tab identifier used by new downloads. */
+    slug?: string;
+    /** Legacy project-local identifier. Accepted on upload for backwards compatibility. */
+    uuid?: DashboardTab['uuid'];
     /**
      * @minLength 1
      */

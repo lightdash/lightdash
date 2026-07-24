@@ -3,7 +3,7 @@ import {
     MapChartType,
     MapTileBackground,
 } from '@lightdash/common';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure } from '@mantine-8/hooks';
 import { captureException } from '@sentry/react';
 import { IconMap } from '@tabler/icons-react';
 import { scaleSqrt } from 'd3-scale';

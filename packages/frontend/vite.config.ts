@@ -96,7 +96,7 @@ export default defineConfig({
                         },
                         {
                             name: 'mantine',
-                            test: /node_modules[\\/]@mantine[\\/](core|dates|form|hooks|notifications|prism)/,
+                            test: /node_modules[\\/]@mantine[\\/](code-highlight|core|dates|form|hooks|modals|notifications|tiptap)/,
                             priority: 20,
                         },
                         {

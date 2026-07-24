@@ -1,6 +1,7 @@
 import type {
     AiAgent,
     AiAgentThreadFilters,
+    ApiAiAgentArtifactVizQuery,
     ApiAiAgentAvatarUploadResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
     ApiAiAgentResponse,
@@ -59,6 +60,7 @@ import {
     getAiAgentPageBase,
     isEmbedAiAgentRoute,
 } from './aiAgentRouting';
+import { AI_AGENT_ARTIFACT_KEY } from './useAiAgentArtifacts';
 import {
     AGENT_AI_MCP_SERVERS_KEY,
     PROJECT_AI_MCP_SERVERS_KEY,
@@ -1567,6 +1569,27 @@ const updateArtifactVersion = async ({
         }),
     });
 
+const updateArtifactVersionSavedSql = async ({
+    projectUuid,
+    agentUuid,
+    artifactUuid,
+    versionUuid,
+    savedSqlUuid,
+}: {
+    projectUuid: string;
+    agentUuid: string;
+    artifactUuid: string;
+    versionUuid: string;
+    savedSqlUuid: string | null;
+}) =>
+    lightdashApi<ApiSuccessEmpty>({
+        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}/savedSql`,
+        method: `PATCH`,
+        body: JSON.stringify({
+            savedSqlUuid,
+        }),
+    });
+
 export const useUpdateArtifactVersion = (
     projectUuid: string,
     agentUuid: string,
@@ -1594,11 +1617,12 @@ export const useUpdateArtifactVersion = (
         onSuccess: () => {
             void queryClient.invalidateQueries({
                 queryKey: [
-                    AI_AGENTS_KEY,
+                    AI_AGENT_ARTIFACT_KEY,
                     projectUuid,
                     agentUuid,
-                    'artifacts',
                     artifactUuid,
+                    'version',
+                    versionUuid,
                 ],
             });
         },
@@ -1617,6 +1641,49 @@ export const useUpdateArtifactVersion = (
     });
 };
 
+export const useUpdateArtifactVersionSavedSql = (
+    projectUuid: string,
+    agentUuid: string,
+    artifactUuid: string,
+    versionUuid: string,
+) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiSuccessEmpty,
+        ApiError,
+        { savedSqlUuid: string | null }
+    >({
+        mutationFn: ({ savedSqlUuid }) =>
+            updateArtifactVersionSavedSql({
+                projectUuid,
+                agentUuid,
+                artifactUuid,
+                versionUuid,
+                savedSqlUuid,
+            }),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    AI_AGENT_ARTIFACT_KEY,
+                    projectUuid,
+                    agentUuid,
+                    artifactUuid,
+                    'version',
+                    versionUuid,
+                ],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to link saved SQL chart',
+                apiError: error,
+            });
+        },
+    });
+};
+
 // Artifact functionality
 const getAiAgentArtifactVizQuery = async (args: {
     projectUuid: string;
@@ -1624,7 +1691,7 @@ const getAiAgentArtifactVizQuery = async (args: {
     artifactUuid: string;
     versionUuid: string;
 }) =>
-    lightdashApi<ApiAiAgentThreadMessageVizQuery>({
+    lightdashApi<ApiAiAgentArtifactVizQuery>({
         url: `${getAiAgentApiBase(args.projectUuid)}/${
             args.agentUuid
         }/artifacts/${args.artifactUuid}/versions/${
@@ -1646,10 +1713,7 @@ export const useAiAgentArtifactVizQuery = (
         artifactUuid: string;
         versionUuid: string;
     },
-    useQueryOptions?: UseQueryOptions<
-        ApiAiAgentThreadMessageVizQuery,
-        ApiError
-    >,
+    useQueryOptions?: UseQueryOptions<ApiAiAgentArtifactVizQuery, ApiError>,
 ) => {
     const navigate = useNavigate();
     const { data: activeProjectUuid } = useActiveProject();
@@ -1658,7 +1722,7 @@ export const useAiAgentArtifactVizQuery = (
     const { showToastApiError } = useToaster();
     const isEmbed = isEmbedAiAgentRoute();
 
-    return useQuery<ApiAiAgentThreadMessageVizQuery, ApiError>({
+    return useQuery<ApiAiAgentArtifactVizQuery, ApiError>({
         queryKey: [
             AI_AGENTS_KEY,
             'artifact-viz-query',

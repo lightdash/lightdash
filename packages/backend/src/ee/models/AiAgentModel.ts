@@ -66,6 +66,7 @@ import {
     NotFoundError,
     NotImplementedError,
     ParameterError,
+    parseAiArtifactChartConfig,
     ProjectType,
     PullRequestProvider,
     SlackPrompt,
@@ -97,6 +98,7 @@ import {
     SavedChartsTableName,
     SavedChartVersionsTableName,
 } from '../../database/entities/savedCharts';
+import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { DbUser, UserTableName } from '../../database/entities/users';
 import { isUniqueConstraintViolation } from '../../database/errors';
@@ -364,6 +366,21 @@ export class AiAgentModel {
             return callback(db as Knex.Transaction);
         }
         return db.transaction(callback);
+    }
+
+    private static async bumpThreadUpdatedAt(
+        threadUuid: string,
+        promptCreatedAt: Date,
+        { trx }: { trx: Knex.Transaction },
+    ): Promise<void> {
+        await trx(AiThreadTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .update({
+                updated_at: trx.raw('GREATEST(??, ?)', [
+                    'updated_at',
+                    promptCreatedAt,
+                ]),
+            });
     }
 
     async filterExistingProjectUuids(
@@ -4554,11 +4571,17 @@ export class AiAgentModel {
                     prompt: data.prompt,
                     model_config: data.modelConfig,
                 })
-                .returning('ai_prompt_uuid');
+                .returning(['ai_prompt_uuid', 'created_at']);
 
             if (row === undefined) {
                 throw new Error('Failed to create prompt');
             }
+
+            await AiAgentModel.bumpThreadUpdatedAt(
+                data.threadUuid,
+                row.created_at,
+                { trx },
+            );
 
             await trx(AiSlackPromptTableName).insert({
                 ai_prompt_uuid: row.ai_prompt_uuid,
@@ -4574,15 +4597,26 @@ export class AiAgentModel {
     async updateModelResponse(
         data: UpdateSlackResponse | UpdateWebAppResponse,
     ) {
+        // A new response supersedes any previous error for this prompt
+        const outcome: {
+            response?: string | null;
+            error_message?: string | null;
+        } =
+            'response' in data
+                ? {
+                      response: data.response ?? null,
+                      error_message: data.errorMessage ?? null,
+                  }
+                : {
+                      ...(data.errorMessage
+                          ? { error_message: data.errorMessage }
+                          : {}),
+                  };
+
         await this.database(AiPromptTableName)
             .update({
                 responded_at: this.database.fn.now(),
-                ...('response' in data
-                    ? { response: data.response ?? null }
-                    : {}),
-                ...(data.errorMessage
-                    ? { error_message: data.errorMessage }
-                    : {}),
+                ...outcome,
                 ...(data.humanScore !== undefined
                     ? { human_score: data.humanScore }
                     : {}),
@@ -4819,15 +4853,35 @@ export class AiAgentModel {
 
     async updateArtifactVersion(
         artifactVersionUuid: string,
-        update: Pick<AiArtifact, 'savedDashboardUuid'>,
+        update:
+            | Pick<AiArtifact, 'savedDashboardUuid'>
+            | Pick<AiArtifact, 'savedSqlUuid'>,
     ): Promise<void> {
+        const dbUpdate =
+            'savedDashboardUuid' in update
+                ? { saved_dashboard_uuid: update.savedDashboardUuid }
+                : { saved_sql_uuid: update.savedSqlUuid };
+
         await this.database(AiArtifactVersionsTableName)
-            .update({
-                saved_dashboard_uuid: update.savedDashboardUuid,
-            } satisfies Partial<DbAiArtifactVersion>)
+            .update(dbUpdate satisfies Partial<DbAiArtifactVersion>)
             .where({
                 ai_artifact_version_uuid: artifactVersionUuid,
             });
+    }
+
+    async isSavedSqlInProject(
+        savedSqlUuid: string,
+        projectUuid: string,
+    ): Promise<boolean> {
+        const row = await this.database(SavedSqlTableName)
+            .select('saved_sql_uuid')
+            .where({
+                saved_sql_uuid: savedSqlUuid,
+                project_uuid: projectUuid,
+            })
+            .whereNull('deleted_at')
+            .first();
+        return row !== undefined;
     }
 
     async setArtifactVersionVerified(
@@ -5318,11 +5372,17 @@ export class AiAgentModel {
                     ...(data.modelConfig && { model_config: data.modelConfig }),
                     ...(data.hidden !== undefined && { hidden: data.hidden }),
                 })
-                .returning('ai_prompt_uuid');
+                .returning(['ai_prompt_uuid', 'created_at']);
 
             if (row === undefined) {
                 throw new Error('Failed to create prompt');
             }
+
+            await AiAgentModel.bumpThreadUpdatedAt(
+                data.threadUuid,
+                row.created_at,
+                { trx },
+            );
 
             await trx(AiWebAppPromptTableName).insert({
                 ai_prompt_uuid: row.ai_prompt_uuid,
@@ -5955,11 +6015,22 @@ export class AiAgentModel {
                             : {}),
                     })),
                 )
-                .returning('ai_prompt_uuid');
+                .returning(['ai_prompt_uuid', 'created_at']);
 
             if (promptRows.length !== promptsData.length) {
                 throw new Error('Failed to create all prompts');
             }
+
+            const latestPromptCreatedAt = promptRows.reduce(
+                (latest, row) =>
+                    row.created_at > latest ? row.created_at : latest,
+                promptRows[0].created_at,
+            );
+            await AiAgentModel.bumpThreadUpdatedAt(
+                threadUuid,
+                latestPromptCreatedAt,
+                { trx },
+            );
 
             await trx(AiSlackPromptTableName).insert(
                 promptRows.map((row, index) => ({
@@ -6626,6 +6697,7 @@ export class AiAgentModel {
                             ? data.vizConfig
                             : null,
                     saved_query_uuid: null,
+                    saved_sql_uuid: null,
                     saved_dashboard_uuid: null,
                 })
                 .returning('*');
@@ -6639,13 +6711,14 @@ export class AiAgentModel {
                 threadUuid: artifact.ai_thread_uuid,
                 artifactType: artifact.artifact_type as 'chart' | 'dashboard',
                 savedQueryUuid: version.saved_query_uuid,
+                savedSqlUuid: version.saved_sql_uuid,
                 savedDashboardUuid: version.saved_dashboard_uuid,
                 createdAt: artifact.created_at,
                 versionNumber: version.version_number,
                 versionUuid: version.ai_artifact_version_uuid,
                 title: version.title,
                 description: version.description,
-                chartConfig: version.chart_config as AiArtifact['chartConfig'],
+                chartConfig: parseAiArtifactChartConfig(version.chart_config),
                 dashboardConfig:
                     version.dashboard_config as AiArtifact['dashboardConfig'],
                 promptUuid: version.ai_prompt_uuid,
@@ -6710,6 +6783,7 @@ export class AiAgentModel {
                             ? data.vizConfig
                             : null,
                     saved_query_uuid: null,
+                    saved_sql_uuid: null,
                     saved_dashboard_uuid: null,
                 })
                 .returning('*');
@@ -6723,13 +6797,14 @@ export class AiAgentModel {
                 threadUuid: artifact.ai_thread_uuid,
                 artifactType: artifact.artifact_type,
                 savedQueryUuid: version.saved_query_uuid,
+                savedSqlUuid: version.saved_sql_uuid,
                 savedDashboardUuid: version.saved_dashboard_uuid,
                 createdAt: artifact.created_at,
                 versionNumber: version.version_number,
                 versionUuid: version.ai_artifact_version_uuid,
                 title: version.title,
                 description: version.description,
-                chartConfig: version.chart_config as AiArtifact['chartConfig'],
+                chartConfig: parseAiArtifactChartConfig(version.chart_config),
                 dashboardConfig:
                     version.dashboard_config as AiArtifact['dashboardConfig'],
                 promptUuid: version.ai_prompt_uuid,
@@ -6797,6 +6872,7 @@ export class AiAgentModel {
                 threadUuid: `${AiArtifactsTableName}.ai_thread_uuid`,
                 artifactType: `${AiArtifactsTableName}.artifact_type`,
                 savedQueryUuid: `${AiArtifactVersionsTableName}.saved_query_uuid`,
+                savedSqlUuid: `${AiArtifactVersionsTableName}.saved_sql_uuid`,
                 savedDashboardUuid: `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
                 createdAt: `${AiArtifactsTableName}.created_at`,
                 versionNumber: `${AiArtifactVersionsTableName}.version_number`,
@@ -6850,7 +6926,10 @@ export class AiAgentModel {
             throw new NotFoundError(`Artifact ${identifier} not found`);
         }
 
-        return result;
+        return {
+            ...result,
+            chartConfig: parseAiArtifactChartConfig(result.chartConfig),
+        };
     }
 
     async findArtifactsByThreadUuid(
@@ -6865,6 +6944,7 @@ export class AiAgentModel {
                     threadUuid: `${AiArtifactsTableName}.ai_thread_uuid`,
                     artifactType: `${AiArtifactsTableName}.artifact_type`,
                     savedQueryUuid: `${AiArtifactVersionsTableName}.saved_query_uuid`,
+                    savedSqlUuid: `${AiArtifactVersionsTableName}.saved_sql_uuid`,
                     savedDashboardUuid: `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
                     createdAt: `${AiArtifactsTableName}.created_at`,
                     versionNumber: `${AiArtifactVersionsTableName}.version_number`,
@@ -6907,7 +6987,10 @@ export class AiAgentModel {
             }
 
             const results = await query;
-            return results;
+            return results.map((result) => ({
+                ...result,
+                chartConfig: parseAiArtifactChartConfig(result.chartConfig),
+            }));
         });
     }
 
@@ -6921,6 +7004,7 @@ export class AiAgentModel {
                 threadUuid: `${AiArtifactsTableName}.ai_thread_uuid`,
                 artifactType: `${AiArtifactsTableName}.artifact_type`,
                 savedQueryUuid: `${AiArtifactVersionsTableName}.saved_query_uuid`,
+                savedSqlUuid: `${AiArtifactVersionsTableName}.saved_sql_uuid`,
                 savedDashboardUuid: `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
                 createdAt: `${AiArtifactsTableName}.created_at`,
                 versionNumber: `${AiArtifactVersionsTableName}.version_number`,
@@ -6940,7 +7024,13 @@ export class AiAgentModel {
                 `${AiArtifactsTableName}.ai_artifact_uuid`,
             )
             .where(`${AiArtifactVersionsTableName}.ai_prompt_uuid`, promptUuid)
-            .orderBy(`${AiArtifactVersionsTableName}.created_at`, 'asc');
+            .orderBy(`${AiArtifactVersionsTableName}.created_at`, 'asc')
+            .then((results) =>
+                results.map((result) => ({
+                    ...result,
+                    chartConfig: parseAiArtifactChartConfig(result.chartConfig),
+                })),
+            );
     }
 
     async updateThreadTitle({
@@ -8369,6 +8459,20 @@ export class AiAgentModel {
                 });
                 promptMapping.set(promptToClone.ai_prompt_uuid, newPromptUuid);
             }
+
+            const lastSourcePromptUuid = promptsToClone.at(-1)!.ai_prompt_uuid;
+            const lastClonedPromptUuid =
+                promptMapping.get(lastSourcePromptUuid)!;
+            const lastClonedPrompt = await trx(AiPromptTableName)
+                .select('created_at')
+                .where('ai_prompt_uuid', lastClonedPromptUuid)
+                .first();
+            if (!lastClonedPrompt) {
+                throw new Error('Failed to find last cloned prompt');
+            }
+            await trx(AiThreadTableName)
+                .where('ai_thread_uuid', newThreadUuid)
+                .update({ updated_at: lastClonedPrompt.created_at });
 
             if (copyCompactions) {
                 await this.cloneThreadCompactions({

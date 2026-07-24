@@ -34,6 +34,8 @@ export type SecureFetchOptions = {
     allowedContentTypes: string[];
 };
 
+// Non-2xx responses are returned, not thrown, so callers can forward upstream
+// errors; only security failures and network errors throw SecureFetchError.
 export type SecureFetchResult = {
     status: number;
     contentType: string;
@@ -202,13 +204,6 @@ export async function secureFetch(
             'Redirects are not allowed for security reasons',
         );
     }
-    if (!response.ok) {
-        throw new SecureFetchError(
-            'request_failed',
-            `Request failed with status ${response.status}`,
-        );
-    }
-
     const contentLength = response.headers.get('content-length');
     if (
         contentLength &&
@@ -224,8 +219,12 @@ export async function secureFetch(
         response.headers.get('content-type') ?? '',
     );
     // Empty allowlist = no content-type restriction (explicit opt-out; the proxy
-    // always passes a non-empty list). When non-empty, enforce a strict allowlist.
-    if (!isAllowedContentType(contentType, options.allowedContentTypes)) {
+    // always passes a non-empty list). Enforced only on success responses: error
+    // bodies are often text/html (gateway 502 pages) and must survive.
+    if (
+        response.ok &&
+        !isAllowedContentType(contentType, options.allowedContentTypes)
+    ) {
         throw new SecureFetchError(
             'disallowed_content_type',
             `Disallowed content-type: ${contentType || '(none)'}`,

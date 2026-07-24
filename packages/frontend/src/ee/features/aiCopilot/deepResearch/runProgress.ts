@@ -21,7 +21,6 @@ export const DEEP_RESEARCH_DEPTH_CONFIG: Record<
     {
         label: string;
         effort: AiDeepResearchEffort;
-        duration: string;
         warehouseQueries: number;
         description: string;
     }
@@ -29,14 +28,12 @@ export const DEEP_RESEARCH_DEPTH_CONFIG: Record<
     quick: {
         label: 'Low',
         effort: 'low',
-        duration: 'Up to 15 minutes',
         warehouseQueries: 10,
         description: 'A focused check of the strongest available evidence.',
     },
     standard: {
         label: 'Medium',
         effort: 'medium',
-        duration: 'Up to 30 minutes',
         warehouseQueries: 25,
         description:
             'A balanced investigation with validation and alternatives.',
@@ -44,14 +41,12 @@ export const DEEP_RESEARCH_DEPTH_CONFIG: Record<
     deep: {
         label: 'High',
         effort: 'high',
-        duration: 'Up to 45 minutes',
         warehouseQueries: 50,
         description: 'A broad investigation with more competing explanations.',
     },
     exhaustive: {
         label: 'Extra High',
         effort: 'xhigh',
-        duration: 'Up to 55 minutes',
         warehouseQueries: 100,
         description: 'The widest evidence review for high-stakes questions.',
     },

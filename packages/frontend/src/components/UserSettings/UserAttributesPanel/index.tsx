@@ -4,15 +4,15 @@ import {
     ActionIcon,
     Anchor,
     Box,
+    Button,
     Group,
     Menu,
     Stack,
     Text,
-    Title,
     Tooltip,
     useMantineTheme,
 } from '@mantine-8/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure } from '@mantine-8/hooks';
 import {
     IconArrowDown,
     IconArrowsSort,
@@ -20,6 +20,7 @@ import {
     IconDots,
     IconEdit,
     IconInfoCircle,
+    IconPlus,
     IconTrash,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -35,9 +36,13 @@ import {
     useContentTable,
     type ContentTableColumnDef,
 } from '../../common/ContentTable';
-import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
+import {
+    SettingsPage,
+    SettingsPageActions,
+    SettingsPageDocumentationLink,
+} from '../../common/Settings/SettingsPage';
 import ForbiddenPanel from '../../ForbiddenPanel';
 import UserAttributeModal from './UserAttributeModal';
 import { UserAttributesTopToolbar } from './UserAttributesTopToolbar';
@@ -259,7 +264,6 @@ const UserAttributesPanel: FC = () => {
         },
         renderTopToolbar: () => (
             <UserAttributesTopToolbar
-                onAddClick={addAttributeModal.open}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
             />
@@ -313,51 +317,30 @@ const UserAttributesPanel: FC = () => {
         return <ForbiddenPanel />;
     }
 
-    if (isInitialLoading) {
-        return <EmptyStateLoader my="xl" title="Loading user attributes" />;
-    }
-
     if (!user.data) return null;
 
     return (
-        <>
-            <Stack gap="sm">
-                <Group gap="xs" align="center" pb="xs">
-                    <Title order={5}>
-                        {isGroupManagementEnabled
-                            ? 'User and group attributes'
-                            : 'User attributes'}
-                    </Title>
-                    <Tooltip
-                        multiline
-                        w={400}
-                        withArrow
-                        position="bottom-start"
-                        label={
-                            <Box>
-                                User attributes are metadata defined by your
-                                organization. They can be used to control and
-                                customize the user experience through data
-                                access and personalization. Learn more about
-                                using user attributes by clicking on this icon.
-                            </Box>
-                        }
+        <SettingsPage
+            title={
+                isGroupManagementEnabled
+                    ? 'User and group attributes'
+                    : 'User attributes'
+            }
+            description="Define organization metadata used for data access and personalization."
+            actions={
+                <SettingsPageActions>
+                    <SettingsPageDocumentationLink href="https://docs.lightdash.com/references/user-attributes" />
+                    <Button
+                        size="xs"
+                        leftSection={<MantineIcon icon={IconPlus} />}
+                        onClick={addAttributeModal.open}
                     >
-                        <ActionIcon
-                            component="a"
-                            href="https://docs.lightdash.com/references/user-attributes"
-                            target="_blank"
-                            rel="noreferrer"
-                            variant="subtle"
-                            size="xs"
-                            color="ldGray.6"
-                        >
-                            <MantineIcon icon={IconInfoCircle} />
-                        </ActionIcon>
-                    </Tooltip>
-                </Group>
-                <ContentTable table={table} />
-            </Stack>
+                        Add attribute
+                    </Button>
+                </SettingsPageActions>
+            }
+        >
+            <ContentTable table={table} />
 
             <UserAttributeModal
                 opened={showAddAttributeModal}
@@ -388,7 +371,7 @@ const UserAttributesPanel: FC = () => {
                     }}
                 />
             )}
-        </>
+        </SettingsPage>
     );
 };
 

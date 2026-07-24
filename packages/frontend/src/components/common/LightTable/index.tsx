@@ -2,10 +2,15 @@ import {
     assertUnreachable,
     type ConditionalFormattingTextStyle,
 } from '@lightdash/common';
-import { Box, type BoxProps as BoxPropsBase, Text } from '@mantine-8/core';
-import { Tooltip, useMantineTheme } from '@mantine/core';
-import { getHotkeyHandler, useClipboard, useId } from '@mantine/hooks';
-import { type PolymorphicComponentProps } from '@mantine/utils';
+import {
+    Box,
+    type BoxProps as BoxPropsBase,
+    type PolymorphicComponentProps,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
+import { getHotkeyHandler, useClipboard, useId } from '@mantine-8/hooks';
+import { useMantineTheme } from '@mantine/core';
 import debounce from 'lodash/debounce';
 import {
     createContext,
@@ -49,7 +54,7 @@ type TableRowProps = PolymorphicComponentProps<'tr', BoxProps> & {
     index: number;
 };
 type TableCellProps = PolymorphicComponentProps<'th' | 'td', BoxProps> & {
-    isMinimal: boolean;
+    isMinimal?: boolean;
     withMinimalWidth?: boolean;
     withAlignRight?: boolean;
     withBoldFont?: boolean;
@@ -167,7 +172,9 @@ const TableComponent = forwardRef<HTMLTableElement, TableProps>(
 
         const [isContainerInitialized, setIsContainerInitialized] =
             useState(false);
-        const containerScroll = useScroll(containerRef);
+        const containerScroll = useScroll(
+            containerRef as React.RefObject<HTMLElement>,
+        );
 
         useEffect(() => {
             if (!containerRef.current) return;
@@ -476,9 +483,10 @@ const BaseCell = (
                                 multiline
                                 label={withTooltip}
                                 openDelay={500}
-                                variant="xs"
                             >
-                                <Text span>{children}</Text>
+                                <Text span inherit>
+                                    {children}
+                                </Text>
                             </Tooltip>
                         ) : (
                             <>{children}</>

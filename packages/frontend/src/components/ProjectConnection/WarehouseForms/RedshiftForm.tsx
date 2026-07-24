@@ -8,12 +8,13 @@ import {
     Anchor,
     Select,
     PasswordInput,
+    Tooltip,
 } from '@mantine-8/core';
-import { NumberInput, Tooltip } from '@mantine/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import { useEffect, type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import MantineIcon from '../../common/MantineIcon';
+import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import BooleanSwitch from '../Inputs/BooleanSwitch';

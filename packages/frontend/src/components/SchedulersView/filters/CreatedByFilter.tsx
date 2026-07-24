@@ -1,4 +1,4 @@
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import FilterFacet, { type FilterFacetOption } from '../../common/FilterFacet';

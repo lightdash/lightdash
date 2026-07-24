@@ -10,9 +10,14 @@ import {
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
 import { ModelMessage } from 'ai';
+import { AiKeyManagement } from '../../../../analytics/aiUsage';
 import type { AiMcpCredentialPayload } from '../../../models/AiAgentModel';
 import { AiModel, AiProvider } from '../models/types';
 import { AiAgentSkillReference } from '../skills/types';
+import type {
+    MemorySearchEntry,
+    ProjectContextSearchEntry,
+} from '../tools/memoryProjectContext';
 import {
     AnalyzeFieldImpactFn,
     ClosePullRequestFn,
@@ -101,12 +106,16 @@ export type AiAgentRequestingUser = {
 };
 
 export type AiAgentArgs = AnyAiModel & {
+    // Whether this turn runs on a Lightdash-managed or self-managed (BYO) key.
+    // Stamped by the model builder and carried through for usage analytics.
+    keyManagement: AiKeyManagement;
     agentSettings: AiAgent;
     requestingUser: AiAgentRequestingUser | null;
     knowledgeDocuments: AiAgentDocumentContext[];
     projectContext: ProjectContextEntry[];
     // Whether the project_context feature is on for this turn (Control = off).
     projectContextEnabled: boolean;
+    aiAgentMemoryEnabled: boolean;
     mcpServers: AiAgentMcpServer[];
     messageHistory: ModelMessage[];
     promptUuid: string;
@@ -186,6 +195,10 @@ export type AiAgentDependencies = {
     listExplores: ListExploresFn;
     // The whole cached project_context document.
     getProjectContextDocument: () => Promise<ProjectContextEntry[]>;
+    getAiAgentMemoryContextEntries: () => Promise<MemorySearchEntry[]>;
+    incrementAiAgentMemoryPulls: (
+        entries: ProjectContextSearchEntry[],
+    ) => Promise<void>;
     listContent: ListContentFn;
     findContent: FindContentFn;
     readContent: ReadContentFn;

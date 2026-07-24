@@ -1,3 +1,68 @@
+.root {
+    flex-grow: 1;
+}
+
+.input {
+    min-height: 32px;
+    height: auto;
+    padding: var(--mantine-spacing-xxs) var(--mantine-spacing-sm);
+    border-color: var(--mantine-color-ldGray-2);
+    border-top: 0;
+    border-radius: 0 0 var(--mantine-radius-md) var(--mantine-radius-md);
+    color: var(--mantine-color-ldDark-9);
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 500;
+}
+
+.input:hover {
+    background-color: var(--mantine-color-ldGray-0);
+    transition: background-color var(--ld-transition-duration)
+        var(--ld-transition-timing-function);
+}
+
+.input:focus-within {
+    border-color: var(--mantine-color-ldGray-2);
+}
+
+.dropdown {
+    min-width: 100px;
+}
+
+.option {
+    --multi-select-selected-background: var(--mantine-color-ldGray-0);
+    --multi-select-selected-hover-background: var(--mantine-color-ldGray-0);
+    --multi-select-selected-color: var(--mantine-color-ldGray-7);
+
+    font-size: var(--mantine-font-size-sm);
+}
+
+.option[data-combobox-selected] {
+    background-color: var(--mantine-color-ldGray-0);
+    color: var(--mantine-color-ldGray-7);
+    font-weight: 500;
+}
+
+.option:hover {
+    background-color: var(--mantine-color-ldGray-0);
+    transition: background-color var(--ld-transition-duration)
+        var(--ld-transition-timing-function);
+}
+
+.option[data-create-option] {
+    position: sticky;
+    bottom: 4px;
+    background: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-6)
+    );
+    box-shadow: 0 4px 0 0
+        light-dark(var(--mantine-color-white), var(--mantine-color-dark-6));
+}
+
+.rightSection {
+    pointer-events: none;
+}
+
 .cacheHint {
     cursor: pointer;
     border-top: 1px solid var(--mantine-color-ldGray-2);

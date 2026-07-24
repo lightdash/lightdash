@@ -29,6 +29,17 @@ export class AiWritebackRunModel {
             .first();
     }
 
+    async findLatestByProjectUuidAndPrUrl(
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<DbAiWritebackRun | undefined> {
+        return this.database<AiWritebackRunTable>(AiWritebackRunTableName)
+            .where('project_uuid', projectUuid)
+            .where('pr_url', prUrl)
+            .orderBy('created_at', 'desc')
+            .first();
+    }
+
     async create(data: {
         organizationUuid: string;
         projectUuid: string;

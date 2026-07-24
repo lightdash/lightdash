@@ -1,4 +1,4 @@
-import { useElementSize } from '@mantine/hooks';
+import { useElementSize } from '@mantine-8/hooks';
 import { useEffect, useState } from 'react';
 
 /**

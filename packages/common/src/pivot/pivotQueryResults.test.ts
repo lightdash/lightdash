@@ -1,4 +1,4 @@
-import { type ItemsMap } from '../types/field';
+import { type ItemsMap, type TableCalculation } from '../types/field';
 import { type PivotData } from '../types/pivot';
 import { type ResultRow } from '../types/results';
 import { getPivotRowContextKey } from '../utils/conditionalFormatting';
@@ -102,6 +102,456 @@ const buildWarehouseColumnTotalsFromExpected = (
 };
 
 describe('convertSqlPivotedRowsToPivotData', () => {
+    it('renders ordered row metrics once using the first pivot column value, including null', () => {
+        const rowMetricIds = [
+            'orders_total_order_amount',
+            'orders_average_order_size',
+        ];
+        const pivotDetails = {
+            ...SQL_PIVOT_DETAILS,
+            valuesColumns: SQL_PIVOT_DETAILS.valuesColumns.flatMap(
+                (column, columnIndex) => [
+                    column,
+                    ...rowMetricIds.map((metricId) => ({
+                        ...column,
+                        referenceField: metricId,
+                        pivotColumnName: `${metricId}_${columnIndex}`,
+                    })),
+                ],
+            ),
+        };
+        const rows = SQL_PIVOTED_ROWS.map((row, rowIndex) => ({
+            ...row,
+            ...Object.fromEntries(
+                SQL_PIVOT_DETAILS.valuesColumns.flatMap((_, columnIndex) =>
+                    rowMetricIds.map((metricId, metricIndex) => [
+                        `${metricId}_${columnIndex}`,
+                        {
+                            value: {
+                                raw:
+                                    rowIndex === 0 && metricIndex === 0
+                                        ? null
+                                        : 1000 * (metricIndex + 1) +
+                                          columnIndex,
+                                formatted:
+                                    rowIndex === 0 && metricIndex === 0
+                                        ? '∅'
+                                        : String(
+                                              1000 * (metricIndex + 1) +
+                                                  columnIndex,
+                                          ),
+                            },
+                        },
+                    ]),
+                ),
+            ),
+        }));
+
+        const result = convertSqlPivotedRowsToPivotData({
+            rows,
+            pivotDetails,
+            pivotConfig: {
+                rowTotals: false,
+                columnTotals: false,
+                metricsAsRows: false,
+                rowFieldIds: [
+                    'orders_average_order_size',
+                    'orders_order_date_year',
+                    'orders_total_order_amount',
+                ],
+                columnOrder: [
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                    ...rowMetricIds,
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+        });
+
+        expect(result.indexValueTypes).toEqual([
+            {
+                type: 'metric',
+                fieldId: 'orders_average_order_size',
+            },
+            {
+                type: 'dimension',
+                fieldId: 'orders_order_date_year',
+            },
+            {
+                type: 'metric',
+                fieldId: 'orders_total_order_amount',
+            },
+        ]);
+        expect(result.indexValues[0]).toEqual([
+            {
+                type: 'value',
+                fieldId: 'orders_average_order_size',
+                value: { raw: 2000, formatted: '2000' },
+                colSpan: 1,
+            },
+            {
+                type: 'value',
+                fieldId: 'orders_order_date_year',
+                value: SQL_PIVOTED_ROWS[0].orders_order_date_year.value,
+                colSpan: 1,
+            },
+            {
+                type: 'value',
+                fieldId: 'orders_total_order_amount',
+                value: { raw: null, formatted: '∅' },
+                colSpan: 1,
+            },
+        ]);
+        expect(result.dataValues[0]).toEqual(
+            SQL_PIVOT_DETAILS.valuesColumns.map(
+                ({ pivotColumnName }) =>
+                    SQL_PIVOTED_ROWS[0][pivotColumnName].value,
+            ),
+        );
+        expect(result.headerValues.at(-1)).toEqual(
+            SQL_PIVOT_DETAILS.valuesColumns.map(() => ({
+                type: 'label',
+                fieldId: 'payments_total_revenue',
+            })),
+        );
+        expect(result.retrofitData.pivotColumnInfo.slice(0, 3)).toEqual([
+            {
+                fieldId: 'orders_average_order_size',
+                baseId: undefined,
+                underlyingId: undefined,
+                columnType: 'indexValue',
+            },
+            {
+                fieldId: 'orders_order_date_year',
+                baseId: undefined,
+                underlyingId: undefined,
+                columnType: 'indexValue',
+            },
+            {
+                fieldId: 'orders_total_order_amount',
+                baseId: undefined,
+                underlyingId: undefined,
+                columnType: 'indexValue',
+            },
+        ]);
+    });
+
+    it('picks the row value from the lowest-columnIndex pivot column regardless of input order', () => {
+        const rowMetricId = 'orders_total_order_amount';
+        // Row-metric pivot columns, one per pivot group, listed in REVERSE
+        // columnIndex order so the input array order disagrees with render
+        // order. The rendered row value must still come from columnIndex 0.
+        const rowMetricColumns = [3, 2, 1, 0].map((columnIndex) => ({
+            ...SQL_PIVOT_DETAILS.valuesColumns[columnIndex],
+            referenceField: rowMetricId,
+            pivotColumnName: `${rowMetricId}_${columnIndex}`,
+            columnIndex,
+        }));
+        const pivotDetails = {
+            ...SQL_PIVOT_DETAILS,
+            valuesColumns: [
+                ...SQL_PIVOT_DETAILS.valuesColumns.map(
+                    (column, columnIndex) => ({
+                        ...column,
+                        columnIndex,
+                    }),
+                ),
+                ...rowMetricColumns,
+            ],
+        };
+        const rows = SQL_PIVOTED_ROWS.map((row) => ({
+            ...row,
+            ...Object.fromEntries(
+                [0, 1, 2, 3].map((columnIndex) => [
+                    `${rowMetricId}_${columnIndex}`,
+                    {
+                        value: {
+                            raw: (columnIndex + 1) * 10,
+                            formatted: String((columnIndex + 1) * 10),
+                        },
+                    },
+                ]),
+            ),
+        }));
+
+        const result = convertSqlPivotedRowsToPivotData({
+            rows,
+            pivotDetails,
+            pivotConfig: {
+                rowTotals: false,
+                columnTotals: false,
+                metricsAsRows: false,
+                rowFieldIds: ['orders_order_date_year', rowMetricId],
+                columnOrder: [
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                    rowMetricId,
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+        });
+
+        // columnIndex 0 -> raw 10; the array-first column was columnIndex 3 (raw
+        // 40). The row value must be 10, proving the picker follows render order.
+        expect(result.indexValues[0][1]).toEqual({
+            type: 'value',
+            fieldId: rowMetricId,
+            value: { raw: 10, formatted: '10' },
+            colSpan: 1,
+        });
+    });
+
+    it('renders a table calculation once as an ordered pivot row', () => {
+        const tableCalculation: TableCalculation = {
+            name: 'revenue_growth',
+            displayName: 'Revenue Growth',
+            sql: '${payments_total_revenue} / LAG(${payments_total_revenue})',
+        };
+        const pivotDetails = {
+            ...SQL_PIVOT_DETAILS,
+            valuesColumns: SQL_PIVOT_DETAILS.valuesColumns.flatMap(
+                (column, columnIndex) => [
+                    column,
+                    {
+                        ...column,
+                        referenceField: tableCalculation.name,
+                        pivotColumnName: `${tableCalculation.name}_${columnIndex}`,
+                    },
+                ],
+            ),
+        };
+        const rows = SQL_PIVOTED_ROWS.map((row, rowIndex) => ({
+            ...row,
+            ...Object.fromEntries(
+                SQL_PIVOT_DETAILS.valuesColumns.map((_, columnIndex) => [
+                    `${tableCalculation.name}_${columnIndex}`,
+                    {
+                        value: {
+                            raw: rowIndex + columnIndex / 10,
+                            formatted: `${rowIndex + columnIndex / 10}`,
+                        },
+                    },
+                ]),
+            ),
+        }));
+
+        const result = convertSqlPivotedRowsToPivotData({
+            rows,
+            pivotDetails,
+            pivotConfig: {
+                rowTotals: false,
+                columnTotals: false,
+                metricsAsRows: false,
+                rowFieldIds: ['orders_order_date_year', tableCalculation.name],
+                columnOrder: [
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                    tableCalculation.name,
+                ],
+            },
+            getField: (fieldId) =>
+                fieldId === tableCalculation.name
+                    ? tableCalculation
+                    : getFieldMock(fieldId),
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+        });
+
+        expect(result.indexValueTypes).toEqual([
+            {
+                type: 'dimension',
+                fieldId: 'orders_order_date_year',
+            },
+            {
+                type: 'metric',
+                fieldId: tableCalculation.name,
+            },
+        ]);
+        expect(result.indexValues[0][1]).toEqual({
+            type: 'value',
+            fieldId: tableCalculation.name,
+            value: { raw: 0, formatted: '0' },
+            colSpan: 1,
+        });
+        expect(result.dataValues[0]).toEqual(
+            SQL_PIVOT_DETAILS.valuesColumns.map(
+                ({ pivotColumnName }) =>
+                    SQL_PIVOTED_ROWS[0][pivotColumnName].value,
+            ),
+        );
+    });
+
+    it('supports moving every metric into pivot rows', () => {
+        const result = convertSqlPivotedRowsToPivotData({
+            rows: SQL_PIVOTED_ROWS,
+            pivotDetails: SQL_PIVOT_DETAILS,
+            pivotConfig: {
+                rowTotals: false,
+                columnTotals: false,
+                metricsAsRows: false,
+                rowFieldIds: [
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                ],
+                columnOrder: [
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+        });
+
+        expect(result.headerValues).toEqual([[]]);
+        expect(result.dataColumnCount).toBe(0);
+        expect(result.dataValues).toEqual([[], [], []]);
+        expect(result.indexValues[0]).toEqual([
+            {
+                type: 'value',
+                fieldId: 'orders_order_date_year',
+                value: SQL_PIVOTED_ROWS[0].orders_order_date_year.value,
+                colSpan: 1,
+            },
+            {
+                type: 'value',
+                fieldId: 'payments_total_revenue',
+                value: {
+                    raw: 493.78,
+                    formatted: '493.78',
+                },
+                colSpan: 1,
+            },
+        ]);
+        expect(result.retrofitData.pivotColumnInfo).toHaveLength(2);
+    });
+
+    it('disables metrics-as-rows when every metric is already a pivot row', () => {
+        const result = convertSqlPivotedRowsToPivotData({
+            rows: SQL_PIVOTED_ROWS,
+            pivotDetails: SQL_PIVOT_DETAILS,
+            pivotConfig: {
+                rowTotals: false,
+                columnTotals: false,
+                metricsAsRows: true,
+                rowFieldIds: [
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                ],
+                columnOrder: [
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+        });
+
+        expect(result.pivotConfig.metricsAsRows).toBe(false);
+        expect(result.indexValues).toHaveLength(SQL_PIVOTED_ROWS.length);
+        expect(result.dataValues).toEqual([[], [], []]);
+        expect(result.indexValues[0]).toEqual([
+            {
+                type: 'value',
+                fieldId: 'orders_order_date_year',
+                value: SQL_PIVOTED_ROWS[0].orders_order_date_year.value,
+                colSpan: 1,
+            },
+            {
+                type: 'value',
+                fieldId: 'payments_total_revenue',
+                value: {
+                    raw: 493.78,
+                    formatted: '493.78',
+                },
+                colSpan: 1,
+            },
+        ]);
+        expect(result.retrofitData.pivotColumnInfo).toHaveLength(2);
+    });
+
+    it('keeps metrics-as-rows enabled while another metric remains', () => {
+        const rowMetricId = 'orders_total_order_amount';
+        const pivotDetails = {
+            ...SQL_PIVOT_DETAILS,
+            valuesColumns: SQL_PIVOT_DETAILS.valuesColumns.flatMap(
+                (column, columnIndex) => [
+                    column,
+                    {
+                        ...column,
+                        referenceField: rowMetricId,
+                        pivotColumnName: `${rowMetricId}_${columnIndex}`,
+                    },
+                ],
+            ),
+        };
+        const rows = SQL_PIVOTED_ROWS.map((row) => ({
+            ...row,
+            ...Object.fromEntries(
+                SQL_PIVOT_DETAILS.valuesColumns.map((_, columnIndex) => [
+                    `${rowMetricId}_${columnIndex}`,
+                    {
+                        value: {
+                            raw: 1000 + columnIndex,
+                            formatted: String(1000 + columnIndex),
+                        },
+                    },
+                ]),
+            ),
+        }));
+
+        const result = convertSqlPivotedRowsToPivotData({
+            rows,
+            pivotDetails,
+            pivotConfig: {
+                rowTotals: false,
+                columnTotals: false,
+                metricsAsRows: true,
+                rowFieldIds: ['orders_order_date_year', rowMetricId],
+                columnOrder: [
+                    'orders_order_date_year',
+                    rowMetricId,
+                    'payments_total_revenue',
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+        });
+
+        expect(result.pivotConfig.metricsAsRows).toBe(true);
+        expect(result.indexValues).toHaveLength(rows.length);
+        expect(result.indexValues[0]).toEqual([
+            {
+                type: 'value',
+                fieldId: 'orders_order_date_year',
+                value: SQL_PIVOTED_ROWS[0].orders_order_date_year.value,
+                colSpan: 1,
+            },
+            {
+                type: 'value',
+                fieldId: rowMetricId,
+                value: { raw: 1000, formatted: '1000' },
+                colSpan: 1,
+            },
+            {
+                type: 'label',
+                fieldId: 'payments_total_revenue',
+            },
+        ]);
+        expect(result.dataValues[0]).toEqual(
+            SQL_PIVOT_DETAILS.valuesColumns.map(
+                ({ pivotColumnName }) =>
+                    SQL_PIVOTED_ROWS[0][pivotColumnName].value,
+            ),
+        );
+    });
+
     it('should convert SQL-pivoted rows to PivotData format', () => {
         // Convert SQL Pivoted rows to PivotData
         const result = convertSqlPivotedRowsToPivotData({
@@ -456,6 +906,71 @@ describe('convertSqlPivotedRowsToPivotData', () => {
             'orders_total_order_amount',
         ]);
     });
+
+    it.each([false, true])(
+        'maps warehouse grand totals for every visible metric when metricsAsRows is %s',
+        (metricsAsRows) => {
+            const result = convertSqlPivotedRowsToPivotData({
+                rows: COMPLEX_SQL_PIVOTED_ROWS,
+                pivotDetails: COMPLEX_SQL_PIVOT_DETAILS,
+                pivotConfig: {
+                    rowTotals: true,
+                    columnTotals: true,
+                    metricsAsRows,
+                    columnOrder: [
+                        'payments_payment_method',
+                        'orders_order_date_year',
+                        'orders_is_completed',
+                        'orders_promo_code',
+                        'payments_total_revenue',
+                        'orders_average_order_size',
+                        'orders_total_order_amount',
+                    ],
+                },
+                getField: getFieldMock,
+                getFieldLabel: (fieldId) => fieldId,
+                groupedSubtotals: undefined,
+                warehouseGrandTotals: {
+                    payments_total_revenue: 1000,
+                    orders_average_order_size_any: 42.5,
+                    orders_total_order_amount: 2000,
+                },
+            });
+
+            expect(result.grandTotals).toEqual([1000, 42.5, 2000]);
+        },
+    );
+
+    it.each([
+        { rowTotals: true, columnTotals: false },
+        { rowTotals: false, columnTotals: true },
+    ])(
+        'does not expose grand totals with only one total axis enabled: $rowTotals/$columnTotals',
+        ({ rowTotals, columnTotals }) => {
+            const result = convertSqlPivotedRowsToPivotData({
+                rows: SQL_PIVOTED_ROWS,
+                pivotDetails: SQL_PIVOT_DETAILS,
+                pivotConfig: {
+                    rowTotals,
+                    columnTotals,
+                    metricsAsRows: false,
+                    columnOrder: [
+                        'payments_payment_method',
+                        'orders_order_date_year',
+                        'payments_total_revenue',
+                    ],
+                },
+                getField: getFieldMock,
+                getFieldLabel: (fieldId) => fieldId,
+                groupedSubtotals: undefined,
+                warehouseGrandTotals: {
+                    payments_total_revenue: 999,
+                },
+            });
+
+            expect(result.grandTotals).toBeUndefined();
+        },
+    );
 
     it('leaves column totals null (no client-side fallback) without warehouse values', () => {
         const result = convertSqlPivotedRowsToPivotData({

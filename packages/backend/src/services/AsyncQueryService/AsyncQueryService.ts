@@ -1369,9 +1369,11 @@ export class AsyncQueryService extends ProjectService {
     }): Promise<{
         warehouseRowTotals?: PivotRowTotalsByIndex;
         warehouseColumnTotals?: Record<string, number>;
+        warehouseGrandTotals?: Record<string, number>;
     }> {
         let warehouseColumnTotals: Record<string, number> | undefined;
         let warehouseRowTotals: PivotRowTotalsByIndex | undefined;
+        let warehouseGrandTotals: Record<string, number> | undefined;
 
         if (pivotConfig.columnTotals) {
             try {
@@ -1428,7 +1430,35 @@ export class AsyncQueryService extends ProjectService {
             }
         }
 
-        return { warehouseRowTotals, warehouseColumnTotals };
+        if (pivotConfig.rowTotals && pivotConfig.columnTotals) {
+            try {
+                const { rows, fields } =
+                    await this.executeCalculateTotalAndGetResults({
+                        account,
+                        projectUuid,
+                        queryUuid: sourceQueryUuid,
+                        kind: 'grandTotal',
+                    });
+                warehouseGrandTotals = buildWarehouseColumnTotals(
+                    formatRows(rows, fields),
+                );
+            } catch (error) {
+                this.logger.warn(
+                    'Failed to compute grand totals for pivot export',
+                    {
+                        projectUuid,
+                        sourceQueryUuid,
+                        error: getErrorMessage(error),
+                    },
+                );
+            }
+        }
+
+        return {
+            warehouseRowTotals,
+            warehouseColumnTotals,
+            warehouseGrandTotals,
+        };
     }
 
     private async downloadAsyncQueryResults({
@@ -1581,6 +1611,7 @@ export class AsyncQueryService extends ProjectService {
                       metricsAsRows:
                           queryHistory.pivotConfiguration?.metricsAsRows ??
                           false,
+                      rowFieldIds: pivotConfig?.rowFieldIds,
                       columnOrder: validColumnOrder,
                       hiddenMetricFieldIds: pivotConfig?.hiddenMetricFieldIds,
                       hiddenDimensionFieldIds:
@@ -1593,7 +1624,11 @@ export class AsyncQueryService extends ProjectService {
 
         // Warehouse-computed totals for the pivot export — without these the
         // renderer leaves total cells blank (no client-side fallback).
-        const { warehouseRowTotals, warehouseColumnTotals } =
+        const {
+            warehouseRowTotals,
+            warehouseColumnTotals,
+            warehouseGrandTotals,
+        } =
             downloadPivotConfig &&
             pivotDetails &&
             (downloadPivotConfig.rowTotals || downloadPivotConfig.columnTotals)
@@ -1607,6 +1642,7 @@ export class AsyncQueryService extends ProjectService {
                 : {
                       warehouseRowTotals: undefined,
                       warehouseColumnTotals: undefined,
+                      warehouseGrandTotals: undefined,
                   };
 
         switch (type) {
@@ -1626,6 +1662,7 @@ export class AsyncQueryService extends ProjectService {
                         pivotDetails,
                         warehouseRowTotals,
                         warehouseColumnTotals,
+                        warehouseGrandTotals,
                         options: {
                             onlyRaw,
                             showTableNames,
@@ -1705,6 +1742,7 @@ export class AsyncQueryService extends ProjectService {
                           pivotDetails,
                           warehouseRowTotals,
                           warehouseColumnTotals,
+                          warehouseGrandTotals,
                           options: {
                               onlyRaw,
                               showTableNames,
@@ -1746,6 +1784,7 @@ export class AsyncQueryService extends ProjectService {
                                 ? null
                                 : account.user.userUuid,
                             expirationSeconds: expirationSecondsOverride,
+                            source: 'async_query',
                         },
                     );
                 return {
@@ -1879,6 +1918,7 @@ export class AsyncQueryService extends ProjectService {
                     createdByUserUuid: persistentUrlContext.createdByUserUuid,
                     expirationSeconds:
                         persistentUrlContext.expirationSecondsOverride,
+                    source: 'async_query',
                 });
             return {
                 fileUrl: persistentUrl,

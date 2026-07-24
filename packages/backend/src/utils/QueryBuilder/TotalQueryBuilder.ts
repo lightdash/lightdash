@@ -152,7 +152,7 @@ export type TotalQueryBuilderArgs = {
     metricQuery: MetricQuery;
     pivotConfiguration: PivotConfiguration | null;
     kind: TotalQueryKind;
-    // Required only for `columnSubtotal`.
+    // Required for subtotal kinds.
     subtotalDimensions?: string[];
 };
 
@@ -208,6 +208,8 @@ export class TotalQueryBuilder {
                 return { ...this.buildRowTotalQuery(), sourceQuery };
             case 'columnSubtotal':
                 return { ...this.buildColumnSubtotalQuery(), sourceQuery };
+            case 'rowSubtotal':
+                return { ...this.buildRowSubtotalQuery(), sourceQuery };
             default:
                 return assertUnreachable(
                     kind,
@@ -224,6 +226,7 @@ export class TotalQueryBuilder {
             hasBlockingTotalFilters(metricQuery) ||
             // Subtotals pin to the grain groups on the visible page.
             kind === 'columnSubtotal' ||
+            kind === 'rowSubtotal' ||
             // Sum-of-rows calcs aggregate over the source rows.
             getSumOfRowsTableCalculations(metricQuery).length > 0;
         if (!needsSourceQuery) {
@@ -390,6 +393,60 @@ export class TotalQueryBuilder {
 
         return {
             metricQuery: subtotalMetricQuery,
+            pivotConfiguration: undefined,
+        };
+    }
+
+    private buildRowSubtotalQuery(): TotalQueryResult {
+        const { metricQuery, pivotConfiguration } = this.args;
+        const subtotalDimensions = this.args.subtotalDimensions ?? [];
+        const groupByColumns = pivotConfiguration?.groupByColumns ?? [];
+        if (!pivotConfiguration || groupByColumns.length === 0) {
+            throw new NotSupportedError(
+                'Row subtotals are only supported for pivoted queries',
+            );
+        }
+        if (subtotalDimensions.length === 0) {
+            throw new NotSupportedError(
+                'Row subtotals require at least one subtotal dimension',
+            );
+        }
+
+        const indexFieldIds = new Set(
+            getIndexColumnFieldIds(pivotConfiguration.indexColumn),
+        );
+        const sourceDimensionIds = new Set(metricQuery.dimensions);
+        const missing = subtotalDimensions.filter(
+            (id) => !indexFieldIds.has(id) || !sourceDimensionIds.has(id),
+        );
+        if (missing.length > 0) {
+            throw new NotSupportedError(
+                `Row subtotal query references dimensions that were not row indexes in the source query: ${missing.join(', ')}`,
+            );
+        }
+
+        const popMetricIds = getPopMetricIds(metricQuery);
+        const keptMetrics = metricQuery.metrics.filter(
+            (id) => !popMetricIds.has(id),
+        );
+
+        return {
+            metricQuery: {
+                ...metricQuery,
+                dimensions: subtotalDimensions,
+                sorts: [],
+                tableCalculations: getTotalableTableCalculations(
+                    metricQuery,
+                    new Set(keptMetrics),
+                ),
+                metrics: keptMetrics,
+                additionalMetrics: (metricQuery.additionalMetrics ?? []).filter(
+                    (am) => !isPeriodOverPeriodAdditionalMetric(am),
+                ),
+                filters: hasBlockingTotalFilters(metricQuery)
+                    ? stripBlockingFilters(metricQuery.filters)
+                    : metricQuery.filters,
+            },
             pivotConfiguration: undefined,
         };
     }

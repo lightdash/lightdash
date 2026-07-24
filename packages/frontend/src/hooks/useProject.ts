@@ -31,6 +31,7 @@ const createProject = async (data: CreateProject) =>
         url: `/org/projects/precompiled`,
         method: 'POST',
         body: JSON.stringify(data),
+        sensitive: true,
     });
 
 const createProjectWithoutCompile = async (data: CreateProject) =>
@@ -46,6 +47,7 @@ const updateProject = async (uuid: string, data: UpdateProject) =>
         url: `/projects/${uuid}`,
         method: 'PATCH',
         body: JSON.stringify(data),
+        sensitive: true,
     });
 
 const getProject = async (uuid: string) =>
@@ -193,6 +195,7 @@ const updateWarehouseCredentials = async (
         body: JSON.stringify({
             warehouseConnection: warehouseCredentials,
         }),
+        sensitive: true,
     });
 
 export const useUpdateWarehouseCredentialsMutation = (uuid: string) => {

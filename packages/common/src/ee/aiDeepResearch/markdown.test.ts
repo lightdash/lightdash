@@ -5,12 +5,18 @@ import {
     findDeepResearchChartRefs,
     getDeepResearchChartKey,
     lintDeepResearchReport,
+    renderDeepResearchChartRefs,
     spliceDeepResearchRanges,
     type AiDeepResearchChartDefinition,
 } from './markdown';
 
 const UUID_A = '11111111-1111-4111-8111-111111111111';
 const UUID_B = '22222222-2222-4222-8222-222222222222';
+const chartTag = (
+    id: string,
+    title = 'Revenue by month',
+    description = 'Revenue rose steadily until spring.',
+) => `<chart id="${id}" title="${title}" description="${description}">`;
 
 const chartConfig = {
     defaultVizType: 'bar' as const,
@@ -63,7 +69,7 @@ const validReport = `The seasonal dip is driven by B2B churn, with high confiden
 
 Revenue grew steadily until spring.
 
-[Revenue by month](#chart-${UUID_A})
+${chartTag(UUID_A)}
 
 The dip aligns with contract renewals.
 
@@ -73,19 +79,20 @@ The dip aligns with contract renewals.
 `;
 
 describe('findDeepResearchChartRefs', () => {
-    it('finds chart reference links with offsets', () => {
+    it('finds chart tags with offsets and summaries', () => {
         const refs = findDeepResearchChartRefs(validReport);
         expect(refs).toHaveLength(1);
         expect(refs[0].key).toBe(UUID_A);
         expect(refs[0].title).toBe('Revenue by month');
+        expect(refs[0].description).toBe('Revenue rose steadily until spring.');
         expect(validReport.slice(refs[0].start, refs[0].end)).toBe(
-            `[Revenue by month](#chart-${UUID_A})`,
+            chartTag(UUID_A),
         );
     });
 
     it('ignores references inside code fences', () => {
         const refs = findDeepResearchChartRefs(
-            '```md\n[Example](#chart-abc)\n```\n\n[Real](#chart-xyz-1)',
+            `\`\`\`md\n${chartTag('abc')}\n\`\`\`\n\n${chartTag('xyz-1')}`,
         );
         expect(refs).toHaveLength(1);
         expect(refs[0].key).toBe('xyz-1');
@@ -98,11 +105,51 @@ describe('findDeepResearchChartRefs', () => {
             ),
         ).toHaveLength(0);
     });
+
+    it('does not support legacy chart links', () => {
+        expect(
+            findDeepResearchChartRefs(`[Revenue by month](#chart-${UUID_A})`),
+        ).toHaveLength(0);
+    });
+
+    it('renders chart tags as internal links without exposing descriptions', () => {
+        expect(renderDeepResearchChartRefs(validReport)).toContain(
+            `[Revenue by month](#chart-${UUID_A})`,
+        );
+        expect(renderDeepResearchChartRefs(validReport)).not.toContain(
+            'Revenue rose steadily until spring.',
+        );
+    });
+
+    it('escapes chart titles before rendering internal links', () => {
+        const markdown = chartTag(
+            UUID_A,
+            'Revenue ](https://attacker.example) [details',
+        );
+        const rendered = renderDeepResearchChartRefs(markdown);
+
+        expect(rendered.trim()).toBe(
+            `[Revenue \\](https://attacker.example) \\[details](#chart-${UUID_A})`,
+        );
+        expect(rendered).not.toContain('[Revenue ](https://attacker.example)');
+    });
+
+    it('decodes HTML entities before validating description length', () => {
+        const description = '&amp;'.repeat(300);
+        const refs = findDeepResearchChartRefs(
+            `<chart id="${UUID_A}" title="Revenue &amp; margin" description="${description}">`,
+        );
+
+        expect(refs[0]).toMatchObject({
+            title: 'Revenue & margin',
+            description: '&'.repeat(300),
+        });
+    });
 });
 
 describe('spliceDeepResearchRanges', () => {
     it('replaces multiple ranges without invalidating offsets', () => {
-        const markdown = `a ${'[X](#chart-k1)'} b ${'[Y](#chart-k2)'} c`;
+        const markdown = `a ${chartTag('k1', 'X')} b ${chartTag('k2', 'Y')} c`;
         const refs = findDeepResearchChartRefs(markdown);
         const result = spliceDeepResearchRanges(
             markdown,
@@ -113,7 +160,7 @@ describe('spliceDeepResearchRanges', () => {
         );
         expect(result).toContain('[removed 0]');
         expect(result).toContain('[removed 1]');
-        expect(result).not.toContain('#chart-');
+        expect(result).not.toContain('<chart');
     });
 });
 
@@ -142,8 +189,8 @@ describe('lintDeepResearchReport', () => {
 
     it('accepts an inline chart referenced by key', () => {
         const markdown = validReport.replace(
-            `[Revenue by month](#chart-${UUID_A})`,
-            '[Derived ratio](#chart-tickets-per-1k)',
+            chartTag(UUID_A),
+            chartTag('tickets-per-1k', 'Derived ratio'),
         );
         expect(
             lintDeepResearchReport(markdown, [inlineChart('tickets-per-1k')]),
@@ -175,7 +222,10 @@ describe('lintDeepResearchReport', () => {
     it('rejects a chart referenced twice', () => {
         const markdown = validReport.replace(
             'The dip aligns with contract renewals.',
-            `The dip aligns with contract renewals.\n\n[Again](#chart-${UUID_A})`,
+            `The dip aligns with contract renewals.\n\n${chartTag(
+                UUID_A,
+                'Again',
+            )}`,
         );
         const errors = lintDeepResearchReport(markdown, [
             warehouseChart(UUID_A),
@@ -186,7 +236,10 @@ describe('lintDeepResearchReport', () => {
     it('rejects more than one chart reference in a finding section', () => {
         const markdown = validReport.replace(
             'The dip aligns with contract renewals.',
-            `The dip aligns with contract renewals.\n\n[Second](#chart-${UUID_B})`,
+            `The dip aligns with contract renewals.\n\n${chartTag(
+                UUID_B,
+                'Second',
+            )}`,
         );
         const errors = lintDeepResearchReport(markdown, [
             warehouseChart(UUID_A),
@@ -204,7 +257,10 @@ describe('lintDeepResearchReport', () => {
     it('accepts one chart in each of two finding sections', () => {
         const markdown = validReport.replace(
             '## Conclusion',
-            `## Second finding\n\n<confidence level="medium">ok</confidence>\n\nMore prose.\n\n[Second](#chart-${UUID_B})\n\n## Conclusion`,
+            `## Second finding\n\n<confidence level="medium">ok</confidence>\n\nMore prose.\n\n${chartTag(
+                UUID_B,
+                'Second',
+            )}\n\n## Conclusion`,
         );
         expect(
             lintDeepResearchReport(markdown, [
@@ -232,7 +288,7 @@ describe('lintDeepResearchReport', () => {
 
     it('rejects legacy chart code fences', () => {
         const markdown = validReport.replace(
-            `[Revenue by month](#chart-${UUID_A})`,
+            chartTag(UUID_A),
             `\`\`\`chart\n{"queryUuid":"${UUID_A}"}\n\`\`\``,
         );
         const errors = lintDeepResearchReport(markdown, [
@@ -241,6 +297,50 @@ describe('lintDeepResearchReport', () => {
         expect(errors.some((e) => e.includes('Do not embed ```chart'))).toBe(
             true,
         );
+    });
+
+    it('rejects descriptions longer than 300 characters', () => {
+        const markdown = validReport.replace(
+            chartTag(UUID_A),
+            chartTag(UUID_A, 'Revenue by month', 'x'.repeat(301)),
+        );
+        const errors = lintDeepResearchReport(markdown, [
+            warehouseChart(UUID_A),
+        ]);
+        expect(
+            errors.some(
+                (error) =>
+                    error.includes('description') && error.includes('300'),
+            ),
+        ).toBe(true);
+    });
+
+    it('accepts descriptions exactly 300 characters long', () => {
+        const markdown = validReport.replace(
+            chartTag(UUID_A),
+            chartTag(UUID_A, 'Revenue by month', 'x'.repeat(300)),
+        );
+        expect(
+            lintDeepResearchReport(markdown, [warehouseChart(UUID_A)]),
+        ).toEqual([]);
+    });
+
+    it('requires the tag and chart definition to use the same title', () => {
+        const markdown = validReport.replace(
+            chartTag(UUID_A),
+            chartTag(UUID_A, 'Different title'),
+        );
+        const errors = lintDeepResearchReport(markdown, [
+            warehouseChart(UUID_A),
+        ]);
+
+        expect(
+            errors.some(
+                (error) =>
+                    error.includes('Different title') &&
+                    error.includes('Revenue by month'),
+            ),
+        ).toBe(true);
     });
 
     it('requires intro prose before the first heading', () => {

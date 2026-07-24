@@ -1,4 +1,5 @@
 import {
+    buildPivotRowTotalKey,
     formatItemValue,
     getSubtotalKey,
     isCustomDimension,
@@ -7,6 +8,7 @@ import {
     isNumericItem,
     normalizePivotMatchRaw,
     type ItemsMap,
+    type GroupedPivotRowSubtotals,
     type ParametersValuesMap,
     type ResultRow,
     type ResultValue,
@@ -19,6 +21,7 @@ import {
     TableHeaderLabelContainer,
     TableHeaderRegularLabel,
 } from '../../components/common/Table/Table.styles';
+import TotalCalculationErrorCell from '../../components/common/Table/TotalCalculationErrorCell';
 import {
     columnHelper,
     type TableColumn,
@@ -37,13 +40,15 @@ type Args = {
     columnOrder: string[];
     totals?: Record<string, number>;
     totalsLoading?: boolean;
+    totalsError?: unknown;
     groupedSubtotals?: Record<string, Record<string, number>[]>;
     subtotalsLoading?: boolean;
+    subtotalsError?: unknown;
     parameters?: ParametersValuesMap;
 };
 
 export function getGroupingValuesAndSubtotalKey(
-    info: CellContext<ResultRow, ResultRow[string]>,
+    info: Pick<CellContext<ResultRow, unknown>, 'row' | 'table'>,
 ) {
     const groupingDimensions = info.table
         .getState()
@@ -120,6 +125,30 @@ export function getSubtotalValueFromGroup(
     return subtotal[columnId] ?? undefined;
 }
 
+export function getRowSubtotalValue(
+    groupedRowSubtotals: GroupedPivotRowSubtotals | undefined,
+    subtotalGroupKey: string,
+    groupingValues: Record<string, { value: ResultValue } | undefined>,
+    metricFieldId: string | undefined,
+): number | null | undefined {
+    if (!groupedRowSubtotals || !metricFieldId) return undefined;
+
+    const subtotalRow =
+        groupedRowSubtotals[subtotalGroupKey]?.[
+            buildPivotRowTotalKey(
+                Object.entries(groupingValues).map(([fieldId, value]) => [
+                    fieldId,
+                    value?.value.raw,
+                ]),
+            )
+        ];
+    if (!subtotalRow) return undefined;
+
+    const total =
+        subtotalRow[`${metricFieldId}_any`] ?? subtotalRow[metricFieldId];
+    return typeof total === 'number' ? total : null;
+}
+
 const getImageSize = (item: ItemsMap[string] | undefined) => {
     if (isDimension(item) && item.image?.url) {
         const defaultWidth = 100;
@@ -160,8 +189,10 @@ const getDataAndColumns = ({
     columnOrder,
     totals,
     totalsLoading,
+    totalsError,
     groupedSubtotals,
     subtotalsLoading,
+    subtotalsError,
     parameters,
 }: Args): Array<TableHeader | TableColumn> => {
     // Deduplicate columnOrder to prevent duplicate columns if the same field appears multiple times
@@ -237,6 +268,13 @@ const getDataAndColumns = ({
                                 parameters,
                             );
                         }
+                        if (totalsError && isNumericItem(item)) {
+                            return (
+                                <TotalCalculationErrorCell
+                                    error={totalsError}
+                                />
+                            );
+                        }
                         if (totalsLoading && isNumericItem(item)) {
                             return (
                                 <Skeleton
@@ -292,6 +330,18 @@ const getDataAndColumns = ({
 
                             if (subtotalValue === null) {
                                 return null;
+                            }
+
+                            if (
+                                subtotalValue === undefined &&
+                                subtotalsError &&
+                                isNumericItem(item)
+                            ) {
+                                return (
+                                    <TotalCalculationErrorCell
+                                        error={subtotalsError}
+                                    />
+                                );
                             }
 
                             if (

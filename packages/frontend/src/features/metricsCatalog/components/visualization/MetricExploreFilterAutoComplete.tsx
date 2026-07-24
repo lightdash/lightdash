@@ -3,36 +3,33 @@ import {
     Group,
     Highlight,
     Loader,
-    ScrollArea,
-    Stack,
     Text,
+    Tooltip,
+    type ComboboxProps,
+    type PillsInputProps,
 } from '@mantine-8/core';
-import { MultiSelect, Tooltip, type MultiSelectProps } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useState,
-    type FC,
-    type ReactNode,
-} from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MultiValuePastePopover from '../../../../components/common/Filters/FilterInputs/MultiValuePastePopover';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { MultiSelectCombobox } from '../../../../components/common/MultiSelectCombobox/MultiSelectCombobox';
 import useHealth from '../../../../hooks/health/useHealth';
 import {
     MAX_AUTOCOMPLETE_RESULTS,
     useFieldValues,
 } from '../../../../hooks/useFieldValues';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
-import { useFilterAutoCompleteStyles } from '../../styles/useFilterStyles';
 import styles from './MetricExploreFilterAutoComplete.module.css';
 
-type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
+type Props = Omit<PillsInputProps, 'onChange'> & {
     dimension: CompiledDimension;
     values: string[];
     onChange: (values: string[]) => void;
+    comboboxProps?: ComboboxProps;
+    onDropdownOpen?: () => void;
+    onDropdownClose?: () => void;
+    placeholder?: string;
 };
 
 /**
@@ -50,9 +47,9 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
     placeholder,
     onDropdownOpen,
     onDropdownClose,
+    comboboxProps,
+    ...rest
 }) => {
-    const { classes: filterAutoCompleteClasses } =
-        useFilterAutoCompleteStyles();
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -124,16 +121,6 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
         [],
     );
 
-    const handleKeyDown = useCallback(
-        (event: React.KeyboardEvent<HTMLInputElement>) => {
-            if (event.key === 'Enter' && search !== '') {
-                handleAdd(search);
-                handleResetSearch();
-            }
-        },
-        [handleAdd, handleResetSearch, search],
-    );
-
     const data = useMemo(() => {
         const resultLabels = new Map(
             results.map(({ value, label }) => [value, label]),
@@ -148,53 +135,6 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
     }, [results, values]);
 
     const searchedMaxResults = results.length >= MAX_AUTOCOMPLETE_RESULTS;
-
-    const DropdownComponentOverride = useCallback(
-        ({ children, ...props }: { children: ReactNode }) => (
-            <Stack w="100%" gap={0}>
-                <ScrollArea {...props}>
-                    {searchedMaxResults ? (
-                        <Text
-                            c="dimmed"
-                            size="xs"
-                            px="sm"
-                            pt="xs"
-                            pb="xxs"
-                            bg="white"
-                        >
-                            Showing first {MAX_AUTOCOMPLETE_RESULTS} results.{' '}
-                            {search ? 'Continue' : 'Start'} typing...
-                        </Text>
-                    ) : null}
-                    {children}
-                </ScrollArea>
-                {healthData?.hasCacheAutocompleResults ? (
-                    <Tooltip
-                        withinPortal
-                        position="left"
-                        label="Click here to refresh cache filter values"
-                    >
-                        <Text
-                            c="dimmed"
-                            size="xs"
-                            px="sm"
-                            p="xxs"
-                            className={styles.cacheHint}
-                            onClick={() => setForceRefresh(true)}
-                        >
-                            Results loaded at {refreshedAt.toLocaleString()}
-                        </Text>
-                    </Tooltip>
-                ) : null}
-            </Stack>
-        ),
-        [
-            searchedMaxResults,
-            search,
-            refreshedAt,
-            healthData?.hasCacheAutocompleResults,
-        ],
-    );
 
     return (
         <MultiValuePastePopover
@@ -223,59 +163,102 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
                 handleAdd(tempPasteValues);
             }}
         >
-            <MultiSelect
+            <MultiSelectCombobox
+                {...rest}
                 size="xs"
                 w="100%"
                 placeholder={
                     values.length > 0 || disabled ? undefined : placeholder
                 }
                 disabled={disabled}
-                creatable
                 shouldCreate={(query) =>
                     query.trim().length > 0 && !values.includes(query)
                 }
-                getCreateLabel={(query) => (
+                createLabel={
                     <Group gap="xxs">
                         <MantineIcon icon={IconPlus} color="blue" size="sm" />
-                        <Text c="blue">Add "{query}"</Text>
+                        <Text c="blue">Add "{search.trim()}"</Text>
                     </Group>
-                )}
-                classNames={filterAutoCompleteClasses}
-                disableSelectedItemFiltering
-                searchable
-                clearSearchOnChange
+                }
+                classNames={{
+                    root: styles.root,
+                    input: styles.input,
+                    section: styles.rightSection,
+                }}
+                comboboxProps={{
+                    ...comboboxProps,
+                    classNames: {
+                        dropdown: styles.dropdown,
+                        option: styles.option,
+                    },
+                }}
                 searchValue={search}
                 onSearchChange={setSearch}
-                limit={MAX_AUTOCOMPLETE_RESULTS}
                 onPaste={handlePaste}
-                nothingFound={
+                nothingFoundMessage={
                     isInitialLoading ? 'Loading...' : 'No results found'
                 }
                 rightSection={
                     isInitialLoading ? <Loader size="xs" color="gray" /> : null
                 }
-                dropdownComponent={DropdownComponentOverride}
-                itemComponent={({ label, ...others }) =>
-                    others.disabled ? (
-                        <Text c="dimmed" {...others}>
-                            {label}
+                topContent={
+                    searchedMaxResults ? (
+                        <Text c="dimmed" size="xs" px="sm" pt="xs" pb="xxs">
+                            Showing first {MAX_AUTOCOMPLETE_RESULTS} results.{' '}
+                            {search ? 'Continue' : 'Start'} typing...
                         </Text>
+                    ) : null
+                }
+                footer={
+                    healthData?.hasCacheAutocompleResults ? (
+                        <Tooltip
+                            withinPortal
+                            position="left"
+                            label="Click here to refresh cache filter values"
+                        >
+                            <Text
+                                c="dimmed"
+                                size="xs"
+                                px="sm"
+                                p="xxs"
+                                className={styles.cacheHint}
+                                onClick={() => setForceRefresh(true)}
+                            >
+                                Results loaded at {refreshedAt.toLocaleString()}
+                            </Text>
+                        </Tooltip>
+                    ) : null
+                }
+                renderOption={(option) =>
+                    option.disabled ? (
+                        <Text c="dimmed">{option.label}</Text>
                     ) : (
-                        <Highlight highlight={search} {...others} fz="sm">
-                            {label}
+                        <Highlight highlight={search} fz="sm">
+                            {option.label}
                         </Highlight>
                     )
                 }
-                data={data}
+                options={data}
+                limit={MAX_AUTOCOMPLETE_RESULTS}
                 value={values}
                 onDropdownOpen={onDropdownOpen}
                 onDropdownClose={() => {
                     handleResetSearch();
                     onDropdownClose?.();
                 }}
-                onChange={handleChange}
+                onValueRemove={(itemValue) =>
+                    handleChange(values.filter((value) => value !== itemValue))
+                }
+                onOptionSubmit={(itemValue) => {
+                    if (values.includes(itemValue)) {
+                        handleChange(
+                            values.filter((value) => value !== itemValue),
+                        );
+                    } else {
+                        handleAdd(itemValue);
+                    }
+                }}
                 onCreate={handleAdd}
-                onKeyDown={handleKeyDown}
             />
         </MultiValuePastePopover>
     );

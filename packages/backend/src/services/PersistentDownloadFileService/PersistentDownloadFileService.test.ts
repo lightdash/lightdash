@@ -1,5 +1,6 @@
 import { NotFoundError } from '@lightdash/common';
 import { Readable } from 'stream';
+import type { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
@@ -24,6 +25,9 @@ const createService = (
     configOverrides: Partial<LightdashConfig['persistentDownloadUrls']> = {},
 ) =>
     new PersistentDownloadFileService({
+        analytics: {
+            track: vi.fn(),
+        } as unknown as LightdashAnalytics,
         lightdashConfig: {
             ...lightdashConfigMock,
             persistentDownloadUrls: {

@@ -75,7 +75,7 @@ const SessionHeaderLabel: FC<{
             color="ldGray.6"
         />
         {session.sessionId ? (
-            <Tooltip withinPortal variant="xs" label={session.sessionId}>
+            <Tooltip withinPortal label={session.sessionId}>
                 <Text fz="xs" ff="monospace" fw={600} c="ldGray.9">
                     {session.sessionId.slice(0, 8)}
                 </Text>
@@ -99,7 +99,6 @@ const ClientCellContent: FC<{ call: McpActivityItem }> = ({ call }) => {
     return (
         <Tooltip
             withinPortal
-            variant="xs"
             label={userAgent ?? label}
             disabled={!isTruncated.isTruncated && !userAgent}
             multiline
@@ -266,7 +265,6 @@ const McpActivityTable = ({
                 ) : (
                     <Tooltip
                         withinPortal
-                        variant="xs"
                         label={formatToolCallTimeFull(
                             row.original.call.createdAt,
                         )}
@@ -321,11 +319,7 @@ const McpActivityTable = ({
             ),
             Cell: ({ row }) =>
                 row.original.type === 'session' ? null : (
-                    <Tooltip
-                        withinPortal
-                        variant="xs"
-                        label={row.original.call.user.email}
-                    >
+                    <Tooltip withinPortal label={row.original.call.user.email}>
                         <Text c="ldGray.9" fz="sm" fw={400}>
                             {row.original.call.user.name}
                         </Text>

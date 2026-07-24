@@ -18,10 +18,10 @@ import {
     Text,
     Title,
 } from '@mantine-8/core';
-import { Prism } from '@mantine/prism';
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { memo, useCallback, useState, type FC } from 'react';
+import CodeBlock from '../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
@@ -224,21 +224,21 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
                                         />
                                     </HoverCard.Target>
                                     <HoverCard.Dropdown p={0} maw={500}>
-                                        <Prism
+                                        <CodeBlock
+                                            code={JSON.stringify(
+                                                visualization,
+                                                null,
+                                                2,
+                                            )}
                                             language="json"
+                                            lineNumberFontSize={10}
                                             withLineNumbers
                                             styles={{
                                                 code: {
                                                     fontSize: 10,
                                                 },
                                             }}
-                                        >
-                                            {JSON.stringify(
-                                                visualization,
-                                                null,
-                                                2,
-                                            )}
-                                        </Prism>
+                                        />
                                     </HoverCard.Dropdown>
                                 </HoverCard>
 

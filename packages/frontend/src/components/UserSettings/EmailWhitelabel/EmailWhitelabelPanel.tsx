@@ -13,7 +13,6 @@ import {
     Table,
     Text,
     TextInput,
-    Title,
     Tooltip,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
@@ -21,7 +20,6 @@ import {
     IconCheck,
     IconCopy,
     IconInfoCircle,
-    IconMailForward,
     IconTrash,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -35,6 +33,7 @@ import {
 import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
+import { SettingsPage } from '../../common/Settings/SettingsPage';
 
 const STATUS_BADGE: Record<
     OrganizationEmailWhitelabel['status'],
@@ -290,30 +289,26 @@ const EmailWhitelabelPanel: FC = () => {
     const { data: config, isInitialLoading } = useEmailWhitelabel();
 
     return (
-        <SettingsCard p="lg">
-            <Stack gap="md">
-                <Group gap="sm" wrap="nowrap" align="flex-start">
-                    <MantineIcon icon={IconMailForward} size="lg" />
-                    <Stack gap={2}>
-                        <Title order={5}>Email sending domain</Title>
-                        <Text c="dimmed" size="sm" maw={560}>
-                            Send report emails from your own domain instead of a
-                            Lightdash address. Until this is verified and
-                            enabled, emails send from Lightdash with your
-                            address as reply-to.
-                        </Text>
-                    </Stack>
-                </Group>
-
-                {isInitialLoading ? (
-                    <EmptyStateLoader mih={60} />
-                ) : config ? (
-                    <ConfiguredView config={config} />
-                ) : (
-                    <SetupForm />
-                )}
-            </Stack>
-        </SettingsCard>
+        <SettingsPage
+            title="Email sending domain"
+            description="Send report emails from your own domain instead of a Lightdash address."
+        >
+            <SettingsCard>
+                <Stack gap="md">
+                    <Text c="dimmed" size="sm">
+                        Until your domain is verified and enabled, emails send
+                        from Lightdash with your address as reply-to.
+                    </Text>
+                    {isInitialLoading ? (
+                        <EmptyStateLoader mih={60} />
+                    ) : config ? (
+                        <ConfiguredView config={config} />
+                    ) : (
+                        <SetupForm />
+                    )}
+                </Stack>
+            </SettingsCard>
+        </SettingsPage>
     );
 };
 

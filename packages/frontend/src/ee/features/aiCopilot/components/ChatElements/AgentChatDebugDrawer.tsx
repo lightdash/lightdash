@@ -13,13 +13,13 @@ import {
     Stack,
     Text,
 } from '@mantine-8/core';
-import { Prism } from '@mantine/prism';
 import {
     IconBug,
     IconChevronDown,
     IconChevronRight,
 } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
+import CodeBlock from '../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
@@ -147,17 +147,17 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                             className={classes.codeBlock}
                         >
                             {configJson ? (
-                                <Prism
+                                <CodeBlock
+                                    code={configJson}
                                     language="json"
+                                    lineNumberFontSize="12px"
                                     withLineNumbers
                                     styles={{
                                         code: {
                                             fontSize: '12px',
                                         },
                                     }}
-                                >
-                                    {configJson}
-                                </Prism>
+                                />
                             ) : (
                                 <Box p="md" className={classes.centerText}>
                                     <Text size="sm" c="dimmed" fs="italic">
@@ -240,7 +240,8 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                                                         >
                                                             Arguments
                                                         </Text>
-                                                        <Prism
+                                                        <CodeBlock
+                                                            code={argsJson}
                                                             language="json"
                                                             styles={{
                                                                 code: {
@@ -248,9 +249,7 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                                                                         '11px',
                                                                 },
                                                             }}
-                                                        >
-                                                            {argsJson}
-                                                        </Prism>
+                                                        />
                                                     </Box>
                                                 ) : (
                                                     <Box

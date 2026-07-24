@@ -6,8 +6,8 @@ import {
     Loader,
     ScrollArea,
     Text,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { lazy, Suspense, useMemo, type FC } from 'react';
 import scrollAreaClasses from '../../../styles/ScrollArea.module.css';

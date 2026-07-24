@@ -12,8 +12,9 @@ import {
     Button,
     Anchor,
     Card,
+    Table,
+    Tooltip,
 } from '@mantine-8/core';
-import { Table, Tooltip } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link, useParams } from 'react-router';
@@ -89,40 +90,40 @@ const showTableViews = ({
     views: ActivityViews[];
 }) => {
     return (
-        <tbody>
+        <Table.Tbody>
             {views.map((view) => {
                 const to =
                     type === 'dashboard'
                         ? getDashboardLink(projectUuid, view.uuid)
                         : getChartLink(projectUuid, view.uuid);
                 return (
-                    <tr key={`${key}-${view.uuid}`}>
-                        <td>
+                    <Table.Tr key={`${key}-${view.uuid}`}>
+                        <Table.Td>
                             <Anchor inherit component={Link} to={to}>
                                 {view.name}
                             </Anchor>
-                        </td>
-                        <td>{view.count}</td>
-                    </tr>
+                        </Table.Td>
+                        <Table.Td>{view.count}</Table.Td>
+                    </Table.Tr>
                 );
             })}
-        </tbody>
+        </Table.Tbody>
     );
 };
 
 const showTableBodyWithUsers = (key: string, userList: UserWithCount[]) => {
     return (
-        <tbody>
+        <Table.Tbody>
             {userList.map((user) => {
                 return (
-                    <tr key={`${key}-${user.userUuid}`}>
-                        <td>{user.firstName} </td>
-                        <td>{user.lastName}</td>
-                        <td>{user.count}</td>
-                    </tr>
+                    <Table.Tr key={`${key}-${user.userUuid}`}>
+                        <Table.Td>{user.firstName} </Table.Td>
+                        <Table.Td>{user.lastName}</Table.Td>
+                        <Table.Td>{user.count}</Table.Td>
+                    </Table.Tr>
                 );
             })}
-        </tbody>
+        </Table.Tbody>
     );
 };
 
@@ -372,13 +373,13 @@ const UserActivity: FC = () => {
                         days?"
                 >
                     <Table withColumnBorders ta="left">
-                        <thead>
-                            <tr>
-                                <th>First Name</th>
-                                <th>Last Name</th>
-                                <th>Number of Queries</th>
-                            </tr>
-                        </thead>
+                        <Table.Thead>
+                            <Table.Tr>
+                                <Table.Th>First Name</Table.Th>
+                                <Table.Th>Last Name</Table.Th>
+                                <Table.Th>Number of Queries</Table.Th>
+                            </Table.Tr>
+                        </Table.Thead>
                         {showTableBodyWithUsers(
                             'users-most-queries',
                             data.tableMostQueries,
@@ -392,13 +393,13 @@ const UserActivity: FC = () => {
                         last 7 days? (top 10)"
                 >
                     <Table withColumnBorders ta="left">
-                        <thead>
-                            <tr>
-                                <th>First Name</th>
-                                <th>Last Name</th>
-                                <th>Number of chart updates</th>
-                            </tr>
-                        </thead>
+                        <Table.Thead>
+                            <Table.Tr>
+                                <Table.Th>First Name</Table.Th>
+                                <Table.Th>Last Name</Table.Th>
+                                <Table.Th>Number of chart updates</Table.Th>
+                            </Table.Tr>
+                        </Table.Thead>
                         {showTableBodyWithUsers(
                             'users-created-most-charts',
                             data.tableMostCreatedCharts,
@@ -410,13 +411,13 @@ const UserActivity: FC = () => {
                     description="Which users have not run queries in the last 90 days?"
                 >
                     <Table withColumnBorders ta="left">
-                        <thead>
-                            <tr>
-                                <th>First Name</th>
-                                <th>Last Name</th>
-                                <th>Days since last query</th>
-                            </tr>
-                        </thead>
+                        <Table.Thead>
+                            <Table.Tr>
+                                <Table.Th>First Name</Table.Th>
+                                <Table.Th>Last Name</Table.Th>
+                                <Table.Th>Days since last query</Table.Th>
+                            </Table.Tr>
+                        </Table.Thead>
                         {showTableBodyWithUsers(
                             'users-not-logged-in',
                             data.tableNoQueries,
@@ -429,23 +430,23 @@ const UserActivity: FC = () => {
                     description="User's most viewed dashboard"
                 >
                     <Table withColumnBorders ta="left">
-                        <thead>
-                            <tr>
-                                <th>First Name</th>
-                                <th>Last Name</th>
-                                <th>Dashboard name</th>
-                                <th>Number of views</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                        <Table.Thead>
+                            <Table.Tr>
+                                <Table.Th>First Name</Table.Th>
+                                <Table.Th>Last Name</Table.Th>
+                                <Table.Th>Dashboard name</Table.Th>
+                                <Table.Th>Number of views</Table.Th>
+                            </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
                             {data.userMostViewedDashboards.map((user) => {
                                 return (
-                                    <tr
+                                    <Table.Tr
                                         key={`user-most-viewed-${user.userUuid}`}
                                     >
-                                        <td>{user.firstName} </td>
-                                        <td>{user.lastName}</td>
-                                        <td>
+                                        <Table.Td>{user.firstName} </Table.Td>
+                                        <Table.Td>{user.lastName}</Table.Td>
+                                        <Table.Td>
                                             <Anchor
                                                 inherit
                                                 component={Link}
@@ -456,13 +457,13 @@ const UserActivity: FC = () => {
                                             >
                                                 {user.dashboardName}
                                             </Anchor>
-                                        </td>
+                                        </Table.Td>
 
-                                        <td>{user.count}</td>
-                                    </tr>
+                                        <Table.Td>{user.count}</Table.Td>
+                                    </Table.Tr>
                                 );
                             })}
-                        </tbody>
+                        </Table.Tbody>
                     </Table>
                 </VisualizationCard>
                 {health?.hasExtendedUsageAnalytics ? (
@@ -472,12 +473,12 @@ const UserActivity: FC = () => {
                             description="Dashboard views (top 20)"
                         >
                             <Table withColumnBorders ta="left">
-                                <thead>
-                                    <tr>
-                                        <th>Dashboard name</th>
-                                        <th>Views</th>
-                                    </tr>
-                                </thead>
+                                <Table.Thead>
+                                    <Table.Tr>
+                                        <Table.Th>Dashboard name</Table.Th>
+                                        <Table.Th>Views</Table.Th>
+                                    </Table.Tr>
+                                </Table.Thead>
                                 {showTableViews({
                                     key: 'dashboard-views',
                                     projectUuid,
@@ -491,12 +492,12 @@ const UserActivity: FC = () => {
                             description="Chart views (top 20)"
                         >
                             <Table withColumnBorders ta="left">
-                                <thead>
-                                    <tr>
-                                        <th>Chart name</th>
-                                        <th>Views</th>
-                                    </tr>
-                                </thead>
+                                <Table.Thead>
+                                    <Table.Tr>
+                                        <Table.Th>Chart name</Table.Th>
+                                        <Table.Th>Views</Table.Th>
+                                    </Table.Tr>
+                                </Table.Thead>
                                 {showTableViews({
                                     key: 'chart-views',
                                     projectUuid,

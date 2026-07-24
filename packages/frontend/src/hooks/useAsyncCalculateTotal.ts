@@ -7,6 +7,7 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
     type ApiGetAsyncQueryResults,
     type CalculateTotalKind,
+    type GroupedPivotRowSubtotals,
     type PivotRowTotalsByIndex,
     type RawResultRow,
     type ResultRow,
@@ -50,14 +51,29 @@ type StartCalculateTotalArgs = {
     invalidateCache?: boolean;
 };
 
+const getMockTotalError = (kind: CalculateTotalKind) => {
+    if (!import.meta.env.DEV) return undefined;
+
+    const mockedKinds = new URLSearchParams(window.location.search)
+        .get('mockTotalErrors')
+        ?.split(',');
+
+    return mockedKinds?.includes('all') || mockedKinds?.includes(kind)
+        ? new Error(`Mock ${kind} calculation error`)
+        : undefined;
+};
+
 const startCalculateTotalQuery = ({
     projectUuid,
     sourceQueryUuid,
     kind,
     subtotalDimensions,
     invalidateCache,
-}: StartCalculateTotalArgs) =>
-    lightdashApi<ApiExecuteAsyncMetricQueryResults>({
+}: StartCalculateTotalArgs) => {
+    const mockError = getMockTotalError(kind);
+    if (mockError) return Promise.reject(mockError);
+
+    return lightdashApi<ApiExecuteAsyncMetricQueryResults>({
         url: `/projects/${projectUuid}/query/${sourceQueryUuid}/calculate-total`,
         version: 'v2',
         method: 'POST',
@@ -67,18 +83,18 @@ const startCalculateTotalQuery = ({
             invalidateCache,
         }),
     });
+};
 
 // Single wide row of totals. Keys are pivoted SQL column names for pivoted
 // sources, plain metric field ids otherwise.
 export type AsyncTotalsMap = Record<string, number>;
 
 const fetchTotals = async (
-    args: Omit<StartCalculateTotalArgs, 'kind'>,
+    args: Omit<StartCalculateTotalArgs, 'kind'> & {
+        kind: Extract<CalculateTotalKind, 'columnTotal' | 'grandTotal'>;
+    },
 ): Promise<AsyncTotalsMap> => {
-    const { queryUuid } = await startCalculateTotalQuery({
-        ...args,
-        kind: 'columnTotal',
-    });
+    const { queryUuid } = await startCalculateTotalQuery(args);
 
     // Polling endpoint defaults to page=1, so the READY response already
     // contains the single totals row — no separate stream fetch needed.
@@ -119,20 +135,23 @@ export const useColumnTotalsEnabledByDefault = (
     return projectQuery.data?.projectDefaults?.column_totals !== false;
 };
 
-export const useAsyncCalculateTotal = ({
+const useAsyncCalculateSingleRowTotal = ({
     projectUuid,
     sourceQueryUuid,
+    kind,
     enabled,
     invalidateCache,
 }: {
     projectUuid: string | undefined;
     sourceQueryUuid: string | undefined;
+    kind: Extract<CalculateTotalKind, 'columnTotal' | 'grandTotal'>;
     enabled: boolean;
     invalidateCache?: boolean;
 }) =>
     useQuery<AsyncTotalsMap, ApiError>({
         queryKey: [
             'calculate_async_total',
+            kind,
             projectUuid,
             sourceQueryUuid,
             invalidateCache,
@@ -148,12 +167,21 @@ export const useAsyncCalculateTotal = ({
             return fetchTotals({
                 projectUuid,
                 sourceQueryUuid,
+                kind,
                 invalidateCache,
             });
         },
         enabled: enabled && !!projectUuid && !!sourceQueryUuid,
         retry: false,
     });
+
+export const useAsyncCalculateTotal = (
+    args: Omit<Parameters<typeof useAsyncCalculateSingleRowTotal>[0], 'kind'>,
+) => useAsyncCalculateSingleRowTotal({ ...args, kind: 'columnTotal' });
+
+export const useAsyncCalculateGrandTotal = (
+    args: Omit<Parameters<typeof useAsyncCalculateSingleRowTotal>[0], 'kind'>,
+) => useAsyncCalculateSingleRowTotal({ ...args, kind: 'grandTotal' });
 
 // Row totals re-run the source query collapsed across the pivot columns, so the
 // result is one flat row per index-value combination (index dims + metrics),
@@ -252,6 +280,117 @@ const getSubtotalDimensionGroups = (
     const withoutPivot = ordered.filter((d) => !pivotDimensions.includes(d));
     const toSubtotal = withoutPivot.slice(0, -1);
     return toSubtotal.map((_, index) => toSubtotal.slice(0, index + 1));
+};
+
+const buildGroupedRowSubtotals = (
+    entries: Array<[dimensions: string[], rows: ResultRow[]]>,
+): GroupedPivotRowSubtotals =>
+    Object.fromEntries(
+        entries.map(([dimensions, rows]) => [
+            getSubtotalKey(dimensions),
+            buildWarehouseRowTotals(rows, dimensions),
+        ]),
+    );
+
+const fetchRowSubtotals = async (args: {
+    projectUuid: string;
+    sourceQueryUuid: string;
+    dimensionGroups: string[][];
+    invalidateCache?: boolean;
+}): Promise<GroupedPivotRowSubtotals> => {
+    const entries = await Promise.all(
+        args.dimensionGroups.map(
+            async (
+                group,
+            ): Promise<[dimensions: string[], rows: ResultRow[]]> => {
+                const { queryUuid } = await startCalculateTotalQuery({
+                    projectUuid: args.projectUuid,
+                    sourceQueryUuid: args.sourceQueryUuid,
+                    kind: 'rowSubtotal',
+                    subtotalDimensions: group,
+                    invalidateCache: args.invalidateCache,
+                });
+
+                const query = await pollForResults(args.projectUuid, queryUuid);
+                if (
+                    query.status === QueryHistoryStatus.ERROR ||
+                    query.status === QueryHistoryStatus.EXPIRED
+                ) {
+                    throw new Error(
+                        query.error || 'Error computing row subtotals',
+                    );
+                }
+                if (query.status !== QueryHistoryStatus.READY) {
+                    throw new Error(
+                        'Unexpected query status while polling row subtotals',
+                    );
+                }
+
+                const rows = await fetchAllResultRows(
+                    args.projectUuid,
+                    queryUuid,
+                );
+                return [group, rows];
+            },
+        ),
+    );
+
+    return buildGroupedRowSubtotals(entries);
+};
+
+export const useAsyncCalculateRowSubtotals = ({
+    projectUuid,
+    sourceQueryUuid,
+    dimensions,
+    columnOrder,
+    pivotDimensions,
+    enabled,
+    invalidateCache,
+}: {
+    projectUuid: string | undefined;
+    sourceQueryUuid: string | undefined;
+    dimensions: string[] | undefined;
+    columnOrder: string[];
+    pivotDimensions: string[] | undefined;
+    enabled: boolean;
+    invalidateCache?: boolean;
+}) => {
+    const dimensionGroups = getSubtotalDimensionGroups(
+        dimensions ?? [],
+        columnOrder,
+        pivotDimensions ?? [],
+    );
+
+    return useQuery<GroupedPivotRowSubtotals, ApiError>({
+        queryKey: [
+            'calculate_async_row_subtotals',
+            projectUuid,
+            sourceQueryUuid,
+            dimensionGroups,
+            invalidateCache,
+        ],
+        queryFn: () => {
+            if (!projectUuid || !sourceQueryUuid) {
+                return Promise.reject(
+                    new Error(
+                        'Missing projectUuid or sourceQueryUuid for async row subtotals',
+                    ),
+                );
+            }
+            return fetchRowSubtotals({
+                projectUuid,
+                sourceQueryUuid,
+                dimensionGroups,
+                invalidateCache,
+            });
+        },
+        enabled:
+            enabled &&
+            !!projectUuid &&
+            !!sourceQueryUuid &&
+            dimensionGroups.length > 0,
+        retry: false,
+    });
 };
 
 // One async calculate-total call per nesting level (kind 'columnSubtotal'),

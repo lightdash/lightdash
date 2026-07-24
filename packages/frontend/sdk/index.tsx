@@ -1,4 +1,6 @@
 import '@mantine-8/core/styles.css';
+import '@mantine-8/code-highlight/styles.css';
+import '@mantine-8/tiptap/styles.css';
 import {
     FilterOperator,
     getErrorMessage,
@@ -6,7 +8,7 @@ import {
     type LanguageMap,
     type SavedChart,
 } from '@lightdash/common';
-import { ModalsProvider } from '@mantine/modals';
+import { ModalsProvider } from '@mantine-8/modals';
 import {
     useEffect,
     useRef,

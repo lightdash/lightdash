@@ -15,8 +15,8 @@ import {
     Text,
     Select,
     PasswordInput,
+    Tooltip,
 } from '@mantine-8/core';
-import { NumberInput, Tooltip } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import {
     useCallback,
@@ -38,6 +38,7 @@ import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
+import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import BooleanSwitch from '../Inputs/BooleanSwitch';
@@ -516,7 +517,7 @@ const SnowflakeForm: FC<{
                                                     setTemporaryFile(undefined);
                                                     form.setFieldValue(
                                                         'warehouse.privateKey',
-                                                        null,
+                                                        undefined,
                                                     );
                                                     return;
                                                 }
@@ -541,7 +542,7 @@ const SnowflakeForm: FC<{
                                                     } else {
                                                         form.setFieldValue(
                                                             'warehouse.privateKey',
-                                                            null,
+                                                            undefined,
                                                         );
                                                     }
                                                 };
@@ -549,7 +550,7 @@ const SnowflakeForm: FC<{
                                                     setTemporaryFile(undefined);
                                                     form.setFieldValue(
                                                         'warehouse.privateKey',
-                                                        null,
+                                                        undefined,
                                                     );
                                                 };
                                                 fileReader.readAsText(file);

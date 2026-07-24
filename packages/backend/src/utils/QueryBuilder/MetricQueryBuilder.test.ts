@@ -7339,6 +7339,292 @@ describe('Naive timestamp domain — explicit, session-independent conversion', 
     });
 });
 
+describe('Metric filters: absolute timestamp predicates re-render at query time (GLITCH-627)', () => {
+    const BAKED_PREDICATE = `("events".occurred_at) = ('2024-01-14 17:00:00+00:00')`;
+    const FRESH_PREDICATE = `("events".occurred_at) = ('2024-01-15 02:00:00'::timestamp)`;
+
+    const withFilteredMetric = (explore: Explore): Explore => ({
+        ...explore,
+        tables: {
+            ...explore.tables,
+            events: {
+                ...explore.tables.events,
+                metrics: {
+                    ...explore.tables.events.metrics,
+                    filtered_count: {
+                        type: MetricType.COUNT,
+                        fieldType: FieldType.METRIC,
+                        table: 'events',
+                        tableLabel: 'events',
+                        name: 'filtered_count',
+                        label: 'filtered_count',
+                        sql: '${TABLE}.id',
+                        compiledSql: `COUNT(CASE WHEN (${BAKED_PREDICATE}) THEN ("events".id) ELSE NULL END)`,
+                        tablesReferences: ['events'],
+                        hidden: false,
+                        filters: [
+                            {
+                                id: 'f1',
+                                target: { fieldRef: 'events.occurred_at' },
+                                operator: FilterOperator.EQUALS,
+                                values: ['2024-01-14T17:00:00.000Z'],
+                            },
+                        ],
+                        compiledTimestampFilters: [
+                            {
+                                id: 'f1',
+                                fieldId: 'events_occurred_at',
+                                compiledSql: BAKED_PREDICATE,
+                            },
+                        ],
+                    },
+                },
+            },
+        },
+    });
+
+    const filteredMetricQuery: CompiledMetricQuery = {
+        exploreName: 'events',
+        dimensions: [],
+        metrics: ['events_filtered_count'],
+        filters: {},
+        sorts: [],
+        limit: 100,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
+
+    const build = (explore: Explore) =>
+        buildQuery({
+            explore,
+            compiledMetricQuery: filteredMetricQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'UTC',
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: 'Asia/Tokyo',
+        });
+
+    test('a classified-naive target swaps the baked predicate for the domain-aware one', () => {
+        const { query } = build(
+            withFilteredMetric(
+                buildNaiveExplore(SupportedDbtAdapter.POSTGRES, 'naive'),
+            ),
+        );
+        expect(query).toContain(FRESH_PREDICATE);
+        expect(query).not.toContain(BAKED_PREDICATE);
+    });
+
+    test('an unknown-domain target keeps the baked predicate byte-identical', () => {
+        const { query } = build(
+            withFilteredMetric(buildNaiveExplore(SupportedDbtAdapter.POSTGRES)),
+        );
+        expect(query).toContain(BAKED_PREDICATE);
+        expect(query).not.toContain(FRESH_PREDICATE);
+    });
+
+    test('a convert_timezone: false target keeps the baked predicate', () => {
+        const explore = withFilteredMetric(
+            buildNaiveExplore(SupportedDbtAdapter.POSTGRES, 'naive'),
+        );
+        explore.tables.events.dimensions.occurred_at = {
+            ...explore.tables.events.dimensions.occurred_at,
+            skipTimezoneConversion: true,
+        };
+        const { query } = build(explore);
+        expect(query).toContain(BAKED_PREDICATE);
+        expect(query).not.toContain(FRESH_PREDICATE);
+    });
+
+    test('the classified BigQuery path renders the fresh predicate as a DATETIME wall clock', () => {
+        const { query } = buildQuery({
+            explore: withFilteredMetric(
+                buildNaiveExplore(SupportedDbtAdapter.BIGQUERY, 'naive'),
+            ),
+            compiledMetricQuery: filteredMetricQuery,
+            warehouseSqlBuilder: bigqueryClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'UTC',
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: 'Asia/Tokyo',
+        });
+        expect(query).toContain(`DATETIME '2024-01-15 02:00:00'`);
+        expect(query).not.toContain(BAKED_PREDICATE);
+    });
+
+    test('relative and absolute recorded filters both re-render on one metric', () => {
+        vi.useFakeTimers();
+        try {
+            const COMPILE_TIME = new Date('2026-05-04T00:00:00Z').getTime();
+            const QUERY_TIME = new Date('2026-06-04T00:00:00Z').getTime();
+            const explore = withFilteredMetric(
+                buildNaiveExplore(SupportedDbtAdapter.POSTGRES, 'naive'),
+            );
+            const occurredAt = explore.tables.events.dimensions
+                .occurred_at as CompiledDimension;
+            const relativeRule: MetricFilterRule = {
+                id: 'r1',
+                target: { fieldRef: 'events.occurred_at' },
+                operator: FilterOperator.IN_THE_PAST,
+                values: [30],
+                settings: { unitOfTime: UnitOfTime.days, completed: false },
+            };
+            vi.setSystemTime(COMPILE_TIME);
+            const relativeBaked = renderFilterRuleSqlFromField(
+                { ...relativeRule, target: { fieldId: getItemId(occurredAt) } },
+                occurredAt,
+                warehouseClientMock.getFieldQuoteChar(),
+                warehouseClientMock.getStringQuoteChar(),
+                warehouseClientMock.escapeString.bind(warehouseClientMock),
+                warehouseClientMock.getStartOfWeek(),
+                warehouseClientMock.getAdapterType(),
+            );
+            expect(relativeBaked).toContain('2026-04-04'); // now-30d at compile
+
+            const metric = explore.tables.events.metrics
+                .filtered_count as CompiledMetric;
+            metric.compiledSql = `COUNT(CASE WHEN (${BAKED_PREDICATE} AND ${relativeBaked}) THEN ("events".id) ELSE NULL END)`;
+            metric.filters = [...(metric.filters ?? []), relativeRule];
+            metric.compiledRelativeDateFilters = [
+                {
+                    id: 'r1',
+                    fieldId: getItemId(occurredAt),
+                    compiledSql: relativeBaked,
+                },
+            ];
+
+            vi.setSystemTime(QUERY_TIME);
+            const { query } = build(explore);
+            expect(query).toContain(FRESH_PREDICATE);
+            expect(query).not.toContain(BAKED_PREDICATE);
+            expect(query).not.toContain('2026-04-04'); // stale lower bound gone
+            expect(query).toContain('2026-05-05'); // now-30d at query time
+            expect(query).toContain('2026-06-04'); // now at query time
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    // User-attribute filtering removes restricted dimensions from the explore
+    // the filter renderer resolves against; those targets must keep their
+    // baked predicate instead of failing the whole query.
+    const restrictAwayTimestampDims = (explore: Explore): Explore => ({
+        ...explore,
+        unfilteredTables: explore.tables,
+        tables: {
+            ...explore.tables,
+            events: {
+                ...explore.tables.events,
+                dimensions: Object.fromEntries(
+                    Object.entries(explore.tables.events.dimensions).filter(
+                        ([name]) => !name.startsWith('occurred_at'),
+                    ),
+                ),
+            },
+        },
+    });
+
+    test('a timestamp target restricted away from the user keeps the baked predicate', () => {
+        const explore = restrictAwayTimestampDims(
+            withFilteredMetric(
+                buildNaiveExplore(SupportedDbtAdapter.POSTGRES, 'naive'),
+            ),
+        );
+        const { query } = build(explore);
+        expect(query).toContain(BAKED_PREDICATE);
+        expect(query).not.toContain(FRESH_PREDICATE);
+    });
+
+    test('a relative-date target restricted away from the user keeps the baked predicate', () => {
+        const RELATIVE_BAKED = `("events".occurred_at) >= ('2024-01-01 00:00:00')`;
+        const explore = restrictAwayTimestampDims(
+            buildNaiveExplore(SupportedDbtAdapter.POSTGRES, 'naive'),
+        );
+        explore.tables.events.metrics.recent_count = {
+            type: MetricType.COUNT,
+            fieldType: FieldType.METRIC,
+            table: 'events',
+            tableLabel: 'events',
+            name: 'recent_count',
+            label: 'recent_count',
+            sql: '${TABLE}.id',
+            compiledSql: `COUNT(CASE WHEN (${RELATIVE_BAKED}) THEN ("events".id) ELSE NULL END)`,
+            tablesReferences: ['events'],
+            hidden: false,
+            filters: [
+                {
+                    id: 'r1',
+                    target: { fieldRef: 'events.occurred_at' },
+                    operator: FilterOperator.IN_THE_PAST,
+                    values: [30],
+                    settings: { unitOfTime: UnitOfTime.days, completed: false },
+                },
+            ],
+            compiledRelativeDateFilters: [
+                {
+                    id: 'r1',
+                    fieldId: 'events_occurred_at',
+                    compiledSql: RELATIVE_BAKED,
+                },
+            ],
+        };
+        const { query } = buildQuery({
+            explore,
+            compiledMetricQuery: {
+                ...filteredMetricQuery,
+                metrics: ['events_recent_count'],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'UTC',
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: 'Asia/Tokyo',
+        });
+        expect(query).toContain(RELATIVE_BAKED);
+    });
+
+    test('a derived metric swaps via the rule on its referenced metric', () => {
+        const explore = withFilteredMetric(
+            buildNaiveExplore(SupportedDbtAdapter.POSTGRES, 'naive'),
+        );
+        explore.tables.events.metrics.derived = {
+            type: MetricType.NUMBER,
+            fieldType: FieldType.METRIC,
+            table: 'events',
+            tableLabel: 'events',
+            name: 'derived',
+            label: 'derived',
+            sql: '${events.filtered_count}',
+            compiledSql: `(COUNT(CASE WHEN (${BAKED_PREDICATE}) THEN ("events".id) ELSE NULL END))`,
+            tablesReferences: ['events'],
+            hidden: false,
+            compiledTimestampFilters: [
+                {
+                    id: 'f1',
+                    fieldId: 'events_occurred_at',
+                    compiledSql: BAKED_PREDICATE,
+                },
+            ],
+        };
+        const { query } = buildQuery({
+            explore,
+            compiledMetricQuery: {
+                ...filteredMetricQuery,
+                metrics: ['events_derived'],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'UTC',
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: 'Asia/Tokyo',
+        });
+        expect(query).toContain(FRESH_PREDICATE);
+        expect(query).not.toContain(BAKED_PREDICATE);
+    });
+});
+
 describe('Session-independent explicit path (per-column, no session pin)', () => {
     const trinoClientMock = {
         ...warehouseClientMock,

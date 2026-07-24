@@ -40,7 +40,7 @@ overrides:
 
 packageExtensionsChecksum: sha256-dssFMdNh289VAmJNNfz2Un2yyQ65P87lDvF3ZdZoc94=
 
-pnpmfileChecksum: sha256-eQZaSN8dBqsURx9Y0qj3HqXggTVV5DtL6B15n8AQ53E=
+pnpmfileChecksum: sha256-mQsVoz6S6/a3Kqz2QaGrYNULco+R1zUvUxOFKeLrcls=
 
 importers:
 
@@ -1095,12 +1095,24 @@ importers:
       '@lightdash/formula':
         specifier: workspace:*
         version: link:../formula
+      '@mantine-8/code-highlight':
+        specifier: npm:@mantine/code-highlight@8.0.0
+        version: '@mantine/code-highlight@8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)'
       '@mantine-8/core':
         specifier: npm:@mantine/core@8.0.0
         version: '@mantine/core@8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)'
       '@mantine-8/hooks':
         specifier: npm:@mantine/hooks@8.0.0
         version: '@mantine/hooks@8.0.0(react@19.2.0)'
+      '@mantine-8/modals':
+        specifier: npm:@mantine/modals@8.0.0
+        version: '@mantine/modals@8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)'
+      '@mantine-8/notifications':
+        specifier: npm:@mantine/notifications@8.0.0
+        version: '@mantine/notifications@8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)'
+      '@mantine-8/tiptap':
+        specifier: npm:@mantine/tiptap@8.0.0
+        version: '@mantine/tiptap@8.0.0(@tiptap/extension-link@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2))(@tiptap/react@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)'
       '@mantine/core':
         specifier: 6.0.22
         version: 6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -1108,26 +1120,11 @@ importers:
         specifier: 6.0.21
         version: 6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(dayjs@1.11.10)(react@19.2.0)
       '@mantine/form':
-        specifier: 7.5.2
-        version: 7.5.2(react@19.2.0)
+        specifier: 8.0.0
+        version: 8.0.0(react@19.2.0)
       '@mantine/hooks':
         specifier: 6.0.22
         version: 6.0.22(react@19.2.0)
-      '@mantine/modals':
-        specifier: 6.0.22
-        version: 6.0.22(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@mantine/notifications':
-        specifier: 6.0.21
-        version: 6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@mantine/prism':
-        specifier: 6.0.21
-        version: 6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@mantine/tiptap':
-        specifier: 6.0.21
-        version: 6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@tabler/icons-react@2.47.0(react@19.2.0))(@tiptap/extension-link@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2))(@tiptap/react@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)
-      '@mantine/utils':
-        specifier: 6.0.21
-        version: 6.0.21(react@19.2.0)
       '@monaco-editor/react':
         specifier: 4.6.0
         version: 4.6.0(monaco-editor@0.44.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -1266,6 +1263,9 @@ importers:
       hast:
         specifier: 1.0.0
         version: 1.0.0
+      highlight.js:
+        specifier: 11.10.0
+        version: 11.10.0
       html2canvas-pro:
         specifier: 1.5.13
         version: 1.5.13
@@ -1289,7 +1289,7 @@ importers:
         version: 4.18.1
       mantine-form-zod-resolver:
         specifier: 1.1.0
-        version: 1.1.0(@mantine/form@7.5.2(react@19.2.0))(zod@3.25.55)
+        version: 1.1.0(@mantine/form@8.0.0(react@19.2.0))(zod@3.25.55)
       moment:
         specifier: 2.29.4
         version: 2.29.4
@@ -1383,9 +1383,6 @@ importers:
       streamdown:
         specifier: 2.5.0
         version: 2.5.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      styled-components:
-        specifier: 5.3.3
-        version: 5.3.3(react-dom@19.2.0(react@19.2.0))(react-is@19.2.0)(react@19.2.0)
       tippy.js:
         specifier: 6.3.7
         version: 6.3.7
@@ -1516,9 +1513,6 @@ importers:
       '@types/react-syntax-highlighter':
         specifier: 13.5.2
         version: 13.5.2
-      '@types/styled-components':
-        specifier: 5.1.34
-        version: 5.1.34
       '@types/topojson-client':
         specifier: 3.1.5
         version: 3.1.5
@@ -2466,10 +2460,6 @@ packages:
     resolution: {integrity: sha512-qsaF+9Qcm2Qv8SRIMMscAvG4O3lJ0F1GuMo5HR/Bp02LopNgnZBC/EkbevHFeGs4ls/oPz9v+Bsmzbkbe+0dUw==}
     engines: {node: '>=6.9.0'}
 
-  '@babel/helper-annotate-as-pure@7.15.4':
-    resolution: {integrity: sha512-QwrtdNvUNsPCj2lfNQacsGSQvGX8ee1ttrBrcozUP2Sv/jylewBP/8QFe6ZkBsC8T/GYWonNAWJV4aRR9AL2DA==}
-    engines: {node: '>=6.9.0'}
-
   '@babel/helper-annotate-as-pure@7.27.3':
     resolution: {integrity: sha512-fXSwMQqitTGeHLBC08Eq5yXz2m37E4pJX1qAU1+2cNedz/ifv/bVXft90VeSav5nFO61EcNgwr0aJxbyPaWBPg==}
     engines: {node: '>=6.9.0'}
@@ -3274,12 +3264,6 @@ packages:
   '@emotion/hash@0.9.0':
     resolution: {integrity: sha512-14FtKiHhy2QoPIzdTcvh//8OyBlknNs2nXRwIhG904opCby3l+9Xaf/wuPvICBF0rc1ZCNBd3nKe9cd2mecVkQ==}
 
-  '@emotion/is-prop-valid@0.8.8':
-    resolution: {integrity: sha512-u5WtneEAr5IDG2Wv65yhunPSMLIpuKsbuOktRojfrEiEvRyC85LgPMZI63cr7NUqT8ZIGdSVg8ZKGxIug4lXcA==}
-
-  '@emotion/memoize@0.7.4':
-    resolution: {integrity: sha512-Ja/Vfqe3HpuzRsG1oBtWTHk2PGZ7GR+2Vz5iYGelAw8dx32K0y7PjVuxK6z1nMpZOqAFsRUPCkK1YjJ56qJlgw==}
-
   '@emotion/memoize@0.8.0':
     resolution: {integrity: sha512-G/YwXTkv7Den9mXDO7AhLWkE3q+I92B+VqAE+dYG4NGPaHZGvt3G8Q0p9vmE+sq7rTGphUbAvmQ9YpbfMQGGlA==}
 
@@ -3297,12 +3281,6 @@ packages:
 
   '@emotion/sheet@1.2.1':
     resolution: {integrity: sha512-zxRBwl93sHMsOj4zs+OslQKg/uhF38MB+OMKoCrVuS0nyTkqnau+BM3WGEoOptg9Oz45T/aIGs1qbVAsEFo3nA==}
-
-  '@emotion/stylis@0.8.5':
-    resolution: {integrity: sha512-h6KtPihKFn3T9fuIrwvXXUOwlx3rfUvfZIcP5a6rh8Y7zjE3O06hT5Ss4S/YI1AYhuZ1kjaE/5EaOOI2NqSylQ==}
-
-  '@emotion/unitless@0.7.5':
-    resolution: {integrity: sha512-OWORNpfjMsSSUBVrRBVGECkhWcULOAJz9ZW8uK9qgxD+87M7jHRcvh/A96XXNhXTLmKcoYSQtBEX7lHMO7YRwg==}
 
   '@emotion/unitless@0.8.0':
     resolution: {integrity: sha512-VINS5vEYAscRl2ZUDiT3uMPlrFQupiKgHz5AA4bCH1miKBg4qtwkim1qPmJj/4WG6TreYMY111rEFsjupcOKHw==}
@@ -4307,6 +4285,12 @@ packages:
     peerDependencies:
       '@langchain/core': '>=0.2.21 <0.4.0'
 
+  '@mantine/code-highlight@8.0.0':
+    resolution: {integrity: sha512-vYMBRWRXpUwLdDbpdPiCwXJ75uXi9gIWWcgbiRiFysglFzO5VhGhnyXYtCocIdqRyQAZLfhz6Q0mYWzqJ3XgmQ==}
+    peerDependencies:
+      react: ^18.x || ^19.x
+      react-dom: ^18.x || ^19.x
+
   '@mantine/core@6.0.22':
     resolution: {integrity: sha512-6kv0eY7n565fyjgS20qUYeCSxg3f1TJ5vurzbP1HHtFXXKSY0bYoqqDoHipFCt6NxsPQGeiC6cC0c/IWIlxoKQ==}
     peerDependencies:
@@ -4328,10 +4312,10 @@ packages:
       dayjs: '>=1.0.0'
       react: '>=16.8.0'
 
-  '@mantine/form@7.5.2':
-    resolution: {integrity: sha512-Kz4UNLvAvxB1utKflt4gr5Uzt1Dxj17thcnlLzB2JX6unzV3OkvC36b5XoXAtuoFxt/RzEyUrp5M38jZLwCLEA==}
+  '@mantine/form@8.0.0':
+    resolution: {integrity: sha512-ErbbEFMEiRsK2Rn0jmFE5ohNJXHSMSbuJsL2vDUVsbIaXo6svw6ockw1WWGdiU8oEGqxM6Pd618yI9cJWNHF3g==}
     peerDependencies:
-      react: ^18.2.0
+      react: ^18.x || ^19.x
 
   '@mantine/hooks@6.0.22':
     resolution: {integrity: sha512-e10//QTN2sAmC4Ryeu5X5L/TsxnrjXMOaGq3dxFPIPsCSwLzyxqySfjzVViWmoPWAj0Ak9MvE2MHFjzmOpA80w==}
@@ -4343,29 +4327,22 @@ packages:
     peerDependencies:
       react: ^18.x || ^19.x
 
-  '@mantine/modals@6.0.22':
-    resolution: {integrity: sha512-1k4bc6eFBGwKLaySXqAFCxyAHKv+p5bOh06RaYx9S9KyospR61M8Nw6BE3q7CdQRH2MQp8vgVue+h6y7pcWFFQ==}
+  '@mantine/modals@8.0.0':
+    resolution: {integrity: sha512-yki3KzW9Pykf6hVSezWjeHC0FCiYD3mK2r2Sn6qE0ag+EeXZs1cbrqpjZHYov2rh6j0xzW2jnaoVbKEqYw1vUQ==}
     peerDependencies:
-      '@mantine/core': 6.0.22
-      '@mantine/hooks': 6.0.22
-      react: '>=16.8.0'
-      react-dom: '>=16.8.0'
+      react: ^18.x || ^19.x
+      react-dom: ^18.x || ^19.x
 
-  '@mantine/notifications@6.0.21':
-    resolution: {integrity: sha512-qsrqxuJHK8b67sf9Pfk+xyhvpf9jMsivW8vchfnJfjv7yz1lLvezjytMFp4fMDoYhjHnDPOEc/YFockK4muhOw==}
+  '@mantine/notifications@8.0.0':
+    resolution: {integrity: sha512-sWldvQmq4YJsknHURBNKkc3CAU0qDb0LuQGKIZGxqFlwEiXNIAI8mtfr7stgzVx+mteVW1g+HBb7FaZp07jRxQ==}
     peerDependencies:
-      '@mantine/core': 6.0.21
-      '@mantine/hooks': 6.0.21
-      react: '>=16.8.0'
-      react-dom: '>=16.8.0'
+      react: ^18.x || ^19.x
+      react-dom: ^18.x || ^19.x
 
-  '@mantine/prism@6.0.21':
-    resolution: {integrity: sha512-M9hDUAuuxiINI7f07V0qlX532UXlOTpBqNcG1WWm80t6C0fHjzkTvFj77QpnGS73+MI88mV8ru458y10bQjTBA==}
+  '@mantine/store@8.0.0':
+    resolution: {integrity: sha512-42RWCsXMNuhpX+d/hwr5aHj+HWyi5ltbc0R0xdiUnAmqSB7CHbWxDDLh4+DbmqPrN9pTeYvpPGp3v/CG2vuGBg==}
     peerDependencies:
-      '@mantine/core': 6.0.21
-      '@mantine/hooks': 6.0.21
-      react: '>=16.8.0'
-      react-dom: '>=16.8.0'
+      react: ^18.x || ^19.x
 
   '@mantine/styles@6.0.21':
     resolution: {integrity: sha512-PVtL7XHUiD/B5/kZ/QvZOZZQQOj12QcRs3Q6nPoqaoPcOX5+S7bMZLMH0iLtcGq5OODYk0uxlvuJkOZGoPj8Mg==}
@@ -4381,15 +4358,13 @@ packages:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
 
-  '@mantine/tiptap@6.0.21':
-    resolution: {integrity: sha512-SeVoMN+STXeeVTg2H4bxLJUjDuZ9ykAm6TSTqDi/vTRxp/v3aokAU8DCD8Z207DNXaRfZ50YByxfo1/uIyndYw==}
+  '@mantine/tiptap@8.0.0':
+    resolution: {integrity: sha512-45GVrwyLWzQl+lXfHpNYvX/qIDCamLyvQnyEpBpyBEdkxEiSeu9dCqE0WF159uST6QsODPMktPPgdzPvcc0psQ==}
     peerDependencies:
-      '@mantine/core': 6.0.21
-      '@mantine/hooks': 6.0.21
-      '@tabler/icons-react': '>=2.1.0'
-      '@tiptap/extension-link': ^2.0.0-beta.202
-      '@tiptap/react': ^2.0.0-beta.202
-      react: '>=16.8.0'
+      '@tiptap/extension-link': '>=2.1.12'
+      '@tiptap/react': '>=2.1.12'
+      react: ^18.x || ^19.x
+      react-dom: ^18.x || ^19.x
 
   '@mantine/utils@6.0.21':
     resolution: {integrity: sha512-33RVDRop5jiWFao3HKd3Yp7A9mEq4HAJxJPTuYm1NkdqX6aTKOQK7wT8v8itVodBp+sb4cJK6ZVdD1UurK/txQ==}
@@ -7669,9 +7644,6 @@ packages:
   '@types/sshpk@1.17.1':
     resolution: {integrity: sha512-bOJek/W++DvWRNAeHmpvgX8Q1ypAq4nmeVi3nJ+pjDcMB214S8kSGkxRUw/Uz+zau4VwxcfNp0xUq4s/3DLjLw==}
 
-  '@types/styled-components@5.1.34':
-    resolution: {integrity: sha512-mmiVvwpYklFIv9E8qfxuPyIt/OuyIrn6gMOAMOFUO3WJfSrSE+sGUoa4PiZj77Ut7bKZpaa6o1fBKS/4TOEvnA==}
-
   '@types/tar-stream@3.1.4':
     resolution: {integrity: sha512-921gW0+g29mCJX0fRvqeHzBlE/XclDaAG0Ousy1LCghsOhvaKacDeRGEVzQP9IPfKn8Vysy7FEXAIxycpc/CMg==}
 
@@ -8658,14 +8630,6 @@ packages:
     peerDependencies:
       '@babel/core': ^7.4.0 || ^8.0.0-0 <8.0.0
 
-  babel-plugin-styled-components@1.13.2:
-    resolution: {integrity: sha512-Vb1R3d4g+MUfPQPVDMCGjm3cDocJEUTR7Xq7QS95JWWeksN1wdFRYpD2kulDgI3Huuaf1CZd+NK4KQmqUFh5dA==}
-    peerDependencies:
-      styled-components: '>= 2'
-
-  babel-plugin-syntax-jsx@6.18.0:
-    resolution: {integrity: sha512-qrPaCSo9c8RHNRHIotaufGbuOBN8rtdC4QrrFFc43vyWCCz7Kl7GL1PGaXtMGQZUXrkCjNEgxDfmAuAabr/rlw==}
-
   bail@1.0.5:
     resolution: {integrity: sha512-xFbRxM1tahm08yHBP16MMjVUAvDaBMD38zsM9EMAUN61omwLmKlOpB/Zku5QkjZ8TZ4vn53pj+t518cH0S03RQ==}
 
@@ -8942,9 +8906,6 @@ packages:
   camelcase@6.3.0:
     resolution: {integrity: sha512-Gmy6FhYlCY7uOElZUSbxo2UCDH8owEk996gkbrpsgGtrJLM3J7jGxl9Ic7Qwwj4ivOE5AWZWRMecDdF7hqGjFA==}
     engines: {node: '>=10'}
-
-  camelize@1.0.0:
-    resolution: {integrity: sha512-W2lPwkBkMZwFlPCXhIlYgxu+7gC/NUlCtdK652DAJ1JdgV0sTrvuPFshNPrFa1TY2JOkLhgdeEBplB4ezEa+xg==}
 
   caniuse-api@3.0.0:
     resolution: {integrity: sha512-bsTwuIg/BZZK/vreVTYYbSWoe2F+71P7K5QGEX+pT250DZbfU1MQ5prOKpPR+LL6uWKK3KMwMCAS74QB3Um1uw==}
@@ -9491,10 +9452,6 @@ packages:
   css-box-model@1.2.1:
     resolution: {integrity: sha512-a7Vr4Q/kd/aw96bnJG332W9V9LkJO69JRcaCYDUqjp6/z0w6VcZjgAcTbgFxEPfBgdnAwlh3iwu+hLopa+flJw==}
 
-  css-color-keywords@1.0.0:
-    resolution: {integrity: sha512-FyyrDHZKEjXDpNJYvVsV960FiqQyXc/LlYmsxl2BcdMb2WPx0OGRVgTg55rPSyLSNMqP52R9r8geSp7apN3Ofg==}
-    engines: {node: '>=4'}
-
   css-declaration-sorter@6.4.1:
     resolution: {integrity: sha512-rtdthzxKuyq6IzqX6jEcIzQF/YqccluefyCYheovBOLhFT/drQA9zj/UbRAa9J7C0o6EG6u3E6g+vKkay7/k3g==}
     engines: {node: ^10 || ^12 || >=14}
@@ -9515,9 +9472,6 @@ packages:
 
   css-selector-parser@3.0.5:
     resolution: {integrity: sha512-3itoDFbKUNx1eKmVpYMFyqKX04Ww9osZ+dLgrk6GEv6KMVeXUhUnp4I5X+evw+u3ZxVU6RFXSSRxlTeMh8bA+g==}
-
-  css-to-react-native@3.0.0:
-    resolution: {integrity: sha512-Ro1yETZA813eoyUp2GDBhG2j+YggidUmzO1/v9eYBKR2EHVEniE2MI/NqpTQ954BMpTPZFsGNPm46qFB9dpaPQ==}
 
   css-tree@1.1.3:
     resolution: {integrity: sha512-tRpdppF7TRazZrjJ6v3stzv93qxRcSsFmW6cX0Zm2NVKpxE1WV1HblnghVv9TreireHkqI/VDEsfolRF1p6y7Q==}
@@ -11332,6 +11286,10 @@ packages:
   helmet@7.1.0:
     resolution: {integrity: sha512-g+HZqgfbpXdCkme/Cd/mZkV0aV3BZZZSugecH03kl38m/Kmdx8jKjBikpDj2cr+Iynv4KpYEviojNdTJActJAg==}
     engines: {node: '>=16.0.0'}
+
+  highlight.js@11.10.0:
+    resolution: {integrity: sha512-SYVnVFswQER+zu1laSya563s+F8VDGt7o35d4utbamowvUNLLMovFqwCLSocpZTz3MgaSRA1IbqRWZv97dtErQ==}
+    engines: {node: '>=12.0.0'}
 
   hoist-non-react-statics@3.3.2:
     resolution: {integrity: sha512-/gGivxi8JPKWNm/W0jSmzcMPpfpPLc3dY/6GxhX2hQ9iGj3aDfklV4ET7NjKpSinLpJ5vafa9iiGIEZg10SfBw==}
@@ -14254,11 +14212,6 @@ packages:
     resolution: {integrity: sha512-Qb1gy5OrP5+zDf2Bvnzdl3jsTf1qXVMazbvCoKhtKqVs4/YK4ozX4gKQJJVyNe+cajNPn0KoC0MC3FUmaHWEmQ==}
     engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
 
-  prism-react-renderer@1.3.5:
-    resolution: {integrity: sha512-IJ+MSwBWKG+SM3b2SUfdrhC+gu01QkV2KmRQgREThBfSQRoufqRfxfHUxpG1WcaFjP+kojcFyO9Qqtpgt3qLCg==}
-    peerDependencies:
-      react: '>=0.14.9'
-
   process-nextick-args@2.0.1:
     resolution: {integrity: sha512-3ouUOpQhtgrbOa17J7+uxOTpITYWaGP7/AhoR3+A+/1e9skrzelGi/dXzEYyvbxubEF6Wn2ypscTKiKJFFn1ag==}
 
@@ -14693,8 +14646,8 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
-  react-transition-group@4.4.2:
-    resolution: {integrity: sha512-/RNYfRAMlZwDSr6z4zNKV6xu53/e2BuaBbGhbyYIXTrmgu/bGHzmqOs7mJSJBHy9Ud+ApHx3QjrkKSp1pxvlFg==}
+  react-transition-group@4.4.5:
+    resolution: {integrity: sha512-pZcd1MCJoiKiBR2NRxeCRg13uCXbydPnmB4EOeRrY7480qNWO8IIgQG6zlDkm6uRMsURXPuKq0GWtiM59a5Q6g==}
     peerDependencies:
       react: '>=16.6.0'
       react-dom: '>=16.6.0'
@@ -15285,9 +15238,6 @@ packages:
   setprototypeof@1.2.0:
     resolution: {integrity: sha512-E5LDX7Wrp85Kil5bhZv46j8jOeboKq5JMmYM3gVGdGH8xFpPWXUMsNrlODCrkoxMEeNi/XZIwuRvY4XNwYMJpw==}
 
-  shallowequal@1.1.0:
-    resolution: {integrity: sha512-y0m1JoUZSlPAjXVtPPW70aZWfIL/dSP7AFkRnniLCrK/8MDKog3TySTBmckD+RObVxH0v4Tox67+F14PdED2oQ==}
-
   sharp@0.34.5:
     resolution: {integrity: sha512-Ou9I5Ft9WNcCbXrU9cMgPBcCK8LiwLqcbywW3t4oDV37n1pzpuNLsYiAV8eODnjbtQlSDwZ2cUEeQz4E54Hltg==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
@@ -15728,14 +15678,6 @@ packages:
 
   style-to-object@1.0.8:
     resolution: {integrity: sha512-xT47I/Eo0rwJmaXC4oilDGDWLohVhR6o/xAQcPQN8q6QBuZVL8qMYL85kLmST5cPjAorwvqIA4qXTRQoYHaL6g==}
-
-  styled-components@5.3.3:
-    resolution: {integrity: sha512-++4iHwBM7ZN+x6DtPPWkCI4vdtwumQ+inA/DdAsqYd4SVgUKJie5vXyzotA00ttcFdQkCng7zc6grwlfIfw+lw==}
-    engines: {node: '>=10'}
-    peerDependencies:
-      react: '>= 16.8.0'
-      react-dom: '>= 16.8.0'
-      react-is: 19.2.0
 
   styled-jsx@5.1.6:
     resolution: {integrity: sha512-qSVyDTeMotdvQYoHWLNGwRFJHC+i+ZvdBRYosOFgC+Wg1vx4frN2/RG/NA7SYqqvKNLf39P2LSRA2pu6n0XYZA==}
@@ -17345,7 +17287,7 @@ snapshots:
   '@apm-js-collab/tracing-hooks@0.3.1':
     dependencies:
       '@apm-js-collab/code-transformer': 0.8.2
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       module-details-from-path: 1.0.4
     transitivePeerDependencies:
       - supports-color
@@ -18695,7 +18637,7 @@ snapshots:
       '@babel/types': 7.29.0
       '@jridgewell/remapping': 2.3.5
       convert-source-map: 2.0.0
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       gensync: 1.0.0-beta.2
       json5: 2.2.3
       semver: 6.3.1
@@ -18717,10 +18659,6 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.13
       '@jridgewell/trace-mapping': 0.3.31
       jsesc: 3.1.0
-
-  '@babel/helper-annotate-as-pure@7.15.4':
-    dependencies:
-      '@babel/types': 7.29.0
 
   '@babel/helper-annotate-as-pure@7.27.3':
     dependencies:
@@ -18767,7 +18705,7 @@ snapshots:
       '@babel/core': 7.28.4
       '@babel/helper-compilation-targets': 7.28.6
       '@babel/helper-plugin-utils': 7.28.6
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       lodash.debounce: 4.0.8
       resolve: 1.22.11
     transitivePeerDependencies:
@@ -18785,13 +18723,6 @@ snapshots:
   '@babel/helper-module-imports@7.27.1':
     dependencies:
       '@babel/traverse': 7.28.4
-      '@babel/types': 7.29.0
-    transitivePeerDependencies:
-      - supports-color
-
-  '@babel/helper-module-imports@7.27.1(supports-color@5.5.0)':
-    dependencies:
-      '@babel/traverse': 7.28.4(supports-color@5.5.0)
       '@babel/types': 7.29.0
     transitivePeerDependencies:
       - supports-color
@@ -19456,19 +19387,7 @@ snapshots:
       '@babel/parser': 7.29.0
       '@babel/template': 7.27.2
       '@babel/types': 7.29.0
-      debug: 4.4.3(supports-color@8.1.1)
-    transitivePeerDependencies:
-      - supports-color
-
-  '@babel/traverse@7.28.4(supports-color@5.5.0)':
-    dependencies:
-      '@babel/code-frame': 7.29.0
-      '@babel/generator': 7.28.3
-      '@babel/helper-globals': 7.28.0
-      '@babel/parser': 7.29.0
-      '@babel/template': 7.27.2
-      '@babel/types': 7.29.0
-      debug: 4.4.3(supports-color@5.5.0)
+      debug: 4.4.3(supports-color@9.1.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -19480,7 +19399,7 @@ snapshots:
       '@babel/parser': 7.29.0
       '@babel/template': 7.28.6
       '@babel/types': 7.29.0
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -19792,12 +19711,6 @@ snapshots:
 
   '@emotion/hash@0.9.0': {}
 
-  '@emotion/is-prop-valid@0.8.8':
-    dependencies:
-      '@emotion/memoize': 0.7.4
-
-  '@emotion/memoize@0.7.4': {}
-
   '@emotion/memoize@0.8.0': {}
 
   '@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0)':
@@ -19825,10 +19738,6 @@ snapshots:
       csstype: 3.2.3
 
   '@emotion/sheet@1.2.1': {}
-
-  '@emotion/stylis@0.8.5': {}
-
-  '@emotion/unitless@0.7.5': {}
 
   '@emotion/unitless@0.8.0': {}
 
@@ -20016,7 +19925,7 @@ snapshots:
   '@eslint/eslintrc@2.1.4':
     dependencies:
       ajv: 6.15.0
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       espree: 9.6.1
       globals: 13.24.0
       ignore: 5.3.2
@@ -20378,7 +20287,7 @@ snapshots:
   '@humanwhocodes/config-array@0.13.0':
     dependencies:
       '@humanwhocodes/object-schema': 2.0.3
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       minimatch: 3.1.2
     transitivePeerDependencies:
       - supports-color
@@ -20692,7 +20601,7 @@ snapshots:
 
   '@kwsites/file-exists@1.1.1':
     dependencies:
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -20734,6 +20643,17 @@ snapshots:
       '@langchain/core': 0.3.80(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.219.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.8.0(@opentelemetry/api@1.9.0))(openai@4.80.1(encoding@0.1.13)(ws@8.20.0)(zod@3.25.55))
       js-tiktoken: 1.0.16
 
+  '@mantine/code-highlight@8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
+    dependencies:
+      '@mantine/core': 8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@mantine/hooks': 8.0.0(react@19.2.0)
+      clsx: 2.1.1
+      highlight.js: 11.10.0
+      react: 19.2.0
+      react-dom: 19.2.0(react@19.2.0)
+    transitivePeerDependencies:
+      - '@types/react'
+
   '@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
       '@floating-ui/react': 0.19.2(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -20771,7 +20691,7 @@ snapshots:
       dayjs: 1.11.10
       react: 19.2.0
 
-  '@mantine/form@7.5.2(react@19.2.0)':
+  '@mantine/form@8.0.0(react@19.2.0)':
     dependencies:
       fast-deep-equal: 3.1.3
       klona: 2.0.6
@@ -20785,31 +20705,29 @@ snapshots:
     dependencies:
       react: 19.2.0
 
-  '@mantine/modals@6.0.22(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
+  '@mantine/modals@8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
-      '@mantine/core': 6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@mantine/hooks': 6.0.22(react@19.2.0)
-      '@mantine/utils': 6.0.22(react@19.2.0)
+      '@mantine/core': 8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@mantine/hooks': 8.0.0(react@19.2.0)
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
+    transitivePeerDependencies:
+      - '@types/react'
 
-  '@mantine/notifications@6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
+  '@mantine/notifications@8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
-      '@mantine/core': 6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@mantine/hooks': 6.0.22(react@19.2.0)
-      '@mantine/utils': 6.0.21(react@19.2.0)
+      '@mantine/core': 8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@mantine/hooks': 8.0.0(react@19.2.0)
+      '@mantine/store': 8.0.0(react@19.2.0)
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
-      react-transition-group: 4.4.2(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      react-transition-group: 4.4.5(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+    transitivePeerDependencies:
+      - '@types/react'
 
-  '@mantine/prism@6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
+  '@mantine/store@8.0.0(react@19.2.0)':
     dependencies:
-      '@mantine/core': 6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@mantine/hooks': 6.0.22(react@19.2.0)
-      '@mantine/utils': 6.0.21(react@19.2.0)
-      prism-react-renderer: 1.3.5(react@19.2.0)
       react: 19.2.0
-      react-dom: 19.2.0(react@19.2.0)
 
   '@mantine/styles@6.0.21(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
@@ -20827,15 +20745,16 @@ snapshots:
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
 
-  '@mantine/tiptap@6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@tabler/icons-react@2.47.0(react@19.2.0))(@tiptap/extension-link@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2))(@tiptap/react@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)':
+  '@mantine/tiptap@8.0.0(@tiptap/extension-link@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2))(@tiptap/react@2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
-      '@mantine/core': 6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@mantine/hooks': 6.0.22(react@19.2.0)
-      '@mantine/utils': 6.0.21(react@19.2.0)
-      '@tabler/icons-react': 2.47.0(react@19.2.0)
+      '@mantine/core': 8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@mantine/hooks': 8.0.0(react@19.2.0)
       '@tiptap/extension-link': 2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)
       '@tiptap/react': 2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       react: 19.2.0
+      react-dom: 19.2.0(react@19.2.0)
+    transitivePeerDependencies:
+      - '@types/react'
 
   '@mantine/utils@6.0.21(react@19.2.0)':
     dependencies:
@@ -22206,7 +22125,7 @@ snapshots:
 
   '@pm2/pm2-version-check@1.0.4':
     dependencies:
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -23995,7 +23914,7 @@ snapshots:
 
   '@tokenizer/inflate@0.4.1':
     dependencies:
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       token-types: 6.1.2
     transitivePeerDependencies:
       - supports-color
@@ -24651,12 +24570,6 @@ snapshots:
       '@types/asn1': 0.2.0
       '@types/node': 22.13.1
 
-  '@types/styled-components@5.1.34':
-    dependencies:
-      '@types/hoist-non-react-statics': 3.3.5
-      '@types/react': 19.2.2
-      csstype: 3.2.3
-
   '@types/tar-stream@3.1.4':
     dependencies:
       '@types/node': 22.13.1
@@ -24744,7 +24657,7 @@ snapshots:
       '@typescript-eslint/types': 7.18.0
       '@typescript-eslint/typescript-estree': 7.18.0(@typescript/typescript6@6.0.1)
       '@typescript-eslint/visitor-keys': 7.18.0
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       eslint: 8.57.1
     optionalDependencies:
       typescript: '@typescript/typescript6@6.0.1'
@@ -24757,7 +24670,7 @@ snapshots:
       '@typescript-eslint/types': 8.43.0
       '@typescript-eslint/typescript-estree': 8.43.0(@typescript/typescript6@6.0.1)
       '@typescript-eslint/visitor-keys': 8.43.0
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       eslint: 8.57.1
       typescript: '@typescript/typescript6@6.0.1'
     transitivePeerDependencies:
@@ -24767,7 +24680,7 @@ snapshots:
     dependencies:
       '@typescript-eslint/tsconfig-utils': 8.63.0(@typescript/typescript6@6.0.1)
       '@typescript-eslint/types': 8.63.0
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       typescript: '@typescript/typescript6@6.0.1'
     transitivePeerDependencies:
       - supports-color
@@ -24776,7 +24689,7 @@ snapshots:
     dependencies:
       '@typescript-eslint/tsconfig-utils': 8.63.0(@typescript/typescript6@6.0.1)
       '@typescript-eslint/types': 8.63.0
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       typescript: '@typescript/typescript6@6.0.1'
     transitivePeerDependencies:
       - supports-color
@@ -24785,7 +24698,7 @@ snapshots:
     dependencies:
       '@typescript-eslint/tsconfig-utils': 8.63.0(@typescript/typescript6@6.0.1)
       '@typescript-eslint/types': 8.63.0
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       typescript: '@typescript/typescript6@6.0.1'
     transitivePeerDependencies:
       - supports-color
@@ -24794,7 +24707,7 @@ snapshots:
     dependencies:
       '@typescript-eslint/tsconfig-utils': 8.63.0(typescript@5.9.3)
       '@typescript-eslint/types': 8.63.0
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
@@ -24844,7 +24757,7 @@ snapshots:
     dependencies:
       '@typescript-eslint/typescript-estree': 7.18.0(@typescript/typescript6@6.0.1)
       '@typescript-eslint/utils': 7.18.0(@typescript/typescript6@6.0.1)(eslint@8.57.1)
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       eslint: 8.57.1
       ts-api-utils: 1.4.3(@typescript/typescript6@6.0.1)
     optionalDependencies:
@@ -24857,7 +24770,7 @@ snapshots:
       '@typescript-eslint/types': 8.43.0
       '@typescript-eslint/typescript-estree': 8.43.0(@typescript/typescript6@6.0.1)
       '@typescript-eslint/utils': 8.43.0(@typescript/typescript6@6.0.1)(eslint@8.57.1)
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       eslint: 8.57.1
       ts-api-utils: 2.5.0(@typescript/typescript6@6.0.1)
       typescript: '@typescript/typescript6@6.0.1'
@@ -24878,7 +24791,7 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 5.62.0
       '@typescript-eslint/visitor-keys': 5.62.0
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       globby: 11.1.0
       is-glob: 4.0.3
       semver: 7.8.5
@@ -24892,7 +24805,7 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 7.18.0
       '@typescript-eslint/visitor-keys': 7.18.0
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       globby: 11.1.0
       is-glob: 4.0.3
       minimatch: 9.0.5
@@ -24909,7 +24822,7 @@ snapshots:
       '@typescript-eslint/tsconfig-utils': 8.43.0(@typescript/typescript6@6.0.1)
       '@typescript-eslint/types': 8.43.0
       '@typescript-eslint/visitor-keys': 8.43.0
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       fast-glob: 3.3.3
       is-glob: 4.0.3
       minimatch: 9.0.5
@@ -24925,7 +24838,7 @@ snapshots:
       '@typescript-eslint/tsconfig-utils': 8.56.1(@typescript/typescript6@6.0.1)
       '@typescript-eslint/types': 8.56.1
       '@typescript-eslint/visitor-keys': 8.56.1
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       minimatch: 10.2.5
       semver: 7.8.5
       tinyglobby: 0.2.15
@@ -24940,7 +24853,7 @@ snapshots:
       '@typescript-eslint/tsconfig-utils': 8.63.0(@typescript/typescript6@6.0.1)
       '@typescript-eslint/types': 8.63.0
       '@typescript-eslint/visitor-keys': 8.63.0
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       minimatch: 10.2.5
       semver: 7.8.5
       tinyglobby: 0.2.15
@@ -24955,7 +24868,7 @@ snapshots:
       '@typescript-eslint/tsconfig-utils': 8.63.0(typescript@5.9.3)
       '@typescript-eslint/types': 8.63.0
       '@typescript-eslint/visitor-keys': 8.63.0
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       minimatch: 10.2.5
       semver: 7.8.5
       tinyglobby: 0.2.15
@@ -25446,7 +25359,7 @@ snapshots:
 
   agent-base@6.0.2:
     dependencies:
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -25880,18 +25793,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  babel-plugin-styled-components@1.13.2(styled-components@5.3.3(react-dom@19.2.0(react@19.2.0))(react-is@19.2.0)(react@19.2.0))(supports-color@5.5.0):
-    dependencies:
-      '@babel/helper-annotate-as-pure': 7.15.4
-      '@babel/helper-module-imports': 7.27.1(supports-color@5.5.0)
-      babel-plugin-syntax-jsx: 6.18.0
-      lodash: 4.18.1
-      styled-components: 5.3.3(react-dom@19.2.0(react@19.2.0))(react-is@19.2.0)(react@19.2.0)
-    transitivePeerDependencies:
-      - supports-color
-
-  babel-plugin-syntax-jsx@6.18.0: {}
-
   bail@1.0.5: {}
 
   bail@2.0.2: {}
@@ -26023,7 +25924,7 @@ snapshots:
     dependencies:
       bytes: 3.1.2
       content-type: 1.0.5
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       http-errors: 2.0.0
       iconv-lite: 0.7.0
       on-finished: 2.4.1
@@ -26177,8 +26078,6 @@ snapshots:
   camelcase@5.3.1: {}
 
   camelcase@6.3.0: {}
-
-  camelize@1.0.0: {}
 
   caniuse-api@3.0.0:
     dependencies:
@@ -26717,8 +26616,6 @@ snapshots:
     dependencies:
       tiny-invariant: 1.3.3
 
-  css-color-keywords@1.0.0: {}
-
   css-declaration-sorter@6.4.1(postcss@8.5.10):
     dependencies:
       postcss: 8.5.10
@@ -26748,12 +26645,6 @@ snapshots:
       nth-check: 2.1.1
 
   css-selector-parser@3.0.5: {}
-
-  css-to-react-native@3.0.0:
-    dependencies:
-      camelize: 1.0.0
-      css-color-keywords: 1.0.0
-      postcss-value-parser: 4.1.0
 
   css-tree@1.1.3:
     dependencies:
@@ -26853,7 +26744,7 @@ snapshots:
       '@actions/core': 2.0.3
       arg: 5.0.2
       console.table: 0.10.0
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       fast-shuffle: 6.1.0
       find-cypress-specs: 1.54.11(@babel/core@7.28.4)
       globby: 11.1.0
@@ -27360,7 +27251,7 @@ snapshots:
 
   docker-modem@5.0.7:
     dependencies:
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       readable-stream: 3.6.2
       split-ca: 1.0.1
       ssh2: 1.17.0
@@ -27877,7 +27768,7 @@ snapshots:
       '@es-joy/resolve.exports': 1.2.0
       are-docs-informative: 0.0.2
       comment-parser: 1.4.5
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       escape-string-regexp: 4.0.0
       eslint: 8.57.1
       espree: 11.1.0
@@ -27995,7 +27886,7 @@ snapshots:
       ajv: 6.15.0
       chalk: 4.1.2
       cross-spawn: 7.0.6
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       doctrine: 3.0.0
       escape-string-regexp: 4.0.0
       eslint-scope: 7.2.2
@@ -28221,7 +28112,7 @@ snapshots:
       content-type: 1.0.5
       cookie: 0.7.2
       cookie-signature: 1.2.2
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       depd: 2.0.0
       encodeurl: 2.0.0
       escape-html: 1.0.3
@@ -28424,7 +28315,7 @@ snapshots:
 
   finalhandler@2.1.0:
     dependencies:
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       encodeurl: 2.0.0
       escape-html: 1.0.3
       on-finished: 2.4.1
@@ -28438,7 +28329,7 @@ snapshots:
       '@actions/core': 2.0.3
       arg: 5.0.2
       console.table: 0.10.0
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       find-test-names: 1.29.19(@babel/core@7.28.4)
       minimatch: 10.2.5
       pluralize: 8.0.0
@@ -28462,7 +28353,7 @@ snapshots:
       '@babel/parser': 7.29.0
       '@babel/plugin-syntax-jsx': 7.27.1(@babel/core@7.28.4)
       acorn-walk: 8.2.0
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       simple-bin-help: 1.8.0
       tinyglobby: 0.2.15
     transitivePeerDependencies:
@@ -28763,7 +28654,7 @@ snapshots:
     dependencies:
       basic-ftp: 5.3.1
       data-uri-to-buffer: 6.0.2
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       fs-extra: 11.3.2
     transitivePeerDependencies:
       - supports-color
@@ -29236,6 +29127,8 @@ snapshots:
 
   helmet@7.1.0: {}
 
+  highlight.js@11.10.0: {}
+
   hoist-non-react-statics@3.3.2:
     dependencies:
       react-is: 19.2.0
@@ -29303,14 +29196,14 @@ snapshots:
     dependencies:
       '@tootallnate/once': 2.0.0
       agent-base: 6.0.2
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
     transitivePeerDependencies:
       - supports-color
 
   http-proxy-agent@7.0.2:
     dependencies:
       agent-base: 7.1.3
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -29323,14 +29216,14 @@ snapshots:
   https-proxy-agent@5.0.1:
     dependencies:
       agent-base: 6.0.2
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
     transitivePeerDependencies:
       - supports-color
 
   https-proxy-agent@7.0.6:
     dependencies:
       agent-base: 7.1.3
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -29504,7 +29397,7 @@ snapshots:
     dependencies:
       '@ioredis/commands': 1.2.0
       cluster-key-slot: 1.1.0
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       denque: 2.1.0
       lodash.defaults: 4.2.0
       lodash.isarguments: 3.1.0
@@ -30475,9 +30368,9 @@ snapshots:
       - bluebird
       - supports-color
 
-  mantine-form-zod-resolver@1.1.0(@mantine/form@7.5.2(react@19.2.0))(zod@3.25.55):
+  mantine-form-zod-resolver@1.1.0(@mantine/form@8.0.0(react@19.2.0))(zod@3.25.55):
     dependencies:
-      '@mantine/form': 7.5.2(react@19.2.0)
+      '@mantine/form': 8.0.0(react@19.2.0)
       zod: 3.25.55
 
   markdown-it-task-lists@2.1.1: {}
@@ -31002,7 +30895,7 @@ snapshots:
 
   micromark@2.11.4:
     dependencies:
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       parse-entities: 2.0.0
     transitivePeerDependencies:
       - supports-color
@@ -31010,7 +30903,7 @@ snapshots:
   micromark@4.0.1:
     dependencies:
       '@types/debug': 4.1.7
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       decode-named-character-reference: 1.0.2
       devlop: 1.1.0
       micromark-core-commonmark: 2.0.2
@@ -31357,7 +31250,7 @@ snapshots:
 
   nock@13.5.1:
     dependencies:
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       json-stringify-safe: 5.0.1
       propagate: 2.0.1
     transitivePeerDependencies:
@@ -31818,7 +31711,7 @@ snapshots:
     dependencies:
       '@tootallnate/quickjs-emscripten': 0.23.0
       agent-base: 7.1.3
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       get-uri: 6.0.3
       http-proxy-agent: 7.0.2
       https-proxy-agent: 7.0.6
@@ -31831,7 +31724,7 @@ snapshots:
     dependencies:
       '@tootallnate/quickjs-emscripten': 0.23.0
       agent-base: 7.1.3
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       get-uri: 6.0.3
       http-proxy-agent: 7.0.2
       https-proxy-agent: 7.0.6
@@ -32132,7 +32025,7 @@ snapshots:
   pm2-sysmonit@1.2.8:
     dependencies:
       async: 3.2.6
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       pidusage: 2.0.21
       systeminformation: 5.31.6
       tx2: 1.0.5
@@ -32154,7 +32047,7 @@ snapshots:
       commander: 2.15.1
       croner: 4.1.97
       dayjs: 1.11.15
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       eventemitter2: 6.4.9
       fast-json-patch: 3.1.1
       js-yaml: 4.1.1
@@ -32497,10 +32390,6 @@ snapshots:
       ansi-styles: 5.2.0
       react-is: 19.2.0
 
-  prism-react-renderer@1.3.5(react@19.2.0):
-    dependencies:
-      react: 19.2.0
-
   process-nextick-args@2.0.1: {}
 
   process@0.11.10: {}
@@ -32682,7 +32571,7 @@ snapshots:
   proxy-agent@6.4.0:
     dependencies:
       agent-base: 7.1.3
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       http-proxy-agent: 7.0.2
       https-proxy-agent: 7.0.6
       lru-cache: 7.18.3
@@ -32695,7 +32584,7 @@ snapshots:
   proxy-agent@6.5.0:
     dependencies:
       agent-base: 7.1.3
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       http-proxy-agent: 7.0.2
       https-proxy-agent: 7.0.6
       lru-cache: 7.18.3
@@ -33025,7 +32914,7 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
 
-  react-transition-group@4.4.2(react-dom@19.2.0(react@19.2.0))(react@19.2.0):
+  react-transition-group@4.4.5(react-dom@19.2.0(react@19.2.0))(react@19.2.0):
     dependencies:
       '@babel/runtime': 7.28.6
       dom-helpers: 5.2.1
@@ -33404,7 +33293,7 @@ snapshots:
 
   require-in-the-middle@7.5.2:
     dependencies:
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       module-details-from-path: 1.0.4
       resolve: 1.22.11
     transitivePeerDependencies:
@@ -33412,7 +33301,7 @@ snapshots:
 
   require-in-the-middle@8.0.1:
     dependencies:
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       module-details-from-path: 1.0.4
     transitivePeerDependencies:
       - supports-color
@@ -33537,7 +33426,7 @@ snapshots:
 
   rollup-plugin-esbuild@6.2.1(esbuild@0.27.7)(rollup@4.60.2):
     dependencies:
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       es-module-lexer: 1.7.0
       esbuild: 0.27.7
       get-tsconfig: 4.10.1
@@ -33616,7 +33505,7 @@ snapshots:
 
   router@2.2.0:
     dependencies:
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       depd: 2.0.0
       is-promise: 4.0.0
       parseurl: 1.3.3
@@ -33765,7 +33654,7 @@ snapshots:
 
   send@1.2.0:
     dependencies:
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       encodeurl: 2.0.0
       escape-html: 1.0.3
       etag: 1.8.1
@@ -33832,8 +33721,6 @@ snapshots:
   setimmediate@1.0.5: {}
 
   setprototypeof@1.2.0: {}
-
-  shallowequal@1.1.0: {}
 
   sharp@0.34.5:
     dependencies:
@@ -33975,7 +33862,7 @@ snapshots:
       '@kwsites/promise-deferred': 1.1.1
       '@simple-git/args-pathspec': 1.0.3
       '@simple-git/argv-parser': 1.1.1
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -34094,7 +33981,7 @@ snapshots:
   socks-proxy-agent@7.0.0:
     dependencies:
       agent-base: 6.0.2
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       socks: 2.7.3
     transitivePeerDependencies:
       - supports-color
@@ -34102,7 +33989,7 @@ snapshots:
   socks-proxy-agent@8.0.2:
     dependencies:
       agent-base: 7.1.3
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       socks: 2.7.3
     transitivePeerDependencies:
       - supports-color
@@ -34110,7 +33997,7 @@ snapshots:
   socks-proxy-agent@8.0.5:
     dependencies:
       agent-base: 7.1.3
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       socks: 2.8.9
     transitivePeerDependencies:
       - supports-color
@@ -34155,7 +34042,7 @@ snapshots:
   spec-change@1.11.21:
     dependencies:
       arg: 5.0.2
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       deep-equal: 2.2.3
       dependency-tree: 11.4.0
       lazy-ass: 2.0.3
@@ -34471,22 +34358,6 @@ snapshots:
   style-to-object@1.0.8:
     dependencies:
       inline-style-parser: 0.2.4
-
-  styled-components@5.3.3(react-dom@19.2.0(react@19.2.0))(react-is@19.2.0)(react@19.2.0):
-    dependencies:
-      '@babel/helper-module-imports': 7.27.1(supports-color@5.5.0)
-      '@babel/traverse': 7.28.4(supports-color@5.5.0)
-      '@emotion/is-prop-valid': 0.8.8
-      '@emotion/stylis': 0.8.5
-      '@emotion/unitless': 0.7.5
-      babel-plugin-styled-components: 1.13.2(styled-components@5.3.3(react-dom@19.2.0(react@19.2.0))(react-is@19.2.0)(react@19.2.0))(supports-color@5.5.0)
-      css-to-react-native: 3.0.0
-      hoist-non-react-statics: 3.3.2
-      react: 19.2.0
-      react-dom: 19.2.0(react@19.2.0)
-      react-is: 19.2.0
-      shallowequal: 1.1.0
-      supports-color: 5.5.0
 
   styled-jsx@5.1.6(react@19.2.0):
     dependencies:
@@ -35637,7 +35508,7 @@ snapshots:
       '@volar/typescript': 2.4.23
       '@vue/language-core': 2.2.0(@typescript/typescript6@6.0.1)
       compare-versions: 6.1.1
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.4.3(supports-color@9.1.0)
       kolorist: 1.8.0
       local-pkg: 1.1.2
       magic-string: 0.30.21

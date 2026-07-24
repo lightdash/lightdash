@@ -174,6 +174,63 @@ describe('CoderService', () => {
                 }),
             );
         });
+
+        it('omits project-local metric UUIDs and empty dimension overrides', () => {
+            const result = (
+                CoderService as unknown as {
+                    transformChart: (...args: AnyType[]) => AnyType;
+                }
+            ).transformChart(
+                {
+                    chartConfig: { type: ChartType.TABLE, config: {} },
+                    dashboardUuid: null,
+                    description: null,
+                    metricQuery: {
+                        additionalMetrics: [
+                            {
+                                name: 'custom_total',
+                                table: 'orders',
+                                type: 'sum',
+                                sql: '${TABLE}.amount',
+                                uuid: 'project-local-metric-uuid',
+                            },
+                        ],
+                        dimensionOverrides: {},
+                        dimensions: [],
+                        exploreName: 'orders',
+                        filters: {},
+                        limit: 500,
+                        metrics: ['orders_custom_total'],
+                        sorts: [],
+                        tableCalculations: [],
+                    },
+                    name: 'Portable chart',
+                    slug: 'portable-chart',
+                    spaceUuid: 'space-uuid',
+                    tableName: 'orders',
+                    uuid: 'chart-uuid',
+                },
+                [
+                    {
+                        name: 'Space',
+                        path: 'space',
+                        uuid: 'space-uuid',
+                    },
+                ],
+                {},
+                new Map(),
+            );
+
+            expect(result.metricQuery.additionalMetrics).toEqual([
+                {
+                    name: 'custom_total',
+                    table: 'orders',
+                    type: 'sum',
+                    sql: '${TABLE}.amount',
+                },
+            ]);
+            expect(result.metricQuery.dimensionOverrides).toBeUndefined();
+        });
     });
 
     describe('getChartSlugForTileUuid', () => {
@@ -734,6 +791,52 @@ describe('CoderService', () => {
             expect(result[0].uuid).toEqual(expect.any(String));
             expect(result[1].uuid).toEqual(expect.any(String));
         });
+
+        it('resolves portable tab slugs and still accepts legacy tab UUIDs', async () => {
+            const service = new CoderService({
+                analytics: {} as AnyType,
+                contentVerificationModel: {} as AnyType,
+                dashboardModel: {} as AnyType,
+                lightdashConfig: {} as AnyType,
+                projectModel: {} as AnyType,
+                promoteService: {} as AnyType,
+                savedChartModel: { find: vi.fn() } as AnyType,
+                savedSqlModel: { find: vi.fn() } as AnyType,
+                schedulerModel: {} as AnyType,
+                schedulerService: {} as AnyType,
+                savedChartService: {} as AnyType,
+                dashboardService: {} as AnyType,
+                schedulerClient: {} as AnyType,
+                spaceModel: {} as AnyType,
+                spacePermissionService: {} as AnyType,
+                groupsModel: {} as AnyType,
+                organizationMemberProfileModel: {} as AnyType,
+                userModel: {} as AnyType,
+            });
+
+            const result = await service.convertTileWithSlugsToUuids(
+                'project-uuid',
+                [
+                    {
+                        type: DashboardTileTypes.MARKDOWN,
+                        tabSlug: 'overview',
+                        properties: { title: 'Slug tile', content: '' },
+                    },
+                    {
+                        type: DashboardTileTypes.MARKDOWN,
+                        tabUuid: 'legacy-tab-uuid',
+                        properties: { title: 'Legacy tile', content: '' },
+                    },
+                ] as AnyType,
+                new Map([['overview', 'target-project-tab-uuid']]),
+            );
+
+            expect(result).toMatchObject([
+                { tabUuid: 'target-project-tab-uuid' },
+                { tabUuid: 'legacy-tab-uuid' },
+            ]);
+            expect(result[0]).not.toHaveProperty('tabSlug');
+        });
     });
 
     describe('transformDashboard', () => {
@@ -749,6 +852,98 @@ describe('CoderService', () => {
                     new Map(),
                 ),
             ).toThrow('Space space-uuid not found');
+        });
+
+        it('exports tabs and tile references as portable slugs', () => {
+            const result = (
+                CoderService as unknown as {
+                    transformDashboard: (...args: AnyType[]) => AnyType;
+                }
+            ).transformDashboard(
+                {
+                    description: null,
+                    filters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    name: 'Dashboard',
+                    slug: 'dashboard',
+                    spaceUuid: 'space-uuid',
+                    tabs: [
+                        {
+                            uuid: 'source-project-tab-uuid',
+                            name: 'Overview',
+                            order: 0,
+                            hidden: false,
+                        },
+                    ],
+                    tiles: [
+                        {
+                            uuid: 'tile-uuid',
+                            type: DashboardTileTypes.MARKDOWN,
+                            x: 0,
+                            y: 0,
+                            h: 2,
+                            w: 4,
+                            tabUuid: 'source-project-tab-uuid',
+                            properties: { title: 'Tile', content: '' },
+                        },
+                    ],
+                    uuid: 'dashboard-uuid',
+                },
+                [
+                    {
+                        name: 'Space',
+                        path: 'space',
+                        uuid: 'space-uuid',
+                    },
+                ],
+                new Map(),
+            );
+
+            expect(result.tabs).toEqual([
+                {
+                    slug: 'overview',
+                    name: 'Overview',
+                    order: 0,
+                    hidden: false,
+                },
+            ]);
+            expect(result.tiles[0]).toMatchObject({
+                tabSlug: 'overview',
+            });
+            expect(result.tiles[0].tabUuid).toBeUndefined();
+        });
+
+        it('reuses target-project tab UUIDs for portable slugs', () => {
+            const result = (
+                CoderService as unknown as {
+                    convertTabsWithSlugsToUuids: (
+                        ...args: AnyType[]
+                    ) => AnyType;
+                }
+            ).convertTabsWithSlugsToUuids(
+                [{ slug: 'overview', name: 'Overview', order: 0 }],
+                [
+                    {
+                        uuid: 'target-project-tab-uuid',
+                        name: 'Overview',
+                        order: 0,
+                    },
+                ],
+            );
+
+            expect(result.tabs).toEqual([
+                {
+                    uuid: 'target-project-tab-uuid',
+                    name: 'Overview',
+                    order: 0,
+                },
+            ]);
+            expect(result.tabUuidsBySlug.get('overview')).toBe(
+                'target-project-tab-uuid',
+            );
         });
     });
 });

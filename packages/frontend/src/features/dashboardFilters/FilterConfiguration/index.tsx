@@ -28,8 +28,9 @@ import {
     Tabs,
     Text,
     Select,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip, type PopoverProps } from '@mantine/core';
+import { type PopoverProps } from '@mantine/core';
 import { IconRotate2, IconSql } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
@@ -409,8 +410,8 @@ const FilterConfiguration: FC<Props> = ({
     };
 
     return (
-        // Make inline dropdowns flow in the panel (instead of absolute), so the
-        // panel grows with them and Apply stays visible — PROD-2395 sketch.
+        // Keep dropdowns in document flow so the panel grows and Apply stays
+        // reachable — PROD-2395.
         <Stack className={classes.inlineDropdowns}>
             <Tabs
                 value={selectedTabId}

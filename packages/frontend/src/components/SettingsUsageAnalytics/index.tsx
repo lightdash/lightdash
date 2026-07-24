@@ -12,33 +12,26 @@ const SettingsUsageAnalytics: FC<ProjectUserAccessProps> = ({
     projectUuid,
 }) => {
     return (
-        <>
-            <Text c="dimmed">
-                Lightdash curated dashboards that show usage and performance
-                information about your project.
-            </Text>
-
-            <Stack gap="md">
-                <Card
-                    component={Link}
-                    shadow="sm"
-                    withBorder
-                    style={{ cursor: 'pointer' }}
-                    to={`/projects/${projectUuid}/user-activity`}
-                >
-                    <Group>
-                        <MantineIcon
-                            icon={IconLayoutDashboard}
-                            size="xl"
-                            color="ldGray.6"
-                        />
-                        <Text fw={600} fz="lg">
-                            User Activity
-                        </Text>
-                    </Group>
-                </Card>
-            </Stack>
-        </>
+        <Stack gap="md">
+            <Card
+                component={Link}
+                shadow="sm"
+                withBorder
+                style={{ cursor: 'pointer' }}
+                to={`/projects/${projectUuid}/user-activity`}
+            >
+                <Group>
+                    <MantineIcon
+                        icon={IconLayoutDashboard}
+                        size="xl"
+                        color="ldGray.6"
+                    />
+                    <Text fw={600} fz="lg">
+                        User Activity
+                    </Text>
+                </Group>
+            </Card>
+        </Stack>
     );
 };
 

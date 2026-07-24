@@ -14,7 +14,7 @@ import {
     Text,
     type MenuProps,
 } from '@mantine-8/core';
-import { useClipboard } from '@mantine/hooks';
+import { useClipboard } from '@mantine-8/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { useMemo, type FC } from 'react';

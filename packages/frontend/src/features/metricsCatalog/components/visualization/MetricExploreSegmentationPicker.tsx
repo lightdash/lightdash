@@ -14,15 +14,15 @@ import {
     Stack,
     Text,
     Select,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
 import { IconInfoCircle, IconX } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { groupComboboxItems } from '../../../../components/common/Select/utils';
 import { Blocks } from '../../../../svgs/metricsCatalog';
-import { useSelectStyles } from '../../styles/useSelectStyles';
+import selectStyles from '../../styles/selectStyles.module.css';
 import SelectItem from '../SelectItem';
 import styles from './MetricExploreButtons.module.css';
 
@@ -41,8 +41,6 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
     segmentDimensionsQuery,
     hasFilteredSeries,
 }) => {
-    const { classes } = useSelectStyles();
-
     const segmentByData = useMemo(
         () =>
             groupComboboxItems(
@@ -123,7 +121,13 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
                                 <Loader size="xs" color="ldGray.5" />
                             ) : undefined
                         }
-                        classNames={classes}
+                        classNames={{
+                            wrapper: selectStyles.wrapper,
+                            input: selectStyles.input,
+                            option: selectStyles.option,
+                            section: selectStyles.rightSection,
+                            dropdown: selectStyles.dropdown,
+                        }}
                         className={styles.segmentationSelect}
                     />
                 </Box>

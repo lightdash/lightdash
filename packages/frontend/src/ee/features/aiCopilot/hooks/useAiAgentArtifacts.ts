@@ -11,7 +11,7 @@ import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { getAiAgentApiBase, getAiAgentPageBase } from './aiAgentRouting';
 
-const AI_AGENT_ARTIFACT_KEY = 'aiAgentArtifact';
+export const AI_AGENT_ARTIFACT_KEY = 'aiAgentArtifact';
 
 const getAiAgentArtifact = async (
     projectUuid: string,

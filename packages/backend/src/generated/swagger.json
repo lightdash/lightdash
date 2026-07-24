@@ -2083,6 +2083,12 @@
                     },
                     "pivotConfig": {
                         "properties": {
+                            "rows": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
                             "columns": {
                                 "items": {
                                     "type": "string"
@@ -3887,10 +3893,15 @@
                         "minLength": 1
                     },
                     "uuid": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Legacy project-local identifier. Accepted on upload for backwards compatibility."
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Portable tab identifier used by new downloads."
                     }
                 },
-                "required": ["order", "name", "uuid"],
+                "required": ["order", "name"],
                 "type": "object"
             },
             "DashboardTileTypes": {
@@ -3908,7 +3919,13 @@
                 "properties": {
                     "tabUuid": {
                         "type": "string",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "Legacy project-local tab reference. Accepted on upload for backwards compatibility."
+                    },
+                    "tabSlug": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Portable reference to the dashboard tab containing this tile."
                     },
                     "w": {
                         "type": "number",
@@ -7403,6 +7420,12 @@
                     },
                     "pivotConfig": {
                         "properties": {
+                            "rows": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
                             "columns": {
                                 "items": {
                                     "type": "string"
@@ -7749,6 +7772,12 @@
                     },
                     "pivotConfig": {
                         "properties": {
+                            "rows": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
                             "columns": {
                                 "items": {
                                     "type": "string"
@@ -9892,9 +9921,6 @@
             },
             "PublishedProjectHomepage": {
                 "properties": {
-                    "allowPersonal": {
-                        "type": "boolean"
-                    },
                     "config": {
                         "$ref": "#/components/schemas/HomepageConfig"
                     },
@@ -9905,40 +9931,22 @@
                         "type": "string"
                     }
                 },
-                "required": ["allowPersonal", "config", "name", "homepageUuid"],
+                "required": ["config", "name", "homepageUuid"],
                 "type": "object"
             },
             "ResolvedHomepage": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "homepage": {
-                                "$ref": "#/components/schemas/PublishedProjectHomepage"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["homepage"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["homepage", "type"],
-                        "type": "object"
+                "properties": {
+                    "homepage": {
+                        "$ref": "#/components/schemas/PublishedProjectHomepage"
                     },
-                    {
-                        "properties": {
-                            "dashboardUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["dashboard"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["dashboardUuid", "type"],
-                        "type": "object"
+                    "type": {
+                        "type": "string",
+                        "enum": ["homepage"],
+                        "nullable": false
                     }
-                ]
+                },
+                "required": ["homepage", "type"],
+                "type": "object"
             },
             "ApiSuccess_ResolvedHomepage-or-null_": {
                 "properties": {
@@ -9961,30 +9969,6 @@
             },
             "ApiResolvedHomepageResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_ResolvedHomepage-or-null_"
-            },
-            "ApiSuccess_string-or-null_": {
-                "properties": {
-                    "results": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "SetPersonalHomepageRequest": {
-                "properties": {
-                    "dashboardUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["dashboardUuid"],
-                "type": "object"
             },
             "HomepageResolutionSource": {
                 "anyOf": [
@@ -10034,25 +10018,7 @@
                 ]
             },
             "HomepageViewAsReason": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "dashboardUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["personal"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["dashboardUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "$ref": "#/components/schemas/HomepageResolutionSource"
-                    }
-                ]
+                "$ref": "#/components/schemas/HomepageResolutionSource"
             },
             "HomepageViewAsResult": {
                 "properties": {
@@ -10107,9 +10073,6 @@
                         "type": "string",
                         "nullable": true
                     },
-                    "allowPersonal": {
-                        "type": "boolean"
-                    },
                     "isDefault": {
                         "type": "boolean"
                     },
@@ -10138,7 +10101,6 @@
                     "updatedAt",
                     "createdAt",
                     "createdByUserUuid",
-                    "allowPersonal",
                     "isDefault",
                     "publishedConfig",
                     "draftConfig",
@@ -10444,14 +10406,11 @@
             },
             "PublishProjectHomepageRequest": {
                 "properties": {
-                    "allowPersonal": {
-                        "type": "boolean"
-                    },
                     "audience": {
                         "$ref": "#/components/schemas/HomepageAudience"
                     }
                 },
-                "required": ["allowPersonal", "audience"],
+                "required": ["audience"],
                 "type": "object"
             },
             "AnnouncementCategory": {
@@ -13140,6 +13099,13 @@
                     },
                     "pivotConfig": {
                         "properties": {
+                            "rows": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "description": "Ordered fields to render on the pivot row axis"
+                            },
                             "columns": {
                                 "items": {
                                     "type": "string"
@@ -13381,7 +13347,8 @@
                     "FIELD_ERROR",
                     "SET_VALIDATION_ERROR",
                     "INVALID_PARAMETER",
-                    "DUPLICATE_FIELD_NAME"
+                    "DUPLICATE_FIELD_NAME",
+                    "WAREHOUSE_COLUMN_ERROR"
                 ],
                 "type": "string"
             },
@@ -13723,8 +13690,17 @@
                 "required": ["compiledSql", "fieldId", "id"],
                 "type": "object"
             },
+            "CompiledMetricTimestampFilter": {
+                "$ref": "#/components/schemas/CompiledMetricRelativeDateFilter"
+            },
             "CompiledProperties": {
                 "properties": {
+                    "compiledTimestampFilters": {
+                        "items": {
+                            "$ref": "#/components/schemas/CompiledMetricTimestampFilter"
+                        },
+                        "type": "array"
+                    },
                     "compiledRelativeDateFilters": {
                         "items": {
                             "$ref": "#/components/schemas/CompiledMetricRelativeDateFilter"
@@ -14158,7 +14134,7 @@
                             "$ref": "#/components/schemas/InlineError"
                         },
                         "type": "array",
-                        "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
+                        "description": "Non-fatal compilation or validation warnings (e.g. fields that failed to\ncompile, warehouse-rejected column references). The explore is still usable."
                     },
                     "preAggregateSource": {
                         "$ref": "#/components/schemas/PreAggregateSource"
@@ -16146,6 +16122,10 @@
                             "$ref": "#/components/schemas/AppClarification"
                         },
                         "type": "array"
+                    },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
                     },
                     "dashboardName": {
                         "type": "string",
@@ -29202,7 +29182,7 @@
                     "source"
                 ],
                 "type": "object",
-                "description": "Everything the UI needs to render one report chart, keyed by chart key in\n`AiDeepResearchRun.resultChartData`. Written entirely by the backend at\npublish time; the markdown only carries [title](#chart-<key>) references."
+                "description": "Everything the UI needs to render one report chart, keyed by chart key in\n`AiDeepResearchRun.resultChartData`. Written entirely by the backend at\npublish time; the markdown only carries compact <chart> references."
             },
             "Record_string.AiDeepResearchChartData_": {
                 "properties": {},
@@ -29232,18 +29212,13 @@
                     "maxTokens": {
                         "type": "number",
                         "format": "double"
-                    },
-                    "maxRuntimeMs": {
-                        "type": "number",
-                        "format": "double"
                     }
                 },
                 "required": [
                     "maxResultRows",
                     "maxWarehouseQueries",
                     "maxToolCalls",
-                    "maxTokens",
-                    "maxRuntimeMs"
+                    "maxTokens"
                 ],
                 "type": "object"
             },
@@ -29286,7 +29261,7 @@
                     "resultMarkdown": {
                         "type": "string",
                         "nullable": true,
-                        "description": "The report narrative with [title](#chart-<key>) chart references."
+                        "description": "The report narrative with compact <chart> references."
                     },
                     "status": {
                         "$ref": "#/components/schemas/AiDeepResearchRunStatus"
@@ -31479,6 +31454,9 @@
                 "anyOf": [
                     {
                         "properties": {
+                            "upgradesFileToV2": {
+                                "type": "boolean"
+                            },
                             "entryId": {
                                 "type": "string"
                             },
@@ -31502,6 +31480,7 @@
                             }
                         },
                         "required": [
+                            "upgradesFileToV2",
                             "entryId",
                             "op",
                             "after",
@@ -39259,6 +39238,12 @@
                     },
                     "pivotConfig": {
                         "properties": {
+                            "rows": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
                             "columns": {
                                 "items": {
                                     "type": "string"
@@ -40045,7 +40030,7 @@
                             "$ref": "#/components/schemas/InlineError"
                         },
                         "type": "array",
-                        "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
+                        "description": "Non-fatal compilation or validation warnings (e.g. fields that failed to\ncompile, warehouse-rejected column references). The explore is still usable."
                     }
                 },
                 "type": "object",
@@ -43116,6 +43101,13 @@
                         },
                         "type": "array"
                     },
+                    "rowFieldIds": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Ordered dimension and value field IDs rendered once on the row axis."
+                    },
                     "metricsAsRows": {
                         "type": "boolean"
                     },
@@ -43911,7 +43903,7 @@
                             "$ref": "#/components/schemas/InlineError"
                         },
                         "type": "array",
-                        "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
+                        "description": "Non-fatal compilation or validation warnings (e.g. fields that failed to\ncompile, warehouse-rejected column references). The explore is still usable."
                     }
                 },
                 "required": ["name", "label", "tags"],
@@ -44148,7 +44140,7 @@
                             "$ref": "#/components/schemas/InlineError"
                         },
                         "type": "array",
-                        "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
+                        "description": "Non-fatal compilation or validation warnings (e.g. fields that failed to\ncompile, warehouse-rejected column references). The explore is still usable."
                     }
                 },
                 "required": [
@@ -46585,8 +46577,14 @@
             },
             "CalculateTotalKind": {
                 "type": "string",
-                "enum": ["columnTotal", "rowTotal", "columnSubtotal"],
-                "description": "Kinds of totals derivable from an executed pivot query. Follow-up PRs\nwill widen the union to enable the commented-out variants below."
+                "enum": [
+                    "grandTotal",
+                    "columnTotal",
+                    "rowTotal",
+                    "columnSubtotal",
+                    "rowSubtotal"
+                ],
+                "description": "Kinds of totals derivable from an executed pivot query."
             },
             "ExecuteAsyncCalculateTotalRequestParams": {
                 "properties": {
@@ -49221,7 +49219,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3455.0",
+        "version": "0.3472.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -53152,129 +53150,6 @@
                         }
                     }
                 }
-            }
-        },
-        "/api/v1/projects/{projectUuid}/homepage/personal-override": {
-            "get": {
-                "operationId": "getPersonalHomepage",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccess_string-or-null_"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "tags": ["Homepage"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ]
-            },
-            "patch": {
-                "operationId": "setPersonalHomepage",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "tags": ["Homepage"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/SetPersonalHomepageRequest"
-                            }
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "operationId": "clearPersonalHomepage",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "tags": ["Homepage"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ]
             }
         },
         "/api/v1/projects/{projectUuid}/homepage/view-as": {

@@ -111,9 +111,11 @@ const OnboardingInviteExpert: FC = () => {
     } = useEnsurePlaygroundProject();
 
     // The flag says the flow exists, not that a playground can be provisioned:
-    // an org that already has a project would be sent into that project instead
+    // the instance must support it and the org must not already have a project
     const canOfferPlayground =
-        isNewOnboarding && organization?.needsProject === true;
+        isNewOnboarding &&
+        health.data?.hasPlaygroundProjects === true &&
+        organization?.needsProject === true;
 
     const titleRef = useRef<HTMLHeadingElement>(null);
     const hasFocusedTitleRef = useRef(false);
@@ -190,7 +192,12 @@ const OnboardingInviteExpert: FC = () => {
             role: OrganizationMemberRole.ADMIN,
             purpose: InviteLinkPurpose.Setup,
         });
-        track({ name: EventName.SETUP_INVITE_SENT });
+        track({
+            name: EventName.SETUP_INVITE_SENT,
+            properties: {
+                organizationId: organization?.organizationUuid ?? '',
+            },
+        });
 
         if (canOfferPlayground) {
             await preparePlayground();

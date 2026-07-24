@@ -60,7 +60,12 @@
                     "required": ["chartSlug"],
                     "type": "object"
                 },
+                "tabSlug": {
+                    "description": "Portable reference to the dashboard tab containing this tile.",
+                    "type": ["string", "null"]
+                },
                 "tabUuid": {
+                    "description": "Legacy project-local tab reference. Accepted on upload for backwards compatibility.",
                     "type": ["string", "null"]
                 },
                 "tileSlug": {
@@ -174,7 +179,12 @@
                     "required": ["appUuid", "title"],
                     "type": "object"
                 },
+                "tabSlug": {
+                    "description": "Portable reference to the dashboard tab containing this tile.",
+                    "type": ["string", "null"]
+                },
                 "tabUuid": {
+                    "description": "Legacy project-local tab reference. Accepted on upload for backwards compatibility.",
                     "type": ["string", "null"]
                 },
                 "tileSlug": {
@@ -279,7 +289,12 @@
                     "required": ["text"],
                     "type": "object"
                 },
+                "tabSlug": {
+                    "description": "Portable reference to the dashboard tab containing this tile.",
+                    "type": ["string", "null"]
+                },
                 "tabUuid": {
+                    "description": "Legacy project-local tab reference. Accepted on upload for backwards compatibility.",
                     "type": ["string", "null"]
                 },
                 "tileSlug": {
@@ -336,7 +351,12 @@
                     "required": ["url", "title"],
                     "type": "object"
                 },
+                "tabSlug": {
+                    "description": "Portable reference to the dashboard tab containing this tile.",
+                    "type": ["string", "null"]
+                },
                 "tabUuid": {
+                    "description": "Legacy project-local tab reference. Accepted on upload for backwards compatibility.",
                     "type": ["string", "null"]
                 },
                 "tileSlug": {
@@ -393,7 +413,12 @@
                     "required": ["content", "title"],
                     "type": "object"
                 },
+                "tabSlug": {
+                    "description": "Portable reference to the dashboard tab containing this tile.",
+                    "type": ["string", "null"]
+                },
                 "tabUuid": {
+                    "description": "Legacy project-local tab reference. Accepted on upload for backwards compatibility.",
                     "type": ["string", "null"]
                 },
                 "tileSlug": {
@@ -469,7 +494,12 @@
                     "required": ["chartName", "chartSlug"],
                     "type": "object"
                 },
+                "tabSlug": {
+                    "description": "Portable reference to the dashboard tab containing this tile.",
+                    "type": ["string", "null"]
+                },
                 "tabUuid": {
+                    "description": "Legacy project-local tab reference. Accepted on upload for backwards compatibility.",
                     "type": ["string", "null"]
                 },
                 "tileSlug": {
@@ -517,11 +547,16 @@
                     "minimum": 0,
                     "type": "number"
                 },
+                "slug": {
+                    "description": "Portable tab identifier used by new downloads.",
+                    "type": "string"
+                },
                 "uuid": {
+                    "description": "Legacy project-local identifier. Accepted on upload for backwards compatibility.",
                     "type": "string"
                 }
             },
-            "required": ["order", "name", "uuid"],
+            "required": ["order", "name"],
             "type": "object"
         },
         "DashboardTileAsCode": {
@@ -553,7 +588,12 @@
                     "minimum": 1,
                     "type": "number"
                 },
+                "tabSlug": {
+                    "description": "Portable reference to the dashboard tab containing this tile.",
+                    "type": ["string", "null"]
+                },
                 "tabUuid": {
+                    "description": "Legacy project-local tab reference. Accepted on upload for backwards compatibility.",
                     "type": ["string", "null"]
                 },
                 "tileSlug": {

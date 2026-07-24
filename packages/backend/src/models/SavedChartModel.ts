@@ -113,6 +113,7 @@ type DbSavedChartDetails = {
     chart_type: ChartConfig['type'];
     chart_config: ChartConfig['config'] | undefined;
     pivot_dimensions: string[] | undefined;
+    pivot_rows: string[] | undefined;
     parameters: AnyType | null;
     created_at: Date;
     organization_uuid: string;
@@ -123,6 +124,18 @@ type DbSavedChartDetails = {
     dashboard_uuid: string | null;
     timezone: TimezoneSetting;
     color_palette_uuid: string | null;
+};
+
+const getSavedChartPivotConfig = (
+    pivotDimensions: string[] | null | undefined,
+    pivotRows: string[] | null | undefined,
+): CreateSavedChartVersion['pivotConfig'] => {
+    if (!pivotDimensions && !pivotRows) return undefined;
+
+    return {
+        columns: pivotDimensions ?? [],
+        ...(pivotRows && { rows: pivotRows }),
+    };
 };
 
 const createSavedChartVersionFields = async (
@@ -235,15 +248,20 @@ const createSavedChartVersion = async (
                 dimensions.includes(key),
             ),
         );
+        const storedDimensionOverrides =
+            Object.keys(validDimensionOverrides).length > 0
+                ? validDimensionOverrides
+                : null;
         const [version] = await trx('saved_queries_versions')
             .insert({
                 row_limit: limit,
                 metric_overrides: validMetricOverrides || null,
-                dimension_overrides: validDimensionOverrides || null,
+                dimension_overrides: storedDimensionOverrides,
                 filters: JSON.stringify(filters),
                 explore_name: tableName,
                 saved_query_id: savedChartId,
                 pivot_dimensions: pivotConfig ? pivotConfig.columns : null,
+                pivot_rows: pivotConfig?.rows ?? null,
                 chart_type: chartConfig.type,
                 chart_config: chartConfig.config,
                 parameters: parameters ? JSON.stringify(parameters) : null,
@@ -1406,6 +1424,7 @@ export class SavedChartModel {
                         'saved_queries_versions.created_at',
                         'saved_queries_versions.chart_config',
                         'saved_queries_versions.pivot_dimensions',
+                        'saved_queries_versions.pivot_rows',
                         'saved_queries_versions.timezone',
                         'saved_queries_versions.parameters',
                         `${OrganizationTableName}.organization_uuid`,
@@ -1725,13 +1744,10 @@ export class SavedChartModel {
                         columnOrder,
                     },
                     organizationUuid: savedQuery.organization_uuid,
-                    ...(savedQuery.pivot_dimensions
-                        ? {
-                              pivotConfig: {
-                                  columns: savedQuery.pivot_dimensions,
-                              },
-                          }
-                        : {}),
+                    pivotConfig: getSavedChartPivotConfig(
+                        savedQuery.pivot_dimensions,
+                        savedQuery.pivot_rows,
+                    ),
                     spaceUuid: savedQuery.space_uuid,
                     spaceName: savedQuery.spaceName,
                     pinnedListUuid: savedQuery.pinned_list_uuid,

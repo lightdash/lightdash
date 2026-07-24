@@ -10,12 +10,14 @@ import {
     type AiDeepResearchJobPayload,
     type AiWritebackSource,
     type ChartReference,
+    type DashboardBlueprint,
     type DataAppClaudeModel,
     type DataAppTemplate,
     type EmbedArtifactVersionJobPayload,
     type GenerateArtifactQuestionJobPayload,
     type SlackPromptJobPayload,
 } from '../ee';
+import { type UUID } from './api/uuid';
 import { type SchedulerIndexCatalogJobPayload } from './catalog';
 import { type UploadGsheetPayload } from './gdrive';
 import { type RenameResourcesPayload } from './rename';
@@ -56,6 +58,10 @@ export type AppGeneratePipelineJobPayload = TraceTaskBase & {
     imageIds?: string[];
     isIteration: boolean;
     chartReferences?: ChartReference[];
+    // Structural snapshot of the attached dashboard (tabs, tile layout,
+    // filters). Written into the sandbox as a layout blueprint alongside the
+    // flattened chartReferences. Absent when no dashboard was attached.
+    dashboardBlueprint?: DashboardBlueprint;
     // Claude model the user picked for this version. Absent on jobs enqueued
     // before the picker shipped — the pipeline falls back to
     // DEFAULT_DATA_APP_CLAUDE_MODEL in that case.
@@ -104,6 +110,11 @@ export type AiAgentEditDbtProjectPipelineJobPayload = TraceTaskBase & {
     suppressWritebackPreview?: boolean;
 };
 
+export type AiAgentMemoryDistillJobPayload = TraceTaskBase & {
+    threadUuid: UUID;
+    sweptUpdatedAt: string;
+};
+
 export const EE_SCHEDULER_TASKS = {
     SLACK_AI_PROMPT: 'slackAiPrompt',
     AI_AGENT_EVAL_RESULT: 'aiAgentEvalResult',
@@ -124,6 +135,8 @@ export const EE_SCHEDULER_TASKS = {
     SWEEP_STALE_APP_LOCKS: 'sweepStaleAppLocks',
     SWEEP_STALE_AI_WRITEBACK_RUNS: 'sweepStaleAiWritebackRuns',
     SWEEP_STALE_AI_DEEP_RESEARCH_RUNS: 'sweepStaleAiDeepResearchRuns',
+    SWEEP_AI_AGENT_MEMORY_THREADS: 'sweepAiAgentMemoryThreads',
+    AI_AGENT_MEMORY_DISTILL: 'aiAgentMemoryDistill',
     CLEAN_MCP_TOOL_CALLS: 'cleanMcpToolCalls',
 } as const;
 
@@ -225,6 +238,8 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: TraceTaskBase;
     [SCHEDULER_TASKS.SWEEP_STALE_AI_WRITEBACK_RUNS]: TraceTaskBase;
     [SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS]: TraceTaskBase;
+    [SCHEDULER_TASKS.SWEEP_AI_AGENT_MEMORY_THREADS]: TraceTaskBase;
+    [SCHEDULER_TASKS.AI_AGENT_MEMORY_DISTILL]: AiAgentMemoryDistillJobPayload;
     [SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: TraceTaskBase;
     [SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: AiWritebackPipelineJobPayload;
     [SCHEDULER_TASKS.AI_DEEP_RESEARCH]: AiDeepResearchPipelineJobPayload;
@@ -248,6 +263,8 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.SWEEP_STALE_AI_WRITEBACK_RUNS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS]: TraceTaskBase;
+    [EE_SCHEDULER_TASKS.SWEEP_AI_AGENT_MEMORY_THREADS]: TraceTaskBase;
+    [EE_SCHEDULER_TASKS.AI_AGENT_MEMORY_DISTILL]: AiAgentMemoryDistillJobPayload;
     [EE_SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: AiWritebackPipelineJobPayload;
     [EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH]: AiDeepResearchPipelineJobPayload;

@@ -281,7 +281,8 @@ Host opt-in is a single `urlStateSync` flag on `AppIframePreview`, which owns bo
 | `AppPreviewTest` (`/view` routes) | ✓ | Primary share surface |
 | `AppGenerate` (builder) | ✓ | Authors can test shareable links |
 | `EmbedApp` (full-page embed) | ✓ | The embed page's own URL carries `?state=` |
-| Dashboard tiles, `MinimalApp`, viz renderer | ✗ | Tiles need per-tile key namespacing (multiple apps share one URL) — out of scope for now |
+| `MinimalApp` (headless render) | ✓ | Seeds scheduled-delivery screenshots from `?state=`; write-back is inert (no user, no shareable URL) |
+| Dashboard tiles, viz renderer | ✗ | Tiles need per-tile key namespacing (multiple apps share one URL) — out of scope for now |
 
 Compatibility: old bundles never read the hash param or post the message — hosts' changes are inert for them. New
 bundles in non-opted hosts get in-memory state only (the change message is ignored). Existing apps pick up the
@@ -293,6 +294,24 @@ Key files: `packages/query-sdk/src/urlState.ts` (SDK side),
 `packages/frontend/src/features/apps/hooks/useAppUrlStateSync.ts` (host side),
 `sandboxes/data-apps/template/src/lib/filters.tsx` (global-filter persistence). Keep the "Shareable URL state" section
 of `sandboxes/data-apps/template/skill.md` in sync with this one.
+
+#### Scheduled deliveries with app state
+
+A scheduled delivery can snapshot the app state the creator is looking at, so every run screenshots **that view**
+instead of the app's defaults. When the create/edit delivery modal is opened from the builder or viewer while the page
+URL carries `?state=`, the "Data & format" section offers a **Send current app state** checkbox (on by default) showing
+the shareable URL it captured; unchecking it sends the app's default view.
+
+- **Persistence.** The parsed state map is stored on the scheduler row (`scheduler.app_state`, JSONB), surfaced as
+  `AppScheduler.appState`. `SchedulerService` validates it as a plain JSON object within the same 4 KB cap the URL
+  sync enforces (`MAX_SCHEDULER_APP_STATE_CHARS` in `packages/common/src/types/scheduler.ts`).
+- **Render.** `SchedulerTask.getNotificationPageData` appends `?state=` to the headless render URL; `MinimalApp`
+  opts into `urlStateSync` so the iframe seeds from it exactly like the share surfaces do. The recipient-facing
+  "view in Lightdash" link also carries `&state=`, so clicking through opens the live app in the delivered view.
+- **Send now** works unsaved — the state rides the transient `CreateSchedulerAndTargets` payload.
+- **Edit mode** shows the saved snapshot's URL with uncheck-to-remove. Deliveries created before this feature (or
+  with the box unchecked) have `app_state = NULL` and render defaults, unchanged.
+- The URL display is a v1 — a future improvement is rendering the state's keys/values in a readable form.
 
 ### Manual app thumbnails
 
@@ -967,8 +986,8 @@ Data apps can be **downloaded as source, versioned in git, edited, and re-upload
 
 Opt-in flags on the existing `lightdash download` / `lightdash upload` commands (off by default — core users never touch app code paths unless they ask):
 
-- **`lightdash download --apps <appUuids...>`** — download specific data apps into `lightdash/apps/<slug>/`; **`--include-apps`** downloads all of the project's apps (capped at `--apps-limit`, default 50). Each folder holds `lightdash-app.yml` (manifest) + the app's `src/` tree. The built `dist` is intentionally excluded — it's regenerated on upload.
-- **`lightdash upload --apps <appUuids...>`** — upload specific apps (matched by manifest `appUuid`); **`--include-apps`** uploads every `lightdash/apps/<slug>/` folder on disk. The server rebuilds the source. **Fire-and-forget:** the CLI posts and returns immediately — the app shows `building` in the UI until the server finishes.
+- **`lightdash download --apps <appReferences...>`** — download specific data apps by UUID or app URL into `lightdash/apps/<slug>/`; **`--include-apps`** downloads all of the project's apps (capped at `--apps-limit`, default 50). Each folder holds `lightdash-app.yml` (manifest) + the app's `src/` tree. The built `dist` is intentionally excluded — it's regenerated on upload.
+- **`lightdash upload --apps <appReferences...>`** — upload specific apps by UUID or app URL (matched by manifest `appUuid`); **`--include-apps`** uploads every `lightdash/apps/<slug>/` folder on disk. The server rebuilds the source. **Fire-and-forget:** the CLI posts and returns immediately — the app shows `building` in the UI until the server finishes.
 
 **Identity:** the manifest's `appUuid` is the source of truth (apps have no persistent slug; the `<slug>` folder name is derived from the app name via `generateSlug`, with a stable `untitled-app-<uuid8>` fallback for unnamed apps so re-downloads reuse the same folder). Uploading to the **same project** appends a new version of that app; uploading to a **different project** creates a new app there.
 

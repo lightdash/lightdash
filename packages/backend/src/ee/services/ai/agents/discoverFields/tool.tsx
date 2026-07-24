@@ -180,6 +180,7 @@ type ToolArgs = {
         | 'userId'
         | 'telemetryEnabled'
         | 'model'
+        | 'keyManagement'
     >;
 };
 

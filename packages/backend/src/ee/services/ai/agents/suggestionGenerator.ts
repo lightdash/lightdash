@@ -241,6 +241,7 @@ export async function generateAgentSuggestions(
         functionId: 'generateAgentSuggestions',
         feature: 'agent-suggestions',
         ...getLanguageModelAttribution(modelOptions.model),
+        keyManagement: modelOptions.keyManagement,
         extra: {
             ...metadata,
             mode: isPostResponse ? 'post-response' : 'empty-state',

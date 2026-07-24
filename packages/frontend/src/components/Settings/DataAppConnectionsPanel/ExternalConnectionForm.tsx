@@ -7,7 +7,6 @@ import {
     Group,
     JsonInput,
     MultiSelect,
-    NumberInput,
     PasswordInput,
     Select,
     Stack,
@@ -25,6 +24,7 @@ import {
     type PathMode,
     type PathPrefix,
 } from '../../../features/externalConnections/utils/pathRules';
+import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../../ProjectConnection/FormCollapseButton';
 import FormSection from '../../ProjectConnection/Inputs/FormSection';
 

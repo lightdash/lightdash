@@ -2,10 +2,10 @@ import {
     type McpActivityItem,
     type McpActivityStatsFilters,
 } from '@lightdash/common';
-import { Box, Drawer, Group, Stack, Text } from '@mantine-8/core';
+import { Box, Drawer, Text } from '@mantine-8/core';
 import { useMemo, useState } from 'react';
 import { NAVBAR_HEIGHT } from '../../../../../../components/common/Page/constants';
-import PageBreadcrumbs from '../../../../../../components/common/PageBreadcrumbs';
+import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
 import { useAiOrganizationSettings } from '../../../hooks/useAiOrganizationSettings';
 import { useMcpActivityStats } from '../../../hooks/useMcpActivity';
 import { useMcpActivityFilters } from '../../../hooks/useMcpActivityFilters';
@@ -53,19 +53,15 @@ export const McpActivitySettingsPage = () => {
     } = useMcpActivityStats(statsFilters);
 
     return (
-        <Stack mb="lg" gap="md">
-            <Group justify="space-between" align="flex-start">
-                <PageBreadcrumbs
-                    items={[
-                        { title: 'Ask AI', to: '/generalSettings/ai/general' },
-                        { title: 'MCP', active: true },
-                    ]}
-                />
+        <SettingsPage
+            title="MCP activity"
+            description="Monitor MCP tool calls and investigate errors across your organization."
+            actions={
                 <Text fz="xs" c="ldGray.6">
-                    Showing the last 90 days of MCP tool calls
+                    Last 90 days
                 </Text>
-            </Group>
-
+            }
+        >
             {settings?.aiAgentsVisible === false && <AiFeaturesDisabledAlert />}
 
             <Box className={overviewClasses.layout}>
@@ -117,6 +113,6 @@ export const McpActivitySettingsPage = () => {
             >
                 {selectedCall && <McpActivityDetail toolCall={selectedCall} />}
             </Drawer>
-        </Stack>
+        </SettingsPage>
     );
 };

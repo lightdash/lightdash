@@ -8,8 +8,10 @@ import {
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     CreateSchedulerTarget,
+    DashboardChartTile,
     DashboardFilterRule,
     DashboardFilters,
+    DashboardSqlChartTile,
     DateZoom,
     derivePivotConfigurationFromPivotConfig,
     DimensionType,
@@ -41,6 +43,7 @@ import {
     GoogleSheetsQuotaError,
     GoogleSheetsTransientError,
     GsheetsNotificationPayload,
+    isAppCreateScheduler,
     isChartScheduler,
     isChartValidationError,
     isCreateScheduler,
@@ -90,6 +93,7 @@ import {
     SlackInstallationNotFoundError,
     SlackNotificationPayload,
     sleep,
+    sortTilesByDashboardOrder,
     SqlRunnerPayload,
     SqlRunnerPivotQueryPayload,
     SyncSlackChannelsPayload,
@@ -667,6 +671,19 @@ export default class SchedulerTask {
             );
         }
 
+        // App schedulers can snapshot the app's shareable URL state: seed the
+        // headless render with it and link recipients to the same view.
+        const appState = isAppCreateScheduler(scheduler)
+            ? scheduler.appState
+            : undefined;
+        if (appState) {
+            const encodedAppState = JSON.stringify(appState);
+            minimalRenderUrl.searchParams.set('state', encodedAppState);
+            deliveryUrl += `${
+                deliveryUrl.endsWith('?') ? '' : '&'
+            }state=${encodeURIComponent(encodedAppState)}`;
+        }
+
         switch (format) {
             case SchedulerFormat.IMAGE:
                 try {
@@ -743,6 +760,7 @@ export default class SchedulerTask {
                                     createdByUserUuid: userUuid,
                                     expirationSeconds:
                                         expirationSecondsOverride,
+                                    source: 'scheduler',
                                 },
                             );
                     }
@@ -1003,204 +1021,221 @@ export default class SchedulerTask {
                             ...schedulerParameters,
                         };
 
-                        const chartTiles = dashboard.tiles
-                            .filter(isDashboardChartTileType)
-                            .filter((tile) => tile.properties.savedChartUuid)
-                            .filter((tile) =>
-                                isTileInSelectedTabs(tile, selectedTabs),
-                            )
-                            .map((tile) => ({
-                                tileUuid: tile.uuid,
-                                chartUuid: tile.properties.savedChartUuid!,
-                                // Use tile name as initial chart name, will be updated with actual chart name on success
-                                chartName:
-                                    tile.properties.title ||
-                                    tile.properties.chartName ||
-                                    'Unknown Chart',
-                                type: 'chart' as const,
-                            }));
-                        const sqlChartTiles = dashboard.tiles
-                            .filter(isDashboardSqlChartTile)
-                            .filter((tile) => !!tile.properties.savedSqlUuid)
-                            .filter((tile) =>
-                                isTileInSelectedTabs(tile, selectedTabs),
-                            )
-                            .map((tile) => ({
-                                tileUuid: tile.uuid,
-                                chartUuid: tile.properties.savedSqlUuid!,
-                                chartName:
-                                    tile.properties.title ||
-                                    tile.properties.chartName ||
-                                    'Unknown SQL Chart',
-                                type: 'sql_chart' as const,
-                            }));
+                        // Sheets are added to the workbook in promise order, so
+                        // sort tiles by dashboard layout (tab order, then
+                        // position) with SQL charts interleaved.
+                        const exportableTiles = sortTilesByDashboardOrder(
+                            dashboard.tiles.filter(
+                                (
+                                    tile,
+                                ): tile is
+                                    | DashboardChartTile
+                                    | DashboardSqlChartTile =>
+                                    (isDashboardChartTileType(tile) &&
+                                        !!tile.properties.savedChartUuid) ||
+                                    (isDashboardSqlChartTile(tile) &&
+                                        !!tile.properties.savedSqlUuid),
+                            ),
+                            dashboard.tabs,
+                        ).filter((tile) =>
+                            isTileInSelectedTabs(tile, selectedTabs),
+                        );
 
                         // Metadata for tracking failures - order matches the promises
-                        const chartMetadata = [...chartTiles, ...sqlChartTiles];
+                        const chartMetadata = exportableTiles.map((tile) =>
+                            isDashboardChartTileType(tile)
+                                ? {
+                                      tileUuid: tile.uuid,
+                                      chartUuid:
+                                          tile.properties.savedChartUuid!,
+                                      // Use tile name as initial chart name, will be updated with actual chart name on success
+                                      chartName:
+                                          tile.properties.title ||
+                                          tile.properties.chartName ||
+                                          'Unknown Chart',
+                                      type: 'chart' as const,
+                                  }
+                                : {
+                                      tileUuid: tile.uuid,
+                                      chartUuid: tile.properties.savedSqlUuid!,
+                                      chartName:
+                                          tile.properties.title ||
+                                          tile.properties.chartName ||
+                                          'Unknown SQL Chart',
+                                      type: 'sql_chart' as const,
+                                  },
+                        );
 
-                        const csvForChartPromises = chartTiles.map(
-                            async ({ chartUuid, tileUuid }) => {
-                                const chartLimit =
-                                    getSchedulerCsvLimit(csvOptions);
-                                const chart =
-                                    await this.schedulerService.savedChartModel.get(
-                                        chartUuid,
-                                    );
-                                const {
-                                    pivotConfig: downloadPivotConfig,
-                                    exportPivotedData:
-                                        effectiveExportPivotedData,
-                                } = getDownloadPivotOptions(
-                                    chart,
-                                    exportPivotedData,
+                        const downloadChartTileResults = async ({
+                            chartUuid,
+                            tileUuid,
+                        }: {
+                            chartUuid: string;
+                            tileUuid: string;
+                        }) => {
+                            const chartLimit = getSchedulerCsvLimit(csvOptions);
+                            const chart =
+                                await this.schedulerService.savedChartModel.get(
+                                    chartUuid,
                                 );
-                                const shouldPivotResults =
-                                    !!downloadPivotConfig;
-                                const query =
-                                    await this.asyncQueryService.executeAsyncDashboardChartQuery(
-                                        {
-                                            account,
-                                            projectUuid,
-                                            tileUuid,
-                                            chartUuid,
-                                            invalidateCache: true,
-                                            context:
-                                                QueryExecutionContext.SCHEDULED_DELIVERY,
-                                            dashboardUuid,
-                                            dashboardFilters,
-                                            dashboardSorts: [],
-                                            dateZoom,
-                                            parameters: finalParameters,
-                                            limit: chartLimit,
-                                            pivotResults: shouldPivotResults,
-                                        },
-                                    );
-                                const downloadResult =
-                                    await this.asyncQueryService.downloadSyncQueryResults(
-                                        {
-                                            account,
-                                            projectUuid,
-                                            queryUuid: query.queryUuid,
-                                            type: downloadFileType,
-                                            onlyRaw:
-                                                csvOptions?.formatted === false,
-                                            customLabels:
-                                                getCustomLabelsFromTableConfig(
-                                                    chart.chartConfig.config,
-                                                ),
-                                            hiddenFields: getHiddenTableFields(
-                                                chart.chartConfig,
-                                            ),
-                                            pivotConfig: downloadPivotConfig,
-                                            exportPivotedData:
-                                                effectiveExportPivotedData,
-                                            columnOrder:
-                                                chart.tableConfig.columnOrder,
-                                            conditionalFormattings:
-                                                getConditionalFormattingsFromChartConfig(
-                                                    chart.chartConfig.config,
-                                                ),
-                                            expirationSecondsOverride,
-                                        },
-                                        SCHEDULER_POLLING_OPTIONS,
-                                    );
-                                return {
-                                    chartName: chart.name,
-                                    filename: chart.name,
-                                    path: downloadResult.fileUrl,
-                                    localPath:
-                                        downloadResult.s3FileUrl ??
-                                        downloadResult.fileUrl,
-                                    truncated: false,
-                                    queryUuid: query.queryUuid,
-                                };
-                            },
-                        );
-                        const csvForSqlChartPromises = sqlChartTiles.map(
-                            async ({ chartUuid, tileUuid }) => {
-                                const sqlLimit =
-                                    getSchedulerCsvLimit(csvOptions);
-                                const query =
-                                    await this.asyncQueryService.executeAsyncDashboardSqlChartQuery(
-                                        {
-                                            account,
-                                            projectUuid,
-                                            savedSqlUuid: chartUuid,
-                                            invalidateCache: true,
-                                            context:
-                                                QueryExecutionContext.SCHEDULED_DELIVERY,
-                                            dashboardUuid,
-                                            tileUuid,
-                                            dashboardFilters,
-                                            dashboardSorts: [],
-                                            parameters: finalParameters,
-                                            limit:
-                                                sqlLimit === null
-                                                    ? MAX_SAFE_INTEGER
-                                                    : sqlLimit,
-                                        },
-                                    );
-                                const chart =
-                                    await this.asyncQueryService.savedSqlModel.getByUuid(
+                            const {
+                                pivotConfig: downloadPivotConfig,
+                                exportPivotedData: effectiveExportPivotedData,
+                            } = getDownloadPivotOptions(
+                                chart,
+                                exportPivotedData,
+                            );
+                            const shouldPivotResults = !!downloadPivotConfig;
+                            const query =
+                                await this.asyncQueryService.executeAsyncDashboardChartQuery(
+                                    {
+                                        account,
+                                        projectUuid,
+                                        tileUuid,
                                         chartUuid,
-                                        {
-                                            projectUuid,
-                                        },
-                                    );
-                                const downloadResult =
-                                    await this.asyncQueryService.downloadSyncQueryResults(
-                                        {
-                                            account,
-                                            projectUuid,
-                                            queryUuid: query.queryUuid,
-                                            type: downloadFileType,
-                                            onlyRaw:
-                                                csvOptions?.formatted === false,
-                                            customLabels:
-                                                getCustomLabelsFromVizTableConfig(
-                                                    isVizTableConfig(
-                                                        chart.config,
-                                                    )
-                                                        ? chart.config
-                                                        : undefined,
-                                                ),
-                                            hiddenFields:
-                                                getHiddenFieldsFromVizTableConfig(
-                                                    isVizTableConfig(
-                                                        chart.config,
-                                                    )
-                                                        ? chart.config
-                                                        : undefined,
-                                                ),
-                                            columnOrder:
-                                                getColumnOrderFromVizTableConfig(
-                                                    isVizTableConfig(
-                                                        chart.config,
-                                                    )
-                                                        ? chart.config
-                                                        : undefined,
-                                                ),
-                                            expirationSecondsOverride,
-                                        },
-                                        SCHEDULER_POLLING_OPTIONS,
-                                    );
-                                return {
-                                    chartName: chart.name,
-                                    filename: chart.name,
-                                    path: downloadResult.fileUrl,
-                                    localPath:
-                                        downloadResult.s3FileUrl ??
-                                        downloadResult.fileUrl,
-                                    truncated: false,
-                                    queryUuid: query.queryUuid,
-                                };
-                            },
-                        );
+                                        invalidateCache: true,
+                                        context:
+                                            QueryExecutionContext.SCHEDULED_DELIVERY,
+                                        dashboardUuid,
+                                        dashboardFilters,
+                                        dashboardSorts: [],
+                                        dateZoom,
+                                        parameters: finalParameters,
+                                        limit: chartLimit,
+                                        pivotResults: shouldPivotResults,
+                                    },
+                                );
+                            const downloadResult =
+                                await this.asyncQueryService.downloadSyncQueryResults(
+                                    {
+                                        account,
+                                        projectUuid,
+                                        queryUuid: query.queryUuid,
+                                        type: downloadFileType,
+                                        onlyRaw:
+                                            csvOptions?.formatted === false,
+                                        customLabels:
+                                            getCustomLabelsFromTableConfig(
+                                                chart.chartConfig.config,
+                                            ),
+                                        hiddenFields: getHiddenTableFields(
+                                            chart.chartConfig,
+                                        ),
+                                        pivotConfig: downloadPivotConfig,
+                                        exportPivotedData:
+                                            effectiveExportPivotedData,
+                                        columnOrder:
+                                            chart.tableConfig.columnOrder,
+                                        conditionalFormattings:
+                                            getConditionalFormattingsFromChartConfig(
+                                                chart.chartConfig.config,
+                                            ),
+                                        expirationSecondsOverride,
+                                    },
+                                    SCHEDULER_POLLING_OPTIONS,
+                                );
+                            return {
+                                chartName: chart.name,
+                                filename: chart.name,
+                                path: downloadResult.fileUrl,
+                                localPath:
+                                    downloadResult.s3FileUrl ??
+                                    downloadResult.fileUrl,
+                                truncated: false,
+                                queryUuid: query.queryUuid,
+                            };
+                        };
+                        const downloadSqlChartTileResults = async ({
+                            chartUuid,
+                            tileUuid,
+                        }: {
+                            chartUuid: string;
+                            tileUuid: string;
+                        }) => {
+                            const sqlLimit = getSchedulerCsvLimit(csvOptions);
+                            const query =
+                                await this.asyncQueryService.executeAsyncDashboardSqlChartQuery(
+                                    {
+                                        account,
+                                        projectUuid,
+                                        savedSqlUuid: chartUuid,
+                                        invalidateCache: true,
+                                        context:
+                                            QueryExecutionContext.SCHEDULED_DELIVERY,
+                                        dashboardUuid,
+                                        tileUuid,
+                                        dashboardFilters,
+                                        dashboardSorts: [],
+                                        parameters: finalParameters,
+                                        limit:
+                                            sqlLimit === null
+                                                ? MAX_SAFE_INTEGER
+                                                : sqlLimit,
+                                    },
+                                );
+                            const chart =
+                                await this.asyncQueryService.savedSqlModel.getByUuid(
+                                    chartUuid,
+                                    {
+                                        projectUuid,
+                                    },
+                                );
+                            const downloadResult =
+                                await this.asyncQueryService.downloadSyncQueryResults(
+                                    {
+                                        account,
+                                        projectUuid,
+                                        queryUuid: query.queryUuid,
+                                        type: downloadFileType,
+                                        onlyRaw:
+                                            csvOptions?.formatted === false,
+                                        customLabels:
+                                            getCustomLabelsFromVizTableConfig(
+                                                isVizTableConfig(chart.config)
+                                                    ? chart.config
+                                                    : undefined,
+                                            ),
+                                        hiddenFields:
+                                            getHiddenFieldsFromVizTableConfig(
+                                                isVizTableConfig(chart.config)
+                                                    ? chart.config
+                                                    : undefined,
+                                            ),
+                                        columnOrder:
+                                            getColumnOrderFromVizTableConfig(
+                                                isVizTableConfig(chart.config)
+                                                    ? chart.config
+                                                    : undefined,
+                                            ),
+                                        expirationSecondsOverride,
+                                    },
+                                    SCHEDULER_POLLING_OPTIONS,
+                                );
+                            return {
+                                chartName: chart.name,
+                                filename: chart.name,
+                                path: downloadResult.fileUrl,
+                                localPath:
+                                    downloadResult.s3FileUrl ??
+                                    downloadResult.fileUrl,
+                                truncated: false,
+                                queryUuid: query.queryUuid,
+                            };
+                        };
 
-                        const results = await Promise.allSettled([
-                            ...csvForChartPromises,
-                            ...csvForSqlChartPromises,
-                        ]);
+                        const results = await Promise.allSettled(
+                            chartMetadata.map(({ type, chartUuid, tileUuid }) =>
+                                type === 'chart'
+                                    ? downloadChartTileResults({
+                                          chartUuid,
+                                          tileUuid,
+                                      })
+                                    : downloadSqlChartTileResults({
+                                          chartUuid,
+                                          tileUuid,
+                                      }),
+                            ),
+                        );
 
                         // Separate successes and failures
                         const successfulResults = results.filter(
@@ -4937,6 +4972,7 @@ export default class SchedulerTask {
             organizationUuid,
             projectUuid,
             createdByUserUuid,
+            source: 'scheduler',
         });
     }
 
@@ -5009,6 +5045,7 @@ export default class SchedulerTask {
                 projectUuid,
                 createdByUserUuid,
                 expirationSeconds: expirationSecondsOverride,
+                source: 'scheduler',
             }),
             numFileFailures: workbookResult.failedFileCount,
         };

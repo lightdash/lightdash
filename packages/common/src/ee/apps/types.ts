@@ -2,10 +2,18 @@ import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { type ApiSuccess, type ApiSuccessEmpty } from '../../types/api/success';
 import {
+    type DashboardConfig,
+    type DashboardTab,
+    type DashboardTile,
+} from '../../types/dashboard';
+import { type DashboardFilters } from '../../types/filter';
+import {
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '../../types/knex-paginate';
 import { type MetricQuery } from '../../types/metricQuery';
+import { type DashboardParameters } from '../../types/parameters';
+import { type ChartConfig, type SavedChart } from '../../types/savedCharts';
 
 /**
  * Ordered pipeline stages. Index position determines progression — used to
@@ -24,6 +32,14 @@ export const APP_VERSION_STAGE_ORDER = [
 ] as const;
 
 export const APP_VERSION_TERMINAL_STATUSES = ['ready', 'error'] as const;
+
+/**
+ * Error message stamped on a version when the user cancels its build. There is
+ * no dedicated 'cancelled' status — cancellation is an 'error' carrying this
+ * marker, which the pipeline also reads to detect that a previous prompt was
+ * cancelled mid-generation.
+ */
+export const APP_VERSION_CANCELLED_BY_USER = 'Cancelled by user';
 
 export type AppVersionStatus =
     | (typeof APP_VERSION_STAGE_ORDER)[number]
@@ -97,6 +113,28 @@ export type AppChartReference = {
 export type AppDashboardReference = {
     uuid: string;
     includeSampleData: boolean;
+};
+
+/**
+ * Structural snapshot of an attached dashboard, written into the sandbox so
+ * the agent can recreate the dashboard's design — tabs, tile layout, filters —
+ * instead of inventing a layout from the flattened chart queries. Built
+ * server-side at enqueue time from the resolved dashboard.
+ */
+export type DashboardBlueprint = {
+    dashboardUuid: string;
+    name: string;
+    description: string | null;
+    /** Sorted by `order`. Empty when the dashboard has no tabs. */
+    tabs: DashboardTab[];
+    /** Tile positions use the dashboard's 36-column grid: `x`/`w` are column
+     *  units, `y`/`h` are row units. `tabUuid` links a tile to its tab. Chart
+     *  tiles carry `properties.savedChartUuid` — the same uuid as the matching
+     *  ChartReference in the sandbox. */
+    tiles: DashboardTile[];
+    filters: DashboardFilters;
+    parameters: DashboardParameters | null;
+    config: DashboardConfig | null;
 };
 
 /**
@@ -223,6 +261,11 @@ export type AppVersionResources = {
     charts: AppVersionChartResource[];
     externalConnections?: AppVersionExternalConnectionResource[];
     dashboardName: string | null;
+    // Uuid of the attached dashboard, so later features can re-resolve its
+    // structure (the name alone is ambiguous). Optional for backwards
+    // compatibility — versions built before dashboard blueprints shipped
+    // don't carry the field.
+    dashboardUuid?: string | null;
     // Pre-build Q&A captured at the time of generation. Persisted alongside
     // the prompt so the chat history can render the clarifications as their
     // own card on the user message — rather than mashing them into the
@@ -414,6 +457,11 @@ export type ChartReference = {
     chartDescription: string;
     exploreName: string;
     metricQuery: MetricQuery;
+    /** Saved visualization config (bar/line/table/big number…) so the agent
+     *  can reproduce the chart type and styling, not just the query. */
+    chartConfig: ChartConfig;
+    /** Saved pivot layout, including ordered row fields when configured. */
+    pivotConfig: NonNullable<SavedChart['pivotConfig']> | null;
     sampleData: ChartSampleData | null; // null when the user did not opt in
     /** Saved chart UUID — surfaced into the sandbox so a linked chart can be
      *  run live via savedChart(uuid). */

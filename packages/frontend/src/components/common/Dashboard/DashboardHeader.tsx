@@ -18,7 +18,7 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine-8/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure } from '@mantine-8/hooks';
 import {
     IconAlertTriangle,
     IconBolt,

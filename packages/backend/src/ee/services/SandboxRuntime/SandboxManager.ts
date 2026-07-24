@@ -184,13 +184,22 @@ export class SandboxManager {
      * then suspends it (snapshot + destroy on object-store backends), preserving
      * state for a later resume. A row with no live sandbox is GC'd (nothing to
      * preserve); an already-gone row is a no-op.
+     *
+     * `beforeSuspend` runs with the connected handle before the snapshot is
+     * taken — e.g. to interrupt in-flight processes so they are not frozen
+     * into it. It is skipped when there is no live container. Errors propagate
+     * and abort the suspend, so pass a non-throwing callback for best-effort
+     * work.
      */
-    async suspendByUuid(sandboxUuid: string): Promise<void> {
+    async suspendByUuid(
+        sandboxUuid: string,
+        opts?: { beforeSuspend?: (handle: SandboxHandle) => Promise<void> },
+    ): Promise<void> {
         const row = await this.registry.findBySandboxUuid(sandboxUuid);
         if (!row) {
             return;
         }
-        await this.suspendOrphan(row);
+        await this.suspendOrphan(row, opts?.beforeSuspend);
     }
 
     /** Permanently dispose of a sandbox: kill it, GC its snapshot, drop the row. */
@@ -210,13 +219,19 @@ export class SandboxManager {
         await this.registry.deleteBySandboxUuid(input.sandboxUuid);
     }
 
-    private async suspendOrphan(row: SandboxRegistryRecord): Promise<void> {
+    private async suspendOrphan(
+        row: SandboxRegistryRecord,
+        beforeSuspend?: (handle: SandboxHandle) => Promise<void>,
+    ): Promise<void> {
         if (!row.providerSandboxId) {
             // No live sandbox to snapshot — nothing to preserve.
             await this.destroy({ sandboxUuid: row.sandboxUuid });
             return;
         }
         const handle = await this.provider.connect(row.providerSandboxId);
+        if (beforeSuspend) {
+            await beforeSuspend(handle);
+        }
         await this.suspend({
             sandboxUuid: row.sandboxUuid,
             handle,

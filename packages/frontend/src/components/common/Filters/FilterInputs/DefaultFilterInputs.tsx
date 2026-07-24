@@ -6,10 +6,9 @@ import {
     isTableCalculation,
     type BaseFilterRule,
 } from '@lightdash/common';
+import { TagsInput } from '@mantine-8/core';
 import isString from 'lodash/isString';
 import { type FilterInputsProps } from '.';
-import { TagInput } from '../../TagInput/TagInput';
-import { FILTER_SELECT_LIMIT } from '../constants';
 import useFiltersContext from '../useFiltersContext';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import FilterMultiNumberInput from './FilterMultiNumberInput';
@@ -58,11 +57,12 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                 case FilterType.STRING:
                     return !field || isTableCalculation(field) ? (
                         <FilterMultiStringInput
-                            limit={FILTER_SELECT_LIMIT}
                             disabled={disabled}
                             placeholder={placeholder}
                             data-autofocus
-                            withinPortal={popoverProps?.withinPortal}
+                            comboboxProps={{
+                                withinPortal: popoverProps?.withinPortal,
+                            }}
                             onDropdownOpen={popoverProps?.onOpen}
                             onDropdownClose={popoverProps?.onClose}
                             values={(rule.values || []).filter(isString)}
@@ -75,14 +75,15 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                         />
                     ) : (
                         <FilterStringAutoComplete
-                            limit={FILTER_SELECT_LIMIT}
                             filterId={rule.id}
                             disabled={disabled}
                             field={field}
                             data-autofocus
                             placeholder={placeholder}
                             suggestions={suggestions || []}
-                            withinPortal={popoverProps?.withinPortal}
+                            comboboxProps={{
+                                withinPortal: popoverProps?.withinPortal,
+                            }}
                             onDropdownOpen={popoverProps?.onOpen}
                             onDropdownClose={popoverProps?.onClose}
                             values={(rule.values || []).filter(isString)}
@@ -135,6 +136,8 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                                 autoFocus
                                 disabled={disabled}
                                 placeholder={placeholder}
+                                onModalOpen={popoverProps?.onOpen}
+                                onModalClose={popoverProps?.onClose}
                                 values={rule.values?.map(String) ?? []}
                                 onChange={(values) =>
                                     onChange({ ...rule, values })
@@ -145,7 +148,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                 case FilterType.BOOLEAN:
                 case FilterType.DATE:
                     return (
-                        <TagInput
+                        <TagsInput
                             w="100%"
                             clearable
                             data-autofocus
@@ -153,6 +156,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                             disabled={disabled}
                             placeholder={placeholder}
                             allowDuplicates={false}
+                            splitChars={[',']}
                             value={rule.values?.map(String)}
                             onChange={(values) => onChange({ ...rule, values })}
                         />

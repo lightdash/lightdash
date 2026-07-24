@@ -23,8 +23,9 @@ import {
     ActionIcon,
     Checkbox,
     Select,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip, type PopoverProps } from '@mantine/core';
+import { type PopoverProps } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
@@ -388,7 +389,10 @@ const TileFilterConfiguration: FC<Props> = ({
                                     )}
                                 </Group>
                             }
-                            classNames={{ label: classes.checkboxLabel }}
+                            classNames={{
+                                body: classes.checkboxBody,
+                                label: classes.checkboxLabel,
+                            }}
                             onChange={() => {
                                 if (isIndeterminate) {
                                     onToggleAll(false, tileUuids);
@@ -483,6 +487,7 @@ const TileFilterConfiguration: FC<Props> = ({
                                             </Flex>
                                         }
                                         classNames={{
+                                            body: classes.checkboxBody,
                                             label: classes.checkboxLabel,
                                         }}
                                         checked={value.checked}
@@ -522,8 +527,11 @@ const TileFilterConfiguration: FC<Props> = ({
                                             item={value.selectedField}
                                             items={value.sortedFilters ?? []}
                                             comboboxProps={{
-                                                withinPortal:
-                                                    popoverProps?.withinPortal,
+                                                withinPortal: false,
+                                                classNames: {
+                                                    dropdown:
+                                                        classes.inlineDropdown,
+                                                },
                                             }}
                                             onDropdownOpen={
                                                 popoverProps?.onOpen
@@ -557,8 +565,11 @@ const TileFilterConfiguration: FC<Props> = ({
                                             leftSection={undefined}
                                             allowDeselect={false}
                                             comboboxProps={{
-                                                withinPortal:
-                                                    popoverProps?.withinPortal,
+                                                withinPortal: false,
+                                                classNames: {
+                                                    dropdown:
+                                                        classes.inlineDropdown,
+                                                },
                                             }}
                                             onDropdownOpen={
                                                 popoverProps?.onOpen
@@ -646,7 +657,10 @@ const TileFilterConfiguration: FC<Props> = ({
                             : ''}
                     </Text>
                 }
-                classNames={{ label: classes.checkboxLabel }}
+                classNames={{
+                    body: classes.checkboxBody,
+                    label: classes.checkboxLabel,
+                }}
                 onChange={() => {
                     const tileUuids = tileTargetList.map((v) => v.tileUuid);
                     if (isIndeterminate) {

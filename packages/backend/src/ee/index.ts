@@ -30,6 +30,7 @@ import OpenAi from './clients/OpenAi';
 import { CommercialSlackClient } from './clients/Slack/SlackClient';
 import { AgentOnboardingRunModel } from './models/AgentOnboardingRunModel';
 import { AiAgentDocumentModel } from './models/AiAgentDocumentModel';
+import { AiAgentMemoryModel } from './models/AiAgentMemoryModel';
 import { AiAgentModel } from './models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from './models/AiAgentReviewClassifierModel';
 import { AiAgentReviewNotificationModel } from './models/AiAgentReviewNotificationModel';
@@ -63,6 +64,7 @@ import { AiAgentContentValidation } from './services/ai/utils/AiAgentContentVali
 import { AiAgentAdminService } from './services/AiAgentAdminService';
 import { AiAgentCoderService } from './services/AiAgentCoderService/AiAgentCoderService';
 import { AiAgentDocumentService } from './services/AiAgentDocumentService';
+import { AiAgentMemoryService } from './services/AiAgentMemoryService/AiAgentMemoryService';
 import { AiAgentReviewClassifierService } from './services/AiAgentReviewClassifierService';
 import { AiAgentReviewNotificationService } from './services/AiAgentReviewNotificationService';
 import { AiAgentService } from './services/AiAgentService/AiAgentService';
@@ -133,6 +135,25 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
 
     return {
         serviceProviders: {
+            aiAgentMemoryService: ({ models, clients, context, repository }) =>
+                new AiAgentMemoryService({
+                    analytics: context.lightdashAnalytics,
+                    aiAgentMemoryModel:
+                        models.getAiAgentMemoryModel<AiAgentMemoryModel>(),
+                    aiAgentModel: models.getAiAgentModel(),
+                    groupsModel: models.getGroupsModel(),
+                    projectModel: models.getProjectModel(),
+                    featureFlagService: repository.getFeatureFlagService(),
+                    schedulerClient:
+                        clients.getSchedulerClient() as CommercialSchedulerClient,
+                    orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
+                        lightdashConfig: context.lightdashConfig,
+                        aiOrganizationSettingsModel:
+                            models.getAiOrganizationSettingsModel(),
+                        featureFlagService: repository.getFeatureFlagService(),
+                        aiModelCatalog,
+                    }),
+                }),
             projectHomepageService: ({
                 models,
                 repository,
@@ -408,6 +429,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     analytics: context.lightdashAnalytics,
                     userModel: models.getUserModel(),
                     aiAgentModel: models.getAiAgentModel(),
+                    aiAgentMemoryModel:
+                        models.getAiAgentMemoryModel<AiAgentMemoryModel>(),
                     aiAgentDocumentModel:
                         models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
                     projectContextModel:
@@ -965,6 +988,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig,
                     encryptionUtil: utils.getEncryptionUtil(),
                 }),
+            aiAgentMemoryModel: ({ database }) =>
+                new AiAgentMemoryModel({ database }),
             aiAgentDocumentModel: ({ database }) =>
                 new AiAgentDocumentModel({ database }),
             aiWritebackThreadModel: ({ database }) =>
@@ -1049,6 +1074,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 schedulerAiAugmentation:
                     context.serviceRepository.getSchedulerAiAugmentationService<SchedulerAiAugmentationService>(),
                 aiAgentService: context.serviceRepository.getAiAgentService(),
+                aiAgentMemoryService:
+                    context.serviceRepository.getAiAgentMemoryService<AiAgentMemoryService>(),
                 aiWritebackService:
                     context.serviceRepository.getAiWritebackService<AiWritebackService>(),
                 aiDeepResearchService:

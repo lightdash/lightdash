@@ -12,9 +12,17 @@ cd "$(dirname "$0")"
 
 IMAGE="${1:-lightdash-sandbox:local}"
 
+# Same prereq recipe as build-sandbox.ts, so this script works standalone.
 if [ ! -f lightdash-query-sdk.tgz ]; then
-    echo "lightdash-query-sdk.tgz missing — run build-sandbox.ts first or pack the SDK." >&2
-    exit 1
+    echo "lightdash-query-sdk.tgz missing — building and packing @lightdash/query-sdk ..."
+    pnpm -C ../../packages/query-sdk build
+    pnpm -C ../../packages/query-sdk pack --pack-destination "$(pwd)"
+    TARBALL="$(find . -maxdepth 1 -name 'lightdash-query-sdk-*.tgz' | head -1)"
+    if [ -z "$TARBALL" ]; then
+        echo "query-sdk pack produced no tarball" >&2
+        exit 1
+    fi
+    mv "$TARBALL" lightdash-query-sdk.tgz
 fi
 
 # Derive a local Dockerfile that creates the `user` account before the chown.

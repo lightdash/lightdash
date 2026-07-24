@@ -9,9 +9,9 @@ import {
     Badge,
     ColorSwatch,
     Menu,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
-import { useClipboard } from '@mantine/hooks';
+import { useClipboard } from '@mantine-8/hooks';
 import {
     IconDotsVertical,
     IconEdit,
@@ -132,7 +132,6 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                                 position="bottom-end"
                                 multiline
                                 maw={200}
-                                variant="xs"
                             >
                                 <Badge color="gray" variant="light">
                                     <Group gap={2}>

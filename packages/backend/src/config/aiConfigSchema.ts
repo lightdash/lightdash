@@ -23,11 +23,25 @@ const customHeadersSchema = z.record(z.string()).default({});
 // toggle — some LLM gateways don't support streaming (SSE) completions.
 const supportsStreamingSchema = z.boolean().default(true);
 
+export const AI_PROVIDER_KEYS = [
+    'openai',
+    'azure',
+    'anthropic',
+    'openrouter',
+    'bedrock',
+] as const;
+
 export const aiCopilotConfigSchema = z
     .object({
         defaultProvider: z
-            .enum(['openai', 'azure', 'anthropic', 'openrouter', 'bedrock'])
+            .enum(AI_PROVIDER_KEYS)
             .default(DEFAULT_DEFAULT_AI_PROVIDER),
+        // Providers whose instance-level API key belongs to the customer
+        // rather than Lightdash (e.g. a dedicated cloud deployment configured
+        // with the customer's own key). Only affects the `keyManagement`
+        // dimension on AI usage analytics; org BYO keys are tracked separately
+        // at config resolution.
+        selfManagedProviders: z.array(z.enum(AI_PROVIDER_KEYS)).default([]),
         defaultEmbeddingModelProvider: z
             .enum(['openai', 'bedrock', 'azure'])
             .default(DEFAULT_DEFAULT_AI_PROVIDER),

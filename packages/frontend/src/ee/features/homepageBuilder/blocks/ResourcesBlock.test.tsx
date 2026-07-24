@@ -9,6 +9,10 @@ vi.mock('../hooks/useHomepageLinkMetadata', () => ({
     fetchHomepageLinkMetadata: vi.fn(),
 }));
 
+vi.mock('../../../../features/apps/hooks/useAppThumbnail', () => ({
+    useAppThumbnailUrl: vi.fn(() => ({ data: null })),
+}));
+
 const mockFetch = vi.mocked(fetchHomepageLinkMetadata);
 
 const wrap = (ui: React.ReactNode) =>
@@ -59,6 +63,26 @@ describe('ResourcesBlockView', () => {
         expect(screen.getByRole('link')).toHaveAttribute(
             'href',
             claudeItem.url,
+        );
+    });
+
+    it('derives a data app href from appUuid, ignoring the stored url', () => {
+        const dataAppItem = {
+            url: '/projects/p1/nabc-123', // malformed url persisted by an old builder version
+            kind: 'data-app' as const,
+            title: 'My App',
+            appUuid: 'abc-123',
+        };
+        wrap(
+            <ResourcesBlockView
+                itemSpan={null}
+                projectUuid="p1"
+                block={block({ layout: 'list', items: [dataAppItem] })}
+            />,
+        );
+        expect(screen.getByRole('link')).toHaveAttribute(
+            'href',
+            '/projects/p1/apps/abc-123/view',
         );
     });
 

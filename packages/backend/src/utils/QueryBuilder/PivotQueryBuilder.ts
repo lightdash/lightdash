@@ -209,6 +209,27 @@ export class PivotQueryBuilder {
     }
 
     /**
+     * Unpinned sort-only (undisplayed) table-calc sorts use row-level
+     * semantics — MAX across all pivot columns — instead of the metric-sort
+     * anchor: anchoring a per-(index, group) calc to one group yields NULL for
+     * every index tuple absent from that group. Displayed table calcs, metrics
+     * and explicitly pinned sorts (`pivotValues`) keep anchor semantics;
+     * column ordering is not affected either way.
+     */
+    private isSortOnlyTableCalculation(reference: string): boolean {
+        const item = this.itemsMap[reference];
+        if (!item || !isTableCalculation(item)) return false;
+        const isSortOnly = (this.pivotConfiguration.sortOnlyColumns ?? []).some(
+            (col) => col.reference === reference,
+        );
+        if (!isSortOnly) return false;
+        const sort = this.pivotConfiguration.sortBy?.find(
+            (s) => s.reference === reference,
+        );
+        return !sort?.pivotValues?.length;
+    }
+
+    /**
      * Replaces `"reference"` with `alias."reference"` in a sort expression.
      * For custom bin dimensions, also replaces `"reference_order"` with `alias."reference_order"`.
      */
@@ -1136,6 +1157,16 @@ export class PivotQueryBuilder {
             );
 
             const rowAnchorCteName = `${valCol.reference}_ra`;
+
+            // Sort-only table calcs aggregate across ALL pivot columns — no anchor
+            if (this.isSortOnlyTableCalculation(valCol.reference)) {
+                result[rowAnchorCteName] = {
+                    cteName: rowAnchorCteName,
+                    sql: `SELECT ${indexColumnRefs}, MAX(q.${q}${fieldName}${q}) AS ${q}${rowAnchorCteName}_value${q} FROM group_by_query q GROUP BY ${indexColumnGroupBy}`,
+                };
+                return;
+            }
+
             const anchorCteName =
                 perMetricAnchorCte?.get(valCol.reference) ?? 'anchor_column';
             const anchorCteRef =
@@ -1202,8 +1233,15 @@ export class PivotQueryBuilder {
         // Row anchor CTEs (and the anchor_column CTE that feeds them) only
         // make sense when there are row dimensions to rank — without them
         // every row has row_index = 1.
-        const hasMetricSort = valuesColumns?.some((valCol) =>
+        const sortedValueColumns = (valuesColumns ?? []).filter((valCol) =>
             sortBy?.some((sort) => sort.reference === valCol.reference),
+        );
+        const hasMetricSort = sortedValueColumns.length > 0;
+        // Sort-only table-calc sorts use row-level semantics (MAX across all pivot
+        // columns), so they don't need the anchor_column CTE — only metric
+        // sorts anchored to the first pivot column do.
+        const hasAnchoredMetricSort = sortedValueColumns.some(
+            (valCol) => !this.isSortOnlyTableCalculation(valCol.reference),
         );
         // A sort-only dimension also drives the column ORDER BY, which means
         // we need column_ranking (for the precomputed ranking path) even when
@@ -1238,12 +1276,18 @@ export class PivotQueryBuilder {
                 const hasAnyPin =
                     sortBy?.some((s) => s.pivotValues?.length) ?? false;
 
-                if (hasAnyPin && valuesColumns) {
+                if (!hasAnchoredMetricSort) {
+                    // Only table-calc sorts: rows order by MAX across all pivot
+                    // columns, no anchor CTE needed.
+                } else if (hasAnyPin && valuesColumns) {
                     valuesColumns.forEach((valCol) => {
                         const sortConfig = sortBy?.find(
                             (s) => s.reference === valCol.reference,
                         );
                         if (!sortConfig) return;
+                        if (this.isSortOnlyTableCalculation(valCol.reference)) {
+                            return;
+                        }
                         const anchorCteName = `${valCol.reference}_anchor_column`;
                         const anchorSQL = this.getAnchorColumnSQL(
                             groupByColumns,
@@ -1333,11 +1377,17 @@ export class PivotQueryBuilder {
             sortBy?.some((sort) => sort.reference === valCol.reference),
         );
 
+        // Sort-only table calcs aggregate across ALL pivot columns (row-level
+        // semantics) — only metric sorts need an anchor column.
+        const anchoredValueColumns = sortedValueColumns.filter(
+            (valCol) => !this.isSortOnlyTableCalculation(valCol.reference),
+        );
+
         // Each value column's anchor column (shared `anchor_column` or, for
         // pinned sorts, a per-metric `${ref}_anchor_column`). Distinct anchors
         // are CROSS JOINed once; a single anchor keeps the `ac` alias.
         const anchorByValCol = new Map<string, string>(
-            sortedValueColumns.map((valCol) => [
+            anchoredValueColumns.map((valCol) => [
                 valCol.reference,
                 perMetricAnchorCte?.get(valCol.reference) ?? 'anchor_column',
             ]),
@@ -1356,15 +1406,18 @@ export class PivotQueryBuilder {
                     name === 'anchor_column'
                         ? 'anchor_column'
                         : `${q}${name}${q}`;
-                return `CROSS JOIN ${ref} ${aliasByAnchor.get(name)}`;
+                return ` CROSS JOIN ${ref} ${aliasByAnchor.get(name)}`;
             })
-            .join(' ');
+            .join('');
 
         const maxCaseSelects = sortedValueColumns.map((valCol) => {
             const fieldName = PivotQueryBuilder.getValueColumnFieldName(
                 valCol.reference,
                 valCol.aggregation,
             );
+            if (this.isSortOnlyTableCalculation(valCol.reference)) {
+                return `MAX(q.${q}${fieldName}${q}) AS ${q}${valCol.reference}_ra_value${q}`;
+            }
             const alias = aliasByAnchor.get(
                 anchorByValCol.get(valCol.reference)!,
             )!;
@@ -1381,7 +1434,7 @@ export class PivotQueryBuilder {
 
         return `SELECT ${indexSelect}, ${maxCaseSelects.join(
             ', ',
-        )} FROM group_by_query q ${crossJoins} GROUP BY ${indexSelect}`;
+        )} FROM group_by_query q${crossJoins} GROUP BY ${indexSelect}`;
     }
 
     /**
@@ -1530,6 +1583,13 @@ export class PivotQueryBuilder {
                     valCol.reference,
                     valCol.aggregation,
                 );
+                // Sort-only table calcs aggregate across ALL pivot columns — no anchor
+                if (this.isSortOnlyTableCalculation(valCol.reference)) {
+                    acc.push(
+                        `MAX(g.${q}${fieldName}${q}) OVER (PARTITION BY ${indexPartition}) AS ${q}${valCol.reference}_ra_value${q}`,
+                    );
+                    return acc;
+                }
                 const anchorPredicate = this.buildAnchorWhereClause(
                     sortConfig.pivotValues,
                     groupByColumns,

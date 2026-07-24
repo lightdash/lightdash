@@ -37,6 +37,7 @@ const registerQuery = async (data: CreateUserArgs | CreateEmailOnlyUserArgs) =>
         url: `/user`,
         method: 'POST',
         body: JSON.stringify(data),
+        sensitive: true,
     });
 
 const Register: FC = () => {
@@ -85,7 +86,9 @@ const Register: FC = () => {
         return <PageSpinner />;
     }
 
-    const isEmailOnlySignup = emailOnlySignupFlag.data?.enabled ?? false;
+    const isEmailOnlySignup =
+        (emailOnlySignupFlag.data?.enabled ?? false) &&
+        !!health.data?.hasEmailClient;
 
     const ssoAvailable =
         health.data?.auth.google.enabled ||

@@ -1,0 +1,1170 @@
+import {
+    CommercialFeatureFlags,
+    FeatureFlags,
+    ProjectType,
+    SEED_ORG_1,
+    SEED_ORG_1_ADMIN,
+    SEED_PROJECT,
+    type AiAgentMemoryDistillJobPayload,
+    type AiThreadCreatedFrom,
+} from '@lightdash/common';
+import type { Knex } from 'knex';
+import { vi } from 'vitest';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { parseConfig } from '../../config/parseConfig';
+import {
+    FeatureFlagsTableName,
+    type DbFeatureFlag,
+    type FeatureFlagsTable,
+} from '../../database/entities/featureFlags';
+import {
+    ProjectTableName,
+    type DbProject,
+} from '../../database/entities/projects';
+import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
+import { getTestContext } from '../../vitest.setup.integration';
+import {
+    AiPromptInterruptTableName,
+    AiPromptTableName,
+    AiThreadTableName,
+    type DbAiPrompt,
+} from '../database/entities/ai';
+import {
+    AiAgentMemoryTableName,
+    AiAgentThreadDistillTableName,
+} from '../database/entities/aiAgentMemory';
+import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
+import {
+    AiAgentMemoryService,
+    type AiAgentMemoryDistillCall,
+} from '../services/AiAgentMemoryService/AiAgentMemoryService';
+import { AiAgentMemoryModel } from './AiAgentMemoryModel';
+import { CommercialFeatureFlagModel } from './CommercialFeatureFlagModel';
+
+describe('AiAgentMemoryModel integration', () => {
+    let database: Knex;
+    let model: AiAgentMemoryModel;
+    let featureFlagService: FeatureFlagService;
+    let schedulerClient: CommercialSchedulerClient;
+    let analytics: LightdashAnalytics;
+    const originalFlags = new Map<string, DbFeatureFlag | undefined>();
+    const threadUuids = new Set<string>();
+    const memoryUuids = new Set<string>();
+
+    const setFeatureFlag = async (flagId: string, enabled: boolean) => {
+        await database<FeatureFlagsTable>(FeatureFlagsTableName)
+            .insert({ flag_id: flagId, default_enabled: enabled })
+            .onConflict('flag_id')
+            .merge({ default_enabled: enabled });
+    };
+
+    beforeAll(async () => {
+        database = getTestContext().db;
+        model = getTestContext()
+            .app.getModels()
+            .getAiAgentMemoryModel<AiAgentMemoryModel>();
+        const lightdashConfig = parseConfig();
+        if (!lightdashConfig.database.connectionUri) {
+            throw new Error('PGCONNECTIONURI is required');
+        }
+        const testDatabaseUrl = new URL(lightdashConfig.database.connectionUri);
+        testDatabaseUrl.pathname = `${testDatabaseUrl.pathname}_test`;
+        lightdashConfig.database.connectionUri = testDatabaseUrl.toString();
+        lightdashConfig.enabledFeatureFlags.delete(FeatureFlags.AiAgentMemory);
+        lightdashConfig.disabledFeatureFlags.delete(FeatureFlags.AiAgentMemory);
+        const featureFlagModel = new CommercialFeatureFlagModel({
+            database,
+            lightdashConfig,
+        });
+        featureFlagService = new FeatureFlagService({
+            lightdashConfig,
+            featureFlagModel,
+        });
+        analytics = new LightdashAnalytics({
+            lightdashConfig,
+            writeKey: 'notrack',
+            dataPlaneUrl: 'notrack',
+            options: { enable: false },
+        });
+        schedulerClient = new CommercialSchedulerClient({
+            lightdashConfig,
+            analytics,
+            schedulerModel: getTestContext()
+                .app.getModels()
+                .getSchedulerModel(),
+            featureFlagModel,
+        });
+        await schedulerClient.graphileUtils;
+        const flagIds = [
+            FeatureFlags.AiAgentMemory,
+            CommercialFeatureFlags.AiCopilot,
+        ];
+        const storedFlags = await Promise.all(
+            flagIds.map((flagId) =>
+                database<FeatureFlagsTable>(FeatureFlagsTableName)
+                    .where('flag_id', flagId)
+                    .first(),
+            ),
+        );
+        flagIds.forEach((flagId, index) => {
+            originalFlags.set(flagId, storedFlags[index]);
+        });
+        await Promise.all(
+            flagIds.map((flagId) => setFeatureFlag(flagId, true)),
+        );
+    });
+
+    afterEach(async () => {
+        await setFeatureFlag(FeatureFlags.AiAgentMemory, true);
+        if (memoryUuids.size > 0) {
+            await database(AiAgentMemoryTableName)
+                .whereIn('ai_agent_memory_uuid', [...memoryUuids])
+                .delete();
+            memoryUuids.clear();
+        }
+        if (threadUuids.size === 0) {
+            return;
+        }
+
+        const ids = [...threadUuids];
+        const graphileClient = await schedulerClient.graphileUtils;
+        await graphileClient.withPgClient((client) =>
+            client.query(
+                'DELETE FROM graphile_worker.jobs WHERE key = ANY($1)',
+                [ids.map((id) => `ai-agent-memory-distill:${id}`)],
+            ),
+        );
+        await database(AiAgentMemoryTableName)
+            .whereIn('source_thread_uuid', ids)
+            .delete();
+        await database(AiAgentThreadDistillTableName)
+            .whereIn('ai_thread_uuid', ids)
+            .delete();
+        await database(AiThreadTableName)
+            .whereIn('ai_thread_uuid', ids)
+            .delete();
+        threadUuids.clear();
+    });
+
+    afterAll(async () => {
+        await Promise.all(
+            [...originalFlags].map(([flagId, flag]) =>
+                flag
+                    ? database<FeatureFlagsTable>(FeatureFlagsTableName)
+                          .insert({
+                              flag_id: flag.flag_id,
+                              default_enabled: flag.default_enabled,
+                          })
+                          .onConflict('flag_id')
+                          .merge({ default_enabled: flag.default_enabled })
+                    : database<FeatureFlagsTable>(FeatureFlagsTableName)
+                          .where('flag_id', flagId)
+                          .delete(),
+            ),
+        );
+        const graphileClient = await schedulerClient.graphileUtils;
+        await graphileClient.release();
+    });
+
+    const createThread = async (
+        createdFrom: AiThreadCreatedFrom = 'web_app',
+    ) => {
+        const [thread] = await database(AiThreadTableName)
+            .insert({
+                organization_uuid: SEED_ORG_1.organization_uuid,
+                project_uuid: SEED_PROJECT.project_uuid,
+                created_from: createdFrom,
+                agent_uuid: null,
+            })
+            .returning('ai_thread_uuid');
+        threadUuids.add(thread.ai_thread_uuid);
+        return thread.ai_thread_uuid;
+    };
+
+    const createPrompt = async (
+        threadUuid: string,
+        createdAt: Date,
+        successful = true,
+        hidden = false,
+    ) => {
+        const [prompt] = await database<
+            Pick<
+                DbAiPrompt,
+                | 'ai_thread_uuid'
+                | 'created_by_user_uuid'
+                | 'prompt'
+                | 'response'
+                | 'error_message'
+                | 'responded_at'
+                | 'created_at'
+                | 'hidden'
+            >
+        >(AiPromptTableName)
+            .insert({
+                ai_thread_uuid: threadUuid,
+                created_by_user_uuid: null,
+                prompt: 'Question',
+                response: successful ? 'Answer' : null,
+                error_message: successful ? null : 'failed',
+                responded_at: successful ? createdAt : null,
+                created_at: createdAt,
+                hidden,
+            })
+            .returning<{ ai_prompt_uuid: string }[]>('ai_prompt_uuid');
+        await database(AiThreadTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .update({ updated_at: createdAt });
+        return prompt.ai_prompt_uuid;
+    };
+
+    const memoryInput = (
+        sourceThreadUuid: string,
+        overrides: Partial<
+            Parameters<AiAgentMemoryModel['upsertSourceThreadMemory']>[0]
+        > = {},
+    ) => ({
+        organizationUuid: SEED_ORG_1.organization_uuid,
+        projectUuid: SEED_PROJECT.project_uuid,
+        agentUuid: null,
+        userUuid: null,
+        sourceThreadUuid,
+        slug: `memory-${crypto.randomUUID().slice(0, 8)}`,
+        title: 'Net revenue convention',
+        rawMemory: 'Use net revenue.',
+        threadSummary: 'The user established the revenue convention.',
+        terms: ['revenue'],
+        objects: [
+            {
+                type: 'field' as const,
+                explore: 'orders',
+                fieldId: 'orders_net_revenue',
+            },
+        ],
+        unresolvedObjects: [],
+        generatedAt: new Date('2026-07-22T10:00:00Z'),
+        ...overrides,
+    });
+
+    const buildService = (
+        distillCall: AiAgentMemoryDistillCall,
+        projectModel: Pick<
+            ProjectModel,
+            'findExploresFromCache' | 'getSummary'
+        > = getTestContext().app.getModels().getProjectModel(),
+    ) =>
+        new AiAgentMemoryService({
+            analytics,
+            aiAgentMemoryModel: model,
+            aiAgentModel: getTestContext().app.getModels().getAiAgentModel(),
+            groupsModel: getTestContext().app.getModels().getGroupsModel(),
+            projectModel,
+            featureFlagService,
+            schedulerClient,
+            distillCall,
+        });
+
+    it('replaces source-thread content while keeping slug and telemetry', async () => {
+        const sourceThreadUuid = await createThread();
+        const first = await model.upsertSourceThreadMemory(
+            memoryInput(sourceThreadUuid),
+        );
+        const citedAt = new Date('2026-07-22T11:00:00Z');
+        const pulledAt = new Date('2026-07-22T12:00:00Z');
+        await database(AiAgentMemoryTableName)
+            .where('ai_agent_memory_uuid', first.ai_agent_memory_uuid)
+            .update({
+                cited_count: 3,
+                last_cited_at: citedAt,
+                pulled_count: 5,
+                last_pulled_at: pulledAt,
+            });
+
+        const generatedAt = new Date('2026-07-22T13:00:00Z');
+        const updated = await model.upsertSourceThreadMemory(
+            memoryInput(sourceThreadUuid, {
+                slug: 'replacement-slug-is-ignored',
+                title: 'Recognized net revenue convention',
+                rawMemory: 'Use recognized net revenue.',
+                threadSummary: 'The resumed thread confirmed the convention.',
+                terms: ['net revenue'],
+                objects: [{ type: 'explore', name: 'orders' }],
+                unresolvedObjects: [
+                    { type: 'explore', name: 'missing_orders' },
+                ],
+                generatedAt,
+            }),
+        );
+
+        expect(updated).toMatchObject({
+            ai_agent_memory_uuid: first.ai_agent_memory_uuid,
+            slug: first.slug,
+            title: 'Recognized net revenue convention',
+            raw_memory: 'Use recognized net revenue.',
+            thread_summary: 'The resumed thread confirmed the convention.',
+            terms: ['net revenue'],
+            objects: [{ type: 'explore', name: 'orders' }],
+            unresolved_objects: [{ type: 'explore', name: 'missing_orders' }],
+            generated_at: generatedAt,
+            cited_count: 3,
+            last_cited_at: citedAt,
+            pulled_count: 5,
+            last_pulled_at: pulledAt,
+        });
+    });
+
+    it('increments pull telemetry without changing citation telemetry', async () => {
+        const sourceThreadUuid = await createThread();
+        const memory = await model.upsertSourceThreadMemory(
+            memoryInput(sourceThreadUuid),
+        );
+        const citedAt = new Date('2026-07-22T11:00:00Z');
+        await database(AiAgentMemoryTableName)
+            .where('ai_agent_memory_uuid', memory.ai_agent_memory_uuid)
+            .update({ cited_count: 3, last_cited_at: citedAt });
+
+        const before = new Date();
+        await model.incrementPulledForActiveMemories({
+            projectUuid: SEED_PROJECT.project_uuid,
+            slugs: [memory.slug, memory.slug],
+        });
+        const updated = await database(AiAgentMemoryTableName)
+            .where('ai_agent_memory_uuid', memory.ai_agent_memory_uuid)
+            .first();
+
+        expect(updated).toMatchObject({
+            pulled_count: 1,
+            cited_count: 3,
+            last_cited_at: citedAt,
+        });
+        expect(updated?.last_pulled_at).not.toBeNull();
+        expect(updated!.last_pulled_at!.getTime()).toBeGreaterThanOrEqual(
+            before.getTime(),
+        );
+    });
+
+    it('increments citation telemetry only for active memories', async () => {
+        const activeThreadUuid = await createThread();
+        const retiredThreadUuid = await createThread();
+        const active = await model.upsertSourceThreadMemory(
+            memoryInput(activeThreadUuid),
+        );
+        const retired = await model.upsertSourceThreadMemory(
+            memoryInput(retiredThreadUuid),
+        );
+        await database(AiAgentMemoryTableName)
+            .where('ai_agent_memory_uuid', retired.ai_agent_memory_uuid)
+            .update({ status: 'retired' });
+
+        await model.incrementCitedForActiveMemories({
+            projectUuid: SEED_PROJECT.project_uuid,
+            slugs: [active.slug, active.slug, retired.slug, 'unknown-memory'],
+        });
+
+        const rows = await database(AiAgentMemoryTableName)
+            .whereIn('ai_agent_memory_uuid', [
+                active.ai_agent_memory_uuid,
+                retired.ai_agent_memory_uuid,
+            ])
+            .orderBy('slug');
+        const activeRow = rows.find(
+            (row) => row.ai_agent_memory_uuid === active.ai_agent_memory_uuid,
+        );
+        const retiredRow = rows.find(
+            (row) => row.ai_agent_memory_uuid === retired.ai_agent_memory_uuid,
+        );
+
+        expect(activeRow).toMatchObject({
+            cited_count: 1,
+            pulled_count: 0,
+            last_pulled_at: null,
+        });
+        expect(activeRow?.last_cited_at).not.toBeNull();
+        expect(retiredRow).toMatchObject({
+            cited_count: 0,
+            last_cited_at: null,
+            pulled_count: 0,
+        });
+    });
+
+    it('ranks active memories by latest citation then generation time', async () => {
+        const olderThreadUuid = await createThread();
+        const newerThreadUuid = await createThread();
+        const citedThreadUuid = await createThread();
+        const older = await model.upsertSourceThreadMemory(
+            memoryInput(olderThreadUuid, {
+                generatedAt: new Date('2026-07-20T10:00:00Z'),
+            }),
+        );
+        const newer = await model.upsertSourceThreadMemory(
+            memoryInput(newerThreadUuid, {
+                generatedAt: new Date('2026-07-21T10:00:00Z'),
+            }),
+        );
+        const cited = await model.upsertSourceThreadMemory(
+            memoryInput(citedThreadUuid, {
+                generatedAt: new Date('2026-07-19T10:00:00Z'),
+            }),
+        );
+        await database(AiAgentMemoryTableName)
+            .where('ai_agent_memory_uuid', cited.ai_agent_memory_uuid)
+            .update({ last_cited_at: new Date('2026-07-22T10:00:00Z') });
+
+        const rows = await model.findActiveForProject({
+            projectUuid: SEED_PROJECT.project_uuid,
+        });
+        const testMemorySlugs = new Set([older.slug, newer.slug, cited.slug]);
+
+        expect(
+            rows
+                .filter((row) => testMemorySlugs.has(row.slug))
+                .map((row) => row.slug),
+        ).toEqual([cited.slug, newer.slug, older.slug]);
+    });
+
+    it('upserts one ledger row and clears stale outcome details', async () => {
+        const aiThreadUuid = await createThread();
+        const memory = await model.upsertSourceThreadMemory(
+            memoryInput(aiThreadUuid),
+        );
+        const first = await model.upsertThreadDistill({
+            aiThreadUuid,
+            outcome: 'memory',
+            distillPromptHash: 'hash-1',
+            distilledUpTo: new Date('2026-07-22T10:00:00Z'),
+        });
+
+        const noOp = await model.upsertThreadDistill({
+            aiThreadUuid,
+            outcome: 'no_op',
+            noOpReason: 'insufficient_signal',
+            distillPromptHash: 'hash-2',
+            distilledUpTo: new Date('2026-07-22T11:00:00Z'),
+        });
+        expect(noOp).toMatchObject({
+            ai_agent_thread_distill_uuid: first.ai_agent_thread_distill_uuid,
+            outcome: 'no_op',
+            no_op_reason: 'insufficient_signal',
+            error_message: null,
+            distilled_up_to: new Date('2026-07-22T11:00:00Z'),
+        });
+        const activeMemory = await database(AiAgentMemoryTableName)
+            .where('source_thread_uuid', aiThreadUuid)
+            .where('status', 'active')
+            .first();
+        expect(activeMemory?.ai_agent_memory_uuid).toBe(
+            memory.ai_agent_memory_uuid,
+        );
+
+        const failed = await model.upsertThreadDistill({
+            aiThreadUuid,
+            outcome: 'failed',
+            errorMessage: 'provider timeout',
+            distillPromptHash: 'hash-3',
+            distilledUpTo: new Date('2026-07-22T12:00:00Z'),
+        });
+        expect(failed).toMatchObject({
+            ai_agent_thread_distill_uuid: first.ai_agent_thread_distill_uuid,
+            outcome: 'failed',
+            no_op_reason: null,
+            error_message: 'provider timeout',
+            distill_prompt_hash: 'hash-3',
+        });
+
+        const succeeded = await model.upsertThreadDistill({
+            aiThreadUuid,
+            outcome: 'memory',
+            distillPromptHash: null,
+            distilledUpTo: new Date('2026-07-22T13:00:00Z'),
+        });
+        expect(succeeded).toMatchObject({
+            ai_agent_thread_distill_uuid: first.ai_agent_thread_distill_uuid,
+            outcome: 'memory',
+            no_op_reason: null,
+            error_message: null,
+            distill_prompt_hash: null,
+        });
+        const ledgerCount = await database(AiAgentThreadDistillTableName)
+            .where('ai_thread_uuid', aiThreadUuid)
+            .count<{ count: bigint }>('* as count')
+            .first();
+        expect(Number(ledgerCount?.count)).toBe(1);
+    });
+
+    it('returns only active project memories in citation then generation order', async () => {
+        const [firstThread, secondThread, thirdThread, retiredThread] =
+            await Promise.all([
+                createThread(),
+                createThread(),
+                createThread(),
+                createThread(),
+            ]);
+        const first = await model.upsertSourceThreadMemory(
+            memoryInput(firstThread, {
+                generatedAt: new Date('2026-07-22T12:00:00Z'),
+            }),
+        );
+        const second = await model.upsertSourceThreadMemory(
+            memoryInput(secondThread, {
+                generatedAt: new Date('2026-07-22T13:00:00Z'),
+            }),
+        );
+        const third = await model.upsertSourceThreadMemory(
+            memoryInput(thirdThread, {
+                generatedAt: new Date('2026-07-22T11:00:00Z'),
+            }),
+        );
+        const retired = await model.upsertSourceThreadMemory(
+            memoryInput(retiredThread, {
+                generatedAt: new Date('2026-07-22T14:00:00Z'),
+            }),
+        );
+        await database(AiAgentMemoryTableName)
+            .where('ai_agent_memory_uuid', first.ai_agent_memory_uuid)
+            .update({ last_cited_at: new Date('2026-07-22T09:00:00Z') });
+        await database(AiAgentMemoryTableName)
+            .where('ai_agent_memory_uuid', retired.ai_agent_memory_uuid)
+            .update({ status: 'retired' });
+
+        const rows = await model.findActiveForProject({
+            projectUuid: SEED_PROJECT.project_uuid,
+        });
+
+        expect(rows.map((row) => row.ai_agent_memory_uuid)).toEqual([
+            first.ai_agent_memory_uuid,
+            second.ai_agent_memory_uuid,
+            third.ai_agent_memory_uuid,
+        ]);
+    });
+
+    it('reads distilled and nested consolidated provenance with the final replacement', async () => {
+        const [firstThread, secondThread] = await Promise.all([
+            createThread(),
+            createThread(),
+        ]);
+        await Promise.all([
+            database(AiThreadTableName)
+                .where('ai_thread_uuid', firstThread)
+                .update({ title: 'Revenue convention' }),
+            database(AiThreadTableName)
+                .where('ai_thread_uuid', secondThread)
+                .update({ title: 'Refund correction' }),
+        ]);
+        const [first, second] = await Promise.all([
+            model.upsertSourceThreadMemory(memoryInput(firstThread)),
+            model.upsertSourceThreadMemory(
+                memoryInput(secondThread, {
+                    rawMemory: 'Subtract refunds.',
+                    threadSummary: 'The user corrected refund handling.',
+                }),
+            ),
+        ]);
+        const [winner] = await database(AiAgentMemoryTableName)
+            .insert({
+                organization_uuid: SEED_ORG_1.organization_uuid,
+                project_uuid: SEED_PROJECT.project_uuid,
+                agent_uuid: null,
+                user_uuid: null,
+                source_thread_uuid: null,
+                slug: `winner-${crypto.randomUUID().slice(0, 8)}`,
+                title: 'Net revenue after refunds',
+                raw_memory: 'Use net revenue after refunds.',
+                thread_summary: null,
+                terms: JSON.stringify(['net revenue']),
+                objects: JSON.stringify([]),
+                unresolved_objects: JSON.stringify([]),
+                generated_at: new Date('2026-07-22T14:00:00Z'),
+            } as never)
+            .returning('*');
+        memoryUuids.add(winner.ai_agent_memory_uuid);
+        const [merged] = await database(AiAgentMemoryTableName)
+            .insert({
+                organization_uuid: SEED_ORG_1.organization_uuid,
+                project_uuid: SEED_PROJECT.project_uuid,
+                agent_uuid: null,
+                user_uuid: null,
+                source_thread_uuid: null,
+                slug: `merged-${crypto.randomUUID().slice(0, 8)}`,
+                title: 'Net revenue',
+                raw_memory: 'Use net revenue.',
+                thread_summary: null,
+                terms: JSON.stringify(['revenue']),
+                objects: JSON.stringify([]),
+                unresolved_objects: JSON.stringify([]),
+                status: 'superseded',
+                superseded_by_uuid: winner.ai_agent_memory_uuid,
+                generated_at: new Date('2026-07-22T13:00:00Z'),
+            } as never)
+            .returning('*');
+        memoryUuids.add(merged.ai_agent_memory_uuid);
+        await database(AiAgentMemoryTableName)
+            .whereIn('ai_agent_memory_uuid', [
+                first.ai_agent_memory_uuid,
+                second.ai_agent_memory_uuid,
+            ])
+            .update({
+                status: 'superseded',
+                superseded_by_uuid: merged.ai_agent_memory_uuid,
+            });
+
+        const result = await model.findByProjectAndSlug({
+            projectUuid: SEED_PROJECT.project_uuid,
+            slug: winner.slug,
+        });
+        const superseded = await model.findByProjectAndSlug({
+            projectUuid: SEED_PROJECT.project_uuid,
+            slug: merged.slug,
+        });
+
+        expect(
+            result?.sources
+                .map((source) => ({
+                    slug: source.slug,
+                    threadTitle: source.thread_title,
+                }))
+                .sort((a, b) => a.slug.localeCompare(b.slug)),
+        ).toEqual(
+            [
+                { slug: first.slug, threadTitle: 'Revenue convention' },
+                { slug: second.slug, threadTitle: 'Refund correction' },
+            ].sort((a, b) => a.slug.localeCompare(b.slug)),
+        );
+        expect(result?.replacement).toBeNull();
+        expect(superseded?.replacement).toEqual({ slug: winner.slug });
+    });
+
+    it('selects only idle, recent, supported threads due by watermark', async () => {
+        const now = new Date('2026-07-22T12:00:00Z');
+        const eligible = await createThread();
+        const resumed = await createThread('slack');
+        const active = await createThread();
+        const belowFloor = await createThread();
+        const failed = await createThread();
+        const hiddenOnly = await createThread();
+        const excludedSource = await createThread('evals');
+        const alreadyDistilled = await createThread();
+        const idleAt = new Date('2026-07-22T05:00:00Z');
+
+        await Promise.all([
+            createPrompt(eligible, idleAt),
+            createPrompt(resumed, idleAt),
+            createPrompt(active, new Date('2026-07-22T07:00:00Z')),
+            createPrompt(belowFloor, new Date('2026-07-16T12:00:00Z')),
+            createPrompt(failed, idleAt, false),
+            createPrompt(hiddenOnly, idleAt, true, true),
+            createPrompt(excludedSource, idleAt),
+            createPrompt(alreadyDistilled, idleAt),
+        ]);
+        await Promise.all([
+            model.upsertThreadDistill({
+                aiThreadUuid: resumed,
+                outcome: 'no_op',
+                noOpReason: 'insufficient_signal',
+                distillPromptHash: 'hash',
+                distilledUpTo: new Date('2026-07-22T04:59:00Z'),
+            }),
+            model.upsertThreadDistill({
+                aiThreadUuid: alreadyDistilled,
+                outcome: 'no_op',
+                noOpReason: 'insufficient_signal',
+                distillPromptHash: 'hash',
+                distilledUpTo: idleAt,
+            }),
+        ]);
+
+        const candidates = await model.findThreadsDueForDistill({
+            idleBefore: new Date(now.getTime() - 6 * 60 * 60 * 1000),
+            activityFloor: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
+        });
+        expect(
+            candidates
+                .filter((row) => threadUuids.has(row.threadUuid))
+                .map((row) => row.threadUuid)
+                .sort(),
+        ).toEqual([eligible, failed, hiddenOnly, resumed].sort());
+
+        const laterHiddenActivity = new Date('2026-07-22T05:30:00Z');
+        await createPrompt(eligible, laterHiddenActivity, true, true);
+        const loaded = await model.findThreadForDistill(eligible);
+        expect(loaded?.turns).toHaveLength(1);
+        expect(loaded?.latestActivity).toEqual(laterHiddenActivity);
+
+        await database<Pick<DbProject, 'project_uuid' | 'project_type'>>(
+            ProjectTableName,
+        )
+            .where('project_uuid', SEED_PROJECT.project_uuid)
+            .update({ project_type: ProjectType.PREVIEW });
+        try {
+            const previewCandidates = await model.findThreadsDueForDistill({
+                idleBefore: new Date(now.getTime() - 6 * 60 * 60 * 1000),
+                activityFloor: new Date(
+                    now.getTime() - 5 * 24 * 60 * 60 * 1000,
+                ),
+            });
+            expect(
+                previewCandidates.some((row) =>
+                    threadUuids.has(row.threadUuid),
+                ),
+            ).toBe(false);
+        } finally {
+            await database<Pick<DbProject, 'project_uuid' | 'project_type'>>(
+                ProjectTableName,
+            )
+                .where('project_uuid', SEED_PROJECT.project_uuid)
+                .update({ project_type: ProjectType.DEFAULT });
+        }
+    });
+
+    it('records failed-response skips without calling the LLM or re-enqueueing', async () => {
+        const now = new Date('2026-07-22T12:00:00Z');
+        const idleAt = new Date('2026-07-22T05:00:00Z');
+        const failed = await createThread();
+        const excludedSource = await createThread('evals');
+        await Promise.all([
+            createPrompt(failed, idleAt, false),
+            createPrompt(excludedSource, idleAt),
+        ]);
+        const distillCall = vi.fn<AiAgentMemoryDistillCall>();
+        const service = buildService(distillCall);
+        const payload = {
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            userUuid: 'system',
+            sweptUpdatedAt: idleAt.toISOString(),
+        };
+
+        await expect(
+            service.distillThread({ ...payload, threadUuid: failed }),
+        ).resolves.toBe('skipped');
+        await expect(
+            service.distillThread({ ...payload, threadUuid: excludedSource }),
+        ).resolves.toBe('skipped');
+        expect(distillCall).not.toHaveBeenCalled();
+
+        const ledgers = await database(AiAgentThreadDistillTableName)
+            .whereIn('ai_thread_uuid', [failed, excludedSource])
+            .select();
+        expect(ledgers).toHaveLength(1);
+        expect(ledgers[0]).toMatchObject({
+            ai_thread_uuid: failed,
+            outcome: 'skipped',
+            distill_prompt_hash: null,
+            distilled_up_to: idleAt,
+        });
+
+        const candidates = await model.findThreadsDueForDistill({
+            idleBefore: new Date(now.getTime() - 6 * 60 * 60 * 1000),
+            activityFloor: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
+        });
+        expect(candidates.some((row) => row.threadUuid === failed)).toBe(false);
+    });
+
+    it('treats an interrupted-only thread as skipped', async () => {
+        const activity = new Date('2026-07-22T05:00:00Z');
+        const threadUuid = await createThread();
+        const promptUuid = await createPrompt(threadUuid, activity);
+        await database(AiPromptInterruptTableName).insert({
+            ai_prompt_uuid: promptUuid,
+            created_by_user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+        });
+        const loaded = await model.findThreadForDistill(threadUuid);
+        expect(loaded?.turns).toMatchObject([{ interrupted: true }]);
+
+        const distillCall = vi.fn<AiAgentMemoryDistillCall>();
+        const service = buildService(distillCall);
+        await expect(
+            service.distillThread({
+                organizationUuid: SEED_ORG_1.organization_uuid,
+                projectUuid: SEED_PROJECT.project_uuid,
+                userUuid: 'system',
+                threadUuid,
+                sweptUpdatedAt: activity.toISOString(),
+            }),
+        ).resolves.toBe('skipped');
+        expect(distillCall).not.toHaveBeenCalled();
+        await expect(
+            database(AiAgentThreadDistillTableName)
+                .where('ai_thread_uuid', threadUuid)
+                .first(),
+        ).resolves.toMatchObject({
+            outcome: 'skipped',
+            distilled_up_to: activity,
+        });
+    });
+
+    it('uses the stored flag to gate real scheduler enqueueing', async () => {
+        const now = new Date('2026-07-22T12:00:00Z');
+        const threadUuid = await createThread();
+        await createPrompt(threadUuid, new Date('2026-07-22T05:00:00Z'));
+        const distillCall = vi.fn<AiAgentMemoryDistillCall>();
+        const service = buildService(distillCall);
+        const jobKey = `ai-agent-memory-distill:${threadUuid}`;
+
+        await setFeatureFlag(FeatureFlags.AiAgentMemory, false);
+        await expect(service.sweep(now)).resolves.toBe(0);
+        const graphileClient = await schedulerClient.graphileUtils;
+        await expect(
+            graphileClient.withPgClient(async (client) => {
+                const result = await client.query(
+                    'SELECT payload FROM graphile_worker.jobs WHERE key = $1',
+                    [jobKey],
+                );
+                return result.rows[0];
+            }),
+        ).resolves.toBeUndefined();
+
+        await setFeatureFlag(FeatureFlags.AiAgentMemory, true);
+        await expect(service.sweep(now)).resolves.toBeGreaterThanOrEqual(1);
+        const job = await graphileClient.withPgClient(async (client) => {
+            const result = await client.query(
+                'SELECT payload FROM graphile_worker.jobs WHERE key = $1',
+                [jobKey],
+            );
+            return result.rows[0];
+        });
+        expect(job?.payload).toMatchObject({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            userUuid: 'system',
+            threadUuid,
+            sweptUpdatedAt: '2026-07-22T05:00:00.000Z',
+        });
+        expect(distillCall).not.toHaveBeenCalled();
+    });
+
+    it('keeps a resumed thread due after distilling its swept watermark', async () => {
+        const now = new Date('2026-07-22T12:00:00Z');
+        const sweptActivity = new Date('2026-07-22T05:00:00Z');
+        const resumedActivity = new Date('2026-07-22T05:05:00Z');
+        const threadUuid = await createThread();
+        await createPrompt(threadUuid, sweptActivity);
+        const distillCall = vi
+            .fn<AiAgentMemoryDistillCall>()
+            .mockResolvedValue({
+                result: {
+                    type: 'no_op',
+                    reason: 'no_positive_evidence',
+                },
+            });
+        const service = buildService(distillCall);
+        const jobKey = `ai-agent-memory-distill:${threadUuid}`;
+
+        await service.sweep(now);
+        const graphileClient = await schedulerClient.graphileUtils;
+        const job = await graphileClient.withPgClient(async (client) => {
+            const result = await client.query<{
+                payload: AiAgentMemoryDistillJobPayload;
+            }>('SELECT payload FROM graphile_worker.jobs WHERE key = $1', [
+                jobKey,
+            ]);
+            return result.rows[0];
+        });
+        expect(job?.payload.sweptUpdatedAt).toBe(sweptActivity.toISOString());
+
+        await createPrompt(threadUuid, resumedActivity);
+        await expect(service.distillThread(job!.payload)).resolves.toBe(
+            'no_op',
+        );
+        expect(distillCall).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                thread: expect.objectContaining({
+                    latestActivity: resumedActivity,
+                    turns: expect.arrayContaining([
+                        expect.objectContaining({ createdAt: sweptActivity }),
+                        expect.objectContaining({ createdAt: resumedActivity }),
+                    ]),
+                }),
+            }),
+        );
+        await expect(
+            database(AiAgentThreadDistillTableName)
+                .where('ai_thread_uuid', threadUuid)
+                .first(),
+        ).resolves.toMatchObject({
+            outcome: 'no_op',
+            distilled_up_to: sweptActivity,
+        });
+
+        const candidates = await model.findThreadsDueForDistill({
+            idleBefore: resumedActivity,
+            activityFloor: new Date(
+                resumedActivity.getTime() - 24 * 60 * 60 * 1000,
+            ),
+        });
+        expect(candidates).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    threadUuid,
+                    latestActivity: resumedActivity,
+                }),
+            ]),
+        );
+        await expect(service.distillThread(job!.payload)).resolves.toBe(
+            'skipped',
+        );
+    });
+
+    it('ignores missing, invalid, and future swept watermarks', async () => {
+        const activity = new Date('2026-07-22T05:00:00Z');
+        const [missing, invalid, future] = await Promise.all([
+            createThread(),
+            createThread(),
+            createThread(),
+        ]);
+        await Promise.all(
+            [missing, invalid, future].map((threadUuid) =>
+                createPrompt(threadUuid, activity),
+            ),
+        );
+        const distillCall = vi
+            .fn<AiAgentMemoryDistillCall>()
+            .mockResolvedValue({
+                result: {
+                    type: 'no_op',
+                    reason: 'no_positive_evidence',
+                },
+            });
+        const service = buildService(distillCall);
+        const base = {
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            userUuid: 'system',
+        };
+        const payloads = [
+            {
+                ...base,
+                threadUuid: missing,
+            } as unknown as AiAgentMemoryDistillJobPayload,
+            {
+                ...base,
+                threadUuid: invalid,
+                sweptUpdatedAt: 'not-a-date',
+            },
+            {
+                ...base,
+                threadUuid: future,
+                sweptUpdatedAt: new Date(
+                    activity.getTime() + 60 * 1000,
+                ).toISOString(),
+            },
+        ];
+
+        await Promise.all(
+            payloads.map((payload) =>
+                expect(service.distillThread(payload)).resolves.toBe('skipped'),
+            ),
+        );
+
+        expect(distillCall).not.toHaveBeenCalled();
+        await expect(
+            database(AiAgentThreadDistillTableName)
+                .whereIn('ai_thread_uuid', [missing, invalid, future])
+                .select(),
+        ).resolves.toHaveLength(0);
+    });
+
+    it('aborts before persistence and records the exact activity watermark', async () => {
+        const threadUuid = await createThread();
+        const activity = new Date('2026-07-22T05:00:00Z');
+        await createPrompt(threadUuid, activity);
+        const distillCall = vi.fn<AiAgentMemoryDistillCall>(
+            ({ abortSignal }) =>
+                new Promise((_resolve, reject) => {
+                    if (!abortSignal) {
+                        reject(new Error('Missing abort signal'));
+                        return;
+                    }
+                    abortSignal.addEventListener(
+                        'abort',
+                        () => reject(abortSignal.reason),
+                        { once: true },
+                    );
+                }),
+        );
+        const service = buildService(distillCall);
+        const controller = new AbortController();
+        const result = service.distillThread(
+            {
+                organizationUuid: SEED_ORG_1.organization_uuid,
+                projectUuid: SEED_PROJECT.project_uuid,
+                userUuid: 'system',
+                threadUuid,
+                sweptUpdatedAt: activity.toISOString(),
+            },
+            controller.signal,
+        );
+        await vi.waitFor(() => {
+            expect(distillCall).toHaveBeenCalledOnce();
+        });
+        controller.abort(new Error('distill timeout'));
+
+        await expect(result).resolves.toBe('failed');
+        await expect(
+            database(AiAgentMemoryTableName)
+                .where('source_thread_uuid', threadUuid)
+                .first(),
+        ).resolves.toBeUndefined();
+        await expect(
+            database(AiAgentThreadDistillTableName)
+                .where('ai_thread_uuid', threadUuid)
+                .first(),
+        ).resolves.toMatchObject({
+            outcome: 'failed',
+            error_message: 'distill timeout',
+            distilled_up_to: activity,
+        });
+    });
+
+    it('persists typed distill outputs and keeps memory on a later no-op', async () => {
+        const threadUuid = await createThread();
+        const firstActivity = new Date('2026-07-22T05:00:00Z');
+        await createPrompt(threadUuid, firstActivity);
+        const distillCall = vi
+            .fn<AiAgentMemoryDistillCall>()
+            .mockResolvedValueOnce({
+                result: {
+                    type: 'memory',
+                    thread_summary: 'The user established a revenue rule.',
+                    slug: 'completed-revenue',
+                    title: 'Completed revenue convention',
+                    raw_memory: 'Use the completed revenue convention.',
+                    terms: ['completed revenue'],
+                    objects: [{ type: 'explore', name: 'missing_orders' }],
+                },
+            })
+            .mockResolvedValueOnce({
+                result: {
+                    type: 'no_op',
+                    reason: 'no_positive_evidence',
+                },
+            });
+        const service = buildService(distillCall);
+        const payload = {
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            userUuid: 'system',
+            threadUuid,
+            sweptUpdatedAt: firstActivity.toISOString(),
+        };
+
+        await expect(service.distillThread(payload)).resolves.toBe('memory');
+        const justDistilled = await model.findThreadsDueForDistill({
+            idleBefore: firstActivity,
+            activityFloor: new Date(
+                firstActivity.getTime() - 24 * 60 * 60 * 1000,
+            ),
+        });
+        expect(justDistilled.some((row) => row.threadUuid === threadUuid)).toBe(
+            false,
+        );
+        const [firstMemory] = await database(AiAgentMemoryTableName).where(
+            'source_thread_uuid',
+            threadUuid,
+        );
+        expect(firstMemory.slug).toMatch(/^completed-revenue-[0-9a-f]{8}$/);
+        expect(firstMemory.title).toBe('Completed revenue convention');
+        expect(firstMemory.objects).toEqual([
+            { type: 'explore', name: 'missing_orders' },
+        ]);
+        expect(firstMemory.unresolved_objects).toEqual([
+            { type: 'explore', name: 'missing_orders' },
+        ]);
+
+        const secondActivity = new Date('2026-07-22T05:05:00Z');
+        await createPrompt(threadUuid, secondActivity);
+        const resumedPayload = {
+            ...payload,
+            sweptUpdatedAt: secondActivity.toISOString(),
+        };
+        await expect(service.distillThread(resumedPayload)).resolves.toBe(
+            'no_op',
+        );
+
+        const memories = await database(AiAgentMemoryTableName).where(
+            'source_thread_uuid',
+            threadUuid,
+        );
+        const ledger = await database(AiAgentThreadDistillTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .first();
+        expect(memories).toHaveLength(1);
+        expect(memories[0].slug).toBe(firstMemory.slug);
+        expect(ledger).toMatchObject({
+            outcome: 'no_op',
+            no_op_reason: 'no_positive_evidence',
+            distilled_up_to: secondActivity,
+        });
+        await expect(service.distillThread(resumedPayload)).resolves.toBe(
+            'skipped',
+        );
+        expect(distillCall).toHaveBeenCalledTimes(2);
+    });
+
+    it('persists memory when catalog validation is unavailable', async () => {
+        const threadUuid = await createThread();
+        const activity = new Date('2026-07-22T05:00:00Z');
+        await createPrompt(threadUuid, activity);
+        const objects = [
+            { type: 'explore' as const, name: 'orders' },
+            {
+                type: 'field' as const,
+                explore: 'orders',
+                fieldId: 'orders_net_revenue',
+            },
+        ];
+        const distillCall = vi
+            .fn<AiAgentMemoryDistillCall>()
+            .mockResolvedValue({
+                result: {
+                    type: 'memory',
+                    thread_summary: 'The user established a revenue rule.',
+                    slug: 'net-revenue',
+                    title: 'Net revenue convention',
+                    raw_memory: 'Use net revenue.',
+                    terms: ['net revenue'],
+                    objects,
+                },
+            });
+        const findExploresFromCache = vi
+            .fn<ProjectModel['findExploresFromCache']>()
+            .mockRejectedValue(new Error('catalog unavailable'));
+        const projectModel = getTestContext().app.getModels().getProjectModel();
+        const service = buildService(distillCall, {
+            findExploresFromCache,
+            getSummary: projectModel.getSummary.bind(projectModel),
+        });
+
+        await expect(
+            service.distillThread({
+                organizationUuid: SEED_ORG_1.organization_uuid,
+                projectUuid: SEED_PROJECT.project_uuid,
+                userUuid: 'system',
+                threadUuid,
+                sweptUpdatedAt: activity.toISOString(),
+            }),
+        ).resolves.toBe('memory');
+
+        await expect(
+            database(AiAgentMemoryTableName)
+                .where('source_thread_uuid', threadUuid)
+                .first(),
+        ).resolves.toMatchObject({
+            objects,
+            unresolved_objects: objects,
+        });
+        await expect(
+            database(AiAgentThreadDistillTableName)
+                .where('ai_thread_uuid', threadUuid)
+                .first(),
+        ).resolves.toMatchObject({
+            outcome: 'memory',
+            distilled_up_to: activity,
+        });
+        expect(distillCall).toHaveBeenCalledOnce();
+        expect(findExploresFromCache).toHaveBeenCalledWith(
+            SEED_PROJECT.project_uuid,
+            'name',
+            ['orders'],
+        );
+    });
+});

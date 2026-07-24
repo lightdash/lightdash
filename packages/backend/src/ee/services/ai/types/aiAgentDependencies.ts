@@ -484,6 +484,7 @@ export type CheckUserPermissionFn = (args: {
 }) => Promise<boolean>;
 
 export type RunSqlJobFn = (args: { sql: string; limit: number }) => Promise<{
+    queryUuid: string;
     rows: Record<string, AnyType>[];
     columns: string[];
     rowCount: number;

@@ -38,11 +38,7 @@ const CompilationSourceFilter: FC<CompilationSourceFilterProps> = ({
         <Group gap={2} wrap="nowrap">
             <Popover width={250} position="bottom-start">
                 <Popover.Target>
-                    <Tooltip
-                        withinPortal
-                        variant="xs"
-                        label="Filter logs by source"
-                    >
+                    <Tooltip withinPortal label="Filter logs by source">
                         <Button
                             h={32}
                             c="foreground"

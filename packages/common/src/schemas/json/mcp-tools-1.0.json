@@ -2241,11 +2241,6 @@
                                 ],
                                 "type": "string"
                             },
-                            "funnelDataInput": {
-                                "description": "How to interpret funnel data. Use \"row\" when each row represents a funnel stage (most common). Use \"column\" when comparing multiple funnels side-by-side., ",
-                                "enum": ["row", "column"],
-                                "type": "string"
-                            },
                             "groupBy": {
                                 "description": "Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=[\"order_date\", \"status\"], groupBy=[\"status\"] creates separate series for each status value. Leave null for simple single-series charts., ",
                                 "items": {
@@ -2561,11 +2556,6 @@
                                     "pie",
                                     "funnel"
                                 ],
-                                "type": "string"
-                            },
-                            "funnelDataInput": {
-                                "description": "How to interpret funnel data. Use \"row\" when each row represents a funnel stage (most common). Use \"column\" when comparing multiple funnels side-by-side., ",
-                                "enum": ["row", "column"],
                                 "type": "string"
                             },
                             "groupBy": {

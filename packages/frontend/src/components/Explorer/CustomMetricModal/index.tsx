@@ -24,13 +24,12 @@ import {
     Accordion,
     Button,
     Group,
-    NumberInput,
     Select,
     Stack,
     Text,
     TextInput,
 } from '@mantine-8/core';
-import { useForm } from '@mantine/form';
+import { useForm, type FormValidateInput } from '@mantine/form';
 import { IconSparkles } from '@tabler/icons-react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { type ValueOf } from 'type-fest';
@@ -48,6 +47,7 @@ import Callout from '../../common/Callout';
 import FieldIcon from '../../common/Filters/FieldIcon';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
 import MantineModal from '../../common/MantineModal';
+import { NumberInput } from '../../common/NumberInput';
 import { FormatForm } from '../FormatForm';
 import { FilterForm, type MetricFilterRuleWithFieldId } from './FilterForm';
 import { useDataForFiltersProvider } from './hooks/useDataForFiltersProvider';
@@ -219,28 +219,13 @@ export const CustomMetricModal = memo(() => {
         sourceMetric,
     ]);
 
-    const form = useForm<
-        Pick<AdditionalMetric, 'percentile'> & {
-            format: CustomFormat;
-            customMetricLabel: string;
-        }
-    >({
-        validateInputOnChange: true,
-        validateInputOnBlur: true,
-        initialValues: {
-            customMetricLabel: '',
-            percentile: 50,
-            format: {
-                type: CustomFormatType.DEFAULT,
-                round: undefined,
-                separator: NumberSeparator.DEFAULT,
-                currency: undefined,
-                compact: undefined,
-                prefix: undefined,
-                suffix: undefined,
-            },
-        },
-        validate: {
+    type FormValues = Pick<AdditionalMetric, 'percentile'> & {
+        format: CustomFormat;
+        customMetricLabel: string;
+    };
+
+    const validate = useMemo<FormValidateInput<FormValues>>(
+        () => ({
             customMetricLabel: (label) => {
                 if (!label) return null;
 
@@ -283,7 +268,27 @@ export const CustomMetricModal = memo(() => {
                     return 'Percentile must be a number between 0 and 100';
                 }
             },
+        }),
+        [additionalMetrics, exploreData, isEditing, item],
+    );
+
+    const form = useForm<FormValues>({
+        validateInputOnChange: true,
+        validateInputOnBlur: true,
+        initialValues: {
+            customMetricLabel: '',
+            percentile: 50,
+            format: {
+                type: CustomFormatType.DEFAULT,
+                round: undefined,
+                separator: NumberSeparator.DEFAULT,
+                currency: undefined,
+                compact: undefined,
+                prefix: undefined,
+                suffix: undefined,
+            },
         },
+        validate,
     });
 
     const { setFieldValue } = form;
@@ -612,6 +617,7 @@ export const CustomMetricModal = memo(() => {
                             w={100}
                             max={100}
                             min={0}
+                            decimalScale={2}
                             required
                             label="Percentile"
                             {...form.getInputProps('percentile')}

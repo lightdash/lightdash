@@ -110,7 +110,7 @@ export class ProjectDbtSourcesService extends BaseService {
         account: Account,
         projectUuid: string,
         action: 'view' | 'manage',
-    ): Promise<void> {
+    ): Promise<string> {
         const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(account);
@@ -126,6 +126,7 @@ export class ProjectDbtSourcesService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+        return organizationUuid;
     }
 
     async getProjectDbtSources(
@@ -155,7 +156,11 @@ export class ProjectDbtSourcesService extends BaseService {
         projectUuid: string,
         data: ApiCreateProjectDbtSource,
     ): Promise<ProjectDbtSourceSummary> {
-        await this.checkProjectAccess(account, projectUuid, 'manage');
+        const organizationUuid = await this.checkProjectAccess(
+            account,
+            projectUuid,
+            'manage',
+        );
         // GitHub-only for now: additional sources are restricted to GitHub
         // connections until the other git providers are validated end-to-end.
         if (data.dbtConnection.type !== DbtProjectType.GITHUB) {
@@ -180,6 +185,15 @@ export class ProjectDbtSourcesService extends BaseService {
                 dbtConnection: data.dbtConnection,
             },
         );
+        this.analytics.track({
+            event: 'dbt_source_added',
+            userId: account.user?.id,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                dbtSourceCount: existing.length + 2,
+            },
+        });
         return ProjectDbtSourcesService.toSummary(created);
     }
 
@@ -260,7 +274,11 @@ export class ProjectDbtSourcesService extends BaseService {
         projectUuid: string,
         projectDbtSourceUuid: string,
     ): Promise<void> {
-        await this.checkProjectAccess(account, projectUuid, 'manage');
+        const organizationUuid = await this.checkProjectAccess(
+            account,
+            projectUuid,
+            'manage',
+        );
         const source =
             await this.projectDbtSourcesModel.getSource(projectDbtSourceUuid);
         if (source.projectUuid !== projectUuid) {
@@ -268,6 +286,17 @@ export class ProjectDbtSourcesService extends BaseService {
                 'This dbt source does not belong to the project',
             );
         }
+        const sources =
+            await this.projectDbtSourcesModel.getSources(projectUuid);
         await this.projectDbtSourcesModel.deleteSource(projectDbtSourceUuid);
+        this.analytics.track({
+            event: 'dbt_source_removed',
+            userId: account.user?.id,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                dbtSourceCount: sources.length,
+            },
+        });
     }
 }

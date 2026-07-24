@@ -6,6 +6,8 @@ import type { GroupByColumn, SortBy, ValuesColumn } from './sqlRunner';
 export type PivotConfig = {
     pivotDimensions: string[];
     metricsAsRows: boolean;
+    /** Ordered dimension and value field IDs rendered once on the row axis. */
+    rowFieldIds?: string[];
     columnOrder?: string[];
     hiddenMetricFieldIds?: string[];
     visibleMetricFieldIds?: string[];
@@ -73,7 +75,7 @@ export type PivotConfiguration = {
 };
 
 type Field =
-    | { type: FieldType.METRIC; fieldId?: undefined }
+    | { type: FieldType.METRIC; fieldId?: string }
     | { type: FieldType.DIMENSION; fieldId: string };
 
 type FieldValue =
@@ -90,6 +92,11 @@ export type TotalField = null | {
 };
 
 type TotalValue = null | number;
+
+/** Warehouse-computed metric totals keyed by pivot row values. */
+export type PivotRowTotalsByIndex = Record<string, Record<string, number>>;
+
+export type GroupedPivotRowSubtotals = Record<string, PivotRowTotalsByIndex>;
 
 type DataValue = null | ResultValue;
 
@@ -117,6 +124,7 @@ export type PivotData = {
 
     rowTotals?: TotalValue[][];
     columnTotals?: TotalValue[][];
+    grandTotals?: TotalValue[];
     cellsCount: number;
     rowsCount: number;
     pivotConfig: PivotConfig;
@@ -141,4 +149,5 @@ export type PivotData = {
      */
     hiddenIndexValues?: FieldValue[][];
     groupedSubtotals?: Record<string, Record<string, number>[]>;
+    groupedRowSubtotals?: GroupedPivotRowSubtotals;
 };

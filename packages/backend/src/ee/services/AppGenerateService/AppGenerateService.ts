@@ -13,6 +13,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { subject } from '@casl/ability';
 import {
+    APP_VERSION_CANCELLED_BY_USER,
     assertEmbeddedAuth,
     assertUnreachable,
     checkThemeLimits,
@@ -51,10 +52,12 @@ import {
     type AppVersionDependencyEntry,
     type AppVersionExternalConnectionResource,
     type AppVersionResources,
+    type ChartConfig,
     type ChartReference,
     type ChartSampleData,
     type CompiledExploreJoin,
     type CompiledTable,
+    type DashboardBlueprint,
     type DataAppClaudeModel,
     type DataAppCode,
     type DataAppCodeDownload,
@@ -74,6 +77,7 @@ import {
     type MetricQuery,
     type PromoteAppAction,
     type PromoteAppDiff,
+    type SavedChart,
     type SessionUser,
     type TogglePinnedItemInfo,
 } from '@lightdash/common';
@@ -88,6 +92,7 @@ import { z } from 'zod';
 import {
     emitAiUsage,
     languageModelUsageToTokens,
+    type AiKeyManagement,
 } from '../../../analytics/aiUsage';
 import {
     LightdashAnalytics,
@@ -127,10 +132,11 @@ import {
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
-import { getModel } from '../ai/models';
+import { getModel, resolveKeyManagement } from '../ai/models';
 import {
     OrgAiCopilotConfigResolver,
     type CopilotConfig,
+    type ResolvedCopilotConfig,
 } from '../ai/OrgAiCopilotConfigResolver';
 import {
     getAiCallTelemetry,
@@ -177,6 +183,12 @@ import {
     type ClaudeGenerationUsage,
 } from './ClaudeStreamProcessor';
 import {
+    buildDashboardBlueprint,
+    DASHBOARD_BLUEPRINT_PATH,
+    dashboardBlueprintPromptBlock,
+    describeDashboardBlueprint,
+} from './dashboardBlueprint';
+import {
     assertDependenciesHaveNoKnownMalware,
     assertDependenciesMeetMinReleaseAge,
 } from './dependencyGuards';
@@ -199,12 +211,11 @@ import { getTemplateInstructions } from './templates';
  * full async service.
  */
 export const buildChartReference = (
-    chart: {
-        name: string;
-        description?: string;
-        tableName: string;
-        metricQuery: MetricQuery;
-    },
+    chart: Pick<
+        SavedChart,
+        'name' | 'tableName' | 'metricQuery' | 'chartConfig'
+    > &
+        Partial<Pick<SavedChart, 'description' | 'pivotConfig'>>,
     chartUuid: string,
     linked: boolean,
     sampleData: ChartSampleData | null,
@@ -213,6 +224,8 @@ export const buildChartReference = (
     chartDescription: chart.description ?? '',
     exploreName: chart.tableName,
     metricQuery: chart.metricQuery,
+    chartConfig: chart.chartConfig,
+    pivotConfig: chart.pivotConfig ?? null,
     sampleData,
     chartUuid,
     linked,
@@ -263,6 +276,7 @@ type GenerateAppResult = {
 type DataAppVersionFailureTelemetry = {
     wasResumed?: boolean;
     claudeProvider?: 'anthropic' | 'bedrock';
+    keyManagement?: AiKeyManagement;
     schedulerWaitMs?: number;
     generationUsage?: ClaudeGenerationUsage;
     generationAttemptCount?: number;
@@ -300,6 +314,27 @@ const DATA_APP_WORKSPACE: PersistentWorkspace = {
     ],
     exclude: ['node_modules'],
 };
+// Kill any in-flight `claude` process before a cancelled sandbox is paused.
+// Native-pause backends (E2B) freeze running processes into the snapshot, so
+// without this the cancelled generation resumes execution the next time the
+// sandbox is resumed. `[c]laude` keeps pkill from matching this command's own
+// shell; pkill exits 1 when nothing matched, hence the trailing `true`. The
+// prompt file is removed so nothing left in the sandbox can replay the
+// cancelled prompt (the next iteration writes a fresh one).
+const INTERRUPT_CLAUDE_COMMAND =
+    "pkill -TERM -f '[c]laude' 2>/dev/null; sleep 1; " +
+    "pkill -KILL -f '[c]laude' 2>/dev/null; rm -f /tmp/prompt.txt 2>/dev/null; true";
+
+// Prepended to the prompt when a version since the last ready one was
+// cancelled: the resumed `--continue` session still ends with the cancelled
+// instruction (and possibly its partial tool calls), and Claude would
+// otherwise treat it as outstanding work to pick back up.
+const CANCELLED_PROMPT_NOTICE =
+    '[System notice] The user cancelled the previous instruction while you were working on it. ' +
+    'Treat that instruction as withdrawn: do not resume, finish, or build on it. ' +
+    'The working tree may contain unfinished changes from the cancelled work. ' +
+    "Act only on the user's new request below.";
+
 // Maximum number of in-progress app builds allowed per project at one time.
 // Prevents trivial sandbox exhaustion via repeated POST /code calls.
 const MAX_CONCURRENT_APP_BUILDS_PER_PROJECT = 5;
@@ -1350,6 +1385,7 @@ export class AppGenerateService extends BaseService {
         payload: AppGeneratePipelineJobPayload,
         model: DataAppClaudeModel,
         provider: 'anthropic' | 'bedrock',
+        keyManagement: AiKeyManagement,
         usage: ClaudeGenerationUsage,
     ): void {
         emitAiUsage(
@@ -1361,6 +1397,7 @@ export class AppGenerateService extends BaseService {
                 userUuid: payload.userUuid,
                 model,
                 provider,
+                keyManagement,
                 extra: {
                     appUuid: payload.appUuid,
                     appVersion: payload.version,
@@ -1418,6 +1455,7 @@ export class AppGenerateService extends BaseService {
                 payload,
                 claudeModel,
                 telemetry.claudeProvider ?? 'anthropic',
+                telemetry.keyManagement ?? 'lightdash-managed',
                 generationUsage,
             );
         }
@@ -1892,6 +1930,30 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * Write the attached dashboard's structural blueprint (tabs, tile layout,
+     * filters) into the sandbox and return a prompt block framing it as the
+     * layout spec. The blueprint complements the flattened chart references:
+     * they carry the queries, this carries the design.
+     */
+    private async writeDashboardBlueprint(
+        sandbox: SandboxHandle,
+        appUuid: string,
+        blueprint: DashboardBlueprint,
+    ): Promise<string> {
+        await sandbox.commands.run('mkdir -p /tmp/dashboard', {
+            timeoutMs: 10_000,
+        });
+        await sandbox.files.write(
+            DASHBOARD_BLUEPRINT_PATH,
+            JSON.stringify(blueprint, null, 2),
+        );
+        this.logger.info(
+            `App ${appUuid}: wrote dashboard blueprint for "${blueprint.name}" (${describeDashboardBlueprint(blueprint)}) to ${DASHBOARD_BLUEPRINT_PATH}`,
+        );
+        return dashboardBlueprintPromptBlock(blueprint);
+    }
+
+    /**
      * For each linked external connection, write a self-contained API-doc JSON
      * to /tmp/external-data/{alias}.json in the sandbox and return a prompt
      * block listing each file. Writes a file for every connection — the
@@ -2008,6 +2070,7 @@ export class AppGenerateService extends BaseService {
         s3Client: S3Client,
         bucket: string,
         chartReferences: ChartReference[] | undefined,
+        dashboardBlueprint: DashboardBlueprint | undefined,
         template: DataAppTemplate | undefined,
         isDataAppViz: boolean,
     ): Promise<{
@@ -2046,7 +2109,7 @@ export class AppGenerateService extends BaseService {
         // different ownership (e.g. root-owned after Claude CLI execution),
         // which would cause a permission error on write.
         await sandbox.commands.run(
-            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/dbt-repo/lightdash.config.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/metric-queries /tmp/external-data 2>/dev/null; true',
+            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/dbt-repo/lightdash.config.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/metric-queries /tmp/dashboard /tmp/external-data 2>/dev/null; true',
             { timeoutMs: 10_000 },
         );
 
@@ -2067,6 +2130,18 @@ export class AppGenerateService extends BaseService {
                 chartReferences,
             );
             finalPrompt = referenceBlock + finalPrompt;
+        }
+
+        // Attached dashboard: write its structural blueprint and prepend the
+        // layout-spec block. Prepended after the chart block so it lands above
+        // it in the final prompt — structure first, then the queries.
+        if (dashboardBlueprint) {
+            const blueprintBlock = await this.writeDashboardBlueprint(
+                sandbox,
+                appUuid,
+                dashboardBlueprint,
+            );
+            finalPrompt = blueprintBlock + finalPrompt;
         }
 
         // Linked external connections: write an API-doc file per connection into
@@ -2445,6 +2520,20 @@ export class AppGenerateService extends BaseService {
             turnDurationsMs: number[];
             generationAttemptCount: number;
         }> => {
+            // Bail before spawning claude when the version is no longer in
+            // progress (typically cancelled). This gates the retry and
+            // build-fix paths, which have no advanceStage check between
+            // attempts — without it a cancel could be followed by another
+            // full generation run of the cancelled prompt.
+            const status = await this.appModel.getVersionStatus(
+                appUuid,
+                version,
+            );
+            if (!isAppVersionInProgress(status)) {
+                throw new Error(
+                    `Claude generation aborted — version ${version} is ${status} (likely cancelled)`,
+                );
+            }
             const attemptStartedAfterMs = AppGenerateService.elapsed(start);
             const sessionFlags =
                 continueSession || forceContinue ? '--continue -p' : '-p';
@@ -2457,8 +2546,9 @@ export class AppGenerateService extends BaseService {
                 .run(
                     `cat /tmp/prompt.txt | claude ${sessionFlags} ` +
                         `--model ${claudeModel} ${effortFlag}` +
+                        `--thinking-display summarized ` +
                         `--verbose --output-format stream-json --include-partial-messages ` +
-                        `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Read(//tmp/external-data/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Glob(//tmp/external-data/**),Grep(//app/**),Grep(//tmp/dbt-repo/**),Grep(//tmp/external-data/**)" ` +
+                        `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Read(//tmp/dashboard/**),Read(//tmp/external-data/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Glob(//tmp/dashboard/**),Glob(//tmp/external-data/**),Grep(//app/**),Grep(//tmp/dbt-repo/**),Grep(//tmp/external-data/**)" ` +
                         `${jsonSchemaFlag}--append-system-prompt-file ${AppGenerateService.EFFECTIVE_SKILL_PATH}`,
                     {
                         cwd: '/app',
@@ -2713,6 +2803,7 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             userUuid,
             ...getLanguageModelAttribution(modelOptions.model),
+            keyManagement: modelOptions.keyManagement,
         });
         const result = await generateObject({
             model: modelOptions.model,
@@ -3175,7 +3266,7 @@ export class AppGenerateService extends BaseService {
         }
 
         let claudeCodeEnv: Record<string, string>;
-        let copilot: CopilotConfig;
+        let copilot: ResolvedCopilotConfig;
         let s3Client: S3Client;
         let bucket: string;
         try {
@@ -3411,6 +3502,7 @@ export class AppGenerateService extends BaseService {
                         currentStatus,
                         wasResumed,
                         { ...claudeCodeEnv, ...otelEnv },
+                        copilot,
                         imageIds,
                         chartReferences,
                         versionDeps,
@@ -3434,6 +3526,7 @@ export class AppGenerateService extends BaseService {
         currentStatus: AppVersionStatus,
         wasResumed: boolean,
         claudeCodeEnv: Record<string, string>,
+        copilot: ResolvedCopilotConfig,
         imageIds: string[] | undefined,
         chartReferences: ChartReference[] | undefined,
         versionDeps: AppVersionDependencies | null,
@@ -3455,6 +3548,10 @@ export class AppGenerateService extends BaseService {
             claudeCodeEnv.CLAUDE_CODE_USE_BEDROCK === '1'
                 ? 'bedrock'
                 : 'anthropic';
+        const claudeKeyManagement = resolveKeyManagement(
+            copilot,
+            claudeProvider,
+        );
         const durations: Record<string, number> = { ...extraDurations };
         const shouldRun = (stage: AppVersionStatus) =>
             AppGenerateService.shouldRunStage(currentStatus, stage);
@@ -3591,6 +3688,7 @@ export class AppGenerateService extends BaseService {
         const failureTelemetry = (): DataAppVersionFailureTelemetry => ({
             wasResumed,
             claudeProvider,
+            keyManagement: claudeKeyManagement,
             schedulerWaitMs,
             buildFixGenerationMs,
             ...(generationAttemptCount > 0
@@ -3616,15 +3714,33 @@ export class AppGenerateService extends BaseService {
                 if (!advanced) {
                     return;
                 }
+                // A resumed sandbox's Claude session may still end with a
+                // prompt the user cancelled mid-run — disavow it so Claude
+                // doesn't treat it as outstanding work. Fresh sandboxes get
+                // a new session (no --continue), so no notice is needed.
+                const previousPromptCancelled =
+                    wasResumed &&
+                    (await this.appModel.hasCancelledVersionSinceLastReady(
+                        appUuid,
+                        version,
+                    ));
+                if (previousPromptCancelled) {
+                    this.logger.info(
+                        `App ${appUuid}: prepending cancelled-prompt notice (a version since the last ready one was cancelled)`,
+                    );
+                }
                 const catalogResult = await this.writeCatalogAndPrompt(
                     sandbox,
                     appUuid,
                     projectUuid,
-                    prompt,
+                    previousPromptCancelled
+                        ? `${CANCELLED_PROMPT_NOTICE}\n\n${prompt}`
+                        : prompt,
                     imageIds,
                     s3Client,
                     bucket,
                     chartReferences,
+                    payload.dashboardBlueprint,
                     template,
                     isDataAppViz,
                 );
@@ -4003,6 +4119,7 @@ export class AppGenerateService extends BaseService {
             payload,
             claudeModel,
             claudeProvider,
+            claudeKeyManagement,
             generationUsage,
         );
 
@@ -4055,14 +4172,18 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * Extract UUID v4 patterns from the prompt, attempt to resolve each as a
-     * saved chart (permission-checked), and return structured references for
-     * any that resolve.
+     * Resolve an attached dashboard (permission-checked) into the chart uuids
+     * of its saved-chart tiles plus a structural blueprint of the dashboard
+     * itself — tabs, tile layout, filters.
      */
-    private async resolveDashboardToChartUuids(
+    private async resolveDashboardReference(
         dashboardUuid: string,
         user: SessionUser,
-    ): Promise<{ chartUuids: string[]; dashboardName: string }> {
+    ): Promise<{
+        chartUuids: string[];
+        dashboardName: string;
+        blueprint: DashboardBlueprint;
+    }> {
         const dashboard = await this.dashboardService.getByIdOrSlug(
             user,
             dashboardUuid,
@@ -4074,6 +4195,7 @@ export class AppGenerateService extends BaseService {
         return {
             chartUuids: [...new Set(chartUuids)],
             dashboardName: dashboard.name,
+            blueprint: buildDashboardBlueprint(dashboard),
         };
     }
 
@@ -4091,6 +4213,7 @@ export class AppGenerateService extends BaseService {
     ): Promise<{
         refs: AppChartReference[];
         dashboardName: string | null;
+        dashboardBlueprint: DashboardBlueprint | null;
     }> {
         const flagByUuid = new Map<
             string,
@@ -4107,12 +4230,14 @@ export class AppGenerateService extends BaseService {
             });
         }
         let dashboardName: string | null = null;
+        let dashboardBlueprint: DashboardBlueprint | null = null;
         if (dashboard) {
-            const result = await this.resolveDashboardToChartUuids(
+            const result = await this.resolveDashboardReference(
                 dashboard.uuid,
                 user,
             );
             dashboardName = result.dashboardName;
+            dashboardBlueprint = result.blueprint;
             for (const uuid of result.chartUuids) {
                 const prev = flagByUuid.get(uuid) ?? {
                     sample: false,
@@ -4131,7 +4256,7 @@ export class AppGenerateService extends BaseService {
                 linkLive: link,
             }),
         );
-        return { refs, dashboardName };
+        return { refs, dashboardName, dashboardBlueprint };
     }
 
     /**
@@ -4383,6 +4508,7 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             userUuid: user.userUuid,
             ...getLanguageModelAttribution(modelOptions.model),
+            keyManagement: modelOptions.keyManagement,
         });
         let result;
         try {
@@ -4476,18 +4602,26 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         user: SessionUser,
     ): Promise<{
         charts: { name: string; exploreName: string }[];
-        dashboardName: string | null;
+        dashboard: { name: string; structureSummary: string } | null;
     }> {
         const uuids = new Set<string>();
         for (const c of charts ?? []) uuids.add(c.uuid);
-        let dashboardName: string | null = null;
+        let resolvedDashboard: {
+            name: string;
+            structureSummary: string;
+        } | null = null;
         if (dashboard) {
             try {
-                const result = await this.resolveDashboardToChartUuids(
+                const result = await this.resolveDashboardReference(
                     dashboard.uuid,
                     user,
                 );
-                dashboardName = result.dashboardName;
+                resolvedDashboard = {
+                    name: result.dashboardName,
+                    structureSummary: describeDashboardBlueprint(
+                        result.blueprint,
+                    ),
+                };
                 for (const uuid of result.chartUuids) uuids.add(uuid);
             } catch (error) {
                 this.logger.warn(
@@ -4496,7 +4630,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             }
         }
         if (uuids.size === 0) {
-            return { charts: [], dashboardName };
+            return { charts: [], dashboard: resolvedDashboard };
         }
         const account = fromSession(user);
         const chartResults = await Promise.allSettled(
@@ -4511,7 +4645,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 });
             }
         }
-        return { charts: resolvedCharts, dashboardName };
+        return { charts: resolvedCharts, dashboard: resolvedDashboard };
     }
 
     /**
@@ -4522,13 +4656,17 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     private static formatAttachedResourcesForClarifier(
         attached: {
             charts: { name: string; exploreName: string }[];
-            dashboardName: string | null;
+            dashboard: { name: string; structureSummary: string } | null;
         },
         imageCount: number,
     ): string {
         const lines: string[] = [];
-        if (attached.dashboardName) {
-            lines.push(`- Dashboard: "${attached.dashboardName}"`);
+        if (attached.dashboard) {
+            // Surface that the layout is already known so the clarifier does
+            // not ask structural questions the blueprint answers.
+            lines.push(
+                `- Dashboard: "${attached.dashboard.name}" (structure attached: ${attached.dashboard.structureSummary})`,
+            );
         }
         for (const chart of attached.charts) {
             lines.push(
@@ -4669,11 +4807,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             })`,
         );
 
-        const { refs, dashboardName } = await this.collectChartReferences(
-            charts,
-            dashboard,
-            user,
-        );
+        const { refs, dashboardName, dashboardBlueprint } =
+            await this.collectChartReferences(charts, dashboard, user);
         const {
             references: chartReferences,
             chartResources,
@@ -4731,6 +4866,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             charts: chartResources,
             externalConnections: externalConnectionResources,
             dashboardName,
+            dashboardUuid: dashboardBlueprint?.dashboardUuid ?? null,
             clarifications: clarifications ?? [],
             claudeModel,
             design: designSnapshot,
@@ -4797,6 +4933,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             isIteration: false,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
+            dashboardBlueprint: dashboardBlueprint ?? undefined,
             claudeModel,
             designUuid: resolvedDesignUuid,
         });
@@ -4856,11 +4993,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             })`,
         );
 
-        const { refs, dashboardName } = await this.collectChartReferences(
-            charts,
-            dashboard,
-            user,
-        );
+        const { refs, dashboardName, dashboardBlueprint } =
+            await this.collectChartReferences(charts, dashboard, user);
         const {
             references: chartReferences,
             chartResources,
@@ -4914,6 +5048,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             charts: chartResources,
             externalConnections: externalConnectionResources,
             dashboardName,
+            dashboardUuid: dashboardBlueprint?.dashboardUuid ?? null,
             clarifications: [],
             claudeModel,
             design: designSnapshot,
@@ -5023,6 +5158,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             isIteration: true,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
+            dashboardBlueprint: dashboardBlueprint ?? undefined,
             claudeModel,
             designUuid: effectiveDesignUuid,
         });
@@ -5429,6 +5565,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             charts: sourceResources?.charts ?? [],
             externalConnections: sourceResources?.externalConnections ?? [],
             dashboardName: sourceResources?.dashboardName ?? null,
+            dashboardUuid: sourceResources?.dashboardUuid ?? null,
             clarifications: [],
             ...(sourceResources?.claudeModel
                 ? { claudeModel: sourceResources.claudeModel }
@@ -6227,8 +6364,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             appUuid,
             version,
             'error',
-            'Cancelled by user',
-            'Cancelled by user',
+            APP_VERSION_CANCELLED_BY_USER,
+            APP_VERSION_CANCELLED_BY_USER,
         );
         if (!updated) {
             throw new ParameterError('This version is not currently building');
@@ -6254,16 +6391,38 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             });
         }
 
-        // Suspend the sandbox to interrupt any running commands while keeping
-        // it resumable for the next iteration (snapshot + destroy on
-        // object-store backends, preserving state).
+        // Kill the in-flight claude process, then suspend the sandbox while
+        // keeping it resumable for the next iteration (snapshot + destroy on
+        // object-store backends, preserving state). The kill must happen
+        // before the pause: on native-pause backends a frozen claude process
+        // would otherwise resume executing the cancelled instruction when the
+        // next iteration resumes the sandbox.
         // The pipeline will catch the resulting error, but markError is now
         // a no-op since the version is already in 'error' state — and
         // pipeline catches gate `trackVersionFailed` on the markError result,
         // so no spurious failed analytics event fires on top of the cancel.
         if (app.sandbox_id) {
             try {
-                await this.getSandboxManager().suspendByUuid(app.sandbox_id);
+                await this.getSandboxManager().suspendByUuid(app.sandbox_id, {
+                    beforeSuspend: async (handle) => {
+                        try {
+                            await handle.commands.run(
+                                INTERRUPT_CLAUDE_COMMAND,
+                                {
+                                    timeoutMs: 15_000,
+                                },
+                            );
+                            this.logger.info(
+                                `App ${appUuid}: interrupted in-flight claude before suspend`,
+                            );
+                        } catch (error) {
+                            // Best-effort — the suspend must still happen.
+                            this.logger.warn(
+                                `App ${appUuid}: failed to interrupt claude before suspend: ${getErrorMessage(error)}`,
+                            );
+                        }
+                    },
+                });
                 this.logger.info(
                     `App ${appUuid}: sandbox suspended after cancel (sandboxUuid=${app.sandbox_id})`,
                 );
@@ -6523,7 +6682,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     async listMyApps(
         user: SessionUser,
         paginateArgs?: { page: number; pageSize: number },
-        options: { excludePreviewProjects?: boolean } = {},
+        options: {
+            excludePreviewProjects?: boolean;
+            projectUuids?: string[];
+            search?: string;
+        } = {},
     ): Promise<{
         data: {
             appUuid: string;
@@ -7228,12 +7391,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     }
 
     /** Escape a string into a safe, single-line double-quoted YAML scalar. */
-    private static yamlQuote(s: string): string {
-        const cleaned = s
-            .replace(/[\r\n\t]+/g, ' ')
-            .replace(/\\/g, '\\\\')
-            .replace(/"/g, '\\"');
-        return `"${cleaned}"`;
+    private static yamlQuote(value: unknown): string {
+        const cleaned = String(value).replace(/[\r\n\t]+/g, ' ');
+        return JSON.stringify(cleaned);
     }
 
     /** Render a single Lightdash parameter as indented YAML lines. */

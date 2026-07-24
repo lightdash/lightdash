@@ -736,6 +736,7 @@ export class UserService extends BaseService {
                 );
         }
         if (!existingUserWithEmail) {
+            const onboardingFlow = await this.getOnboardingFlow(user);
             const pendingUser = await this.userModel.createPendingUser(
                 organizationUuid,
                 {
@@ -744,6 +745,8 @@ export class UserService extends BaseService {
                     lastName: '',
                     role: userRole,
                 },
+                true,
+                onboardingFlow === 'new' ? false : undefined,
             );
             userUuid = pendingUser.userUuid;
         } else {
@@ -1764,6 +1767,11 @@ export class UserService extends BaseService {
             if (onboardingFlow !== 'new') {
                 throw new ForbiddenError('Email-only signup is not enabled');
             }
+            if (!this.lightdashConfig.smtp) {
+                throw new ForbiddenError(
+                    'Email-only signup requires an email server to be configured',
+                );
+            }
 
             await this.checkNewUserRegistrationAllowed(undefined, user.email);
 
@@ -1827,7 +1835,11 @@ export class UserService extends BaseService {
             userConnectionType = 'email_only';
         }
 
-        const user = await this.userModel.createUser(createUser);
+        const user = await this.userModel.createUser(
+            createUser,
+            true,
+            onboardingFlow === 'new' ? false : undefined,
+        );
         this.identifyUser({
             ...user,
             isMarketingOptedIn: user.isMarketingOptedIn,
@@ -2505,6 +2517,15 @@ export class UserService extends BaseService {
             actor: user,
             userToDelete,
             context: 'leave_organization',
+        });
+        this.analytics.track({
+            event: 'user.left_organization',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                wasOrganizationAdmin:
+                    member.role === OrganizationMemberRole.ADMIN,
+            },
         });
 
         this.logger.info('User left organization', {

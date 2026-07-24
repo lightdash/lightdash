@@ -26,8 +26,8 @@ import {
     Title,
     Tooltip,
 } from '@mantine-8/core';
+import { useDisclosure } from '@mantine-8/hooks';
 import { type useForm } from '@mantine/form';
-import { useDisclosure } from '@mantine/hooks';
 import {
     IconAdjustmentsAlt,
     IconAlertTriangle,

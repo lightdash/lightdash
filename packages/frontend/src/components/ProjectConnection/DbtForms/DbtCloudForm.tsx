@@ -5,14 +5,22 @@ import {
     Alert,
     Anchor,
     CopyButton,
+    Group,
     Stack,
     PasswordInput,
+    Text,
+    Tooltip,
 } from '@mantine-8/core';
-import { MultiSelect, Tooltip } from '@mantine/core';
-import { IconCheck, IconCopy, IconInfoCircle } from '@tabler/icons-react';
-import React, { useCallback, useState, type FC } from 'react';
+import {
+    IconCheck,
+    IconCopy,
+    IconInfoCircle,
+    IconPlus,
+} from '@tabler/icons-react';
+import { useState, type FC } from 'react';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
+import { MultiSelectCombobox } from '../../common/MultiSelectCombobox/MultiSelectCombobox';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { useFormContext } from '../formContext';
 import DbtVersionSelect from '../Inputs/DbtVersion';
@@ -24,14 +32,11 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const requireSecrets: boolean =
         savedProject?.dbtConnection.type !== DbtProjectType.DBT_CLOUD_IDE;
 
-    const [search, setSearch] = useState('');
-    const handleResetSearch = useCallback(() => {
-        setTimeout(() => setSearch(() => ''), 0);
-    }, [setSearch]);
-
     const form = useFormContext();
 
     const dbtTagsField = form.getInputProps('dbt.tags');
+    const dbtTags = dbtTagsField.value || [];
+    const [tagsSearch, setTagsSearch] = useState('');
 
     const webhookUrl = savedProject?.projectUuid
         ? `${health?.data?.siteUrl}/api/v1/projects/${savedProject.projectUuid}/dbt-cloud/webhook`
@@ -166,52 +171,58 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 placeholder="https://metadata.cloud.getdbt.com/graphql"
                 disabled={disabled}
             />
-            <MultiSelect
+            <MultiSelectCombobox
                 name="dbt.tags"
-                {...form.getInputProps('dbt.tags')}
-                {...dbtTagsField}
                 label="Tags"
                 disabled={disabled}
+                error={dbtTagsField.error}
                 description={
                     <p>
                         Only models with <b>all</b> these tags will be synced.
                     </p>
                 }
                 placeholder="e.g lightdash, prod"
-                searchable
-                searchValue={search}
-                onSearchChange={setSearch}
-                clearable
-                creatable
-                clearSearchOnChange
-                data={dbtTagsField.value || []}
-                getCreateLabel={(query) => `+ Add ${query}`}
-                onCreate={(query) => {
-                    form.insertListItem('dbt.tags', query);
-                    return query;
+                options={dbtTags.map((tag: string) => ({
+                    value: tag,
+                    label: tag,
+                }))}
+                value={dbtTags}
+                hidePickedOptions
+                searchValue={tagsSearch}
+                onSearchChange={setTagsSearch}
+                onBlur={dbtTagsField.onBlur}
+                onDropdownClose={() => setTagsSearch('')}
+                onValueRemove={(tag) => {
+                    form.setFieldValue(
+                        'dbt.tags',
+                        dbtTags.filter((value: string) => value !== tag),
+                    );
                 }}
-                onKeyDown={(event: React.KeyboardEvent<HTMLInputElement>) => {
-                    if (
-                        event.key === 'Enter' &&
-                        event.currentTarget.value.trim()
-                    ) {
-                        event.preventDefault(); // Prevent form submission
-                        if (
-                            !dbtTagsField.value.includes(
-                                event.currentTarget.value.trim(),
-                            )
-                        ) {
-                            form.insertListItem(
-                                'dbt.tags',
-                                event.currentTarget.value.trim(),
-                            );
-                            handleResetSearch();
-                        }
-                    }
+                onOptionSubmit={(tag) => {
+                    form.setFieldValue(
+                        'dbt.tags',
+                        dbtTags.filter((value: string) => value !== tag),
+                    );
                 }}
-                onDropdownClose={() => {
-                    handleResetSearch();
+                onClear={() => {
+                    form.setFieldValue('dbt.tags', []);
+                    setTagsSearch('');
                 }}
+                onCreate={(tag) => {
+                    form.setFieldValue('dbt.tags', [...dbtTags, tag]);
+                    setTagsSearch('');
+                }}
+                shouldCreate={(query) =>
+                    query.trim().length > 0 && !dbtTags.includes(query.trim())
+                }
+                createLabel={
+                    <Group gap="xxs">
+                        <MantineIcon icon={IconPlus} color="blue.7" size="sm" />
+                        <Text c="blue.7" fz="sm" fw={500}>
+                            Add "{tagsSearch.trim()}"
+                        </Text>
+                    </Group>
+                }
             />
         </Stack>
     );

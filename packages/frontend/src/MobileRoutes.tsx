@@ -1,17 +1,14 @@
 import {
     ActionIcon,
+    Box,
     Burger,
     Divider,
+    Drawer,
+    getDefaultZIndex,
     Group,
     Stack,
     Title,
 } from '@mantine-8/core';
-import {
-    Drawer,
-    getDefaultZIndex,
-    Header,
-    MantineProvider,
-} from '@mantine/core';
 import {
     IconChartAreaLine,
     IconFolders,
@@ -19,7 +16,7 @@ import {
     IconLayoutDashboard,
     IconLogout,
 } from '@tabler/icons-react';
-import { lazy, Suspense, useCallback, useMemo, useState, type FC } from 'react';
+import { lazy, Suspense, useCallback, useState, type FC } from 'react';
 import {
     Link,
     Navigate,
@@ -40,7 +37,8 @@ import LegacyAppPreviewRedirect from './features/apps/LegacyAppPreviewRedirect';
 import { loadLazyRouteDefault } from './features/chunkErrorHandler';
 import { useActiveProjectUuid } from './hooks/useActiveProject';
 import useLogoutMutation from './hooks/user/useUserLogoutMutation';
-import { getMantineThemeOverride } from './mantineTheme';
+import classes from './MobileRoutes.module.css';
+import Mantine8Provider from './providers/Mantine8Provider';
 import { TrackPage } from './providers/Tracking/TrackingProvider';
 import Logo from './svgs/logo-icon.svg?react';
 import { PageName } from './types/Events';
@@ -48,6 +46,9 @@ import { PageName } from './types/Events';
 const MobileAiAgentsNavLink = lazy(
     () => import('./components/Mobile/MobileAiAgentsNavLink'),
 );
+
+const getMobileNavBarRootElement = () =>
+    document.getElementById('mobile-navbar') ?? undefined;
 
 const RedirectToResource: FC = () => {
     const { projectUuid, savedQueryUuid, dashboardUuid } = useParams();
@@ -85,110 +86,109 @@ export const MobileNavBar: FC = () => {
         },
     });
 
-    // Force dark theme for navbar (excluding global styles)
-    const darkTheme = useMemo(() => {
-        const fullDarkTheme = getMantineThemeOverride('dark');
-        const { globalStyles, ...themeWithoutGlobalStyles } = fullDarkTheme;
-        return themeWithoutGlobalStyles;
-    }, []);
-
     return (
-        <MantineProvider theme={darkTheme}>
-            <Header
-                height={50}
-                display="flex"
-                px="md"
-                zIndex={getDefaultZIndex('app')}
-                sx={{
-                    alignItems: 'center',
-                    boxShadow: 'lg',
-                }}
+        <Box id="mobile-navbar" data-mantine-color-scheme="dark">
+            <Mantine8Provider
+                forceColorScheme="dark"
+                cssVariablesSelector="#mobile-navbar"
+                getRootElement={getMobileNavBarRootElement}
             >
-                <Group align="center" justify="space-between" flex={1}>
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        component={Link}
-                        to={'/'}
-                        title="Home"
-                        size="lg"
-                    >
-                        <Logo />
-                    </ActionIcon>
-                    <Burger
-                        opened={isMenuOpen}
-                        onClick={toggleMenu}
-                        color="white"
-                        aria-label={
-                            isMenuOpen
-                                ? 'Close navigation menu'
-                                : 'Open navigation menu'
-                        }
-                        aria-expanded={isMenuOpen}
-                        aria-controls="mobile-navigation"
-                    />
-                </Group>
-            </Header>
-
-            <Drawer
-                id="mobile-navigation"
-                title={<ThemeSwitcher />}
-                opened={isMenuOpen}
-                onClose={toggleMenu}
-                size="75%"
-            >
-                <Title order={6} fw={600} mb="xs">
-                    Project
-                </Title>
-                <ProjectSwitcher />
-                <Divider my="lg" />
-                <RouterNavLink
-                    exact
-                    label="Home"
-                    to={`/`}
-                    leftSection={<MantineIcon icon={IconHome} />}
-                    onClick={toggleMenu}
-                />
-                <RouterNavLink
-                    exact
-                    label="Spaces"
-                    to={`/projects/${activeProjectUuid}/spaces`}
-                    leftSection={<MantineIcon icon={IconFolders} />}
-                    onClick={toggleMenu}
-                />
-                <RouterNavLink
-                    exact
-                    label="Dashboards"
-                    to={`/projects/${activeProjectUuid}/dashboards`}
-                    leftSection={<MantineIcon icon={IconLayoutDashboard} />}
-                    onClick={toggleMenu}
-                />
-                <RouterNavLink
-                    exact
-                    label="Charts"
-                    to={`/projects/${activeProjectUuid}/saved`}
-                    leftSection={<MantineIcon icon={IconChartAreaLine} />}
-                    onClick={toggleMenu}
-                />
-                {isMenuOpen && (
-                    <Suspense fallback={null}>
-                        <MobileAiAgentsNavLink
-                            activeProjectUuid={activeProjectUuid}
+                <Box
+                    component="header"
+                    className={classes.header}
+                    h={50}
+                    mah={50}
+                    display="flex"
+                    px="md"
+                    style={{ zIndex: getDefaultZIndex('app') }}
+                >
+                    <Group align="center" justify="space-between" flex={1}>
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            component={Link}
+                            to={'/'}
+                            title="Home"
+                            size="lg"
+                        >
+                            <Logo />
+                        </ActionIcon>
+                        <Burger
+                            opened={isMenuOpen}
                             onClick={toggleMenu}
+                            color="white"
+                            aria-label={
+                                isMenuOpen
+                                    ? 'Close navigation menu'
+                                    : 'Open navigation menu'
+                            }
+                            aria-expanded={isMenuOpen}
+                            aria-controls="mobile-navigation"
                         />
-                    </Suspense>
-                )}
-                <Divider my="lg" />
+                    </Group>
+                </Box>
 
-                <RouterNavLink
-                    exact
-                    label="Logout"
-                    to={`/`}
-                    leftSection={<MantineIcon icon={IconLogout} />}
-                    onClick={() => logout()}
-                />
-            </Drawer>
-        </MantineProvider>
+                <Drawer
+                    id="mobile-navigation"
+                    title={<ThemeSwitcher />}
+                    opened={isMenuOpen}
+                    onClose={toggleMenu}
+                    size="75%"
+                    portalProps={{ target: '#mobile-navbar' }}
+                >
+                    <Title order={6} fw={600} mb="xs">
+                        Project
+                    </Title>
+                    <ProjectSwitcher />
+                    <Divider my="lg" />
+                    <RouterNavLink
+                        exact
+                        label="Home"
+                        to={`/`}
+                        leftSection={<MantineIcon icon={IconHome} />}
+                        onClick={toggleMenu}
+                    />
+                    <RouterNavLink
+                        exact
+                        label="Spaces"
+                        to={`/projects/${activeProjectUuid}/spaces`}
+                        leftSection={<MantineIcon icon={IconFolders} />}
+                        onClick={toggleMenu}
+                    />
+                    <RouterNavLink
+                        exact
+                        label="Dashboards"
+                        to={`/projects/${activeProjectUuid}/dashboards`}
+                        leftSection={<MantineIcon icon={IconLayoutDashboard} />}
+                        onClick={toggleMenu}
+                    />
+                    <RouterNavLink
+                        exact
+                        label="Charts"
+                        to={`/projects/${activeProjectUuid}/saved`}
+                        leftSection={<MantineIcon icon={IconChartAreaLine} />}
+                        onClick={toggleMenu}
+                    />
+                    {isMenuOpen && (
+                        <Suspense fallback={null}>
+                            <MobileAiAgentsNavLink
+                                activeProjectUuid={activeProjectUuid}
+                                onClick={toggleMenu}
+                            />
+                        </Suspense>
+                    )}
+                    <Divider my="lg" />
+
+                    <RouterNavLink
+                        exact
+                        label="Logout"
+                        to={`/`}
+                        leftSection={<MantineIcon icon={IconLogout} />}
+                        onClick={() => logout()}
+                    />
+                </Drawer>
+            </Mantine8Provider>
+        </Box>
     );
 };
 
@@ -353,6 +353,26 @@ const APP_ROUTES: RouteObject[] = [
                 ),
                 children: [
                     { index: true, element: <Navigate to="home" replace /> },
+                    {
+                        path: 'onboarding/agent',
+                        lazy: async () => {
+                            const AgentOnboardingStartPage =
+                                await loadLazyRouteDefault(
+                                    './ee/features/agentOnboarding/AgentOnboardingStartPage',
+                                    () =>
+                                        import('./ee/features/agentOnboarding/AgentOnboardingStartPage'),
+                                );
+                            return {
+                                Component: () => (
+                                    <TrackPage
+                                        name={PageName.AGENT_ONBOARDING_START}
+                                    >
+                                        <AgentOnboardingStartPage />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
+                    },
                     {
                         path: 'onboarding/runs/:agentOnboardingRunUuid',
                         lazy: async () => {

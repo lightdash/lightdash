@@ -8,11 +8,19 @@ import {
     type Metric,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Group, Stack, Switch, Text } from '@mantine-8/core';
-import { Grid, NumberInput, Tooltip } from '@mantine/core';
+import {
+    Box,
+    Grid,
+    Group,
+    Stack,
+    Switch,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
 import { IconHelpCircle } from '@tabler/icons-react';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
+import { NumberInput } from '../../common/NumberInput';
 import { isTreemapVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
@@ -108,7 +116,6 @@ export const Layout: React.FC = () => {
                         <Tooltip
                             withinPortal={true}
                             maw={350}
-                            variant="xs"
                             multiline
                             label="Drag and drop your dimensions to order them hierarchically."
                         >
@@ -151,7 +158,6 @@ export const Layout: React.FC = () => {
                         <Tooltip
                             withinPortal={true}
                             maw={350}
-                            variant="xs"
                             multiline
                             label="Determines how large each block is."
                         >
@@ -192,7 +198,6 @@ export const Layout: React.FC = () => {
                         <Tooltip
                             withinPortal={true}
                             maw={350}
-                            variant="xs"
                             multiline
                             label="Dynamically set the color of the nodes based on a metric. If not set, the treemap will use a default color scheme."
                         >
@@ -247,10 +252,14 @@ export const Layout: React.FC = () => {
                                     <Group gap="xs" justify="flex-end">
                                         <Config.Label>Threshold</Config.Label>
                                         <NumberInput
+                                            size="xs"
                                             value={startColorThreshold}
-                                            onChange={setStartColorThreshold}
+                                            onNumberChange={
+                                                setStartColorThreshold
+                                            }
                                             hideControls={true}
-                                            precision={2}
+                                            decimalScale={2}
+                                            fixedDecimalScale
                                             placeholder="Auto (per-level)"
                                         />
                                     </Group>
@@ -275,10 +284,14 @@ export const Layout: React.FC = () => {
                                     >
                                         <Config.Label>Threshold</Config.Label>
                                         <NumberInput
+                                            size="xs"
                                             value={endColorThreshold}
-                                            onChange={setEndColorThreshold}
+                                            onNumberChange={
+                                                setEndColorThreshold
+                                            }
                                             hideControls={true}
-                                            precision={2}
+                                            decimalScale={2}
+                                            fixedDecimalScale
                                             placeholder="Auto (per-level)"
                                         />
                                     </Group>

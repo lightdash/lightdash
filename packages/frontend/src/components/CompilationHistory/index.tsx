@@ -1,19 +1,11 @@
-import {
-    ActionIcon,
-    Card,
-    Group,
-    LoadingOverlay,
-    Stack,
-    Text,
-    Title,
-    Tooltip,
-} from '@mantine-8/core';
+import { Button, Card, LoadingOverlay } from '@mantine-8/core';
 import { IconRefresh } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
 import MantineIcon from '../common/MantineIcon';
+import { SettingsPage } from '../common/Settings/SettingsPage';
 import CompilationHistoryTable from './CompilationHistoryTable';
 
 type CompilationHistoryProps = {
@@ -39,36 +31,26 @@ const CompilationHistory: FC<CompilationHistoryProps> = ({ projectUuid }) => {
         <>
             <LoadingOverlay visible={isLoadingProject} />
 
-            <Card pb="xxl">
-                <Stack gap="md">
-                    <Group justify="space-between">
-                        <Stack gap={2}>
-                            <Title order={5}>Compilation History</Title>
-                            <Text c="dimmed" size="xs">
-                                View the history of all dbt compilations for
-                                this project, including CLI deploys and UI
-                                refreshes.
-                            </Text>
-                        </Stack>
-                        <Group gap="xs"></Group>
-                        <Tooltip label="Click to refresh the compilation history">
-                            <ActionIcon
-                                onClick={handleRefresh}
-                                variant="subtle"
-                                size="md"
-                            >
-                                <MantineIcon
-                                    icon={IconRefresh}
-                                    color="ldGray.6"
-                                    stroke={2}
-                                />
-                            </ActionIcon>
-                        </Tooltip>
-                    </Group>
-
+            <SettingsPage
+                title="Compilation history"
+                description="Review recent dbt compilation runs for this project."
+                actions={
+                    <Button
+                        onClick={handleRefresh}
+                        variant="default"
+                        size="xs"
+                        leftSection={
+                            <MantineIcon icon={IconRefresh} stroke={2} />
+                        }
+                    >
+                        Refresh
+                    </Button>
+                }
+            >
+                <Card pb="xxl">
                     <CompilationHistoryTable projectUuid={projectUuid} />
-                </Stack>
-            </Card>
+                </Card>
+            </SettingsPage>
         </>
     );
 };

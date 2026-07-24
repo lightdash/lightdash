@@ -23,7 +23,6 @@ import {
     SegmentedControl,
     Stack,
     Text,
-    Title,
     Tooltip,
     UnstyledButton,
     useMantineTheme,
@@ -57,6 +56,7 @@ import {
 } from '../../common/ContentTable';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
+import { SettingsPage } from '../../common/Settings/SettingsPage';
 import {
     getWarehouseIcon,
     getWarehouseLabel,
@@ -653,11 +653,7 @@ const ProjectManagementPanel: FC = () => {
                 wrap="nowrap"
             >
                 <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-                    <Tooltip
-                        withinPortal
-                        variant="xs"
-                        label="Search by project name"
-                    >
+                    <Tooltip withinPortal label="Search by project name">
                         <ContentTableSearchInput
                             placeholder="Search projects..."
                             value={search}
@@ -741,11 +737,7 @@ const ProjectManagementPanel: FC = () => {
                     {/* Warehouse filter */}
                     <Popover width={220} position="bottom-start">
                         <Popover.Target>
-                            <Tooltip
-                                withinPortal
-                                variant="xs"
-                                label="Filter by warehouse"
-                            >
+                            <Tooltip withinPortal label="Filter by warehouse">
                                 <Button
                                     h={32}
                                     c="foreground"
@@ -842,11 +834,7 @@ const ProjectManagementPanel: FC = () => {
                     {availableCreators.length > 0 && (
                         <Popover width={250} position="bottom-start">
                             <Popover.Target>
-                                <Tooltip
-                                    withinPortal
-                                    variant="xs"
-                                    label="Filter by creator"
-                                >
+                                <Tooltip withinPortal label="Filter by creator">
                                     <Button
                                         h={32}
                                         c="foreground"
@@ -979,29 +967,27 @@ const ProjectManagementPanel: FC = () => {
         ),
     });
 
-    if (isLoadingProjects || isLoadingLastProject) return null;
-
-    if (projects.length === 0) {
+    if (!isLoadingProjects && !isLoadingLastProject && projects.length === 0) {
         return <Navigate to="/createProject" />;
     }
 
     return (
-        <Stack mb="lg">
-            <Group justify="space-between">
-                <Title order={5}>Project Management</Title>
-
-                {user.data?.ability.can(
+        <SettingsPage
+            title="All projects"
+            description="Manage projects, connections, access, and project lifecycle."
+            actions={
+                user.data?.ability.can(
                     'create',
                     subject('Project', {
                         organizationUuid: user.data?.organizationUuid,
                     }),
                 ) && (
-                    <Button component={Link} to="/createProject">
-                        Create new
+                    <Button size="xs" component={Link} to="/createProject">
+                        Create project
                     </Button>
-                )}
-            </Group>
-
+                )
+            }
+        >
             <ContentTable table={table} />
 
             {deletingProjectUuid ? (
@@ -1054,7 +1040,7 @@ const ProjectManagementPanel: FC = () => {
                     </Stack>
                 )}
             </MantineModal>
-        </Stack>
+        </SettingsPage>
     );
 };
 

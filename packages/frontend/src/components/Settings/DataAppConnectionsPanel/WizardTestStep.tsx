@@ -87,7 +87,8 @@ export const WizardTestStep: FC<Props> = ({
                 config,
                 ...request,
             });
-            onTestResult({ request, response });
+            // Only a 2xx result is worth saving as a sample.
+            onTestResult(response.status < 300 ? { request, response } : null);
         } catch {
             onTestResult(null);
         }
@@ -152,13 +153,15 @@ export const WizardTestStep: FC<Props> = ({
             {testMutation.data && (
                 <Stack gap="sm">
                     <ConnectionTestResult response={testMutation.data} />
-                    <Checkbox
-                        label="Save this response as an example to ground app generation"
-                        checked={saveSample}
-                        onChange={(e) =>
-                            onSaveSampleChange(e.currentTarget.checked)
-                        }
-                    />
+                    {testMutation.data.status < 300 && (
+                        <Checkbox
+                            label="Save this response as an example to ground app generation"
+                            checked={saveSample}
+                            onChange={(e) =>
+                                onSaveSampleChange(e.currentTarget.checked)
+                            }
+                        />
+                    )}
                 </Stack>
             )}
         </Stack>

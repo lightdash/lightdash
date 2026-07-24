@@ -7,6 +7,7 @@ import {
     type ExternalFetchResponse,
     type RegisteredAccount,
 } from '@lightdash/common';
+import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
 import { ExternalConnectionService } from './ExternalConnectionService';
 
 // -------------------------------------------------------------------
@@ -436,6 +437,32 @@ describe('ExternalConnectionService.testConnection', () => {
 
         expect(executeExternalFetchSpy).not.toHaveBeenCalled();
         expect(model.getDecryptedSecret).not.toHaveBeenCalled();
+    });
+
+    it('forwards the blocked reason detail to the admin', async () => {
+        const { service } = buildService({});
+        mockAbility(service, true);
+
+        vi.spyOn(
+            service as unknown as {
+                executeExternalFetch: (...a: unknown[]) => Promise<unknown>;
+            },
+            'executeExternalFetch',
+        ).mockRejectedValue(
+            new SecureFetchError(
+                'disallowed_content_type',
+                'Disallowed content-type: text/html',
+            ),
+        );
+
+        await expect(
+            service.testConnection(adminAccount, projectUuid, connectionUuid, {
+                method: 'GET',
+                path: '/v1/current',
+            }),
+        ).rejects.toThrow(
+            'Upstream request was blocked (disallowed_content_type): Disallowed content-type: text/html',
+        );
     });
 
     it('throws NotFoundError for a connection in a different project', async () => {

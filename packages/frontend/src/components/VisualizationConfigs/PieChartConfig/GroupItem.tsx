@@ -12,9 +12,9 @@ import {
     Stack,
     type StackProps,
     ActionIcon,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure } from '@mantine-8/hooks';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import { forwardRef } from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -113,11 +113,7 @@ export const GroupItem = forwardRef<
                         />
                     </Box>
 
-                    <Tooltip
-                        variant="xs"
-                        label="Override value label options"
-                        withinPortal
-                    >
+                    <Tooltip label="Override value label options" withinPortal>
                         <ActionIcon
                             variant="subtle"
                             color="gray"

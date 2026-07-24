@@ -916,6 +916,8 @@ export type SavedChart = {
     pivotConfig?: {
         /** Fields to use as pivot columns */
         columns: string[];
+        /** Ordered fields to render on the pivot row axis */
+        rows?: string[];
     };
     /** Visualization configuration for the chart */
     chartConfig: ChartConfig;

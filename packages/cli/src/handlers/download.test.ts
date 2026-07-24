@@ -29,6 +29,7 @@ const {
     downloadSpaces,
     getDashboardChartSlugs,
     getFlatSpaceFileNames,
+    hasContentFilters,
     readAiAgentFiles,
     readSpaceFiles,
     readSpaceNames,
@@ -41,6 +42,46 @@ const {
     validateSpaceIdentity,
     writeSpaceFiles,
 } = testHelpers;
+
+const makeContentFilterOptions = (
+    overrides: Partial<Parameters<typeof hasContentFilters>[0]> = {},
+): Parameters<typeof hasContentFilters>[0] => ({
+    spacesOnly: false,
+    charts: [],
+    dashboards: [],
+    agents: [],
+    alerts: [],
+    googleSheets: [],
+    scheduledDeliveries: [],
+    virtualViews: [],
+    apps: [],
+    ...overrides,
+});
+
+describe('hasContentFilters', () => {
+    it('treats explicit apps as a filtered download and upload', () => {
+        expect(
+            hasContentFilters(
+                makeContentFilterOptions({ apps: ['app-reference'] }),
+            ),
+        ).toBe(true);
+    });
+
+    it('keeps an unfiltered content operation unfiltered', () => {
+        expect(hasContentFilters(makeContentFilterOptions())).toBe(false);
+    });
+
+    it('does not treat content selections as filters in spaces-only mode', () => {
+        expect(
+            hasContentFilters(
+                makeContentFilterOptions({
+                    spacesOnly: true,
+                    apps: ['app-reference'],
+                }),
+            ),
+        ).toBe(false);
+    });
+});
 
 type LooseDashboard = DashboardAsCode & { needsUpdating: boolean };
 
@@ -1156,6 +1197,75 @@ version: 99
         ).toEqual(['a', 'a/b']);
         logSpy.mockRestore();
     });
+
+    it('omits access and warns when skip-space-access is enabled', async () => {
+        const logSpy = vi
+            .spyOn(GlobalState, 'log')
+            .mockImplementation(() => undefined);
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            action: SpaceAsCodeAction.CREATE,
+        } as never);
+
+        await upsertSpaces(
+            'project-uuid',
+            [{ filePath: 'space.space.yml', space: accessSpace('finance') }],
+            {},
+            false,
+            true,
+            true,
+        );
+
+        const [request] = vi.mocked(lightdashApi).mock.calls[0];
+        expect(JSON.parse(String(request.body))).toEqual({
+            contentType: 'space',
+            version: 1,
+            spaceName: 'finance',
+            slug: 'finance',
+        });
+        expect(request.url).toContain('publicSpaceCreate=true');
+        expect(logSpy).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'Existing destination access will be preserved',
+            ),
+        );
+        logSpy.mockRestore();
+    });
+
+    it.each([
+        'User example@lightdash.com is not a member of this organization',
+        'Group finance does not exist in this organization',
+    ])(
+        'suggests skip-space-access when a destination identity is missing: %s',
+        async (errorMessage) => {
+            const logSpy = vi
+                .spyOn(GlobalState, 'log')
+                .mockImplementation(() => undefined);
+            vi.mocked(lightdashApi).mockRejectedValueOnce(
+                new Error(errorMessage),
+            );
+
+            await expect(
+                upsertSpaces(
+                    'project-uuid',
+                    [
+                        {
+                            filePath: 'space.space.yml',
+                            space: accessSpace('finance'),
+                        },
+                    ],
+                    {},
+                    false,
+                    false,
+                ),
+            ).rejects.toThrow('content upload was not started');
+            expect(logSpy).toHaveBeenCalledWith(
+                expect.stringContaining(
+                    'Hint: use --skip-space-access to upload the space without applying its access policy.',
+                ),
+            );
+            logSpy.mockRestore();
+        },
+    );
 
     it('treats missing spaces and descendants as nonfatal with skip-space-create', async () => {
         vi.mocked(lightdashApi)

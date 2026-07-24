@@ -62,7 +62,6 @@ export const ColumnCellDisplay: FC = () => {
                         label="Display numeric values as bars in cells"
                         withinPortal
                         position="right"
-                        variant="xs"
                     >
                         <MantineIcon icon={IconInfoCircle} color="ldGray.6" />
                     </Tooltip>

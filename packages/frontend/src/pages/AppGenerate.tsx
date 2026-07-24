@@ -94,11 +94,13 @@ import {
 import AppTemplatePicker from '../features/apps/AppTemplatePicker';
 import ChatBubbleMeta from '../features/apps/ChatBubbleMeta';
 import ChatMessageContent from '../features/apps/ChatMessageContent';
+import AppBuilderSidebarToggle from '../features/apps/components/AppBuilderSidebarToggle';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import AppSpaceChip from '../features/apps/components/AppSpaceChip';
 import DataAppVizResultCard from '../features/apps/components/DataAppVizResultCard';
 import DataAppVizTestPanel from '../features/apps/components/DataAppVizTestPanel';
+import { getAppVersionFailureMessage } from '../features/apps/getAppVersionFailureMessage';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
@@ -566,6 +568,13 @@ const AppGenerate: FC = () => {
         null,
     );
     const previewRef = useRef<AppIframePreviewHandle>(null);
+    // Collapse is pure UI state driven by CSS (see chatPanelOuter[data-collapsed])
+    // — the panel-group layout is never touched, so expanding restores the
+    // exact pre-collapse width.
+    const [isChatPanelCollapsed, setIsChatPanelCollapsed] = useState(false);
+    const handleToggleChatPanel = useCallback(() => {
+        setIsChatPanelCollapsed((collapsed) => !collapsed);
+    }, []);
     const {
         queries: trackedQueries,
         persistLogs,
@@ -717,6 +726,7 @@ const AppGenerate: FC = () => {
         setPendingClarification(null);
         setClarificationAnswers([]);
         setTestVizContext(null);
+        setIsChatPanelCollapsed(false);
         versionCacheRef.current.clear();
         versionCacheAppRef.current = undefined;
         sentImagesByPrompt.current.forEach((urls) =>
@@ -834,9 +844,10 @@ const AppGenerate: FC = () => {
         return null;
     }, [appData]);
     const isBuilding = latestBuildingVersion !== null;
-    // Clarifying counts as loading for the chat input (disable typing/send),
-    // and a pending unanswered clarification keeps the input area disabled
-    // until the user clicks "Build" on the question bubble.
+    // Clarifying counts as loading for the chat input (disable send; typing
+    // stays enabled so the next prompt can be drafted), and a pending
+    // unanswered clarification keeps send disabled until the user clicks
+    // "Build" on the question bubble.
     const hasPendingClarification = pendingClarification !== null;
     // Server-side work that warrants showing a placeholder assistant bubble.
     // Excludes `isSubmitting` (client-side upload — too early to claim
@@ -954,10 +965,7 @@ const AppGenerate: FC = () => {
             } else if (v.status === 'error') {
                 msgs.push({
                     role: 'assistant',
-                    content:
-                        v.error ??
-                        v.statusMessage ??
-                        'Generation failed. Please try again.',
+                    content: getAppVersionFailureMessage(v),
                     imagePreviewUrls: [],
                     imageResourceIds: [],
                     charts: [],
@@ -1997,6 +2005,7 @@ const AppGenerate: FC = () => {
                     defaultSize={newAppLanding ? 100 : 30}
                     minSize={newAppLanding ? 100 : 22}
                     maxSize={newAppLanding ? 100 : 50}
+                    data-collapsed={isChatPanelCollapsed || undefined}
                     className={`${classes.chatPanelOuter}${
                         newAppLanding ? ` ${classes.chatPanelOuterCompose}` : ''
                     }`}
@@ -2006,6 +2015,14 @@ const AppGenerate: FC = () => {
                             newAppLanding ? ` ${classes.chatPanelCompose}` : ''
                         }`}
                     >
+                        {!newAppLanding && (
+                            <Box className={classes.sidebarHeader}>
+                                <AppBuilderSidebarToggle
+                                    collapsed={isChatPanelCollapsed}
+                                    onToggle={handleToggleChatPanel}
+                                />
+                            </Box>
+                        )}
                         {newAppLanding && (
                             <Stack gap="lg" className={classes.composeHeading}>
                                 <Stack gap={6}>
@@ -2709,7 +2726,12 @@ const AppGenerate: FC = () => {
                                         ref={promptEditorRef}
                                         placeholder="Describe the app you want to build..."
                                         autoFocus
-                                        disabled={isLoading}
+                                        // Editable while the agent works so the
+                                        // next prompt can be drafted; disabled
+                                        // only during the client-side submit,
+                                        // where clear() would wipe typed text.
+                                        disabled={isSubmitting}
+                                        submitDisabled={isLoading}
                                         onEmptyChange={setIsPromptEmpty}
                                         onSubmit={() => void handleSubmit()}
                                         onPaste={handlePaste}
@@ -2803,7 +2825,7 @@ const AppGenerate: FC = () => {
                                                                 ),
                                                         )
                                                     }
-                                                    disabled={isLoading}
+                                                    disabled={isSubmitting}
                                                 />
                                             )}
                                             {selectedDashboard && (
@@ -2831,7 +2853,7 @@ const AppGenerate: FC = () => {
                                                                     : null,
                                                         )
                                                     }
-                                                    disabled={isLoading}
+                                                    disabled={isSubmitting}
                                                 />
                                             )}
                                             {imageAttachments.length > 0 && (
@@ -2845,7 +2867,7 @@ const AppGenerate: FC = () => {
                                                     onRemove={(previewUrl) =>
                                                         clearImage(previewUrl)
                                                     }
-                                                    disabled={isLoading}
+                                                    disabled={isSubmitting}
                                                     loading={isSubmitting}
                                                 />
                                             )}
@@ -2951,7 +2973,7 @@ const AppGenerate: FC = () => {
                                                 onAddImages={() =>
                                                     fileInputRef.current?.click()
                                                 }
-                                                disabled={isLoading}
+                                                disabled={isSubmitting}
                                                 imagesDisabled={
                                                     imageAttachments.length >=
                                                     MAX_IMAGES_PER_VERSION
@@ -2966,7 +2988,7 @@ const AppGenerate: FC = () => {
                                                 disabled={
                                                     !previewApp ||
                                                     !screenshotAvailable ||
-                                                    isLoading ||
+                                                    isSubmitting ||
                                                     imageAttachments.length >=
                                                         MAX_IMAGES_PER_VERSION
                                                 }
@@ -2993,7 +3015,7 @@ const AppGenerate: FC = () => {
                                             <ModelPicker
                                                 value={selectedModel}
                                                 onChange={handleModelChange}
-                                                disabled={isLoading}
+                                                disabled={isSubmitting}
                                             />
                                             {isBuilding ? (
                                                 <ActionIcon
@@ -3051,7 +3073,10 @@ const AppGenerate: FC = () => {
                 </Panel>
 
                 {!newAppLanding && (
-                    <PanelResizeHandle className={classes.resizeHandle} />
+                    <PanelResizeHandle
+                        className={classes.resizeHandle}
+                        disabled={isChatPanelCollapsed}
+                    />
                 )}
 
                 {/* Preview Panel */}

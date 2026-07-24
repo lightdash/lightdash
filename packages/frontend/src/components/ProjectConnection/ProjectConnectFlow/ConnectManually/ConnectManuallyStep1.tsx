@@ -1,11 +1,10 @@
 import { type WarehouseTypes } from '@lightdash/common';
-import { Button, Stack, Text } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
-import { Prism } from '@mantine/prism';
+import { Button, Stack, Text, Tooltip } from '@mantine-8/core';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { type FC } from 'react';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
+import CodeBlock from '../../../common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../common/MantineIcon';
 import { ProjectCreationCard } from '../../../common/Settings/SettingsCard';
 import { OnboardingConnectTitle } from '../common/OnboardingTitle';
@@ -58,9 +57,12 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
                         .yml to see a table in Lightdash. eg:
                     </Text>
 
-                    <Prism ta="left" noCopy language="yaml">
-                        {codeBlock}
-                    </Prism>
+                    <CodeBlock
+                        code={codeBlock}
+                        language="yaml"
+                        ta="left"
+                        withCopyButton={false}
+                    />
 
                     <Stack gap="xs">
                         <Tooltip

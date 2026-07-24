@@ -59,6 +59,7 @@ const loginQuery = async (data: LoginParams) =>
         url: `/login`,
         method: 'POST',
         body: JSON.stringify(data),
+        sensitive: true,
     });
 
 export const useLoginWithEmailMutation = ({

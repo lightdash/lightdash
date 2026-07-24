@@ -10,11 +10,13 @@ import type {
     ApiAiAgentAdminConversationsResponse,
     ApiAiAgentAdminPromptActivityResponse,
     ApiAiAgentArtifactResponse,
+    ApiAiAgentArtifactVizQueryResponse,
     ApiAiAgentEvaluationResponse,
     ApiAiAgentEvaluationRunResponse,
     ApiAiAgentEvaluationRunResultsResponse,
     ApiAiAgentEvaluationRunSummaryListResponse,
     ApiAiAgentEvaluationSummaryListResponse,
+    ApiAiAgentMemoryResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
     ApiAiAgentReviewItemActivityResponse,
     ApiAiAgentReviewItemPrDiffResponse,
@@ -500,6 +502,11 @@ export type HealthState = {
     isAuthenticated: boolean;
     requiresOrgRegistration: boolean;
     hasEmailClient: boolean;
+    /**
+     * Instance can provision the sample-data playground project (enterprise
+     * builds only).
+     */
+    hasPlaygroundProjects: boolean;
     /**
      * Instance has a Postmark account token, so email whitelabelling can be
      * offered (the org still needs the EmailWhitelabel feature flag).
@@ -1231,8 +1238,10 @@ type ApiResults =
     | ApiDownloadAsyncQueryResults
     | ApiDownloadAsyncQueryResultsAsXlsx
     | ApiAiAgentThreadResponse['results']
+    | ApiAiAgentMemoryResponse['results']
     | ApiAiAgentThreadMessageVizResponse['results']
     | ApiAiAgentThreadMessageVizQueryResponse['results']
+    | ApiAiAgentArtifactVizQueryResponse['results']
     | ApiUpdateUserAgentPreferencesResponse['results']
     | ApiGetUserAgentPreferencesResponse[`results`]
     | ApiGetProjectParametersResults

@@ -9,8 +9,8 @@ import {
     Title,
     Button,
     Avatar,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
 import {
     IconAlertCircle,
     IconClock,
@@ -71,7 +71,7 @@ const GithubSettingsPanel: FC = () => {
             <Box>
                 <Group gap="sm">
                     <Avatar src={githubIcon} size="md" alt="" />
-                    <Title order={4}>Github</Title>
+                    <Title order={5}>GitHub</Title>
                 </Group>
             </Box>
 

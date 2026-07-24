@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { useHotkeys } from '@mantine/hooks';
+import { useHotkeys } from '@mantine-8/hooks';
 import { memo, useCallback, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useNavigate, useParams } from 'react-router';

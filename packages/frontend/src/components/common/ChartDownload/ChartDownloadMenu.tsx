@@ -73,7 +73,17 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             ? getPivotConfig({
                   chartConfig,
                   pivotConfig: pivotDimensions
-                      ? { columns: pivotDimensions }
+                      ? {
+                            columns: pivotDimensions,
+                            ...(isTableVisualizationConfig(
+                                visualizationConfig,
+                            ) &&
+                                visualizationConfig.chartConfig
+                                    .configuredRowFieldIds && {
+                                    rows: visualizationConfig.chartConfig
+                                        .configuredRowFieldIds,
+                                }),
+                        }
                       : undefined,
                   tableConfig: {
                       columnOrder,

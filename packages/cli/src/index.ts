@@ -87,6 +87,8 @@ function parseDisableTimestampConversionOption(
     return value.toLowerCase() === 'true';
 }
 
+const validateWarehouseColumnsDescription = `Check physical \${TABLE}.column references in dimensions and metrics by executing zero-row queries against the warehouse. Requires warehouse credentials.`;
+
 function parseProjectArgument(value: string | undefined): string | undefined {
     if (value === undefined) {
         throw new InvalidArgumentError('No project argument provided.');
@@ -469,6 +471,11 @@ program
         'Disable timestamp conversion to UTC for Snowflake warehouses. Only use this if your timestamp values are already in UTC.',
         parseDisableTimestampConversionOption,
     )
+    .option(
+        '--validate-warehouse-columns',
+        validateWarehouseColumnsDescription,
+        false,
+    )
     .action(compileHandler);
 
 program
@@ -598,6 +605,11 @@ program
         '--expires-in <hours>',
         'Number of hours until the preview project auto-expires (default: 720, i.e. 30 days)',
     )
+    .option(
+        '--validate-warehouse-columns',
+        validateWarehouseColumnsDescription,
+        false,
+    )
     .action(previewHandler);
 
 program
@@ -723,6 +735,11 @@ program
     .option(
         '--expires-in <hours>',
         'Number of hours until the preview project auto-expires (default: 720, i.e. 30 days)',
+    )
+    .option(
+        '--validate-warehouse-columns',
+        validateWarehouseColumnsDescription,
+        false,
     )
     .action(startPreviewHandler);
 
@@ -885,8 +902,8 @@ const downloadCommand = program
         false,
     )
     .option(
-        '--apps <appUuids...>',
-        'Include specific data apps by UUID (enterprise). Works for apps not added to a space.',
+        '--apps <appReferences...>',
+        'Download only specified data apps by UUID or URL (enterprise). Works for apps not added to a space.',
     )
     .option(
         '--include-apps',
@@ -900,7 +917,7 @@ const downloadCommand = program
     )
     .option(
         '--apps-only',
-        'Download only data apps (implies --skip-charts --skip-dashboards --skip-spaces). Requires --apps <appUuids...>, --include-apps, or --include-all.',
+        'Download only data apps (implies --skip-charts --skip-dashboards --skip-spaces). Requires --apps <appReferences...>, --include-apps, or --include-all.',
         false,
     )
     .option(
@@ -964,6 +981,11 @@ const uploadCommand = program
         false,
     )
     .option(
+        '--skip-space-access',
+        'upload spaces without applying their access policies',
+        false,
+    )
+    .option(
         '--skip-spaces',
         'skip uploading space definitions and access',
         false,
@@ -992,8 +1014,8 @@ const uploadCommand = program
     .option('--validate', 'Validate charts and dashboards after upload', false)
     .option('--gzip', 'Enable gzip compression for request bodies', false)
     .option(
-        '--apps <appUuids...>',
-        'Upload specific data apps by UUID (enterprise).',
+        '--apps <appReferences...>',
+        'Upload only specified data apps by UUID or URL (enterprise).',
     )
     .option(
         '--include-apps',
@@ -1139,6 +1161,11 @@ program
         '1',
     )
     .option('--gzip', 'Enable gzip compression for request bodies', false)
+    .option(
+        '--validate-warehouse-columns',
+        validateWarehouseColumnsDescription,
+        false,
+    )
     .action(deployHandler);
 
 program
@@ -1228,6 +1255,11 @@ program
         new Option('--only <elems...>', 'Specify project elements to validate')
             .choices(Object.values(ValidationTarget))
             .default(Object.values(ValidationTarget)),
+    )
+    .option(
+        '--validate-warehouse-columns',
+        `${validateWarehouseColumnsDescription} Only applies when tables are validated.`,
+        false,
     )
     .option(
         '--include-spaces <spaceSlugs...>',

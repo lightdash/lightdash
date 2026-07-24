@@ -16,7 +16,6 @@ import { Readable } from 'stream';
 import { AiDeepResearchService } from './AiDeepResearchService';
 
 const budget: AiDeepResearchBudget = {
-    maxRuntimeMs: 60_000,
     maxTokens: 10_000,
     maxToolCalls: 20,
     maxWarehouseQueries: 10,
@@ -27,7 +26,6 @@ const effortBudgets = [
     {
         effort: 'low',
         budget: {
-            maxRuntimeMs: 15 * 60 * 1_000,
             maxTokens: 500_000,
             maxToolCalls: 50,
             maxWarehouseQueries: 10,
@@ -37,7 +35,6 @@ const effortBudgets = [
     {
         effort: 'medium',
         budget: {
-            maxRuntimeMs: 30 * 60 * 1_000,
             maxTokens: 1_000_000,
             maxToolCalls: 125,
             maxWarehouseQueries: 25,
@@ -47,7 +44,6 @@ const effortBudgets = [
     {
         effort: 'high',
         budget: {
-            maxRuntimeMs: 45 * 60 * 1_000,
             maxTokens: 2_000_000,
             maxToolCalls: 250,
             maxWarehouseQueries: 50,
@@ -57,7 +53,6 @@ const effortBudgets = [
     {
         effort: 'xhigh',
         budget: {
-            maxRuntimeMs: 55 * 60 * 1_000,
             maxTokens: 4_000_000,
             maxToolCalls: 500,
             maxWarehouseQueries: 100,
@@ -86,7 +81,7 @@ const chart = {
     },
 };
 
-const chartRef = `[${chart.title}](#chart-${chart.queryUuid})`;
+const chartRef = `<chart id="${chart.queryUuid}" title="${chart.title}" description="Revenue remained stable across the period.">`;
 
 const reportMarkdown = `Revenue held steady overall, with high confidence.
 
@@ -652,7 +647,7 @@ describe('AiDeepResearchService', () => {
                     prompt: 'Investigate revenue',
                     budget: {
                         ...budget,
-                        maxRuntimeMs: 60 * 60 * 1_000 + 1,
+                        maxTokens: 4_000_000 + 1,
                     },
                 }),
             ).rejects.toBeInstanceOf(ParameterError);
@@ -661,6 +656,30 @@ describe('AiDeepResearchService', () => {
     });
 
     describe('access and cancellation', () => {
+        it('omits legacy runtime limits from returned budget snapshots', async () => {
+            const legacyBudget = {
+                ...budget,
+                maxRuntimeMs: 30 * 60 * 1_000,
+            } as AiDeepResearchBudget;
+            const { service } = buildService({
+                model: {
+                    findByUuidScoped: vi
+                        .fn()
+                        .mockResolvedValue(
+                            runRow({ budget_snapshot: legacyBudget }),
+                        ),
+                },
+            });
+
+            const run = await service.getRun(
+                userWithProjectAccess(),
+                'project-1',
+                'run-1',
+            );
+
+            expect(run.budget).toEqual(budget);
+        });
+
         it('does not expose a run through a different project path', async () => {
             const { service, model, projectModel } = buildService({
                 model: {
@@ -891,7 +910,7 @@ describe('AiDeepResearchService', () => {
             };
             const inlineMarkdown = reportMarkdown.replace(
                 'The baseline trend is stable.',
-                `The baseline trend is stable.\n\n[${inlineChart.title}](#chart-${inlineChart.key})`,
+                `The baseline trend is stable.\n\n<chart id="${inlineChart.key}" title="${inlineChart.title}" description="The enterprise ratio was lower than the SMB ratio.">`,
             );
             const { service, model } = buildService({
                 executor: vi.fn().mockResolvedValue({
@@ -953,7 +972,7 @@ describe('AiDeepResearchService', () => {
             expect(queryHistoryModel.getByQueryUuid).not.toHaveBeenCalled();
             const [, persisted, chartData] = model.markCompleted.mock.calls[0];
             expect(chartData).toEqual({});
-            expect(persisted).not.toContain('#chart-');
+            expect(persisted).not.toContain(`<chart id="${chart.queryUuid}"`);
             expect(persisted).toContain('*(chart omitted:');
             expect(persisted).toContain(
                 'Some proposed charts were omitted because their query evidence could not be verified.',
@@ -992,7 +1011,7 @@ describe('AiDeepResearchService', () => {
 
             const [, persisted, chartData] = model.markCompleted.mock.calls[0];
             expect(chartData).toEqual({});
-            expect(persisted).not.toContain('#chart-');
+            expect(persisted).not.toContain(`<chart id="${chart.queryUuid}"`);
             expect(persisted).toContain('*(chart omitted:');
         });
 
@@ -1108,6 +1127,7 @@ describe('AiDeepResearchService', () => {
                 context: QueryExecutionContext.AI,
             });
             expect(result).toEqual({
+                source: 'semantic',
                 type: AiResultType.QUERY_RESULT,
                 query: {
                     queryUuid: 'query-2',

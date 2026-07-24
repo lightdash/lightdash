@@ -419,8 +419,10 @@ describe('SDK AI agent', () => {
             }),
         );
 
-        expect(onThreadChange).toHaveBeenCalledWith({
-            threadUuid: 'test-thread-uuid',
+        await waitFor(() => {
+            expect(onThreadChange).toHaveBeenCalledWith({
+                threadUuid: 'test-thread-uuid',
+            });
         });
     });
 });

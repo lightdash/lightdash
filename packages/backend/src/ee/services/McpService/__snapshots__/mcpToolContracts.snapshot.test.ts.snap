@@ -1534,14 +1534,6 @@ Notes:
                 ],
                 "type": "string",
               },
-              "funnelDataInput": {
-                "description": "How to interpret funnel data. Use "row" when each row represents a funnel stage (most common). Use "column" when comparing multiple funnels side-by-side., ",
-                "enum": [
-                  "row",
-                  "column",
-                ],
-                "type": "string",
-              },
               "groupBy": {
                 "description": "Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=["order_date", "status"], groupBy=["status"] creates separate series for each status value. Leave null for simple single-series charts., ",
                 "items": {
@@ -4861,14 +4853,6 @@ Response shape (MCP CallToolResult):
                 ],
                 "type": "string",
               },
-              "funnelDataInput": {
-                "description": "How to interpret funnel data. Use "row" when each row represents a funnel stage (most common). Use "column" when comparing multiple funnels side-by-side., ",
-                "enum": [
-                  "row",
-                  "column",
-                ],
-                "type": "string",
-              },
               "groupBy": {
                 "description": "Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=["order_date", "status"], groupBy=["status"] creates separate series for each status value. Leave null for simple single-series charts., ",
                 "items": {
@@ -6778,7 +6762,7 @@ Usage Tips:
         "idempotentHint": true,
         "readOnlyHint": true,
       },
-      "description": "Execute an arbitrary SQL query against the project's data warehouse and return the results. Successful results can be linked from the final answer with [Open in SQL Runner](#sql-runner-link).
+      "description": "Execute an arbitrary SQL query against the project's data warehouse and return the results. The platform already gives the user a way to continue this exact query in SQL Runner — do not add your own SQL Runner link in the final answer text; a link you write in prose cannot be scoped to a specific query and will point at the wrong one if this tool is called more than once in a turn.
 
 Use this tool when the user wants to run a custom SQL query that doesn't fit the explore-based metric query model.
 This is useful for ad-hoc analysis, data exploration, or queries that join across tables not modeled in explores.

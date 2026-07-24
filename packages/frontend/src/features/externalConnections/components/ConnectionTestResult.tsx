@@ -35,10 +35,10 @@ export const ConnectionTestResult: FC<Props> = ({ response }) => (
                 fz="xs"
                 style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
             >
-                {JSON.stringify(response.body, null, 2).slice(
-                    0,
-                    MAX_BODY_RENDER_CHARS,
-                )}
+                {(typeof response.body === 'string'
+                    ? response.body
+                    : JSON.stringify(response.body, null, 2)
+                ).slice(0, MAX_BODY_RENDER_CHARS)}
             </Code>
         </ScrollArea.Autosize>
     </Stack>

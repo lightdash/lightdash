@@ -1,4 +1,4 @@
-import { ModalsProvider } from '@mantine/modals';
+import { ModalsProvider } from '@mantine-8/modals';
 import { wrapCreateBrowserRouterV7 } from '@sentry/react';
 import { createBrowserRouter, Outlet, RouterProvider } from 'react-router';
 import { DocumentTitle } from './components/common/DocumentTitle';

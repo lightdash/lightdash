@@ -1,4 +1,6 @@
 import {
+    isAiAgentSqlArtifactVizQuery,
+    isAiSqlChartArtifactConfig,
     parseVizConfig,
     type AiAgentChartTypeOption,
     type AiAgentMessageAssistant,
@@ -24,6 +26,10 @@ import { useAiAgentArtifactVizQuery } from '../../hooks/useProjectAiAgents';
 import { clearArtifact } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
+import {
+    AiSqlArtifactActions,
+    AiSqlArtifactVisualization,
+} from './AiSqlArtifactVisualization';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
 import { ViewSqlButton } from './ViewSqlButton';
 
@@ -52,10 +58,16 @@ export const AiChartVisualization: FC<Props> = ({
     const [selectedChartType, setSelectedChartType] =
         useState<AiAgentChartTypeOption | null>(null);
 
+    const isSqlArtifact = isAiSqlChartArtifactConfig(artifactData.chartConfig);
+    const semanticChartConfig =
+        artifactData.chartConfig?.source === 'semantic'
+            ? artifactData.chartConfig.config
+            : null;
+
     const vizConfig = useMemo(() => {
-        if (!artifactData?.chartConfig) return null;
-        return parseVizConfig(artifactData.chartConfig);
-    }, [artifactData?.chartConfig]);
+        if (!semanticChartConfig) return null;
+        return parseVizConfig(semanticChartConfig);
+    }, [semanticChartConfig]);
 
     const queryExecutionHandle = useAiAgentArtifactVizQuery(
         {
@@ -64,22 +76,34 @@ export const AiChartVisualization: FC<Props> = ({
             artifactUuid,
             versionUuid,
         },
-        { enabled: !!vizConfig },
+        { enabled: !!vizConfig || isSqlArtifact },
     );
+
+    const semanticVizQueryData =
+        queryExecutionHandle.data &&
+        !isAiAgentSqlArtifactVizQuery(queryExecutionHandle.data)
+            ? queryExecutionHandle.data
+            : undefined;
+    const sqlVizQueryData =
+        queryExecutionHandle.data &&
+        isAiAgentSqlArtifactVizQuery(queryExecutionHandle.data)
+            ? queryExecutionHandle.data
+            : undefined;
 
     const queryResults = useInfiniteQueryResults(
         projectUuid,
-        queryExecutionHandle?.data?.query.queryUuid,
+        queryExecutionHandle.data?.query.queryUuid,
     );
 
     const { data: compiledSql } = useCompiledSqlFromMetricQuery({
-        tableName: queryExecutionHandle.data?.query.metricQuery?.exploreName,
+        tableName: semanticVizQueryData?.query.metricQuery?.exploreName,
         projectUuid,
-        metricQuery: queryExecutionHandle.data?.query.metricQuery,
+        metricQuery: semanticVizQueryData?.query.metricQuery,
     });
 
     const isQueryLoading =
-        queryExecutionHandle.isLoading || queryResults.isFetchingRows;
+        queryExecutionHandle.isLoading ||
+        (!isSqlArtifact && queryResults.isFetchingRows);
     const isQueryError = queryExecutionHandle.isError || queryResults.error;
 
     if (isQueryLoading) {
@@ -122,18 +146,60 @@ export const AiChartVisualization: FC<Props> = ({
         );
     }
 
-    if (!queryExecutionHandle.data || !vizConfig) {
+    if (sqlVizQueryData) {
+        const sqlHeaderContent = (
+            <Group gap="md" align="start">
+                <Stack gap={0} flex={1}>
+                    <Title order={5}>{sqlVizQueryData.metadata.title}</Title>
+                    <Text c="dimmed" size="xs">
+                        {sqlVizQueryData.metadata.description}
+                    </Text>
+                </Stack>
+                <Group gap="sm" display={isMobile ? 'none' : 'flex'}>
+                    <AiSqlArtifactActions
+                        projectUuid={projectUuid}
+                        agentUuid={agentUuid}
+                        artifactUuid={artifactUuid}
+                        versionUuid={versionUuid}
+                        savedSqlUuid={artifactData.savedSqlUuid}
+                        sql={sqlVizQueryData.sql}
+                        limit={sqlVizQueryData.limit}
+                        title={sqlVizQueryData.metadata.title ?? 'SQL results'}
+                        description={sqlVizQueryData.metadata.description}
+                        columns={Object.values(queryResults.columns ?? {})}
+                    />
+                    {showCloseButton && (
+                        <ActionIcon
+                            size="sm"
+                            variant="subtle"
+                            color="ldGray.4"
+                            onClick={() => dispatch(clearArtifact())}
+                        >
+                            <MantineIcon icon={IconX} />
+                        </ActionIcon>
+                    )}
+                </Group>
+            </Group>
+        );
+
+        return (
+            <AiSqlArtifactVisualization
+                results={queryResults}
+                headerContent={sqlHeaderContent}
+            />
+        );
+    }
+
+    if (!semanticVizQueryData || !vizConfig || !semanticChartConfig) {
         return null;
     }
 
     const inlineHeaderContent = (
         <Group gap="md" align="start">
             <Stack gap={0} flex={1}>
-                <Title order={5}>
-                    {queryExecutionHandle.data.metadata.title}
-                </Title>
+                <Title order={5}>{semanticVizQueryData.metadata.title}</Title>
                 <Text c="dimmed" size="xs">
-                    {queryExecutionHandle.data.metadata.description}
+                    {semanticVizQueryData.metadata.description}
                 </Text>
             </Stack>
             <Group gap="sm" display={isMobile ? 'none' : 'flex'}>
@@ -144,9 +210,8 @@ export const AiChartVisualization: FC<Props> = ({
                     agentUuid={agentUuid}
                     artifactData={artifactData}
                     saveChartOptions={{
-                        name: queryExecutionHandle.data.metadata.title,
-                        description:
-                            queryExecutionHandle.data.metadata.description,
+                        name: semanticVizQueryData.metadata.title,
+                        description: semanticVizQueryData.metadata.description,
                         linkToMessage: true,
                     }}
                     compiledSql={compiledSql?.query}
@@ -167,9 +232,9 @@ export const AiChartVisualization: FC<Props> = ({
 
     return (
         <AiVisualizationRenderer
-            vizQueryData={queryExecutionHandle.data}
+            vizQueryData={semanticVizQueryData}
             results={queryResults}
-            chartConfig={artifactData.chartConfig!}
+            chartConfig={semanticChartConfig}
             selectedChartType={selectedChartType}
             onChartTypeChange={setSelectedChartType}
             headerContent={inlineHeaderContent}

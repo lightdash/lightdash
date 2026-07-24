@@ -23,12 +23,16 @@ const UserCompletionModal: FC = () => {
 
     const canEnterOrganizationName = user.data?.organizationName === '';
 
-    const validate = zodResolver(
-        canEnterOrganizationName
-            ? CompleteUserSchema
-            : // User is not creating org, just accepting invite
-              // They cannot input org name so don't validate it for backwards compat reasons
-              CompleteUserSchema.omit({ organizationName: true }),
+    const validate = useMemo(
+        () =>
+            zodResolver(
+                canEnterOrganizationName
+                    ? CompleteUserSchema
+                    : // User is not creating org, just accepting invite
+                      // They cannot input org name so don't validate it for backwards compat reasons
+                      CompleteUserSchema.omit({ organizationName: true }),
+            ),
+        [canEnterOrganizationName],
     );
 
     const form = useForm<CompleteUserArgs>({
@@ -187,9 +191,7 @@ const UserCompletionModalWithUser = () => {
 
     if (orgSetupPageFlag.data?.enabled) {
         const shouldSetup =
-            user.data &&
-            !user.data.isSetupComplete &&
-            health.data?.rudder.writeKey !== undefined;
+            user.data && !user.data.isSetupComplete && health.isSuccess;
         // Keyed by pathname so the redirect re-fires if a competing route
         // redirect (e.g. AppRoute's needsProject -> /createProject) wins the
         // same render commit.

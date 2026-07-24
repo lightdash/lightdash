@@ -10,9 +10,9 @@ import {
     ActionIcon,
     Highlight,
     ScrollArea,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
-import { useDebouncedValue, useHover } from '@mantine/hooks';
+import { useDebouncedValue, useHover } from '@mantine-8/hooks';
 import { IconCopy, IconSearch, IconX } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -39,7 +39,6 @@ const TableField: FC<{
                     <CopyButton value={`${activeTable}.${field.name}`}>
                         {({ copied, copy }) => (
                             <Tooltip
-                                variant="xs"
                                 label={copied ? 'Copied to clipboard' : 'Copy'}
                                 withArrow
                                 position="right"
@@ -65,12 +64,7 @@ const TableField: FC<{
                 <TableFieldIcon fieldType={field.type} />
             )}
 
-            <Tooltip
-                withinPortal
-                variant="xs"
-                label={field.name}
-                disabled={!isTruncated}
-            >
+            <Tooltip withinPortal label={field.name} disabled={!isTruncated}>
                 <Text
                     ref={truncatedRef}
                     fw={500}

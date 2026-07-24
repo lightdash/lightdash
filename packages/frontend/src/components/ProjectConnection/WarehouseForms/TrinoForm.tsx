@@ -6,9 +6,9 @@ import {
     Select,
     PasswordInput,
 } from '@mantine-8/core';
-import { NumberInput } from '@mantine/core';
 import React, { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
+import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import BooleanSwitch from '../Inputs/BooleanSwitch';

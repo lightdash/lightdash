@@ -29,7 +29,6 @@ import {
     Tooltip,
     type ComboboxItem,
 } from '@mantine-8/core';
-import { NumberInput } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import {
     Icon123,
@@ -44,6 +43,8 @@ import {
 import { useMemo, type FC } from 'react';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { NumberInput } from '../../../../components/common/NumberInput';
+import { optionalNumber } from '../../../../utils/numberInputUtils';
 import classes from './FormatRow.module.css';
 
 type Props = {
@@ -480,7 +481,7 @@ export const FormatRow: FC<Props> = ({
                                     onChange: (value) =>
                                         setFormatFieldValue(
                                             'round',
-                                            value === '' ? undefined : value,
+                                            optionalNumber(value),
                                         ),
                                 }}
                             />
@@ -548,7 +549,7 @@ export const FormatRow: FC<Props> = ({
                                     onChange: (value) =>
                                         setFormatFieldValue(
                                             'round',
-                                            value === '' ? undefined : value,
+                                            optionalNumber(value),
                                         ),
                                 }}
                             />
@@ -585,7 +586,7 @@ export const FormatRow: FC<Props> = ({
                                 onChange: (value) =>
                                     setFormatFieldValue(
                                         'round',
-                                        value === '' ? undefined : value,
+                                        optionalNumber(value),
                                     ),
                             }}
                         />

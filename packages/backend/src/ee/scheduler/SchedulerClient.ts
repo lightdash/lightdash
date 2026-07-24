@@ -2,6 +2,7 @@ import {
     AgentOnboardingPipelineJobPayload,
     AiAgentEditDbtProjectPipelineJobPayload,
     AiAgentEvalRunJobPayload,
+    AiAgentMemoryDistillJobPayload,
     AiAgentReviewClassifierJobPayload,
     AiAgentReviewRemediationCompileJobPayload,
     AiAgentReviewRemediationPreviewJobPayload,
@@ -14,6 +15,7 @@ import {
     EE_SCHEDULER_TASKS,
     EmbedArtifactVersionJobPayload,
     GenerateArtifactQuestionJobPayload,
+    JobPriority,
     SlackPromptJobPayload,
 } from '@lightdash/common';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -39,6 +41,22 @@ export const aiAgentReviewRunAt = (
         : now;
 
 export class CommercialSchedulerClient extends SchedulerClient {
+    async aiAgentMemoryDistill(payload: AiAgentMemoryDistillJobPayload) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.AI_AGENT_MEMORY_DISTILL,
+            payload,
+            {
+                runAt: new Date(),
+                maxAttempts: 1,
+                jobKey: `ai-agent-memory-distill:${payload.threadUuid}`,
+                queueName: `ai-agent-memory-distill:${payload.projectUuid}`,
+                priority: JobPriority.LOW,
+            },
+        );
+        return { jobId };
+    }
+
     async slackAiPrompt(payload: SlackPromptJobPayload) {
         const graphileClient = await this.graphileUtils;
         const now = new Date();

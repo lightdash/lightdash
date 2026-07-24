@@ -10,7 +10,7 @@ import {
 } from '@mantine-8/core';
 import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
-import { useTableStyles } from '../../../hooks/styles/useTableStyles';
+import tableStyles from '../../../hooks/styles/tableStyles.module.css';
 import MantineIcon from '../../common/MantineIcon';
 import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/utils';
 
@@ -98,12 +98,10 @@ export const CredentialsTable: FC<CredentialsTableProps> = ({
     setWarehouseCredentialsToBeEdited,
     setWarehouseCredentialsToBeDeleted,
 }) => {
-    const { cx, classes: tableClasses } = useTableStyles();
-
     return (
         <Paper withBorder style={{ overflow: 'hidden' }}>
             <Table
-                className={cx(tableClasses.root, tableClasses.alignLastTdRight)}
+                className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
             >
                 <Table.Thead>
                     <Table.Tr>

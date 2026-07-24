@@ -1,16 +1,19 @@
 import {
+    isAppScheduler,
     isDashboardScheduler,
     SchedulerFormat,
     type Dashboard,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type SchedulerAndTargets,
+    type SchedulerAppState,
 } from '@lightdash/common';
 import {
     Anchor,
     Badge,
     Box,
     Checkbox,
+    Code,
     Divider,
     Group,
     Input,
@@ -23,6 +26,7 @@ import {
 import isEqual from 'lodash/isEqual';
 import { useMemo, type FC } from 'react';
 import useHealth from '../../../../../hooks/health/useHealth';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { CsvFormattingOptions } from '../../CsvFormattingOptions';
 import { useSchedulerFormContext } from '../schedulerFormContext';
 import { SchedulerFormFiltersTab } from '../SchedulerFormFiltersTab';
@@ -33,6 +37,9 @@ type Props = {
     dashboard: Dashboard | undefined;
     savedSchedulerData?: SchedulerAndTargets;
     isApp: boolean;
+    appUuid?: string;
+    /** App deliveries only: the app state currently reflected in the page URL. */
+    currentAppState?: SchedulerAppState | null;
     isDashboardTabsAvailable: boolean;
     currentParameterValues?: ParametersValuesMap;
     availableParameters?: ParameterDefinitions;
@@ -43,6 +50,8 @@ export const SchedulerDataFormatSection: FC<Props> = ({
     dashboard,
     savedSchedulerData,
     isApp,
+    appUuid,
+    currentAppState,
     isDashboardTabsAvailable,
     currentParameterValues,
     availableParameters,
@@ -50,8 +59,25 @@ export const SchedulerDataFormatSection: FC<Props> = ({
 }) => {
     const form = useSchedulerFormContext();
     const health = useHealth();
+    const projectUuid = useProjectUuid();
     const isImageDisabled = !health.data?.hasHeadlessBrowser;
     const isDashboard = dashboard !== undefined;
+
+    // The state the toggle can attach: the scheduler's saved snapshot in edit
+    // mode, otherwise whatever the page URL carries right now.
+    const savedAppState =
+        savedSchedulerData && isAppScheduler(savedSchedulerData)
+            ? (savedSchedulerData.appState ?? null)
+            : null;
+    const availableAppState = savedAppState ?? currentAppState ?? null;
+
+    const appStateUrl = useMemo(() => {
+        const state = form.values.appState ?? availableAppState;
+        if (!state || !appUuid || !projectUuid) return null;
+        return `${window.location.origin}/projects/${projectUuid}/apps/${appUuid}/view?state=${encodeURIComponent(
+            JSON.stringify(state),
+        )}`;
+    }, [form.values.appState, availableAppState, appUuid, projectUuid]);
 
     const allTabsSelected = useMemo(
         () =>
@@ -231,6 +257,32 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                     </Box>
                 )}
             </Stack>
+
+            {isApp && availableAppState && (
+                <>
+                    <Divider />
+                    <Stack gap="xs">
+                        <span className={classes.subBlockLabel}>App state</span>
+                        <Checkbox
+                            size="xs"
+                            label="Send current app state"
+                            description="The delivery renders the app with this state applied (selected filters, tabs, etc.) instead of its default view."
+                            checked={form.values.appState != null}
+                            onChange={(e) => {
+                                form.setFieldValue(
+                                    'appState',
+                                    e.target.checked ? availableAppState : null,
+                                );
+                            }}
+                        />
+                        {form.values.appState != null && appStateUrl && (
+                            <Code block className={classes.appStateUrl}>
+                                {appStateUrl}
+                            </Code>
+                        )}
+                    </Stack>
+                </>
+            )}
 
             {isDashboard && (
                 <>

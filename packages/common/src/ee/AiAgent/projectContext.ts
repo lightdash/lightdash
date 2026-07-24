@@ -44,6 +44,47 @@ export const aiProjectContextTypedObjectRefSchema: z.ZodType<AiProjectContextTyp
 export const aiProjectContextObjectRefSchema: z.ZodType<AiProjectContextObjectRef> =
     z.union([z.string().min(1), aiProjectContextTypedObjectRefSchema]);
 
+const typedProjectContextObjectRefsSchema = z.array(
+    aiProjectContextTypedObjectRefSchema,
+);
+
+const sanitizeLegacyProjectContextEntry = (entry: unknown): unknown => {
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+        return entry;
+    }
+
+    const sanitized = { ...entry } as Record<string, unknown>;
+    if (
+        !typedProjectContextObjectRefsSchema.safeParse(sanitized.objects)
+            .success
+    ) {
+        sanitized.objects = [];
+    }
+    return sanitized;
+};
+
+const normalizeLegacyProjectContext = (loaded: unknown): unknown => {
+    if (Array.isArray(loaded)) {
+        return loaded.map(sanitizeLegacyProjectContextEntry);
+    }
+    if (typeof loaded !== 'object' || loaded === null) {
+        return loaded;
+    }
+
+    const document = loaded as Record<string, unknown>;
+    if (document.version !== 1 && document.version !== '1') {
+        return loaded;
+    }
+
+    return {
+        ...document,
+        version: PROJECT_CONTEXT_FILE_VERSION,
+        entries: Array.isArray(document.entries)
+            ? document.entries.map(sanitizeLegacyProjectContextEntry)
+            : document.entries,
+    };
+};
+
 export const serializeAiProjectContextObjectRef = (
     ref: AiProjectContextObjectRef,
 ): string => {
@@ -242,6 +283,7 @@ export const loadProjectContextFile = (
         );
     }
 
+    const normalized = normalizeLegacyProjectContext(loaded);
     const ajv = new Ajv({
         coerceTypes: true,
         allErrors: true,
@@ -250,7 +292,7 @@ export const loadProjectContextFile = (
     AjvErrors(ajv);
     const validate = ajv.compile(lightdashProjectContextSchema);
 
-    if (!validate(loaded)) {
+    if (!validate(normalized)) {
         const errors = betterAjvErrors(
             lightdashProjectContextSchema,
             loaded,
@@ -263,9 +305,9 @@ export const loadProjectContextFile = (
     }
 
     const rawEntries = (
-        Array.isArray(loaded)
-            ? loaded
-            : (loaded as { entries: unknown[] }).entries
+        Array.isArray(normalized)
+            ? normalized
+            : (normalized as { entries: unknown[] }).entries
     ) as ProjectContextFileEntry[];
     const entries: ProjectContextEntry[] = [];
     const usedIds = new Set<string>();
@@ -299,7 +341,14 @@ export const loadProjectContextFile = (
 export const applyProjectContextWriteback = (
     existingContent: string,
     judgeEntry: ProjectContextWritebackEntry,
-): { content: string; entryId: string; op: 'create' | 'update' } => {
+): {
+    content: string;
+    entryId: string;
+    op: 'create' | 'update';
+    // True when a non-empty legacy (v1 / bare-array) file was rewritten as
+    // canonical v2, so callers can surface the migration to the user.
+    upgradesFileToV2: boolean;
+} => {
     const { entries, entryId, op } = mergeProjectContextEntry(
         loadProjectContextFile(existingContent),
         judgeEntry,
@@ -308,10 +357,11 @@ export const applyProjectContextWriteback = (
     if (existingContent.trim() !== '') {
         const doc = parseDocument(existingContent);
         const entriesNode = doc.get('entries');
-        if (doc.errors.length === 0 && isSeq(entriesNode)) {
-            if (doc.get('version') === undefined) {
-                doc.set('version', PROJECT_CONTEXT_FILE_VERSION);
-            }
+        if (
+            doc.errors.length === 0 &&
+            isSeq(entriesNode) &&
+            doc.get('version') === PROJECT_CONTEXT_FILE_VERSION
+        ) {
             const node = doc.createNode({
                 id: entryId,
                 kind: judgeEntry.kind,
@@ -337,9 +387,15 @@ export const applyProjectContextWriteback = (
                 }),
                 entryId,
                 op,
+                upgradesFileToV2: false,
             };
         }
     }
 
-    return { content: serializeProjectContextFile(entries), entryId, op };
+    return {
+        content: serializeProjectContextFile(entries),
+        entryId,
+        op,
+        upgradesFileToV2: existingContent.trim() !== '',
+    };
 };

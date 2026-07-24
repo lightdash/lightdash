@@ -47,6 +47,9 @@ type Props = {
     placeholder?: string;
     autoFocus?: boolean;
     disabled?: boolean;
+    /** Blocks Enter-to-submit while the editor stays editable — lets users
+     *  draft their next prompt while the AI is generating. */
+    submitDisabled?: boolean;
     /** Called after every content change with whether the editor is empty —
      *  the parent uses this to enable/disable the submit button. */
     onEmptyChange?: (isEmpty: boolean) => void;
@@ -169,7 +172,15 @@ const ElementMention = Mention.extend({
 
 const AppPromptEditor = forwardRef<AppPromptEditorHandle, Props>(
     function AppPromptEditor(
-        { placeholder, autoFocus, disabled, onEmptyChange, onSubmit, onPaste },
+        {
+            placeholder,
+            autoFocus,
+            disabled,
+            submitDisabled,
+            onEmptyChange,
+            onSubmit,
+            onPaste,
+        },
         ref,
     ) {
         // Refs so the editor's stable handlers (configured once at editor
@@ -178,6 +189,8 @@ const AppPromptEditor = forwardRef<AppPromptEditorHandle, Props>(
         onSubmitRef.current = onSubmit;
         const onPasteRef = useRef(onPaste);
         onPasteRef.current = onPaste;
+        const submitDisabledRef = useRef(submitDisabled);
+        submitDisabledRef.current = submitDisabled;
         const editorRef = useRef<Editor | null>(null);
 
         const editor = useEditor({
@@ -208,7 +221,11 @@ const AppPromptEditor = forwardRef<AppPromptEditorHandle, Props>(
                         const submit = onSubmitRef.current;
                         if (text.trim() && submit) {
                             event.preventDefault();
-                            submit(text);
+                            // Swallow Enter while submission is gated so the
+                            // draft doesn't gain stray newlines.
+                            if (!submitDisabledRef.current) {
+                                submit(text);
+                            }
                             return true;
                         }
                     }

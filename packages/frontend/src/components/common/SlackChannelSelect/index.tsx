@@ -13,7 +13,7 @@ import {
     useCombobox,
     type PillsInputProps,
 } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import { IconRefresh, IconX } from '@tabler/icons-react';
 import compact from 'lodash/compact';
 import uniq from 'lodash/uniq';

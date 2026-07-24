@@ -20,6 +20,7 @@ import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassi
 import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
 import { type McpToolCallModel } from '../models/McpToolCallModel';
 import { AiAgentAdminService } from '../services/AiAgentAdminService';
+import { AiAgentMemoryService } from '../services/AiAgentMemoryService/AiAgentMemoryService';
 import { AiAgentReviewClassifierService } from '../services/AiAgentReviewClassifierService';
 import { type AiAgentReviewNotificationService } from '../services/AiAgentReviewNotificationService';
 import { AiAgentService } from '../services/AiAgentService/AiAgentService';
@@ -37,13 +38,16 @@ const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const AI_AGENT_REVIEW_REMEDIATION_RUN_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const AI_AGENT_REVIEW_CLASSIFIER_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 const AI_AGENT_REVIEW_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const AI_AGENT_MEMORY_LLM_TIMEOUT_MS = 4 * 60 * 1000; // 4 minutes
+const AI_AGENT_MEMORY_DISTILL_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const AI_AGENT_MEMORY_SWEEP_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
 const AI_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000;
-const AI_DEEP_RESEARCH_TIMEOUT_MS = 60 * 60 * 1000;
 const AGENT_ONBOARDING_TIMEOUT_MS = 60 * 60 * 1000;
 
 type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     aiAgentService: AiAgentService;
+    aiAgentMemoryService: AiAgentMemoryService;
     aiWritebackService: AiWritebackService;
     aiDeepResearchService: AiDeepResearchService;
     onboardingAgentService: OnboardingAgentService;
@@ -63,6 +67,8 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
     protected readonly aiAgentService: AiAgentService;
+
+    protected readonly aiAgentMemoryService: AiAgentMemoryService;
 
     protected readonly aiWritebackService: AiWritebackService;
 
@@ -97,6 +103,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
     constructor(args: CommercialSchedulerWorkerArguments) {
         super(args);
         this.aiAgentService = args.aiAgentService;
+        this.aiAgentMemoryService = args.aiAgentMemoryService;
         this.aiWritebackService = args.aiWritebackService;
         this.aiDeepResearchService = args.aiDeepResearchService;
         this.onboardingAgentService = args.onboardingAgentService;
@@ -141,6 +148,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 pattern: '*/2 * * * *',
                 options: {
                     backfillPeriod: 5 * 60 * 1000,
+                    maxAttempts: 1,
+                },
+            },
+            {
+                task: EE_SCHEDULER_TASKS.SWEEP_AI_AGENT_MEMORY_THREADS,
+                pattern: '0 */3 * * *',
+                options: {
+                    backfillPeriod: 6 * 60 * 60 * 1000,
                     maxAttempts: 1,
                 },
             },
@@ -558,27 +573,13 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 );
             },
             [EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH]: async (payload, helpers) => {
-                const abortController = new AbortController();
-                await tryJobOrTimeout(
-                    SchedulerClient.processJob(
-                        EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH,
-                        helpers.job.id,
-                        helpers.job.run_at,
-                        payload,
-                        async () => {
-                            await this.aiDeepResearchService.executeRun(
-                                payload,
-                                abortController.signal,
-                            );
-                        },
-                    ),
-                    helpers.job,
-                    AI_DEEP_RESEARCH_TIMEOUT_MS,
-                    async (_job, error) => {
-                        abortController.abort(error);
-                        await this.aiDeepResearchService.markRunTimedOut(
-                            payload.aiDeepResearchRunUuid,
-                        );
+                await SchedulerClient.processJob(
+                    EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH,
+                    helpers.job.id,
+                    helpers.job.run_at,
+                    payload,
+                    async () => {
+                        await this.aiDeepResearchService.executeRun(payload);
                     },
                 );
             },
@@ -649,6 +650,55 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 async () => {
                     await this.aiDeepResearchService.sweepStaleRuns();
                 },
+            [EE_SCHEDULER_TASKS.SWEEP_AI_AGENT_MEMORY_THREADS]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.SWEEP_AI_AGENT_MEMORY_THREADS,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.aiAgentMemoryService.sweep();
+                        },
+                    ),
+                    helpers.job,
+                    AI_AGENT_MEMORY_SWEEP_TIMEOUT_MS,
+                );
+            },
+            [EE_SCHEDULER_TASKS.AI_AGENT_MEMORY_DISTILL]: async (
+                payload,
+                helpers,
+            ) => {
+                const controller = new AbortController();
+                const abortSignal = AbortSignal.any([
+                    controller.signal,
+                    AbortSignal.timeout(AI_AGENT_MEMORY_LLM_TIMEOUT_MS),
+                ]);
+                const distillPromise = SchedulerClient.processJob(
+                    EE_SCHEDULER_TASKS.AI_AGENT_MEMORY_DISTILL,
+                    helpers.job.id,
+                    helpers.job.run_at,
+                    payload,
+                    async () => {
+                        await this.aiAgentMemoryService.distillThread(
+                            payload,
+                            abortSignal,
+                        );
+                    },
+                );
+                await tryJobOrTimeout(
+                    distillPromise,
+                    helpers.job,
+                    AI_AGENT_MEMORY_DISTILL_TIMEOUT_MS,
+                    async (_job, error) => {
+                        controller.abort(error);
+                        await distillPromise;
+                    },
+                );
+            },
             [EE_SCHEDULER_TASKS.SEND_REVIEW_NOTIFICATION]: async (payload) => {
                 await sendReviewNotification({
                     siteUrl: this.lightdashConfig.siteUrl,

@@ -7,6 +7,7 @@ import {
     type AiThreadCreatedFrom,
     type AiWritebackRunStatus,
     type AiWritebackSource,
+    type AiWritebackWorkstream,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -17,6 +18,9 @@ export type DbAiThread = {
     ai_thread_uuid: string;
     share_source_thread_share_uuid: string | null;
     created_at: Date;
+    // Last prompt activity only; don't bump on other thread updates.
+    // Regenerating a response on an existing prompt must bump it.
+    updated_at: Date | null;
     organization_uuid: string;
     project_uuid: string;
     created_from: AiThreadCreatedFrom;
@@ -40,7 +44,7 @@ export type AiThreadTable = Knex.CompositeTableType<
             | 'project_uuid'
             | 'share_source_thread_share_uuid'
             | 'sql_auto_approved_at'
-        >
+        > & { updated_at: Date | Knex.Raw }
     >
 >;
 
@@ -133,6 +137,7 @@ export type DbAiWritebackThread = {
      * NULL — deleting the source degrades a resume back to the primary.
      */
     project_dbt_source_uuid: string | null;
+    workstream: AiWritebackWorkstream;
     /** "owner/repo" this row's sandbox + PR target; null only on legacy rows. */
     target_repo: string | null;
     created_at: Date;
@@ -142,7 +147,11 @@ export type AiWritebackThreadTable = Knex.CompositeTableType<
     DbAiWritebackThread,
     Pick<
         DbAiWritebackThread,
-        'ai_thread_uuid' | 'sandbox_uuid' | 'pull_request_uuid' | 'target_repo'
+        | 'ai_thread_uuid'
+        | 'sandbox_uuid'
+        | 'pull_request_uuid'
+        | 'target_repo'
+        | 'workstream'
     > &
         Partial<Pick<DbAiWritebackThread, 'project_dbt_source_uuid'>>,
     Partial<Pick<DbAiWritebackThread, 'sandbox_uuid' | 'pull_request_uuid'>>

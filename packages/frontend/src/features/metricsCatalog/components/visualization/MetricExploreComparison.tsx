@@ -14,14 +14,14 @@ import {
     Stack,
     Text,
     Select,
+    Tooltip,
 } from '@mantine-8/core';
-import { Tooltip } from '@mantine/core';
 import { IconCalendar, IconStack } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
 import { useCallback, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { groupComboboxItems } from '../../../../components/common/Select/utils';
-import { useSelectStyles } from '../../styles/useSelectStyles';
+import selectStyles from '../../styles/selectStyles.module.css';
 import SelectItem from '../SelectItem';
 import comparisonStyles from './MetricExploreComparison.module.css';
 
@@ -43,8 +43,6 @@ export const MetricExploreComparison: FC<Props> = ({
     metricsWithTimeDimensionsQuery,
     canCompareToAnotherMetric = true,
 }) => {
-    const { classes } = useSelectStyles();
-
     const handleComparisonChange = useCallback(
         (newComparison: MetricExplorerComparison) => {
             switch (newComparison) {
@@ -137,7 +135,6 @@ export const MetricExploreComparison: FC<Props> = ({
                         <Tooltip
                             key={comparison.type}
                             label={comparison.tooltipLabel}
-                            variant="xs"
                             position="right"
                             withinPortal
                         >
@@ -234,11 +231,14 @@ export const MetricExploreComparison: FC<Props> = ({
                                                     ) : undefined
                                                 }
                                                 classNames={{
-                                                    input: classes.input,
-                                                    option: classes.option,
+                                                    wrapper:
+                                                        selectStyles.wrapper,
+                                                    input: selectStyles.input,
+                                                    option: selectStyles.option,
                                                     section:
-                                                        classes.rightSection,
-                                                    dropdown: classes.dropdown,
+                                                        selectStyles.rightSection,
+                                                    dropdown:
+                                                        selectStyles.dropdown,
                                                 }}
                                             />
                                         ) : (

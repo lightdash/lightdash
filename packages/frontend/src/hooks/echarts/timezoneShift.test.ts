@@ -8,6 +8,7 @@ import {
 import { describe, expect, test } from 'vitest';
 import {
     applyTimezoneShiftToEchartsOptions,
+    detectCalendarTimeAxisField,
     resolveAxisTimezone,
     type EchartsOptionsShape,
     type TimezoneShiftedField,
@@ -258,6 +259,8 @@ describe('resolveAxisTimezone', () => {
         expect(result.timeAxisField).toBeUndefined();
     });
 
+    // A calendar DATE is never an instant: resolveAxisTimezone must not shift
+    // it. Its ECharts coordinate is handled by detectCalendarTimeAxisField.
     test('does not shift a calendar DATE day bucket', () => {
         const fieldId = 'orders_created_day';
         const result = resolveAxisTimezone({
@@ -271,6 +274,7 @@ describe('resolveAxisTimezone', () => {
             resolvedTimezone: TZ,
         });
         expect(result.timeAxisField).toBeUndefined();
+        expect(result.axisTimezone).toBe(TZ);
     });
 
     test('does not shift a DATE day bucket derived from a TIMESTAMP base (GLITCH-452)', () => {
@@ -292,10 +296,14 @@ describe('resolveAxisTimezone', () => {
         expect(result.timeAxisField).toBeUndefined();
     });
 
-    test('uses yField[0] when flipAxes is true', () => {
+    test('selects xField when flipAxes is true', () => {
+        // Flipped charts keep the time dimension in layout.xField; series
+        // encoding moves it to physical Y. Selecting yField[0] would inspect
+        // the metric and silently skip the shift.
         const result = resolveAxisTimezone({
             validCartesianConfig: makeCartesian({
-                yField: ['orders_created_day', 'other'],
+                xField: 'orders_created_day',
+                yField: ['orders_total'],
                 flipAxes: true,
             }),
             itemsMap,
@@ -315,6 +323,163 @@ describe('resolveAxisTimezone', () => {
             resolvedTimezone: TZ,
         });
         expect(result.timeAxisField).toBeUndefined();
+    });
+});
+
+// The reported bug: UTC project and data viewed from a positive-offset
+// browser labels a calendar DATE one day early because ECharts parses the
+// bare `YYYY-MM-DD` as browser-local midnight. Detection requires flag-on
+// results (non-nullish resolvedTimezone), a calendar item, and the actual
+// physical axis being `time`.
+describe('detectCalendarTimeAxisField', () => {
+    const dateDayField = 'orders_created_day';
+    const itemsMap: ItemsMap = {
+        [dateDayField]: makeTimeDimension(dateDayField, TimeFrames.DAY, {
+            type: DimensionType.DATE,
+        }),
+        orders_date: makeTimeDimension('orders_date', undefined, {
+            type: DimensionType.DATE,
+        }),
+        orders_created_month: makeTimeDimension(
+            'orders_created_month',
+            TimeFrames.MONTH,
+            { type: DimensionType.DATE },
+        ),
+        orders_created_hour: makeTimeDimension(
+            'orders_created_hour',
+            TimeFrames.HOUR,
+        ),
+        orders_total: makeMetric('orders_total'),
+    };
+
+    test.each([['UTC'], [TZ]])(
+        'normalizes a calendar DATE day bucket on a time axis when resolvedTimezone is %s',
+        (resolvedTimezone) => {
+            // The resolved timezone is only the flag-on mode signal: the
+            // coordinate is always anchored to UTC midnight, never shifted.
+            const result = detectCalendarTimeAxisField({
+                validCartesianConfig: makeCartesian({ xField: dateDayField }),
+                itemsMap,
+                resolvedTimezone,
+                physicalAxisType: 'time',
+            });
+            expect(result).toEqual({
+                fieldId: dateDayField,
+                timezone: 'UTC',
+                flipAxes: false,
+            });
+        },
+    );
+
+    test('returns undefined for flag-off results (resolvedTimezone missing)', () => {
+        // Flag-off raw values keep the full ISO representation, which ECharts
+        // already parses at UTC — the legacy path must stay untouched.
+        const result = detectCalendarTimeAxisField({
+            validCartesianConfig: makeCartesian({ xField: dateDayField }),
+            itemsMap,
+            resolvedTimezone: undefined,
+            physicalAxisType: 'time',
+        });
+        expect(result).toBeUndefined();
+    });
+
+    test('normalizes a plain DATE column (no timeInterval)', () => {
+        const result = detectCalendarTimeAxisField({
+            validCartesianConfig: makeCartesian({ xField: 'orders_date' }),
+            itemsMap,
+            resolvedTimezone: 'UTC',
+            physicalAxisType: 'time',
+        });
+        expect(result).toEqual({
+            fieldId: 'orders_date',
+            timezone: 'UTC',
+            flipAxes: false,
+        });
+    });
+
+    test('normalizes a DATE day bucket derived from a TIMESTAMP base (GLITCH-452)', () => {
+        const fieldId = 'orders_ts_day';
+        const result = detectCalendarTimeAxisField({
+            validCartesianConfig: makeCartesian({ xField: fieldId }),
+            itemsMap: {
+                ...itemsMap,
+                [fieldId]: makeTimeDimension(fieldId, TimeFrames.DAY, {
+                    type: DimensionType.DATE,
+                    timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+                }),
+            },
+            resolvedTimezone: 'UTC',
+            physicalAxisType: 'time',
+        });
+        expect(result).toEqual({
+            fieldId,
+            timezone: 'UTC',
+            flipAxes: false,
+        });
+    });
+
+    test('returns undefined when the physical axis is category', () => {
+        // Coarse grains normally render on a category axis with string tick
+        // labels; ECharts never parses those as instants.
+        const result = detectCalendarTimeAxisField({
+            validCartesianConfig: makeCartesian({
+                xField: 'orders_created_month',
+            }),
+            itemsMap,
+            resolvedTimezone: 'UTC',
+            physicalAxisType: 'category',
+        });
+        expect(result).toBeUndefined();
+    });
+
+    test('normalizes a coarse calendar grain when reference lines force a time axis', () => {
+        // getAxisType switches WEEK/MONTH/QUARTER/YEAR back to `time` when the
+        // series carry reference lines; the built axis type is what matters.
+        const result = detectCalendarTimeAxisField({
+            validCartesianConfig: makeCartesian({
+                xField: 'orders_created_month',
+            }),
+            itemsMap,
+            resolvedTimezone: 'UTC',
+            physicalAxisType: 'time',
+        });
+        expect(result).toEqual({
+            fieldId: 'orders_created_month',
+            timezone: 'UTC',
+            flipAxes: false,
+        });
+    });
+
+    test('selects xField and marks flipAxes for flipped charts', () => {
+        const result = detectCalendarTimeAxisField({
+            validCartesianConfig: makeCartesian({
+                xField: dateDayField,
+                yField: ['orders_total'],
+                flipAxes: true,
+            }),
+            itemsMap,
+            resolvedTimezone: 'UTC',
+            physicalAxisType: 'time',
+        });
+        expect(result).toEqual({
+            fieldId: dateDayField,
+            timezone: 'UTC',
+            flipAxes: true,
+        });
+    });
+
+    test('returns undefined for a TIMESTAMP instant field', () => {
+        // Instants belong to the timezone-shift path, not calendar
+        // normalization.
+        const result = detectCalendarTimeAxisField({
+            validCartesianConfig: makeCartesian({
+                xField: 'orders_created_hour',
+            }),
+            itemsMap,
+            resolvedTimezone: TZ,
+            physicalAxisType: 'time',
+        });
+        expect(result).toBeUndefined();
     });
 });
 
@@ -608,6 +773,131 @@ describe('applyTimezoneShiftToEchartsOptions', () => {
 
         expect(result.xAxis).toEqual({ type: 'time' });
         expect(result.yAxis).toEqual({ type: 'value' });
+    });
+});
+
+// Calendar DATE axes reuse the shift machinery with timezone 'UTC': a bare
+// `YYYY-MM-DD` becomes the UTC-midnight epoch, so ECharts (useUTC: true) parses
+// and labels it on the correct day for every browser offset. This is the fix
+// for the day-early axis/tooltip bug on positive-offset browsers.
+describe('applyTimezoneShiftToEchartsOptions calendar DATE anchoring (timezone UTC)', () => {
+    const calendarDay: TimezoneShiftedField = {
+        fieldId: 'orders_created_day',
+        timezone: 'UTC',
+        flipAxes: false,
+    };
+    const shiftedDim = 'orders_created_day_ld_tz_shifted';
+
+    test('anchors a date-only string to its UTC-midnight epoch (no offset)', () => {
+        const options: EchartsOptionsShape = {
+            dataset: {
+                source: [{ orders_created_day: '2024-07-22', orders_total: 5 }],
+            },
+            series: [],
+        };
+
+        const result = applyTimezoneShiftToEchartsOptions(options, calendarDay);
+
+        const source = (result.dataset as { source: Record<string, unknown>[] })
+            .source;
+        expect(source[0][shiftedDim]).toBe(Date.parse('2024-07-22T00:00:00Z'));
+        // Original column is preserved for timezone-agnostic DATE formatting.
+        expect(source[0].orders_created_day).toBe('2024-07-22');
+    });
+});
+
+// Reference lines must ride the same transform as the plotted coordinates:
+// ECharts parses a raw date-only markLine value as browser-local midnight, so
+// an untransformed line sits offset from its (rewritten) bars.
+describe('applyTimezoneShiftToEchartsOptions markLine values', () => {
+    const calendarDay: TimezoneShiftedField = {
+        fieldId: 'orders_created_day',
+        timezone: 'UTC',
+        flipAxes: false,
+    };
+
+    const makeMarkLineSeries = (
+        data: Record<string, unknown>[],
+    ): EchartsOptionsShape => ({
+        dataset: { source: [] },
+        series: [{ markLine: { symbol: 'none', data } }],
+    });
+
+    const getMarkLineData = (result: EchartsOptionsShape) =>
+        (
+            result.series?.[0].markLine as {
+                data: Record<string, unknown>[];
+            }
+        ).data;
+
+    test('anchors a calendar date-only xAxis line to its UTC-midnight epoch', () => {
+        const options = makeMarkLineSeries([
+            { uuid: 'a', xAxis: '2024-07-22', name: 'Launch' },
+        ]);
+
+        const result = applyTimezoneShiftToEchartsOptions(options, calendarDay);
+
+        expect(getMarkLineData(result)).toEqual([
+            {
+                uuid: 'a',
+                xAxis: Date.parse('2024-07-22T00:00:00Z'),
+                name: 'Launch',
+            },
+        ]);
+    });
+
+    test('shifts an instant xAxis line by the project timezone offset', () => {
+        const options = makeMarkLineSeries([
+            { uuid: 'a', xAxis: '2024-01-15T12:00:00Z' },
+        ]);
+
+        const result = applyTimezoneShiftToEchartsOptions(options, {
+            fieldId: 'orders_created_day',
+            timezone: TZ,
+            flipAxes: false,
+        });
+
+        expect(getMarkLineData(result)[0].xAxis).toBe(SHIFTED_MS);
+    });
+
+    test('transforms the yAxis slot and leaves xAxis alone when flipped', () => {
+        const options = makeMarkLineSeries([
+            { uuid: 'a', yAxis: '2024-07-22' },
+            { uuid: 'b', xAxis: '2024-07-23' },
+        ]);
+
+        const result = applyTimezoneShiftToEchartsOptions(options, {
+            ...calendarDay,
+            flipAxes: true,
+        });
+
+        expect(getMarkLineData(result)).toEqual([
+            { uuid: 'a', yAxis: Date.parse('2024-07-22T00:00:00Z') },
+            { uuid: 'b', xAxis: '2024-07-23' },
+        ]);
+    });
+
+    test('leaves value-axis lines and series-relative marks untouched', () => {
+        const data = [
+            { uuid: 'a', yAxis: '50' },
+            { uuid: 'b', type: 'average' },
+        ];
+        const options = makeMarkLineSeries(data);
+
+        const result = applyTimezoneShiftToEchartsOptions(options, calendarDay);
+
+        expect(getMarkLineData(result)).toEqual(data);
+    });
+
+    test('leaves series without markLine untouched', () => {
+        const options: EchartsOptionsShape = {
+            dataset: { source: [] },
+            series: [{ data: [] }],
+        };
+
+        const result = applyTimezoneShiftToEchartsOptions(options, calendarDay);
+
+        expect(result.series?.[0]).toEqual({ data: [] });
     });
 });
 

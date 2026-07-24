@@ -32,7 +32,7 @@ const VisualizationActionIcon: FC<VisualizationActionIconProps> = memo(
         const ICON_UNSELECTED_COLOR = colors.ldGray[9];
 
         return (
-            <Tooltip variant="xs" label={label} withinPortal>
+            <Tooltip label={label} withinPortal>
                 <Box>
                     <ActionIcon
                         onClick={onClick}

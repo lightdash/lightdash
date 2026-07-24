@@ -1916,6 +1916,16 @@ const models: TsoaRoute.Models = {
                             {
                                 dataType: 'nestedObjectLiteral',
                                 nestedProperties: {
+                                    rows: {
+                                        dataType: 'union',
+                                        subSchemas: [
+                                            {
+                                                dataType: 'array',
+                                                array: { dataType: 'string' },
+                                            },
+                                            { dataType: 'undefined' },
+                                        ],
+                                    },
                                     columns: {
                                         dataType: 'array',
                                         array: { dataType: 'string' },
@@ -3556,7 +3566,8 @@ const models: TsoaRoute.Models = {
                     required: true,
                     validators: { minLength: { value: 1 } },
                 },
-                uuid: { dataType: 'string', required: true },
+                uuid: { dataType: 'string' },
+                slug: { dataType: 'string' },
             },
             validators: {},
         },
@@ -3586,7 +3597,13 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: [null] },
                         { dataType: 'undefined' },
                     ],
-                    required: true,
+                },
+                tabSlug: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
                 },
                 w: {
                     dataType: 'double',
@@ -6933,6 +6950,16 @@ const models: TsoaRoute.Models = {
                             {
                                 dataType: 'nestedObjectLiteral',
                                 nestedProperties: {
+                                    rows: {
+                                        dataType: 'union',
+                                        subSchemas: [
+                                            {
+                                                dataType: 'array',
+                                                array: { dataType: 'string' },
+                                            },
+                                            { dataType: 'undefined' },
+                                        ],
+                                    },
                                     columns: {
                                         dataType: 'array',
                                         array: { dataType: 'string' },
@@ -7244,6 +7271,16 @@ const models: TsoaRoute.Models = {
                         {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                rows: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        {
+                                            dataType: 'array',
+                                            array: { dataType: 'string' },
+                                        },
+                                        { dataType: 'undefined' },
+                                    ],
+                                },
                                 columns: {
                                     dataType: 'array',
                                     array: { dataType: 'string' },
@@ -9248,7 +9285,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                allowPersonal: { dataType: 'boolean', required: true },
                 config: { ref: 'HomepageConfig', required: true },
                 name: { dataType: 'string', required: true },
                 homepageUuid: { dataType: 'string', required: true },
@@ -9260,34 +9296,11 @@ const models: TsoaRoute.Models = {
     ResolvedHomepage: {
         dataType: 'refAlias',
         type: {
-            dataType: 'union',
-            subSchemas: [
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        homepage: {
-                            ref: 'PublishedProjectHomepage',
-                            required: true,
-                        },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['homepage'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        dashboardUuid: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['dashboard'],
-                            required: true,
-                        },
-                    },
-                },
-            ],
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                homepage: { ref: 'PublishedProjectHomepage', required: true },
+                type: { dataType: 'enum', enums: ['homepage'], required: true },
+            },
             validators: {},
         },
     },
@@ -9314,36 +9327,6 @@ const models: TsoaRoute.Models = {
     ApiResolvedHomepageResponse: {
         dataType: 'refAlias',
         type: { ref: 'ApiSuccess_ResolvedHomepage-or-null_', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiSuccess_string-or-null_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SetPersonalHomepageRequest: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                dashboardUuid: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     HomepageResolutionSource: {
@@ -9391,24 +9374,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     HomepageViewAsReason: {
         dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        dashboardUuid: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['personal'],
-                            required: true,
-                        },
-                    },
-                },
-                { ref: 'HomepageResolutionSource' },
-            ],
-            validators: {},
-        },
+        type: { ref: 'HomepageResolutionSource', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     HomepageViewAsResult: {
@@ -9469,7 +9435,6 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                allowPersonal: { dataType: 'boolean', required: true },
                 isDefault: { dataType: 'boolean', required: true },
                 publishedConfig: {
                     dataType: 'union',
@@ -9814,7 +9779,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                allowPersonal: { dataType: 'boolean', required: true },
                 audience: { ref: 'HomepageAudience', required: true },
             },
             validators: {},
@@ -12182,6 +12146,10 @@ const models: TsoaRoute.Models = {
                 pivotConfig: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        rows: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                        },
                         columns: {
                             dataType: 'array',
                             array: { dataType: 'string' },
@@ -12375,6 +12343,7 @@ const models: TsoaRoute.Models = {
             'SET_VALIDATION_ERROR',
             'INVALID_PARAMETER',
             'DUPLICATE_FIELD_NAME',
+            'WAREHOUSE_COLUMN_ERROR',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -12563,11 +12532,23 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CompiledMetricTimestampFilter: {
+        dataType: 'refAlias',
+        type: { ref: 'CompiledMetricRelativeDateFilter', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CompiledProperties: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                compiledTimestampFilters: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'CompiledMetricTimestampFilter',
+                    },
+                },
                 compiledRelativeDateFilters: {
                     dataType: 'array',
                     array: {
@@ -14799,6 +14780,13 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'AppClarification' },
                     required: true,
+                },
+                dashboardUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
                 },
                 dashboardName: {
                     dataType: 'union',
@@ -28996,7 +28984,6 @@ const models: TsoaRoute.Models = {
                 maxWarehouseQueries: { dataType: 'double', required: true },
                 maxToolCalls: { dataType: 'double', required: true },
                 maxTokens: { dataType: 'double', required: true },
-                maxRuntimeMs: { dataType: 'double', required: true },
             },
             validators: {},
         },
@@ -31426,6 +31413,10 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        upgradesFileToV2: {
+                            dataType: 'boolean',
+                            required: true,
+                        },
                         entryId: { dataType: 'string', required: true },
                         op: {
                             dataType: 'union',
@@ -39039,6 +39030,16 @@ const models: TsoaRoute.Models = {
                             {
                                 dataType: 'nestedObjectLiteral',
                                 nestedProperties: {
+                                    rows: {
+                                        dataType: 'union',
+                                        subSchemas: [
+                                            {
+                                                dataType: 'array',
+                                                array: { dataType: 'string' },
+                                            },
+                                            { dataType: 'undefined' },
+                                        ],
+                                    },
                                     columns: {
                                         dataType: 'array',
                                         array: { dataType: 'string' },
@@ -43060,6 +43061,10 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: { dataType: 'string' },
                 },
+                rowFieldIds: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
                 metricsAsRows: { dataType: 'boolean', required: true },
                 pivotDimensions: {
                     dataType: 'array',
@@ -46565,9 +46570,11 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'union',
             subSchemas: [
+                { dataType: 'enum', enums: ['grandTotal'] },
                 { dataType: 'enum', enums: ['columnTotal'] },
                 { dataType: 'enum', enums: ['rowTotal'] },
                 { dataType: 'enum', enums: ['columnSubtotal'] },
+                { dataType: 'enum', enums: ['rowSubtotal'] },
             ],
             validators: {},
         },
@@ -53969,195 +53976,6 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsProjectHomepageController_getPersonalOverride: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        projectUuid: {
-            in: 'path',
-            name: 'projectUuid',
-            required: true,
-            ref: 'UUID',
-        },
-    };
-    app.get(
-        '/api/v1/projects/:projectUuid/homepage/personal-override',
-        ...fetchMiddlewares<RequestHandler>(ProjectHomepageController),
-        ...fetchMiddlewares<RequestHandler>(
-            ProjectHomepageController.prototype.getPersonalOverride,
-        ),
-
-        async function ProjectHomepageController_getPersonalOverride(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsProjectHomepageController_getPersonalOverride,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<ProjectHomepageController>(
-                        ProjectHomepageController,
-                    );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'getPersonalOverride',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: 200,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsProjectHomepageController_setPersonalOverride: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        projectUuid: {
-            in: 'path',
-            name: 'projectUuid',
-            required: true,
-            ref: 'UUID',
-        },
-        body: {
-            in: 'body',
-            name: 'body',
-            required: true,
-            ref: 'SetPersonalHomepageRequest',
-        },
-    };
-    app.patch(
-        '/api/v1/projects/:projectUuid/homepage/personal-override',
-        ...fetchMiddlewares<RequestHandler>(ProjectHomepageController),
-        ...fetchMiddlewares<RequestHandler>(
-            ProjectHomepageController.prototype.setPersonalOverride,
-        ),
-
-        async function ProjectHomepageController_setPersonalOverride(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsProjectHomepageController_setPersonalOverride,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<ProjectHomepageController>(
-                        ProjectHomepageController,
-                    );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'setPersonalOverride',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: 200,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsProjectHomepageController_clearPersonalOverride: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        projectUuid: {
-            in: 'path',
-            name: 'projectUuid',
-            required: true,
-            ref: 'UUID',
-        },
-    };
-    app.delete(
-        '/api/v1/projects/:projectUuid/homepage/personal-override',
-        ...fetchMiddlewares<RequestHandler>(ProjectHomepageController),
-        ...fetchMiddlewares<RequestHandler>(
-            ProjectHomepageController.prototype.clearPersonalOverride,
-        ),
-
-        async function ProjectHomepageController_clearPersonalOverride(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsProjectHomepageController_clearPersonalOverride,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<ProjectHomepageController>(
-                        ProjectHomepageController,
-                    );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'clearPersonalOverride',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: 200,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsProjectHomepageController_viewAs: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -59815,6 +59633,13 @@ export function RegisterRoutes(app: Router) {
             name: 'excludePreviewProjects',
             dataType: 'boolean',
         },
+        projectUuids: {
+            in: 'query',
+            name: 'projectUuids',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        search: { in: 'query', name: 'search', dataType: 'string' },
     };
     app.get(
         '/api/v1/ee/user/apps',

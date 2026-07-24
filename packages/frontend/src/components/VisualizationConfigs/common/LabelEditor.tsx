@@ -1,5 +1,5 @@
 import { Input, Paper, Text, useMantineColorScheme } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import {
     Editor,
     type BeforeMount,

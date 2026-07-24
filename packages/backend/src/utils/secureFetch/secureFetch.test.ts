@@ -189,12 +189,18 @@ describe('secureFetch GET behavior', () => {
         );
     });
 
-    it('rejects a non-ok status (>=400) with reason request_failed', async () => {
+    it('returns the upstream response on a non-ok status (>=400)', async () => {
         mockedFetch.mockResolvedValue(jsonResponse('nope', { status: 503 }));
-        await expectReason(
-            secureFetch('https://example.com/x.json', BASE_OPTIONS),
-            'request_failed',
+        const result = await secureFetch(
+            'https://example.com/x.json',
+            BASE_OPTIONS,
         );
+        expect(result).toEqual({
+            status: 503,
+            contentType: 'application/json',
+            bodyText: 'nope',
+            truncated: false,
+        });
     });
 
     it('returns a SecureFetchResult on a happy-path GET', async () => {
@@ -418,6 +424,21 @@ describe('secureFetch size and content-type', () => {
             }),
             'disallowed_content_type',
         );
+    });
+
+    it('skips the content-type allowlist on error responses', async () => {
+        mockedFetch.mockResolvedValue(
+            jsonResponse('<html>Bad gateway</html>', {
+                status: 502,
+                contentType: 'text/html',
+            }),
+        );
+        const result = await secureFetch(
+            'https://example.com/x.json',
+            BASE_OPTIONS,
+        );
+        expect(result.status).toBe(502);
+        expect(result.bodyText).toBe('<html>Bad gateway</html>');
     });
 
     it('accepts an allowed content-type ignoring charset suffix', async () => {

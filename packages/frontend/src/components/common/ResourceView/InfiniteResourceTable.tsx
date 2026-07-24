@@ -22,10 +22,10 @@ import {
     Button,
     ActionIcon,
     Anchor,
+    Tooltip,
 } from '@mantine-8/core';
-import { useDebouncedCallback } from '@mantine-8/hooks';
-import { Tooltip, useMantineTheme } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useDebouncedCallback, useDisclosure } from '@mantine-8/hooks';
+import { useMantineTheme } from '@mantine/core';
 import {
     IconAppWindow,
     IconArrowDown,
@@ -124,7 +124,7 @@ const DebouncedSearchInput = memo(
         );
 
         return (
-            <Tooltip withinPortal variant="xs" label="Search by name">
+            <Tooltip withinPortal label="Search by name">
                 <TextInput
                     size="xs"
                     radius="md"

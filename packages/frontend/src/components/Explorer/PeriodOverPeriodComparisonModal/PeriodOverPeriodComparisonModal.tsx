@@ -12,14 +12,7 @@ import {
     type Metric,
     type TimeFrames,
 } from '@lightdash/common';
-import {
-    Group,
-    NumberInput,
-    Select,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine-8/core';
+import { Group, Select, Stack, Text, Tooltip } from '@mantine-8/core';
 import { IconTimelineEvent } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import {
@@ -31,6 +24,7 @@ import {
 } from '../../../features/explorer/store';
 import Callout from '../../common/Callout';
 import MantineModal from '../../common/MantineModal';
+import { NumberInput } from '../../common/NumberInput';
 
 const PeriodOverPeriodComparisonModalContent: FC<{
     metric: Metric;

@@ -192,10 +192,10 @@ describe('Dashboard filter required groups', () => {
 
         // Two rules qualify for the card; the editor note renders as the
         // modal description and the progress as its footer, both outside the
-        // rules list testid
+        // rules list testid. The focused autocomplete can overlay the footer.
         cy.wait('@paymentValuesSearch');
         cy.findByText(GUIDED_SETUP_NOTE).should('be.visible');
-        cy.findByText('0 of 2 set').should('be.visible');
+        cy.findByText('0 of 2 set').should('exist');
         cy.findByTestId('guided-filter-setup').within(() => {
             // Set the first rule (Payment method) from the card
             cy.findAllByPlaceholderText('any value')
@@ -251,7 +251,7 @@ describe('Dashboard filter required groups', () => {
         // chip unlock flow is covered by the group test above.
         cy.findAllByTestId('unmet-requirements-placeholder').should('exist');
         cy.findByTestId('guided-filter-setup').should('be.visible');
-        cy.findByText('0 of 1 set').should('be.visible');
+        cy.findByText('0 of 1 set').should('exist');
         cy.get('@chartQuery.all').should('have.length', 0);
     });
 });

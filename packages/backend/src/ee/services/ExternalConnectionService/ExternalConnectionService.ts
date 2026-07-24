@@ -632,6 +632,12 @@ export class ExternalConnectionService extends BaseService {
                 requestBytes: 0,
                 responseBytes: 0,
             });
+            if (error instanceof SecureFetchError) {
+                // Reason only — no raw internal detail reaches apps.
+                throw new ParameterError(
+                    `Upstream request was blocked (${error.reason})`,
+                );
+            }
             if (error instanceof ParameterError) {
                 throw error;
             }
@@ -641,7 +647,7 @@ export class ExternalConnectionService extends BaseService {
             throw new ParameterError('Proxy request failed');
         }
 
-        // 7. Audit success — never bodies, never the secret.
+        // 7. Audit the result — never bodies, never the secret.
         this.trackFetch({
             user,
             projectUuid,
@@ -651,7 +657,7 @@ export class ExternalConnectionService extends BaseService {
             method,
             path: req.path,
             status: result.response.status,
-            outcome: 'ok',
+            outcome: result.response.status >= 400 ? 'upstream_error' : 'ok',
             start,
             requestBytes: result.requestBytes,
             responseBytes: result.responseBytes,
@@ -809,11 +815,10 @@ export class ExternalConnectionService extends BaseService {
                 allowedContentTypes: connection.allowedContentTypes,
             });
         } catch (error) {
-            // Map SecureFetchError → ParameterError with NO raw upstream detail.
+            // SecureFetchError propagates: the caller decides how much detail
+            // to expose (runtime proxy: reason only; admin test tool: message).
             if (error instanceof SecureFetchError) {
-                throw new ParameterError(
-                    `Upstream request was blocked (${error.reason})`,
-                );
+                throw error;
             }
             throw new ParameterError('Upstream request failed');
         }
@@ -847,6 +852,38 @@ export class ExternalConnectionService extends BaseService {
             requestBytes,
             responseBytes: Buffer.byteLength(fetched.bodyText, 'utf8'),
         };
+    }
+
+    /**
+     * Runs the shared fetch core for the admin-only test endpoints, forwarding
+     * the blocked reason's detail the runtime proxy withholds — the caller
+     * manages the connection, so the detail helps them fix it.
+     */
+    private async executeTestFetch(
+        connection: ExternalConnection,
+        secret: string | null,
+        req: {
+            method: ExternalConnectionMethod;
+            path: string;
+            query?: Record<string, string>;
+            body?: unknown;
+        },
+    ): Promise<ExternalFetchResponse> {
+        try {
+            const result = await this.executeExternalFetch(
+                connection,
+                secret,
+                req,
+            );
+            return result.response;
+        } catch (error) {
+            if (error instanceof SecureFetchError) {
+                throw new ParameterError(
+                    `Upstream request was blocked (${error.reason}): ${error.message}`,
+                );
+            }
+            throw error;
+        }
     }
 
     private trackFetch(args: {
@@ -1094,13 +1131,12 @@ export class ExternalConnectionService extends BaseService {
                       connectionUuid,
                   );
 
-        const result = await this.executeExternalFetch(conn, secret, {
+        return this.executeTestFetch(conn, secret, {
             method,
             path: req.path,
             query: req.query,
             body: req.body,
         });
-        return result.response;
     }
 
     /**
@@ -1180,13 +1216,12 @@ export class ExternalConnectionService extends BaseService {
 
         const secret = data.type === 'none' ? null : (data.secret ?? null);
 
-        const result = await this.executeExternalFetch(connection, secret, {
+        return this.executeTestFetch(connection, secret, {
             method,
             path: req.path,
             query: req.query,
             body: req.body,
         });
-        return result.response;
     }
 
     /**

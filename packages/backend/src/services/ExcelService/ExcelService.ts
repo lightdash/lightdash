@@ -409,6 +409,7 @@ export class ExcelService {
         pivotDetails,
         warehouseRowTotals,
         warehouseColumnTotals,
+        warehouseGrandTotals,
         enableImprovedExcelDates = false,
         timezone,
     }: {
@@ -420,6 +421,7 @@ export class ExcelService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         warehouseRowTotals?: PivotRowTotalsByIndex;
         warehouseColumnTotals?: Record<string, number>;
+        warehouseGrandTotals?: Record<string, number>;
         enableImprovedExcelDates?: boolean;
         timezone?: string;
     }): Promise<Excel.Buffer> {
@@ -447,6 +449,7 @@ export class ExcelService {
                 pivotDetails,
                 warehouseRowTotals,
                 warehouseColumnTotals,
+                warehouseGrandTotals,
                 timezone,
             });
         }
@@ -460,6 +463,7 @@ export class ExcelService {
             pivotDetails,
             warehouseRowTotals,
             warehouseColumnTotals,
+            warehouseGrandTotals,
         });
 
         // Build date column metadata: for each data column, determine if
@@ -580,6 +584,7 @@ export class ExcelService {
         pivotDetails,
         warehouseRowTotals,
         warehouseColumnTotals,
+        warehouseGrandTotals,
         timezone,
     }: {
         formattedRows: ResultRow[];
@@ -590,6 +595,7 @@ export class ExcelService {
         pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']>;
         warehouseRowTotals?: PivotRowTotalsByIndex;
         warehouseColumnTotals?: Record<string, number>;
+        warehouseGrandTotals?: Record<string, number>;
         timezone?: string;
     }): Promise<Excel.Buffer> {
         const csvResults = pivotResultsAsCsv({
@@ -601,6 +607,7 @@ export class ExcelService {
             pivotDetails,
             warehouseRowTotals,
             warehouseColumnTotals,
+            warehouseGrandTotals,
         });
 
         const workbook = new Excel.Workbook();
@@ -656,6 +663,7 @@ export class ExcelService {
         pivotDetails,
         warehouseRowTotals,
         warehouseColumnTotals,
+        warehouseGrandTotals,
         timezone,
         csvCellsLimit,
     }: {
@@ -667,6 +675,7 @@ export class ExcelService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         warehouseRowTotals?: PivotRowTotalsByIndex;
         warehouseColumnTotals?: Record<string, number>;
+        warehouseGrandTotals?: Record<string, number>;
         options: {
             onlyRaw: boolean;
             showTableNames: boolean;
@@ -729,6 +738,7 @@ export class ExcelService {
             pivotDetails,
             warehouseRowTotals,
             warehouseColumnTotals,
+            warehouseGrandTotals,
             enableImprovedExcelDates: lightdashConfig.enableImprovedExcelDates,
             timezone,
         });

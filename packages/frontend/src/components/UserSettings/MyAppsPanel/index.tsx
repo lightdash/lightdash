@@ -3,25 +3,20 @@ import {
     ActionIcon,
     Anchor,
     Badge,
+    Divider,
     Group,
-    Loader,
     Menu,
-    Stack,
-    Switch,
+    SegmentedControl,
     Text,
 } from '@mantine-8/core';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import {
-    IconClock,
     IconCode,
     IconDots,
     IconEdit,
     IconExternalLink,
-    IconFolder,
     IconFolderPlus,
     IconFolderSymlink,
-    IconLayoutDashboard,
-    IconRadar,
-    IconTextCaption,
     IconTrash,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -37,17 +32,27 @@ import { Link } from 'react-router';
 import AppThumbnailHoverCard from '../../../features/apps/components/AppThumbnailHoverCard';
 import { MoveAppToSpaceModal as SharedMoveAppToSpaceModal } from '../../../features/apps/components/MoveAppToSpaceModal';
 import { useMyApps } from '../../../features/apps/hooks/useMyApps';
+import { useProjects } from '../../../hooks/useProjects';
 import {
     ContentTable,
+    ContentTableSearchInput,
     useContentTable,
     type ContentTableColumnDef,
 } from '../../common/ContentTable';
+import FilterFacet, { type FilterFacetOption } from '../../common/FilterFacet';
 import MantineIcon from '../../common/MantineIcon';
 import AppDeleteModal from '../../common/modal/AppDeleteModal';
 import AppUpdateModal from '../../common/modal/AppUpdateModal';
+import { SettingsPage } from '../../common/Settings/SettingsPage';
+import classes from './MyAppsPanel.module.css';
 
 const hasReadyVersion = (app: ApiAppSummary) =>
     app.lastVersionStatus === 'ready' && !!app.lastVersionNumber;
+
+const PROJECT_SCOPE_OPTIONS = [
+    { label: 'Production', value: 'production' },
+    { label: 'All projects', value: 'all' },
+];
 
 const MoveAppToSpaceModal: FC<{
     app: ApiAppSummary;
@@ -125,8 +130,16 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
     const [includePreviewApps, setIncludePreviewApps] = useState(
         includePreviewAppsByDefault,
     );
+    const [selectedProjectUuids, setSelectedProjectUuids] = useState<string[]>(
+        [],
+    );
+    const [search, setSearch] = useState('');
+    const [debouncedSearch] = useDebouncedValue(search.trim(), 300);
+    const { data: projects = [], isLoading: isLoadingProjects } = useProjects();
     const { data, fetchNextPage, isFetching, isLoading, isError } = useMyApps({
         excludePreviewProjects: !includePreviewApps,
+        projectUuids: selectedProjectUuids,
+        search: debouncedSearch || undefined,
     });
     const [appToDelete, setAppToDelete] = useState<ApiAppSummary | null>(null);
     const [appToMove, setAppToMove] = useState<ApiAppSummary | null>(null);
@@ -161,19 +174,30 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
 
+    const resetFilters = useCallback(() => {
+        setSearch('');
+        setIncludePreviewApps(false);
+        setSelectedProjectUuids([]);
+    }, []);
+
+    const projectOptions = useMemo<FilterFacetOption[]>(
+        () =>
+            projects
+                .map((project) => ({
+                    label: project.name,
+                    value: project.projectUuid,
+                }))
+                .sort((a, b) => a.label.localeCompare(b.label)),
+        [projects],
+    );
+
     const columns: ContentTableColumnDef<ApiAppSummary>[] = useMemo(
         () => [
             {
                 accessorKey: 'name',
                 header: 'Name',
                 enableSorting: false,
-                size: 200,
-                Header: ({ column }) => (
-                    <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconTextCaption} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
+                size: 300,
                 Cell: ({ row }) => {
                     const app = row.original;
                     return <AppNameCell app={app} />;
@@ -184,15 +208,6 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                 header: 'Project',
                 enableSorting: false,
                 size: 150,
-                Header: ({ column }) => (
-                    <Group gap="two" wrap="nowrap">
-                        <MantineIcon
-                            icon={IconLayoutDashboard}
-                            color="ldGray.6"
-                        />
-                        {column.columnDef.header}
-                    </Group>
-                ),
                 Cell: ({ row }) => (
                     <Text fz="sm" c="ldGray.7">
                         {row.original.projectName}
@@ -204,12 +219,6 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                 header: 'Space',
                 enableSorting: false,
                 size: 150,
-                Header: ({ column }) => (
-                    <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconFolder} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
                 Cell: ({ row }) => {
                     const { spaceUuid, spaceName, projectUuid } = row.original;
                     if (!spaceUuid || !spaceName) {
@@ -239,12 +248,6 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                 header: 'Status',
                 enableSorting: false,
                 size: 100,
-                Header: ({ column }) => (
-                    <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconRadar} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
                 Cell: ({ row }) => {
                     const { lastVersionStatus, lastVersionNumber } =
                         row.original;
@@ -271,12 +274,6 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                 header: 'Created',
                 enableSorting: false,
                 size: 120,
-                Header: ({ column }) => (
-                    <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconClock} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
                 Cell: ({ row }) => (
                     <Text fz="sm" c="ldGray.7">
                         {new Date(row.original.createdAt).toLocaleDateString()}
@@ -297,8 +294,8 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                         <Menu position="bottom-end" withinPortal>
                             <Menu.Target>
                                 <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
+                                    variant="transparent"
+                                    color="ldGray.6"
                                     size="sm"
                                 >
                                     <MantineIcon icon={IconDots} size={16} />
@@ -390,11 +387,32 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
         columns,
         data: flatData,
         enableColumnActions: false,
+        enableColumnResizing: false,
         enableColumnFilters: false,
+        enableDensityToggle: false,
+        enableFilters: false,
+        enableFullScreenToggle: false,
+        enableGlobalFilter: false,
+        enableGlobalFilterModes: false,
+        enableHiding: false,
         enablePagination: false,
+        enableRowNumbers: false,
         enableSorting: false,
-        enableTopToolbar: false,
+        enableTopToolbar: true,
         enableBottomToolbar: false,
+        enableStickyHeader: true,
+        mantinePaperProps: {
+            className: classes.tableSurface,
+            shadow: undefined,
+        },
+        mantineTableHeadCellProps: {
+            px: 'lg',
+            py: 'sm',
+        },
+        mantineTableBodyCellProps: {
+            px: 'lg',
+            py: 'sm',
+        },
         mantineTableContainerProps: {
             ref: tableContainerRef,
             style: { maxHeight: 'calc(100dvh - 420px)' },
@@ -404,6 +422,48 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
         mantineTableProps: {
             highlightOnHover: true,
         },
+        emptyState: {
+            emptyMessage: includePreviewApps
+                ? "You haven't created any apps yet."
+                : 'No apps in production projects. Switch to All projects to include apps from preview projects.',
+            entityName: 'apps',
+            hasActiveFilters: selectedProjectUuids.length > 0,
+            onClearFilters: resetFilters,
+            search,
+        },
+        renderTopToolbar: () => (
+            <Group px="md" py="sm" gap="xs" wrap="nowrap">
+                <ContentTableSearchInput
+                    placeholder="Search apps..."
+                    tooltipLabel="Search by app, project, or space"
+                    value={search}
+                    onChange={setSearch}
+                />
+                <Divider orientation="vertical" h={20} />
+                <SegmentedControl
+                    size="xs"
+                    radius="md"
+                    aria-label="App project scope"
+                    value={includePreviewApps ? 'all' : 'production'}
+                    onChange={(value) => setIncludePreviewApps(value === 'all')}
+                    data={PROJECT_SCOPE_OPTIONS}
+                    classNames={{
+                        root: classes.segmentedControl,
+                        indicator: classes.segmentedIndicator,
+                        label: classes.segmentedLabel,
+                    }}
+                />
+                <Divider orientation="vertical" h={20} />
+                <FilterFacet
+                    label="Project"
+                    options={projectOptions}
+                    selected={selectedProjectUuids}
+                    onChange={setSelectedProjectUuids}
+                    tooltipLabel="Filter apps by project"
+                    loading={isLoadingProjects}
+                />
+            </Group>
+        ),
         state: {
             isLoading,
             showProgressBars: isFetching,
@@ -411,34 +471,12 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
         },
     });
 
-    if (isLoading && flatData.length === 0) {
-        return (
-            <Group justify="center" p="xl">
-                <Loader size="sm" />
-            </Group>
-        );
-    }
-
     return (
-        <Stack gap="md">
-            <Group justify="flex-end">
-                <Switch
-                    label="Include apps in previews"
-                    checked={includePreviewApps}
-                    onChange={(event) =>
-                        setIncludePreviewApps(event.currentTarget.checked)
-                    }
-                />
-            </Group>
-            {!isLoading && !isError && flatData.length === 0 ? (
-                <Text c="dimmed" fz="sm" p="md">
-                    {includePreviewApps
-                        ? "You haven't created any apps yet."
-                        : 'No apps in production projects. Turn on Include apps in previews to show apps from preview projects.'}
-                </Text>
-            ) : (
-                <ContentTable table={table} />
-            )}
+        <SettingsPage
+            title="My apps"
+            description="Manage the data apps you can access and edit."
+        >
+            <ContentTable table={table} />
             {appToDelete && (
                 <AppDeleteModal
                     opened
@@ -466,7 +504,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                     onConfirm={() => setAppToRename(null)}
                 />
             )}
-        </Stack>
+        </SettingsPage>
     );
 };
 

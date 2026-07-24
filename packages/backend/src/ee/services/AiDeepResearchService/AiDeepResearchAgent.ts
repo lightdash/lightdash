@@ -1,5 +1,6 @@
 import type { AgentCreateParams } from '@anthropic-ai/sdk/resources/beta/agents';
 import {
+    AI_DEEP_RESEARCH_MAX_CHART_DESCRIPTION_CHARS,
     AI_DEEP_RESEARCH_MAX_CHARTS,
     AI_DEEP_RESEARCH_MAX_INLINE_COLUMNS,
     AI_DEEP_RESEARCH_MAX_INLINE_ROWS,
@@ -130,7 +131,7 @@ Structure:
 - Cite external evidence inline with bracketed markers like [1] and list every source in a final "## Sources" section as a numbered list: 1. [Source label](https://...) — why it matters. Cite warehouse evidence through charts, not URLs.
 
 Charts:
-- Define every chart in the charts argument and reference it inline in the markdown, at the exact position it belongs, as a link: [Chart title](#chart-<key>). Never embed chart JSON or code fences in the markdown.
+- Define every chart in the charts argument and reference it inline in the markdown, at the exact position it belongs, as: <chart id="<key>" title="<chart title>" description="<standalone summary of the chart's important pattern, at most ${AI_DEEP_RESEARCH_MAX_CHART_DESCRIPTION_CHARS} characters>">. The description is for readers that do not inspect the separate chart data, so make it specific and useful without repeating the surrounding prose. Use HTML entities for double quotes, ampersands, or angle brackets inside attribute values. Never embed chart JSON or code fences in the markdown.
 - Warehouse charts ({"source": "warehouse"}): the key is the exact completed queryUuid returned by run_metric_query in THIS session; charts referencing anything else are removed from the report. Apply the business-relevant time range, comparison baseline, and filters in run_metric_query; choose a chart type, axes, sort, and limit that make the conclusion inspectable.
 - Inline charts ({"source": "inline"}): use ONLY when the visualization is a derived computation or external (MCP/web) data that no single warehouse query can produce. Provide a short lowercase slug key, columns, and rows (at most ${AI_DEEP_RESEARCH_MAX_INLINE_ROWS} rows and ${AI_DEEP_RESEARCH_MAX_INLINE_COLUMNS} columns), and cite the completed queryUuids the data was derived from in derivedFrom. Inline charts are labelled agent-computed to the reader — prefer warehouse charts whenever possible.
 - Reference each chart exactly once, at most one chart per finding section, and at most ${AI_DEEP_RESEARCH_MAX_CHARTS} charts in total. Prefer 2-6 complementary charts when warehouse data materially helps. groupBy is not supported and must always be null; when a breakdown across a second dimension matters, use a separate chart per segment or a different single-dimension cut.
@@ -204,8 +205,7 @@ Call submit_research_report after initial useful findings and again as the inves
                     markdown: {
                         type: 'string',
                         maxLength: MAX_REPORT_MARKDOWN_CHARS,
-                        description:
-                            'The complete research report as a single markdown document. Reference each chart as [Chart title](#chart-<key>).',
+                        description: `The complete research report as a single markdown document. Reference each chart as <chart id="<key>" title="<chart title>" description="<standalone chart summary of at most ${AI_DEEP_RESEARCH_MAX_CHART_DESCRIPTION_CHARS} characters>">.`,
                     },
                     charts: {
                         type: 'array',

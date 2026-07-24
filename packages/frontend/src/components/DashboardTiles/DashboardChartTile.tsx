@@ -42,14 +42,12 @@ import {
     Stack,
     Text,
     Badge,
-} from '@mantine-8/core';
-import {
     HoverCard,
     Portal,
     Tooltip,
-    useMantineColorScheme,
-} from '@mantine/core';
-import { useClipboard, useElementSize } from '@mantine/hooks';
+} from '@mantine-8/core';
+import { useClipboard, useElementSize } from '@mantine-8/hooks';
+import { useMantineColorScheme } from '@mantine/core';
 import {
     IconAlertCircle,
     IconAlertTriangle,
@@ -395,6 +393,7 @@ const ValidDashboardChartTile: FC<{
             <VisualizationProvider
                 chartConfig={chart.chartConfig}
                 initialPivotDimensions={chart.pivotConfig?.columns}
+                initialPivotRows={chart.pivotConfig?.rows}
                 resultsData={resultsDataWithQueryData}
                 isLoading={resultsData.isFetchingRows}
                 onSeriesContextMenu={onSeriesContextMenu}
@@ -545,6 +544,7 @@ const ValidDashboardChartTileMinimal: FC<{
             minimal
             chartConfig={chart.chartConfig}
             initialPivotDimensions={chart.pivotConfig?.columns}
+            initialPivotRows={chart.pivotConfig?.rows}
             resultsData={resultsDataWithQueryData}
             isLoading={resultsData.isFetchingRows}
             onSeriesContextMenu={onSeriesContextMenu}
@@ -1141,7 +1141,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                         <Stack gap="xs" align="flex-start">
                                             {appliedFilterRules.length > 0 && (
                                                 <>
-                                                    <Text c="ldGray.7" fw={500}>
+                                                    <Text
+                                                        c="ldGray.7"
+                                                        fw={500}
+                                                        fz="xs"
+                                                    >
                                                         Dashboard filter
                                                         {appliedFilterRules.length >
                                                         1
@@ -1204,6 +1208,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     <Text
                                                                         fw={600}
                                                                         span
+                                                                        inherit
                                                                         c="foreground"
                                                                     >
                                                                         {
@@ -1215,6 +1220,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                         <Text
                                                                             c="foreground"
                                                                             span
+                                                                            inherit
                                                                         >
                                                                             is
                                                                             any
@@ -1224,6 +1230,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                         <>
                                                                             <Text
                                                                                 span
+                                                                                inherit
                                                                                 c="foreground"
                                                                             >
                                                                                 {
@@ -1235,6 +1242,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                                     600
                                                                                 }
                                                                                 span
+                                                                                inherit
                                                                                 c="foreground"
                                                                             >
                                                                                 {
@@ -1251,7 +1259,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                             )}
                                             {chartFilterRules.length > 0 && (
                                                 <>
-                                                    <Text c="ldGray.7" fw={500}>
+                                                    <Text
+                                                        c="ldGray.7"
+                                                        fw={500}
+                                                        fz="xs"
+                                                    >
                                                         Chart filter
                                                         {chartFilterRules.length >
                                                         1
@@ -1328,6 +1340,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     <Text
                                                                         fw={600}
                                                                         span
+                                                                        inherit
                                                                         c="foreground"
                                                                         style={
                                                                             ruleStrikeStyle
@@ -1342,6 +1355,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                         <Text
                                                                             c="foreground"
                                                                             span
+                                                                            inherit
                                                                             style={
                                                                                 ruleStrikeStyle
                                                                             }
@@ -1354,6 +1368,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                         <>
                                                                             <Text
                                                                                 span
+                                                                                inherit
                                                                                 c="foreground"
                                                                                 style={
                                                                                     ruleStrikeStyle
@@ -1368,6 +1383,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                                     600
                                                                                 }
                                                                                 span
+                                                                                inherit
                                                                                 c="foreground"
                                                                                 style={
                                                                                     ruleStrikeStyle
@@ -1382,6 +1398,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     {isOverridden && (
                                                                         <Text
                                                                             span
+                                                                            inherit
                                                                             c="foreground"
                                                                             fs="italic"
                                                                         >
@@ -1519,7 +1536,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                 <Tooltip
                                     disabled={!isEditMode}
                                     label="Finish editing dashboard to use these actions"
-                                    variant="xs"
                                 >
                                     <Box>
                                         <Tooltip
@@ -1528,7 +1544,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                             }
                                             label={editButtonTooltipLabel}
                                             position="top-start"
-                                            variant="xs"
                                         >
                                             <Box>
                                                 <EditChartMenuItem
@@ -1548,7 +1563,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                         'This chart contains custom dimensions, you will not be able to run custom SQL on explore.'
                                                     }
                                                     position="top-start"
-                                                    variant="xs"
                                                     disabled={
                                                         !cannotUseCustomDimensions
                                                     }

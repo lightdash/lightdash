@@ -1,21 +1,18 @@
 import { isDimension, type FilterableItem } from '@lightdash/common';
 import {
-    TextInput,
-    Group,
-    Loader,
-    Stack,
-    Text,
     ActionIcon,
+    Box,
+    Group,
     Highlight,
-    ScrollArea,
-} from '@mantine-8/core';
-import {
-    MultiSelect,
+    Loader,
+    Pill,
+    Text,
+    TextInput,
     Tooltip,
-    type MultiSelectProps,
-    type MultiSelectValueProps,
-} from '@mantine/core';
-import { useDisclosure, useHover } from '@mantine/hooks';
+    type ComboboxProps,
+    type PillsInputProps,
+} from '@mantine-8/core';
+import { useDisclosure, useHover } from '@mantine-8/hooks';
 import {
     IconAlertCircle,
     IconListDetails,
@@ -30,7 +27,6 @@ import {
     useRef,
     useState,
     type FC,
-    type ReactNode,
 } from 'react';
 import useHealth from '../../../../hooks/health/useHealth';
 import {
@@ -38,7 +34,7 @@ import {
     useFieldValues,
 } from '../../../../hooks/useFieldValues';
 import MantineIcon from '../../MantineIcon';
-import { DefaultValue } from '../../TagInput/DefaultValue/DefaultValue';
+import { MultiSelectCombobox } from '../../MultiSelectCombobox/MultiSelectCombobox';
 import useFiltersContext from '../useFiltersContext';
 import classes from './FilterStringAutoComplete.module.css';
 import {
@@ -50,13 +46,12 @@ import {
     NULL_VALUE_LABEL,
     NULL_VALUE_TOKEN,
     SUMMARY_MODE_THRESHOLD,
-    wasTokenRemoved,
 } from './FilterStringAutoComplete.utils';
 import { ManageFilterValuesModal } from './ManageFilterValuesModal';
 import MultiValuePastePopover from './MultiValuePastePopover';
 import { formatDisplayValue } from './utils';
 
-type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
+type Props = Omit<PillsInputProps, 'onChange'> & {
     filterId: string;
     field: FilterableItem;
     values: string[];
@@ -67,22 +62,10 @@ type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
     showNullOption?: boolean;
     includeNull?: boolean;
     onIncludeNullChange?: (includeNull: boolean) => void;
-};
-
-// Single value component that mimics a single select behavior - maxSelectedValues={1} behaves weirdly so we don't use it.
-const SingleValueComponent = ({
-    value,
-    label,
-    onRemove,
-    ...others
-}: MultiSelectValueProps & { value: string }) => {
-    return (
-        <div {...others}>
-            <Text size="xs" lineClamp={1}>
-                {label}
-            </Text>
-        </div>
-    );
+    comboboxProps?: ComboboxProps;
+    onDropdownOpen?: () => void;
+    onDropdownClose?: () => void;
+    placeholder?: string;
 };
 
 const RefreshIndicator: FC<{
@@ -144,6 +127,7 @@ const FilterStringAutoComplete: FC<Props> = ({
     showNullOption,
     includeNull,
     onIncludeNullChange,
+    comboboxProps,
     ...rest
 }) => {
     // The "(null)" option is only meaningful for multi-value filters.
@@ -321,16 +305,6 @@ const FilterStringAutoComplete: FC<Props> = ({
         [singleValue, values],
     );
 
-    const handleKeyDown = useCallback(
-        (event: React.KeyboardEvent<HTMLInputElement>) => {
-            if (event.key === 'Enter' && search !== '') {
-                handleAdd(search);
-                handleResetSearch();
-            }
-        },
-        [handleAdd, handleResetSearch, search],
-    );
-
     const handleBlur = useCallback(
         (event: React.FocusEvent<HTMLInputElement>) => {
             if (skipBlurCommitRef.current) {
@@ -344,70 +318,10 @@ const FilterStringAutoComplete: FC<Props> = ({
         [handleAdd, handleResetSearch, onInputBlur, pastePopUpOpened, search],
     );
 
-    const ValueComponent = useCallback(
-        (props: MultiSelectValueProps & { value: string }) => {
-            if (props.value === MORE_VALUES_TOKEN) {
-                return (
-                    <DefaultValue
-                        {...props}
-                        label={`+${hiddenCount.toLocaleString()} more`}
-                        // Don't show the remove button on the "more" pill
-                        readOnly={true}
-                        // Clicking it should open Manage Values
-                        onMouseDown={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            if (!disabled) openManageValues();
-                        }}
-                        className={classes.moreValuesPill}
-                    />
-                );
-            }
-
-            return <DefaultValue {...props} />;
-        },
-        [disabled, hiddenCount, openManageValues],
-    );
-
     const searchedMaxResults = results.length >= MAX_AUTOCOMPLETE_RESULTS;
     const canRefreshAutocomplete =
         filterAutocomplete?.fetchFromWarehouse !== false &&
         !((filterAutocomplete?.values?.length ?? 0) > 0 && search.length === 0);
-    // memo override component so list doesn't scroll to the top on each click
-    const DropdownComponentOverride = useCallback(
-        ({ children, ...props }: { children: ReactNode }) => (
-            <Stack w="100%" gap={0}>
-                <ScrollArea {...props}>
-                    {searchedMaxResults ? (
-                        <Text c="dimmed" size="xs" px="sm" pt="xs" pb="xxs">
-                            Showing first {MAX_AUTOCOMPLETE_RESULTS} results.{' '}
-                            {search ? 'Continue' : 'Start'} typing...
-                        </Text>
-                    ) : null}
-
-                    {children}
-                </ScrollArea>
-                {healthData?.hasCacheAutocompleResults &&
-                canRefreshAutocomplete ? (
-                    <RefreshIndicator
-                        refreshedAtRef={refreshedAtRef}
-                        onRefresh={() => {
-                            reset();
-                            setForceRefresh(true);
-                        }}
-                    />
-                ) : null}
-            </Stack>
-        ),
-        [
-            searchedMaxResults,
-            search,
-            healthData?.hasCacheAutocompleResults,
-            canRefreshAutocomplete,
-            reset,
-        ],
-    );
-
     return (
         <>
             <ManageFilterValuesModal
@@ -478,208 +392,239 @@ const FilterStringAutoComplete: FC<Props> = ({
                         }}
                     />
                 ) : (
-                    <MultiSelect
-                        ref={multiSelectRef}
-                        size="xs"
-                        w="100%"
-                        placeholder={
-                            values.length > 0 || disabled
-                                ? undefined
-                                : placeholder
-                        }
-                        wrapperProps={{ ref: wrapperRef }}
-                        disabled={disabled}
-                        creatable
-                        valueComponent={
-                            singleValue ? SingleValueComponent : ValueComponent
-                        }
-                        /**
-                         * Opts out of Mantine's default condition and always allows adding, as long as not
-                         * an empty query.
-                         */
-                        shouldCreate={(query: string) =>
-                            query.trim().length > 0 && !values.includes(query)
-                        }
-                        getCreateLabel={(query: string) => (
-                            <Group gap="xxs">
-                                <MantineIcon
-                                    icon={IconPlus}
-                                    color="blue.6"
-                                    size="sm"
-                                />
-                                <Text c="blue.6">Add "{query}"</Text>
-                            </Group>
-                        )}
-                        classNames={{
-                            input: classes.multiSelectInput,
-                            rightSection: classes.rightSectionGroup,
-                        }}
-                        disableSelectedItemFiltering
-                        searchable
-                        clearSearchOnChange
-                        {...rest}
-                        searchValue={search}
-                        onSearchChange={setSearch}
-                        limit={MAX_AUTOCOMPLETE_RESULTS}
-                        onPaste={handlePaste}
-                        nothingFound={
-                            isInitialLoading ? 'Loading...' : 'No results found'
-                        }
-                        rightSectionWidth={30}
-                        rightSection={
-                            <Group
-                                gap="xxs"
-                                wrap="nowrap"
-                                style={{
-                                    visibility: disabled ? 'hidden' : 'visible',
-                                }}
-                            >
-                                {isInitialLoading ? (
-                                    <Loader size="xs" color="gray" />
-                                ) : isError ? (
-                                    <Tooltip
-                                        label={
-                                            error?.error?.message ||
-                                            'Filter not available'
-                                        }
-                                        withinPortal
-                                    >
-                                        <MantineIcon
-                                            icon={IconAlertCircle}
-                                            color="red"
-                                        />
-                                    </Tooltip>
-                                ) : null}
-
-                                <Tooltip
-                                    withinPortal
-                                    label="Edit filter values"
-                                >
-                                    <ActionIcon
-                                        variant="subtle"
-                                        color="gray"
+                    <Box ref={wrapperRef} w="100%">
+                        <MultiSelectCombobox
+                            ref={multiSelectRef}
+                            {...rest}
+                            size="xs"
+                            w="100%"
+                            placeholder={
+                                values.length > 0 || disabled
+                                    ? undefined
+                                    : placeholder
+                            }
+                            disabled={disabled}
+                            shouldCreate={(query: string) =>
+                                query.trim().length > 0 &&
+                                !values.includes(query)
+                            }
+                            createLabel={
+                                <Group gap="xxs">
+                                    <MantineIcon
+                                        icon={IconPlus}
+                                        color="blue.7"
                                         size="sm"
-                                        onClick={openManageValues}
-                                        style={{
-                                            visibility: isWrapperHovered
-                                                ? 'visible'
-                                                : 'hidden',
+                                    />
+                                    <Text c="blue.7" fz="sm" fw={500}>
+                                        Add "{search.trim()}"
+                                    </Text>
+                                </Group>
+                            }
+                            classNames={{
+                                input: classes.multiSelectInput,
+                                section: classes.rightSectionGroup,
+                            }}
+                            searchValue={search}
+                            onSearchChange={setSearch}
+                            comboboxProps={comboboxProps}
+                            onPaste={handlePaste}
+                            nothingFoundMessage={
+                                isInitialLoading
+                                    ? 'Loading...'
+                                    : 'No results found'
+                            }
+                            rightSectionWidth={30}
+                            rightSectionPointerEvents="all"
+                            rightSection={
+                                <Group
+                                    gap="xxs"
+                                    wrap="nowrap"
+                                    style={{
+                                        visibility: disabled
+                                            ? 'hidden'
+                                            : 'visible',
+                                    }}
+                                >
+                                    {isInitialLoading ? (
+                                        <Loader size="xs" color="gray" />
+                                    ) : isError ? (
+                                        <Tooltip
+                                            label={
+                                                error?.error?.message ||
+                                                'Filter not available'
+                                            }
+                                            withinPortal
+                                        >
+                                            <MantineIcon
+                                                icon={IconAlertCircle}
+                                                color="red"
+                                            />
+                                        </Tooltip>
+                                    ) : null}
+
+                                    <Tooltip
+                                        withinPortal
+                                        label="Edit filter values"
+                                    >
+                                        <ActionIcon
+                                            variant="subtle"
+                                            color="gray"
+                                            size="sm"
+                                            onClick={openManageValues}
+                                            style={{
+                                                visibility: isWrapperHovered
+                                                    ? 'visible'
+                                                    : 'hidden',
+                                            }}
+                                        >
+                                            <MantineIcon
+                                                icon={IconListDetails}
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                </Group>
+                            }
+                            topContent={
+                                searchedMaxResults ? (
+                                    <Text
+                                        c="dimmed"
+                                        size="xs"
+                                        px="sm"
+                                        pt="xs"
+                                        pb="xxs"
+                                    >
+                                        Showing first {MAX_AUTOCOMPLETE_RESULTS}{' '}
+                                        results. {search ? 'Continue' : 'Start'}{' '}
+                                        typing...
+                                    </Text>
+                                ) : null
+                            }
+                            footer={
+                                healthData?.hasCacheAutocompleResults &&
+                                canRefreshAutocomplete ? (
+                                    <RefreshIndicator
+                                        refreshedAtRef={refreshedAtRef}
+                                        onRefresh={() => {
+                                            reset();
+                                            setForceRefresh(true);
+                                        }}
+                                    />
+                                ) : null
+                            }
+                            options={data}
+                            limit={MAX_AUTOCOMPLETE_RESULTS}
+                            selectedValues={
+                                showNull && includeNull
+                                    ? [...values, NULL_VALUE_TOKEN]
+                                    : values
+                            }
+                            value={
+                                showNull && includeNull
+                                    ? [...displayValues, NULL_VALUE_TOKEN]
+                                    : displayValues
+                            }
+                            renderPill={(itemValue, label, remove) => {
+                                if (itemValue === MORE_VALUES_TOKEN) {
+                                    return (
+                                        <Pill
+                                            className={classes.moreValuesPill}
+                                            role="button"
+                                            tabIndex={0}
+                                            aria-label={`Manage ${hiddenCount.toLocaleString()} more filter values`}
+                                            onMouseDown={(event) => {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                                if (!disabled)
+                                                    openManageValues();
+                                            }}
+                                            onKeyDown={(event) => {
+                                                if (
+                                                    !disabled &&
+                                                    (event.key === 'Enter' ||
+                                                        event.key === ' ')
+                                                ) {
+                                                    event.preventDefault();
+                                                    openManageValues();
+                                                }
+                                            }}
+                                        >
+                                            +{hiddenCount.toLocaleString()} more
+                                        </Pill>
+                                    );
+                                }
+                                if (singleValue) {
+                                    return (
+                                        <Text size="xs" lineClamp={1}>
+                                            {label}
+                                        </Text>
+                                    );
+                                }
+                                return (
+                                    <Pill
+                                        withRemoveButton={!disabled}
+                                        disabled={disabled}
+                                        onRemove={remove}
+                                        removeButtonProps={{
+                                            'aria-label': `Remove ${label}`,
+                                            'aria-hidden': false,
+                                            onMouseDown: (event) =>
+                                                event.preventDefault(),
                                         }}
                                     >
-                                        <MantineIcon icon={IconListDetails} />
-                                    </ActionIcon>
-                                </Tooltip>
-                            </Group>
-                        }
-                        dropdownComponent={DropdownComponentOverride}
-                        itemComponent={({
-                            label,
-                            value: itemValue,
-                            selected: _selected,
-                            className,
-                            ...others
-                        }) => {
-                            // Override selection state to check against full values array
-                            // This fixes the bug where hidden values (beyond display limit) appear
-                            // unselected in dropdown even though they're actually selected
-                            const isSelected =
-                                itemValue === NULL_VALUE_TOKEN
-                                    ? !!includeNull
-                                    : isValueSelected(itemValue, values);
-                            const itemClassName = [
-                                className,
-                                isSelected
-                                    ? classes.multiSelectItemSelected
-                                    : undefined,
-                            ]
-                                .filter(Boolean)
-                                .join(' ');
-
-                            return others.disabled ? (
-                                <Text
-                                    c="dimmed"
-                                    className={itemClassName}
-                                    {...others}
-                                >
-                                    {label}
-                                </Text>
-                            ) : (
-                                <Highlight
-                                    highlight={search}
-                                    className={itemClassName}
-                                    {...others}
-                                    fz="sm"
-                                >
-                                    {label}
-                                </Highlight>
-                            );
-                        }}
-                        data={
-                            hiddenCount > 0
-                                ? [
-                                      ...data,
-                                      {
-                                          value: MORE_VALUES_TOKEN,
-                                          label: `+${hiddenCount.toLocaleString()} more`,
-                                      },
-                                  ]
-                                : data
-                        }
-                        value={
-                            showNull && includeNull
-                                ? [...displayValues, NULL_VALUE_TOKEN]
-                                : displayValues
-                        }
-                        onDropdownOpen={onDropdownOpen}
-                        onDropdownClose={() => {
-                            handleResetSearch();
-                            onDropdownClose?.();
-                        }}
-                        onChange={(updatedValues) => {
-                            const valuesWithoutNull = updatedValues.filter(
-                                (v) => v !== NULL_VALUE_TOKEN,
-                            );
-
-                            // The "(null)" option toggles includeNull on the rule
-                            // rather than becoming a real value. A single MultiSelect
-                            // change only ever toggles the null token OR edits real
-                            // values, so when the token's presence flips we update the
-                            // flag and stop — calling handleChange too would overwrite
-                            // includeNull from a stale rule and drop the flag.
-                            if (showNull) {
-                                const nextIncludeNull =
-                                    updatedValues.includes(NULL_VALUE_TOKEN);
-                                if (nextIncludeNull !== !!includeNull) {
-                                    onIncludeNullChange?.(nextIncludeNull);
+                                        {label}
+                                    </Pill>
+                                );
+                            }}
+                            renderOption={(option) =>
+                                option.disabled ? (
+                                    <Text c="dimmed">{option.label}</Text>
+                                ) : (
+                                    <Highlight highlight={search} fz="sm">
+                                        {option.label}
+                                    </Highlight>
+                                )
+                            }
+                            onDropdownOpen={onDropdownOpen}
+                            onDropdownClose={() => {
+                                handleResetSearch();
+                                onDropdownClose?.();
+                            }}
+                            onValueRemove={(itemValue) => {
+                                if (itemValue === MORE_VALUES_TOKEN) {
+                                    openManageValues();
                                     return;
                                 }
-                            }
-
-                            // If token was removed (backspace on truncated list), open modal instead
-                            if (
-                                wasTokenRemoved(
+                                if (itemValue === NULL_VALUE_TOKEN) {
+                                    onIncludeNullChange?.(false);
+                                    return;
+                                }
+                                const finalValues = mergeWithHiddenValues(
+                                    displayValues.filter(
+                                        (value) => value !== itemValue,
+                                    ),
                                     displayValues,
-                                    valuesWithoutNull,
-                                    hiddenCount,
-                                )
-                            ) {
-                                openManageValues();
-                                return;
-                            }
-
-                            // Merge with hidden values to prevent data loss in truncated mode
-                            const finalValues = mergeWithHiddenValues(
-                                valuesWithoutNull,
-                                displayValues,
-                                values,
-                            );
-                            handleChange(finalValues);
-                        }}
-                        onCreate={handleAdd}
-                        onKeyDown={handleKeyDown}
-                        onFocus={onInputFocus}
-                        onBlur={handleBlur}
-                    />
+                                    values,
+                                );
+                                handleChange(finalValues);
+                            }}
+                            onOptionSubmit={(itemValue) => {
+                                if (itemValue === NULL_VALUE_TOKEN) {
+                                    onIncludeNullChange?.(!includeNull);
+                                } else if (isValueSelected(itemValue, values)) {
+                                    handleChange(
+                                        values.filter(
+                                            (value) => value !== itemValue,
+                                        ),
+                                    );
+                                } else {
+                                    handleAdd(itemValue);
+                                }
+                            }}
+                            onCreate={handleAdd}
+                            onFocus={onInputFocus}
+                            onBlur={handleBlur}
+                        />
+                    </Box>
                 )}
             </MultiValuePastePopover>
         </>
