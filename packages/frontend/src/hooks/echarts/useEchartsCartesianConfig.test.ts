@@ -1,7 +1,9 @@
 import {
+    assignSeriesZByOrder,
     CartesianSeriesType,
     createConditionalFormattingConfigWithSingleColor,
     DimensionType,
+    REFERENCE_LINE_Z,
     FieldType,
     FilterOperator,
     TimeFrames,
@@ -2530,5 +2532,81 @@ describe('applyConditionalFormattingToStackedSeries', () => {
 
         expect(result[0]).toBe(flatBar);
         expect(result[1]).toBe(line);
+    });
+});
+
+describe('assignSeriesZByOrder', () => {
+    const mkSeries = (type: CartesianSeriesType, name: string): EChartsSeries =>
+        ({ type, name }) as unknown as EChartsSeries;
+
+    test('assigns a strictly increasing z matching array position', () => {
+        const result = assignSeriesZByOrder([
+            mkSeries(CartesianSeriesType.AREA, 'area'),
+            mkSeries(CartesianSeriesType.BAR, 'bar'),
+        ]);
+
+        expect(result[0].z!).toBe(2);
+        expect(result[1].z!).toBeGreaterThan(result[0].z!);
+    });
+
+    test('later series paint on top regardless of type (bar over area)', () => {
+        const area = mkSeries(CartesianSeriesType.AREA, 'area');
+        const bar = mkSeries(CartesianSeriesType.BAR, 'bar');
+
+        // area first in list -> lower z -> painted behind the bar
+        const result = assignSeriesZByOrder([area, bar]);
+        const areaZ = result.find((s) => s.name === 'area')?.z ?? 0;
+        const barZ = result.find((s) => s.name === 'bar')?.z ?? 0;
+
+        expect(barZ).toBeGreaterThan(areaZ);
+    });
+
+    test('keeps every series z below the reference-line z, even with many series', () => {
+        const many = Array.from({ length: 40 }, (_, i) =>
+            mkSeries(CartesianSeriesType.BAR, `s${i}`),
+        );
+
+        const result = assignSeriesZByOrder(many);
+
+        result.forEach((s) => expect(s.z!).toBeLessThan(REFERENCE_LINE_Z));
+        // still strictly ordered
+        for (let i = 1; i < result.length; i += 1) {
+            expect(result[i].z!).toBeGreaterThan(result[i - 1].z!);
+        }
+    });
+
+    test('pins markLine z so persisted config cannot sink reference lines', () => {
+        const withRefLine = {
+            ...mkSeries(CartesianSeriesType.AREA, 'area'),
+            markLine: { z: 1, data: [{ yAxis: 5 }] },
+        } as unknown as EChartsSeries;
+
+        const result = assignSeriesZByOrder([
+            withRefLine,
+            mkSeries(CartesianSeriesType.BAR, 'bar'),
+        ]);
+
+        expect(result[0].markLine).toMatchObject({
+            z: REFERENCE_LINE_Z,
+            data: [{ yAxis: 5 }],
+        });
+        // series without a markLine don't gain one
+        expect(result[1].markLine).toBeUndefined();
+    });
+
+    test('preserves other series properties and does not mutate the input', () => {
+        const input = [mkSeries(CartesianSeriesType.LINE, 'line')];
+        const result = assignSeriesZByOrder(input);
+
+        expect(result[0]).toMatchObject({
+            type: CartesianSeriesType.LINE,
+            name: 'line',
+            z: 2,
+        });
+        expect(input[0]).not.toHaveProperty('z');
+    });
+
+    test('handles an empty series list', () => {
+        expect(assignSeriesZByOrder([])).toEqual([]);
     });
 });

@@ -2,6 +2,7 @@ import {
     applyCustomFormat,
     applyRoundedCornersToStackData,
     assertUnreachable,
+    assignSeriesZByOrder,
     buildCartesianTooltipFormatter,
     calculateDynamicBorderRadius,
     CartesianSeriesType,
@@ -4390,9 +4391,11 @@ const useEchartsCartesianConfig = (
             xAxis: resolvedLabels.xAxis,
             yAxis: resolvedLabels.yAxis,
             useUTC: true,
-            series: relocateMarkLinesToVisibleSeries(
-                resolvedLabels.series,
-                validCartesianConfigLegend,
+            series: assignSeriesZByOrder(
+                relocateMarkLinesToVisibleSeries(
+                    resolvedLabels.series,
+                    validCartesianConfigLegend,
+                ),
             ),
             animation: !(isInDashboard || minimal),
             legend: legendConfigWithInstructionsTooltip,

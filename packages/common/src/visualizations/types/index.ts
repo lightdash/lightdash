@@ -404,6 +404,8 @@ export type EChartsSeries = {
         baseFieldId: string;
     };
     clip?: boolean;
+    // Paint order, derived from series-list position by assignSeriesZByOrder
+    z?: number;
 };
 
 /**
