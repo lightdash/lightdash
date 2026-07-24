@@ -1056,6 +1056,23 @@ describe('normalizeMarkLineTimeValues', () => {
         ]);
     });
 
+    test('rescues an explicitly-zoned timestamp stranded in the value-axis slot', () => {
+        const result = normalizeMarkLineTimeValues(
+            makeMarkLineSeries([{ uuid: 'a', yAxis: '2024-01-15T12:00:00Z' }]),
+            identity,
+        );
+
+        expect(getMarkLineData(result)).toEqual([
+            {
+                uuid: 'a',
+                xAxis: UTC_MS,
+                yAxis: undefined,
+                name: '2024-01-15T12:00:00Z',
+                label: { formatter: '2024-01-15T12:00:00Z' },
+            },
+        ]);
+    });
+
     test('never rescues numeric strings from the value axis', () => {
         const data = [
             { uuid: 'a', yAxis: '50' },

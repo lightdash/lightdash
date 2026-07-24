@@ -438,13 +438,13 @@ export const applyTimezoneShiftToEchartsOptions = <
 // construction. Anything else (numeric metric values stranded in the wrong
 // slot by semantic keying, empty strings, garbage) is left untouched rather
 // than leniently coerced.
-const isRescuableWallClockTimeString = (value: string): boolean => {
+const isRescuableTimeString = (value: string): boolean => {
     // Bare years are valid calendar values in the actual time slot, but in the
     // opposite slot they are indistinguishable from numeric thresholds entered
     // through the reference-line TextInput (e.g. revenue = "2024").
     if (value !== '' && Number.isFinite(Number(value))) return false;
     return (
-        parseTimestampValueUTC(value)?.hasZone === false ||
+        parseTimestampValueUTC(value) !== undefined ||
         parseCalendarValueUTC(value) !== undefined
     );
 };
@@ -509,7 +509,7 @@ const readTimeAxisSlot = (
         canRescue &&
         timeSlotEmpty &&
         typeof valueSlotValue === 'string' &&
-        isRescuableWallClockTimeString(valueSlotValue.trim())
+        isRescuableTimeString(valueSlotValue.trim())
     ) {
         return { raw: valueSlotValue, stranded: true };
     }
