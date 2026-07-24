@@ -17,7 +17,11 @@ import * as path from 'path';
 import { vi } from 'vitest';
 import GlobalState from '../globalState';
 import { lightdashApi } from './dbt/apiClient';
-import { downloadContent, testHelpers } from './download';
+import {
+    downloadContent,
+    getExternalConnectionSecretEnvVar,
+    testHelpers,
+} from './download';
 
 vi.mock('./dbt/apiClient', async (importOriginal) => ({
     ...(await importOriginal<typeof import('./dbt/apiClient')>()),
@@ -30,6 +34,7 @@ const {
     getDashboardChartSlugs,
     getFlatSpaceFileNames,
     hasUploadFilters,
+    isExternalConnectionsUnavailableError,
     readAiAgentFiles,
     readSpaceFiles,
     readSpaceNames,
@@ -37,6 +42,7 @@ const {
     shouldFallBackToEmbeddedSpaces,
     shouldDownloadAiAgents,
     summarizeUploadChanges,
+    upsertExternalConnections,
     upsertSpaces,
     upsertVirtualViews,
     validateSpaceIdentity,
@@ -54,6 +60,7 @@ const makeUploadFilterOptions = (
     googleSheets: [],
     scheduledDeliveries: [],
     virtualViews: [],
+    externalConnections: [],
     apps: [],
     ...overrides,
 });
@@ -63,6 +70,14 @@ describe('hasUploadFilters', () => {
         expect(
             hasUploadFilters(
                 makeUploadFilterOptions({ apps: ['app-reference'] }),
+            ),
+        ).toBe(true);
+    });
+
+    it('treats explicit external connections as a filtered upload', () => {
+        expect(
+            hasUploadFilters(
+                makeUploadFilterOptions({ externalConnections: ['stripe'] }),
             ),
         ).toBe(true);
     });
@@ -430,6 +445,224 @@ version: 1
         expect(logSpy).toHaveBeenCalledExactlyOnceWith(
             expect.stringContaining('Error uploading virtual views'),
         );
+    });
+});
+
+describe('upsertExternalConnections', () => {
+    let tmpDir: string;
+    const externalConnectionYaml = (slug: string, extraLines: string[] = []) =>
+        [
+            'allowedContentTypes:',
+            '  - application/json',
+            'allowedMethods:',
+            '  - GET',
+            'allowedPathPrefixes: []',
+            'apiKeyLocation: header',
+            'apiKeyName: Authorization',
+            'contentType: external_connection',
+            'customHeaders: null',
+            'instructions: null',
+            `name: ${slug}`,
+            'oauthScopes: null',
+            'origin: https://api.example.com',
+            'rateLimitPerMinute: null',
+            'requestMaxBytes: 262144',
+            'responseMaxBytes: 1048576',
+            `slug: ${slug}`,
+            'timeoutMs: 10000',
+            'type: api_key',
+            'version: 1',
+            ...extraLines,
+            '',
+        ].join('\n');
+
+    beforeEach(async () => {
+        vi.mocked(lightdashApi).mockReset();
+        tmpDir = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'external-connections-test-'),
+        );
+        await fs.mkdir(path.join(tmpDir, 'external-connections'));
+    });
+
+    afterEach(async () => {
+        vi.restoreAllMocks();
+        vi.unstubAllEnvs();
+        await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('omits the secret from the request when the env var is unset', async () => {
+        await fs.writeFile(
+            path.join(tmpDir, 'external-connections', 'stripe-api.yml'),
+            externalConnectionYaml('stripe-api'),
+        );
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            action: 'no changes',
+        } as never);
+
+        const changes = await upsertExternalConnections(
+            'project-uuid',
+            [],
+            {},
+            false,
+            true,
+            tmpDir,
+        );
+
+        expect(changes).toEqual({ 'external connections skipped': 1 });
+        const request = vi.mocked(lightdashApi).mock.calls[0][0];
+        expect(request.url).toContain(
+            '/code/externalConnections/stripe-api?force=false',
+        );
+        const body = JSON.parse(request.body as string);
+        expect(body).not.toHaveProperty('secret');
+        expect(body.connection.slug).toBe('stripe-api');
+    });
+
+    it('resolves the secret from LIGHTDASH_EXTERNAL_CONNECTION_SECRET_<SLUG>', async () => {
+        await fs.writeFile(
+            path.join(tmpDir, 'external-connections', 'stripe-api.yml'),
+            externalConnectionYaml('stripe-api'),
+        );
+        vi.stubEnv('LIGHTDASH_EXTERNAL_CONNECTION_SECRET_STRIPE_API', 'sk-123');
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            action: 'create',
+        } as never);
+
+        const changes = await upsertExternalConnections(
+            'project-uuid',
+            [],
+            {},
+            false,
+            true,
+            tmpDir,
+        );
+
+        expect(changes).toEqual({ 'external connections created': 1 });
+        const body = JSON.parse(
+            vi.mocked(lightdashApi).mock.calls[0][0].body as string,
+        );
+        expect(body.secret).toBe('sk-123');
+        // The secret rides next to the document, never inside it
+        expect(body.connection).not.toHaveProperty('secret');
+    });
+
+    it('strips a secret authored into the YAML and warns', async () => {
+        const logSpy = vi
+            .spyOn(GlobalState, 'log')
+            .mockImplementation(() => undefined);
+        await fs.writeFile(
+            path.join(tmpDir, 'external-connections', 'stripe-api.yml'),
+            externalConnectionYaml('stripe-api', ['secret: leaked-secret']),
+        );
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            action: 'update',
+        } as never);
+
+        await upsertExternalConnections(
+            'project-uuid',
+            [],
+            {},
+            false,
+            true,
+            tmpDir,
+        );
+
+        const rawBody = vi.mocked(lightdashApi).mock.calls[0][0].body as string;
+        expect(rawBody).not.toContain('leaked-secret');
+        expect(logSpy).toHaveBeenCalledWith(
+            expect.stringContaining('secrets must never be stored in YAML'),
+        );
+    });
+
+    it('reports one category error without uploading when the caller lacks permission', async () => {
+        const logSpy = vi
+            .spyOn(GlobalState, 'log')
+            .mockImplementation(() => undefined);
+        await fs.writeFile(
+            path.join(tmpDir, 'external-connections', 'stripe-api.yml'),
+            externalConnectionYaml('stripe-api'),
+        );
+
+        const changes = await upsertExternalConnections(
+            'project-uuid',
+            [],
+            {},
+            false,
+            false,
+            tmpDir,
+        );
+
+        expect(changes).toEqual({});
+        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(logSpy).toHaveBeenCalledExactlyOnceWith(
+            expect.stringContaining('Error uploading external connections'),
+        );
+    });
+
+    it('appends the env-var hint when a secret-requiring create fails without the env var', async () => {
+        const logSpy = vi
+            .spyOn(GlobalState, 'log')
+            .mockImplementation(() => undefined);
+        await fs.writeFile(
+            path.join(tmpDir, 'external-connections', 'stripe-api.yml'),
+            externalConnectionYaml('stripe-api'),
+        );
+        vi.mocked(lightdashApi).mockRejectedValueOnce(
+            new Error('type "api_key" requires a secret'),
+        );
+
+        const changes = await upsertExternalConnections(
+            'project-uuid',
+            [],
+            {},
+            false,
+            true,
+            tmpDir,
+        );
+
+        expect(changes).toEqual({ 'external connections with errors': 1 });
+        expect(logSpy).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'Set LIGHTDASH_EXTERNAL_CONNECTION_SECRET_STRIPE_API',
+            ),
+        );
+    });
+});
+
+describe('getExternalConnectionSecretEnvVar', () => {
+    it('upper-snakes the slug', () => {
+        expect(getExternalConnectionSecretEnvVar('stripe-api-v2')).toBe(
+            'LIGHTDASH_EXTERNAL_CONNECTION_SECRET_STRIPE_API_V2',
+        );
+    });
+});
+
+describe('isExternalConnectionsUnavailableError', () => {
+    const lightdashError = (statusCode: number) =>
+        new LightdashError({
+            message: 'nope',
+            name: 'TestError',
+            statusCode,
+            data: {},
+        });
+
+    it('classifies permission, missing-route and non-EE errors as unavailable', () => {
+        [403, 404, 422].forEach((statusCode) => {
+            expect(
+                isExternalConnectionsUnavailableError(
+                    lightdashError(statusCode),
+                ),
+            ).toBe(true);
+        });
+    });
+
+    it('keeps real failures fatal', () => {
+        expect(isExternalConnectionsUnavailableError(lightdashError(500))).toBe(
+            false,
+        );
+        expect(
+            isExternalConnectionsUnavailableError(new Error('network down')),
+        ).toBe(false);
     });
 });
 

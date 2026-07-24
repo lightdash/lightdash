@@ -838,6 +838,16 @@ const downloadCommand = program
         [],
     )
     .option(
+        '--external-connections <slugs...>',
+        'specify external connection slugs to download (enterprise)',
+        [],
+    )
+    .option(
+        '--include-external-connections',
+        "include all of the project's data-app external connections (enterprise)",
+        false,
+    )
+    .option(
         '-l, --language-map',
         'generate a language maps for the downloaded charts and dashboards',
         false,
@@ -960,6 +970,11 @@ const uploadCommand = program
         [],
     )
     .option(
+        '--external-connections <slugs...>',
+        'specify external connection slugs to upload (enterprise)',
+        [],
+    )
+    .option(
         '--force',
         'Force upload unchanged files and allow destructive virtual-view column changes',
         false,
@@ -999,6 +1014,11 @@ const uploadCommand = program
     .option(
         '--skip-scheduled-deliveries',
         'skip uploading scheduled deliveries',
+        false,
+    )
+    .option(
+        '--skip-external-connections',
+        'skip uploading external connections',
         false,
     )
     .option(

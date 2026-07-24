@@ -907,9 +907,20 @@ defences keep the path robust:
 
 External connections let a project admin register a third-party HTTP API (base URL, auth) that generated data apps can fetch from at runtime, through a parent-mediated proxy that mirrors the metric-query [PostMessage Bridge](#postmessage-bridge-useappsdkbridge). The feature is enterprise-only. Two scopes split the surface: **configuring** a connection (create / edit / delete, including its host, auth secret, and allowed methods) requires the admin-only `manage:ExternalConnection` scope; **viewing** the connection list — so an app builder can pick an existing connection to link in the builder — requires `view:ExternalConnection`, granted to interactive-viewer+ (the same tier that can build data apps). Linking a viewed connection to an app is gated by manage rights on the app itself (`manage:DataApp`, via `assertCanManageApp`), not by connection-manage — so a space editor can link an admin-created connection to an app they own.
 
+### As code
+
+Connections are also a content-as-code resource: `lightdash download
+--include-external-connections` writes each config to
+`lightdash/external-connections/<slug>.yml` and `lightdash upload`
+creates/updates connections from those files (both gated by
+`manage:ExternalConnection`). Secrets stay out of the files — uploads resolve
+them from `LIGHTDASH_EXTERNAL_CONNECTION_SECRET_<SLUG>` environment variables.
+See `docs/content-as-code.md` → *External connections* for the document shape,
+slug identity semantics, and secret handling.
+
 ### Connection model
 
-A connection lives on the `external_connections` table (`packages/backend/src/ee/database/entities/externalConnections.ts`), scoped to a project. It stores a human-readable **alias**, a **base URL** (origin), the auth method, an **encrypted secret** (never returned to the client — stripped on read, only decrypted server-side for an actual fetch), and optional freeform **instructions** (admin-authored markdown, capped at 10 000 chars; not sensitive, returned on read). Apps opt into a connection by linking it (`app_external_connections`); an app can reference a connection's data only after the admin links it.
+A connection lives on the `external_connections` table (`packages/backend/src/ee/database/entities/externalConnections.ts`), scoped to a project. Each connection also carries a project-unique `slug` (generated from the name, stable across renames) used as its content-as-code identity. It stores a human-readable **alias**, a **base URL** (origin), the auth method, an **encrypted secret** (never returned to the client — stripped on read, only decrypted server-side for an actual fetch), and optional freeform **instructions** (admin-authored markdown, capped at 10 000 chars; not sensitive, returned on read). Apps opt into a connection by linking it (`app_external_connections`); an app can reference a connection's data only after the admin links it.
 
 The **instructions** are usage guidance for the app builder — auth quirks, pagination, which endpoints matter, response caveats — injected into the generation prompt (see [Saved samples → `/tmp/external-data`](#saved-samples--tmpexternal-data) below). They inherit the same admin-trust boundary as the rest of the connection: only `manage:ExternalConnection` (project admin) can set them, and an admin authoring prose is strictly weaker than an admin who already pins the host, secret, and allowed methods.
 

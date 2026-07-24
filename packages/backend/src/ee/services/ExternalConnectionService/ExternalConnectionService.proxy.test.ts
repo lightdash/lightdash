@@ -27,6 +27,7 @@ const baseConnection = (
     projectUuid: 'proj-1',
     organizationUuid: 'org-1',
     name: 'Weather API',
+    slug: 'weather-api',
     type: 'none',
     origin: 'https://api.example.com',
     instructions: null,

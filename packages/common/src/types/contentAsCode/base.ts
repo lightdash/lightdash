@@ -15,6 +15,7 @@ export const CONTENT_AS_CODE_VERSIONS = {
     custom_role: 1,
     user: 1,
     group: 1,
+    external_connection: 1,
 } as const;
 
 export type ContentAsCodeScope = 'project' | 'organization';
@@ -31,7 +32,8 @@ export type ContentAsCodeResourceKind =
     | 'ai_agent'
     | 'custom_role'
     | 'user'
-    | 'group';
+    | 'group'
+    | 'external_connection';
 
 export type ContentAsCodeIdentity = {
     resource: ContentAsCodeResourceKind;

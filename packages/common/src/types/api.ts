@@ -52,6 +52,8 @@ import type {
     ApiAppThumbnailUrlResponse,
     ApiCloneAiAgentThreadShareResponse,
     ApiCreateEvaluationResponse,
+    ApiExternalConnectionAsCodeListResponse,
+    ApiExternalConnectionAsCodeUpsertResponse,
     ApiGenerateAppResponse,
     ApiGetAppCodeResponse,
     ApiGetAppResponse,
@@ -1210,6 +1212,8 @@ type ApiResults =
     | ApiScheduledDeliveryAsCodeUpsertResponse['results']
     | ApiVirtualViewAsCodeListResponse['results']
     | ApiVirtualViewAsCodeUpsertResponse['results']
+    | ApiExternalConnectionAsCodeListResponse['results']
+    | ApiExternalConnectionAsCodeUpsertResponse['results']
     | ApiSpaceAsCodeListResponse['results']
     | ApiSpaceAsCodeUpsertResponse['results']
     | ApiChartAsCodeUpsertResponse['results']

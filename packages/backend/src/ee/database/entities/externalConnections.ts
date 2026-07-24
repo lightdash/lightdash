@@ -17,6 +17,8 @@ export type DbExternalConnection = {
     project_uuid: string;
     organization_uuid: string;
     name: string;
+    // Portable identity: unique per project among live rows, stable across renames
+    slug: string;
     type: ExternalConnectionAuthType;
     origin: string;
     instructions: string | null;
@@ -42,7 +44,12 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
     DbExternalConnection,
     Pick<
         DbExternalConnection,
-        'project_uuid' | 'organization_uuid' | 'name' | 'type' | 'origin'
+        | 'project_uuid'
+        | 'organization_uuid'
+        | 'name'
+        | 'slug'
+        | 'type'
+        | 'origin'
     > & {
         // jsonb columns are written as serialized JSON strings (read back as arrays)
         allowed_path_prefixes: string;

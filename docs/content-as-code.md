@@ -179,6 +179,7 @@ organization resources will use the same root.
 | Scheduled deliveries | Project      | Project-scoped slug              | `lightdash/scheduled-deliveries/`        |
 | Alerts               | Project      | Project-scoped slug              | `lightdash/alerts/`                      |
 | Google Sheets syncs  | Project      | Project-scoped slug              | `lightdash/google-sheets/`               |
+| External connections | Project      | Project-scoped slug              | `lightdash/external-connections/`        |
 | Custom roles         | Organization | Exact role name                  | `lightdash/custom-roles/`                |
 | Users                | Organization | Lowercase primary email          | `lightdash/users/`                       |
 | Groups               | Organization | Exact, case-sensitive group name | `lightdash/groups/`                      |
@@ -190,24 +191,80 @@ utilities without pretending to be single-document resources.
 Project APIs use `/api/v1/projects/{projectUuid}/code/{resource}`. Organization
 APIs use `/api/v2/orgs/{orgUuid}/code/{resource}`. The resource segments are
 `charts`, `sqlCharts`, `dashboards`, `spaces`, `virtualViews`, `aiAgents`,
-`scheduledDeliveries`, `alerts`, `googleSheets`, `roles`, `users`, and `groups`.
+`scheduledDeliveries`, `alerts`, `googleSheets`, `externalConnections`,
+`roles`, `users`, and `groups`.
 The legacy resource-first routes are deprecated in OpenAPI and should not be
 used by new clients.
 
 ## Optional project resources
 
-Virtual views, AI agents, alerts, scheduled deliveries, and Google Sheets syncs
-are opt-in for download through their resource selectors, `--include-*` flags,
-or `--include-all`. Upload processes matching files already present on disk
-unless the corresponding `--skip-*` option is supplied. This distinction is
-intentional: a normal download must not delete or rewrite optional local
-resources that were not fetched.
+Virtual views, AI agents, alerts, scheduled deliveries, Google Sheets syncs,
+and external connections are opt-in for download through their resource
+selectors, `--include-*` flags, or `--include-all`. Upload processes matching
+files already present on disk unless the corresponding `--skip-*` option is
+supplied. This distinction is intentional: a normal download must not delete
+or rewrite optional local resources that were not fetched.
 
 Google Sheets documents contain portable destination metadata. Content-as-code
 uploads validate the payload and permissions but do not call Google Drive to
 validate the spreadsheet URL. This allows CI and service-account deployments
 without the uploader's personal Google OAuth token. Executing an enabled sync
 still requires usable Google credentials for the scheduler owner.
+
+## External connections
+
+Data-app external connections (see `docs/data-apps.md` → *External
+connections*) are enterprise-only and both download and upload require the
+admin-only `manage:ExternalConnection` scope. When `--include-all` reaches
+them implicitly on a non-enterprise server or without that permission, the
+CLI warns and skips; the explicit `--external-connections <slugs...>` and
+`--include-external-connections` selectors fail loudly instead.
+
+Documents live in `lightdash/external-connections/<slug>.yml`:
+
+```yaml
+contentType: external_connection
+version: 1
+slug: stripe-api
+name: Stripe API
+type: api_key # none | api_key | bearer_token | google_service_account
+origin: https://api.stripe.com
+instructions: null
+allowedPathPrefixes: []
+allowedMethods:
+  - GET
+allowedContentTypes:
+  - application/json
+responseMaxBytes: 1048576
+requestMaxBytes: 262144
+timeoutMs: 10000
+rateLimitPerMinute: null
+apiKeyName: Authorization
+apiKeyLocation: header
+oauthScopes: null
+customHeaders: null
+```
+
+The endpoints are:
+
+- `GET /api/v1/projects/{projectUuid}/code/externalConnections`
+- `POST /api/v1/projects/{projectUuid}/code/externalConnections/{slug}`
+
+The project-scoped `slug` column is the portable identity. It is generated
+from the name at creation, stays stable across renames, and is unique among
+live connections per project (a partial unique index; generation also reserves
+soft-deleted slugs). Changing the slug in a file creates a new connection;
+omitted files never delete remote connections.
+
+**Secrets never appear in documents or API reads.** At upload time the CLI
+reads `LIGHTDASH_EXTERNAL_CONNECTION_SECRET_<SLUG>` (slug uppercased with
+hyphens as underscores) and sends the value alongside the document. With the
+variable set, the secret is stored (an unchanged secret still reports
+`NO_CHANGES`); unset, an existing connection keeps its stored secret, while
+creating a connection whose auth type requires a secret fails with an error
+naming the expected variable. Clearing a secret is not supported as code —
+use the settings UI. A stray `secret` key in a YAML file is stripped and
+warned about, never uploaded.
 
 ## Spaces and access
 
