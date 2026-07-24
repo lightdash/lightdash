@@ -1,3 +1,13 @@
+## [0.3472.1](https://github.com/lightdash/lightdash/compare/0.3472.0...0.3472.1) (2026-07-24)
+
+
+### Bug Fixes
+
+* **ci:** compare generated OpenAPI schemas ([#26133](https://github.com/lightdash/lightdash/issues/26133)) ([7cd51b3](https://github.com/lightdash/lightdash/commit/7cd51b3c2967e88cb7ac86b197feff505eba3220))
+* **echarts:** render calendar DATE time axes on the correct day ([#26130](https://github.com/lightdash/lightdash/issues/26130)) ([2a551b2](https://github.com/lightdash/lightdash/commit/2a551b2101dc18162a55a53d48da43d9f42876cb))
+* expand settings page header to full width on full-width pages ([#26132](https://github.com/lightdash/lightdash/issues/26132)) ([0eb7ff9](https://github.com/lightdash/lightdash/commit/0eb7ff9502f5964861316bb3c2fdaf92b51112ee)), closes [/linear.app/lightdash/issue/PROD-9225/fix-header-width-on-full-width-settings-pages#agent-session-ba79eb50](https://github.com//linear.app/lightdash/issue/PROD-9225/fix-header-width-on-full-width-settings-pages/issues/agent-session-ba79eb50)
+* render AI agent metrics-only funnel charts instead of table fallback ([#26090](https://github.com/lightdash/lightdash/issues/26090)) ([b5f66ca](https://github.com/lightdash/lightdash/commit/b5f66ca5b5cc335d469dcd27e3037cc7a15db065))
+
 # [0.3472.0](https://github.com/lightdash/lightdash/compare/0.3471.1...0.3472.0) (2026-07-24)
 
 
