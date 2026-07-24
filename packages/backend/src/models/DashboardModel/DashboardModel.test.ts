@@ -455,6 +455,65 @@ describe('DashboardModel', () => {
         );
     });
 
+    test('moves a dashboard to a space in the same project on update', async () => {
+        const requestedProjectUuid = '22222222-2222-4222-8222-222222222222';
+        const dashboardUuid = '11111111-1111-4111-8111-111111111111';
+        const targetSpaceUuid = '33333333-3333-4333-8333-333333333333';
+        const targetSpaceId = 7;
+        const dashboard = {
+            ...expectedDashboard,
+            uuid: dashboardUuid,
+            projectUuid: requestedProjectUuid,
+        };
+        const getByIdOrSlugSpy = vi
+            .spyOn(model, 'getByIdOrSlug')
+            .mockResolvedValueOnce(dashboard)
+            .mockResolvedValueOnce(dashboard);
+
+        tracker.on
+            .select(SpaceTableName)
+            .responseOnce([{ space_id: targetSpaceId }]);
+        tracker.on.update(DashboardsTableName).responseOnce(1);
+
+        const result = await model.update(dashboardUuid, {
+            ...updateDashboard,
+            spaceUuid: targetSpaceUuid,
+        });
+
+        expect(result).toEqual(dashboard);
+        expect(tracker.history.select).toHaveLength(1);
+        expect(tracker.history.select[0].bindings).toEqual(
+            expect.arrayContaining([targetSpaceUuid, requestedProjectUuid]),
+        );
+        expect(tracker.history.update).toHaveLength(1);
+        expect(tracker.history.update[0].bindings).toEqual(
+            expect.arrayContaining([targetSpaceId, dashboardUuid]),
+        );
+
+        getByIdOrSlugSpy.mockRestore();
+    });
+
+    test('only moves dashboards between spaces in the requested project', async () => {
+        const requestedProjectUuid = '22222222-2222-4222-8222-222222222222';
+        const dashboardUuid = '11111111-1111-4111-8111-111111111111';
+        const targetSpaceUuid = '33333333-3333-4333-8333-333333333333';
+
+        tracker.on.select(SpaceTableName).responseOnce([{ space_id: 7 }]);
+        tracker.on.update(DashboardsTableName).responseOnce(0);
+
+        await expect(
+            model.moveToSpace({
+                projectUuid: requestedProjectUuid,
+                itemUuid: dashboardUuid,
+                targetSpaceUuid,
+            }),
+        ).rejects.toThrow('Failed to move dashboard to space');
+
+        const [updateQuery] = tracker.history.update;
+        expect(updateQuery.bindings).toContain(dashboardUuid);
+        expect(updateQuery.bindings).toContain(requestedProjectUuid);
+    });
+
     test('should delete dashboard', async () => {
         const dashboardUuid = 'dashboard uuid';
         tracker.on
