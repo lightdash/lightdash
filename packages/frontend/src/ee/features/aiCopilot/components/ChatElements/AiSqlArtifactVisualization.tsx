@@ -206,7 +206,7 @@ export const AiSqlArtifactVisualization: FC<ContentProps> = ({
                     columnNames={columnNames}
                     rows={rows}
                     columnsConfig={getTableConfig(columns).columns}
-                    flexProps={{ mah: '100%', h: '100%' }}
+                    flexProps={{ mah: '100%' }}
                 />
             </Paper>
         </Stack>
