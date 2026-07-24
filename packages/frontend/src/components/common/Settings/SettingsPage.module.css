@@ -6,8 +6,7 @@
 
 .container {
     width: 100%;
-    max-width: var(--page-content-width);
-    margin-inline: auto;
+    min-width: 0;
 }
 
 .header {
