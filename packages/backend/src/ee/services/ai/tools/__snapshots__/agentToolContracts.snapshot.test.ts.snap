@@ -1635,21 +1635,6 @@ Recommended Dashboard Structure:
                         ],
                         "type": "string",
                       },
-                      "funnelDataInput": {
-                        "anyOf": [
-                          {
-                            "enum": [
-                              "row",
-                              "column",
-                            ],
-                            "type": "string",
-                          },
-                          {
-                            "type": "null",
-                          },
-                        ],
-                        "description": "How to interpret funnel data. Use "row" when each row represents a funnel stage (most common). Use "column" when comparing multiple funnels side-by-side.",
-                      },
                       "groupBy": {
                         "anyOf": [
                           {
@@ -1755,7 +1740,6 @@ Recommended Dashboard Structure:
                       "xAxisType",
                       "stackBars",
                       "lineType",
-                      "funnelDataInput",
                       "xAxisLabel",
                       "yAxisLabel",
                       "secondaryYAxisMetric",
@@ -5194,21 +5178,6 @@ Notes:
                   ],
                   "type": "string",
                 },
-                "funnelDataInput": {
-                  "anyOf": [
-                    {
-                      "enum": [
-                        "row",
-                        "column",
-                      ],
-                      "type": "string",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                  "description": "How to interpret funnel data. Use "row" when each row represents a funnel stage (most common). Use "column" when comparing multiple funnels side-by-side.",
-                },
                 "groupBy": {
                   "anyOf": [
                     {
@@ -5314,7 +5283,6 @@ Notes:
                 "xAxisType",
                 "stackBars",
                 "lineType",
-                "funnelDataInput",
                 "xAxisLabel",
                 "yAxisLabel",
                 "secondaryYAxisMetric",

@@ -72,7 +72,7 @@ export const getRunQueryEchartsConfig = async (
             return getPieChartEchartsConfig(queryTool, rows);
 
         case 'funnel':
-            return getFunnelChartEchartsConfig(queryTool, rows);
+            return getFunnelChartEchartsConfig(queryTool, rows, fieldsMap);
 
         default:
             return Promise.resolve(null);
