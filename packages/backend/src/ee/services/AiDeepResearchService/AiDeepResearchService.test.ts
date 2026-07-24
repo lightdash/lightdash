@@ -1127,6 +1127,7 @@ describe('AiDeepResearchService', () => {
                 context: QueryExecutionContext.AI,
             });
             expect(result).toEqual({
+                source: 'semantic',
                 type: AiResultType.QUERY_RESULT,
                 query: {
                     queryUuid: 'query-2',
