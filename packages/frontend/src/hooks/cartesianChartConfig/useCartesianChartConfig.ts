@@ -8,9 +8,8 @@ import {
     isCompleteEchartsConfig,
     isCompleteLayout,
     isNumericItem,
+    isUnambiguousTemporalString,
     MetricType,
-    parseCalendarValueUTC,
-    parseTimestampValueUTC,
     StackType,
     TableCalculationType,
     XAxisSort,
@@ -149,16 +148,6 @@ const isTemporalReferenceField = (
     ].includes(type);
 };
 
-const isUnambiguousTemporalReferenceValue = (raw: unknown): boolean => {
-    if (typeof raw !== 'string') return false;
-    const value = raw.trim();
-    if (parseTimestampValueUTC(value)) return true;
-    return (
-        !Number.isFinite(Number(value)) &&
-        parseCalendarValueUTC(value) !== undefined
-    );
-};
-
 const resolveReferenceLineFieldId = (
     referenceLine: ReferenceLineField,
     dirtyLayout: Partial<Partial<CompleteCartesianChartLayout>> | undefined,
@@ -190,7 +179,7 @@ const resolveReferenceLineFieldId = (
         return fieldId;
     }
     const raw = referenceLine.data.xAxis ?? referenceLine.data.yAxis;
-    return isUnambiguousTemporalReferenceValue(raw) ? timeFieldId : fieldId;
+    return isUnambiguousTemporalString(raw) ? timeFieldId : fieldId;
 };
 
 export const applyReferenceLines = (

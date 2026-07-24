@@ -398,6 +398,19 @@ export const parseTimestampValueUTC = (
     return undefined;
 };
 
+// Temporal strings safe to move out of a slot that may also hold a numeric
+// value. Bare years are deliberately excluded because `2024` is equally valid
+// as a calendar year and as a numeric threshold.
+export const isUnambiguousTemporalString = (raw: unknown): raw is string => {
+    if (typeof raw !== 'string') return false;
+    const value = raw.trim();
+    if (value !== '' && Number.isFinite(Number(value))) return false;
+    return (
+        parseTimestampValueUTC(value) !== undefined ||
+        parseCalendarValueUTC(value) !== undefined
+    );
+};
+
 export const parseTimestamp = (
     str: string,
     timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,

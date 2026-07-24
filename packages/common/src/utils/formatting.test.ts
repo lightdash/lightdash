@@ -36,6 +36,7 @@ import {
     isItemTimezoneAffected,
     isMomentInput,
     isTimestampString,
+    isUnambiguousTemporalString,
     parseCalendarValueUTC,
     parseTimestampValueUTC,
     shouldShiftItemTimezone,
@@ -3693,4 +3694,23 @@ describe('parseTimestampValueUTC', () => {
         expect(parseTimestampValueUTC('')).toBeUndefined();
         expect(parseTimestampValueUTC('2024-01-15 25:00')).toBeUndefined();
     });
+});
+
+describe('isUnambiguousTemporalString', () => {
+    test.each([
+        '2024-07-22',
+        '2024-07',
+        '2024-Q3',
+        '2024-01-15 12:00',
+        '2024-01-15T12:00:00Z',
+    ])('accepts unambiguous temporal value %s', (value) => {
+        expect(isUnambiguousTemporalString(value)).toBe(true);
+    });
+
+    test.each(['2024', '42', '50.5', '', 'garbage', null])(
+        'rejects ambiguous or non-temporal value %s',
+        (value) => {
+            expect(isUnambiguousTemporalString(value)).toBe(false);
+        },
+    );
 });

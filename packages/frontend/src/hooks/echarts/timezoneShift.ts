@@ -3,6 +3,7 @@ import {
     extractableTimeFrames,
     isCalendarValueItem,
     isDimension,
+    isUnambiguousTemporalString,
     parseCalendarValueUTC,
     parseTimestampValueUTC,
     shouldShiftItemTimezone,
@@ -438,17 +439,6 @@ export const applyTimezoneShiftToEchartsOptions = <
 // construction. Anything else (numeric metric values stranded in the wrong
 // slot by semantic keying, empty strings, garbage) is left untouched rather
 // than leniently coerced.
-const isRescuableTimeString = (value: string): boolean => {
-    // Bare years are valid calendar values in the actual time slot, but in the
-    // opposite slot they are indistinguishable from numeric thresholds entered
-    // through the reference-line TextInput (e.g. revenue = "2024").
-    if (value !== '' && Number.isFinite(Number(value))) return false;
-    return (
-        parseTimestampValueUTC(value) !== undefined ||
-        parseCalendarValueUTC(value) !== undefined
-    );
-};
-
 export type MarkLineTimeNormalization = {
     flipAxes: boolean;
     // Zone the axis's plotted coordinates are wall-clock-shifted to; undefined
@@ -509,7 +499,7 @@ const readTimeAxisSlot = (
         canRescue &&
         timeSlotEmpty &&
         typeof valueSlotValue === 'string' &&
-        isRescuableTimeString(valueSlotValue.trim())
+        isUnambiguousTemporalString(valueSlotValue)
     ) {
         return { raw: valueSlotValue, stranded: true };
     }
