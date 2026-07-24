@@ -245,7 +245,11 @@ export const detectTimeAxisMode = ({
         physicalAxisType,
     });
     if (calendar) {
-        return { kind: 'calendar', fieldId: calendar.fieldId, flipAxes };
+        return {
+            kind: 'calendar',
+            fieldId: calendar.fieldId,
+            flipAxes,
+        };
     }
     return { kind: 'plain', flipAxes };
 };
@@ -425,15 +429,23 @@ export const applyTimezoneShiftToEchartsOptions = <
 // construction. Anything else (numeric metric values stranded in the wrong
 // slot by semantic keying, empty strings, garbage) is left untouched rather
 // than leniently coerced.
-const isWallClockTimeString = (value: string): boolean =>
-    parseTimestampValueUTC(value)?.hasZone === false ||
-    parseCalendarValueUTC(value) !== undefined;
+const isRescuableWallClockTimeString = (value: string): boolean => {
+    // Bare years are valid calendar values in the actual time slot, but in the
+    // opposite slot they are indistinguishable from numeric thresholds entered
+    // through the reference-line TextInput (e.g. revenue = "2024").
+    if (value !== '' && Number.isFinite(Number(value))) return false;
+    return (
+        parseTimestampValueUTC(value)?.hasZone === false ||
+        parseCalendarValueUTC(value) !== undefined
+    );
+};
 
 export type MarkLineTimeNormalization = {
     flipAxes: boolean;
     // Zone the axis's plotted coordinates are wall-clock-shifted to; undefined
     // means instants plot at their raw epoch (unshifted or UTC-anchored axis).
     instantTimezone: string | undefined;
+    canRescueFromOppositeAxis?: boolean;
 };
 
 const parseTimeAxisMarkLineValue = (
@@ -465,15 +477,17 @@ const readTimeAxisSlot = (
     entry: Record<string, unknown>,
     timeSlot: string,
     valueSlot: string,
+    canRescue: boolean,
 ): { raw: unknown; stranded: boolean } => {
     const timeValue = entry[timeSlot];
     const timeSlotEmpty =
         timeValue === undefined || timeValue === null || timeValue === '';
     const valueSlotValue = entry[valueSlot];
     if (
+        canRescue &&
         timeSlotEmpty &&
         typeof valueSlotValue === 'string' &&
-        isWallClockTimeString(valueSlotValue.trim())
+        isRescuableWallClockTimeString(valueSlotValue.trim())
     ) {
         return { raw: valueSlotValue, stranded: true };
     }
@@ -489,12 +503,17 @@ const authoredLabelProps = (
     text: string,
 ): Record<string, unknown> => {
     const props: Record<string, unknown> = {};
-    if (entry.name === undefined || entry.name === '') {
+    const hasAuthoredName =
+        typeof entry.name === 'string' && entry.name.trim() !== '';
+    if (!hasAuthoredName) {
         props.name = text;
     }
     const label = isPlainObject(entry.label) ? entry.label : undefined;
     if (label?.formatter === undefined) {
-        props.label = { ...label, formatter: text };
+        props.label = {
+            ...label,
+            formatter: hasAuthoredName ? entry.name : text,
+        };
     }
     return props;
 };
@@ -523,6 +542,7 @@ export const normalizeMarkLineTimeValues = <O extends EchartsOptionsShape>(
                 entry,
                 timeSlot,
                 valueSlot,
+                normalization.canRescueFromOppositeAxis !== false,
             );
             if (raw === undefined || raw === null) return entry;
             const ms = parseTimeAxisMarkLineValue(raw, normalization);
@@ -549,6 +569,9 @@ export const normalizeMarkLineTimeValues = <O extends EchartsOptionsShape>(
 export const finalizeTimeAxisOptions = <O extends EchartsOptionsShape>(
     options: O,
     mode: TimeAxisMode | undefined,
+    {
+        canRescueFromOppositeAxis = true,
+    }: { canRescueFromOppositeAxis?: boolean } = {},
 ): O => {
     if (!mode) return options;
     switch (mode.kind) {
@@ -561,6 +584,7 @@ export const finalizeTimeAxisOptions = <O extends EchartsOptionsShape>(
             return normalizeMarkLineTimeValues(shifted, {
                 flipAxes: mode.flipAxes,
                 instantTimezone: mode.timezone,
+                canRescueFromOppositeAxis,
             });
         }
         case 'calendar': {
@@ -574,12 +598,14 @@ export const finalizeTimeAxisOptions = <O extends EchartsOptionsShape>(
             return normalizeMarkLineTimeValues(anchored, {
                 flipAxes: mode.flipAxes,
                 instantTimezone: undefined,
+                canRescueFromOppositeAxis,
             });
         }
         case 'plain':
             return normalizeMarkLineTimeValues(options, {
                 flipAxes: mode.flipAxes,
                 instantTimezone: undefined,
+                canRescueFromOppositeAxis,
             });
         default:
             return assertUnreachable(mode, 'Unknown time axis mode');

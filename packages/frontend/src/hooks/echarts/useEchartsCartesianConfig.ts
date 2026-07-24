@@ -3358,6 +3358,13 @@ const useEchartsCartesianConfig = (
             : undefined;
     }, [validCartesianConfig?.layout?.flipAxes, axes]);
 
+    const canRescueFromOppositeAxis = useMemo(() => {
+        const physicalAxis = validCartesianConfig?.layout?.flipAxes
+            ? axes.xAxis[0]
+            : axes.yAxis[0];
+        return physicalAxis?.type !== 'time';
+    }, [validCartesianConfig?.layout?.flipAxes, axes]);
+
     // How the time axis plots its coordinates (instant-shifted, calendar
     // UTC-anchored, or plain). undefined when there is no time axis or
     // timezone support is off — the built options then pass through
@@ -4443,7 +4450,9 @@ const useEchartsCartesianConfig = (
             }),
         };
 
-        return finalizeTimeAxisOptions(baseOptions, timeAxisMode);
+        return finalizeTimeAxisOptions(baseOptions, timeAxisMode, {
+            canRescueFromOppositeAxis,
+        });
     }, [
         sortedAxes,
         sortedSeriesForChart,
@@ -4458,6 +4467,7 @@ const useEchartsCartesianConfig = (
         theme?.other.chartFont,
         validCartesianConfig,
         timeAxisMode,
+        canRescueFromOppositeAxis,
     ]);
 
     if (

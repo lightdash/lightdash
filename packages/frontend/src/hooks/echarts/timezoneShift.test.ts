@@ -852,7 +852,7 @@ describe('normalizeMarkLineTimeValues', () => {
                 uuid: 'a',
                 xAxis: Date.parse('2024-01-15T00:00:00Z'),
                 name: 'Jan 15',
-                label: { formatter: '2024-01-15' },
+                label: { formatter: 'Jan 15' },
             },
         ]);
     });
@@ -1056,10 +1056,37 @@ describe('normalizeMarkLineTimeValues', () => {
     });
 
     test('never rescues numeric strings from the value axis', () => {
-        const data = [{ uuid: 'a', yAxis: '50' }];
+        const data = [
+            { uuid: 'a', yAxis: '50' },
+            { uuid: 'b', yAxis: '2024', name: 'Revenue target' },
+        ];
         const options = makeMarkLineSeries(data);
 
         const result = normalizeMarkLineTimeValues(options, identity);
+
+        expect(getMarkLineData(result)).toEqual(data);
+    });
+
+    test('never rescues a numeric year string when flipped', () => {
+        const data = [{ uuid: 'a', xAxis: '2024', name: 'Revenue target' }];
+        const options = makeMarkLineSeries(data);
+
+        const result = normalizeMarkLineTimeValues(options, {
+            ...identity,
+            flipAxes: true,
+        });
+
+        expect(getMarkLineData(result)).toEqual(data);
+    });
+
+    test('never rescues a line from another physical time axis', () => {
+        const data = [{ uuid: 'a', yAxis: '2024-02-01' }];
+        const options = makeMarkLineSeries(data);
+
+        const result = normalizeMarkLineTimeValues(options, {
+            ...identity,
+            canRescueFromOppositeAxis: false,
+        });
 
         expect(getMarkLineData(result)).toEqual(data);
     });
@@ -1359,5 +1386,23 @@ describe('finalizeTimeAxisOptions', () => {
         expect(result.series?.[0].encode?.x).toBe('orders_created_hour');
         // Instants keep their raw epoch on an unshifted axis.
         expect(getMarkLineValue(result)).toBe(UTC_MS);
+    });
+
+    test('does not rescue from a second physical time axis', () => {
+        const data = [{ yAxis: '2024-02-01' }];
+        const options: EchartsOptionsShape = {
+            dataset: { source: [] },
+            series: [{ markLine: { data } }],
+        };
+
+        const result = finalizeTimeAxisOptions(
+            options,
+            { kind: 'plain', flipAxes: false },
+            { canRescueFromOppositeAxis: false },
+        );
+
+        expect(
+            (result.series?.[0].markLine as { data: unknown[] }).data,
+        ).toEqual(data);
     });
 });
