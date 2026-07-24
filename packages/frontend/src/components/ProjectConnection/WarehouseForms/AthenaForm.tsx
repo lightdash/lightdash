@@ -12,6 +12,7 @@ import useHealth from '../../../hooks/health/useHealth';
 import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
+import BooleanSwitch from '../Inputs/BooleanSwitch';
 import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useProjectFormContext } from '../useProjectFormContext';
@@ -249,6 +250,35 @@ const AthenaForm: FC<{
                             {...form.getInputProps('warehouse.numRetries')}
                             disabled={disabled}
                         />
+
+                        <BooleanSwitch
+                            name="warehouse.resultReuseEnabled"
+                            label="Enable result reuse"
+                            description="Reuse cached query results from previous executions to reduce cost and latency."
+                            defaultChecked={
+                                AthenaDefaultValues.resultReuseEnabled
+                            }
+                            disabled={disabled}
+                            {...form.getInputProps(
+                                'warehouse.resultReuseEnabled',
+                                { type: 'checkbox' },
+                            )}
+                        />
+                        {warehouse.resultReuseEnabled && (
+                            <NumberInput
+                                name="warehouse.resultReuseMaxAgeInMinutes"
+                                label="Result reuse max age (minutes)"
+                                description="Maximum age of cached results to reuse, in minutes."
+                                min={1}
+                                defaultValue={
+                                    AthenaDefaultValues.resultReuseMaxAgeInMinutes
+                                }
+                                {...form.getInputProps(
+                                    'warehouse.resultReuseMaxAgeInMinutes',
+                                )}
+                                disabled={disabled}
+                            />
+                        )}
 
                         <StartOfWeekSelect disabled={disabled} />
                     </Stack>
