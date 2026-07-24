@@ -4092,6 +4092,20 @@ export class AiAgentService extends BaseService {
         agentUuid: string,
         slackChannelId: string,
     ): Promise<AiAgent> {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        // Slack-only path: the settings UI adds channels via updateAgent, so
+        // this guard never blocks explicit configuration.
+        if (
+            await this.aiOrganizationSettingsService.isExplicitSlackChannelLinkingRequired(
+                user.organizationUuid,
+            )
+        ) {
+            throw new ForbiddenError(
+                'This organization requires agent channels to be configured from the agent settings page',
+            );
+        }
         const { organizationUuid, agent } =
             await this.getManageableAgentOrThrow(user, agentUuid);
 
@@ -11308,6 +11322,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         channelId: string;
         threadTs: string;
         say: SayFn;
+        client: WebClient;
+        slackUserId: string;
         // Reuses the multi-agent channel "filter agents by project" setting.
         visibleProjectUuids?: string[] | null;
     }): Promise<AiAgent | undefined> {
@@ -11317,9 +11333,25 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             channelId,
             threadTs,
             say,
+            client,
+            slackUserId,
             visibleProjectUuids,
         } = args;
         const { siteUrl } = this.lightdashConfig;
+
+        if (
+            await this.aiOrganizationSettingsService.isExplicitSlackChannelLinkingRequired(
+                organizationUuid,
+            )
+        ) {
+            await client.chat.postEphemeral({
+                channel: channelId,
+                user: slackUserId,
+                thread_ts: threadTs,
+                text: `🔒 No agent is configured for this channel, and this organization requires channels to be added from the agent settings page. Ask an admin to add one at ${siteUrl}/ai-agents`,
+            });
+            return undefined;
+        }
 
         // Drop deleted projects so a stale filter doesn't hide every agent.
         const validProjectUuids = visibleProjectUuids?.length
@@ -13305,6 +13337,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         channelId,
                         threadTs: threadTs || messageTs,
                         say,
+                        client,
+                        slackUserId,
                         visibleProjectUuids:
                             slackSettings.aiMultiAgentProjectUuids,
                     });
@@ -13575,6 +13609,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             channelId: event.channel,
                             threadTs: event.thread_ts ?? event.ts,
                             say,
+                            client,
+                            slackUserId: event.user,
                             visibleProjectUuids:
                                 slackSettings.aiMultiAgentProjectUuids,
                         });

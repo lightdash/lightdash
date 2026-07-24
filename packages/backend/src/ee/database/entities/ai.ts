@@ -481,6 +481,7 @@ export type DbAiOrganizationSettings = {
     ai_agents_visible: boolean;
     ai_agent_reviews_enabled: boolean;
     mcp_content_writes_enabled: boolean;
+    require_explicit_slack_channel_linking: boolean;
     default_ai_agent_model_config: AiAgentModelConfig | null;
     model_visibility: AiOrgModelVisibility | null;
     encrypted_provider_api_keys: Buffer | null;
@@ -497,6 +498,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
                 DbAiOrganizationSettings,
                 | 'ai_agent_reviews_enabled'
                 | 'mcp_content_writes_enabled'
+                | 'require_explicit_slack_channel_linking'
                 | 'default_ai_agent_model_config'
                 | 'model_visibility'
                 | 'encrypted_provider_api_keys'
@@ -509,6 +511,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
             | 'ai_agents_visible'
             | 'ai_agent_reviews_enabled'
             | 'mcp_content_writes_enabled'
+            | 'require_explicit_slack_channel_linking'
             | 'default_ai_agent_model_config'
             | 'model_visibility'
             | 'encrypted_provider_api_keys'

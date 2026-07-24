@@ -111,6 +111,8 @@ export class AiOrganizationSettingsModel {
             aiAgentsVisible: db.ai_agents_visible,
             aiAgentReviewsEnabled: db.ai_agent_reviews_enabled,
             mcpContentWritesEnabled: db.mcp_content_writes_enabled,
+            requireExplicitSlackChannelLinking:
+                db.require_explicit_slack_channel_linking,
             defaultAiAgentModelConfig: db.default_ai_agent_model_config,
             modelVisibility: db.model_visibility,
             providerApiKeysSet: {
@@ -179,6 +181,8 @@ export class AiOrganizationSettingsModel {
                 ai_agents_visible: data.aiAgentsVisible,
                 ai_agent_reviews_enabled: data.aiAgentReviewsEnabled,
                 mcp_content_writes_enabled: data.mcpContentWritesEnabled,
+                require_explicit_slack_channel_linking:
+                    data.requireExplicitSlackChannelLinking,
                 default_ai_agent_model_config: data.defaultAiAgentModelConfig,
                 model_visibility: data.modelVisibility,
                 encrypted_provider_api_keys: this.encryptProviderApiKeys(keys),
@@ -199,6 +203,7 @@ export class AiOrganizationSettingsModel {
                 | 'ai_agents_visible'
                 | 'ai_agent_reviews_enabled'
                 | 'mcp_content_writes_enabled'
+                | 'require_explicit_slack_channel_linking'
                 | 'default_ai_agent_model_config'
                 | 'model_visibility'
                 | 'encrypted_provider_api_keys'
@@ -214,6 +219,10 @@ export class AiOrganizationSettingsModel {
         if (data.mcpContentWritesEnabled !== undefined) {
             updateData.mcp_content_writes_enabled =
                 data.mcpContentWritesEnabled;
+        }
+        if (data.requireExplicitSlackChannelLinking !== undefined) {
+            updateData.require_explicit_slack_channel_linking =
+                data.requireExplicitSlackChannelLinking;
         }
         if (data.defaultAiAgentModelConfig !== undefined) {
             updateData.default_ai_agent_model_config =
@@ -305,6 +314,8 @@ export class AiOrganizationSettingsModel {
             aiAgentsVisible: data.aiAgentsVisible ?? true,
             aiAgentReviewsEnabled: data.aiAgentReviewsEnabled ?? false,
             mcpContentWritesEnabled: data.mcpContentWritesEnabled ?? true,
+            requireExplicitSlackChannelLinking:
+                data.requireExplicitSlackChannelLinking ?? false,
             defaultAiAgentModelConfig: data.defaultAiAgentModelConfig ?? null,
             modelVisibility: data.modelVisibility ?? null,
             providerApiKeys: data.providerApiKeys,

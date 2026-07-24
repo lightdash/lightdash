@@ -361,6 +361,44 @@ export const AiGeneralSettingsPage = () => {
                     </SettingsCard>
 
                     <SettingsCard>
+                        <Group
+                            justify="space-between"
+                            wrap="nowrap"
+                            align="flex-start"
+                            gap="md"
+                        >
+                            <Box maw={620}>
+                                <Title order={5} mb={4}>
+                                    Disable adding AI agents to channels from
+                                    Slack
+                                </Title>
+                                <Text c="dimmed" fz="xs">
+                                    When activated, AI Agents can only be added
+                                    to Slack channels from the Lightdash UI.
+                                    Mentioning the bot in an unconfigured
+                                    channel will not add the AI agent to it.
+                                    When off, admins &amp; developers or roles
+                                    with the manage:AiAgent scope can link
+                                    agents directly from Slack.
+                                </Text>
+                            </Box>
+                            <Switch
+                                size="md"
+                                checked={
+                                    settings.requireExplicitSlackChannelLinking
+                                }
+                                disabled={isUpdatingSettings}
+                                onChange={(event) =>
+                                    updateSettings({
+                                        requireExplicitSlackChannelLinking:
+                                            event.currentTarget.checked,
+                                    })
+                                }
+                            />
+                        </Group>
+                    </SettingsCard>
+
+                    <SettingsCard>
                         <Stack gap="md">
                             <Group
                                 justify="space-between"
