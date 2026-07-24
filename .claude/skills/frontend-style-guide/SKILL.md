@@ -1,5 +1,7 @@
 ---
 name: frontend-style-guide
+metadata:
+  internal: true
 description: Apply the Lightdash frontend style guide when working on React components, migrating Mantine v6 to v8, or styling frontend code. Use when editing TSX files, fixing styling issues, or when user mentions Mantine, styling, or CSS modules.
 allowed-tools: Read, Edit, Write, Glob, Grep
 ---

@@ -1,5 +1,7 @@
 ---
 name: breakup-pr
+metadata:
+  internal: true
 description: |
   Break up a large PR into vertical feature slices delivered incrementally via Graphite stacked PRs.
   All verticals share a single feature flag so the entire feature ships atomically.
