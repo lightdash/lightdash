@@ -1664,8 +1664,12 @@ program
     .description(
         'Export a deployed chart as a PNG image. The chart must already exist on the server.',
     )
-    .argument('<chart>', 'Chart slug')
+    .argument('<chart>', 'Chart UUID or slug')
     .requiredOption('-o, --output <file>', 'Output file path for the PNG image')
+    .option(
+        '--project <uuid>',
+        'Lightdash project UUID (defaults to the currently selected project)',
+    )
     .option('--verbose', 'Show detailed output', false)
     .action(exportChartImageHandler);
 

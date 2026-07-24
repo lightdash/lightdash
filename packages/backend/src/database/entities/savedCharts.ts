@@ -79,7 +79,7 @@ export type SavedChartTable = Knex.CompositeTableType<
 export type DbSavedChart = {
     saved_query_id: number;
     saved_query_uuid: string;
-    project_uuid: string | null;
+    project_uuid: string;
     space_id: number | null;
     dashboard_uuid: string | null;
     name: string;
