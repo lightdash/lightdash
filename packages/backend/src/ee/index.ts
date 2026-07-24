@@ -137,6 +137,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
         serviceProviders: {
             aiAgentMemoryService: ({ models, clients, context, repository }) =>
                 new AiAgentMemoryService({
+                    analytics: context.lightdashAnalytics,
                     aiAgentMemoryModel:
                         models.getAiAgentMemoryModel<AiAgentMemoryModel>(),
                     aiAgentModel: models.getAiAgentModel(),

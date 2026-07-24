@@ -155,6 +155,7 @@ import {
     AiAgentEvalCreatedEvent,
     AiAgentEvalRunEvent,
     AiAgentFindContentCoverageEvent,
+    AiAgentMemoryCitedEvent,
     AiAgentPromptCreatedEvent,
     AiAgentPromptFeedbackEvent,
     AiAgentPullRequestViewedEvent,
@@ -8645,7 +8646,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     update.response !== undefined &&
                     update.tokenUsage !== undefined
                         ? updatePromise.then(async () => {
-                              const { slugs, malformedCount } =
+                              const { slugs, citationCounts, malformedCount } =
                                   parseMemoryCitations(update.response ?? '');
                               if (malformedCount > 0) {
                                   this.logger.warn(
@@ -8655,20 +8656,52 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                               if (slugs.length === 0) return;
 
                               try {
-                                  const citedSlugs =
+                                  const citedMemories =
                                       await this.aiAgentMemoryModel.incrementCitedForActiveMemories(
                                           {
                                               projectUuid: prompt.projectUuid,
                                               slugs,
                                           },
                                       );
-                                  const cited = new Set(citedSlugs);
+                                  const cited = new Set(
+                                      citedMemories.map(({ slug }) => slug),
+                                  );
                                   const dropped = slugs.filter(
                                       (slug) => !cited.has(slug),
                                   );
                                   if (dropped.length > 0) {
                                       this.logger.warn(
                                           `Dropped ${dropped.length} unknown or inactive memory citation(s) for prompt ${update.promptUuid}`,
+                                      );
+                                  }
+                                  if (citedMemories.length > 0) {
+                                      citedMemories.forEach(
+                                          ({ memoryId, slug }) =>
+                                              this.analytics.track<AiAgentMemoryCitedEvent>(
+                                                  {
+                                                      event: 'ai_agent_memory.cited',
+                                                      userId: user.userUuid,
+                                                      properties: {
+                                                          organizationId:
+                                                              prompt.organizationUuid,
+                                                          projectId:
+                                                              prompt.projectUuid,
+                                                          agentId:
+                                                              agentSettings.uuid,
+                                                          memoryId,
+                                                          citationCount:
+                                                              citationCounts[
+                                                                  slug
+                                                              ] ?? 0,
+                                                          channel:
+                                                              isSlackPrompt(
+                                                                  prompt,
+                                                              )
+                                                                  ? 'slack'
+                                                                  : 'web',
+                                                      },
+                                                  },
+                                              ),
                                       );
                                   }
                               } catch (error) {

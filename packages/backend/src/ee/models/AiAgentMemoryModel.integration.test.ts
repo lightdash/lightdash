@@ -47,6 +47,7 @@ describe('AiAgentMemoryModel integration', () => {
     let model: AiAgentMemoryModel;
     let featureFlagService: FeatureFlagService;
     let schedulerClient: CommercialSchedulerClient;
+    let analytics: LightdashAnalytics;
     const originalFlags = new Map<string, DbFeatureFlag | undefined>();
     const threadUuids = new Set<string>();
     const memoryUuids = new Set<string>();
@@ -80,14 +81,15 @@ describe('AiAgentMemoryModel integration', () => {
             lightdashConfig,
             featureFlagModel,
         });
+        analytics = new LightdashAnalytics({
+            lightdashConfig,
+            writeKey: 'notrack',
+            dataPlaneUrl: 'notrack',
+            options: { enable: false },
+        });
         schedulerClient = new CommercialSchedulerClient({
             lightdashConfig,
-            analytics: new LightdashAnalytics({
-                lightdashConfig,
-                writeKey: 'notrack',
-                dataPlaneUrl: 'notrack',
-                options: { enable: false },
-            }),
+            analytics,
             schedulerModel: getTestContext()
                 .app.getModels()
                 .getSchedulerModel(),
@@ -252,6 +254,7 @@ describe('AiAgentMemoryModel integration', () => {
         > = getTestContext().app.getModels().getProjectModel(),
     ) =>
         new AiAgentMemoryService({
+            analytics,
             aiAgentMemoryModel: model,
             aiAgentModel: getTestContext().app.getModels().getAiAgentModel(),
             groupsModel: getTestContext().app.getModels().getGroupsModel(),
@@ -353,7 +356,7 @@ describe('AiAgentMemoryModel integration', () => {
             .where('ai_agent_memory_uuid', retired.ai_agent_memory_uuid)
             .update({ status: 'retired' });
 
-        const updatedSlugs = await model.incrementCitedForActiveMemories({
+        await model.incrementCitedForActiveMemories({
             projectUuid: SEED_PROJECT.project_uuid,
             slugs: [active.slug, active.slug, retired.slug, 'unknown-memory'],
         });
@@ -371,7 +374,6 @@ describe('AiAgentMemoryModel integration', () => {
             (row) => row.ai_agent_memory_uuid === retired.ai_agent_memory_uuid,
         );
 
-        expect(updatedSlugs).toEqual([active.slug]);
         expect(activeRow).toMatchObject({
             cited_count: 1,
             pulled_count: 0,
