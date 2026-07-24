@@ -844,9 +844,10 @@ const AppGenerate: FC = () => {
         return null;
     }, [appData]);
     const isBuilding = latestBuildingVersion !== null;
-    // Clarifying counts as loading for the chat input (disable typing/send),
-    // and a pending unanswered clarification keeps the input area disabled
-    // until the user clicks "Build" on the question bubble.
+    // Clarifying counts as loading for the chat input (disable send; typing
+    // stays enabled so the next prompt can be drafted), and a pending
+    // unanswered clarification keeps send disabled until the user clicks
+    // "Build" on the question bubble.
     const hasPendingClarification = pendingClarification !== null;
     // Server-side work that warrants showing a placeholder assistant bubble.
     // Excludes `isSubmitting` (client-side upload — too early to claim
@@ -2725,7 +2726,12 @@ const AppGenerate: FC = () => {
                                         ref={promptEditorRef}
                                         placeholder="Describe the app you want to build..."
                                         autoFocus
-                                        disabled={isLoading}
+                                        // Editable while the agent works so the
+                                        // next prompt can be drafted; disabled
+                                        // only during the client-side submit,
+                                        // where clear() would wipe typed text.
+                                        disabled={isSubmitting}
+                                        submitDisabled={isLoading}
                                         onEmptyChange={setIsPromptEmpty}
                                         onSubmit={() => void handleSubmit()}
                                         onPaste={handlePaste}
@@ -2819,7 +2825,7 @@ const AppGenerate: FC = () => {
                                                                 ),
                                                         )
                                                     }
-                                                    disabled={isLoading}
+                                                    disabled={isSubmitting}
                                                 />
                                             )}
                                             {selectedDashboard && (
@@ -2847,7 +2853,7 @@ const AppGenerate: FC = () => {
                                                                     : null,
                                                         )
                                                     }
-                                                    disabled={isLoading}
+                                                    disabled={isSubmitting}
                                                 />
                                             )}
                                             {imageAttachments.length > 0 && (
@@ -2861,7 +2867,7 @@ const AppGenerate: FC = () => {
                                                     onRemove={(previewUrl) =>
                                                         clearImage(previewUrl)
                                                     }
-                                                    disabled={isLoading}
+                                                    disabled={isSubmitting}
                                                     loading={isSubmitting}
                                                 />
                                             )}
@@ -2967,7 +2973,7 @@ const AppGenerate: FC = () => {
                                                 onAddImages={() =>
                                                     fileInputRef.current?.click()
                                                 }
-                                                disabled={isLoading}
+                                                disabled={isSubmitting}
                                                 imagesDisabled={
                                                     imageAttachments.length >=
                                                     MAX_IMAGES_PER_VERSION
@@ -2982,7 +2988,7 @@ const AppGenerate: FC = () => {
                                                 disabled={
                                                     !previewApp ||
                                                     !screenshotAvailable ||
-                                                    isLoading ||
+                                                    isSubmitting ||
                                                     imageAttachments.length >=
                                                         MAX_IMAGES_PER_VERSION
                                                 }
@@ -3009,7 +3015,7 @@ const AppGenerate: FC = () => {
                                             <ModelPicker
                                                 value={selectedModel}
                                                 onChange={handleModelChange}
-                                                disabled={isLoading}
+                                                disabled={isSubmitting}
                                             />
                                             {isBuilding ? (
                                                 <ActionIcon
