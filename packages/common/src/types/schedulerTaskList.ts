@@ -170,6 +170,7 @@ export const SCHEDULER_TASKS = {
     INGEST_PROJECT_CONTEXT: 'ingestProjectContext',
     COMPACT_USAGE_EVENTS: 'compactUsageEvents',
     POLL_EMAIL_WHITELABEL: 'pollEmailWhitelabelVerification',
+    CLEAN_WAREHOUSE_CONNECT_CODES: 'cleanWarehouseConnectCodes',
     ...EE_SCHEDULER_TASKS,
 } as const;
 
@@ -216,6 +217,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.INGEST_PROJECT_CONTEXT]: TraceTaskBase;
     [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: TraceTaskBase;
     [SCHEDULER_TASKS.POLL_EMAIL_WHITELABEL]: TraceTaskBase;
+    [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: TraceTaskBase;
     [SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER]: AiAgentReviewClassifierJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK]: AiAgentReviewWritebackJobPayload;

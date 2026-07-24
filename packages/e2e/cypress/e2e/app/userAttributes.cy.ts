@@ -42,7 +42,7 @@ describe('User attributes sql_filter', () => {
 
     it('Create user attribute', () => {
         cy.visit(`/generalSettings/userAttributes`);
-        cy.findByText('Add new attribute').click();
+        cy.findByText('Add attribute').click();
 
         cy.get('input[name="name"]').type('customer_id');
         cy.findByText('Add user').click();
@@ -143,7 +143,7 @@ describe('User attributes dimension required_attribute', () => {
 
     it('Create user attribute', () => {
         cy.visit(`/generalSettings/userAttributes`);
-        cy.findByText('Add new attribute').click();
+        cy.findByText('Add attribute').click();
 
         cy.get('input[name="name"]').type('is_admin');
         cy.findByText('Add user').click();
