@@ -859,6 +859,90 @@ describe('TimeFrames', () => {
             );
         });
 
+        // GLITCH-628: on the UTC (no-wrap) path BigQuery must truncate via
+        // functions its partition pruner understands — DATE(col) /
+        // DATE_TRUNC(DATE(col), part). CAST(TIMESTAMP_TRUNC(col, part) AS DATE)
+        // full-scans DATETIME-partitioned tables.
+        describe('BigQuery prunable day-or-coarser trunc (GLITCH-628)', () => {
+            const bqTrunc = (
+                timeFrame: TimeFrames,
+                startOfWeek: WeekDay | null = null,
+            ) =>
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.BIGQUERY,
+                    timeFrame,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    startOfWeek,
+                    'UTC',
+                    undefined,
+                    undefined,
+                    true, // castDayOrCoarserToDate
+                );
+
+            test('day grain emits DATE()', () => {
+                expect(bqTrunc(TimeFrames.DAY)).toEqual(`DATE(${col})`);
+            });
+
+            test('month/quarter/year grains emit DATE_TRUNC(DATE(...))', () => {
+                expect(bqTrunc(TimeFrames.MONTH)).toEqual(
+                    `DATE_TRUNC(DATE(${col}), MONTH)`,
+                );
+                expect(bqTrunc(TimeFrames.QUARTER)).toEqual(
+                    `DATE_TRUNC(DATE(${col}), QUARTER)`,
+                );
+                expect(bqTrunc(TimeFrames.YEAR)).toEqual(
+                    `DATE_TRUNC(DATE(${col}), YEAR)`,
+                );
+            });
+
+            test('week grain keeps the custom start of week', () => {
+                expect(bqTrunc(TimeFrames.WEEK, WeekDay.TUESDAY)).toEqual(
+                    `DATE_TRUNC(DATE(${col}), WEEK(TUESDAY))`,
+                );
+            });
+
+            test('sub-day grain keeps the bare TIMESTAMP_TRUNC', () => {
+                expect(bqTrunc(TimeFrames.HOUR)).toEqual(
+                    `TIMESTAMP_TRUNC(${col}, HOUR)`,
+                );
+            });
+
+            test('tz-wrapped path is unchanged (never pruned, stays as-is)', () => {
+                expect(
+                    getSqlForTruncatedDate(
+                        SupportedDbtAdapter.BIGQUERY,
+                        TimeFrames.DAY,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        tz,
+                        undefined,
+                        undefined,
+                        true,
+                    ),
+                ).toEqual(
+                    `CAST(DATETIME_TRUNC(DATETIME(TIMESTAMP(${col}), '${tz}'), DAY) AS DATE)`,
+                );
+            });
+
+            test('other adapters keep the generic CAST on the no-wrap path', () => {
+                expect(
+                    getSqlForTruncatedDate(
+                        SupportedDbtAdapter.SNOWFLAKE,
+                        TimeFrames.DAY,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        'UTC',
+                        undefined,
+                        undefined,
+                        true,
+                    ),
+                ).toEqual(`CAST(DATE_TRUNC('DAY', ${col}) AS DATE)`);
+            });
+        });
+
         test('TIMESTAMP dimension with timezone still gets tz round-trip (Snowflake)', () => {
             expect(
                 getSqlForTruncatedDate(

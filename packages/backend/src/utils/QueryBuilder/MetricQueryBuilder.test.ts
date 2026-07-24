@@ -5435,6 +5435,91 @@ describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', 
         expect(query).not.toContain(`AT TIME ZONE`);
     });
 
+    // GLITCH-628: on BigQuery the flag-on UTC path must compile day-or-coarser
+    // dims to partition-prunable forms — DATE(col) / DATE_TRUNC(DATE(col), …) —
+    // never CAST(TIMESTAMP_TRUNC(col, …) AS DATE), which full-scans
+    // DATETIME-partitioned tables.
+    test('BigQuery + flag on + UTC: day-grain SELECT and filter use prunable DATE()', () => {
+        const { query } = buildQuery({
+            explore: buildDayExplore(
+                DimensionType.TIMESTAMP,
+                SupportedDbtAdapter.BIGQUERY,
+            ),
+            compiledMetricQuery: {
+                ...dayQuery,
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'f1',
+                                target: { fieldId: 'events_occurred_at_day' },
+                                operator: FilterOperator.GREATER_THAN_OR_EQUAL,
+                                values: ['2026-07-01'],
+                            },
+                        ],
+                    },
+                },
+            },
+            warehouseSqlBuilder: bigqueryClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'UTC',
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(query).toContain(`DATE("events".occurred_at)`);
+        expect(query).not.toContain('CAST(TIMESTAMP_TRUNC');
+    });
+
+    test('BigQuery + flag on + UTC: month-grain SELECT and filter use prunable DATE_TRUNC(DATE())', () => {
+        const { query } = buildQuery({
+            explore: buildDayExplore(
+                DimensionType.TIMESTAMP,
+                SupportedDbtAdapter.BIGQUERY,
+            ),
+            compiledMetricQuery: {
+                ...dayQuery,
+                dimensions: ['events_occurred_at_month'],
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'f1',
+                                target: { fieldId: 'events_occurred_at_month' },
+                                operator: FilterOperator.EQUALS,
+                                values: ['2026-05-01'],
+                            },
+                        ],
+                    },
+                },
+            },
+            warehouseSqlBuilder: bigqueryClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'UTC',
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(query).toContain(
+            `DATE_TRUNC(DATE("events".occurred_at), MONTH)`,
+        );
+        expect(query).not.toContain('CAST(TIMESTAMP_TRUNC');
+    });
+
+    test('BigQuery + flag off: dimension compiledSql passes through untouched', () => {
+        const { query } = buildQuery({
+            explore: buildDayExplore(
+                DimensionType.TIMESTAMP,
+                SupportedDbtAdapter.BIGQUERY,
+            ),
+            compiledMetricQuery: dayQuery,
+            warehouseSqlBuilder: bigqueryClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'UTC',
+            useTimezoneAwareDateTrunc: false,
+        });
+        expect(query).toContain(`DATE_TRUNC('DAY', "events".occurred_at)`);
+        expect(query).not.toContain(`DATE("events".occurred_at)`);
+    });
+
     // A MIN/MAX over a day-grain DATE dim aggregates the project-tz wall-clock
     // date (the same DATE-cast the dimension SELECT uses), not the raw UTC trunc.
     const maxDayQuery: CompiledMetricQuery = {

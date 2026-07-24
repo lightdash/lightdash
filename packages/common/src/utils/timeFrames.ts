@@ -66,6 +66,16 @@ type WarehouseConfig = {
         startOfWeek?: WeekDay | null,
         timezone?: string,
     ) => string;
+    // GLITCH-628: day-or-coarser truncation that returns a DATE directly.
+    // Overridden where the generic `CAST(getSqlForTruncatedDate(...) AS DATE)`
+    // defeats partition pruning (BigQuery only prunes whitelisted functions
+    // applied directly to the partition column).
+    getSqlForTruncatedDateAsDate?: (
+        timeFrame: TimeFrames,
+        originalSql: string,
+        type: DimensionType,
+        startOfWeek?: WeekDay | null,
+    ) => string;
     getSqlForDatePart: (
         timeFrame: TimeFrames,
         originalSql: string,
@@ -459,6 +469,14 @@ const bigqueryStartOfWeekMap: Record<WeekDay, string> = {
     [WeekDay.SUNDAY]: 'SUNDAY',
 };
 
+const bigqueryDatePart = (
+    timeFrame: TimeFrames,
+    startOfWeek?: WeekDay | null,
+): string =>
+    timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)
+        ? `${timeFrame}(${bigqueryStartOfWeekMap[startOfWeek]})`
+        : timeFrame;
+
 const bigqueryConfig: WarehouseConfig = {
     // BigQuery: on the timezone-wrapped path `toProjectTz` has already shifted
     // the value into a naive project-TZ DATETIME, so truncate with
@@ -471,15 +489,30 @@ const bigqueryConfig: WarehouseConfig = {
         startOfWeek,
         timezone,
     ) => {
-        const datePart =
-            timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)
-                ? `${timeFrame}(${bigqueryStartOfWeekMap[startOfWeek]})`
-                : timeFrame;
+        const datePart = bigqueryDatePart(timeFrame, startOfWeek);
         if (type === DimensionType.TIMESTAMP) {
             if (timezone) {
                 return `DATETIME_TRUNC(${originalSql}, ${datePart})`;
             }
             return `TIMESTAMP_TRUNC(${originalSql}, ${datePart})`;
+        }
+        return `DATE_TRUNC(${originalSql}, ${datePart})`;
+    },
+    // GLITCH-628: BigQuery only prunes partitions for whitelisted functions on
+    // the partition column — CAST(TIMESTAMP_TRUNC(col, DAY) AS DATE) full-scans
+    // DATETIME-partitioned tables, while DATE(col) / DATE_TRUNC(DATE(col), part)
+    // prune. Same value (both read the UTC calendar date on this no-wrap path).
+    getSqlForTruncatedDateAsDate: (
+        timeFrame,
+        originalSql,
+        type,
+        startOfWeek,
+    ) => {
+        const datePart = bigqueryDatePart(timeFrame, startOfWeek);
+        if (type === DimensionType.TIMESTAMP) {
+            return timeFrame === TimeFrames.DAY
+                ? `DATE(${originalSql})`
+                : `DATE_TRUNC(DATE(${originalSql}), ${datePart})`;
         }
         return `DATE_TRUNC(${originalSql}, ${datePart})`;
     },
@@ -1044,13 +1077,26 @@ export const getSqlForTruncatedDate = (
     // matches the metadata; sub-day grains stay TIMESTAMP.
     const castToDate = castDayOrCoarserToDate && !isSubDayTimeFrame(timeFrame);
     if (!wrap) {
-        const bare = warehouseConfigs[adapterType].getSqlForTruncatedDate(
+        const config = warehouseConfigs[adapterType];
+        if (castToDate) {
+            // Per-adapter direct-to-DATE form where CAST-over-trunc would
+            // defeat partition pruning (GLITCH-628); generic cast elsewhere.
+            if (config.getSqlForTruncatedDateAsDate) {
+                return config.getSqlForTruncatedDateAsDate(
+                    timeFrame,
+                    originalSql,
+                    type,
+                    startOfWeek,
+                );
+            }
+            return `CAST(${config.getSqlForTruncatedDate(timeFrame, originalSql, type, startOfWeek)} AS DATE)`;
+        }
+        return config.getSqlForTruncatedDate(
             timeFrame,
             originalSql,
             type,
             startOfWeek,
         );
-        return castToDate ? `CAST(${bare} AS DATE)` : bare;
     }
 
     const {
