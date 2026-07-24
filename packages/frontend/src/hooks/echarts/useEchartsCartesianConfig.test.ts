@@ -20,6 +20,7 @@ import { describe, expect, test, vi } from 'vitest';
 import {
     applyConditionalFormattingToStackedSeries,
     applyLegendPlacementToGrid,
+    assignSeriesZByOrder,
     filterSeriesWithNoData,
     getAxisDefaultMaxValue,
     getAxisDefaultMinValue,
@@ -2530,5 +2531,68 @@ describe('applyConditionalFormattingToStackedSeries', () => {
 
         expect(result[0]).toBe(flatBar);
         expect(result[1]).toBe(line);
+    });
+});
+
+describe('assignSeriesZByOrder', () => {
+    // ECharts markLine (reference lines) default z; series must stay below it
+    // so reference lines always paint on top of the data.
+    const MARKLINE_DEFAULT_Z = 5;
+
+    const mkSeries = (type: CartesianSeriesType, name: string): EChartsSeries =>
+        ({ type, name }) as unknown as EChartsSeries;
+
+    test('assigns a strictly increasing z matching array position', () => {
+        const result = assignSeriesZByOrder([
+            mkSeries(CartesianSeriesType.AREA, 'area'),
+            mkSeries(CartesianSeriesType.BAR, 'bar'),
+        ]);
+
+        expect(result[0].z!).toBe(2);
+        expect(result[1].z!).toBeGreaterThan(result[0].z!);
+    });
+
+    test('later series paint on top regardless of type (bar over area)', () => {
+        const area = mkSeries(CartesianSeriesType.AREA, 'area');
+        const bar = mkSeries(CartesianSeriesType.BAR, 'bar');
+
+        // area first in list -> lower z -> painted behind the bar
+        const result = assignSeriesZByOrder([area, bar]);
+        const areaZ = result.find((s) => s.name === 'area')?.z ?? 0;
+        const barZ = result.find((s) => s.name === 'bar')?.z ?? 0;
+
+        expect(barZ).toBeGreaterThan(areaZ);
+    });
+
+    test('keeps every series z below the markLine default, even with many series', () => {
+        // Reference lines rely on markLine default z (5) painting above the
+        // data; a large series count must not push any series up to/over it.
+        const many = Array.from({ length: 40 }, (_, i) =>
+            mkSeries(CartesianSeriesType.BAR, `s${i}`),
+        );
+
+        const result = assignSeriesZByOrder(many);
+
+        result.forEach((s) => expect(s.z!).toBeLessThan(MARKLINE_DEFAULT_Z));
+        // still strictly ordered
+        for (let i = 1; i < result.length; i += 1) {
+            expect(result[i].z!).toBeGreaterThan(result[i - 1].z!);
+        }
+    });
+
+    test('preserves other series properties and does not mutate the input', () => {
+        const input = [mkSeries(CartesianSeriesType.LINE, 'line')];
+        const result = assignSeriesZByOrder(input);
+
+        expect(result[0]).toMatchObject({
+            type: CartesianSeriesType.LINE,
+            name: 'line',
+            z: 2,
+        });
+        expect(input[0]).not.toHaveProperty('z');
+    });
+
+    test('handles an empty series list', () => {
+        expect(assignSeriesZByOrder([])).toEqual([]);
     });
 });
