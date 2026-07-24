@@ -324,6 +324,7 @@ import {
     getModernPullRequestCardBlocks,
     getProjectSelectionBlocks,
     getReferencedArtifactsBlocks,
+    getSqlArtifactCardBlocks,
     getTextBlocks,
     getThinkingBlocks,
     splitMarkdownIntoMessages,
@@ -9238,6 +9239,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const toolResults = await this.aiAgentModel.getToolResultsForPrompt(
             slackPrompt.promptUuid,
         );
+        const toolCalls = await this.aiAgentModel.getToolCallsForPrompt(
+            slackPrompt.promptUuid,
+        );
 
         const legacyFeedbackBlocks = agent
             ? getFeedbackBlocks(
@@ -9287,6 +9291,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 : promptArtifacts,
             toolResults,
         );
+        const sqlArtifactBlocks = await getSqlArtifactCardBlocks(
+            slackPrompt.promptUuid,
+            toolCalls,
+            toolResults,
+            (sql, limit) =>
+                this.createSqlRunnerShareUrl(
+                    user,
+                    slackPrompt.projectUuid,
+                    sql,
+                    limit,
+                ),
+        );
         const editDbtProjectBlocks =
             getModernPullRequestCardBlocks(toolResults);
         const historyBlocks = agent
@@ -9312,6 +9328,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         return [
             ...exploreBlocks,
+            ...sqlArtifactBlocks,
             ...editDbtProjectBlocks,
             ...referencedArtifactsBlocks,
             ...followUpToolBlocks,
@@ -9564,74 +9581,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         }
     }
 
-    // Share URL for the latest successful runSql, used to resolve the model's
-    // [..](#sql-runner-link) anchor into a real link for Slack.
-    private async getSqlRunnerShareUrl(
-        user: SessionUser,
-        slackPrompt: SlackPrompt,
-    ): Promise<string | undefined> {
-        const toolCalls = await this.aiAgentModel.getToolCallsForPrompt(
-            slackPrompt.promptUuid,
-        );
-        const runSqlCalls = toolCalls.filter(
-            (call) => call.tool_name === 'runSql',
-        );
-        if (runSqlCalls.length === 0) return undefined;
-
-        const toolResults = await this.aiAgentModel.getToolResultsForPrompt(
-            slackPrompt.promptUuid,
-        );
-        const succeededCallIds = new Set(
-            toolResults
-                .filter(
-                    (result) =>
-                        result.toolName === 'runSql' &&
-                        (result.metadata as { status?: string } | null)
-                            ?.status === 'success',
-                )
-                .map((result) => result.toolCallId),
-        );
-
-        const latestSuccessful = [...runSqlCalls]
-            .reverse()
-            .find((call) => succeededCallIds.has(call.tool_call_id));
-        const sql = (
-            latestSuccessful?.tool_args as { sql?: string } | undefined
-        )?.sql;
-        if (!latestSuccessful || !sql) return undefined;
-        const limit = (
-            latestSuccessful.tool_args as { limit?: number } | undefined
-        )?.limit;
-
-        try {
-            return await this.createSqlRunnerShareUrl(
-                user,
-                slackPrompt.projectUuid,
-                sql,
-                limit,
-            );
-        } catch (error) {
-            this.logger.warn('Failed to build SQL runner share url', error);
-            return undefined;
-        }
-    }
-
-    // Resolves the model's web-only [..](#sql-runner-link) anchor: swaps in the
-    // real share URL when we have one, otherwise drops the dead anchor.
-    private static applySqlRunnerLinkForSlack(
-        text: string,
-        shareUrl: string | undefined,
-    ): string {
-        const anchor = /(\[[^\]]*\])\(#sql-runner-link\)/g;
-        if (shareUrl) {
-            return text.replace(anchor, `$1(${shareUrl})`);
-        }
-        return text
-            .replace(anchor, '')
-            .replace(/\n{3,}/g, '\n\n')
-            .trim();
-    }
-
+    // Builds a SQL Runner share URL for a specific runSql call — used by
+    // getSlackAgentFinalBlocks to render one correctly-scoped card per
+    // successful runSql call.
     private async createSqlRunnerShareUrl(
         user: SessionUser,
         projectUuid: string,
@@ -10214,16 +10166,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 slackPrompt,
                 agent,
             });
-            const sqlRunnerUrl = await this.getSqlRunnerShareUrl(
-                user,
-                slackPrompt,
-            );
-            const slackResponse = stripMemoryCitations(
-                AiAgentService.applySqlRunnerLinkForSlack(
-                    response,
-                    sqlRunnerUrl,
-                ),
-            );
+            const slackResponse = stripMemoryCitations(response);
             const slackifiedMarkdown = slackifyMarkdown(slackResponse).replace(
                 /\\\n/g,
                 '\n',

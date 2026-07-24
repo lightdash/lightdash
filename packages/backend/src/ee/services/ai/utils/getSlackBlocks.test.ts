@@ -13,6 +13,7 @@ import {
     getModernPullRequestCardBlocks,
     getProjectSelectionBlocks,
     getSlackToolTitle,
+    getSqlArtifactCardBlocks,
 } from './getSlackBlocks';
 import { mockOrdersExplore } from './validationExplore.mock';
 
@@ -1126,5 +1127,157 @@ describe('Slack AI agent blocks', () => {
                 ],
             },
         ]);
+    });
+
+    describe('getSqlArtifactCardBlocks', () => {
+        const runSqlCall = (
+            toolCallId: string,
+            sql: string,
+            limit?: number,
+        ) => ({
+            tool_call_id: toolCallId,
+            tool_name: 'runSql',
+            tool_args: { sql, ...(limit !== undefined ? { limit } : {}) },
+        });
+
+        const runSqlResult = (
+            toolCallId: string,
+            status: string,
+            rowCount?: number,
+        ) =>
+            ({
+                uuid: `result-${toolCallId}`,
+                promptUuid: 'prompt-1',
+                toolCallId,
+                toolType: 'built-in',
+                toolName: 'runSql',
+                result: 'ok',
+                createdAt: new Date(),
+                metadata: {
+                    status,
+                    ...(rowCount !== undefined ? { rowCount } : {}),
+                },
+            }) as never;
+
+        it('builds a card for a single successful runSql call', async () => {
+            const createSqlRunnerShareUrl = vi
+                .fn()
+                .mockResolvedValue(
+                    'https://lightdash.example.com/projects/project-1/sql-runner?share=abc',
+                );
+
+            const blocks = await getSqlArtifactCardBlocks(
+                'prompt-1',
+                [runSqlCall('call-1', 'SELECT 1', 500)],
+                [runSqlResult('call-1', 'success', 26)],
+                createSqlRunnerShareUrl,
+            );
+
+            expect(createSqlRunnerShareUrl).toHaveBeenCalledWith(
+                'SELECT 1',
+                500,
+            );
+            expect(blocks).toMatchObject([
+                {
+                    type: 'card',
+                    title: { text: 'SQL query results' },
+                    subtitle: { text: '26 rows' },
+                    actions: [
+                        {
+                            text: { text: 'Open in SQL Runner' },
+                            url: 'https://lightdash.example.com/projects/project-1/sql-runner?share=abc',
+                        },
+                    ],
+                },
+            ]);
+        });
+
+        it('returns no blocks when there is no runSql call', async () => {
+            const blocks = await getSqlArtifactCardBlocks(
+                'prompt-1',
+                [],
+                [],
+                vi.fn(),
+            );
+            expect(blocks).toEqual([]);
+        });
+
+        it('skips a runSql call that did not succeed', async () => {
+            const createSqlRunnerShareUrl = vi.fn();
+            const blocks = await getSqlArtifactCardBlocks(
+                'prompt-1',
+                [runSqlCall('call-1', 'SELECT 1')],
+                [runSqlResult('call-1', 'error')],
+                createSqlRunnerShareUrl,
+            );
+            expect(blocks).toEqual([]);
+            expect(createSqlRunnerShareUrl).not.toHaveBeenCalled();
+        });
+
+        it('builds one correctly-scoped card per successful runSql call as a carousel', async () => {
+            const createSqlRunnerShareUrl = vi
+                .fn()
+                .mockImplementation(async (sql: string) =>
+                    sql === 'SELECT 1'
+                        ? 'https://lightdash.example.com/share/first'
+                        : 'https://lightdash.example.com/share/second',
+                );
+
+            const blocks = await getSqlArtifactCardBlocks(
+                'prompt-1',
+                [
+                    runSqlCall('call-1', 'SELECT 1', 500),
+                    runSqlCall('call-2', 'SELECT 2', 10),
+                ],
+                [
+                    runSqlResult('call-1', 'success', 26),
+                    runSqlResult('call-2', 'success', 1),
+                ],
+                createSqlRunnerShareUrl,
+            );
+
+            expect(createSqlRunnerShareUrl).toHaveBeenCalledWith(
+                'SELECT 1',
+                500,
+            );
+            expect(createSqlRunnerShareUrl).toHaveBeenCalledWith(
+                'SELECT 2',
+                10,
+            );
+            expect(blocks).toMatchObject([
+                {
+                    type: 'carousel',
+                    elements: [
+                        {
+                            actions: [
+                                {
+                                    url: 'https://lightdash.example.com/share/first',
+                                },
+                            ],
+                        },
+                        {
+                            actions: [
+                                {
+                                    url: 'https://lightdash.example.com/share/second',
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ]);
+        });
+
+        it('drops a card when the share URL cannot be created', async () => {
+            const createSqlRunnerShareUrl = vi
+                .fn()
+                .mockRejectedValue(new Error('share failed'));
+            const blocks = await getSqlArtifactCardBlocks(
+                'prompt-1',
+                [runSqlCall('call-1', 'SELECT 1')],
+                [runSqlResult('call-1', 'success', 5)],
+                createSqlRunnerShareUrl,
+            );
+            expect(blocks).toEqual([]);
+        });
     });
 });

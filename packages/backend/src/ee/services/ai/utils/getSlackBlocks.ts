@@ -869,6 +869,104 @@ export async function getModernArtifactCardBlocks(
     ];
 }
 
+// SQL artifacts aren't persisted for Slack (see the `!isSlack` guard in
+// runSql.ts), so — unlike chart/dashboard cards above — these are built
+// directly from tool calls/results rather than the artifacts table. One card
+// per successful runSql call: each carries its own {sql, limit}, so a turn
+// with multiple runSql calls gets one correctly-scoped card each rather than
+// a single link that can only point at one of them.
+export async function getSqlArtifactCardBlocks(
+    promptUuid: string,
+    toolCalls: Array<{
+        tool_call_id: string;
+        tool_name: string;
+        tool_args: unknown;
+    }>,
+    toolResults: AiAgentToolResult[],
+    createSqlRunnerShareUrl: (
+        sql: string,
+        limit: number | undefined,
+    ) => Promise<string>,
+): Promise<(Block | KnownBlock)[]> {
+    const succeededCallIds = new Set(
+        toolResults
+            .filter(
+                (result) =>
+                    result.toolName === 'runSql' &&
+                    (result.metadata as { status?: string } | null)?.status ===
+                        'success',
+            )
+            .map((result) => result.toolCallId),
+    );
+    const rowCountByCallId = new Map(
+        toolResults
+            .filter((result) => result.toolName === 'runSql')
+            .map((result) => [
+                result.toolCallId,
+                (result.metadata as { rowCount?: number } | null)?.rowCount,
+            ]),
+    );
+
+    const successfulSqlCalls = toolCalls.filter(
+        (call) =>
+            call.tool_name === 'runSql' &&
+            succeededCallIds.has(call.tool_call_id),
+    );
+
+    const cards = await Promise.all(
+        successfulSqlCalls.map(async (call, index) => {
+            const args = call.tool_args as
+                | { sql?: string; limit?: number }
+                | undefined;
+            if (!args?.sql) return undefined;
+
+            const shareUrl = await createSqlRunnerShareUrl(
+                args.sql,
+                args.limit,
+            ).catch(() => undefined);
+            if (!shareUrl) return undefined;
+
+            const rowCount = rowCountByCallId.get(call.tool_call_id);
+
+            return buildSlackCardBlock({
+                blockId: `ai_agent_sql_card_${call.tool_call_id}`,
+                title: 'SQL query results',
+                subtitle:
+                    typeof rowCount === 'number'
+                        ? `${rowCount} row${rowCount === 1 ? '' : 's'}`
+                        : undefined,
+                subtext: 'Open in SQL Runner to inspect, edit, or save.',
+                actions: [
+                    {
+                        type: 'button',
+                        url: shareUrl,
+                        style: 'primary',
+                        action_id: `actions.open_sql_runner_card_button_click.${index}`,
+                        text: {
+                            type: 'plain_text',
+                            text: 'Open in SQL Runner',
+                        },
+                    },
+                ],
+            });
+        }),
+    );
+
+    const cardBlocks = cards.filter((block): block is Block => Boolean(block));
+
+    if (cardBlocks.length <= 1) {
+        return cardBlocks;
+    }
+
+    return [
+        {
+            type: 'carousel',
+            block_id: `ai_agent_sql_carousel_${promptUuid}`,
+            elements: cardBlocks.slice(0, 10),
+        } as unknown as Block,
+    ];
+}
+
 // Tool names whose successful results count as "an answer the user can score".
 // Discovery tools (findExplores, findFields, listWarehouseTables,
 // describeWarehouseTable) are deliberately excluded — they don't deliver a
