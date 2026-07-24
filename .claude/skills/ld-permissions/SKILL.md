@@ -1,5 +1,7 @@
 ---
 name: ld-permissions
+metadata:
+  internal: true
 description: Guide for Lightdash's CASL-based authorization system. Use when working with scopes, custom roles, abilities, permissions, ForbiddenError, authorization, or access control. Helps with adding new scopes, debugging permission issues, understanding the permission flow, and creating custom roles.
 allowed-tools: Read, Grep, Glob, Task
 ---

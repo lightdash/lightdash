@@ -1,5 +1,7 @@
 ---
 name: creating-pull-requests
+metadata:
+  internal: true
 description: Use when creating, opening, or writing the title/description of a pull request, or writing PR bodies via `gh pr create` or `gt submit`. Covers what must go in the PR description (Linear ticket, GitHub issue) and what must never appear (client/customer names or their data).
 invocation: user
 ---
