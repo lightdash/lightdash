@@ -10,6 +10,7 @@ type TableCellBarProps = {
     min: number;
     max: number;
     color?: string;
+    negativeColor?: string;
 };
 
 const BAR_HEIGHT = '20px';
@@ -26,10 +27,12 @@ export const TableCellBar = ({
     min,
     max,
     color = DEFAULT_BAR_COLOR,
+    negativeColor,
 }: TableCellBarProps) => {
     // Scale always includes zero (Excel-style automatic axis) so all-negative
     // columns don't clamp distinct values to identical full-width bars.
     const range = Math.max(max, 0) - min;
+    const negativeBarColor = negativeColor ?? color;
 
     // Diverging mode only kicks in when the column contains negative values.
     // Positive-only columns keep the original left-anchored bar unchanged.
@@ -112,7 +115,7 @@ export const TableCellBar = ({
                 {value < 0 && (
                     <Box
                         h={BAR_HEIGHT}
-                        bg={color}
+                        bg={negativeBarColor}
                         miw={MIN_BAR_WIDTH}
                         style={{
                             position: 'absolute',

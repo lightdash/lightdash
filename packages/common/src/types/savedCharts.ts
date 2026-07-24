@@ -411,6 +411,8 @@ export type ColumnProperties = {
     displayStyle?: 'text' | 'bar';
     /** Color for bar display style (hex code) */
     color?: string;
+    /** Color for negative bars in diverging bar display (hex code). Falls back to `color` when unset. */
+    negativeColor?: string;
     width?: number;
 };
 

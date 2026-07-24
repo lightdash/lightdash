@@ -177,6 +177,10 @@ const formatBarDisplayCell = (
         columnProperties?.[baseFieldId]?.color ??
         columnProperties?.[columnId]?.color;
 
+    const negativeColor =
+        columnProperties?.[baseFieldId]?.negativeColor ??
+        columnProperties?.[columnId]?.negativeColor;
+
     let formatted, value: number;
 
     if (isResultValue(cellValue)) {
@@ -234,6 +238,7 @@ const formatBarDisplayCell = (
             min={minMax.min}
             max={minMax.max}
             color={color}
+            negativeColor={negativeColor}
         />
     );
 };
