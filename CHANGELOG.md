@@ -1,3 +1,10 @@
+# [0.3476.0](https://github.com/lightdash/lightdash/compare/0.3475.0...0.3476.0) (2026-07-24)
+
+
+### Features
+
+* **ai:** add MCP support to Deep Research ([#26106](https://github.com/lightdash/lightdash/issues/26106)) ([5fdd8da](https://github.com/lightdash/lightdash/commit/5fdd8da72f272a7cba173b5f4f5e2a3addca0fc3))
+
 # [0.3475.0](https://github.com/lightdash/lightdash/compare/0.3474.0...0.3475.0) (2026-07-24)
 
 

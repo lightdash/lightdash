@@ -21763,7 +21763,8 @@
                     "describeWarehouseTable",
                     "listKnowledgeDocuments",
                     "getKnowledgeDocumentContent",
-                    "readPinnedThread"
+                    "readPinnedThread",
+                    "submitResearchReport"
                 ],
                 "description": "Exclude from T those types that are assignable to U"
             },
@@ -29480,6 +29481,271 @@
                 ],
                 "type": "object"
             },
+            "AiDeepResearchExecutionContextSnapshot": {
+                "properties": {
+                    "effectivePermissions": {
+                        "properties": {
+                            "autoApproveSql": {
+                                "type": "boolean"
+                            },
+                            "canUseSelfImprovementTools": {
+                                "type": "boolean"
+                            },
+                            "canUseContentTools": {
+                                "type": "boolean"
+                            },
+                            "canUseDataTools": {
+                                "type": "boolean"
+                            },
+                            "canRunSql": {
+                                "type": "boolean"
+                            },
+                            "canManageAgent": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": [
+                            "autoApproveSql",
+                            "canUseSelfImprovementTools",
+                            "canUseContentTools",
+                            "canUseDataTools",
+                            "canRunSql",
+                            "canManageAgent"
+                        ],
+                        "type": "object"
+                    },
+                    "repository": {
+                        "properties": {
+                            "availableSkillNames": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "repoFsSupportsCodeSearch": {
+                                "type": "boolean",
+                                "nullable": true
+                            },
+                            "repoFsRoot": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "repoDiscoveryEnabled": {
+                                "type": "boolean",
+                                "nullable": true
+                            },
+                            "previewDeploySetupEnabled": {
+                                "type": "boolean",
+                                "nullable": true
+                            },
+                            "codingAgentEnabled": {
+                                "type": "boolean",
+                                "nullable": true
+                            },
+                            "aiWritebackEnabled": {
+                                "type": "boolean",
+                                "nullable": true
+                            },
+                            "projectContextEnabled": {
+                                "type": "boolean",
+                                "nullable": true
+                            }
+                        },
+                        "required": [
+                            "availableSkillNames",
+                            "repoFsSupportsCodeSearch",
+                            "repoFsRoot",
+                            "repoDiscoveryEnabled",
+                            "previewDeploySetupEnabled",
+                            "codingAgentEnabled",
+                            "aiWritebackEnabled",
+                            "projectContextEnabled"
+                        ],
+                        "type": "object"
+                    },
+                    "knowledgeDocuments": {
+                        "items": {
+                            "properties": {
+                                "alwaysIncludeInContext": {
+                                    "type": "boolean"
+                                },
+                                "updatedAt": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "alwaysIncludeInContext",
+                                "updatedAt",
+                                "name",
+                                "uuid"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "tools": {
+                        "properties": {
+                            "selectedMcpServers": {
+                                "items": {
+                                    "properties": {
+                                        "enabledToolNames": {
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "name": {
+                                            "type": "string"
+                                        },
+                                        "uuid": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "enabledToolNames",
+                                        "name",
+                                        "uuid"
+                                    ],
+                                    "type": "object"
+                                },
+                                "type": "array"
+                            },
+                            "availableToolNames": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "selectedMcpServers",
+                            "availableToolNames"
+                        ],
+                        "type": "object"
+                    },
+                    "model": {
+                        "properties": {
+                            "keyManagement": {
+                                "type": "string",
+                                "enum": [
+                                    "lightdash-managed",
+                                    "self-managed",
+                                    null
+                                ],
+                                "nullable": true
+                            },
+                            "reasoningEnabled": {
+                                "type": "boolean",
+                                "nullable": true
+                            },
+                            "modelName": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "provider": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "required": [
+                            "keyManagement",
+                            "reasoningEnabled",
+                            "modelName",
+                            "provider"
+                        ],
+                        "type": "object"
+                    },
+                    "agent": {
+                        "properties": {
+                            "enableUserContext": {
+                                "type": "boolean"
+                            },
+                            "enableContentTools": {
+                                "type": "boolean"
+                            },
+                            "enableSelfImprovement": {
+                                "type": "boolean"
+                            },
+                            "enableDataAccess": {
+                                "type": "boolean"
+                            },
+                            "spaceAccess": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tags": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "nullable": true
+                            },
+                            "hasInstruction": {
+                                "type": "boolean"
+                            },
+                            "updatedAt": {
+                                "type": "string"
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "enableUserContext",
+                            "enableContentTools",
+                            "enableSelfImprovement",
+                            "enableDataAccess",
+                            "spaceAccess",
+                            "tags",
+                            "hasInstruction",
+                            "updatedAt",
+                            "version",
+                            "name",
+                            "uuid"
+                        ],
+                        "type": "object"
+                    },
+                    "capturedAt": {
+                        "type": "string"
+                    },
+                    "resolutionStage": {
+                        "type": "string",
+                        "enum": ["preflight", "execution"]
+                    },
+                    "schemaVersion": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "effectivePermissions",
+                    "repository",
+                    "knowledgeDocuments",
+                    "tools",
+                    "model",
+                    "agent",
+                    "capturedAt",
+                    "resolutionStage",
+                    "schemaVersion"
+                ],
+                "type": "object"
+            },
             "AiDeepResearchRun": {
                 "properties": {
                     "completedAt": {
@@ -29502,6 +29768,14 @@
                     },
                     "errorMessage": {
                         "type": "string",
+                        "nullable": true
+                    },
+                    "executionContextSnapshot": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiDeepResearchExecutionContextSnapshot"
+                            }
+                        ],
                         "nullable": true
                     },
                     "budget": {
@@ -29527,13 +29801,20 @@
                     "prompt": {
                         "type": "string"
                     },
+                    "mcpServerUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "promptUuid": {
-                        "type": "string",
-                        "nullable": true
+                        "type": "string"
                     },
                     "aiThreadUuid": {
-                        "type": "string",
-                        "nullable": true
+                        "type": "string"
+                    },
+                    "agentUuid": {
+                        "type": "string"
                     },
                     "projectUuid": {
                         "type": "string"
@@ -29549,13 +29830,16 @@
                     "createdAt",
                     "cancellationRequestedAt",
                     "errorMessage",
+                    "executionContextSnapshot",
                     "budget",
                     "resultChartData",
                     "resultMarkdown",
                     "status",
                     "prompt",
+                    "mcpServerUuids",
                     "promptUuid",
                     "aiThreadUuid",
+                    "agentUuid",
                     "projectUuid",
                     "aiDeepResearchRunUuid"
                 ],
@@ -29584,9 +29868,16 @@
             },
             "AiDeepResearchRequestBody": {
                 "properties": {
+                    "mcpServerUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Agent-attached MCP servers enabled for this run."
+                    },
                     "promptUuid": {
                         "type": "string",
-                        "description": "Thread message that captured this prompt. Requires threadUuid."
+                        "description": "Thread message that captured this prompt."
                     },
                     "threadUuid": {
                         "type": "string",
@@ -29596,11 +29887,21 @@
                         "$ref": "#/components/schemas/AiDeepResearchEffort",
                         "description": "Server-owned execution budget tier. Defaults to medium."
                     },
+                    "agentUuid": {
+                        "type": "string",
+                        "description": "Agent whose complete runtime configuration will execute this run."
+                    },
                     "prompt": {
                         "type": "string"
                     }
                 },
-                "required": ["prompt"],
+                "required": [
+                    "mcpServerUuids",
+                    "promptUuid",
+                    "threadUuid",
+                    "agentUuid",
+                    "prompt"
+                ],
                 "type": "object"
             },
             "ApiSuccess_AiDeepResearchRun-Array_": {
@@ -49468,7 +49769,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3475.0",
+        "version": "0.3476.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

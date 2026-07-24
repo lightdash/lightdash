@@ -20192,6 +20192,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['listKnowledgeDocuments'] },
                 { dataType: 'enum', enums: ['getKnowledgeDocumentContent'] },
                 { dataType: 'enum', enums: ['readPinnedThread'] },
+                { dataType: 'enum', enums: ['submitResearchReport'] },
             ],
             validators: {},
         },
@@ -29234,6 +29235,248 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiDeepResearchExecutionContextSnapshot: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                effectivePermissions: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        autoApproveSql: { dataType: 'boolean', required: true },
+                        canUseSelfImprovementTools: {
+                            dataType: 'boolean',
+                            required: true,
+                        },
+                        canUseContentTools: {
+                            dataType: 'boolean',
+                            required: true,
+                        },
+                        canUseDataTools: {
+                            dataType: 'boolean',
+                            required: true,
+                        },
+                        canRunSql: { dataType: 'boolean', required: true },
+                        canManageAgent: { dataType: 'boolean', required: true },
+                    },
+                    required: true,
+                },
+                repository: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        availableSkillNames: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                        repoFsSupportsCodeSearch: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'boolean' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        repoFsRoot: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        repoDiscoveryEnabled: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'boolean' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        previewDeploySetupEnabled: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'boolean' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        codingAgentEnabled: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'boolean' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        aiWritebackEnabled: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'boolean' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        projectContextEnabled: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'boolean' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                    },
+                    required: true,
+                },
+                knowledgeDocuments: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            alwaysIncludeInContext: {
+                                dataType: 'boolean',
+                                required: true,
+                            },
+                            updatedAt: { dataType: 'string', required: true },
+                            name: { dataType: 'string', required: true },
+                            uuid: { dataType: 'string', required: true },
+                        },
+                    },
+                    required: true,
+                },
+                tools: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        selectedMcpServers: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    enabledToolNames: {
+                                        dataType: 'array',
+                                        array: { dataType: 'string' },
+                                        required: true,
+                                    },
+                                    name: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                    uuid: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                },
+                            },
+                            required: true,
+                        },
+                        availableToolNames: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                    },
+                    required: true,
+                },
+                model: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        keyManagement: {
+                            dataType: 'union',
+                            subSchemas: [
+                                {
+                                    dataType: 'enum',
+                                    enums: ['lightdash-managed'],
+                                },
+                                { dataType: 'enum', enums: ['self-managed'] },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        reasoningEnabled: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'boolean' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        modelName: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        provider: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                    },
+                    required: true,
+                },
+                agent: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        enableUserContext: {
+                            dataType: 'boolean',
+                            required: true,
+                        },
+                        enableContentTools: {
+                            dataType: 'boolean',
+                            required: true,
+                        },
+                        enableSelfImprovement: {
+                            dataType: 'boolean',
+                            required: true,
+                        },
+                        enableDataAccess: {
+                            dataType: 'boolean',
+                            required: true,
+                        },
+                        spaceAccess: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                        tags: {
+                            dataType: 'union',
+                            subSchemas: [
+                                {
+                                    dataType: 'array',
+                                    array: { dataType: 'string' },
+                                },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        hasInstruction: { dataType: 'boolean', required: true },
+                        updatedAt: { dataType: 'string', required: true },
+                        version: { dataType: 'double', required: true },
+                        name: { dataType: 'string', required: true },
+                        uuid: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                capturedAt: { dataType: 'string', required: true },
+                resolutionStage: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['preflight'] },
+                        { dataType: 'enum', enums: ['execution'] },
+                    ],
+                    required: true,
+                },
+                schemaVersion: { dataType: 'enum', enums: [1], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiDeepResearchRun: {
         dataType: 'refAlias',
         type: {
@@ -29273,6 +29516,14 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                executionContextSnapshot: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiDeepResearchExecutionContextSnapshot' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 budget: { ref: 'AiDeepResearchBudget', required: true },
                 resultChartData: {
                     dataType: 'union',
@@ -29292,22 +29543,14 @@ const models: TsoaRoute.Models = {
                 },
                 status: { ref: 'AiDeepResearchRunStatus', required: true },
                 prompt: { dataType: 'string', required: true },
-                promptUuid: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
+                mcpServerUuids: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
                     required: true,
                 },
-                aiThreadUuid: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
+                promptUuid: { dataType: 'string', required: true },
+                aiThreadUuid: { dataType: 'string', required: true },
+                agentUuid: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string', required: true },
                 aiDeepResearchRunUuid: { dataType: 'string', required: true },
             },
@@ -29351,9 +29594,15 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                promptUuid: { dataType: 'string' },
-                threadUuid: { dataType: 'string' },
+                mcpServerUuids: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                promptUuid: { dataType: 'string', required: true },
+                threadUuid: { dataType: 'string', required: true },
                 effort: { ref: 'AiDeepResearchEffort' },
+                agentUuid: { dataType: 'string', required: true },
                 prompt: { dataType: 'string', required: true },
             },
             validators: {},
