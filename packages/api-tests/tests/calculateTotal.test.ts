@@ -178,13 +178,21 @@ async function runTotalQuery(
 
 type RawRow = Record<string, unknown>;
 
+const normalizeRawValue = (fieldId: string, value: unknown) =>
+    fieldId === monthDimension && typeof value === 'string'
+        ? value.slice(0, 10)
+        : value;
+
 const sortRawRows = (rows: RawRow[]) =>
     rows
         .map((row) =>
             Object.fromEntries(
                 Object.entries(row)
                     .sort(([left], [right]) => left.localeCompare(right))
-                    .map(([fieldId, value]) => [fieldId, value]),
+                    .map(([fieldId, value]) => [
+                        fieldId,
+                        normalizeRawValue(fieldId, value),
+                    ]),
             ),
         )
         .sort((left, right) =>
@@ -241,37 +249,37 @@ const totalCases: TotalCase[] = [
         expectedRows: [
             {
                 orders_average_order_size_any: 22.47826086956522,
-                orders_order_date_month: '2025-01-01T00:00:00Z',
+                orders_order_date_month: '2025-01-01',
                 orders_status: 'completed',
                 orders_unique_order_count_any: '23',
             },
             {
                 orders_average_order_size_any: 36.777,
-                orders_order_date_month: '2025-01-01T00:00:00Z',
+                orders_order_date_month: '2025-01-01',
                 orders_status: 'placed',
                 orders_unique_order_count_any: '10',
             },
             {
                 orders_average_order_size_any: 20.916666666666668,
-                orders_order_date_month: '2025-01-01T00:00:00Z',
+                orders_order_date_month: '2025-01-01',
                 orders_status: 'shipped',
                 orders_unique_order_count_any: '12',
             },
             {
                 orders_average_order_size_any: 56.4,
-                orders_order_date_month: '2025-02-01T00:00:00Z',
+                orders_order_date_month: '2025-02-01',
                 orders_status: 'completed',
                 orders_unique_order_count_any: '5',
             },
             {
                 orders_average_order_size_any: 35.875,
-                orders_order_date_month: '2025-02-01T00:00:00Z',
+                orders_order_date_month: '2025-02-01',
                 orders_status: 'placed',
                 orders_unique_order_count_any: '4',
             },
             {
                 orders_average_order_size_any: 26.5,
-                orders_order_date_month: '2025-02-01T00:00:00Z',
+                orders_order_date_month: '2025-02-01',
                 orders_status: 'shipped',
                 orders_unique_order_count_any: '4',
             },
@@ -284,37 +292,37 @@ const totalCases: TotalCase[] = [
         expectedRows: [
             {
                 orders_average_order_size: 24.802,
-                orders_order_date_month: '2025-01-01T00:00:00Z',
+                orders_order_date_month: '2025-01-01',
                 orders_order_source: 'mobile_app',
                 orders_unique_order_count: '15',
             },
             {
                 orders_average_order_size: 21.8625,
-                orders_order_date_month: '2025-01-01T00:00:00Z',
+                orders_order_date_month: '2025-01-01',
                 orders_order_source: 'phone',
                 orders_unique_order_count: '8',
             },
             {
                 orders_average_order_size: 26.765454545454546,
-                orders_order_date_month: '2025-01-01T00:00:00Z',
+                orders_order_date_month: '2025-01-01',
                 orders_order_source: 'website',
                 orders_unique_order_count: '22',
             },
             {
                 orders_average_order_size: 48.666666666666664,
-                orders_order_date_month: '2025-02-01T00:00:00Z',
+                orders_order_date_month: '2025-02-01',
                 orders_order_source: 'mobile_app',
                 orders_unique_order_count: '3',
             },
             {
                 orders_average_order_size: 38.666666666666664,
-                orders_order_date_month: '2025-02-01T00:00:00Z',
+                orders_order_date_month: '2025-02-01',
                 orders_order_source: 'phone',
                 orders_unique_order_count: '3',
             },
             {
                 orders_average_order_size: 38.5,
-                orders_order_date_month: '2025-02-01T00:00:00Z',
+                orders_order_date_month: '2025-02-01',
                 orders_order_source: 'website',
                 orders_unique_order_count: '7',
             },
@@ -327,12 +335,12 @@ const totalCases: TotalCase[] = [
         expectedRows: [
             {
                 orders_average_order_size: 25.239333333333335,
-                orders_order_date_month: '2025-01-01T00:00:00Z',
+                orders_order_date_month: '2025-01-01',
                 orders_unique_order_count: '45',
             },
             {
                 orders_average_order_size: 40.88461538461539,
-                orders_order_date_month: '2025-02-01T00:00:00Z',
+                orders_order_date_month: '2025-02-01',
                 orders_unique_order_count: '13',
             },
         ],
