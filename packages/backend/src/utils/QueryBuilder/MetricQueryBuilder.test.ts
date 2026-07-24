@@ -5468,6 +5468,13 @@ describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', 
         });
         expect(query).toContain(`DATE("events".occurred_at)`);
         expect(query).not.toContain('CAST(TIMESTAMP_TRUNC');
+        // The WHERE clause itself must compare the prunable form — a SELECT-only
+        // match would let the pruning regression back in through the filter LHS.
+        const where = query.slice(query.indexOf('WHERE'));
+        expect(where).toContain(
+            `(DATE("events".occurred_at)) >= ('2026-07-01')`,
+        );
+        expect(where).not.toContain('TIMESTAMP_TRUNC');
     });
 
     test('BigQuery + flag on + UTC: month-grain SELECT and filter use prunable DATE_TRUNC(DATE())', () => {
@@ -5502,6 +5509,11 @@ describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', 
             `DATE_TRUNC(DATE("events".occurred_at), MONTH)`,
         );
         expect(query).not.toContain('CAST(TIMESTAMP_TRUNC');
+        const where = query.slice(query.indexOf('WHERE'));
+        expect(where).toContain(
+            `DATE_TRUNC(DATE("events".occurred_at), MONTH)`,
+        );
+        expect(where).not.toContain('TIMESTAMP_TRUNC');
     });
 
     test('BigQuery + flag off: dimension compiledSql passes through untouched', () => {
