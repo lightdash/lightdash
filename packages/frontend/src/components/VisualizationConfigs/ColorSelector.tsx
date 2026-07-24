@@ -1,5 +1,6 @@
 import { isHexCodeColor } from '@lightdash/common';
 import {
+    Button,
     ColorSwatch,
     ColorPicker as MantineColorPicker,
     Popover,
@@ -31,6 +32,10 @@ interface Props {
     secondaryColor?: string;
     swatches: string[];
     onColorChange?: (newColor: string) => void;
+    // Shows a reset action in the picker; provide only when there is a
+    // custom value to clear.
+    onColorReset?: () => void;
+    resetLabel?: string;
     readOnly?: boolean;
     colorSwatchProps?: Omit<ColorSwatchProps, 'color'>;
     withAlpha?: boolean;
@@ -42,6 +47,8 @@ const ColorSelector: FC<Props> = ({
     secondaryColor,
     swatches,
     onColorChange,
+    onColorReset,
+    resetLabel = 'Reset color',
     readOnly = false,
     colorSwatchProps,
     withAlpha = false,
@@ -165,6 +172,20 @@ const ColorSelector: FC<Props> = ({
                             }
                         }}
                     />
+
+                    {onColorReset && (
+                        <Button
+                            size="compact-xs"
+                            variant="subtle"
+                            onClick={() => {
+                                onColorReset();
+                                setDraftColor(undefined);
+                                setIsOpen(false);
+                            }}
+                        >
+                            {resetLabel}
+                        </Button>
+                    )}
                 </Stack>
             </Popover.Dropdown>
         </Popover>

@@ -75,17 +75,11 @@ export const ColumnCellDisplay: FC = () => {
                         const barColor =
                             chartConfig.columnProperties[fieldId]?.color ||
                             colorPalette[0];
-                        // Negative bars default to the positive color until set.
-                        const negativeBarColor =
+                        const negativeColor =
                             chartConfig.columnProperties[fieldId]
-                                ?.negativeColor || barColor;
-                        // Only offer a negative-bar color when the column
-                        // actually has negative values — otherwise the bars
-                        // never diverge and the swatch would do nothing.
-                        const hasNegativeValues =
-                            (chartConfig.minMaxMap?.[fieldId]?.min ?? 0) < 0;
-                        const showNegativeColor =
-                            isBarChart && hasNegativeValues;
+                                ?.negativeColor;
+                        // Negative bars default to the positive color until set.
+                        const negativeBarColor = negativeColor || barColor;
 
                         const positiveColorSelector = (
                             <ColorSelector
@@ -106,7 +100,7 @@ export const ColumnCellDisplay: FC = () => {
                                 justify="space-between"
                             >
                                 <Group gap="xs">
-                                    {showNegativeColor ? (
+                                    {isBarChart ? (
                                         <>
                                             <Tooltip
                                                 label="Positive values"
@@ -129,15 +123,30 @@ export const ColumnCellDisplay: FC = () => {
                                                         color={negativeBarColor}
                                                         swatches={colorPalette}
                                                         onColorChange={(
-                                                            negativeColor,
+                                                            newColor,
                                                         ) => {
                                                             chartConfig.updateColumnProperty(
                                                                 fieldId,
                                                                 {
-                                                                    negativeColor,
+                                                                    negativeColor:
+                                                                        newColor,
                                                                 },
                                                             );
                                                         }}
+                                                        onColorReset={
+                                                            negativeColor
+                                                                ? () => {
+                                                                      chartConfig.updateColumnProperty(
+                                                                          fieldId,
+                                                                          {
+                                                                              negativeColor:
+                                                                                  undefined,
+                                                                          },
+                                                                      );
+                                                                  }
+                                                                : undefined
+                                                        }
+                                                        resetLabel="Match positive color"
                                                     />
                                                 </Box>
                                             </Tooltip>
