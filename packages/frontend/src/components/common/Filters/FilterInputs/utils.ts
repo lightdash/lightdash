@@ -146,6 +146,14 @@ const getValueAsString = (
     const firstValue = values?.[0];
     const secondValue = values?.[1];
 
+    // Null operators take no value; never render a stale value left in `values`
+    if (
+        operator === FilterOperator.NULL ||
+        operator === FilterOperator.NOT_NULL
+    ) {
+        return undefined;
+    }
+
     switch (filterType) {
         case FilterType.STRING:
         case FilterType.NUMBER:

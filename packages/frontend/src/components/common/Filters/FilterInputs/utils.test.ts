@@ -85,6 +85,40 @@ describe('getConditionalRuleLabel', () => {
         expect(result.value).toBe('a');
     });
 
+    it('should not render a value for a null date filter with a stale value', () => {
+        const rule: BaseFilterRule = {
+            id: 'test-rule-id',
+            operator: FilterOperator.NULL,
+            values: ['2024-01-01'],
+        };
+
+        const result = getConditionalRuleLabel(
+            rule,
+            FilterType.DATE,
+            'Created At',
+        );
+
+        expect(result.operator).toBe('is null');
+        expect(result.value).toBeUndefined();
+    });
+
+    it('should not render a value for a not-null date filter with a stale value', () => {
+        const rule: BaseFilterRule = {
+            id: 'test-rule-id',
+            operator: FilterOperator.NOT_NULL,
+            values: ['2024-01-01'],
+        };
+
+        const result = getConditionalRuleLabel(
+            rule,
+            FilterType.DATE,
+            'Created At',
+        );
+
+        expect(result.operator).toBe('is not null');
+        expect(result.value).toBeUndefined();
+    });
+
     it('should return correct labels for a number filter', () => {
         // Arrange
         const rule: BaseFilterRule = {
