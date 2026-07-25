@@ -41,6 +41,7 @@ describe('LightdashAnalytics', () => {
         expect(trackSpy).toHaveBeenCalledTimes(2);
         expect(trackSpy).toHaveBeenNthCalledWith(1, {
             event: 'feature_flag.checked_aggregated',
+            anonymousId: LightdashAnalytics.anonymousId,
             properties: {
                 ...entries[0],
                 processType: 'scheduler',
@@ -48,6 +49,7 @@ describe('LightdashAnalytics', () => {
         });
         expect(trackSpy).toHaveBeenNthCalledWith(2, {
             event: 'feature_flag.checked_aggregated',
+            anonymousId: LightdashAnalytics.anonymousId,
             properties: {
                 ...entries[1],
                 processType: 'scheduler',

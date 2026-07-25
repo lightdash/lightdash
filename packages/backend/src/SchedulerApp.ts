@@ -222,10 +222,14 @@ export default class SchedulerApp {
 
     public async start() {
         this.featureFlagCheckFlushInterval = setInterval(() => {
-            this.analytics.trackFeatureFlagChecks(
-                flushFeatureFlagChecks(),
-                'scheduler',
-            );
+            try {
+                this.analytics.trackFeatureFlagChecks(
+                    flushFeatureFlagChecks(),
+                    'scheduler',
+                );
+            } catch {
+                // telemetry must never break the app
+            }
         }, FEATURE_FLAG_CHECK_FLUSH_INTERVAL_MS);
         this.featureFlagCheckFlushInterval.unref();
 
@@ -332,10 +336,14 @@ export default class SchedulerApp {
                     clearInterval(this.featureFlagCheckFlushInterval);
                     this.featureFlagCheckFlushInterval = undefined;
                 }
-                this.analytics.trackFeatureFlagChecks(
-                    flushFeatureFlagChecks(),
-                    'scheduler',
-                );
+                try {
+                    this.analytics.trackFeatureFlagChecks(
+                        flushFeatureFlagChecks(),
+                        'scheduler',
+                    );
+                } catch {
+                    // telemetry must never break shutdown
+                }
                 if (this.eventStreamWriter) {
                     Logger.info('Flushing usage event stream writer');
                     await this.eventStreamWriter.close();

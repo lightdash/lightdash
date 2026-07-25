@@ -294,10 +294,14 @@ export default class App {
 
     async start() {
         this.featureFlagCheckFlushInterval = setInterval(() => {
-            this.analytics.trackFeatureFlagChecks(
-                flushFeatureFlagChecks(),
-                'api',
-            );
+            try {
+                this.analytics.trackFeatureFlagChecks(
+                    flushFeatureFlagChecks(),
+                    'api',
+                );
+            } catch {
+                // telemetry must never break the app
+            }
         }, FEATURE_FLAG_CHECK_FLUSH_INTERVAL_MS);
         this.featureFlagCheckFlushInterval.unref();
 
@@ -1063,7 +1067,14 @@ export default class App {
             clearInterval(this.featureFlagCheckFlushInterval);
             this.featureFlagCheckFlushInterval = undefined;
         }
-        this.analytics.trackFeatureFlagChecks(flushFeatureFlagChecks(), 'api');
+        try {
+            this.analytics.trackFeatureFlagChecks(
+                flushFeatureFlagChecks(),
+                'api',
+            );
+        } catch {
+            // telemetry must never break shutdown
+        }
         if (this.pgWireServer) {
             await this.pgWireServer.close();
             Logger.info('Stopped Postgres wire protocol server');

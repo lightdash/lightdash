@@ -3180,6 +3180,7 @@ export class LightdashAnalytics extends Analytics {
         entries.forEach((entry) => {
             this.track({
                 event: 'feature_flag.checked_aggregated',
+                anonymousId: LightdashAnalytics.anonymousId,
                 properties: {
                     ...entry,
                     processType,
