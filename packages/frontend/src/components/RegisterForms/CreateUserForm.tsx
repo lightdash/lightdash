@@ -91,7 +91,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                     Sign up
                 </Button>
                 <Text mx="auto" c="ldGray.7" ta="center" fz="sm" fw={500}>
-                    Already Registered?{' '}
+                    Already have an account?{' '}
                     <Anchor href="/signin" fz="sm" fw={500}>
                         Sign in
                     </Anchor>

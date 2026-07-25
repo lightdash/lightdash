@@ -158,7 +158,7 @@ const Register: FC = () => {
                 </Box>
                 <Card p="xl" radius="xs" withBorder shadow="xs">
                     <Title order={3} ta="center" mb="md">
-                        Sign up
+                        Welcome to Lightdash
                     </Title>
                     {logins}
                 </Card>

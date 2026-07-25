@@ -304,7 +304,7 @@ const Login: FC<{}> = () => {
             </Box>
             <Card id={LOGIN_PAGE_ID} p="xl" radius="xs" withBorder shadow="xs">
                 <Title order={3} ta="center" mb="md">
-                    Sign in
+                    Welcome back
                 </Title>
                 <form
                     name="login"
@@ -446,12 +446,12 @@ const Login: FC<{}> = () => {
                             </>
                         )}
                         <Text mx="auto" mt="md" fz="sm">
-                            Don't have an account?{' '}
+                            New to Lightdash?{' '}
                             <Anchor
                                 href={health.data?.signupUrl || '/register'}
                                 fz="sm"
                             >
-                                Sign up
+                                Create an account
                             </Anchor>
                         </Text>
                     </Stack>
