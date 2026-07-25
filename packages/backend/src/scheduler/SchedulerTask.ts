@@ -551,8 +551,21 @@ export default class SchedulerTask {
 
             const queryParams = new URLSearchParams();
             if (schedulerUuid) queryParams.set('schedulerUuid', schedulerUuid);
-            if (selectedTabs)
-                queryParams.set('selectedTabs', JSON.stringify(selectedTabs));
+            // When no tabs are explicitly selected ("Include all tabs"), forward
+            // every tab UUID present on the dashboard plus `null` for orphan
+            // tiles so the frontend aggregates all tabs into one render instead
+            // of falling back to the active (first) tab only. Mirrors
+            // UnfurlService.exportDashboard.
+            const selectedTabsList: (string | null)[] =
+                selectedTabs ??
+                Array.from(
+                    new Set(dashboard.tiles.map((tile) => tile.tabUuid ?? null)),
+                );
+            if (selectedTabsList.length > 0)
+                queryParams.set(
+                    'selectedTabs',
+                    JSON.stringify(selectedTabsList),
+                );
             if (context) queryParams.set('context', context);
 
             return {
