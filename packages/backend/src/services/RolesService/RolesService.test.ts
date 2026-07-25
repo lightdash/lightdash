@@ -905,6 +905,7 @@ describe('RolesService', () => {
                 firstName: 'Target',
                 lastName: 'User',
                 role: OrganizationMemberRole.MEMBER,
+                organizationUuid,
             });
             mockRolesModel.getOrganizationAdmins.mockResolvedValue([
                 'admin-uuid-1',
@@ -1073,6 +1074,182 @@ describe('RolesService', () => {
                         { roleId: mockCustomRoleWithScopes.roleUuid },
                     ),
                 ).rejects.toThrow(ParameterError);
+            });
+
+            it('should reject custom roles belonging to another organization', async () => {
+                mockRolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+                    ...mockCustomRoleWithScopes,
+                    level: 'project',
+                    organizationUuid: 'another-org-uuid',
+                    scopes: ['view:Dashboard'],
+                });
+
+                await expect(
+                    service.upsertProjectUserRoleAssignment(
+                        mockAccount,
+                        projectUuid,
+                        userUuid,
+                        { roleId: mockCustomRoleWithScopes.roleUuid },
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                expect(
+                    mockRolesModel.upsertCustomRoleProjectAccess,
+                ).not.toHaveBeenCalled();
+            });
+
+            it('should reject assigning a user from another organization', async () => {
+                mockUserModel.getUserDetailsByUuid.mockResolvedValue({
+                    userUuid,
+                    firstName: 'Target',
+                    lastName: 'User',
+                    role: OrganizationMemberRole.MEMBER,
+                    organizationUuid: 'another-org-uuid',
+                });
+
+                await expect(
+                    service.upsertProjectUserRoleAssignment(
+                        mockAccount,
+                        projectUuid,
+                        userUuid,
+                        { roleId: ProjectMemberRole.ADMIN },
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                expect(
+                    mockRolesModel.upsertSystemRoleProjectAccess,
+                ).not.toHaveBeenCalled();
+            });
+        });
+
+        describe('upsertProjectGroupRoleAssignment', () => {
+            const groupUuid = 'test-group-uuid';
+
+            beforeEach(() => {
+                mockGroupsModel.getGroup.mockResolvedValue({
+                    uuid: groupUuid,
+                    name: 'Test Group',
+                    organizationUuid,
+                });
+            });
+
+            it('should assign a system role to a group in the same organization', async () => {
+                await service.upsertProjectGroupRoleAssignment(
+                    mockAccount,
+                    projectUuid,
+                    groupUuid,
+                    { roleId: ProjectMemberRole.VIEWER },
+                );
+
+                expect(
+                    mockRolesModel.upsertSystemRoleGroupAccess,
+                ).toHaveBeenCalledWith(
+                    groupUuid,
+                    projectUuid,
+                    ProjectMemberRole.VIEWER,
+                );
+            });
+
+            it('should reject groups belonging to another organization', async () => {
+                mockGroupsModel.getGroup.mockResolvedValue({
+                    uuid: groupUuid,
+                    name: 'Foreign Group',
+                    organizationUuid: 'another-org-uuid',
+                });
+
+                await expect(
+                    service.upsertProjectGroupRoleAssignment(
+                        mockAccount,
+                        projectUuid,
+                        groupUuid,
+                        { roleId: ProjectMemberRole.VIEWER },
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                expect(
+                    mockRolesModel.upsertSystemRoleGroupAccess,
+                ).not.toHaveBeenCalled();
+            });
+
+            it('should reject custom roles belonging to another organization', async () => {
+                mockRolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+                    ...mockCustomRoleWithScopes,
+                    level: 'project',
+                    organizationUuid: 'another-org-uuid',
+                    scopes: ['view:Dashboard'],
+                });
+
+                await expect(
+                    service.upsertProjectGroupRoleAssignment(
+                        mockAccount,
+                        projectUuid,
+                        groupUuid,
+                        { roleId: mockCustomRoleWithScopes.roleUuid },
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                expect(
+                    mockRolesModel.upsertCustomRoleGroupAccess,
+                ).not.toHaveBeenCalled();
+            });
+        });
+
+        describe('assignRoleToGroup', () => {
+            const groupUuid = 'test-group-uuid';
+
+            beforeEach(() => {
+                mockRolesModel.getRoleByUuid.mockResolvedValue(mockCustomRole);
+                mockGroupsModel.getGroup.mockResolvedValue({
+                    uuid: groupUuid,
+                    name: 'Test Group',
+                    organizationUuid,
+                });
+            });
+
+            it('should assign a custom role to a group in the same organization', async () => {
+                await service.assignRoleToGroup(
+                    mockAccount,
+                    groupUuid,
+                    mockCustomRole.roleUuid,
+                    projectUuid,
+                );
+
+                expect(mockRolesModel.assignRoleToGroup).toHaveBeenCalledWith(
+                    groupUuid,
+                    mockCustomRole.roleUuid,
+                    projectUuid,
+                );
+            });
+
+            it('should reject groups belonging to another organization', async () => {
+                mockGroupsModel.getGroup.mockResolvedValue({
+                    uuid: groupUuid,
+                    name: 'Foreign Group',
+                    organizationUuid: 'another-org-uuid',
+                });
+
+                await expect(
+                    service.assignRoleToGroup(
+                        mockAccount,
+                        groupUuid,
+                        mockCustomRole.roleUuid,
+                        projectUuid,
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                expect(mockRolesModel.assignRoleToGroup).not.toHaveBeenCalled();
+            });
+
+            it('should reject roles from a different organization than the project', async () => {
+                mockProjectModel.getSummary.mockResolvedValue({
+                    projectUuid,
+                    organizationUuid: 'another-org-uuid',
+                });
+
+                await expect(
+                    service.assignRoleToGroup(
+                        mockAccount,
+                        groupUuid,
+                        mockCustomRole.roleUuid,
+                        projectUuid,
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                expect(mockRolesModel.assignRoleToGroup).not.toHaveBeenCalled();
             });
         });
     });
