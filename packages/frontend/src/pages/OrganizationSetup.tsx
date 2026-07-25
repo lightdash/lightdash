@@ -136,7 +136,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                     ? inferOrganizationName(emailDomain)
                     : '',
             jobTitle: '',
-            enableEmailDomainAccess: canEnableEmailDomainAccess,
+            enableEmailDomainAccess: false,
             isMarketingOptedIn: true,
             isTrackingAnonymized: false,
             selectedColor: DEFAULT_COLOR,
