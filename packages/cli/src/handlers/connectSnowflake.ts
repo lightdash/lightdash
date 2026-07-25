@@ -509,7 +509,3 @@ export const connectSnowflakeHandler = async (
         throw error;
     }
 };
-
-export const connectSnowflakeTestHelpers = {
-    resolveConnectionValues,
-};
