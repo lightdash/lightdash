@@ -10,6 +10,16 @@ import {
 } from '../../database/entities/featureFlags';
 import Logger from '../../logging/logger';
 import { FeatureFlagModel } from './FeatureFlagModel';
+import { record } from './flagCheckAggregator';
+
+vi.mock('./flagCheckAggregator', async (importOriginal) => {
+    const original =
+        await importOriginal<typeof import('./flagCheckAggregator')>();
+    return {
+        ...original,
+        record: vi.fn<typeof original.record>(),
+    };
+});
 
 // Minimal stub — tests below don't exercise the database layer
 const databaseStub = {} as Knex;
@@ -86,6 +96,49 @@ const buildFakeDatabase = (rows: FakeRows): Knex => {
 };
 
 describe('FeatureFlagModel', () => {
+    describe('check telemetry', () => {
+        beforeEach(() => {
+            vi.mocked(record).mockReset();
+        });
+
+        it('records the resolved value and organization', async () => {
+            const model = buildModel({
+                enabledFeatureFlags: new Set(['telemetry-flag']),
+            });
+
+            await expect(
+                model.get({
+                    featureFlagId: 'telemetry-flag',
+                    user: {
+                        userUuid: VALID_USER_UUID,
+                        organizationUuid: 'org-uuid',
+                    },
+                }),
+            ).resolves.toEqual({ id: 'telemetry-flag', enabled: true });
+
+            expect(vi.mocked(record)).toHaveBeenCalledWith(
+                'telemetry-flag',
+                'org-uuid',
+                true,
+            );
+        });
+
+        it('does not break resolution when recording throws', async () => {
+            vi.mocked(record).mockImplementationOnce(() => {
+                throw new Error('telemetry failure');
+            });
+            const model = buildModel({
+                disabledFeatureFlags: new Set(['telemetry-flag']),
+            });
+
+            await expect(
+                model.get({
+                    featureFlagId: 'telemetry-flag',
+                }),
+            ).resolves.toEqual({ id: 'telemetry-flag', enabled: false });
+        });
+    });
+
     describe('env var override', () => {
         it('returns enabled for any flag listed in LIGHTDASH_ENABLE_FEATURE_FLAGS', async () => {
             const model = buildModel({

@@ -18,6 +18,7 @@ import {
 import { setGithubRateLimitObserver } from './clients/github/Github';
 import { LightdashConfig } from './config/parseConfig';
 import Logger from './logging/logger';
+import { flush as flushFeatureFlagChecks } from './models/FeatureFlagModel/flagCheckAggregator';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import {
     initOtelHttpMetrics,
@@ -46,6 +47,8 @@ import {
 } from './tracing/tracing';
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
+
+const FEATURE_FLAG_CHECK_FLUSH_INTERVAL_MS = 15 * 60 * 1000;
 
 type SchedulerAppArguments = {
     lightdashConfig: LightdashConfig;
@@ -139,6 +142,8 @@ export default class SchedulerApp {
 
     private readonly analyticsEventEmitter: EventEmitter;
 
+    private featureFlagCheckFlushInterval: NodeJS.Timeout | undefined;
+
     constructor(args: SchedulerAppArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.port = args.port;
@@ -216,6 +221,14 @@ export default class SchedulerApp {
     }
 
     public async start() {
+        this.featureFlagCheckFlushInterval = setInterval(() => {
+            this.analytics.trackFeatureFlagChecks(
+                flushFeatureFlagChecks(),
+                'scheduler',
+            );
+        }, FEATURE_FLAG_CHECK_FLUSH_INTERVAL_MS);
+        this.featureFlagCheckFlushInterval.unref();
+
         registerOAuthRefreshStrategies();
 
         this.prometheusMetrics.start();
@@ -315,6 +328,14 @@ export default class SchedulerApp {
                 Logger.info('Shutting down gracefully');
             },
             onSignal: async () => {
+                if (this.featureFlagCheckFlushInterval) {
+                    clearInterval(this.featureFlagCheckFlushInterval);
+                    this.featureFlagCheckFlushInterval = undefined;
+                }
+                this.analytics.trackFeatureFlagChecks(
+                    flushFeatureFlagChecks(),
+                    'scheduler',
+                );
                 if (this.eventStreamWriter) {
                     Logger.info('Flushing usage event stream writer');
                     await this.eventStreamWriter.close();
