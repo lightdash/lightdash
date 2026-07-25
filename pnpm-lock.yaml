@@ -900,9 +900,6 @@ importers:
       echarts:
         specifier: 5.6.0
         version: 5.6.0
-      fast-json-patch:
-        specifier: 3.1.1
-        version: 3.1.1
       handlebars:
         specifier: 4.7.9
         version: 4.7.9
@@ -1814,9 +1811,6 @@ importers:
       big.js:
         specifier: 6.1.1
         version: 6.1.1
-      lodash:
-        specifier: 4.18.1
-        version: 4.18.1
       node-fetch:
         specifier: 2.7.0
         version: 2.7.0(encoding@0.1.13)
