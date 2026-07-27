@@ -1,3 +1,15 @@
+# [0.3487.0](https://github.com/lightdash/lightdash/compare/0.3486.1...0.3487.0) (2026-07-27)
+
+
+### Bug Fixes
+
+* **filters:** hide stale date value on 'is null' / 'is not null' badges ([#26216](https://github.com/lightdash/lightdash/issues/26216)) ([73be2a7](https://github.com/lightdash/lightdash/commit/73be2a7483f4a1711b0715bd6e2d492998059a4e)), closes [/linear.app/lightdash/issue/PROD-9195/filters-date-filter-badge-shows-stale-date-value-when-operator-is-is#agent-session-999a5712](https://github.com//linear.app/lightdash/issue/PROD-9195/filters-date-filter-badge-shows-stale-date-value-when-operator-is-is/issues/agent-session-999a5712)
+
+
+### Features
+
+* **query-sdk:** unified SDK capability manifest reported to the host ([#26038](https://github.com/lightdash/lightdash/issues/26038)) ([10e18af](https://github.com/lightdash/lightdash/commit/10e18afdc34bb1dd6c06f94f7bfc408c24008d4c))
+
 ## [0.3486.1](https://github.com/lightdash/lightdash/compare/0.3486.0...0.3486.1) (2026-07-27)
 
 
