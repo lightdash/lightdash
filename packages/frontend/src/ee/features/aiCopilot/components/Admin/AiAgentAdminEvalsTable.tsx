@@ -2,16 +2,13 @@ import {
     type AiAgentAdminEvalFilters,
     type AiAgentAdminEvalSummary,
     type AiAgentAdminSortField,
-    type AiAgentEvaluationRunSummary,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Badge,
     Box,
     Button,
     Divider,
     Group,
-    Loader,
     Stack,
     Text,
     Tooltip,
@@ -22,27 +19,21 @@ import {
     IconArrowsSort,
     IconArrowUp,
     IconBox,
-    IconChevronDown,
-    IconChevronRight,
     IconClock,
-    IconCornerDownRight,
     IconHistory,
     IconMessages,
     IconRobotFace,
     IconTextCaption,
     IconTrash,
 } from '@tabler/icons-react';
-import { useQueries } from '@tanstack/react-query';
 import {
     useCallback,
     useDeferredValue,
     useEffect,
     useMemo,
     useRef,
-    useState,
     type UIEvent,
 } from 'react';
-import { useNavigate } from 'react-router';
 import {
     ContentTable,
     useContentTable,
@@ -52,56 +43,24 @@ import {
 } from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
-import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import { useInfiniteAiAgentAdminEvals } from '../../hooks/useAiAgentAdmin';
 import { useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
-import { getEvaluationRuns } from '../../hooks/useAiAgentEvaluations';
 import { AgentNamePill } from '../AgentNamePill';
-import { statusConfig } from '../Evals/utils';
 import AgentsFilter from './AgentsFilter';
+import { RunStatusBadge, TimeAgo } from './EvalRunStatus';
 import ProjectsFilter from './ProjectsFilter';
 import { SearchFilter } from './SearchFilter';
 
-const LATEST_RUNS_COUNT = 3;
-
-type AdminEvalTableRow =
-    | { type: 'eval'; key: string; eval: AiAgentAdminEvalSummary }
-    | {
-          type: 'run';
-          key: string;
-          eval: AiAgentAdminEvalSummary;
-          run: AiAgentEvaluationRunSummary;
-      }
-    | { type: 'runs-loading'; key: string; eval: AiAgentAdminEvalSummary }
-    | { type: 'runs-empty'; key: string; eval: AiAgentAdminEvalSummary };
-
-const getEvalUrl = (evalSummary: AiAgentAdminEvalSummary) =>
-    `/projects/${evalSummary.project.uuid}/ai-agents/${evalSummary.agent.uuid}/edit/evals/${evalSummary.evalUuid}`;
-
-const RunStatusBadge = ({
-    status,
-}: {
-    status: AiAgentEvaluationRunSummary['status'];
-}) => (
-    <Badge variant="light" color={statusConfig[status].color}>
-        {statusConfig[status].label}
-    </Badge>
-);
-
-const TimeAgo = ({ date, fz, c }: { date: Date; fz: string; c: string }) => {
-    const timeAgo = useTimeAgo(date);
-    return (
-        <Tooltip withinPortal label={new Date(date).toLocaleString()}>
-            <Text fz={fz} c={c} truncate>
-                {timeAgo}
-            </Text>
-        </Tooltip>
-    );
+type AiAgentAdminEvalsTableProps = {
+    selectedEval: AiAgentAdminEvalSummary | null;
+    onEvalSelect: (evalSummary: AiAgentAdminEvalSummary) => void;
 };
 
-const AiAgentAdminEvalsTable = () => {
+const AiAgentAdminEvalsTable = ({
+    selectedEval,
+    onEvalSelect,
+}: AiAgentAdminEvalsTableProps) => {
     const theme = useMantineTheme();
-    const navigate = useNavigate();
 
     const {
         search,
@@ -185,117 +144,6 @@ const AiAgentAdminEvalsTable = () => {
         return lastPage.pagination?.totalResults ?? 0;
     }, [data]);
 
-    const [expandedEvalUuids, setExpandedEvalUuids] = useState<
-        ReadonlySet<string>
-    >(new Set());
-
-    const toggleExpanded = useCallback((evalUuid: string) => {
-        setExpandedEvalUuids((previous) => {
-            const next = new Set(previous);
-            if (next.has(evalUuid)) {
-                next.delete(evalUuid);
-            } else {
-                next.add(evalUuid);
-            }
-            return next;
-        });
-    }, []);
-
-    const expandedEvals = useMemo(
-        () => flatData.filter((e) => expandedEvalUuids.has(e.evalUuid)),
-        [flatData, expandedEvalUuids],
-    );
-
-    const runQueries = useQueries({
-        queries: expandedEvals.map((evalSummary) => ({
-            queryKey: ['ai-agent-admin-eval-runs', evalSummary.evalUuid],
-            queryFn: () =>
-                getEvaluationRuns(
-                    evalSummary.project.uuid,
-                    evalSummary.agent.uuid,
-                    evalSummary.evalUuid,
-                ),
-            staleTime: 30 * 1000,
-        })),
-    });
-
-    // useQueries returns a fresh array every render, but the table needs a
-    // reference-stable data array (unstable data makes the table reset internal
-    // state each render, looping into "maximum update depth exceeded"). The
-    // individual query `data` objects ARE stable, so cache the map and only
-    // swap the reference when an entry actually changes.
-    const runsDataByEvalUuidRef = useRef<
-        ReadonlyMap<string, Awaited<ReturnType<typeof getEvaluationRuns>>>
-    >(new Map());
-    const nextRunsData = new Map(
-        expandedEvals.flatMap((evalSummary, index) => {
-            const runsData = runQueries[index]?.data;
-            return runsData ? [[evalSummary.evalUuid, runsData] as const] : [];
-        }),
-    );
-    const previousRunsData = runsDataByEvalUuidRef.current;
-    if (
-        nextRunsData.size !== previousRunsData.size ||
-        [...nextRunsData].some(
-            ([evalUuid, runsData]) =>
-                previousRunsData.get(evalUuid) !== runsData,
-        )
-    ) {
-        runsDataByEvalUuidRef.current = nextRunsData;
-    }
-    const runsDataByEvalUuid = runsDataByEvalUuidRef.current;
-
-    const tableRows = useMemo<AdminEvalTableRow[]>(
-        () =>
-            flatData.flatMap((evalSummary): AdminEvalTableRow[] => {
-                const evalRow: AdminEvalTableRow = {
-                    type: 'eval',
-                    key: evalSummary.evalUuid,
-                    eval: evalSummary,
-                };
-                if (!expandedEvalUuids.has(evalSummary.evalUuid)) {
-                    return [evalRow];
-                }
-                const runsData = runsDataByEvalUuid.get(evalSummary.evalUuid);
-                if (!runsData) {
-                    return [
-                        evalRow,
-                        {
-                            type: 'runs-loading',
-                            key: `${evalSummary.evalUuid}-loading`,
-                            eval: evalSummary,
-                        },
-                    ];
-                }
-                const latestRuns = runsData.data.runs.slice(
-                    0,
-                    LATEST_RUNS_COUNT,
-                );
-                if (latestRuns.length === 0) {
-                    return [
-                        evalRow,
-                        {
-                            type: 'runs-empty',
-                            key: `${evalSummary.evalUuid}-empty`,
-                            eval: evalSummary,
-                        },
-                    ];
-                }
-                return [
-                    evalRow,
-                    ...latestRuns.map(
-                        (run): AdminEvalTableRow => ({
-                            type: 'run',
-                            key: run.runUuid,
-                            eval: evalSummary,
-                            run,
-                        }),
-                    ),
-                ];
-            }),
-        [flatData, expandedEvalUuids, runsDataByEvalUuid],
-    );
-
     const fetchMoreOnBottomReached = useCallback(
         (containerRefElement?: HTMLDivElement | null) => {
             if (containerRefElement) {
@@ -317,7 +165,7 @@ const AiAgentAdminEvalsTable = () => {
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
 
-    const columns: ContentTableColumnDef<AdminEvalTableRow>[] = [
+    const columns: ContentTableColumnDef<AiAgentAdminEvalSummary>[] = [
         {
             accessorKey: 'title',
             header: 'Eval',
@@ -332,93 +180,31 @@ const AiAgentAdminEvalsTable = () => {
             ),
             Cell: ({ row }) => {
                 const isTruncated = useIsTruncated<HTMLDivElement>();
-                const tableRow = row.original;
-
-                if (tableRow.type === 'runs-loading') {
-                    return (
-                        <Group gap="xs" pl="3xl">
-                            <Loader size="xs" color="violet" />
-                            <Text fz="sm" c="ldGray.6">
-                                Loading runs...
-                            </Text>
-                        </Group>
-                    );
-                }
-                if (tableRow.type === 'runs-empty') {
-                    return (
-                        <Text fz="sm" c="ldGray.6" pl="3xl">
-                            No runs yet
-                        </Text>
-                    );
-                }
-                if (tableRow.type === 'run') {
-                    return (
-                        <Group gap="xs" pl="xl" wrap="nowrap">
-                            <MantineIcon
-                                icon={IconCornerDownRight}
-                                color="ldGray.5"
-                            />
-                            <Text fz="sm" fw={500} c="ldGray.8">
-                                Run
-                            </Text>
-                            <TimeAgo
-                                date={tableRow.run.createdAt}
-                                fz="xs"
-                                c="ldGray.6"
-                            />
-                        </Group>
-                    );
-                }
-
-                const isExpanded = expandedEvalUuids.has(
-                    tableRow.eval.evalUuid,
-                );
+                const evalSummary = row.original;
                 return (
-                    <Group gap="xs" wrap="nowrap">
-                        <ActionIcon
-                            variant="subtle"
-                            color="ldGray.7"
-                            size="sm"
-                            aria-label={
-                                isExpanded ? 'Collapse runs' : 'Expand runs'
-                            }
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                toggleExpanded(tableRow.eval.evalUuid);
-                            }}
+                    <Stack gap={0} miw={0}>
+                        <Tooltip
+                            withinPortal
+                            label={evalSummary.title}
+                            disabled={!isTruncated.isTruncated}
+                            multiline
+                            maw={300}
                         >
-                            <MantineIcon
-                                icon={
-                                    isExpanded
-                                        ? IconChevronDown
-                                        : IconChevronRight
-                                }
-                            />
-                        </ActionIcon>
-                        <Stack gap={0} miw={0}>
-                            <Tooltip
-                                withinPortal
-                                label={tableRow.eval.title}
-                                disabled={!isTruncated.isTruncated}
-                                multiline
-                                maw={300}
+                            <Text
+                                fw={500}
+                                fz="sm"
+                                truncate
+                                ref={isTruncated.ref}
                             >
-                                <Text
-                                    fw={500}
-                                    fz="sm"
-                                    truncate
-                                    ref={isTruncated.ref}
-                                >
-                                    {tableRow.eval.title}
-                                </Text>
-                            </Tooltip>
-                            {tableRow.eval.description && (
-                                <Text fz="xs" c="ldGray.6" truncate>
-                                    {tableRow.eval.description}
-                                </Text>
-                            )}
-                        </Stack>
-                    </Group>
+                                {evalSummary.title}
+                            </Text>
+                        </Tooltip>
+                        {evalSummary.description && (
+                            <Text fz="xs" c="ldGray.6" truncate>
+                                {evalSummary.description}
+                            </Text>
+                        )}
+                    </Stack>
                 );
             },
         },
@@ -434,16 +220,12 @@ const AiAgentAdminEvalsTable = () => {
                     {column.columnDef.header}
                 </Group>
             ),
-            Cell: ({ row }) => {
-                const tableRow = row.original;
-                if (tableRow.type !== 'eval') return null;
-                return (
-                    <AgentNamePill
-                        name={tableRow.eval.agent.name}
-                        imageUrl={tableRow.eval.agent.imageUrl}
-                    />
-                );
-            },
+            Cell: ({ row }) => (
+                <AgentNamePill
+                    name={row.original.agent.name}
+                    imageUrl={row.original.agent.imageUrl}
+                />
+            ),
         },
         {
             accessorKey: 'project',
@@ -457,15 +239,11 @@ const AiAgentAdminEvalsTable = () => {
                     {column.columnDef.header}
                 </Group>
             ),
-            Cell: ({ row }) => {
-                const tableRow = row.original;
-                if (tableRow.type !== 'eval') return null;
-                return (
-                    <Text c="ldGray.9" fz="sm" fw={400}>
-                        {tableRow.eval.project.name}
-                    </Text>
-                );
-            },
+            Cell: ({ row }) => (
+                <Text c="ldGray.9" fz="sm" fw={400}>
+                    {row.original.project.name}
+                </Text>
+            ),
         },
         {
             accessorKey: 'promptCount',
@@ -479,13 +257,9 @@ const AiAgentAdminEvalsTable = () => {
                     {column.columnDef.header}
                 </Group>
             ),
-            Cell: ({ row }) => {
-                const tableRow = row.original;
-                if (tableRow.type !== 'eval') return null;
-                return (
-                    <Badge variant="default">{tableRow.eval.promptCount}</Badge>
-                );
-            },
+            Cell: ({ row }) => (
+                <Badge variant="default">{row.original.promptCount}</Badge>
+            ),
         },
         {
             accessorKey: 'latestRun',
@@ -500,25 +274,7 @@ const AiAgentAdminEvalsTable = () => {
                 </Group>
             ),
             Cell: ({ row }) => {
-                const tableRow = row.original;
-                if (tableRow.type === 'run') {
-                    const { run } = tableRow;
-                    const totalAssessments =
-                        run.passedAssessments + run.failedAssessments;
-                    return (
-                        <Group gap="xs" wrap="nowrap">
-                            <RunStatusBadge status={run.status} />
-                            {totalAssessments > 0 && (
-                                <Text fz="xs" c="ldGray.7">
-                                    {run.passedAssessments}/{totalAssessments}{' '}
-                                    passed
-                                </Text>
-                            )}
-                        </Group>
-                    );
-                }
-                if (tableRow.type !== 'eval') return null;
-                const { latestRun } = tableRow.eval;
+                const { latestRun } = row.original;
                 if (!latestRun) {
                     return (
                         <Text fz="xs" c="ldGray.5" fw={500}>
@@ -550,22 +306,18 @@ const AiAgentAdminEvalsTable = () => {
                     {column.columnDef.header}
                 </Group>
             ),
-            Cell: ({ row }) => {
-                const tableRow = row.original;
-                if (tableRow.type !== 'eval') return null;
-                return (
-                    <Text fz="sm" c="ldGray.7">
-                        {new Date(tableRow.eval.createdAt).toLocaleDateString()}
-                    </Text>
-                );
-            },
+            Cell: ({ row }) => (
+                <Text fz="sm" c="ldGray.7">
+                    {new Date(row.original.createdAt).toLocaleDateString()}
+                </Text>
+            ),
         },
     ];
 
     const table = useContentTable({
         columns,
-        data: tableRows,
-        getRowId: (row) => row.key,
+        data: flatData,
+        getRowId: (row) => row.evalUuid,
         enableColumnResizing: false,
         enableRowNumbers: false,
         enableRowVirtualization: true,
@@ -624,44 +376,27 @@ const AiAgentAdminEvalsTable = () => {
                 return {};
             }
 
-            const tableRow = row.original;
-            const isNavigable =
-                tableRow.type === 'eval' || tableRow.type === 'run';
+            const evalSummary = row.original;
+            const isSelected = selectedEval?.evalUuid === evalSummary.evalUuid;
 
             return {
                 style: {
-                    cursor: isNavigable ? 'pointer' : undefined,
-                    backgroundColor:
-                        tableRow.type !== 'eval'
-                            ? theme.colors.ldGray[0]
-                            : undefined,
+                    cursor: 'pointer',
+                    backgroundColor: isSelected
+                        ? theme.colors.ldGray[1]
+                        : undefined,
                 },
-                onClick: () => {
-                    if (tableRow.type === 'eval') {
-                        void navigate(getEvalUrl(tableRow.eval));
-                    } else if (tableRow.type === 'run') {
-                        void navigate(
-                            `${getEvalUrl(tableRow.eval)}/run/${
-                                tableRow.run.runUuid
-                            }`,
-                        );
-                    }
-                },
+                onClick: () => onEvalSelect(evalSummary),
             };
         },
-        mantineTableBodyCellProps: ({ row }) => {
-            const isEvalRow = row.original.type === 'eval';
-            return {
-                style: {
-                    padding: isEvalRow
-                        ? `${theme.spacing.sm} ${theme.spacing.md}`
-                        : `${theme.spacing.xs} ${theme.spacing.md}`,
-                    borderRight: 'none',
-                    borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderTop: 'none',
-                },
-            };
+        mantineTableBodyCellProps: {
+            style: {
+                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                borderRight: 'none',
+                borderLeft: 'none',
+                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
+                borderTop: 'none',
+            },
         },
         renderTopToolbar: () => (
             <Box>

@@ -2,6 +2,7 @@ import {
     AgentToolOutput,
     AiAgentAdminConversationsSummary,
     AiAgentAdminEvalFilters,
+    AiAgentAdminEvalPrompt,
     AiAgentAdminEvalsSummary,
     AiAgentAdminEvalSummary,
     AiAgentAdminFilters,
@@ -3466,6 +3467,69 @@ export class AiAgentModel {
                 evals,
             },
             pagination,
+        };
+    }
+
+    async findAdminEvalPrompts({
+        organizationUuid,
+        evalUuid,
+    }: {
+        organizationUuid: string;
+        evalUuid: string;
+    }): Promise<{
+        projectUuid: string;
+        prompts: AiAgentAdminEvalPrompt[];
+    } | null> {
+        const evalRecord = await this.database(AiEvalTableName)
+            .join(
+                AiAgentTableName,
+                `${AiEvalTableName}.agent_uuid`,
+                `${AiAgentTableName}.ai_agent_uuid`,
+            )
+            .where(`${AiEvalTableName}.ai_eval_uuid`, evalUuid)
+            .where(`${AiAgentTableName}.organization_uuid`, organizationUuid)
+            .select<{ project_uuid: string }[]>(
+                `${AiAgentTableName}.project_uuid`,
+            )
+            .first();
+
+        if (!evalRecord) return null;
+
+        const prompts = await this.database(AiEvalPromptTableName)
+            .leftJoin(
+                AiPromptTableName,
+                `${AiEvalPromptTableName}.ai_prompt_uuid`,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+            )
+            .where(`${AiEvalPromptTableName}.ai_eval_uuid`, evalUuid)
+            .orderBy(`${AiEvalPromptTableName}.created_at`, 'asc')
+            .select<
+                {
+                    ai_eval_prompt_uuid: string;
+                    prompt: string | null;
+                    expected_response: string | null;
+                    ai_thread_uuid: string | null;
+                    created_at: Date;
+                }[]
+            >([
+                `${AiEvalPromptTableName}.ai_eval_prompt_uuid`,
+                this.database.raw(
+                    `COALESCE(${AiEvalPromptTableName}.prompt, ${AiPromptTableName}.prompt) as prompt`,
+                ),
+                `${AiEvalPromptTableName}.expected_response`,
+                `${AiEvalPromptTableName}.ai_thread_uuid`,
+                `${AiEvalPromptTableName}.created_at`,
+            ]);
+
+        return {
+            projectUuid: evalRecord.project_uuid,
+            prompts: prompts.map((row) => ({
+                evalPromptUuid: row.ai_eval_prompt_uuid,
+                prompt: row.prompt,
+                expectedResponse: row.expected_response,
+                threadUuid: row.ai_thread_uuid,
+                createdAt: row.created_at,
+            })),
         };
     }
 

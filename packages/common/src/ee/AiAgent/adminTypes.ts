@@ -98,6 +98,20 @@ export type ApiAiAgentAdminEvalsResponse = ApiSuccess<
     KnexPaginatedData<AiAgentAdminEvalsSummary>
 >;
 
+export type AiAgentAdminEvalPrompt = {
+    evalPromptUuid: string;
+    // Text of the prompt; for thread-referenced prompts this is the original
+    // user prompt, null only if the referenced prompt was deleted
+    prompt: string | null;
+    expectedResponse: string | null;
+    threadUuid: string | null;
+    createdAt: Date;
+};
+
+export type ApiAiAgentAdminEvalPromptsResponse = ApiSuccess<{
+    prompts: AiAgentAdminEvalPrompt[];
+}>;
+
 export type AiAgentAdminMemoryFilters = {
     projectUuids?: string[];
     userUuids?: string[];

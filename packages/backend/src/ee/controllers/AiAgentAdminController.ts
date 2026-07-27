@@ -7,6 +7,7 @@ import {
     AiAgentReviewItemStatus,
     AiAgentReviewReplayCaptureRequest,
     ApiAiAgentAdminConversationsResponse,
+    ApiAiAgentAdminEvalPromptsResponse,
     ApiAiAgentAdminEvalsResponse,
     ApiAiAgentAdminMemoriesResponse,
     ApiAiAgentAdminPromptActivityResponse,
@@ -39,6 +40,7 @@ import {
     UpdateAiOrganizationSettings,
     UpdateAiReviewNotificationSettings,
     type ApiAiAgentReviewItemWritebackPreviewResponse,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -214,6 +216,31 @@ export class AiAgentAdminController extends BaseController {
             paginateArgs,
             filters,
             sort,
+        );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get the prompts of an AI agent evaluation for admin
+     * @summary List AI agent evaluation prompts
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/evals/{evalUuid}/prompts')
+    @OperationId('getAdminEvalPrompts')
+    async getAdminEvalPrompts(
+        @Request() req: express.Request,
+        @Path() evalUuid: UUID,
+    ): Promise<ApiAiAgentAdminEvalPromptsResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.getAiAgentAdminService().getEvalPrompts(
+            toSessionUser(req.account),
+            evalUuid,
         );
 
         this.setStatus(200);

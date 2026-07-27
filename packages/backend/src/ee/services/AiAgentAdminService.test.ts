@@ -655,6 +655,82 @@ describe('AiAgentAdminService.getAllEvals', () => {
     });
 });
 
+describe('AiAgentAdminService.getEvalPrompts', () => {
+    const projectModel = {
+        getAllByOrganizationUuid: vi
+            .fn()
+            .mockResolvedValue([
+                { projectUuid: PROJECT_UUID },
+                { projectUuid: OTHER_PROJECT_UUID },
+            ]),
+    };
+
+    it('rejects principals without manage access to any project', async () => {
+        const service = makeService();
+
+        await expect(
+            service.getEvalPrompts(makeOrgViewerUser(), 'eval-1'),
+        ).rejects.toThrow(
+            'Insufficient permissions to access AI agent features',
+        );
+    });
+
+    it('throws not found when the eval is not in the organization', async () => {
+        const service = makeService({
+            aiAgentModel: {
+                findAdminEvalPrompts: vi.fn().mockResolvedValue(null),
+            },
+        });
+
+        await expect(
+            service.getEvalPrompts(makeAdminUser(), 'eval-1'),
+        ).rejects.toThrow('Evaluation not found');
+    });
+
+    it("forbids a project-scoped user from another project's eval", async () => {
+        const service = makeService({
+            aiAgentModel: {
+                findAdminEvalPrompts: vi.fn().mockResolvedValue({
+                    projectUuid: OTHER_PROJECT_UUID,
+                    prompts: [],
+                }),
+            },
+            projectModel,
+        });
+
+        await expect(
+            service.getEvalPrompts(makeProjectUser(), 'eval-1'),
+        ).rejects.toThrow(
+            'Insufficient permissions to access this AI agent resource',
+        );
+    });
+
+    it('returns prompts for an eval in the principal scope', async () => {
+        const prompts = [
+            {
+                evalPromptUuid: 'prompt-1',
+                prompt: 'What was revenue last month?',
+                expectedResponse: null,
+                threadUuid: null,
+                createdAt: new Date(),
+            },
+        ];
+        const service = makeService({
+            aiAgentModel: {
+                findAdminEvalPrompts: vi.fn().mockResolvedValue({
+                    projectUuid: PROJECT_UUID,
+                    prompts,
+                }),
+            },
+            projectModel,
+        });
+
+        await expect(
+            service.getEvalPrompts(makeProjectUser(), 'eval-1'),
+        ).resolves.toEqual({ prompts });
+    });
+});
+
 describe('AiAgentAdminService.captureReviewReplayInputs', () => {
     it('rejects when the feature flag is disabled', async () => {
         const service = makeService({

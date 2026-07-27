@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AiAgentAdminConversationsSummary,
     AiAgentAdminEvalFilters,
+    AiAgentAdminEvalPrompt,
     AiAgentAdminEvalsSummary,
     AiAgentAdminFilters,
     AiAgentAdminMemoriesSummary,
@@ -604,6 +605,26 @@ export class AiAgentAdminService extends BaseService {
             filters: scopedFilters,
             sort,
         });
+    }
+
+    async getEvalPrompts(
+        user: SessionUser,
+        evalUuid: string,
+    ): Promise<{ prompts: AiAgentAdminEvalPrompt[] }> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        const scope = await this.resolveReadScope(user, organizationUuid);
+        const result = await this.aiAgentModel.findAdminEvalPrompts({
+            organizationUuid,
+            evalUuid,
+        });
+        if (!result) {
+            throw new NotFoundError(`Evaluation not found: ${evalUuid}`);
+        }
+        AiAgentAdminService.assertProjectInScope(scope, result.projectUuid);
+        return { prompts: result.prompts };
     }
 
     async getMcpActivity(

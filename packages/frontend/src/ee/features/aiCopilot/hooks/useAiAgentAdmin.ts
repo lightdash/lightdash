@@ -7,6 +7,7 @@ import {
     type AiAgentReviewItemSummary,
     type AiAgentReviewItemStatus,
     type ApiAiAgentAdminConversationsResponse,
+    type ApiAiAgentAdminEvalPromptsResponse,
     type ApiAiAgentAdminEvalsResponse,
     type ApiAiAgentAdminMemoriesResponse,
     type ApiAiAgentAdminPromptActivityResponse,
@@ -168,6 +169,22 @@ export const useInfiniteAiAgentAdminEvals = (
             }
         },
         ...infinityQueryOpts,
+    });
+
+const getAiAgentAdminEvalPrompts = async (evalUuid: string) =>
+    lightdashApi<ApiAiAgentAdminEvalPromptsResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/evals/${encodeURIComponent(evalUuid)}/prompts`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useAiAgentAdminEvalPrompts = (evalUuid: string | undefined) =>
+    useQuery<ApiAiAgentAdminEvalPromptsResponse['results'], ApiError>({
+        queryKey: ['ai-agent-admin-eval-prompts', evalUuid],
+        queryFn: () => getAiAgentAdminEvalPrompts(evalUuid!),
+        enabled: !!evalUuid,
+        staleTime: 30 * 1000,
     });
 
 export type AiAgentAdminMemoriesArgs = {
