@@ -43,7 +43,7 @@ const queryConfigBaseSchema = z.object({
         .number()
         .nullable()
         .describe(
-            'The total number of data points / rows allowed on the chart. Use null to return as many rows as this tool allows, and prefer null whenever the user asks for "all" of something or does not name a size — null is not "no data", it is the maximum. Only set a number when the user asked for a specific one ("top 10", "5 rows"). Do not carry limits over from other tools: the row limits documented for runSql do not apply here, and this tool has its own maximum.',
+            'The total number of data points / rows allowed on the chart. null means this tool\'s maximum, not "no data" — use it unless the user asked for a specific number of rows. Row limits documented for other tools do not apply here.',
         ),
 });
 

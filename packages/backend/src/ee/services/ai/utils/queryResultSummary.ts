@@ -1,8 +1,4 @@
-/**
- * Tells the model how many rows came back and why, so it never has to infer a
- * reason for the row count. Without this the model sees exactly N rows and
- * invents an explanation — reporting its own chosen limit as a system limit.
- */
+// States the row count and the limit behind it, so the agent never infers one.
 export const getQueryResultSummary = ({
     rowCount,
     requestedLimit,
@@ -12,23 +8,23 @@ export const getQueryResultSummary = ({
     rowCount: number;
     // What the tool call asked for; null means "use the maximum".
     requestedLimit: number | null;
-    // What was actually applied, after null-resolution and clamping.
+    // What was applied, after null-resolution and clamping.
     effectiveLimit: number;
     maxLimit: number;
 }): string => {
     if (rowCount < effectiveLimit) {
-        return `Returned all ${rowCount} rows matching this query. The row limit (${effectiveLimit}) was not reached, so nothing was truncated — do not describe this result as capped or limited.`;
+        return `Returned all ${rowCount} rows matching this query. The row limit of ${effectiveLimit} was not reached and nothing was truncated.`;
     }
 
     const limitSource = (() => {
         if (requestedLimit === null) {
-            return `no limit was requested in this tool call, so the maximum this tool allows (${maxLimit}) was applied`;
+            return `this tool call requested no limit, so this tool's maximum of ${maxLimit} was applied`;
         }
         if (requestedLimit > maxLimit) {
-            return `this tool call requested ${requestedLimit}, which was capped to the maximum this tool allows (${maxLimit})`;
+            return `this tool call requested ${requestedLimit}, capped to this tool's maximum of ${maxLimit}`;
         }
-        return `this tool call requested a limit of ${requestedLimit} — that is the limit chosen for this query, not a system, display, or platform limit`;
+        return `this tool call requested ${requestedLimit}; it is not a system, display, or platform limit`;
     })();
 
-    return `Returned ${rowCount} rows, which matches the row limit of ${effectiveLimit}, so there may be more rows. Reason for the limit: ${limitSource}. If you mention the row count, describe the limit accurately using this information.`;
+    return `Returned ${rowCount} rows, reaching the row limit of ${effectiveLimit}, so more rows may exist. The limit applied because ${limitSource}.`;
 };

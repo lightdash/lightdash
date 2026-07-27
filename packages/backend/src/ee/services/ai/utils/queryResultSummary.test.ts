@@ -24,7 +24,7 @@ describe('getQueryResultSummary', () => {
             maxLimit: 1000,
         });
 
-        expect(summary).toContain('this tool call requested a limit of 500');
+        expect(summary).toContain('this tool call requested 500');
         expect(summary).toContain('not a system, display, or platform limit');
     });
 
@@ -36,8 +36,8 @@ describe('getQueryResultSummary', () => {
             maxLimit: 1000,
         });
 
-        expect(summary).toContain('no limit was requested');
-        expect(summary).toContain('the maximum this tool allows (1000)');
+        expect(summary).toContain('requested no limit');
+        expect(summary).toContain("this tool's maximum of 1000");
     });
 
     it('reports clamping when the request exceeded the maximum', () => {
@@ -49,7 +49,7 @@ describe('getQueryResultSummary', () => {
         });
 
         expect(summary).toContain('requested 5000');
-        expect(summary).toContain('capped to the maximum');
+        expect(summary).toContain("capped to this tool's maximum of 1000");
     });
 
     it('flags that more rows may exist when the limit was reached', () => {
@@ -60,6 +60,6 @@ describe('getQueryResultSummary', () => {
             maxLimit: 1000,
         });
 
-        expect(summary).toContain('there may be more rows');
+        expect(summary).toContain('more rows may exist');
     });
 });
