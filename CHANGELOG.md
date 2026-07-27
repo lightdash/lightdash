@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/lightdash/lightdash/compare/1.1.0...1.1.1) (2026-07-27)
+
+
+### Bug Fixes
+
+* **explorer:** deselect custom dimension from results table instead of deleting it ([#26229](https://github.com/lightdash/lightdash/issues/26229)) ([ce8a838](https://github.com/lightdash/lightdash/commit/ce8a838a1270614d040855455255050f2ae0abe9)), closes [/linear.app/lightdash/issue/PROD-8411/custom-dimensions-remove-in-results-table-column-menu-deletes-the#agent-session-ad0c2a17](https://github.com//linear.app/lightdash/issue/PROD-8411/custom-dimensions-remove-in-results-table-column-menu-deletes-the/issues/agent-session-ad0c2a17)
+
 # [1.1.0](https://github.com/lightdash/lightdash/compare/1.0.0...1.1.0) (2026-07-27)
 
 
