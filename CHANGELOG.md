@@ -1,3 +1,10 @@
+# [0.3477.0](https://github.com/lightdash/lightdash/compare/0.3476.1...0.3477.0) (2026-07-27)
+
+
+### Features
+
+* add project ownership expansion for saved charts ([#25871](https://github.com/lightdash/lightdash/issues/25871)) ([41e2261](https://github.com/lightdash/lightdash/commit/41e22619f40fda96bc71369ac5a35028dfa19930))
+
 ## [0.3476.1](https://github.com/lightdash/lightdash/compare/0.3476.0...0.3476.1) (2026-07-24)
 
 
