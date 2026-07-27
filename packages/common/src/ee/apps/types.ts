@@ -105,11 +105,24 @@ export const getVisibleDataAppClaudeModels = (
     DATA_APP_CLAUDE_MODELS.filter((model) => visibility?.[model] !== false);
 
 /**
+ * Fallback preference when the default model is unavailable. Deliberately NOT
+ * `DATA_APP_CLAUDE_MODELS` order: that list is ordered by capability for
+ * display (Opus first), and reusing it here would promote a request to the
+ * most expensive model when an admin hides Sonnet — turning a cost-control
+ * action into a cost increase. Ordered by ascending cost instead.
+ */
+const DATA_APP_CLAUDE_MODEL_FALLBACK_ORDER: readonly DataAppClaudeModel[] = [
+    'sonnet',
+    'haiku',
+    'opus',
+];
+
+/**
  * The model to use when the caller doesn't specify one. Prefers
- * `DEFAULT_DATA_APP_CLAUDE_MODEL` when it's visible, otherwise falls back to
- * the next visible model (capability order: opus -> sonnet -> haiku) so
- * hiding the system default never leaves nothing selectable. Returns `null`
- * only when every model has been hidden (rejected at write time — see
+ * `DEFAULT_DATA_APP_CLAUDE_MODEL`, then the cheapest remaining visible model,
+ * so hiding the system default never leaves nothing selectable and never
+ * silently upgrades the user to a pricier model. Returns `null` only when
+ * every model has been hidden (rejected at write time — see
  * AiOrganizationSettingsService).
  */
 export const resolveDefaultVisibleDataAppClaudeModel = (
@@ -119,7 +132,11 @@ export const resolveDefaultVisibleDataAppClaudeModel = (
     if (visible.includes(DEFAULT_DATA_APP_CLAUDE_MODEL)) {
         return DEFAULT_DATA_APP_CLAUDE_MODEL;
     }
-    return visible[0] ?? null;
+    return (
+        DATA_APP_CLAUDE_MODEL_FALLBACK_ORDER.find((model) =>
+            visible.includes(model),
+        ) ?? null
+    );
 };
 
 /**

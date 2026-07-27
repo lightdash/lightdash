@@ -224,10 +224,21 @@ describe('resolveDefaultVisibleDataAppClaudeModel', () => {
         expect(resolveDefaultVisibleDataAppClaudeModel(null)).toBe('sonnet');
     });
 
-    it('falls back to the next visible model when the default is hidden', () => {
+    // Hiding Sonnet is the obvious cost-control action; falling back to Opus
+    // (the display-order first entry) would make it a cost increase.
+    it('falls back to the cheaper model, not the pricier one, when the default is hidden', () => {
         expect(resolveDefaultVisibleDataAppClaudeModel({ sonnet: false })).toBe(
-            'opus',
+            'haiku',
         );
+    });
+
+    it('falls back to opus only when it is the sole visible model', () => {
+        expect(
+            resolveDefaultVisibleDataAppClaudeModel({
+                sonnet: false,
+                haiku: false,
+            }),
+        ).toBe('opus');
     });
 
     it('falls back to haiku when only haiku remains visible', () => {

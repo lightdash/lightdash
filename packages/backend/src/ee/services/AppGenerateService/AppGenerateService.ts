@@ -5006,16 +5006,20 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         await this.assertDataAppsEnabled(user);
 
         AppGenerateService.validateImageIds(imageIds);
-        const claudeModel = await this.resolveClaudeModel(
-            user.organizationUuid!,
-            claudeModelInput,
-        );
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
         await this.assertCanManageApp(
             user,
             app,
             'Insufficient permissions to modify data apps',
+        );
+
+        // Resolved after the permission check so an unauthorized caller gets a
+        // 403 rather than a model-visibility error. Scoped to the project's
+        // organization (not the caller's) to match generateApp.
+        const claudeModel = await this.resolveClaudeModel(
+            await this.getProjectOrgUuid(projectUuid),
+            claudeModelInput,
         );
 
         const externalConnectionResources = await this.linkExternalConnections(

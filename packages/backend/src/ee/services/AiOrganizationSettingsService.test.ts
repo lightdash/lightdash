@@ -1,8 +1,11 @@
 import { AiOrganizationSettings } from '@lightdash/common';
+import type { ModelPreset, ModelPresetProvider } from './ai/models/presets';
 import {
     areReviewsEnabledForSettings,
     findUnconfiguredProviderKeyWrites,
+    isModelConfigAvailable,
     maskProviderKeyExposure,
+    pickReplacementDefaultModelConfig,
 } from './AiOrganizationSettingsService';
 
 const settingsWithKeys: AiOrganizationSettings = {
@@ -115,5 +118,125 @@ describe('areReviewsEnabledForSettings', () => {
                 canJudgeOnByoKey: true,
             }),
         ).toBe(true);
+    });
+});
+
+const preset = (
+    name: string,
+    modelId: string,
+    supportsReasoning = true,
+): ModelPreset<ModelPresetProvider> =>
+    ({
+        name,
+        provider: 'anthropic',
+        modelId,
+        displayName: name,
+        description: '',
+        contextWindowTokens: 200000,
+        supportsReasoning,
+        callOptions: {},
+        providerOptions: undefined,
+    }) as ModelPreset<ModelPresetProvider>;
+
+// Mirrors the real presets, where modelId is a dated variant of name.
+const SONNET = preset('claude-sonnet-4-5', 'claude-sonnet-4-5-20250929');
+const HAIKU = preset('claude-haiku-4-5', 'claude-haiku-4-5-20251001');
+const NO_REASONING = preset('claude-legacy', 'claude-legacy', false);
+
+describe('isModelConfigAvailable', () => {
+    it('matches a default stored as the preset name', () => {
+        expect(
+            isModelConfigAvailable(
+                { modelName: 'claude-sonnet-4-5', modelProvider: 'anthropic' },
+                [SONNET, HAIKU],
+            ),
+        ).toBe(true);
+    });
+
+    // An exact-name comparison would miss this and silently wipe the default
+    // on every visibility update.
+    it('matches a default stored as the dated model id', () => {
+        expect(
+            isModelConfigAvailable(
+                {
+                    modelName: 'claude-sonnet-4-5-20250929',
+                    modelProvider: 'anthropic',
+                },
+                [SONNET, HAIKU],
+            ),
+        ).toBe(true);
+    });
+
+    it('does not match once the model is filtered out', () => {
+        expect(
+            isModelConfigAvailable(
+                { modelName: 'claude-sonnet-4-5', modelProvider: 'anthropic' },
+                [HAIKU],
+            ),
+        ).toBe(false);
+    });
+
+    it('does not match the same model name under another provider', () => {
+        expect(
+            isModelConfigAvailable(
+                { modelName: 'claude-sonnet-4-5', modelProvider: 'openai' },
+                [SONNET],
+            ),
+        ).toBe(false);
+    });
+});
+
+describe('pickReplacementDefaultModelConfig', () => {
+    const previous = {
+        modelName: 'claude-sonnet-4-5',
+        modelProvider: 'anthropic',
+        reasoning: true,
+    };
+
+    it('prefers the instance default when it survived the filter', () => {
+        expect(
+            pickReplacementDefaultModelConfig(
+                [SONNET, HAIKU],
+                { name: 'claude-haiku-4-5', provider: 'anthropic' },
+                previous,
+            ),
+        ).toEqual({
+            modelName: 'claude-haiku-4-5',
+            modelProvider: 'anthropic',
+            reasoning: true,
+        });
+    });
+
+    // The whole point of returning a concrete model: visibility filters
+    // listings only, so falling through to the instance default could resolve
+    // to the very model the org just restricted.
+    it('falls back to a remaining model when the instance default was filtered out', () => {
+        expect(
+            pickReplacementDefaultModelConfig(
+                [HAIKU],
+                { name: 'claude-sonnet-4-5', provider: 'anthropic' },
+                previous,
+            ),
+        ).toEqual({
+            modelName: 'claude-haiku-4-5',
+            modelProvider: 'anthropic',
+            reasoning: true,
+        });
+    });
+
+    it('drops the reasoning preference on a model that cannot support it', () => {
+        expect(
+            pickReplacementDefaultModelConfig([NO_REASONING], null, previous),
+        ).toEqual({
+            modelName: 'claude-legacy',
+            modelProvider: 'anthropic',
+            reasoning: undefined,
+        });
+    });
+
+    it('returns null when nothing remains', () => {
+        expect(
+            pickReplacementDefaultModelConfig([], null, previous),
+        ).toBeNull();
     });
 });

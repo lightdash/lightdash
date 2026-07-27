@@ -584,13 +584,24 @@ const Settings: FC = () => {
             });
         }
 
-        if (isAiCopilotEnabledOrTrial && hasAnyAiAgentAccess) {
+        // General is org-wide config (router, org settings, Data Apps model
+        // visibility) — org admins only. Data Apps is flagged independently of
+        // Ask AI, so an org running Data Apps without copilot still needs this
+        // page to reach its model controls.
+        const canReachAiGeneral =
+            canManageOrgAiAgent &&
+            (isAiCopilotEnabledOrTrial || dataAppsFlag?.enabled === true);
+
+        if (
+            (isAiCopilotEnabledOrTrial && hasAnyAiAgentAccess) ||
+            canReachAiGeneral
+        ) {
             allowedRoutes.push({
                 path: '/ai',
                 element: (
                     <Navigate
                         to={
-                            canManageOrgAiAgent
+                            canReachAiGeneral
                                 ? '/generalSettings/ai/general'
                                 : '/generalSettings/ai/threads'
                         }
@@ -598,13 +609,16 @@ const Settings: FC = () => {
                     />
                 ),
             });
-            // General is org-wide config (router, org settings) — org admins only.
-            if (canManageOrgAiAgent) {
-                allowedRoutes.push({
-                    path: '/ai/general',
-                    element: <AiGeneralSettingsPage />,
-                });
-            }
+        }
+
+        if (canReachAiGeneral) {
+            allowedRoutes.push({
+                path: '/ai/general',
+                element: <AiGeneralSettingsPage />,
+            });
+        }
+
+        if (isAiCopilotEnabledOrTrial && hasAnyAiAgentAccess) {
             allowedRoutes.push({
                 path: '/ai/threads',
                 element: (

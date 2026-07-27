@@ -28,9 +28,64 @@ import {
     presetToModelOption,
 } from './ai/models';
 import {
+    matchesPreset,
+    type ModelPreset,
+    type ModelPresetProvider,
+} from './ai/models/presets';
+import {
     OrgAiCopilotConfigResolver,
     type ReviewJudgeAvailability,
 } from './ai/OrgAiCopilotConfigResolver';
+
+type AvailableModelPreset = ModelPreset<ModelPresetProvider>;
+
+/**
+ * Whether a stored model config still resolves to one of the models left
+ * available. Uses `matchesPreset` (preset name OR model id) because a stored
+ * `modelName` may be either form — an exact name comparison silently misses
+ * defaults persisted as dated model ids.
+ */
+export const isModelConfigAvailable = (
+    modelConfig: AiAgentModelConfig,
+    remaining: AvailableModelPreset[],
+): boolean =>
+    remaining.some(
+        (preset) =>
+            preset.provider === modelConfig.modelProvider &&
+            matchesPreset(preset, modelConfig.modelName),
+    );
+
+/**
+ * Pick a replacement org default once the configured one is no longer
+ * available. Prefers the instance default when it survived the visibility
+ * filter, else the first still-available model.
+ *
+ * Returns a concrete model rather than null on purpose: `filterModelsForOrg`
+ * is applied to model LISTINGS only, never when a model is resolved for a
+ * turn, so clearing the default to null would fall through to the instance
+ * default — which may be exactly the model the org's allowlist excluded.
+ */
+export const pickReplacementDefaultModelConfig = (
+    remaining: AvailableModelPreset[],
+    instanceDefault: { name: string; provider: string } | null,
+    previous: AiAgentModelConfig,
+): AiAgentModelConfig | null => {
+    const preset =
+        (instanceDefault
+            ? remaining.find(
+                  (candidate) =>
+                      candidate.provider === instanceDefault.provider &&
+                      matchesPreset(candidate, instanceDefault.name),
+              )
+            : undefined) ?? remaining[0];
+    if (!preset) return null;
+    return {
+        modelName: preset.name,
+        modelProvider: preset.provider,
+        // Only carry the reasoning preference to a model that supports it.
+        reasoning: preset.supportsReasoning ? previous.reasoning : undefined,
+    };
+};
 
 /**
  * Redact partial key material (hints) and the "key is set" booleans for callers
@@ -264,6 +319,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 mcpContentWritesEnabled: true,
                 defaultAiAgentModelConfig: null,
                 modelVisibility: effectiveModelVisibility,
+                dataAppModelVisibility: null,
                 providerApiKeysSet: { anthropic: false, openai: false },
                 providerApiKeyHints: { anthropic: null, openai: null },
                 defaultAiAgentModelOptions: effectiveOptions,
@@ -297,6 +353,10 @@ export class AiOrganizationSettingsService extends BaseService {
         }
 
         this.checkManageAiAgentAccess(user);
+
+        // Set when hiding models orphans the org's configured default, so the
+        // write can repoint it in the same upsert.
+        let reconciledDefaultModelConfig: AiAgentModelConfig | null | undefined;
 
         // The model-visibility validation below reads the CURRENT key's model
         // access, which would be stale if the key changed in the same request
@@ -373,29 +433,42 @@ export class AiOrganizationSettingsService extends BaseService {
                 );
             }
 
-            // If this update hides the org's currently configured default
-            // model (and the request isn't also setting a new default), clear
-            // it server-side rather than leaving a stale reference — getSettings
-            // otherwise keeps returning an unselectable default indefinitely.
-            // Callers (new threads, agent forms) then fall back to the
-            // instance-level default via getDefaultModel.
+            // A default supplied in the same request must itself survive the
+            // new visibility, otherwise the write would persist exactly the
+            // stale-unselectable state the reconciliation below exists to fix.
+            if (
+                data.defaultAiAgentModelConfig &&
+                !isModelConfigAvailable(
+                    data.defaultAiAgentModelConfig,
+                    remaining,
+                )
+            ) {
+                throw new ParameterError(
+                    'The default AI model is not available under this model visibility',
+                );
+            }
+
+            // When the update hides the org's configured default and the
+            // request doesn't set a new one, repoint it at a model that is
+            // still available. Not null: visibility filters listings only, so
+            // a null default resolves to the instance default, which may be
+            // the very model this org just restricted.
             if (data.defaultAiAgentModelConfig === undefined) {
-                const currentSettings =
+                const currentDefault = (
                     await this.aiOrganizationSettingsModel.findByOrganizationUuid(
                         user.organizationUuid,
-                    );
-                const currentDefault =
-                    currentSettings?.defaultAiAgentModelConfig;
-                const stillAvailable =
-                    !currentDefault ||
-                    remaining.some(
-                        (option) =>
-                            option.name === currentDefault.modelName &&
-                            option.provider === currentDefault.modelProvider,
-                    );
-                if (!stillAvailable) {
-                    // eslint-disable-next-line no-param-reassign
-                    data = { ...data, defaultAiAgentModelConfig: null };
+                    )
+                )?.defaultAiAgentModelConfig;
+                if (
+                    currentDefault &&
+                    !isModelConfigAvailable(currentDefault, remaining)
+                ) {
+                    reconciledDefaultModelConfig =
+                        pickReplacementDefaultModelConfig(
+                            remaining,
+                            getDefaultModel(this.lightdashConfig.ai.copilot),
+                            currentDefault,
+                        );
                 }
             }
         }
@@ -413,7 +486,12 @@ export class AiOrganizationSettingsService extends BaseService {
 
         return this.aiOrganizationSettingsModel.upsert(
             user.organizationUuid,
-            data,
+            reconciledDefaultModelConfig === undefined
+                ? data
+                : {
+                      ...data,
+                      defaultAiAgentModelConfig: reconciledDefaultModelConfig,
+                  },
         );
     }
 

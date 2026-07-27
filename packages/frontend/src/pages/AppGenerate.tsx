@@ -1065,16 +1065,19 @@ const AppGenerate: FC = () => {
     const latestVersionModel: DataAppClaudeModel | null =
         latestVersion?.resources?.claudeModel ?? null;
 
-    // Org-admin-controlled visibility of Data App Claude models. Absent
-    // settings (still loading, or no restrictions set) default to all models
-    // visible so the picker isn't empty while the query is in flight.
-    const { data: aiOrganizationSettings } = useAiOrganizationSettings();
+    // Org-admin-controlled visibility of Data App Claude models. Until the
+    // query resolves, "loading" and "unrestricted" are indistinguishable — so
+    // the picker is disabled rather than showing every model, which would let
+    // the user pick one the server then rejects on submit.
+    const {
+        data: aiOrganizationSettings,
+        isLoading: isModelVisibilityLoading,
+    } = useAiOrganizationSettings();
+    const dataAppModelVisibility =
+        aiOrganizationSettings?.dataAppModelVisibility ?? null;
     const visibleModels = useMemo(
-        () =>
-            getVisibleDataAppClaudeModels(
-                aiOrganizationSettings?.dataAppModelVisibility ?? null,
-            ),
-        [aiOrganizationSettings?.dataAppModelVisibility],
+        () => getVisibleDataAppClaudeModels(dataAppModelVisibility),
+        [dataAppModelVisibility],
     );
 
     // Effective model for the picker / next submit:
@@ -1094,9 +1097,8 @@ const AppGenerate: FC = () => {
     // the next candidate rather than resurrecting a hidden model.
     const selectedModel: DataAppClaudeModel = useMemo(() => {
         const fallback =
-            resolveDefaultVisibleDataAppClaudeModel(
-                aiOrganizationSettings?.dataAppModelVisibility ?? null,
-            ) ?? DEFAULT_DATA_APP_CLAUDE_MODEL;
+            resolveDefaultVisibleDataAppClaudeModel(dataAppModelVisibility) ??
+            DEFAULT_DATA_APP_CLAUDE_MODEL;
         if (modelOverride) {
             const overrideAppUuid = modelOverride.appUuid;
             if (
@@ -1116,7 +1118,7 @@ const AppGenerate: FC = () => {
         activeAppUuid,
         latestVersionModel,
         visibleModels,
-        aiOrganizationSettings?.dataAppModelVisibility,
+        dataAppModelVisibility,
     ]);
 
     const handleModelChange = useCallback(
@@ -3051,7 +3053,10 @@ const AppGenerate: FC = () => {
                                             <ModelPicker
                                                 value={selectedModel}
                                                 onChange={handleModelChange}
-                                                disabled={isSubmitting}
+                                                disabled={
+                                                    isSubmitting ||
+                                                    isModelVisibilityLoading
+                                                }
                                                 visibleModels={visibleModels}
                                             />
                                             {isBuilding ? (
