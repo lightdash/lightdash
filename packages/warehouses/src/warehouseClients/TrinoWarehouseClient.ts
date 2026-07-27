@@ -34,9 +34,24 @@ import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 const TRINO_CLIENT_TAGS_HEADER = 'X-Trino-Client-Tags';
 
 // Trino splits the header on commas and Node rejects non-latin1 header values,
-// so tag keys/values are restricted to a safe charset
-const sanitizeClientTag = (tag: string): string =>
-    tag.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 60);
+// so tag keys/values are restricted to a safe charset. Values typed as string
+// can be non-string at runtime (e.g. BigInt scheduler job ids), so coerce
+// instead of crashing the query — mirrors BigqueryWarehouseClient labels.
+const sanitizeClientTag = (tag: unknown): string => {
+    let safeTag: string;
+    if (typeof tag === 'string') {
+        safeTag = tag;
+    } else if (tag === null || tag === undefined) {
+        safeTag = '';
+    } else {
+        console.warn(
+            'TrinoWarehouseClient.sanitizeClientTag: coerced non-string tag',
+            { valueType: typeof tag },
+        );
+        safeTag = String(tag);
+    }
+    return safeTag.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 60);
+};
 
 export enum TrinoTypes {
     BOOLEAN = 'boolean',
@@ -314,8 +329,12 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         try {
             let alteredQuery = sql;
             if (options?.tags) {
+                // tags can carry BigInt values at runtime; plain
+                // JSON.stringify would throw without the app-level toJSON patch
                 alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(
                     options?.tags,
+                    (_key, value) =>
+                        typeof value === 'bigint' ? value.toString() : value,
                 )}`;
             }
             if (options?.timezone) {
