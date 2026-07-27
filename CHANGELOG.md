@@ -1,3 +1,10 @@
+# [0.3486.0](https://github.com/lightdash/lightdash/compare/0.3485.1...0.3486.0) (2026-07-27)
+
+
+### Features
+
+* carry data-app external connection links as code in the app manifest ([#26214](https://github.com/lightdash/lightdash/issues/26214)) ([19aa55a](https://github.com/lightdash/lightdash/commit/19aa55a87e96afa9aed8193af01dbcb36387bcaa))
+
 ## [0.3485.1](https://github.com/lightdash/lightdash/compare/0.3485.0...0.3485.1) (2026-07-27)
 
 

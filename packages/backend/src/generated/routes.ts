@@ -15383,6 +15383,18 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess__token-string__', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppManifestExternalConnection: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                connectionSlug: { dataType: 'string', required: true },
+                alias: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DataAppManifest: {
         dataType: 'refAlias',
         type: {
@@ -15390,6 +15402,13 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 scaffoldingVersion: { dataType: 'string' },
                 downloadedAt: { dataType: 'string', required: true },
+                externalConnections: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'DataAppManifestExternalConnection',
+                    },
+                },
                 vizSchema: { ref: 'DataAppVizSchema' },
                 template: {
                     dataType: 'union',
@@ -15542,37 +15561,42 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess_DataAppCodeDownload_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiSuccess__appUuid-string--version-number--action-create-or-append__': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        action: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'enum', enums: ['create'] },
-                                { dataType: 'enum', enums: ['append'] },
-                            ],
-                            required: true,
+    'ApiSuccess__appUuid-string--version-number--action-create-or-append--warnings_63_-string-Array__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    results: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            warnings: {
+                                dataType: 'array',
+                                array: { dataType: 'string' },
+                            },
+                            action: {
+                                dataType: 'union',
+                                subSchemas: [
+                                    { dataType: 'enum', enums: ['create'] },
+                                    { dataType: 'enum', enums: ['append'] },
+                                ],
+                                required: true,
+                            },
+                            version: { dataType: 'double', required: true },
+                            appUuid: { dataType: 'string', required: true },
                         },
-                        version: { dataType: 'double', required: true },
-                        appUuid: { dataType: 'string', required: true },
+                        required: true,
                     },
-                    required: true,
+                    status: { dataType: 'enum', enums: ['ok'], required: true },
                 },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
+                validators: {},
             },
-            validators: {},
         },
-    },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiImportAppCodeResponse: {
         dataType: 'refAlias',
         type: {
-            ref: 'ApiSuccess__appUuid-string--version-number--action-create-or-append__',
+            ref: 'ApiSuccess__appUuid-string--version-number--action-create-or-append--warnings_63_-string-Array__',
             validators: {},
         },
     },

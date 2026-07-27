@@ -16752,6 +16752,18 @@
             "ApiPreviewTokenResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__token-string__"
             },
+            "DataAppManifestExternalConnection": {
+                "properties": {
+                    "connectionSlug": {
+                        "type": "string"
+                    },
+                    "alias": {
+                        "type": "string"
+                    }
+                },
+                "required": ["connectionSlug", "alias"],
+                "type": "object"
+            },
             "DataAppManifest": {
                 "properties": {
                     "scaffoldingVersion": {
@@ -16759,6 +16771,12 @@
                     },
                     "downloadedAt": {
                         "type": "string"
+                    },
+                    "externalConnections": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppManifestExternalConnection"
+                        },
+                        "type": "array"
                     },
                     "vizSchema": {
                         "$ref": "#/components/schemas/DataAppVizSchema"
@@ -16944,10 +16962,16 @@
             "ApiGetAppCodeResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DataAppCodeDownload_"
             },
-            "ApiSuccess__appUuid-string--version-number--action-create-or-append__": {
+            "ApiSuccess__appUuid-string--version-number--action-create-or-append--warnings_63_-string-Array__": {
                 "properties": {
                     "results": {
                         "properties": {
+                            "warnings": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
                             "action": {
                                 "type": "string",
                                 "enum": ["create", "append"]
@@ -16973,7 +16997,7 @@
                 "type": "object"
             },
             "ApiImportAppCodeResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number--action-create-or-append__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number--action-create-or-append--warnings_63_-string-Array__"
             },
             "ImportAppCodeRequestBody": {
                 "properties": {
@@ -50180,7 +50204,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3485.1",
+        "version": "0.3486.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
