@@ -3,8 +3,10 @@ import {
     ChartKind,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
     FeatureFlags,
+    getVisibleDataAppClaudeModels,
     isApiError,
     isAppVersionInProgress,
+    resolveDefaultVisibleDataAppClaudeModel,
     type ApiAppVersionSummary,
     type AppChartReference,
     type AppClarification,
@@ -71,6 +73,7 @@ import MantineIcon from '../components/common/MantineIcon';
 import MantineModal from '../components/common/MantineModal';
 import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
+import { useAiOrganizationSettings } from '../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import AppIframePreview, {
     type AppIframePreviewHandle,
 } from '../features/apps/AppIframePreview';
@@ -1062,6 +1065,18 @@ const AppGenerate: FC = () => {
     const latestVersionModel: DataAppClaudeModel | null =
         latestVersion?.resources?.claudeModel ?? null;
 
+    // Org-admin-controlled visibility of Data App Claude models. Absent
+    // settings (still loading, or no restrictions set) default to all models
+    // visible so the picker isn't empty while the query is in flight.
+    const { data: aiOrganizationSettings } = useAiOrganizationSettings();
+    const visibleModels = useMemo(
+        () =>
+            getVisibleDataAppClaudeModels(
+                aiOrganizationSettings?.dataAppModelVisibility ?? null,
+            ),
+        [aiOrganizationSettings?.dataAppModelVisibility],
+    );
+
     // Effective model for the picker / next submit:
     // user's explicit pick (if it's for this app) > latest version's model
     // > default. Pure derivation; no useEffect+setState chain.
@@ -1073,15 +1088,36 @@ const AppGenerate: FC = () => {
     // and the first version fetch. The route mount boundary
     // (/apps/generate → /apps/:appUuid) drops local state on real
     // navigation, which keeps this from leaking across apps.
+    //
+    // Any candidate hidden by org settings is skipped — e.g. a persisted
+    // version built with a model since disabled by an admin falls through to
+    // the next candidate rather than resurrecting a hidden model.
     const selectedModel: DataAppClaudeModel = useMemo(() => {
+        const fallback =
+            resolveDefaultVisibleDataAppClaudeModel(
+                aiOrganizationSettings?.dataAppModelVisibility ?? null,
+            ) ?? DEFAULT_DATA_APP_CLAUDE_MODEL;
         if (modelOverride) {
             const overrideAppUuid = modelOverride.appUuid;
-            if (overrideAppUuid === null || overrideAppUuid === activeAppUuid) {
+            if (
+                (overrideAppUuid === null ||
+                    overrideAppUuid === activeAppUuid) &&
+                visibleModels.includes(modelOverride.model)
+            ) {
                 return modelOverride.model;
             }
         }
-        return latestVersionModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL;
-    }, [modelOverride, activeAppUuid, latestVersionModel]);
+        if (latestVersionModel && visibleModels.includes(latestVersionModel)) {
+            return latestVersionModel;
+        }
+        return fallback;
+    }, [
+        modelOverride,
+        activeAppUuid,
+        latestVersionModel,
+        visibleModels,
+        aiOrganizationSettings?.dataAppModelVisibility,
+    ]);
 
     const handleModelChange = useCallback(
         (model: DataAppClaudeModel) => {
@@ -3016,6 +3052,7 @@ const AppGenerate: FC = () => {
                                                 value={selectedModel}
                                                 onChange={handleModelChange}
                                                 disabled={isSubmitting}
+                                                visibleModels={visibleModels}
                                             />
                                             {isBuilding ? (
                                                 <ActionIcon

@@ -5,6 +5,7 @@ import {
     CommercialFeatureFlags,
     ComputedAiOrganizationSettings,
     ForbiddenError,
+    getVisibleDataAppClaudeModels,
     LightdashUser,
     ParameterError,
     UpdateAiOrganizationSettings,
@@ -369,6 +370,43 @@ export class AiOrganizationSettingsService extends BaseService {
             if (remaining.length === 0) {
                 throw new ParameterError(
                     'At least one AI model must remain available',
+                );
+            }
+
+            // If this update hides the org's currently configured default
+            // model (and the request isn't also setting a new default), clear
+            // it server-side rather than leaving a stale reference — getSettings
+            // otherwise keeps returning an unselectable default indefinitely.
+            // Callers (new threads, agent forms) then fall back to the
+            // instance-level default via getDefaultModel.
+            if (data.defaultAiAgentModelConfig === undefined) {
+                const currentSettings =
+                    await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                        user.organizationUuid,
+                    );
+                const currentDefault =
+                    currentSettings?.defaultAiAgentModelConfig;
+                const stillAvailable =
+                    !currentDefault ||
+                    remaining.some(
+                        (option) =>
+                            option.name === currentDefault.modelName &&
+                            option.provider === currentDefault.modelProvider,
+                    );
+                if (!stillAvailable) {
+                    // eslint-disable-next-line no-param-reassign
+                    data = { ...data, defaultAiAgentModelConfig: null };
+                }
+            }
+        }
+
+        if (data.dataAppModelVisibility) {
+            const remainingDataAppModels = getVisibleDataAppClaudeModels(
+                data.dataAppModelVisibility,
+            );
+            if (remainingDataAppModels.length === 0) {
+                throw new ParameterError(
+                    'At least one Data App model must remain available',
                 );
             }
         }

@@ -3,6 +3,7 @@ import {
     FeatureFlags,
     type AiOrgModelVisibility,
     type ByoAiProvider,
+    type DataAppModelVisibility,
 } from '@lightdash/common';
 import { AiCopilotConfigSchemaType } from '../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../config/parseConfig';
@@ -248,6 +249,23 @@ export class OrgAiCopilotConfigResolver {
             );
         if (!orgKeys) return submitted;
         return resolveEffectiveModelVisibility(orgKeys, submitted);
+    }
+
+    /**
+     * Org-admin visibility settings for Data App Claude models (opus/sonnet/
+     * haiku). Unlike Ask AI's modelVisibility, this isn't gated by a BYO key —
+     * these are CLI model aliases, not provider-specific model ids — so it's
+     * available whenever the org has stored settings at all.
+     */
+    async getDataAppModelVisibility(
+        organizationUuid: string | null | undefined,
+    ): Promise<DataAppModelVisibility | null> {
+        if (!organizationUuid) return null;
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                organizationUuid,
+            );
+        return settings?.dataAppModelVisibility ?? null;
     }
 
     /**

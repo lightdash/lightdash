@@ -33,6 +33,7 @@ import {
     useAiRouterConfig,
     useUpsertAiRouterConfig,
 } from '../../../hooks/useAiRouter';
+import { AiDataAppsModelCard } from './AiDataAppsModelCard';
 import { AiProvidersCard } from './AiProvidersCard';
 import { AiRouterInstructionsCard } from './AiRouterInstructionsCard';
 import { ReviewNotificationsSettings } from './ReviewNotificationsSettings';
@@ -46,6 +47,7 @@ export const AiGeneralSettingsPage = () => {
     const orgAiProviderKeysFlag = useServerFeatureFlag(
         FeatureFlags.OrgAiProviderApiKeys,
     );
+    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
 
     const aiRouterQuery = useAiRouterConfig();
     const isRouterEnabled = aiRouterQuery.data?.enabled ?? false;
@@ -255,6 +257,18 @@ export const AiGeneralSettingsPage = () => {
                                 }
                             />
                         )}
+
+                    {dataAppsFlag.data?.enabled && (
+                        <AiDataAppsModelCard
+                            dataAppModelVisibility={
+                                settings.dataAppModelVisibility ?? null
+                            }
+                            disabled={isUpdatingSettings}
+                            onUpdateVisibility={(dataAppModelVisibility) =>
+                                updateSettings({ dataAppModelVisibility })
+                            }
+                        />
+                    )}
 
                     <SettingsCard>
                         <Stack gap="md">

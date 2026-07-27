@@ -213,9 +213,15 @@ export const ModelPicker: FC<{
     value: DataAppClaudeModel;
     onChange: (value: DataAppClaudeModel) => void;
     disabled?: boolean;
-}> = ({ value, onChange, disabled }) => {
+    /** Restrict the popover to these models (org admin visibility settings).
+     *  Defaults to all models when omitted. */
+    visibleModels?: DataAppClaudeModel[];
+}> = ({ value, onChange, disabled, visibleModels }) => {
     const [opened, setOpened] = useState(false);
     const current = findModelOption(value);
+    const options = visibleModels
+        ? MODEL_OPTIONS.filter((opt) => visibleModels.includes(opt.value))
+        : MODEL_OPTIONS;
 
     return (
         <Popover
@@ -246,7 +252,7 @@ export const ModelPicker: FC<{
             </Popover.Target>
             <Popover.Dropdown className={classes.queryDropdown} p={0}>
                 <Box py="xs">
-                    {MODEL_OPTIONS.map((opt) => {
+                    {options.map((opt) => {
                         const isActive = opt.value === value;
                         return (
                             <UnstyledButton

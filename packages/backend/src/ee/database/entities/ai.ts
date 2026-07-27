@@ -8,6 +8,7 @@ import {
     type AiWritebackRunStatus,
     type AiWritebackSource,
     type AiWritebackWorkstream,
+    type DataAppModelVisibility,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -483,6 +484,7 @@ export type DbAiOrganizationSettings = {
     mcp_content_writes_enabled: boolean;
     default_ai_agent_model_config: AiAgentModelConfig | null;
     model_visibility: AiOrgModelVisibility | null;
+    data_app_model_visibility: DataAppModelVisibility | null;
     encrypted_provider_api_keys: Buffer | null;
     provider_api_key_hints: AiProviderApiKeyHints | null;
     created_at: Date;
@@ -499,6 +501,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
                 | 'mcp_content_writes_enabled'
                 | 'default_ai_agent_model_config'
                 | 'model_visibility'
+                | 'data_app_model_visibility'
                 | 'encrypted_provider_api_keys'
                 | 'provider_api_key_hints'
             >
@@ -511,6 +514,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
             | 'mcp_content_writes_enabled'
             | 'default_ai_agent_model_config'
             | 'model_visibility'
+            | 'data_app_model_visibility'
             | 'encrypted_provider_api_keys'
             | 'provider_api_key_hints'
         >

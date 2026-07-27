@@ -28,12 +28,14 @@ import {
     formatPromptWithClarifications,
     getEffectiveFieldAiHints,
     getErrorMessage,
+    getVisibleDataAppClaudeModels,
     isDashboardChartTileType,
     isExploreError,
     MissingConfigError,
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
+    resolveDefaultVisibleDataAppClaudeModel,
     sanitizeAppPackageJsonScripts,
     themeLimitMessage,
     TooManyRequestsError,
@@ -1005,14 +1007,17 @@ export class AppGenerateService extends BaseService {
      * Resolve the user-supplied Claude model to a known value, defaulting when
      * absent. Rejects unknown strings outright so a stray value can't shell
      * out as `--model <anything>` against the Claude CLI inside the sandbox.
+     * Also enforces the org admin's Data App model visibility settings: an
+     * explicitly hidden model is rejected (can't be newly selected), while an
+     * absent model gracefully falls back to the next visible one if the
+     * system default has been hidden.
      */
-    private static resolveClaudeModel(
+    private async resolveClaudeModel(
+        organizationUuid: string,
         claudeModel: DataAppClaudeModel | undefined,
-    ): DataAppClaudeModel {
-        if (claudeModel === undefined) {
-            return DEFAULT_DATA_APP_CLAUDE_MODEL;
-        }
+    ): Promise<DataAppClaudeModel> {
         if (
+            claudeModel !== undefined &&
             !(DATA_APP_CLAUDE_MODELS as readonly string[]).includes(claudeModel)
         ) {
             throw new ParameterError(
@@ -1021,6 +1026,25 @@ export class AppGenerateService extends BaseService {
                 )}`,
             );
         }
+
+        const visibility =
+            await this.orgAiCopilotConfigResolver.getDataAppModelVisibility(
+                organizationUuid,
+            );
+
+        if (claudeModel === undefined) {
+            return (
+                resolveDefaultVisibleDataAppClaudeModel(visibility) ??
+                DEFAULT_DATA_APP_CLAUDE_MODEL
+            );
+        }
+
+        if (!getVisibleDataAppClaudeModels(visibility).includes(claudeModel)) {
+            throw new ParameterError(
+                `The "${claudeModel}" model has been disabled by your organization`,
+            );
+        }
+
         return claudeModel;
     }
 
@@ -4789,8 +4813,10 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             projectUuid,
             'Insufficient permissions to create data apps',
         );
-        const claudeModel =
-            AppGenerateService.resolveClaudeModel(claudeModelInput);
+        const claudeModel = await this.resolveClaudeModel(
+            organizationUuid,
+            claudeModelInput,
+        );
 
         // When the caller wants the app to live in a space directly, also
         // require manage rights on that space — same gate space EDITOR/ADMIN
@@ -4980,8 +5006,10 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         await this.assertDataAppsEnabled(user);
 
         AppGenerateService.validateImageIds(imageIds);
-        const claudeModel =
-            AppGenerateService.resolveClaudeModel(claudeModelInput);
+        const claudeModel = await this.resolveClaudeModel(
+            user.organizationUuid!,
+            claudeModelInput,
+        );
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
         await this.assertCanManageApp(

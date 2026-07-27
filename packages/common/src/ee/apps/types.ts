@@ -91,6 +91,38 @@ export type DataAppClaudeModel = (typeof DATA_APP_CLAUDE_MODELS)[number];
 export const DEFAULT_DATA_APP_CLAUDE_MODEL: DataAppClaudeModel = 'sonnet';
 
 /**
+ * Org-admin control over which Data App Claude models users can pick.
+ * A model is hidden only when explicitly set to `false`; an absent key (or a
+ * null/undefined visibility map) defaults to visible.
+ */
+export type DataAppModelVisibility = Partial<
+    Record<DataAppClaudeModel, boolean>
+>;
+
+export const getVisibleDataAppClaudeModels = (
+    visibility: DataAppModelVisibility | null | undefined,
+): DataAppClaudeModel[] =>
+    DATA_APP_CLAUDE_MODELS.filter((model) => visibility?.[model] !== false);
+
+/**
+ * The model to use when the caller doesn't specify one. Prefers
+ * `DEFAULT_DATA_APP_CLAUDE_MODEL` when it's visible, otherwise falls back to
+ * the next visible model (capability order: opus -> sonnet -> haiku) so
+ * hiding the system default never leaves nothing selectable. Returns `null`
+ * only when every model has been hidden (rejected at write time — see
+ * AiOrganizationSettingsService).
+ */
+export const resolveDefaultVisibleDataAppClaudeModel = (
+    visibility: DataAppModelVisibility | null | undefined,
+): DataAppClaudeModel | null => {
+    const visible = getVisibleDataAppClaudeModels(visibility);
+    if (visible.includes(DEFAULT_DATA_APP_CLAUDE_MODEL)) {
+        return DEFAULT_DATA_APP_CLAUDE_MODEL;
+    }
+    return visible[0] ?? null;
+};
+
+/**
  * A saved-chart reference attached to a generation request.
  * `includeSampleData` is opt-in per chart: when true the backend runs the
  * underlying metric query and inlines a small sample of rows into the

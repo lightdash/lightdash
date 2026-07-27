@@ -113,6 +113,7 @@ export class AiOrganizationSettingsModel {
             mcpContentWritesEnabled: db.mcp_content_writes_enabled,
             defaultAiAgentModelConfig: db.default_ai_agent_model_config,
             modelVisibility: db.model_visibility,
+            dataAppModelVisibility: db.data_app_model_visibility,
             providerApiKeysSet: {
                 anthropic: Boolean(keys.anthropic),
                 openai: Boolean(keys.openai),
@@ -181,6 +182,7 @@ export class AiOrganizationSettingsModel {
                 mcp_content_writes_enabled: data.mcpContentWritesEnabled,
                 default_ai_agent_model_config: data.defaultAiAgentModelConfig,
                 model_visibility: data.modelVisibility,
+                data_app_model_visibility: data.dataAppModelVisibility,
                 encrypted_provider_api_keys: this.encryptProviderApiKeys(keys),
                 provider_api_key_hints: buildProviderApiKeyHints(keys),
             })
@@ -201,6 +203,7 @@ export class AiOrganizationSettingsModel {
                 | 'mcp_content_writes_enabled'
                 | 'default_ai_agent_model_config'
                 | 'model_visibility'
+                | 'data_app_model_visibility'
                 | 'encrypted_provider_api_keys'
                 | 'provider_api_key_hints'
             >
@@ -221,6 +224,9 @@ export class AiOrganizationSettingsModel {
         }
         if (data.modelVisibility !== undefined) {
             updateData.model_visibility = data.modelVisibility;
+        }
+        if (data.dataAppModelVisibility !== undefined) {
+            updateData.data_app_model_visibility = data.dataAppModelVisibility;
         }
         if (data.providerApiKeys !== undefined) {
             const providerApiKeyUpdates = data.providerApiKeys;
@@ -307,6 +313,7 @@ export class AiOrganizationSettingsModel {
             mcpContentWritesEnabled: data.mcpContentWritesEnabled ?? true,
             defaultAiAgentModelConfig: data.defaultAiAgentModelConfig ?? null,
             modelVisibility: data.modelVisibility ?? null,
+            dataAppModelVisibility: data.dataAppModelVisibility ?? null,
             providerApiKeys: data.providerApiKeys,
         });
     }

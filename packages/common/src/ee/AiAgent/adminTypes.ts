@@ -1,4 +1,5 @@
 import type { ApiSuccess, KnexPaginatedData } from '../..';
+import type { DataAppModelVisibility } from '../apps/types';
 import type {
     AiAgentMemoryStatus,
     AiAgentSummary,
@@ -276,6 +277,9 @@ export type AiOrganizationSettings = {
     defaultAiAgentModelConfig: AiAgentModelConfig | null;
     // Optional to keep the response schema backwards-compatible for old clients.
     modelVisibility?: AiOrgModelVisibility | null;
+    // Which Data App Claude models (opus/sonnet/haiku) users can pick. Optional
+    // for backwards compatibility with old clients; unset = all visible.
+    dataAppModelVisibility?: DataAppModelVisibility | null;
     providerApiKeysSet: AiProviderApiKeysSet;
     providerApiKeyHints: AiProviderApiKeyHints;
 };
@@ -293,6 +297,7 @@ export type UpdateAiOrganizationSettings = {
     mcpContentWritesEnabled?: boolean;
     defaultAiAgentModelConfig?: AiAgentModelConfig | null;
     modelVisibility?: AiOrgModelVisibility | null;
+    dataAppModelVisibility?: DataAppModelVisibility | null;
     providerApiKeys?: UpdateAiProviderApiKeys;
 };
 
