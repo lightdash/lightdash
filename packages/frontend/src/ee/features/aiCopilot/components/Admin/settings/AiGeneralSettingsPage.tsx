@@ -33,7 +33,6 @@ import {
     useAiRouterConfig,
     useUpsertAiRouterConfig,
 } from '../../../hooks/useAiRouter';
-import { AiDataAppsModelCard } from './AiDataAppsModelCard';
 import { AiProvidersCard } from './AiProvidersCard';
 import { AiRouterInstructionsCard } from './AiRouterInstructionsCard';
 import { ReviewNotificationsSettings } from './ReviewNotificationsSettings';
@@ -248,6 +247,12 @@ export const AiGeneralSettingsPage = () => {
                                 configurableModelOptions={
                                     settings.configurableModelOptions ?? null
                                 }
+                                dataAppModelVisibility={
+                                    settings.dataAppModelVisibility ?? null
+                                }
+                                showDataAppModels={
+                                    dataAppsFlag.data?.enabled === true
+                                }
                                 disabled={isUpdatingSettings}
                                 onUpdateKeys={(providerApiKeys) =>
                                     updateSettings({ providerApiKeys })
@@ -255,24 +260,9 @@ export const AiGeneralSettingsPage = () => {
                                 onUpdateVisibility={(modelVisibility) =>
                                     updateSettings({ modelVisibility })
                                 }
-                            />
-                        )}
-
-                    {/* Restricting Data App models only means something on the
-                        org's own Anthropic key — without one, apps run on the
-                        instance key and the backend ignores stored settings. */}
-                    {orgAiProviderKeysFlag.data?.enabled &&
-                        settings.isCopilotEnabled &&
-                        dataAppsFlag.data?.enabled &&
-                        settings.providerApiKeysSet.anthropic && (
-                            <AiDataAppsModelCard
-                                dataAppModelVisibility={
-                                    settings.dataAppModelVisibility ?? null
-                                }
-                                disabled={isUpdatingSettings}
-                                onUpdateVisibility={(dataAppModelVisibility) =>
-                                    updateSettings({ dataAppModelVisibility })
-                                }
+                                onUpdateDataAppVisibility={(
+                                    dataAppModelVisibility,
+                                ) => updateSettings({ dataAppModelVisibility })}
                             />
                         )}
 

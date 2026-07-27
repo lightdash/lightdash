@@ -4,6 +4,7 @@ import type {
     AiProviderApiKeyHints,
     AiProviderApiKeysSet,
     ByoAiProvider,
+    DataAppModelVisibility,
     UpdateAiProviderApiKeys,
 } from '@lightdash/common';
 import { BYO_AI_PROVIDERS, isByoAiProvider } from '@lightdash/common';
@@ -27,6 +28,7 @@ import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
 import AnthropicIcon from '../../../../../../svgs/anthropic.svg?react';
 import OpenAiIcon from '../../../../../../svgs/openai.svg?react';
+import { AiDataAppModelToggles } from './AiDataAppModelToggles';
 
 const PROVIDER_META: Record<
     ByoAiProvider,
@@ -56,6 +58,10 @@ type ProviderRowProps = {
     visibility: ProviderVisibility | undefined;
     locked: boolean;
     disabled: boolean;
+    dataAppModels: {
+        visibility: DataAppModelVisibility | null;
+        onUpdate: (value: DataAppModelVisibility) => void;
+    } | null;
     onSaveKey: (key: string) => void;
     onRemoveKey: () => void;
     onUpdateVisibility: (value: ProviderVisibility) => void;
@@ -71,6 +77,7 @@ const ProviderRow: FC<ProviderRowProps> = ({
     visibility,
     locked,
     disabled,
+    dataAppModels,
     onSaveKey,
     onRemoveKey,
     onUpdateVisibility,
@@ -177,6 +184,14 @@ const ProviderRow: FC<ProviderRowProps> = ({
                 />
             )}
 
+            {isSet && isEnabled && dataAppModels && (
+                <AiDataAppModelToggles
+                    dataAppModelVisibility={dataAppModels.visibility}
+                    disabled={disabled}
+                    onUpdateVisibility={dataAppModels.onUpdate}
+                />
+            )}
+
             {locked && (
                 <Text c="dimmed" fz="xs">
                     Disabled while your organization uses its own Anthropic key
@@ -203,9 +218,14 @@ type AiProvidersCardProps = {
     providerApiKeyHints: AiProviderApiKeyHints;
     modelVisibility: AiOrgModelVisibility | null;
     configurableModelOptions: AiModelOption[] | null;
+    // Null when Data Apps are disabled for this instance. Only ever rendered
+    // under Anthropic — the Claude CLI takes no other BYO provider.
+    dataAppModelVisibility: DataAppModelVisibility | null;
+    showDataAppModels: boolean;
     disabled: boolean;
     onUpdateKeys: (providerApiKeys: UpdateAiProviderApiKeys) => void;
     onUpdateVisibility: (modelVisibility: AiOrgModelVisibility) => void;
+    onUpdateDataAppVisibility: (visibility: DataAppModelVisibility) => void;
 };
 
 export const AiProvidersCard: FC<AiProvidersCardProps> = ({
@@ -213,9 +233,12 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
     providerApiKeyHints,
     modelVisibility,
     configurableModelOptions,
+    dataAppModelVisibility,
+    showDataAppModels,
     disabled,
     onUpdateKeys,
     onUpdateVisibility,
+    onUpdateDataAppVisibility,
 }) => {
     // Mirrors resolveEffectiveModelVisibility: a BYO Anthropic key with no
     // OpenAI key hides OpenAI, and the admin can't re-enable it without a key.
@@ -300,6 +323,14 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
                             visibility={modelVisibility?.[provider]}
                             locked={isLockedByByok(provider)}
                             disabled={disabled}
+                            dataAppModels={
+                                showDataAppModels && provider === 'anthropic'
+                                    ? {
+                                          visibility: dataAppModelVisibility,
+                                          onUpdate: onUpdateDataAppVisibility,
+                                      }
+                                    : null
+                            }
                             onSaveKey={(key) =>
                                 onUpdateKeys({ [provider]: key })
                             }

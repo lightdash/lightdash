@@ -4,9 +4,8 @@ import {
     type DataAppClaudeModel,
     type DataAppModelVisibility,
 } from '@lightdash/common';
-import { Box, Stack, Switch, Text, Title } from '@mantine-8/core';
+import { Group, Stack, Switch, Text } from '@mantine-8/core';
 import { type FC } from 'react';
-import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
 
 const MODEL_LABELS: Record<DataAppClaudeModel, string> = {
     opus: 'Opus',
@@ -14,13 +13,19 @@ const MODEL_LABELS: Record<DataAppClaudeModel, string> = {
     haiku: 'Haiku',
 };
 
-type AiDataAppsModelCardProps = {
+type AiDataAppModelTogglesProps = {
     dataAppModelVisibility: DataAppModelVisibility | null;
     disabled: boolean;
     onUpdateVisibility: (visibility: DataAppModelVisibility) => void;
 };
 
-export const AiDataAppsModelCard: FC<AiDataAppsModelCardProps> = ({
+/**
+ * Data App model availability, rendered inside the Anthropic provider row.
+ * Separate from the provider's "Allowed models" list because Data Apps run
+ * the Claude CLI, which takes capability aliases (opus/sonnet/haiku) that
+ * track the latest model in each tier rather than pinned model ids.
+ */
+export const AiDataAppModelToggles: FC<AiDataAppModelTogglesProps> = ({
     dataAppModelVisibility,
     disabled,
     onUpdateVisibility,
@@ -28,37 +33,29 @@ export const AiDataAppsModelCard: FC<AiDataAppsModelCardProps> = ({
     const visibleModels = getVisibleDataAppClaudeModels(dataAppModelVisibility);
 
     return (
-        <SettingsCard>
-            <Stack gap="md">
-                <Box maw={620}>
-                    <Title order={5} mb={4}>
-                        Data Apps models
-                    </Title>
-                    <Text c="dimmed" fz="xs">
-                        Control which Claude models users can pick when building
-                        or iterating on a Data App. Apps already built with a
-                        hidden model keep working — it just can&apos;t be
-                        selected again.
-                    </Text>
-                </Box>
-
+        <Stack gap={4}>
+            <Text fz="xs" fw={500}>
+                Data Apps models
+            </Text>
+            <Text c="dimmed" fz="xs">
+                Which models users can pick when building a Data App. Apps
+                already built with a hidden model keep working — it just
+                can&apos;t be selected again.
+            </Text>
+            <Group gap="lg" mt={4}>
                 {DATA_APP_CLAUDE_MODELS.map((model) => {
                     const isVisible = visibleModels.includes(model);
                     // The server rejects hiding every model; disabling the last
-                    // one here surfaces that as a dead control rather than an
-                    // error toast after the fact.
+                    // one surfaces that as a dead control rather than an error
+                    // toast after the fact.
                     const isLastVisible =
                         isVisible && visibleModels.length === 1;
                     return (
                         <Switch
                             key={model}
-                            size="md"
+                            size="sm"
                             label={MODEL_LABELS[model]}
-                            description={
-                                isLastVisible
-                                    ? 'At least one model must stay available'
-                                    : undefined
-                            }
+                            aria-label={`Data Apps ${MODEL_LABELS[model]}`}
                             checked={isVisible}
                             disabled={disabled || isLastVisible}
                             onChange={(event) =>
@@ -70,7 +67,7 @@ export const AiDataAppsModelCard: FC<AiDataAppsModelCardProps> = ({
                         />
                     );
                 })}
-            </Stack>
-        </SettingsCard>
+            </Group>
+        </Stack>
     );
 };
