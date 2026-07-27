@@ -145,13 +145,11 @@ describe('Slack AI agent blocks', () => {
     it('renders cited memories as native citation elements', () => {
         const blocks = getMemoryCitationBlocks([
             {
-                memoryId: 'memory-uuid-1',
                 slug: 'revenue-is-net',
                 title: 'Revenue is net of refunds',
                 url: 'https://ld.example.com/projects/p1/ai-agents/a1/memories/revenue-is-net',
             },
             {
-                memoryId: 'memory-uuid-2',
                 slug: 'fiscal-year',
                 title: 'x'.repeat(200),
                 url: 'https://ld.example.com/projects/p1/ai-agents/a1/memories/fiscal-year',
@@ -171,9 +169,11 @@ describe('Slack AI agent blocks', () => {
                                 text: 'Revenue is net of refunds',
                                 index: 1,
                                 from_llm: true,
+                                is_slack_url: false,
                                 details: {
-                                    citation_type: 'memory',
-                                    memory_id: 'memory-uuid-1',
+                                    citation_type: 'web',
+                                    display_name: 'Lightdash memory',
+                                    title: 'Revenue is net of refunds',
                                 },
                             },
                             {
@@ -182,9 +182,11 @@ describe('Slack AI agent blocks', () => {
                                 text: `${'x'.repeat(72)}...`,
                                 index: 2,
                                 from_llm: true,
+                                is_slack_url: false,
                                 details: {
-                                    citation_type: 'memory',
-                                    memory_id: 'memory-uuid-2',
+                                    citation_type: 'web',
+                                    display_name: 'Lightdash memory',
+                                    title: `${'x'.repeat(72)}...`,
                                 },
                             },
                         ],
@@ -201,7 +203,6 @@ describe('Slack AI agent blocks', () => {
     it('labels a citation by slug when the memory has no title', () => {
         const blocks = getMemoryCitationBlocks([
             {
-                memoryId: 'memory-uuid-1',
                 slug: 'fiscal-year',
                 title: '   ',
                 url: 'https://ld.example.com/memories/fiscal-year',
@@ -221,7 +222,6 @@ describe('Slack AI agent blocks', () => {
         expect(
             getMemoryCitationBlocks([
                 {
-                    memoryId: 'memory-uuid-1',
                     slug: '',
                     title: '',
                     url: 'https://ld.example.com/memories/x',

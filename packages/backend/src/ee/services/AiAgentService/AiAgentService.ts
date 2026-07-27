@@ -9546,7 +9546,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 if (!memory) return [];
                 return [
                     {
-                        memoryId: memory.memoryId,
                         slug,
                         title: memory.title,
                         url: `${this.lightdashConfig.siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agent.uuid}/memories/${slug}`,

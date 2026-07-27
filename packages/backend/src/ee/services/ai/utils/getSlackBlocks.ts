@@ -203,7 +203,6 @@ const truncateCardText = (text: string, maxLength: number) =>
 const SLACK_CITATION_TEXT_LIMIT = 75;
 
 export type SlackMemoryCitation = {
-    memoryId: string;
     slug: string;
     title: string;
     url: string;
@@ -213,6 +212,9 @@ export type SlackMemoryCitation = {
  * Native Block Kit citation elements for the memories an answer cited. They're
  * rich-text-only (not valid inside `markdown` blocks), so they ride in their
  * own trailing `rich_text` block after the answer prose.
+ *
+ * Uses the `web` details variant, not `memory`: Slack resolves `memory` against
+ * its own memory store, ignoring our `url` and label.
  */
 export const getMemoryCitationBlocks = (
     citations: SlackMemoryCitation[],
@@ -233,20 +235,25 @@ export const getMemoryCitationBlocks = (
             elements: [
                 {
                     type: 'rich_text_section',
-                    elements: labelled.map((citation, index) => ({
-                        type: 'citation',
-                        url: citation.url,
-                        text: truncateCardText(
+                    elements: labelled.map((citation, index) => {
+                        const text = truncateCardText(
                             citation.text,
                             SLACK_CITATION_TEXT_LIMIT,
-                        ),
-                        index: index + 1,
-                        from_llm: true,
-                        details: {
-                            citation_type: 'memory',
-                            memory_id: citation.memoryId,
-                        },
-                    })),
+                        );
+                        return {
+                            type: 'citation',
+                            url: citation.url,
+                            text,
+                            index: index + 1,
+                            from_llm: true,
+                            is_slack_url: false,
+                            details: {
+                                citation_type: 'web',
+                                display_name: 'Lightdash memory',
+                                title: text,
+                            },
+                        };
+                    }),
                 },
             ],
         } as unknown as Block,
