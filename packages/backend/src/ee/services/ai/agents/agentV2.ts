@@ -411,11 +411,15 @@ const buildPrepareStep = ({
     dependencies,
     tools,
     logger,
+    invalidToolCallIds,
 }: {
     args: AiAgentArgs;
     dependencies: AiAgentDependencies;
     tools: ToolSet;
     logger: ReturnType<typeof createAiAgentLogger>;
+    // Ids of tool calls the AI SDK dropped for invalid input, recorded by
+    // onStepFinish/onChunk as the turn progresses (shared mutable set).
+    invalidToolCallIds: ReadonlySet<string>;
 }) => {
     const forcedFirstStep = buildForcedFirstStep(args, tools);
     let retryCapPersisted = false;
@@ -437,6 +441,7 @@ const buildPrepareStep = ({
         const retryOverride = buildQueryRetryStepOverride(
             messages,
             Object.keys(tools),
+            invalidToolCallIds,
         );
         if (retryOverride) {
             activeTools = retryOverride.activeTools;
@@ -1165,11 +1170,13 @@ export const generateAgentResponse = async ({
             'Generate Agent Response',
             `Calling generateText with model: ${modelName}`,
         );
+        const invalidToolCallIds = new Set<string>();
         const prepareStep = buildPrepareStep({
             args,
             dependencies,
             tools,
             logger,
+            invalidToolCallIds,
         });
         const telemetry = getAgentTelemetryConfig(
             'generateAgentResponse',
@@ -1241,6 +1248,7 @@ export const generateAgentResponse = async ({
                                 // (replayed into UI/history) and persist them
                                 // in the error table instead.
                                 if (toolCall.invalid) {
+                                    invalidToolCallIds.add(toolCall.toolCallId);
                                     Sentry.captureException(toolCall.error, {
                                         tags: {
                                             errorType: 'AiAgentToolCallInvalid',
@@ -1488,11 +1496,13 @@ export const streamAgentResponse = async ({
             'Stream Agent Response',
             `Calling streamText with model: ${modelName}`,
         );
+        const invalidToolCallIds = new Set<string>();
         const prepareStep = buildPrepareStep({
             args,
             dependencies,
             tools,
             logger,
+            invalidToolCallIds,
         });
         const stopWhenPromptInterrupted = buildStopWhenPromptInterrupted(
             args,
@@ -1552,6 +1562,7 @@ export const streamAgentResponse = async ({
                         });
 
                         if (event.chunk.invalid) {
+                            invalidToolCallIds.add(event.chunk.toolCallId);
                             Sentry.captureException(event.chunk.error, {
                                 tags: {
                                     errorType: 'AiAgentToolCallInvalid',

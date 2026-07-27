@@ -1,3 +1,4 @@
+import { assertUnreachable } from '@lightdash/common';
 import type { ModelMessage } from 'ai';
 
 /**
@@ -15,7 +16,17 @@ export const QUERY_TOOL_NAMES: ReadonlySet<string> = new Set([
     'runSql',
 ]);
 
-export type QueryResultClass = 'ok' | 'warehouse-slow' | 'other';
+/** Re-running a heavy scan that already timed out is especially wasteful. */
+export const WAREHOUSE_SLOW_CAP = 2;
+/** Executed-query failures of any kind: the model is looping, not converging. */
+export const WAREHOUSE_ERROR_CAP = 3;
+/**
+ * Schema-validation failures never reach the warehouse and usually converge
+ * after the relayed error, so their bound is later and corrective, not final.
+ */
+export const INVALID_INPUT_CAP = 6;
+
+type QueryResultClass = 'ok' | 'warehouse-slow' | 'invalid-input' | 'other';
 
 // A tool result as it appears in the model messages (see toModelOutput):
 // success → { type: 'text' }, error → { type: 'error-text' }.
@@ -25,60 +36,76 @@ const WAREHOUSE_SLOW =
     /timed out|timeout|polling|connection (terminated|lost)|econnreset/i;
 
 /**
- * Classify a single query-tool result. Only `error-text` outputs count as
- * failures; a successful result is `ok` and never contributes to the cap.
- * We deliberately do NOT try to bucket errors by warehouse-specific meaning
+ * We deliberately do NOT bucket errors by warehouse-specific meaning
  * (permissions, scan limits, bad SQL, ...) — that would mean matching each
  * warehouse's error prose, which is brittle and only ever covers whichever
- * warehouse we hard-coded. Any repeated failure is treated the same, and the
- * actual warehouse message is relayed to the user (see buildQueryRetryStepOverride).
- * The one exception is warehouse-slow (timeouts), which trips sooner because
- * re-running a heavy scan that already timed out is especially wasteful.
+ * warehouse we hard-coded. Invalid input is likewise not detected from the
+ * message text: the caller records the failed calls' ids as the AI SDK
+ * reports them (`toolCall.invalid`), so classification survives SDK rewording.
  */
-export const classifyQueryResult = (
+const classifyQueryResult = (
     output: ToolResultOutput,
+    isInvalidInput: boolean,
 ): QueryResultClass => {
     if (output.type !== 'error-text') return 'ok';
+    if (isInvalidInput) return 'invalid-input';
     if (WAREHOUSE_SLOW.test(output.value)) return 'warehouse-slow';
     return 'other';
 };
+
+const isWarehouseFailure = (c: QueryResultClass): boolean =>
+    c === 'warehouse-slow' || c === 'other';
+
+type QueryRetryCapDecision =
+    | { capped: false }
+    | {
+          capped: true;
+          reason: string;
+          // give-up: remove the query tools, answer with what we have.
+          // correct-input: keep the tools, steer the model to fix its input.
+          kind: 'give-up' | 'correct-input';
+      };
 
 /**
  * Decide whether to stop the agent re-issuing query tools this turn. Trips on
  * repeated *failures* only, so legitimate multi-chart turns (several successful
  * queries) are never capped.
- *  - ≥2 warehouse-slow: re-running a heavy scan that already timed out won't help.
- *  - ≥3 errors total: the model is looping instead of converging.
  */
-export const shouldCapQueryRetries = (
+const shouldCapQueryRetries = (
     classes: QueryResultClass[],
-): { capped: boolean; reason: string } => {
+): QueryRetryCapDecision => {
     const warehouseSlow = classes.filter((c) => c === 'warehouse-slow').length;
-    const errors = classes.filter((c) => c !== 'ok').length;
-    if (warehouseSlow >= 2) {
+    const warehouseErrors = classes.filter(isWarehouseFailure).length;
+    const invalidInputs = classes.filter((c) => c === 'invalid-input').length;
+    if (warehouseSlow >= WAREHOUSE_SLOW_CAP) {
         return {
             capped: true,
             reason: 'the warehouse query timed out repeatedly',
+            kind: 'give-up',
         };
     }
-    if (errors >= 3) {
+    if (warehouseErrors >= WAREHOUSE_ERROR_CAP) {
         return {
             capped: true,
             reason: 'the query failed repeatedly',
+            kind: 'give-up',
         };
     }
-    return { capped: false, reason: '' };
+    if (invalidInputs >= INVALID_INPUT_CAP) {
+        return {
+            capped: true,
+            reason: 'the tool input failed schema validation repeatedly',
+            kind: 'correct-input',
+        };
+    }
+    return { capped: false };
 };
 
 type QueryResult = { class: QueryResultClass; value: string };
 
-/**
- * Walk the model messages and collect every query-tool result, in order, with
- * both its class and the raw error text. Non-query tool results are ignored.
- */
-export const collectQueryResults = (
+const collectQueryResults = (
     messages: ModelMessage[],
-    queryToolNames: ReadonlySet<string>,
+    invalidToolCallIds: ReadonlySet<string>,
 ): QueryResult[] => {
     const results: QueryResult[] = [];
     for (const message of messages) {
@@ -90,12 +117,16 @@ export const collectQueryResults = (
                     'type' in part &&
                     part.type === 'tool-result' &&
                     'toolName' in part &&
-                    queryToolNames.has(part.toolName as string) &&
+                    QUERY_TOOL_NAMES.has(part.toolName as string) &&
+                    'toolCallId' in part &&
                     'output' in part
                 ) {
                     const output = part.output as ToolResultOutput;
                     results.push({
-                        class: classifyQueryResult(output),
+                        class: classifyQueryResult(
+                            output,
+                            invalidToolCallIds.has(part.toolCallId as string),
+                        ),
                         value:
                             typeof output.value === 'string'
                                 ? output.value
@@ -107,16 +138,6 @@ export const collectQueryResults = (
     }
     return results;
 };
-
-/**
- * Walk the model messages and classify every query-tool result, in order.
- * Non-query tool results are ignored.
- */
-export const collectQueryResultClasses = (
-    messages: ModelMessage[],
-    queryToolNames: ReadonlySet<string>,
-): QueryResultClass[] =>
-    collectQueryResults(messages, queryToolNames).map((r) => r.class);
 
 // toolErrorHandler wraps the underlying warehouse error with a fixed prefix and
 // a "Try again..." suffix; strip both so the snippet we relay to the user is
@@ -133,45 +154,72 @@ const cleanWarehouseError = (value: string): string =>
 const MAX_ERROR_SNIPPET_CHARS = 500;
 
 /**
- * Given the current model messages and the full tool set, decide the
- * `prepareStep` override that bounds query-tool retries: returns the reduced
- * `activeTools` (query tools removed) and a nudge message, or null when the cap
- * has not tripped. The nudge carries the actual warehouse error so the agent
- * relays it to the user (permissions / query-size limit) instead of failing
- * silently. Pure so the `prepareStep` wiring stays trivial.
+ * Given the current model messages, the full tool set, and the ids of tool
+ * calls the AI SDK dropped for invalid input, decide the `prepareStep`
+ * override that bounds query-tool retries: returns `activeTools` and a nudge
+ * message, or null when no cap has tripped. Warehouse failures remove the
+ * query tools and relay the actual warehouse error so the agent surfaces it
+ * (permissions / query-size limit) instead of failing silently; validation
+ * loops keep the tools and steer the model to fix its input. Pure so the
+ * `prepareStep` wiring stays trivial.
  */
 export const buildQueryRetryStepOverride = (
     messages: ModelMessage[],
     allToolNames: string[],
+    invalidToolCallIds: ReadonlySet<string>,
 ): { activeTools: string[]; nudge: string } | null => {
-    const results = collectQueryResults(messages, QUERY_TOOL_NAMES);
+    const results = collectQueryResults(messages, invalidToolCallIds);
     const decision = shouldCapQueryRetries(results.map((r) => r.class));
     if (!decision.capped) return null;
 
-    const lastError = [...results]
-        .reverse()
-        .find((r) => r.class !== 'ok')?.value;
-    const snippet = lastError
-        ? cleanWarehouseError(lastError).slice(0, MAX_ERROR_SNIPPET_CHARS)
-        : '';
+    switch (decision.kind) {
+        case 'correct-input':
+            return {
+                activeTools: allToolNames,
+                nudge: [
+                    `Your query tool calls keep failing schema validation (${decision.reason}).`,
+                    'Stop retrying the same input shape.',
+                    'Re-read the validation error and fix the structure of the failing part — a common mistake is wrapping each filter rule in an extra object instead of passing the flat rule the schema asks for.',
+                    'If it still fails, leave the failing part out, run the simpler query, and tell the user which part you dropped so they can refine it.',
+                ].join(' '),
+            };
+        case 'give-up': {
+            const lastError = [...results]
+                .reverse()
+                .find((r) => isWarehouseFailure(r.class))?.value;
+            const snippet = lastError
+                ? cleanWarehouseError(lastError).slice(
+                      0,
+                      MAX_ERROR_SNIPPET_CHARS,
+                  )
+                : '';
 
-    const nudge = [
-        `The data query has repeatedly failed (${decision.reason}).`,
-        'Do not run it again.',
-        ...(snippet
-            ? [
-                  `The warehouse reported: "${snippet}".`,
-                  'Relay this warehouse error to the user in your reply so they can address it (for example a permissions or query-size-limit issue on their side),',
-                  'then answer with whatever information you already have.',
-              ]
-            : [
-                  'Answer using the information you already have,',
-                  'or briefly explain what is blocking the result.',
-              ]),
-    ].join(' ');
+            const nudge = [
+                `The data query has repeatedly failed (${decision.reason}).`,
+                'Do not run it again.',
+                ...(snippet
+                    ? [
+                          `The warehouse reported: "${snippet}".`,
+                          'Relay this warehouse error to the user in your reply so they can address it (for example a permissions or query-size-limit issue on their side),',
+                          'then answer with whatever information you already have.',
+                      ]
+                    : [
+                          'Answer using the information you already have,',
+                          'or briefly explain what is blocking the result.',
+                      ]),
+            ].join(' ');
 
-    return {
-        activeTools: allToolNames.filter((name) => !QUERY_TOOL_NAMES.has(name)),
-        nudge,
-    };
+            return {
+                activeTools: allToolNames.filter(
+                    (name) => !QUERY_TOOL_NAMES.has(name),
+                ),
+                nudge,
+            };
+        }
+        default:
+            return assertUnreachable(
+                decision.kind,
+                'Unknown query retry cap kind',
+            );
+    }
 };
