@@ -18,7 +18,7 @@
 
 Lightdash is the Agentic BI platform for teams that want analytics to move like software. Your context layer defines trusted metrics, joins, permissions, business logic, and caching once, then powers every way people consume data: dashboards, AI agents, data apps, embedded analytics, SDKs, and MCP.
 
-Data teams can build and maintain BI from Cursor, Claude Code, the terminal, pull requests, and CI. Business users can ask questions in plain English, explore dashboards, or create custom data apps without bypassing governance.
+Data teams can build and maintain analytics with any AI agent, then use the terminal, pull requests, and CI to preview, validate, and ship changes. Business users can ask questions in plain English, explore dashboards, or create custom data apps without bypassing governance.
 
 ## Start with Cloud
 
