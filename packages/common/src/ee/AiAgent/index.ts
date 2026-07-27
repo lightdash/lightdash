@@ -339,16 +339,11 @@ export type ApiAiAgentResponse = {
 
 export type AiAgentMemorySource = {
     slug: string;
-} & (
-    | { hasThreadAccess: false }
-    | {
-          hasThreadAccess: true;
-          agentUuid: string | null;
-          threadUuid: string;
-          threadTitle: string | null;
-          threadSummary: string;
-      }
-);
+    agentUuid: string | null;
+    threadUuid: string;
+    threadTitle: string | null;
+    threadSummary: string;
+};
 
 export type AiAgentMemoryStatus = 'active' | 'superseded' | 'retired';
 

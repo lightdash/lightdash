@@ -65,20 +65,6 @@ const SourceRow: FC<{
     source: AiAgentMemorySource;
     projectUuid: string;
 }> = ({ source, projectUuid }) => {
-    if (!source.hasThreadAccess) {
-        return (
-            <Box className={styles.sourceRow}>
-                <Text fw={550} size="sm">
-                    Source thread
-                </Text>
-                <Text size="xs" c="dimmed" mt={4}>
-                    Thread details are only visible to its owner and agent
-                    managers.
-                </Text>
-            </Box>
-        );
-    }
-
     const threadPath = source.agentUuid
         ? `/projects/${projectUuid}/ai-agents/${source.agentUuid}/threads/${source.threadUuid}`
         : null;

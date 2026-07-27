@@ -4,6 +4,7 @@ import {
     DimensionType,
     FeatureFlags,
     FieldType,
+    ProjectType,
     SupportedDbtAdapter,
     type AnyType,
     type Explore,
@@ -121,6 +122,12 @@ describe('AiAgentMemoryService', () => {
         }));
         const findByProjectAndSlug = vi.fn();
         const findThreadsDueForDistill = vi.fn();
+        const findThreadForDistill = vi.fn();
+        const upsertSourceThreadMemory = vi.fn().mockResolvedValue({
+            ai_agent_memory_uuid: 'memory-1',
+        });
+        const upsertThreadDistill = vi.fn();
+        const findActiveForProject = vi.fn().mockResolvedValue([]);
         const aiAgentMemoryDistill = vi.fn();
         const getAgent = vi.fn().mockResolvedValue({
             uuid: 'agent-1',
@@ -142,29 +149,69 @@ describe('AiAgentMemoryService', () => {
             organizationUuid:
                 projectUuid === 'project-other' ? 'org-other' : 'org-enabled',
         }));
+        const distillCall = vi.fn();
         const service = new AiAgentMemoryService({
             analytics: { track: vi.fn() } as AnyType,
             aiAgentMemoryModel: {
                 findByProjectAndSlug,
                 findThreadsDueForDistill,
+                findThreadForDistill,
+                upsertSourceThreadMemory,
+                upsertThreadDistill,
+                findActiveForProject,
             } as AnyType,
             aiAgentModel: { getAgent, findThreadOwnership } as AnyType,
             groupsModel: { findUserInGroups } as AnyType,
-            projectModel: { getSummary: getProjectSummary } as AnyType,
+            projectModel: {
+                getSummary: getProjectSummary,
+                findExploresFromCache: vi.fn().mockResolvedValue({}),
+            } as AnyType,
             featureFlagService: { get: getFlag } as AnyType,
             schedulerClient: { aiAgentMemoryDistill },
-            distillCall: vi.fn(),
+            distillCall,
         });
         return {
             service,
             getFlag,
             findByProjectAndSlug,
             findThreadsDueForDistill,
+            findThreadForDistill,
+            upsertSourceThreadMemory,
+            upsertThreadDistill,
+            findActiveForProject,
             aiAgentMemoryDistill,
             getAgent,
             findThreadOwnership,
+            distillCall,
         };
     };
+
+    const memoryRow = (
+        overrides: Record<string, unknown> = {},
+    ): Record<string, unknown> => ({
+        ai_agent_memory_uuid: 'memory-1',
+        slug: 'net-revenue-ab12cd34',
+        title: 'Net revenue convention',
+        raw_memory: 'Use net revenue.',
+        terms: [],
+        objects: [],
+        status: 'active',
+        agent_uuid: 'agent-1',
+        user_uuid: 'source-user',
+        source_thread_uuid: 'thread-enabled',
+        generated_at: new Date('2026-07-22T10:00:00Z'),
+        cited_count: 3,
+        ...overrides,
+    });
+
+    const lineageSource = (overrides: Record<string, unknown> = {}) => ({
+        slug: 'net-revenue-ab12cd34',
+        agent_uuid: 'agent-1',
+        source_thread_uuid: 'thread-enabled',
+        thread_summary: '**The user** established the convention.',
+        thread_title: 'Revenue definitions',
+        ...overrides,
+    });
 
     it('enqueues the exact activity watermark selected by the sweep', async () => {
         const { service, findThreadsDueForDistill, aiAgentMemoryDistill } =
@@ -192,14 +239,10 @@ describe('AiAgentMemoryService', () => {
         });
     });
 
-    it('returns a project-visible memory with source provenance', async () => {
+    it('returns full source provenance to an agent manager', async () => {
         const { service, findByProjectAndSlug, getAgent } = build();
         findByProjectAndSlug.mockResolvedValue({
-            memory: {
-                slug: 'net-revenue-ab12cd34',
-                title: 'Net revenue convention',
-                raw_memory: 'Use net revenue.',
-                terms: ['net revenue'],
+            memory: memoryRow({
                 objects: [
                     {
                         type: 'field',
@@ -207,20 +250,9 @@ describe('AiAgentMemoryService', () => {
                         fieldId: 'orders_net_revenue',
                     },
                 ],
-                status: 'active',
-                source_thread_uuid: 'thread-enabled',
-                generated_at: new Date('2026-07-22T10:00:00Z'),
-                cited_count: 3,
-            },
-            sources: [
-                {
-                    slug: 'net-revenue-ab12cd34',
-                    agent_uuid: 'agent-1',
-                    source_thread_uuid: 'thread-enabled',
-                    thread_summary: '**The user** established the convention.',
-                    thread_title: 'Revenue definitions',
-                },
-            ],
+                terms: ['net revenue'],
+            }),
+            sources: [lineageSource()],
             replacement: null,
         });
         getAgent.mockResolvedValue({
@@ -244,134 +276,84 @@ describe('AiAgentMemoryService', () => {
             provenance: {
                 type: 'source_thread',
                 source: {
-                    hasThreadAccess: true,
+                    slug: 'net-revenue-ab12cd34',
                     agentUuid: 'agent-1',
                     threadUuid: 'thread-enabled',
                     threadTitle: 'Revenue definitions',
+                    threadSummary: '**The user** established the convention.',
                 },
             },
         });
     });
 
-    it('redacts source thread details from users without thread access', async () => {
+    it('hides another user’s memory from a project viewer without thread access', async () => {
         const { service, findByProjectAndSlug } = build();
         findByProjectAndSlug.mockResolvedValue({
-            memory: {
-                slug: 'net-revenue-ab12cd34',
-                title: 'Net revenue convention',
-                raw_memory: 'Use net revenue.',
-                terms: ['net revenue'],
-                objects: [],
-                status: 'active',
-                source_thread_uuid: 'thread-enabled',
-                generated_at: new Date('2026-07-22T10:00:00Z'),
-                cited_count: 3,
-            },
-            sources: [
-                {
-                    slug: 'net-revenue-ab12cd34',
-                    agent_uuid: 'agent-1',
-                    source_thread_uuid: 'thread-enabled',
-                    thread_summary: 'Private thread summary.',
-                    thread_title: 'Private thread title',
-                },
-            ],
+            memory: memoryRow(),
+            sources: [lineageSource()],
             replacement: null,
         });
 
-        const memory = await service.getMemory(
-            buildUser(true),
-            'project-enabled',
-            'net-revenue-ab12cd34',
-        );
+        await expect(
+            service.getMemory(
+                buildUser(true),
+                'project-enabled',
+                'net-revenue-ab12cd34',
+            ),
+        ).rejects.toThrow('Memory not found: net-revenue-ab12cd34');
+    });
 
-        expect(memory.provenance).toEqual({
-            type: 'source_thread',
-            source: {
-                slug: 'net-revenue-ab12cd34',
-                hasThreadAccess: false,
+    it('returns the memory to its owner without manage access', async () => {
+        const { service, findByProjectAndSlug } = build();
+        findByProjectAndSlug.mockResolvedValue({
+            memory: memoryRow({ user_uuid: 'current-user' }),
+            sources: [lineageSource({ thread_title: 'Owner-visible title' })],
+            replacement: null,
+        });
+
+        await expect(
+            service.getMemory(
+                buildUser(true),
+                'project-enabled',
+                'net-revenue-ab12cd34',
+            ),
+        ).resolves.toMatchObject({
+            provenance: {
+                type: 'source_thread',
+                source: { threadTitle: 'Owner-visible title' },
             },
         });
     });
 
-    it('returns source details to the thread owner without manage access', async () => {
+    it('decides access from the memory row without loading the source thread', async () => {
         const { service, findByProjectAndSlug, findThreadOwnership } = build();
         findByProjectAndSlug.mockResolvedValue({
-            memory: {
-                slug: 'net-revenue-ab12cd34',
-                title: 'Net revenue convention',
-                raw_memory: 'Use net revenue.',
-                terms: [],
-                objects: [],
-                status: 'active',
-                source_thread_uuid: 'thread-enabled',
-                generated_at: new Date('2026-07-22T10:00:00Z'),
-                cited_count: 3,
-            },
-            sources: [
-                {
-                    slug: 'net-revenue-ab12cd34',
-                    agent_uuid: 'agent-1',
-                    source_thread_uuid: 'thread-enabled',
-                    thread_summary: 'Owner-visible summary.',
-                    thread_title: 'Owner-visible title',
-                },
-            ],
+            memory: memoryRow({
+                user_uuid: 'current-user',
+                source_thread_uuid: null,
+            }),
+            sources: [],
             replacement: null,
         });
-        findThreadOwnership.mockResolvedValue({
-            threadUuid: 'thread-enabled',
-            projectUuid: 'project-enabled',
-            agentUuid: 'agent-1',
-            ownerUserUuid: 'current-user',
-        });
 
-        const memory = await service.getMemory(
-            buildUser(true),
-            'project-enabled',
-            'net-revenue-ab12cd34',
-        );
-
-        expect(memory.provenance).toMatchObject({
-            type: 'source_thread',
-            source: {
-                hasThreadAccess: true,
-                threadTitle: 'Owner-visible title',
-            },
+        await expect(
+            service.getMemory(
+                buildUser(true),
+                'project-enabled',
+                'net-revenue-ab12cd34',
+            ),
+        ).resolves.toMatchObject({
+            provenance: { type: 'consolidated', sources: [] },
         });
+        expect(findThreadOwnership).not.toHaveBeenCalled();
     });
 
-    it('redacts source details when the owner loses agent access', async () => {
-        const { service, findByProjectAndSlug, findThreadOwnership, getAgent } =
-            build();
+    it('hides the memory from its owner when the owner loses agent access', async () => {
+        const { service, findByProjectAndSlug, getAgent } = build();
         findByProjectAndSlug.mockResolvedValue({
-            memory: {
-                slug: 'net-revenue-ab12cd34',
-                title: 'Net revenue convention',
-                raw_memory: 'Use net revenue.',
-                terms: [],
-                objects: [],
-                status: 'active',
-                source_thread_uuid: 'thread-enabled',
-                generated_at: new Date('2026-07-22T10:00:00Z'),
-                cited_count: 3,
-            },
-            sources: [
-                {
-                    slug: 'net-revenue-ab12cd34',
-                    agent_uuid: 'agent-1',
-                    source_thread_uuid: 'thread-enabled',
-                    thread_summary: 'Private summary.',
-                    thread_title: 'Private title',
-                },
-            ],
+            memory: memoryRow({ user_uuid: 'current-user' }),
+            sources: [lineageSource()],
             replacement: null,
-        });
-        findThreadOwnership.mockResolvedValue({
-            threadUuid: 'thread-enabled',
-            projectUuid: 'project-enabled',
-            agentUuid: 'agent-1',
-            ownerUserUuid: 'current-user',
         });
         getAgent.mockResolvedValue({
             uuid: 'agent-1',
@@ -383,19 +365,211 @@ describe('AiAgentMemoryService', () => {
             userAccess: [],
         });
 
-        const memory = await service.getMemory(
-            buildUser(true),
-            'project-enabled',
-            'net-revenue-ab12cd34',
-        );
+        await expect(
+            service.getMemory(
+                buildUser(true),
+                'project-enabled',
+                'net-revenue-ab12cd34',
+            ),
+        ).rejects.toThrow('Memory not found: net-revenue-ab12cd34');
+    });
 
-        expect(memory.provenance).toEqual({
-            type: 'source_thread',
-            source: {
-                slug: 'net-revenue-ab12cd34',
-                hasThreadAccess: false,
+    it('exposes an unowned memory only to an agent manager', async () => {
+        const { service, findByProjectAndSlug } = build();
+        findByProjectAndSlug.mockResolvedValue({
+            memory: memoryRow({ user_uuid: null }),
+            sources: [lineageSource()],
+            replacement: null,
+        });
+
+        await expect(
+            service.getMemory(
+                buildUser(true),
+                'project-enabled',
+                'net-revenue-ab12cd34',
+            ),
+        ).rejects.toThrow('Memory not found: net-revenue-ab12cd34');
+        await expect(
+            service.getMemory(
+                buildUser(true, { canManageAgents: true }),
+                'project-enabled',
+                'net-revenue-ab12cd34',
+            ),
+        ).resolves.toMatchObject({ slug: 'net-revenue-ab12cd34' });
+    });
+
+    it('hides a memory whose agent is gone from everyone', async () => {
+        const { service, findByProjectAndSlug, getAgent } = build();
+        findByProjectAndSlug.mockResolvedValue({
+            memory: memoryRow({ agent_uuid: null, user_uuid: 'current-user' }),
+            sources: [lineageSource()],
+            replacement: null,
+        });
+
+        await expect(
+            service.getMemory(
+                buildUser(true, { canManageAgents: true }),
+                'project-enabled',
+                'net-revenue-ab12cd34',
+            ),
+        ).rejects.toThrow('Memory not found: net-revenue-ab12cd34');
+        expect(getAgent).not.toHaveBeenCalled();
+    });
+
+    it('keeps reading a memory separate from injecting it into the reader’s context', async () => {
+        const { service, findByProjectAndSlug, findActiveForProject } = build();
+        findByProjectAndSlug.mockResolvedValue({
+            memory: memoryRow(),
+            sources: [lineageSource()],
+            replacement: null,
+        });
+
+        await expect(
+            service.getMemory(
+                buildUser(true, { canManageAgents: true }),
+                'project-enabled',
+                'net-revenue-ab12cd34',
+            ),
+        ).resolves.toMatchObject({ slug: 'net-revenue-ab12cd34' });
+        expect(findActiveForProject).not.toHaveBeenCalled();
+    });
+
+    it('attributes a distilled memory to the thread owner, not the last prompter', async () => {
+        const {
+            service,
+            findThreadForDistill,
+            findThreadOwnership,
+            upsertSourceThreadMemory,
+            distillCall,
+        } = build();
+        const activity = new Date('2026-07-22T05:00:00.000Z');
+        findThreadForDistill.mockResolvedValue({
+            threadUuid: 'thread-enabled',
+            organizationUuid: 'org-enabled',
+            projectUuid: 'project-enabled',
+            agentUuid: 'agent-1',
+            title: 'Revenue definitions',
+            createdFrom: 'slack',
+            projectType: ProjectType.DEFAULT,
+            latestActivity: activity,
+            distilledUpTo: null,
+            turns: [
+                {
+                    promptUuid: 'prompt-1',
+                    createdAt: new Date('2026-07-22T04:00:00.000Z'),
+                    userText: 'First user asks',
+                    assistantText: 'Answer',
+                    errorMessage: null,
+                    respondedAt: new Date('2026-07-22T04:01:00.000Z'),
+                    interrupted: false,
+                    tools: [],
+                },
+                {
+                    promptUuid: 'prompt-2',
+                    createdAt: activity,
+                    userText: 'Second user asks last',
+                    assistantText: 'Answer',
+                    errorMessage: null,
+                    respondedAt: activity,
+                    interrupted: false,
+                    tools: [],
+                },
+            ],
+        });
+        findThreadOwnership.mockResolvedValue({
+            threadUuid: 'thread-enabled',
+            projectUuid: 'project-enabled',
+            agentUuid: 'agent-1',
+            ownerUserUuid: 'first-prompter',
+        });
+        distillCall.mockResolvedValue({
+            result: {
+                type: 'memory',
+                thread_summary: 'The users agreed a convention.',
+                slug: 'net-revenue',
+                title: 'Net revenue convention',
+                raw_memory: 'Use net revenue.',
+                terms: ['net revenue'],
+                objects: [],
             },
         });
+
+        await expect(
+            service.distillThread({
+                organizationUuid: 'org-enabled',
+                projectUuid: 'project-enabled',
+                userUuid: 'system',
+                threadUuid: 'thread-enabled',
+                sweptUpdatedAt: activity.toISOString(),
+            }),
+        ).resolves.toBe('memory');
+
+        expect(findThreadOwnership).toHaveBeenCalledWith({
+            organizationUuid: 'org-enabled',
+            threadUuid: 'thread-enabled',
+        });
+        expect(upsertSourceThreadMemory).toHaveBeenCalledWith(
+            expect.objectContaining({ userUuid: 'first-prompter' }),
+        );
+    });
+
+    it('writes a null owner rather than a placeholder when the thread has none', async () => {
+        const {
+            service,
+            findThreadForDistill,
+            findThreadOwnership,
+            upsertSourceThreadMemory,
+            distillCall,
+        } = build();
+        const activity = new Date('2026-07-22T05:00:00.000Z');
+        findThreadForDistill.mockResolvedValue({
+            threadUuid: 'thread-enabled',
+            organizationUuid: 'org-enabled',
+            projectUuid: 'project-enabled',
+            agentUuid: 'agent-1',
+            title: null,
+            createdFrom: 'slack',
+            projectType: ProjectType.DEFAULT,
+            latestActivity: activity,
+            distilledUpTo: null,
+            turns: [
+                {
+                    promptUuid: 'prompt-1',
+                    createdAt: activity,
+                    userText: 'Anonymous ask',
+                    assistantText: 'Answer',
+                    errorMessage: null,
+                    respondedAt: activity,
+                    interrupted: false,
+                    tools: [],
+                },
+            ],
+        });
+        findThreadOwnership.mockResolvedValue(undefined);
+        distillCall.mockResolvedValue({
+            result: {
+                type: 'memory',
+                thread_summary: 'A convention.',
+                slug: 'net-revenue',
+                title: 'Net revenue convention',
+                raw_memory: 'Use net revenue.',
+                terms: [],
+                objects: [],
+            },
+        });
+
+        await expect(
+            service.distillThread({
+                organizationUuid: 'org-enabled',
+                projectUuid: 'project-enabled',
+                userUuid: 'system',
+                threadUuid: 'thread-enabled',
+                sweptUpdatedAt: activity.toISOString(),
+            }),
+        ).resolves.toBe('memory');
+        expect(upsertSourceThreadMemory).toHaveBeenCalledWith(
+            expect.objectContaining({ userUuid: null }),
+        );
     });
 
     it('returns not found without reading rows when the flag is off', async () => {
