@@ -1474,6 +1474,20 @@ export type DataAppIteratedEvent = BaseTrack & {
     };
 };
 
+export type DataAppUpgradeRequestedEvent = BaseTrack & {
+    event: 'data_app.upgrade_requested';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        /** What the app's bundle self-reported; null for legacy bundles. */
+        reportedSdkVersion: string | null;
+        reportedFeatureCount: number | null;
+    };
+};
+
 export type DataAppVersionCancelledEvent = BaseTrack & {
     event: 'data_app.version.cancelled';
     userId: string;
@@ -1711,6 +1725,7 @@ export type DataAppUploadRejectedEvent = BaseTrack & {
 export type DataAppEvent =
     | DataAppCreatedEvent
     | DataAppIteratedEvent
+    | DataAppUpgradeRequestedEvent
     | DataAppVersionCancelledEvent
     | DataAppVersionCompletedEvent
     | DataAppVersionFailedEvent
