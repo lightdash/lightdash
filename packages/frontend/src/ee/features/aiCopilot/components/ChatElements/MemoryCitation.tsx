@@ -13,9 +13,7 @@ import { useDisclosure } from '@mantine-8/hooks';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useParams } from 'react-router';
-import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import { useAiAgentMemory } from '../../hooks/useAiAgentMemory';
-import { getAiAgentMemoryPreview } from '../../utils/memory';
 import { MemoryDetailsModal } from '../MemoryDetails/MemoryDetails';
 import styles from './MemoryCitation.module.css';
 
@@ -93,11 +91,6 @@ export const MemoryCitation = ({
                                     </Badge>
                                 ) : null}
                             </Group>
-                            <AiMarkdown className={styles.preview}>
-                                {getAiAgentMemoryPreview(
-                                    memoryQuery.data.rawMemory,
-                                )}
-                            </AiMarkdown>
                             <Divider />
                             <Group justify="space-between" wrap="nowrap">
                                 <Text size="xs" c="dimmed">
@@ -111,8 +104,8 @@ export const MemoryCitation = ({
                                     className={styles.detailsButton}
                                     onClick={openDetails}
                                 >
-                                    View details
-                                    <IconArrowRight size={13} />
+                                    View memory
+                                    <IconArrowRight size={12} />
                                 </UnstyledButton>
                             </Group>
                         </Stack>
