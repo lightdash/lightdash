@@ -319,7 +319,10 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                                                     : 'Explore'}
                                             </Text>
                                         </Box>
-                                        <IconExternalLink size={13} />
+                                        <IconExternalLink
+                                            size={13}
+                                            className={styles.objectLinkIcon}
+                                        />
                                     </Anchor>
                                 );
                             })}
