@@ -4,6 +4,7 @@ import {
     assertRegisteredAccount,
     FeatureFlags,
     ForbiddenError,
+    ParameterError,
     ROADMAP_DEFAULT_PAGE_SIZE,
     RoadmapQuerySchema,
     RoadmapResponseSchema,
@@ -75,9 +76,10 @@ export class RoadmapService extends BaseService {
 
         const parsedQuery = RoadmapQuerySchema.safeParse(query);
         if (!parsedQuery.success) {
-            throw new UnexpectedServerError(
-                'Could not load the organization roadmap',
-            );
+            this.logger.warn('Could not parse roadmap query', {
+                issues: parsedQuery.error.issues,
+            });
+            throw new ParameterError('Could not load the organization roadmap');
         }
 
         let url: URL;
