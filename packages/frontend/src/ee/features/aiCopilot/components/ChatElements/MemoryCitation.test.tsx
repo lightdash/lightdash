@@ -99,19 +99,18 @@ describe('MemoryCitation', () => {
         );
     });
 
-    it('shows memory details on hover', async () => {
+    it('shows only the memory title on hover', async () => {
         renderMarkdown(
             'Supported sentence.<ld-mem-cite id="net-revenue"></ld-mem-cite>',
         );
 
         fireEvent.mouseEnter(screen.getByTitle('Memory: net-revenue'));
 
-        const emphasizedText = await screen.findByText('Net revenue', {
-            selector: '[data-streamdown="strong"]',
-        });
-        expect(emphasizedText).toHaveAttribute('data-streamdown', 'strong');
-        expect(screen.getByText('Net revenue convention')).toBeInTheDocument();
-        expect(screen.getByText('View details')).toBeInTheDocument();
+        expect(
+            await screen.findByText('Net revenue convention'),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('Net revenue')).not.toBeInTheDocument();
+        expect(screen.getByText('View memory')).toBeInTheDocument();
     });
 
     it('opens full memory details in a modal', async () => {
@@ -120,7 +119,7 @@ describe('MemoryCitation', () => {
         );
 
         fireEvent.mouseEnter(screen.getByTitle('Memory: net-revenue'));
-        fireEvent.click(await screen.findByText('View details'));
+        fireEvent.click(await screen.findByText('View memory'));
 
         const dialog = await screen.findByRole('dialog');
         expect(
