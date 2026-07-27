@@ -1577,6 +1577,7 @@ export class AppGenerateService extends BaseService {
                 appUuid: payload.appUuid,
                 version: payload.version,
                 isIteration: payload.isIteration,
+                isUpgrade: payload.isUpgrade ?? false,
                 claudeModel,
                 claudeProvider: telemetry.claudeProvider,
                 schedulerWaitMs: telemetry.schedulerWaitMs,
@@ -4382,6 +4383,7 @@ export class AppGenerateService extends BaseService {
                 appUuid,
                 version,
                 isIteration: payload.isIteration,
+                isUpgrade: payload.isUpgrade ?? false,
                 claudeModel,
                 claudeProvider,
                 schedulerWaitMs,
@@ -5559,6 +5561,8 @@ export class AppGenerateService extends BaseService {
                 version: newVersion,
                 reportedSdkVersion: body.reportedSdkVersion ?? null,
                 reportedFeatureCount: body.reportedFeatures?.length ?? null,
+                candidateFeatureKeys:
+                    body.candidateFeatures?.map((f) => f.key) ?? null,
             },
         });
 
