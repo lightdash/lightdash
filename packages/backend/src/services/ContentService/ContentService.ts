@@ -468,7 +468,7 @@ export class ContentService extends BaseService {
 
         // Non-admins can only see their own deleted content
         // (data-scoping decision, not a permission gate — intentionally unaudited)
-        // eslint-disable-next-line no-direct-ability-check
+        // eslint-disable-next-line lightdash/no-direct-ability-check
         const isAdmin = user.ability.can(
             'manage',
             subject('DeletedContent', { organizationUuid, projectUuid }),

@@ -1056,7 +1056,7 @@ export class SchedulerService extends BaseService {
         }
 
         if (
-            // eslint-disable-next-line no-direct-ability-check -- Checking newOwner's capability, not caller's access control. Caller's manage check is audited above.
+            // eslint-disable-next-line lightdash/no-direct-ability-check -- Checking newOwner's capability, not caller's access control. Caller's manage check is audited above.
             newOwner.ability.cannot(
                 'create',
                 subject('ScheduledDeliveries', {
@@ -1077,7 +1077,7 @@ export class SchedulerService extends BaseService {
         );
         if (hasGsheetsSchedulers) {
             if (
-                // eslint-disable-next-line no-direct-ability-check -- Checking newOwner's capability, not caller's access control. Caller's manage check is audited above.
+                // eslint-disable-next-line lightdash/no-direct-ability-check -- Checking newOwner's capability, not caller's access control. Caller's manage check is audited above.
                 newOwner.ability.cannot(
                     'create',
                     subject('GoogleSheets', {
@@ -2023,7 +2023,7 @@ export class SchedulerService extends BaseService {
         const projectsWithoutPermission: string[] = [];
         for (const project of summary.byProject) {
             if (
-                // eslint-disable-next-line no-direct-ability-check -- Checking newOwner's capability, not caller's access control. Caller's manage check is audited above.
+                // eslint-disable-next-line lightdash/no-direct-ability-check -- Checking newOwner's capability, not caller's access control. Caller's manage check is audited above.
                 newOwner.ability.cannot(
                     'create',
                     subject('ScheduledDeliveries', {

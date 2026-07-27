@@ -145,6 +145,7 @@ export const generateUniqueSlugScopedToProject = async (
                 increment += 1;
             }
         }
+        // eslint-disable-next-line no-fallthrough -- the block above always returns; oxlint misses the unreachable exit
         case DashboardsTableName:
             matchingSlugs = await trx(DashboardsTableName)
                 .innerJoin(

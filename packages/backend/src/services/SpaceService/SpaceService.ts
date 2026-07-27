@@ -126,7 +126,7 @@ export class SpaceService
                 user.userUuid,
                 space.uuid,
             );
-        // eslint-disable-next-line no-direct-ability-check -- test-only method exercises raw CASL abilities
+        // eslint-disable-next-line lightdash/no-direct-ability-check -- test-only method exercises raw CASL abilities
         return user.ability.can(action, subject(contentType, spaceCtx));
     }
 

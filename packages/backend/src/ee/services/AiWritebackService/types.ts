@@ -1,7 +1,7 @@
-import { type FeatureFlags } from '@lightdash/common';
 import type {
     AiWritebackSource,
     AiWritebackWorkstream,
+    FeatureFlags,
     PullRequestProvider,
     SessionUser,
     SupportedDbtVersions,
