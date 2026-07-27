@@ -201,6 +201,7 @@ const makeOrgViewerUser = (): SessionUser => ({
 
 const makeService = ({
     aiAgentModel = {},
+    aiAgentMemoryModel = {},
     aiAgentReviewClassifierModel = {},
     aiAgentReviewClassifierService = {},
     aiAgentReviewNotificationModel = {},
@@ -219,6 +220,7 @@ const makeService = ({
     aiAgentReviewNotificationService = {},
 }: {
     aiAgentModel?: Record<string, unknown>;
+    aiAgentMemoryModel?: Record<string, unknown>;
     aiAgentReviewClassifierModel?: Record<string, unknown>;
     aiAgentReviewClassifierService?: Record<string, unknown>;
     aiAgentReviewNotificationModel?: Record<string, unknown>;
@@ -245,6 +247,12 @@ const makeService = ({
             }),
             updateThreadTitle: vi.fn().mockResolvedValue(undefined),
             ...aiAgentModel,
+        },
+        aiAgentMemoryModel: {
+            findAdminMemoriesPaginated: vi
+                .fn()
+                .mockResolvedValue({ data: { memories: [] } }),
+            ...aiAgentMemoryModel,
         },
         aiAgentReviewClassifierModel: {
             getReviewRemediation: vi.fn().mockResolvedValue(makeRemediation()),
@@ -464,6 +472,106 @@ describe('AiAgentAdminService review access', () => {
             'Insufficient permissions to access AI agent reviews',
         );
         expect(listReviewSignals).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiAgentAdminService.getAllMemories', () => {
+    it('rejects when the memory feature flag is disabled', async () => {
+        const service = makeService({
+            featureFlagService: {
+                get: vi.fn().mockResolvedValue({ enabled: false }),
+            },
+        });
+
+        await expect(service.getAllMemories(makeAdminUser())).rejects.toThrow(
+            'AI agent memory is not enabled',
+        );
+    });
+
+    it('rejects principals without manage access to any project', async () => {
+        const service = makeService();
+
+        await expect(
+            service.getAllMemories(makeOrgViewerUser()),
+        ).rejects.toThrow(
+            'Insufficient permissions to access AI agent features',
+        );
+    });
+
+    it('scopes project-scoped principals to their own projects', async () => {
+        const findAdminMemoriesPaginated = vi
+            .fn()
+            .mockResolvedValue({ data: { memories: [] } });
+        const service = makeService({
+            aiAgentMemoryModel: { findAdminMemoriesPaginated },
+            projectModel: {
+                getAllByOrganizationUuid: vi
+                    .fn()
+                    .mockResolvedValue([
+                        { projectUuid: PROJECT_UUID },
+                        { projectUuid: 'other-project-uuid' },
+                    ]),
+            },
+        });
+
+        await service.getAllMemories(makeProjectUser(), undefined, {
+            projectUuids: [PROJECT_UUID, 'other-project-uuid'],
+        });
+
+        expect(findAdminMemoriesPaginated).toHaveBeenCalledWith(
+            expect.objectContaining({
+                organizationUuid: ORGANIZATION_UUID,
+                filters: { projectUuids: [PROJECT_UUID] },
+            }),
+        );
+    });
+
+    it('returns an empty page without querying when the scope is empty', async () => {
+        const findAdminMemoriesPaginated = vi.fn();
+        const service = makeService({
+            aiAgentMemoryModel: { findAdminMemoriesPaginated },
+            projectModel: {
+                getAllByOrganizationUuid: vi
+                    .fn()
+                    .mockResolvedValue([{ projectUuid: PROJECT_UUID }]),
+            },
+        });
+
+        const result = await service.getAllMemories(
+            makeProjectUser(),
+            undefined,
+            { projectUuids: ['other-project-uuid'] },
+        );
+
+        expect(result).toEqual({ data: { memories: [] } });
+        expect(findAdminMemoriesPaginated).not.toHaveBeenCalled();
+    });
+
+    it('passes pagination, filters and sort through for org admins', async () => {
+        const findAdminMemoriesPaginated = vi
+            .fn()
+            .mockResolvedValue({ data: { memories: [] } });
+        const service = makeService({
+            aiAgentMemoryModel: { findAdminMemoriesPaginated },
+        });
+
+        await service.getAllMemories(
+            makeAdminUser(),
+            { page: 2, pageSize: 25 },
+            { userUuids: ['user-1'], statuses: ['active'], search: 'revenue' },
+            { field: 'citedCount', direction: 'asc' },
+        );
+
+        expect(findAdminMemoriesPaginated).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            paginateArgs: { page: 2, pageSize: 25 },
+            filters: {
+                userUuids: ['user-1'],
+                statuses: ['active'],
+                search: 'revenue',
+            },
+            sort: { field: 'citedCount', direction: 'asc' },
+        });
     });
 });
 

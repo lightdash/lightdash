@@ -69,6 +69,7 @@ export type SettingsContext = {
     isServiceAccountsEnabled: boolean;
     isAiCopilotEnabledOrTrial: boolean;
     shouldShowAiAgentReviews: boolean;
+    shouldShowAiAgentMemories: boolean;
     // Org-level AI settings access (router config, org settings, review queue).
     canManageOrgAiAgent: boolean;
     // True when the user can manage org AI settings OR has AI agent access in at

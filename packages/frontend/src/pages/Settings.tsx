@@ -72,6 +72,7 @@ import VerifiedDomainsPanel from '../components/UserSettings/VerifiedDomains/Ver
 import { ReviewRemediationWorkspace } from '../ee/features/aiCopilot/components/Admin/ReviewRemediationWorkspace';
 import { AiAgentsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiAgentsSettingsPage';
 import { AiGeneralSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiGeneralSettingsPage';
+import { AiMemoriesSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiMemoriesSettingsPage';
 import { AiReviewsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiReviewsSettingsPage';
 import { AiSettingsProviders } from '../ee/features/aiCopilot/components/Admin/settings/AiSettingsProviders';
 import { AiThreadsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiThreadsSettingsPage';
@@ -149,6 +150,7 @@ const Settings: FC = () => {
         dataAppsFlag,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
+        shouldShowAiAgentMemories,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
         isAiOrganizationSettingsLoading,
@@ -627,6 +629,16 @@ const Settings: FC = () => {
                     </AiSettingsProviders>
                 ),
             });
+            if (shouldShowAiAgentMemories) {
+                allowedRoutes.push({
+                    path: '/ai/memories',
+                    element: (
+                        <AiSettingsProviders>
+                            <AiMemoriesSettingsPage />
+                        </AiSettingsProviders>
+                    ),
+                });
+            }
             if (shouldShowAiAgentReviews) {
                 allowedRoutes.push({
                     path: '/ai/issues',
@@ -699,6 +711,7 @@ const Settings: FC = () => {
         isLeaveOrganizationEnabled,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
+        shouldShowAiAgentMemories,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
     ]);
@@ -777,6 +790,10 @@ const Settings: FC = () => {
             ) &&
             !matchPath(
                 { path: '/generalSettings/ai/mcp' },
+                location.pathname,
+            ) &&
+            !matchPath(
+                { path: '/generalSettings/ai/memories' },
                 location.pathname,
             ) &&
             !matchPath(

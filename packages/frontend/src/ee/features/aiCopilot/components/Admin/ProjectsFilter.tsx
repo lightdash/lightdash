@@ -12,19 +12,36 @@ type ProjectsFilterProps = Pick<
     'selectedProjectUuids' | 'setSelectedProjectUuids'
 > & {
     tooltipLabel?: string;
+    // 'with-agents' hides projects that have no agent; 'all' lists every
+    // project, which audit surfaces need since content outlives its agent
+    projectScope?: 'with-agents' | 'all';
 };
 
 const ProjectsFilter: FC<ProjectsFilterProps> = ({
     selectedProjectUuids,
     setSelectedProjectUuids,
     tooltipLabel = 'Filter threads by project',
+    projectScope = 'with-agents',
 }) => {
     const [searchValue, setSearchValue] = useState('');
     const { data: projects, isLoading } = useProjects();
-    const organizationAiAgents = useAiAgentAdminAgents();
+    const organizationAiAgents = useAiAgentAdminAgents({
+        enabled: projectScope === 'with-agents',
+    });
 
     const options = useMemo<FilterFacetOption[]>(() => {
-        if (!projects || !organizationAiAgents.data) return [];
+        if (!projects) return [];
+
+        const toOption = (project: { projectUuid: string; name: string }) => ({
+            value: project.projectUuid,
+            label: project.name,
+        });
+
+        if (projectScope === 'all') {
+            return projects.map(toOption);
+        }
+
+        if (!organizationAiAgents.data) return [];
 
         const projectUuidsWithAgents = new Set(
             organizationAiAgents.data.map((agent) => agent.projectUuid),
@@ -34,11 +51,8 @@ const ProjectsFilter: FC<ProjectsFilterProps> = ({
             .filter((project) =>
                 projectUuidsWithAgents.has(project.projectUuid),
             )
-            .map((project) => ({
-                value: project.projectUuid,
-                label: project.name,
-            }));
-    }, [projects, organizationAiAgents.data]);
+            .map(toOption);
+    }, [projects, organizationAiAgents.data, projectScope]);
 
     const filteredOptions = useMemo<FilterFacetOption[]>(() => {
         const search = searchValue.trim().toLowerCase();
@@ -64,10 +78,18 @@ const ProjectsFilter: FC<ProjectsFilterProps> = ({
             emptyLabel={
                 searchValue
                     ? 'No projects match your search.'
-                    : 'No projects with agents available.'
+                    : 'No projects available.'
             }
-            loading={isLoading || organizationAiAgents.isLoading}
-            helperText="Showing projects with agents only"
+            loading={
+                isLoading ||
+                (projectScope === 'with-agents' &&
+                    organizationAiAgents.isLoading)
+            }
+            helperText={
+                projectScope === 'with-agents'
+                    ? 'Showing projects with agents only'
+                    : undefined
+            }
             searchValue={searchValue}
             onSearchChange={setSearchValue}
             searchPlaceholder="Search projects..."

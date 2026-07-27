@@ -1,9 +1,12 @@
 import {
     type AiAgentAdminFilters,
+    type AiAgentAdminMemoryFilters,
+    type AiAgentAdminMemorySort,
     type AiAgentAdminSort,
     type AiAgentReviewItemSummary,
     type AiAgentReviewItemStatus,
     type ApiAiAgentAdminConversationsResponse,
+    type ApiAiAgentAdminMemoriesResponse,
     type ApiAiAgentAdminPromptActivityResponse,
     type ApiAiAgentReviewItemActivityResponse,
     type ApiAiAgentReviewItemPrDiffResponse,
@@ -109,6 +112,61 @@ export const useInfiniteAiAgentAdminThreads = (
         ...infinityQueryOpts,
     });
 };
+
+export type AiAgentAdminMemoriesArgs = {
+    filters: AiAgentAdminMemoryFilters;
+    sort: AiAgentAdminMemorySort;
+    pagination: {
+        pageSize?: number;
+        page?: number;
+    };
+};
+
+const getAiAgentAdminMemories = async (
+    args: AiAgentAdminMemoryFilters & {
+        sortField: AiAgentAdminMemorySort['field'];
+        sortDirection: AiAgentAdminMemorySort['direction'];
+    } & {
+        pageSize?: number;
+        page?: number;
+    },
+) => {
+    const params = createQueryString(args);
+    return lightdashApi<ApiAiAgentAdminMemoriesResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/memories?${params}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useInfiniteAiAgentAdminMemories = (
+    args: AiAgentAdminMemoriesArgs,
+    infinityQueryOpts: UseInfiniteQueryOptions<
+        ApiAiAgentAdminMemoriesResponse['results'],
+        ApiError
+    > = {},
+) =>
+    useInfiniteQuery<ApiAiAgentAdminMemoriesResponse['results'], ApiError>({
+        queryKey: ['ai-agent-admin-memories', args],
+        queryFn: ({ pageParam }) =>
+            getAiAgentAdminMemories({
+                ...args.filters,
+                sortField: args.sort.field,
+                sortDirection: args.sort.direction,
+                ...args.pagination,
+                page: (pageParam as number) ?? 1,
+            }),
+        getNextPageParam: (lastPage) => {
+            if (lastPage.pagination) {
+                return lastPage.pagination.page <
+                    lastPage.pagination.totalPageCount
+                    ? lastPage.pagination.page + 1
+                    : undefined;
+            }
+        },
+        ...infinityQueryOpts,
+    });
 
 const getAiAgentAdminProjectPromptActivity = async ({
     projectUuid,

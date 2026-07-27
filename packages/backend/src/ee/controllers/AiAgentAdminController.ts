@@ -1,9 +1,12 @@
 import {
     AiAgentAdminFilters,
+    AiAgentAdminMemoryFilters,
+    AiAgentAdminMemorySort,
     AiAgentAdminSort,
     AiAgentReviewItemStatus,
     AiAgentReviewReplayCaptureRequest,
     ApiAiAgentAdminConversationsResponse,
+    ApiAiAgentAdminMemoriesResponse,
     ApiAiAgentAdminPromptActivityResponse,
     ApiAiAgentReviewItemActivityResponse,
     ApiAiAgentReviewItemPrDiffResponse,
@@ -64,6 +67,7 @@ import { type AiAgentAdminService } from '../services/AiAgentAdminService';
 import { type AiOrganizationSettingsService } from '../services/AiOrganizationSettingsService';
 
 const MCP_ACTIVITY_MAX_PAGE_SIZE = 100;
+const AI_AGENT_MEMORIES_MAX_PAGE_SIZE = 100;
 
 // Rejects malformed date filters at the boundary (422) instead of letting
 // Postgres fail the query with a 500
@@ -321,6 +325,61 @@ export class AiAgentAdminController extends BaseController {
             results: await this.getAiAgentAdminService().listAgents(
                 toSessionUser(req.account),
             ),
+        };
+    }
+
+    /**
+     * Get all AI agent memories for admin
+     * @summary List AI agent memories
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/memories')
+    @OperationId('getAllAiAgentMemories')
+    async getAllAiAgentMemories(
+        @Request() req: express.Request,
+        // Pagination
+        @Query() page?: KnexPaginateArgs['page'],
+        @Query() pageSize?: KnexPaginateArgs['pageSize'],
+        // Filtering
+        @Query() projectUuids?: AiAgentAdminMemoryFilters['projectUuids'],
+        @Query() userUuids?: AiAgentAdminMemoryFilters['userUuids'],
+        @Query() statuses?: AiAgentAdminMemoryFilters['statuses'],
+        @Query() search?: AiAgentAdminMemoryFilters['search'],
+        // Sorting
+        @Query() sortField?: AiAgentAdminMemorySort['field'],
+        @Query() sortDirection?: AiAgentAdminMemorySort['direction'],
+    ): Promise<ApiAiAgentAdminMemoriesResponse> {
+        assertRegisteredAccount(req.account);
+        validateUuidFilter('projectUuids', projectUuids);
+        validateUuidFilter('userUuids', userUuids);
+
+        const filters: AiAgentAdminMemoryFilters = {
+            ...(projectUuids && { projectUuids }),
+            ...(userUuids && { userUuids }),
+            ...(statuses && { statuses }),
+            ...(search && { search }),
+        };
+
+        const memories = await this.getAiAgentAdminService().getAllMemories(
+            toSessionUser(req.account),
+            {
+                page: page ?? 1,
+                pageSize: Math.min(
+                    pageSize ?? 50,
+                    AI_AGENT_MEMORIES_MAX_PAGE_SIZE,
+                ),
+            },
+            filters,
+            sortField
+                ? { field: sortField, direction: sortDirection ?? 'desc' }
+                : undefined,
+        );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: memories,
         };
     }
 
