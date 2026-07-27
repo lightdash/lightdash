@@ -238,10 +238,8 @@ const decodeHtmlEntities = (value: string): string =>
             return named;
         }
         const isHex = code.toLowerCase().startsWith('#x');
-        const codePoint = Number.parseInt(
-            code.slice(isHex ? 2 : 1),
-            isHex ? 16 : 10,
-        );
+        const radix = isHex ? 16 : 10;
+        const codePoint = Number.parseInt(code.slice(isHex ? 2 : 1), radix);
         return Number.isSafeInteger(codePoint) && codePoint <= 0x10ffff
             ? String.fromCodePoint(codePoint)
             : entity;

@@ -1,19 +1,26 @@
 {
     "$schema": "../../node_modules/oxlint/configuration_schema.json",
-    "categories": {
-        "correctness": "off",
-        "nursery": "off",
-        "pedantic": "off",
-        "perf": "off",
-        "restriction": "off",
-        "style": "off",
-        "suspicious": "off"
-    },
+    "extends": ["../../.oxlintrc.base.json"],
     "options": {
         "typeAware": true
     },
-    "plugins": ["typescript"],
     "rules": {
+        "@typescript-eslint/consistent-type-imports": [
+            "error",
+            { "prefer": "type-imports", "fixStyle": "inline-type-imports" }
+        ],
+        "@typescript-eslint/only-throw-error": "warn",
+        "no-unused-vars": [
+            "error",
+            {
+                "argsIgnorePattern": "^_",
+                "varsIgnorePattern": "^_",
+                "ignoreRestSiblings": true,
+                "caughtErrors": "none"
+            }
+        ],
+        "no-case-declarations": "off",
+        "no-template-curly-in-string": "off",
         "@typescript-eslint/no-unsafe-member-access": "error",
         "@typescript-eslint/no-unsafe-assignment": "error",
         "@typescript-eslint/no-unsafe-call": "error"
