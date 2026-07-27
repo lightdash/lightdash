@@ -4,6 +4,7 @@ import type {
     ApiAiAgentMemoryResponse,
 } from '@lightdash/common';
 import {
+    Accordion,
     Alert,
     Anchor,
     Badge,
@@ -23,6 +24,7 @@ import { type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import MantineModal from '../../../../../components/common/MantineModal';
+import { parseAiAgentMemorySections } from '../../utils/memory';
 import styles from './MemoryDetails.module.css';
 
 type Memory = ApiAiAgentMemoryResponse['results'];
@@ -47,6 +49,16 @@ const RailRow: FC<{ label: string; children: ReactNode }> = ({
         <Text className={styles.railLabel}>{label}</Text>
         <Box className={styles.railValue}>{children}</Box>
     </Group>
+);
+
+const DisclosureLabel: FC<{ title: string; description: string }> = ({
+    title,
+    description,
+}) => (
+    <Box>
+        <Text className={styles.disclosureTitle}>{title}</Text>
+        <Text className={styles.disclosureDescription}>{description}</Text>
+    </Box>
 );
 
 const SourceRow: FC<{
@@ -109,6 +121,13 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
         memory.provenance.type === 'source_thread'
             ? [memory.provenance.source]
             : memory.provenance.sources;
+    const sections = parseAiAgentMemorySections(memory.rawMemory);
+    const sourceDescription =
+        memory.provenance.type === 'consolidated'
+            ? sources.length > 0
+                ? `Consolidated from ${sources.length} memories`
+                : 'Consolidated memory'
+            : 'Extracted from one thread';
 
     return (
         <Box className={styles.layout}>
@@ -138,37 +157,84 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                 <Stack gap="md">
                     <Text className={styles.sectionLabel}>Memory</Text>
                     <AiMarkdown className={styles.memoryContent}>
-                        {memory.rawMemory}
+                        {sections.memory}
                     </AiMarkdown>
                 </Stack>
 
-                <Stack gap="md" className={styles.section}>
-                    <Group justify="space-between" align="baseline">
-                        <Text className={styles.sectionLabel}>Source</Text>
-                        <Text size="xs" c="dimmed">
-                            {memory.provenance.type === 'consolidated'
-                                ? sources.length > 0
-                                    ? `Consolidated from ${sources.length} memories`
-                                    : 'Consolidated memory'
-                                : 'Extracted from one thread'}
-                        </Text>
-                    </Group>
-                    <Box className={styles.sourceList}>
-                        {sources.length > 0 ? (
-                            sources.map((source) => (
-                                <SourceRow
-                                    key={source.slug}
-                                    source={source}
-                                    projectUuid={projectUuid}
+                <Accordion
+                    multiple
+                    defaultValue={[]}
+                    className={styles.disclosures}
+                    classNames={{
+                        item: styles.disclosureItem,
+                        control: styles.disclosureControl,
+                        label: styles.disclosureLabel,
+                        chevron: styles.disclosureChevron,
+                        content: styles.disclosureContent,
+                    }}
+                >
+                    {sections.evidence ? (
+                        <Accordion.Item value="evidence">
+                            <Accordion.Control>
+                                <DisclosureLabel
+                                    title="Evidence"
+                                    description="Why this memory was learned"
                                 />
-                            ))
-                        ) : (
-                            <Text size="xs" c="dimmed" p="md">
-                                No source threads recorded
-                            </Text>
-                        )}
-                    </Box>
-                </Stack>
+                            </Accordion.Control>
+                            <Accordion.Panel>
+                                <AiMarkdown
+                                    className={styles.disclosureMarkdown}
+                                >
+                                    {sections.evidence}
+                                </AiMarkdown>
+                            </Accordion.Panel>
+                        </Accordion.Item>
+                    ) : null}
+
+                    {sections.apply ? (
+                        <Accordion.Item value="apply">
+                            <Accordion.Control>
+                                <DisclosureLabel
+                                    title="Apply"
+                                    description="When and how to use it"
+                                />
+                            </Accordion.Control>
+                            <Accordion.Panel>
+                                <AiMarkdown
+                                    className={styles.disclosureMarkdown}
+                                >
+                                    {sections.apply}
+                                </AiMarkdown>
+                            </Accordion.Panel>
+                        </Accordion.Item>
+                    ) : null}
+
+                    <Accordion.Item value="source">
+                        <Accordion.Control>
+                            <DisclosureLabel
+                                title="Source"
+                                description={sourceDescription}
+                            />
+                        </Accordion.Control>
+                        <Accordion.Panel>
+                            <Box className={styles.sourceList}>
+                                {sources.length > 0 ? (
+                                    sources.map((source) => (
+                                        <SourceRow
+                                            key={source.slug}
+                                            source={source}
+                                            projectUuid={projectUuid}
+                                        />
+                                    ))
+                                ) : (
+                                    <Text size="xs" c="dimmed" p="md">
+                                        No source threads recorded
+                                    </Text>
+                                )}
+                            </Box>
+                        </Accordion.Panel>
+                    </Accordion.Item>
+                </Accordion>
             </Stack>
 
             <Divider orientation="vertical" className={styles.divider} />

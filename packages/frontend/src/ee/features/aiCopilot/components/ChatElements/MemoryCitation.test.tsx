@@ -17,7 +17,17 @@ vi.mock('../../hooks/useAiAgentMemory', () => ({
         data: {
             slug: 'net-revenue-ab12cd34',
             title: 'Net revenue convention',
-            rawMemory: '**Net revenue** excludes refunds.',
+            rawMemory: `## Memory
+
+**Net revenue** excludes refunds.
+
+## Evidence
+
+The user explicitly adopted this definition.
+
+## Apply
+
+Use net revenue for future revenue questions.`,
             terms: ['net revenue'],
             objects: [],
             status: 'active',
@@ -127,10 +137,26 @@ describe('MemoryCitation', () => {
         ).toBeInTheDocument();
         expect(within(dialog).getByText('Memory')).toBeInTheDocument();
         expect(within(dialog).getByText('net revenue')).toBeInTheDocument();
-        expect(within(dialog).getByText('Source')).toBeInTheDocument();
+        const evidenceControl = within(dialog).getByRole('button', {
+            name: /Evidence/,
+        });
+        const applyControl = within(dialog).getByRole('button', {
+            name: /Apply/,
+        });
+        const sourceControl = within(dialog).getByRole('button', {
+            name: /Source/,
+        });
+
+        expect(evidenceControl).toHaveAttribute('aria-expanded', 'false');
+        expect(applyControl).toHaveAttribute('aria-expanded', 'false');
+        expect(sourceControl).toHaveAttribute('aria-expanded', 'false');
         expect(
             within(dialog).getByText('Extracted from one thread'),
         ).toBeInTheDocument();
+
+        fireEvent.click(sourceControl);
+
+        expect(sourceControl).toHaveAttribute('aria-expanded', 'true');
         expect(within(dialog).getByText('Defined')).toHaveAttribute(
             'data-streamdown',
             'strong',
@@ -169,6 +195,8 @@ describe('MemoryCitation', () => {
                 </MantineProvider>
             </MemoryRouter>,
         );
+
+        fireEvent.click(screen.getByRole('button', { name: /Source/ }));
 
         expect(screen.getByText('Source thread')).toBeInTheDocument();
         expect(
