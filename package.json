@@ -195,28 +195,46 @@
             "pnpm -F frontend run linter --fix",
             "pnpm -F frontend run formatter"
         ],
-        "packages/backend/src/**/*.(ts|tsx|json)": [
+        "packages/backend/src/**/*.(ts|tsx)": [
             "pnpm -F backend run linter --fix",
             "pnpm -F backend run formatter"
         ],
-        "packages/common/src/**/*.(ts|tsx|json)": [
+        "packages/backend/src/**/*.json": [
+            "pnpm -F backend run formatter"
+        ],
+        "packages/common/src/**/*.(ts|tsx)": [
             "pnpm -F common run linter --fix",
             "pnpm -F common run formatter"
         ],
-        "packages/e2e/cypress/**/*.(ts|json)": [
+        "packages/common/src/**/*.json": [
+            "pnpm -F common run formatter"
+        ],
+        "packages/e2e/cypress/**/*.ts": [
             "pnpm -F e2e run linter --fix",
             "pnpm -F e2e run formatter"
         ],
-        "packages/cli/src/**/*.(ts|tsx|json)": [
+        "packages/e2e/cypress/**/*.json": [
+            "pnpm -F e2e run formatter"
+        ],
+        "packages/cli/src/**/*.(ts|tsx)": [
             "pnpm -F cli run linter --fix",
             "pnpm -F cli run formatter"
         ],
-        "packages/warehouses/src/**/*.(ts|tsx|json)": [
+        "packages/cli/src/**/*.json": [
+            "pnpm -F cli run formatter"
+        ],
+        "packages/warehouses/src/**/*.(ts|tsx)": [
             "pnpm -F warehouses run linter --fix",
             "pnpm -F warehouses run formatter"
         ],
-        "packages/api-tests/**/*.(ts|json)": [
+        "packages/warehouses/src/**/*.json": [
+            "pnpm -F warehouses run formatter"
+        ],
+        "packages/api-tests/**/*.ts": [
             "pnpm -F api-tests run linter --fix",
+            "pnpm -F api-tests run formatter"
+        ],
+        "packages/api-tests/**/*.json": [
             "pnpm -F api-tests run formatter"
         ],
         "packages/formula/src/**/*.(ts|json)": [

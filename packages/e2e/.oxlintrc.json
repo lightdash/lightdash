@@ -3,6 +3,7 @@
     "extends": ["../../.oxlintrc.base.json"],
     "rules": {
         "import/prefer-default-export": "error",
-        "jest/no-standalone-expect": "off"
+        "jest/no-standalone-expect": "off",
+        "vitest/valid-expect": "off"
     }
 }
