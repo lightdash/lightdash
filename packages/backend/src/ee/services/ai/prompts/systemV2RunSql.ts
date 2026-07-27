@@ -1,4 +1,8 @@
-import { WarehouseTypes } from '@lightdash/common';
+import {
+    DEFAULT_RUN_SQL_LIMIT,
+    DEFAULT_RUN_SQL_MAX_LIMIT,
+    WarehouseTypes,
+} from '@lightdash/common';
 
 const WAREHOUSE_HINTS: Record<WarehouseTypes, string> = {
     [WarehouseTypes.POSTGRES]:
@@ -24,6 +28,11 @@ const WAREHOUSE_HINTS: Record<WarehouseTypes, string> = {
 export const getRunSqlSection = (
     warehouseType: WarehouseTypes | null,
     warehouseSchema: string | null,
+    // Passed in rather than hardcoded: the max is configurable
+    // (AI_COPILOT_RUN_SQL_MAX_LIMIT / AI_COPILOT_MAX_QUERY_LIMIT), so a literal
+    // here would contradict the tool schema on any instance that changed it.
+    runSqlDefaultLimit: number = DEFAULT_RUN_SQL_LIMIT,
+    runSqlMaxLimit: number = DEFAULT_RUN_SQL_MAX_LIMIT,
 ) => {
     const warehouseLine = warehouseType
         ? `**Warehouse:** ${warehouseType}. ${WAREHOUSE_HINTS[warehouseType] ?? ''}`
@@ -97,7 +106,7 @@ NEVER guess column names across multiple \`runSql\` calls. Discovery is free; SQ
 **Operational rules:**
 - SELECT/WITH only. Mutations (INSERT, UPDATE, DELETE, DDL) are rejected server-side.
 - Prefer a concise text summary of the SQL result. If a small table helps the answer, include it in the final response.
-- Default row limit 500, max 5000. Include LIMIT explicitly or rely on the default.
+- Default row limit ${runSqlDefaultLimit}, max ${runSqlMaxLimit}. Include LIMIT explicitly or rely on the default. These two numbers apply to \`runSql\` ONLY — never reuse them as the limit for another tool, each one has its own.
 - ${warehouseLine}
 `;
 };

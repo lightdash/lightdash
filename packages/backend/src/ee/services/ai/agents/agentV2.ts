@@ -1054,6 +1054,7 @@ const getAgentMessages = (
         canRunSql: args.canRunSql,
         warehouseType: args.warehouseType,
         warehouseSchema: args.warehouseSchema,
+        runSqlMaxLimit: args.runSqlMaxLimit,
         unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
             args,
             mcpToolSetup,

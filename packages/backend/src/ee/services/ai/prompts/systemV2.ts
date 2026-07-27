@@ -64,6 +64,10 @@ export const getSystemPromptV2 = (args: {
     canRunSql?: boolean;
     warehouseType?: WarehouseTypes | null;
     warehouseSchema?: string | null;
+    // runSql's own row limits, quoted in its prompt section. When left
+    // undefined the section falls back to the schema defaults.
+    runSqlDefaultLimit?: number;
+    runSqlMaxLimit?: number;
     unauthenticatedMcpServerNames?: string[];
 }): SystemModelMessage => {
     const {
@@ -86,6 +90,8 @@ export const getSystemPromptV2 = (args: {
         canRunSql = false,
         warehouseType = null,
         warehouseSchema = null,
+        runSqlDefaultLimit,
+        runSqlMaxLimit,
         unauthenticatedMcpServerNames = [],
     } = args;
 
@@ -206,7 +212,14 @@ export const getSystemPromptV2 = (args: {
         )
         .replace(
             '{{run_sql_section}}',
-            canRunSql ? getRunSqlSection(warehouseType, warehouseSchema) : '',
+            canRunSql
+                ? getRunSqlSection(
+                      warehouseType,
+                      warehouseSchema,
+                      runSqlDefaultLimit,
+                      runSqlMaxLimit,
+                  )
+                : '',
         )
         .replace(
             '{{content_tools_section}}',
