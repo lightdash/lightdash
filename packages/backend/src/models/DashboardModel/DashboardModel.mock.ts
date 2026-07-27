@@ -145,6 +145,7 @@ export const spaceEntry: SpaceTable['base'] = {
 export const savedChartEntry: SavedChartTable['base'] = {
     saved_query_id: 0,
     saved_query_uuid: '123',
+    project_uuid: 'project_uuid',
     space_id: 0,
     name: 'chart name',
     slug: 'chart-name',

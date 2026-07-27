@@ -32,6 +32,7 @@ type InsertChartInSpace = Pick<
     | 'last_version_updated_by_user_uuid'
     | 'slug'
 > & {
+    project_uuid: string;
     space_id: number;
     dashboard_uuid: null;
 };
@@ -42,7 +43,9 @@ type InsertChartInDashboard = Pick<
     | 'description'
     | 'last_version_chart_kind'
     | 'last_version_updated_by_user_uuid'
+    | 'slug'
 > & {
+    project_uuid: string;
     space_id: null;
     dashboard_uuid: string;
 };
@@ -55,6 +58,7 @@ export type SavedChartTable = Knex.CompositeTableType<
     Partial<
         Pick<
             DbSavedChart,
+            | 'project_uuid'
             | 'space_id'
             | 'name'
             | 'description'
@@ -75,6 +79,7 @@ export type SavedChartTable = Knex.CompositeTableType<
 export type DbSavedChart = {
     saved_query_id: number;
     saved_query_uuid: string;
+    project_uuid: string | null;
     space_id: number | null;
     dashboard_uuid: string | null;
     name: string;

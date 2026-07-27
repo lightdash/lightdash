@@ -3107,7 +3107,7 @@ export class ProjectModel {
                                   );
                               }
                               const createChart: CloneChart = {
-                                  ...omitProjectUuid(d),
+                                  ...replaceProjectUuid(d, previewProjectUuid),
                                   search_vector: undefined,
                                   saved_query_id: undefined,
                                   saved_query_uuid: undefined,
@@ -3162,7 +3162,7 @@ export class ProjectModel {
                                   );
                               }
                               const createChart: CloneChart = {
-                                  ...omitProjectUuid(d),
+                                  ...replaceProjectUuid(d, previewProjectUuid),
                                   search_vector: undefined,
                                   space_id: null,
                                   dashboard_uuid: d.dashboard_uuid,
