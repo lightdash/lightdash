@@ -23,6 +23,7 @@ import {
     IconCopy,
     IconDots,
     IconFilter,
+    IconMinus,
     IconPencil,
     IconTimelineEvent,
     IconTrash,
@@ -334,8 +335,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                         <Menu.Divider />
 
                         <Menu.Item
-                            leftSection={<MantineIcon icon={IconTrash} />}
-                            color="red"
+                            leftSection={<MantineIcon icon={IconMinus} />}
                             onClick={() => {
                                 dispatch(
                                     explorerActions.toggleDimension(
@@ -345,6 +345,20 @@ const ContextMenu: FC<ContextMenuProps> = ({
                             }}
                         >
                             Remove
+                        </Menu.Item>
+
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            color="red"
+                            onClick={() => {
+                                dispatch(
+                                    explorerActions.removeCustomDimension(
+                                        getItemId(item),
+                                    ),
+                                );
+                            }}
+                        >
+                            Delete custom dimension
                         </Menu.Item>
                     </>
                 )}
