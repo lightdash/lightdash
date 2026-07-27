@@ -16245,6 +16245,25 @@
                     "error"
                 ]
             },
+            "AppVersionStatusHistoryEntryKind": {
+                "type": "string",
+                "enum": ["stage", "thinking", "tool"]
+            },
+            "AppVersionStatusHistoryEntry": {
+                "properties": {
+                    "kind": {
+                        "$ref": "#/components/schemas/AppVersionStatusHistoryEntryKind"
+                    },
+                    "timestamp": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    }
+                },
+                "required": ["kind", "timestamp", "message"],
+                "type": "object"
+            },
             "AppVersionImageResource": {
                 "properties": {
                     "imageId": {
@@ -16430,6 +16449,12 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "statusHistory": {
+                        "items": {
+                            "$ref": "#/components/schemas/AppVersionStatusHistoryEntry"
+                        },
+                        "type": "array"
+                    },
                     "statusMessage": {
                         "type": "string",
                         "nullable": true
@@ -16451,6 +16476,7 @@
                     "statusUpdatedAt",
                     "createdAt",
                     "error",
+                    "statusHistory",
                     "statusMessage",
                     "status",
                     "prompt",
@@ -16550,6 +16576,50 @@
             },
             "ApiDuplicateAppResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number__"
+            },
+            "ApiUpgradeAppResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number__"
+            },
+            "UpgradeCandidateFeature": {
+                "properties": {
+                    "wiring": {
+                        "type": "string",
+                        "description": "Agent-facing app-code wiring the feature needs before it works;\nabsent = activates automatically on the new SDK."
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "key": {
+                        "type": "string"
+                    }
+                },
+                "required": ["description", "label", "key"],
+                "type": "object",
+                "description": "A feature the frontend's SDK registry says may be new to this app.\nMirrors the SdkFeature shape from"
+            },
+            "UpgradeAppRequestBody": {
+                "properties": {
+                    "candidateFeatures": {
+                        "items": {
+                            "$ref": "#/components/schemas/UpgradeCandidateFeature"
+                        },
+                        "type": "array"
+                    },
+                    "reportedFeatures": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "reportedSdkVersion": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "description": "What the app's running bundle reported about itself via the SDK's\n`lightdash:sdk:manifest` message. Both fields absent for legacy bundles\nwhose SDK predates feature reporting. Forwarded into the upgrade prompt —\nthe backend does not validate against any registry.\n\ncandidateFeatures is the authoritative \"possibly new\" list computed by the\nfrontend from its own SDK registry — the in-sandbox agent only verifies and\nfilters it, never discovers features on its own."
             },
             "PromoteAppAction": {
                 "type": "string",
@@ -19903,64 +19973,39 @@
                 "type": "string",
                 "enum": ["active", "superseded", "retired"]
             },
+            "AiAgentMemoryScope": {
+                "type": "string",
+                "enum": ["user", "project"],
+                "description": "Never affects which memories are recalled: selection, pull, ranking and\naccess all filter on ownership alone. The label IS rendered into the injected\nfence, so it shapes how the agent treats an entry it already has.\n`project` means \"nominate for review\", never \"safe to broadcast\"."
+            },
             "AiAgentMemorySource": {
-                "allOf": [
-                    {
-                        "properties": {
-                            "slug": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["slug"],
-                        "type": "object"
+                "properties": {
+                    "threadSummary": {
+                        "type": "string"
                     },
-                    {
-                        "anyOf": [
-                            {
-                                "properties": {
-                                    "hasThreadAccess": {
-                                        "type": "boolean",
-                                        "enum": [false],
-                                        "nullable": false
-                                    }
-                                },
-                                "required": ["hasThreadAccess"],
-                                "type": "object"
-                            },
-                            {
-                                "properties": {
-                                    "threadSummary": {
-                                        "type": "string"
-                                    },
-                                    "threadTitle": {
-                                        "type": "string",
-                                        "nullable": true
-                                    },
-                                    "threadUuid": {
-                                        "type": "string"
-                                    },
-                                    "agentUuid": {
-                                        "type": "string",
-                                        "nullable": true
-                                    },
-                                    "hasThreadAccess": {
-                                        "type": "boolean",
-                                        "enum": [true],
-                                        "nullable": false
-                                    }
-                                },
-                                "required": [
-                                    "threadSummary",
-                                    "threadTitle",
-                                    "threadUuid",
-                                    "agentUuid",
-                                    "hasThreadAccess"
-                                ],
-                                "type": "object"
-                            }
-                        ]
+                    "threadTitle": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "agentUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "slug": {
+                        "type": "string"
                     }
-                ]
+                },
+                "required": [
+                    "threadSummary",
+                    "threadTitle",
+                    "threadUuid",
+                    "agentUuid",
+                    "slug"
+                ],
+                "type": "object"
             },
             "AiAgentMemory": {
                 "properties": {
@@ -20010,6 +20055,9 @@
                     "generatedAt": {
                         "type": "string"
                     },
+                    "scope": {
+                        "$ref": "#/components/schemas/AiAgentMemoryScope"
+                    },
                     "status": {
                         "$ref": "#/components/schemas/AiAgentMemoryStatus"
                     },
@@ -20040,6 +20088,7 @@
                     "provenance",
                     "citedCount",
                     "generatedAt",
+                    "scope",
                     "status",
                     "objects",
                     "terms",
@@ -25737,6 +25786,9 @@
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.BIGQUERY"
                     },
+                    "project": {
+                        "type": "string"
+                    },
                     "requireUserCredentials": {
                         "type": "boolean"
                     },
@@ -25764,9 +25816,6 @@
                     "timeoutSeconds": {
                         "type": "number",
                         "format": "double"
-                    },
-                    "project": {
-                        "type": "string"
                     },
                     "dataset": {
                         "type": "string"
@@ -28480,6 +28529,176 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "RoadmapItemStatus": {
+                "enum": ["Backlog", "Building", "Shipped", "Canceled"],
+                "type": "string"
+            },
+            "RoadmapItemPriority": {
+                "enum": ["Urgent", "High", "Medium", "Low", "No priority"],
+                "type": "string"
+            },
+            "RoadmapItem": {
+                "properties": {
+                    "pullRequestUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "issueUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "priority": {
+                        "$ref": "#/components/schemas/RoadmapItemPriority"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/RoadmapItemStatus"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "ticketId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "pullRequestUrl",
+                    "issueUrl",
+                    "updatedAt",
+                    "createdAt",
+                    "priority",
+                    "status",
+                    "description",
+                    "title",
+                    "ticketId"
+                ],
+                "type": "object"
+            },
+            "RoadmapPagination": {
+                "properties": {
+                    "totalPages": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "totalIssues": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "page": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["totalPages", "totalIssues", "pageSize", "page"],
+                "type": "object"
+            },
+            "Record_RoadmapItemStatus.number_": {
+                "properties": {
+                    "Backlog": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "Building": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "Shipped": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "Canceled": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["Backlog", "Building", "Shipped", "Canceled"],
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "Record_RoadmapItemPriority.number_": {
+                "properties": {
+                    "Urgent": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "High": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "Medium": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "Low": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "No priority": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["Urgent", "High", "Medium", "Low", "No priority"],
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "RoadmapFacets": {
+                "properties": {
+                    "priorityCounts": {
+                        "$ref": "#/components/schemas/Record_RoadmapItemPriority.number_"
+                    },
+                    "statusCounts": {
+                        "$ref": "#/components/schemas/Record_RoadmapItemStatus.number_"
+                    }
+                },
+                "required": ["priorityCounts", "statusCounts"],
+                "type": "object"
+            },
+            "RoadmapResults": {
+                "properties": {
+                    "facets": {
+                        "$ref": "#/components/schemas/RoadmapFacets"
+                    },
+                    "pagination": {
+                        "$ref": "#/components/schemas/RoadmapPagination"
+                    },
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/RoadmapItem"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["facets", "pagination", "data"],
+                "type": "object"
+            },
+            "ApiRoadmapResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/RoadmapResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "AgentOnboardingRunStatus": {
                 "type": "string",
                 "enum": [
@@ -30946,6 +31165,9 @@
                         "required": ["name", "uuid"],
                         "type": "object"
                     },
+                    "scope": {
+                        "$ref": "#/components/schemas/AiAgentMemoryScope"
+                    },
                     "status": {
                         "$ref": "#/components/schemas/AiAgentMemoryStatus"
                     },
@@ -30972,6 +31194,7 @@
                     "user",
                     "agent",
                     "project",
+                    "scope",
                     "status",
                     "summary",
                     "title",
@@ -50204,7 +50427,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3487.0",
+        "version": "1.0.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -62596,6 +62819,17 @@
                             "type": "array",
                             "items": {
                                 "$ref": "#/components/schemas/AiAgentMemoryStatus"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "scopes",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/components/schemas/AiAgentMemoryScope"
                             }
                         }
                     },

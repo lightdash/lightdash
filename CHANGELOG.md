@@ -1,3 +1,32 @@
+# [1.0.0](https://github.com/lightdash/lightdash/compare/0.3487.0...1.0.0) (2026-07-27)
+
+
+### Bug Fixes
+
+* **ai:** don't let schema-validation failures trip the query retry cap ([#26223](https://github.com/lightdash/lightdash/issues/26223)) ([ae121c1](https://github.com/lightdash/lightdash/commit/ae121c16105ffd1184e495316d40c05dfc1c4118))
+* **data-apps:** require stamp proof in lineage availability announce [PROD-9110] ([#26231](https://github.com/lightdash/lightdash/issues/26231)) ([1ebb4b5](https://github.com/lightdash/lightdash/commit/1ebb4b581555c17771bb6a172196de20830a99cb))
+
+
+### Features
+
+* add organization roadmap ([#26227](https://github.com/lightdash/lightdash/issues/26227)) ([36dd54a](https://github.com/lightdash/lightdash/commit/36dd54a154641e5f1bfa9bcb2bce701887c8df84))
+* **ai-memory:** label every memory with an advisory scope ([#26217](https://github.com/lightdash/lightdash/issues/26217)) ([5383f82](https://github.com/lightdash/lightdash/commit/5383f82b911272bbb889648ce48d2818be44a5dc))
+* **ai-memory:** restore personal preferences in the distill prompt ([#26213](https://github.com/lightdash/lightdash/issues/26213)) ([a8e3952](https://github.com/lightdash/lightdash/commit/a8e395296ade262e218a6ca4695db7e6ea122b59))
+* **ai-memory:** rewrite the memory guardrail and render scope on the fence ([#26219](https://github.com/lightdash/lightdash/issues/26219)) ([d9ad422](https://github.com/lightdash/lightdash/commit/d9ad4220010356ba7b5d55394f20b5208d6ace9f))
+* **ai-memory:** scope memories to the thread owner ([#26209](https://github.com/lightdash/lightdash/issues/26209)) ([ed2caaf](https://github.com/lightdash/lightdash/commit/ed2caaf4bb686d35cdc96d50c75c141dbdb5e393))
+* **ai-memory:** show and filter memory scope in the admin memories tab ([#26222](https://github.com/lightdash/lightdash/issues/26222)) ([da817ef](https://github.com/lightdash/lightdash/commit/da817efefe4b2c47b1317d82b76ddf8bdeae820c))
+* **data-apps:** upgrade app to the latest template as a special iteration ([#26039](https://github.com/lightdash/lightdash/issues/26039)) ([5517221](https://github.com/lightdash/lightdash/commit/5517221a5ff941406657eefbce7ee716c185d048))
+* show agent reasoning and activity history in data app builds ([#26228](https://github.com/lightdash/lightdash/issues/26228)) ([8c5e349](https://github.com/lightdash/lightdash/commit/8c5e3492d9380b143ab1fa30e2af6a7829135830))
+
+
+### BREAKING CHANGES
+
+* **ai-memory:** to the memory API response shape. It is the direct consequence
+of "access never loads the source thread" and is intended.
+
+Closes: ZAP-708
+Relates: ZAP-707
+
 # [0.3487.0](https://github.com/lightdash/lightdash/compare/0.3486.1...0.3487.0) (2026-07-27)
 
 

@@ -175,6 +175,8 @@ import { OrganizationSsoController } from './../ee/controllers/OrganizationSsoCo
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { OrganizationWarehouseCredentialsController } from './../ee/controllers/OrganizationWarehouseCredentialsController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { OrgRoadmapController } from './../ee/controllers/OrgRoadmapController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { PreAggregateController } from './../ee/controllers/PreAggregateController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ProjectAnnouncementsController } from './../ee/controllers/projectAnnouncementsController';
@@ -14863,6 +14865,35 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AppVersionStatusHistoryEntryKind: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['stage'] },
+                { dataType: 'enum', enums: ['thinking'] },
+                { dataType: 'enum', enums: ['tool'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AppVersionStatusHistoryEntry: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                kind: {
+                    ref: 'AppVersionStatusHistoryEntryKind',
+                    required: true,
+                },
+                timestamp: { dataType: 'string', required: true },
+                message: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AppVersionImageResource: {
         dataType: 'refAlias',
         type: {
@@ -15068,6 +15099,14 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                statusHistory: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'AppVersionStatusHistoryEntry',
+                    },
+                    required: true,
+                },
                 statusMessage: {
                     dataType: 'union',
                     subSchemas: [
@@ -15191,6 +15230,50 @@ const models: TsoaRoute.Models = {
         dataType: 'refAlias',
         type: {
             ref: 'ApiSuccess__appUuid-string--version-number__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiUpgradeAppResponse: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'ApiSuccess__appUuid-string--version-number__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UpgradeCandidateFeature: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                wiring: { dataType: 'string' },
+                description: { dataType: 'string', required: true },
+                label: { dataType: 'string', required: true },
+                key: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UpgradeAppRequestBody: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                candidateFeatures: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'UpgradeCandidateFeature',
+                    },
+                },
+                reportedFeatures: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+                reportedSdkVersion: { dataType: 'string' },
+            },
             validators: {},
         },
     },
@@ -18257,67 +18340,43 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiAgentMemoryScope: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['user'] },
+                { dataType: 'enum', enums: ['project'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAgentMemorySource: {
         dataType: 'refAlias',
         type: {
-            dataType: 'intersection',
-            subSchemas: [
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        slug: { dataType: 'string', required: true },
-                    },
-                },
-                {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                threadSummary: { dataType: 'string', required: true },
+                threadTitle: {
                     dataType: 'union',
                     subSchemas: [
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                hasThreadAccess: {
-                                    dataType: 'enum',
-                                    enums: [false],
-                                    required: true,
-                                },
-                            },
-                        },
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                threadSummary: {
-                                    dataType: 'string',
-                                    required: true,
-                                },
-                                threadTitle: {
-                                    dataType: 'union',
-                                    subSchemas: [
-                                        { dataType: 'string' },
-                                        { dataType: 'enum', enums: [null] },
-                                    ],
-                                    required: true,
-                                },
-                                threadUuid: {
-                                    dataType: 'string',
-                                    required: true,
-                                },
-                                agentUuid: {
-                                    dataType: 'union',
-                                    subSchemas: [
-                                        { dataType: 'string' },
-                                        { dataType: 'enum', enums: [null] },
-                                    ],
-                                    required: true,
-                                },
-                                hasThreadAccess: {
-                                    dataType: 'enum',
-                                    enums: [true],
-                                    required: true,
-                                },
-                            },
-                        },
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
                     ],
+                    required: true,
                 },
-            ],
+                threadUuid: { dataType: 'string', required: true },
+                agentUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                slug: { dataType: 'string', required: true },
+            },
             validators: {},
         },
     },
@@ -18375,6 +18434,7 @@ const models: TsoaRoute.Models = {
                 },
                 citedCount: { dataType: 'double', required: true },
                 generatedAt: { dataType: 'string', required: true },
+                scope: { ref: 'AiAgentMemoryScope', required: true },
                 status: { ref: 'AiAgentMemoryStatus', required: true },
                 objects: {
                     dataType: 'array',
@@ -25540,6 +25600,7 @@ const models: TsoaRoute.Models = {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
                     type: { ref: 'WarehouseTypes.BIGQUERY', required: true },
+                    project: { dataType: 'string', required: true },
                     requireUserCredentials: {
                         dataType: 'union',
                         subSchemas: [
@@ -25591,7 +25652,6 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
-                    project: { dataType: 'string', required: true },
                     dataset: { dataType: 'string', required: true },
                     priority: {
                         dataType: 'union',
@@ -28132,6 +28192,146 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RoadmapItemStatus: {
+        dataType: 'refEnum',
+        enums: ['Backlog', 'Building', 'Shipped', 'Canceled'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RoadmapItemPriority: {
+        dataType: 'refEnum',
+        enums: ['Urgent', 'High', 'Medium', 'Low', 'No priority'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RoadmapItem: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                pullRequestUrl: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                issueUrl: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                updatedAt: { dataType: 'string', required: true },
+                createdAt: { dataType: 'string', required: true },
+                priority: { ref: 'RoadmapItemPriority', required: true },
+                status: { ref: 'RoadmapItemStatus', required: true },
+                description: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                title: { dataType: 'string', required: true },
+                ticketId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RoadmapPagination: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                totalPages: { dataType: 'double', required: true },
+                totalIssues: { dataType: 'double', required: true },
+                pageSize: { dataType: 'double', required: true },
+                page: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_RoadmapItemStatus.number_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                Backlog: { dataType: 'double', required: true },
+                Building: { dataType: 'double', required: true },
+                Shipped: { dataType: 'double', required: true },
+                Canceled: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_RoadmapItemPriority.number_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                Urgent: { dataType: 'double', required: true },
+                High: { dataType: 'double', required: true },
+                Medium: { dataType: 'double', required: true },
+                Low: { dataType: 'double', required: true },
+                'No priority': { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RoadmapFacets: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                priorityCounts: {
+                    ref: 'Record_RoadmapItemPriority.number_',
+                    required: true,
+                },
+                statusCounts: {
+                    ref: 'Record_RoadmapItemStatus.number_',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RoadmapResults: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                facets: { ref: 'RoadmapFacets', required: true },
+                pagination: { ref: 'RoadmapPagination', required: true },
+                data: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'RoadmapItem' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiRoadmapResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'RoadmapResults', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
@@ -30695,6 +30895,7 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
+                scope: { ref: 'AiAgentMemoryScope', required: true },
                 status: { ref: 'AiAgentMemoryStatus', required: true },
                 summary: { dataType: 'string', required: true },
                 title: { dataType: 'string', required: true },
@@ -59708,6 +59909,79 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAppGenerateController_upgradeApp: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        appUuid: {
+            in: 'path',
+            name: 'appUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpgradeAppRequestBody',
+        },
+    };
+    app.post(
+        '/api/v1/ee/projects/:projectUuid/apps/:appUuid/upgrade',
+        ...fetchMiddlewares<RequestHandler>(AppGenerateController),
+        ...fetchMiddlewares<RequestHandler>(
+            AppGenerateController.prototype.upgradeApp,
+        ),
+
+        async function AppGenerateController_upgradeApp(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAppGenerateController_upgradeApp,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AppGenerateController>(
+                        AppGenerateController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'upgradeApp',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsAppGenerateController_getAppPromoteDiff: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -69294,6 +69568,63 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrgRoadmapController_getOrgRoadmap: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        page: { in: 'query', name: 'page', dataType: 'double' },
+        pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
+    };
+    app.get(
+        '/api/v1/org/roadmap',
+        ...fetchMiddlewares<RequestHandler>(OrgRoadmapController),
+        ...fetchMiddlewares<RequestHandler>(
+            OrgRoadmapController.prototype.getOrgRoadmap,
+        ),
+
+        async function OrgRoadmapController_getOrgRoadmap(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrgRoadmapController_getOrgRoadmap,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrgRoadmapController>(
+                        OrgRoadmapController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getOrgRoadmap',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsOnboardingAgentController_createRun: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -71394,6 +71725,12 @@ export function RegisterRoutes(app: Router) {
             name: 'statuses',
             dataType: 'array',
             array: { dataType: 'refAlias', ref: 'AiAgentMemoryStatus' },
+        },
+        scopes: {
+            in: 'query',
+            name: 'scopes',
+            dataType: 'array',
+            array: { dataType: 'refAlias', ref: 'AiAgentMemoryScope' },
         },
         search: { in: 'query', name: 'search', dataType: 'string' },
         sortField: {
