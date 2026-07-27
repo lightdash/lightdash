@@ -1,3 +1,10 @@
+# [0.3479.0](https://github.com/lightdash/lightdash/compare/0.3478.0...0.3479.0) (2026-07-27)
+
+
+### Features
+
+* **data-apps:** bump claude code to `2.1.220` ([#26179](https://github.com/lightdash/lightdash/issues/26179)) ([a5ec326](https://github.com/lightdash/lightdash/commit/a5ec32696f98729e787e0f29a6fa5768eea8de80))
+
 # [0.3478.0](https://github.com/lightdash/lightdash/compare/0.3477.0...0.3478.0) (2026-07-27)
 
 
