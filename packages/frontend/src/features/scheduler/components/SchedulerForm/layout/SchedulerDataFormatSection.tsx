@@ -20,6 +20,7 @@ import {
     MultiSelect,
     SegmentedControl,
     Stack,
+    Table,
     Text,
     Tooltip,
 } from '@mantine-8/core';
@@ -276,9 +277,56 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                             }}
                         />
                         {form.values.appState != null && appStateUrl && (
-                            <Code block className={classes.appStateUrl}>
-                                {appStateUrl}
-                            </Code>
+                            <Stack gap="xs">
+                                <Box>
+                                    <Text size="xs" fw={500} mb={4}>
+                                        URL
+                                    </Text>
+                                    <Code block className={classes.appStateUrl}>
+                                        {appStateUrl}
+                                    </Code>
+                                </Box>
+                                <Box>
+                                    <Text size="xs" fw={500} mb={4}>
+                                        State values
+                                    </Text>
+                                    <Table
+                                        withTableBorder
+                                        withColumnBorders
+                                        verticalSpacing="xs"
+                                        horizontalSpacing="sm"
+                                        className={classes.appStateTable}
+                                    >
+                                        <Table.Thead>
+                                            <Table.Tr>
+                                                <Table.Th>Key</Table.Th>
+                                                <Table.Th>Value</Table.Th>
+                                            </Table.Tr>
+                                        </Table.Thead>
+                                        <Table.Tbody>
+                                            {Object.entries(
+                                                form.values.appState,
+                                            ).map(([key, value]) => (
+                                                <Table.Tr key={key}>
+                                                    <Table.Td>
+                                                        <Code>{key}</Code>
+                                                    </Table.Td>
+                                                    <Table.Td>
+                                                        <Code>
+                                                            {typeof value ===
+                                                            'string'
+                                                                ? value
+                                                                : JSON.stringify(
+                                                                      value,
+                                                                  )}
+                                                        </Code>
+                                                    </Table.Td>
+                                                </Table.Tr>
+                                            ))}
+                                        </Table.Tbody>
+                                    </Table>
+                                </Box>
+                            </Stack>
                         )}
                     </Stack>
                 </>
