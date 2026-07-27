@@ -473,23 +473,23 @@ export const useSettingsNavigation = (
                 },
             );
 
-            if (shouldShowAiAgentMemories) {
-                aiChildren.push({
-                    label: 'Memories',
-                    to: '/generalSettings/ai/memories',
-                    icon: IconBulb,
-                    keywords: ['memory', 'memories', 'learned', 'knowledge'],
-                    children: [],
-                    exact: true,
-                });
-            }
-
             if (shouldShowAiAgentReviews) {
                 aiChildren.push({
                     label: 'Issues',
                     to: '/generalSettings/ai/issues',
                     icon: IconListCheck,
                     keywords: ['classifier', 'reviews'],
+                    children: [],
+                    exact: true,
+                });
+            }
+
+            if (shouldShowAiAgentMemories) {
+                aiChildren.push({
+                    label: 'Memories',
+                    to: '/generalSettings/ai/memories',
+                    icon: IconBulb,
+                    keywords: ['memory', 'memories', 'learned', 'knowledge'],
                     children: [],
                     exact: true,
                 });
