@@ -6,6 +6,7 @@ import {
     ChartType,
     DashboardTileTypes,
     DownloadFileType,
+    expandSelectedTabs,
     EXPORT_TAB_PAGE_CLASS,
     ForbiddenError,
     getErrorMessage,
@@ -44,7 +45,6 @@ import {
 import { StringIndexed } from '@slack/bolt/dist/types/helpers';
 import { WebClient } from '@slack/web-api';
 import * as fsPromise from 'fs/promises';
-import { uniq } from 'lodash';
 import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
 import playwright, { type ElementHandle, type Page } from 'playwright';
@@ -894,15 +894,11 @@ export class UnfurlService extends BaseService {
 
         validateSelectedTabs(selectedTabs, dashboard.tiles);
 
-        // Create a new URLSearchParams object for query filters.
-        // When selectedTabs is null we forward every tab UUID present on the
-        // dashboard (and `null` for orphan tiles) so the frontend's
-        // `schedulerTabsSelected.includes(tile.tabUuid)` filter keeps orphans
-        // in the aggregated screenshot. See PROD-2505.
         const selectedTabsParams = new URLSearchParams();
-        const selectedTabsList: (string | null)[] =
-            selectedTabs ??
-            uniq(dashboard.tiles.map((tile) => tile.tabUuid ?? null));
+        const selectedTabsList = expandSelectedTabs(
+            selectedTabs,
+            dashboard.tiles,
+        );
 
         if (selectedTabsList.length > 0)
             selectedTabsParams.set(
