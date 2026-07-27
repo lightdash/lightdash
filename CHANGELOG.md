@@ -1,3 +1,10 @@
+## [0.3484.1](https://github.com/lightdash/lightdash/compare/0.3484.0...0.3484.1) (2026-07-27)
+
+
+### Bug Fixes
+
+* align memory catalog link icons ([#26200](https://github.com/lightdash/lightdash/issues/26200)) ([b13848c](https://github.com/lightdash/lightdash/commit/b13848c4fb3a48ea4a5057f076e9d4277018a4b5))
+
 # [0.3484.0](https://github.com/lightdash/lightdash/compare/0.3483.0...0.3484.0) (2026-07-27)
 
 
