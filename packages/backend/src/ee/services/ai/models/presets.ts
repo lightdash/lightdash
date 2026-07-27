@@ -128,7 +128,6 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
-            hiddenUnlessKeyAccess: true,
             callOptions: {},
             providerOptions: undefined,
         },
