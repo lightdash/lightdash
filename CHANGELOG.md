@@ -1,3 +1,10 @@
+## [0.3486.1](https://github.com/lightdash/lightdash/compare/0.3486.0...0.3486.1) (2026-07-27)
+
+
+### Bug Fixes
+
+* **frontend:** preserve groupBy as pivotConfig when saving AI dashboard artifacts ([#26215](https://github.com/lightdash/lightdash/issues/26215)) ([185142c](https://github.com/lightdash/lightdash/commit/185142cdd6ef5a9745c12ed5c7d8a0a305db7d4e))
+
 # [0.3486.0](https://github.com/lightdash/lightdash/compare/0.3485.1...0.3486.0) (2026-07-27)
 
 
