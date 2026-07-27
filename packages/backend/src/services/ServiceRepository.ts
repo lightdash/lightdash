@@ -172,6 +172,7 @@ interface ServiceManifest {
     aiOrganizationSettingsService: unknown;
     schedulerAiAugmentationService: unknown;
     projectContextService: unknown;
+    roadmapService: unknown;
     scimService: unknown;
     supportService: unknown;
     cacheService: unknown;
@@ -1428,6 +1429,10 @@ export class ServiceRepository
         ProjectContextServiceImplT,
     >(): ProjectContextServiceImplT {
         return this.getService('projectContextService');
+    }
+
+    public getRoadmapService<RoadmapServiceImplT>(): RoadmapServiceImplT {
+        return this.getService('roadmapService');
     }
 
     public getEmbedService<EmbedServiceImplT>(): EmbedServiceImplT {

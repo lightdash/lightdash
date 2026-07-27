@@ -1,0 +1,225 @@
+.page {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--mantine-spacing-lg);
+    min-height: 0;
+    width: 100%;
+}
+
+.toolbar {
+    align-items: center;
+}
+
+.results {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    height: calc(100dvh - 300px);
+    min-height: 0;
+}
+
+.board {
+    background: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-dark-6)
+    );
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    border-radius: var(--mantine-radius-md);
+    display: flex;
+    flex: 1;
+    gap: var(--mantine-spacing-md);
+    min-height: 0;
+    overflow-x: auto;
+    padding: var(--mantine-spacing-md);
+    width: 100%;
+}
+
+.list {
+    flex: 1;
+    min-height: 0;
+}
+
+.listTitleButton {
+    text-align: left;
+    width: 100%;
+}
+
+.column {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    min-width: 260px;
+    min-height: 0;
+}
+
+.statusDot {
+    border-radius: 3px;
+    flex: none;
+}
+
+.columnCards {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xs);
+    min-height: 0;
+    overflow-y: auto;
+    padding: 2px;
+}
+
+.card {
+    background: var(--mantine-color-body);
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    border-radius: var(--mantine-radius-md);
+    box-shadow: 0 1px 2px rgba(20, 22, 28, 0.04);
+    overflow: hidden;
+    transition:
+        border-color 120ms ease,
+        box-shadow 120ms ease;
+    width: 100%;
+}
+
+.cardBody {
+    cursor: pointer;
+    padding: var(--mantine-spacing-sm);
+    text-align: left;
+    width: 100%;
+}
+
+.updatedAt {
+    flex: none;
+    white-space: nowrap;
+}
+
+.card:hover {
+    border-color: var(--mantine-color-indigo-4);
+    box-shadow: 0 4px 14px rgba(80, 60, 180, 0.1);
+}
+
+.emptyColumn {
+    border: 1px dashed
+        light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
+    border-radius: var(--mantine-radius-md);
+    padding: var(--mantine-spacing-lg) var(--mantine-spacing-sm);
+    text-align: center;
+}
+
+.detailLayout {
+    align-items: stretch;
+    display: grid;
+    gap: 28px;
+    grid-template-columns: minmax(0, 1fr) 1px 232px;
+    height: calc(85vh - 160px);
+}
+
+.detailHeaderTitle {
+    color: var(--mantine-color-ldGray-9);
+    font-size: 16px;
+    font-weight: 550;
+    letter-spacing: -0.014em;
+    line-height: 1.4;
+}
+
+.detailMain {
+    min-width: 0;
+    overflow-y: auto;
+    padding-right: var(--mantine-spacing-xs);
+}
+
+.detailTicketId {
+    color: var(--mantine-color-ldGray-7);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 11.5px;
+}
+
+.detailSectionLabel {
+    color: var(--mantine-color-ldGray-6);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.detailPropertyDot {
+    border-radius: 50%;
+    flex: none;
+    height: 6px;
+    width: 6px;
+}
+
+.detailDivider {
+    background-color: var(--mantine-color-ldGray-2);
+}
+
+.detailRailColumn {
+    align-self: start;
+    position: sticky;
+    top: 0;
+}
+
+.detailRailRow {
+    min-height: 28px;
+    padding: 3px 0;
+}
+
+.detailRailLabel {
+    color: var(--mantine-color-ldGray-6);
+    flex: none;
+    font-size: 11.5px;
+    font-weight: 400;
+    width: 72px;
+}
+
+.detailRailValue {
+    display: flex;
+    flex: 1;
+    justify-content: flex-start;
+    min-width: 0;
+    text-align: left;
+}
+
+.detailRailText {
+    color: var(--mantine-color-ldGray-9);
+    font-size: 12px;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+.detailRailLink {
+    align-items: center;
+    color: var(--mantine-color-ldGray-9);
+    display: inline-flex;
+    font-size: 12px;
+    font-weight: 500;
+    gap: 5px;
+    text-decoration: none;
+}
+
+.detailRailLink:hover {
+    color: light-dark(
+        var(--mantine-color-indigo-7),
+        var(--mantine-color-indigo-4)
+    );
+}
+
+.markdown {
+    & :global(.wmde-markdown) {
+        background-color: inherit;
+        color: inherit;
+    }
+}
+
+@media (max-width: 820px) {
+    .detailLayout {
+        gap: var(--mantine-spacing-xl);
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) auto;
+    }
+
+    .detailDivider {
+        display: none;
+    }
+}

@@ -48,6 +48,38 @@ const defineAbilityForOrganizationMember = (
 };
 
 describe('Organization member permissions', () => {
+    it('allows only admins to view their organization roadmap', () => {
+        const adminAbility =
+            defineAbilityForOrganizationMember(ORGANIZATION_ADMIN);
+        const memberAbility =
+            defineAbilityForOrganizationMember(ORGANIZATION_MEMBER);
+
+        expect(
+            adminAbility.can(
+                'view',
+                subject('Roadmap', {
+                    organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                }),
+            ),
+        ).toBe(true);
+        expect(
+            adminAbility.can(
+                'view',
+                subject('Roadmap', {
+                    organizationUuid: 'another-organization',
+                }),
+            ),
+        ).toBe(false);
+        expect(
+            memberAbility.can(
+                'view',
+                subject('Roadmap', {
+                    organizationUuid: ORGANIZATION_MEMBER.organizationUuid,
+                }),
+            ),
+        ).toBe(false);
+    });
+
     describe('Member permissions', () => {
         let ability = defineAbilityForOrganizationMember(ORGANIZATION_VIEWER);
         describe('when user is an organization admin', () => {

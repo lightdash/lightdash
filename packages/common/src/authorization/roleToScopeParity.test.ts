@@ -89,6 +89,7 @@ const ENTERPRISE_SUBJECTS = new Set([
     // role-based side so non-enterprise parity stays clean — at runtime
     // the feature is gated by license anyway.
     'OrganizationWarehouseCredentials',
+    'Roadmap',
 ]);
 
 /**
@@ -136,6 +137,7 @@ const PROJECT_PARITY_IGNORE = new Set([
     '*:Organization',
     '*:OrganizationColorPalette',
     '*:OrganizationDesign',
+    '*:Roadmap',
     '*:Group',
     '*:InviteLink',
     '*:GitIntegration',

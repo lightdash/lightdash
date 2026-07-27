@@ -270,6 +270,7 @@ import { type QueryHistoryStatus } from './queryHistory';
 import { type ApiRenameFieldsResponse, type ApiRenameResponse } from './rename';
 import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
 import { type ResultColumns, type ResultRow } from './results';
+import { type ApiRoadmapResponse } from './roadmap';
 import {
     type ApiCustomRoleAsCodeListResponse,
     type ApiCustomRoleAsCodeUpsertResponse,
@@ -1131,6 +1132,7 @@ type ApiResults =
     | SchedulerWithLogs
     | ValidationResponse[]
     | ApiPaginatedValidateResponse['results']
+    | ApiRoadmapResponse['results']
     | ChartHistory
     | ChartVersion
     | DashboardHistory

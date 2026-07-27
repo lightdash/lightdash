@@ -87,6 +87,13 @@ export const useSettingsContext = (): SettingsContext => {
     );
     const isProLimitsEnabled = proLimitsFlag?.enabled ?? false;
 
+    const organizationRoadmapFlagQuery = useServerFeatureFlag(
+        FeatureFlags.OrganizationRoadmap,
+    );
+    const { data: organizationRoadmapFlag } = organizationRoadmapFlagQuery;
+    const isOrganizationRoadmapEnabled =
+        organizationRoadmapFlag?.enabled ?? false;
+
     const { data: ssoOrganizationSettingsFlag } = useServerFeatureFlag(
         FeatureFlags.SsoOrganizationSettings,
     );
@@ -180,6 +187,9 @@ export const useSettingsContext = (): SettingsContext => {
         isLeaveOrganizationEnabled,
         isCustomRolesEnabled,
         isProLimitsEnabled,
+        isOrganizationRoadmapEnabled,
+        isOrganizationRoadmapLoading:
+            organizationRoadmapFlagQuery.isInitialLoading,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
         isScimTokenManagementEnabled,

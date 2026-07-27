@@ -29,6 +29,7 @@ import {
     IconPlugConnected,
     IconRefresh,
     IconReportAnalytics,
+    IconRoad,
     IconRobotFace,
     IconSettings,
     IconShieldCheck,
@@ -71,6 +72,7 @@ export const useSettingsNavigation = (
         hasSocialLogin,
         isGroupManagementEnabled,
         isProLimitsEnabled,
+        isOrganizationRoadmapEnabled,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
@@ -505,6 +507,30 @@ export const useSettingsNavigation = (
             });
         }
 
+        if (
+            isOrganizationRoadmapEnabled &&
+            ability?.can(
+                'view',
+                subject('Roadmap', {
+                    organizationUuid: organization?.organizationUuid,
+                }),
+            )
+        ) {
+            organizationItems.push({
+                label: 'Roadmap',
+                to: '/generalSettings/roadmap',
+                icon: IconRoad,
+                keywords: [
+                    'feature requests',
+                    'planned',
+                    'building',
+                    'shipped',
+                ],
+                children: [],
+                exact: true,
+            });
+        }
+
         const sections: SettingsNavigationSection[] = [
             {
                 id: 'your-settings',
@@ -871,6 +897,7 @@ export const useSettingsNavigation = (
         hasSocialLogin,
         isGroupManagementEnabled,
         isProLimitsEnabled,
+        isOrganizationRoadmapEnabled,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
