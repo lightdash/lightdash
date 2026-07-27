@@ -4,8 +4,9 @@ import {
     type DataAppClaudeModel,
     type DataAppModelVisibility,
 } from '@lightdash/common';
-import { Group, Stack, Switch, Text } from '@mantine-8/core';
+import { Box, Group, Stack, Switch, Text, Tooltip } from '@mantine-8/core';
 import { type FC } from 'react';
+import classes from './AiDataAppModelToggles.module.css';
 
 const MODEL_LABELS: Record<DataAppClaudeModel, string> = {
     opus: 'Opus',
@@ -48,26 +49,46 @@ export const AiDataAppModelToggles: FC<AiDataAppModelTogglesProps> = ({
             <Group gap="lg" mt={4}>
                 {DATA_APP_CLAUDE_MODELS.map((model) => {
                     const isVisible = visibleModels.includes(model);
-                    // The server rejects hiding every model; disabling the last
-                    // one surfaces that as a dead control rather than an error
-                    // toast after the fact.
-                    const isLastVisible =
-                        isVisible && visibleModels.length === 1;
+                    // The server rejects hiding every model. Block the last one
+                    // here rather than letting it fail — but soft-disable it:
+                    // Mantine's `disabled` greys the checked track too, which
+                    // made the only enabled model read as disabled.
+                    const isLocked = isVisible && visibleModels.length === 1;
                     return (
-                        <Switch
+                        <Tooltip
                             key={model}
-                            size="sm"
-                            label={MODEL_LABELS[model]}
-                            aria-label={`Data Apps ${MODEL_LABELS[model]}`}
-                            checked={isVisible}
-                            disabled={disabled || isLastVisible}
-                            onChange={(event) =>
-                                onUpdateVisibility({
-                                    ...(dataAppModelVisibility ?? {}),
-                                    [model]: event.currentTarget.checked,
-                                })
-                            }
-                        />
+                            label="At least one model must stay available"
+                            disabled={!isLocked}
+                            withArrow
+                            position="top"
+                        >
+                            {/* Anchored on a wrapper, not the Switch: Mantine
+                                forwards the Switch ref to its visually-hidden
+                                input, which is the wrong hover target. */}
+                            <Box>
+                                <Switch
+                                    size="sm"
+                                    label={MODEL_LABELS[model]}
+                                    aria-label={`Data Apps ${MODEL_LABELS[model]}`}
+                                    className={
+                                        isLocked
+                                            ? classes.lockedSwitch
+                                            : undefined
+                                    }
+                                    checked={isVisible}
+                                    disabled={disabled}
+                                    aria-disabled={isLocked}
+                                    onChange={(event) => {
+                                        if (isLocked) return;
+                                        onUpdateVisibility({
+                                            ...(dataAppModelVisibility ?? {}),
+                                            [model]:
+                                                event.currentTarget.checked,
+                                        });
+                                    }}
+                                />
+                            </Box>
+                        </Tooltip>
                     );
                 })}
             </Group>
