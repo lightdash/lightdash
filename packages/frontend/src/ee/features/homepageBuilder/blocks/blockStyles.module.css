@@ -423,6 +423,15 @@ a .hoverCard:hover,
     transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* A resources block alone in its row has the full page width to itself, so its
+ * cards can grow taller — the extra height goes to the thumb band (flex: 1),
+ * showing more of a 16:9 still (e.g. a YouTube thumbnail) before object-fit:
+ * cover crops it. The double-class keeps it winning the --card-unit cascade
+ * regardless of source order. */
+.mediaCard.mediaCardTall {
+    --card-unit: 200px;
+}
+
 .mediaCard.clickable:hover {
     box-shadow: var(--mantine-shadow-heavy);
     transform: translateY(-2px);
