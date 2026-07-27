@@ -396,7 +396,7 @@ const buildStopWhenPromptInterrupted =
  * to guarantee the agent opens a PR via editDbtProject rather than just
  * discussing the fix. No-op if the forced tool isn't in the registered set.
  */
-const buildForcedFirstStep = (args: AiAgentArgs, tools: ToolSet) => {
+export const buildForcedFirstStep = (args: AiAgentArgs, tools: ToolSet) => {
     if (!args.forceToolHints) return undefined;
     const forcedTool = args.toolHints[0];
     if (!forcedTool || !(forcedTool in tools)) return undefined;
@@ -1125,7 +1125,10 @@ export const generateAgentResponse = async ({
     );
     const startTime = Date.now();
     const modelName = getAiAgentModelName(args.model);
-    let generatedTokenUsage = 0;
+    let generatedTokenUsage =
+        args.execution.mode === 'deep_research'
+            ? args.execution.initialTokenUsage
+            : 0;
 
     try {
         const [availableExplores, memoryBlock] = await Promise.all([
