@@ -5,6 +5,7 @@ import {
     CommercialFeatureFlags,
     ComputedAiOrganizationSettings,
     ForbiddenError,
+    getVisibleDataAppClaudeModels,
     LightdashUser,
     ParameterError,
     UpdateAiOrganizationSettings,
@@ -27,9 +28,64 @@ import {
     presetToModelOption,
 } from './ai/models';
 import {
+    matchesPreset,
+    type ModelPreset,
+    type ModelPresetProvider,
+} from './ai/models/presets';
+import {
     OrgAiCopilotConfigResolver,
     type ReviewJudgeAvailability,
 } from './ai/OrgAiCopilotConfigResolver';
+
+type AvailableModelPreset = ModelPreset<ModelPresetProvider>;
+
+/**
+ * Whether a stored model config still resolves to one of the models left
+ * available. Uses `matchesPreset` (preset name OR model id) because a stored
+ * `modelName` may be either form — an exact name comparison silently misses
+ * defaults persisted as dated model ids.
+ */
+export const isModelConfigAvailable = (
+    modelConfig: AiAgentModelConfig,
+    remaining: AvailableModelPreset[],
+): boolean =>
+    remaining.some(
+        (preset) =>
+            preset.provider === modelConfig.modelProvider &&
+            matchesPreset(preset, modelConfig.modelName),
+    );
+
+/**
+ * Pick a replacement org default once the configured one is no longer
+ * available. Prefers the instance default when it survived the visibility
+ * filter, else the first still-available model.
+ *
+ * Returns a concrete model rather than null on purpose: `filterModelsForOrg`
+ * is applied to model LISTINGS only, never when a model is resolved for a
+ * turn, so clearing the default to null would fall through to the instance
+ * default — which may be exactly the model the org's allowlist excluded.
+ */
+export const pickReplacementDefaultModelConfig = (
+    remaining: AvailableModelPreset[],
+    instanceDefault: { name: string; provider: string } | null,
+    previous: AiAgentModelConfig,
+): AiAgentModelConfig | null => {
+    const preset =
+        (instanceDefault
+            ? remaining.find(
+                  (candidate) =>
+                      candidate.provider === instanceDefault.provider &&
+                      matchesPreset(candidate, instanceDefault.name),
+              )
+            : undefined) ?? remaining[0];
+    if (!preset) return null;
+    return {
+        modelName: preset.name,
+        modelProvider: preset.provider,
+        // Only carry the reasoning preference to a model that supports it.
+        reasoning: preset.supportsReasoning ? previous.reasoning : undefined,
+    };
+};
 
 /**
  * Redact partial key material (hints) and the "key is set" booleans for callers
@@ -241,9 +297,13 @@ export class AiOrganizationSettingsService extends BaseService {
         const [
             { effectiveOptions, configurableOptions, effectiveModelVisibility },
             reviewJudge,
+            effectiveDataAppModelVisibility,
         ] = await Promise.all([
             this.getModelOptionLists(user.organizationUuid),
             this.orgAiCopilotConfigResolver.getReviewJudgeAvailability(
+                user.organizationUuid,
+            ),
+            this.orgAiCopilotConfigResolver.getDataAppModelVisibility(
                 user.organizationUuid,
             ),
         ]);
@@ -263,6 +323,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 mcpContentWritesEnabled: true,
                 defaultAiAgentModelConfig: null,
                 modelVisibility: effectiveModelVisibility,
+                dataAppModelVisibility: null,
                 providerApiKeysSet: { anthropic: false, openai: false },
                 providerApiKeyHints: { anthropic: null, openai: null },
                 defaultAiAgentModelOptions: effectiveOptions,
@@ -279,6 +340,9 @@ export class AiOrganizationSettingsService extends BaseService {
             // Surface the effective visibility (implicit BYOK defaults merged in)
             // so the admin card reflects what users actually see.
             modelVisibility: effectiveModelVisibility,
+            // Likewise: stored Data App settings are inert without a BYO key,
+            // so the picker must not filter on them when the backend won't.
+            dataAppModelVisibility: effectiveDataAppModelVisibility,
             isTrial: isTrialEligible,
             isCopilotEnabled,
             defaultAiAgentModelOptions: effectiveOptions,
@@ -296,6 +360,10 @@ export class AiOrganizationSettingsService extends BaseService {
         }
 
         this.checkManageAiAgentAccess(user);
+
+        // Set when hiding models orphans the org's configured default, so the
+        // write can repoint it in the same upsert.
+        let reconciledDefaultModelConfig: AiAgentModelConfig | null | undefined;
 
         // The model-visibility validation below reads the CURRENT key's model
         // access, which would be stale if the key changed in the same request
@@ -344,21 +412,31 @@ export class AiOrganizationSettingsService extends BaseService {
             }
         }
 
-        if (data.modelVisibility) {
+        // A supplied default has to be checked against the visibility the write
+        // lands on, whether or not this request is the one changing it —
+        // visibility filters model LISTINGS only, never resolution, so a
+        // default pointing at a restricted model would still be served.
+        if (data.modelVisibility || data.defaultAiAgentModelConfig) {
             // Validate against the EFFECTIVE visibility (implicit auto-hide
             // merged under the submission) and real key access — so disabling
             // the only provider whose toggle isn't locked can't leave an empty
             // selector, and an allowlist of only a key-unlocked hidden model
-            // (e.g. opus 4.8) still counts.
-            const [overrides, effectiveVisibility] = await Promise.all([
+            // (e.g. opus 4.8) still counts. When this request doesn't touch
+            // visibility, validate against what is already stored.
+            const [overrides, submittedVisibility] = await Promise.all([
                 this.orgAiCopilotConfigResolver.getOrgModelOverrides(
                     user.organizationUuid,
                 ),
-                this.orgAiCopilotConfigResolver.resolveEffectiveModelVisibilityForOrg(
-                    user.organizationUuid,
-                    data.modelVisibility,
-                ),
+                data.modelVisibility
+                    ? this.orgAiCopilotConfigResolver.resolveEffectiveModelVisibilityForOrg(
+                          user.organizationUuid,
+                          data.modelVisibility,
+                      )
+                    : null,
             ]);
+            const effectiveVisibility = data.modelVisibility
+                ? submittedVisibility
+                : overrides.modelVisibility;
             const remaining = filterModelsForOrg(
                 getAvailableModels(this.lightdashConfig.ai.copilot),
                 {
@@ -366,16 +444,71 @@ export class AiOrganizationSettingsService extends BaseService {
                     keyAccessibleModelIds: overrides.keyAccessibleModelIds,
                 },
             );
-            if (remaining.length === 0) {
+            if (data.modelVisibility && remaining.length === 0) {
                 throw new ParameterError(
                     'At least one AI model must remain available',
+                );
+            }
+
+            if (
+                data.defaultAiAgentModelConfig &&
+                !isModelConfigAvailable(
+                    data.defaultAiAgentModelConfig,
+                    remaining,
+                )
+            ) {
+                throw new ParameterError(
+                    'The default AI model is not available under this model visibility',
+                );
+            }
+
+            // When the update hides the org's configured default and the
+            // request doesn't set a new one, repoint it at a model that is
+            // still available. Not null: a null default resolves to the
+            // instance default, which may be the very model this org just
+            // restricted.
+            if (
+                data.modelVisibility &&
+                data.defaultAiAgentModelConfig === undefined
+            ) {
+                const currentDefault = (
+                    await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                        user.organizationUuid,
+                    )
+                )?.defaultAiAgentModelConfig;
+                if (
+                    currentDefault &&
+                    !isModelConfigAvailable(currentDefault, remaining)
+                ) {
+                    reconciledDefaultModelConfig =
+                        pickReplacementDefaultModelConfig(
+                            remaining,
+                            getDefaultModel(this.lightdashConfig.ai.copilot),
+                            currentDefault,
+                        );
+                }
+            }
+        }
+
+        if (data.dataAppModelVisibility) {
+            const remainingDataAppModels = getVisibleDataAppClaudeModels(
+                data.dataAppModelVisibility,
+            );
+            if (remainingDataAppModels.length === 0) {
+                throw new ParameterError(
+                    'At least one Data App model must remain available',
                 );
             }
         }
 
         return this.aiOrganizationSettingsModel.upsert(
             user.organizationUuid,
-            data,
+            reconciledDefaultModelConfig === undefined
+                ? data
+                : {
+                      ...data,
+                      defaultAiAgentModelConfig: reconciledDefaultModelConfig,
+                  },
         );
     }
 

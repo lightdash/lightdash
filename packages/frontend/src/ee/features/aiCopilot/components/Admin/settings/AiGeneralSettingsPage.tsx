@@ -46,6 +46,7 @@ export const AiGeneralSettingsPage = () => {
     const orgAiProviderKeysFlag = useServerFeatureFlag(
         FeatureFlags.OrgAiProviderApiKeys,
     );
+    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
 
     const aiRouterQuery = useAiRouterConfig();
     const isRouterEnabled = aiRouterQuery.data?.enabled ?? false;
@@ -246,6 +247,12 @@ export const AiGeneralSettingsPage = () => {
                                 configurableModelOptions={
                                     settings.configurableModelOptions ?? null
                                 }
+                                dataAppModelVisibility={
+                                    settings.dataAppModelVisibility ?? null
+                                }
+                                showDataAppModels={
+                                    dataAppsFlag.data?.enabled === true
+                                }
                                 disabled={isUpdatingSettings}
                                 onUpdateKeys={(providerApiKeys) =>
                                     updateSettings({ providerApiKeys })
@@ -253,6 +260,9 @@ export const AiGeneralSettingsPage = () => {
                                 onUpdateVisibility={(modelVisibility) =>
                                     updateSettings({ modelVisibility })
                                 }
+                                onUpdateDataAppVisibility={(
+                                    dataAppModelVisibility,
+                                ) => updateSettings({ dataAppModelVisibility })}
                             />
                         )}
 

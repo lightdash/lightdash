@@ -1,6 +1,8 @@
 import {
     dataAppVizSchema,
     getEffectiveOptionValues,
+    getVisibleDataAppClaudeModels,
+    resolveDefaultVisibleDataAppClaudeModel,
     type DataAppVizConfigOption,
 } from './types';
 
@@ -186,5 +188,75 @@ describe('getEffectiveOptionValues', () => {
                 { gone: 5, a: true },
             ),
         ).toEqual({ a: true });
+    });
+});
+
+describe('getVisibleDataAppClaudeModels', () => {
+    it('shows all models when visibility is null/undefined', () => {
+        expect(getVisibleDataAppClaudeModels(null)).toEqual([
+            'opus',
+            'sonnet',
+            'haiku',
+        ]);
+        expect(getVisibleDataAppClaudeModels(undefined)).toEqual([
+            'opus',
+            'sonnet',
+            'haiku',
+        ]);
+    });
+
+    it('hides only models explicitly set to false', () => {
+        expect(getVisibleDataAppClaudeModels({ opus: false })).toEqual([
+            'sonnet',
+            'haiku',
+        ]);
+    });
+
+    it('treats an explicit true the same as absent', () => {
+        expect(
+            getVisibleDataAppClaudeModels({ opus: true, sonnet: false }),
+        ).toEqual(['opus', 'haiku']);
+    });
+});
+
+describe('resolveDefaultVisibleDataAppClaudeModel', () => {
+    it('prefers the system default (sonnet) when visible', () => {
+        expect(resolveDefaultVisibleDataAppClaudeModel(null)).toBe('sonnet');
+    });
+
+    // Hiding Sonnet is the obvious cost-control action; falling back to Opus
+    // (the display-order first entry) would make it a cost increase.
+    it('falls back to the cheaper model, not the pricier one, when the default is hidden', () => {
+        expect(resolveDefaultVisibleDataAppClaudeModel({ sonnet: false })).toBe(
+            'haiku',
+        );
+    });
+
+    it('falls back to opus only when it is the sole visible model', () => {
+        expect(
+            resolveDefaultVisibleDataAppClaudeModel({
+                sonnet: false,
+                haiku: false,
+            }),
+        ).toBe('opus');
+    });
+
+    it('falls back to haiku when only haiku remains visible', () => {
+        expect(
+            resolveDefaultVisibleDataAppClaudeModel({
+                opus: false,
+                sonnet: false,
+            }),
+        ).toBe('haiku');
+    });
+
+    it('returns null when every model is hidden', () => {
+        expect(
+            resolveDefaultVisibleDataAppClaudeModel({
+                opus: false,
+                sonnet: false,
+                haiku: false,
+            }),
+        ).toBeNull();
     });
 });

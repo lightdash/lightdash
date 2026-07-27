@@ -91,6 +91,55 @@ export type DataAppClaudeModel = (typeof DATA_APP_CLAUDE_MODELS)[number];
 export const DEFAULT_DATA_APP_CLAUDE_MODEL: DataAppClaudeModel = 'sonnet';
 
 /**
+ * Org-admin control over which Data App Claude models users can pick.
+ * A model is hidden only when explicitly set to `false`; an absent key (or a
+ * null/undefined visibility map) defaults to visible.
+ */
+export type DataAppModelVisibility = Partial<
+    Record<DataAppClaudeModel, boolean>
+>;
+
+export const getVisibleDataAppClaudeModels = (
+    visibility: DataAppModelVisibility | null | undefined,
+): DataAppClaudeModel[] =>
+    DATA_APP_CLAUDE_MODELS.filter((model) => visibility?.[model] !== false);
+
+/**
+ * Fallback preference when the default model is unavailable. Deliberately NOT
+ * `DATA_APP_CLAUDE_MODELS` order: that list is ordered by capability for
+ * display (Opus first), and reusing it here would promote a request to the
+ * most expensive model when an admin hides Sonnet — turning a cost-control
+ * action into a cost increase. Ordered by ascending cost instead.
+ */
+const DATA_APP_CLAUDE_MODEL_FALLBACK_ORDER: readonly DataAppClaudeModel[] = [
+    'sonnet',
+    'haiku',
+    'opus',
+];
+
+/**
+ * The model to use when the caller doesn't specify one. Prefers
+ * `DEFAULT_DATA_APP_CLAUDE_MODEL`, then the cheapest remaining visible model,
+ * so hiding the system default never leaves nothing selectable and never
+ * silently upgrades the user to a pricier model. Returns `null` only when
+ * every model has been hidden (rejected at write time — see
+ * AiOrganizationSettingsService).
+ */
+export const resolveDefaultVisibleDataAppClaudeModel = (
+    visibility: DataAppModelVisibility | null | undefined,
+): DataAppClaudeModel | null => {
+    const visible = getVisibleDataAppClaudeModels(visibility);
+    if (visible.includes(DEFAULT_DATA_APP_CLAUDE_MODEL)) {
+        return DEFAULT_DATA_APP_CLAUDE_MODEL;
+    }
+    return (
+        DATA_APP_CLAUDE_MODEL_FALLBACK_ORDER.find((model) =>
+            visible.includes(model),
+        ) ?? null
+    );
+};
+
+/**
  * A saved-chart reference attached to a generation request.
  * `includeSampleData` is opt-in per chart: when true the backend runs the
  * underlying metric query and inlines a small sample of rows into the

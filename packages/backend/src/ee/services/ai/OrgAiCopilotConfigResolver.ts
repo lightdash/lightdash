@@ -3,6 +3,7 @@ import {
     FeatureFlags,
     type AiOrgModelVisibility,
     type ByoAiProvider,
+    type DataAppModelVisibility,
 } from '@lightdash/common';
 import { AiCopilotConfigSchemaType } from '../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../config/parseConfig';
@@ -248,6 +249,32 @@ export class OrgAiCopilotConfigResolver {
             );
         if (!orgKeys) return submitted;
         return resolveEffectiveModelVisibility(orgKeys, submitted);
+    }
+
+    /**
+     * Org-admin visibility settings for Data App Claude models (opus/sonnet/
+     * haiku). Gated the same way as getOrgModelOverrides: null unless the flag
+     * is on AND the org brings its own Anthropic key, so removing the key
+     * leaves stored settings inert rather than restricting models on the
+     * instance's own key. Anthropic specifically — getClaudeCodeConfig only
+     * swaps in an org key for Anthropic, since the Claude CLI speaks no other
+     * BYO provider.
+     */
+    async getDataAppModelVisibility(
+        organizationUuid: string | null | undefined,
+    ): Promise<DataAppModelVisibility | null> {
+        if (!organizationUuid) return null;
+        if (!(await this.isEnabled(organizationUuid))) return null;
+        const orgKeys =
+            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
+                organizationUuid,
+            );
+        if (!orgKeys?.anthropic) return null;
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                organizationUuid,
+            );
+        return settings?.dataAppModelVisibility ?? null;
     }
 
     /**
