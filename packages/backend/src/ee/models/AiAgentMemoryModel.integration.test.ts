@@ -501,7 +501,7 @@ describe('AiAgentMemoryModel integration', () => {
         expect(Number(ledgerCount?.count)).toBe(1);
     });
 
-    it('paginates admin memories with project, user, status and search filters', async () => {
+    it('paginates admin memories with project, user, status, scope and search filters', async () => {
         const [citedThread, uncitedThread, retiredThread] = await Promise.all([
             createThread(),
             createThread(),
@@ -520,6 +520,7 @@ describe('AiAgentMemoryModel integration', () => {
                 title: 'Fiscal year offset',
                 rawMemory: 'The fiscal year starts in February.',
                 userUuid: null,
+                scope: 'project',
                 generatedAt: new Date('2026-07-22T11:00:00Z'),
             }),
         );
@@ -559,6 +560,7 @@ describe('AiAgentMemoryModel integration', () => {
             title: 'Net revenue convention',
             summary: 'Use net revenue for every board report.',
             status: 'active',
+            scope: 'user',
             project: { uuid: SEED_PROJECT.project_uuid },
             citedCount: 4,
             sourceThreadUuid: citedThread,
@@ -599,6 +601,29 @@ describe('AiAgentMemoryModel integration', () => {
                 (memory) => memory.status === 'retired',
             ),
         ).toBe(true);
+
+        const projectScopeOnly = await model.findAdminMemoriesPaginated({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            paginateArgs: { page: 1, pageSize: 50 },
+            filters: {
+                projectUuids: [SEED_PROJECT.project_uuid],
+                scopes: ['project'],
+            },
+        });
+        const projectScopeUuids = projectScopeOnly.data.memories.map(
+            (memory) => memory.uuid,
+        );
+        expect(projectScopeUuids).toContain(uncited.ai_agent_memory_uuid);
+        expect(projectScopeUuids).not.toContain(cited.ai_agent_memory_uuid);
+        expect(
+            projectScopeOnly.data.memories.every(
+                (memory) => memory.scope === 'project',
+            ),
+        ).toBe(true);
+        // The count query is built from the same filtered base query
+        expect(projectScopeOnly.pagination?.totalResults).toBe(
+            projectScopeUuids.length,
+        );
 
         const firstPage = await model.findAdminMemoriesPaginated({
             organizationUuid: SEED_ORG_1.organization_uuid,

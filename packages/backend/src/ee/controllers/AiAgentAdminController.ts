@@ -345,6 +345,7 @@ export class AiAgentAdminController extends BaseController {
         @Query() projectUuids?: AiAgentAdminMemoryFilters['projectUuids'],
         @Query() userUuids?: AiAgentAdminMemoryFilters['userUuids'],
         @Query() statuses?: AiAgentAdminMemoryFilters['statuses'],
+        @Query() scopes?: AiAgentAdminMemoryFilters['scopes'],
         @Query() search?: AiAgentAdminMemoryFilters['search'],
         // Sorting
         @Query() sortField?: AiAgentAdminMemorySort['field'],
@@ -358,6 +359,7 @@ export class AiAgentAdminController extends BaseController {
             ...(projectUuids && { projectUuids }),
             ...(userUuids && { userUuids }),
             ...(statuses && { statuses }),
+            ...(scopes && { scopes }),
             ...(search && { search }),
         };
 

@@ -479,6 +479,12 @@ export class AiAgentMemoryModel {
                 filters.statuses,
             );
         }
+        if (filters?.scopes && filters.scopes.length > 0) {
+            void query.whereIn(
+                `${AiAgentMemoryTableName}.scope`,
+                filters.scopes,
+            );
+        }
         if (filters?.search) {
             const pattern = `%${filters.search}%`;
             void query.where((builder) => {
@@ -540,6 +546,7 @@ export class AiAgentMemoryModel {
                     title: string;
                     summary: string;
                     status: DbAiAgentMemory['status'];
+                    scope: DbAiAgentMemory['scope'];
                     project_uuid: string;
                     project_name: string;
                     agent_uuid: string | null;
@@ -564,6 +571,7 @@ export class AiAgentMemoryModel {
                     ADMIN_MEMORY_SUMMARY_MAX_LENGTH,
                 ]),
                 `${AiAgentMemoryTableName}.status`,
+                `${AiAgentMemoryTableName}.scope`,
                 `${AiAgentMemoryTableName}.project_uuid`,
                 `${ProjectTableName}.name as project_name`,
                 `${AiAgentMemoryTableName}.agent_uuid`,
@@ -611,6 +619,7 @@ export class AiAgentMemoryModel {
                     title: row.title,
                     summary: row.summary,
                     status: row.status,
+                    scope: row.scope,
                     project: {
                         uuid: row.project_uuid,
                         name: row.project_name,

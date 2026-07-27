@@ -2,6 +2,7 @@ import type {
     AiAgentAdminMemoryFilters,
     AiAgentAdminMemorySort,
     AiAgentAdminMemorySortField,
+    AiAgentMemoryScope,
     AiAgentMemoryStatus,
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
@@ -21,6 +22,11 @@ const isMemoryStatus = (value: string): value is AiAgentMemoryStatus =>
 // status filter needs its own token to mean "every status"
 const ALL_STATUSES_PARAM = 'all';
 
+const MEMORY_SCOPES: AiAgentMemoryScope[] = ['user', 'project'];
+
+const isMemoryScope = (value: string): value is AiAgentMemoryScope =>
+    MEMORY_SCOPES.includes(value as AiAgentMemoryScope);
+
 export interface AiAgentAdminMemoryFiltersState {
     search: AiAgentAdminMemoryFilters['search'];
     selectedProjectUuids: NonNullable<
@@ -28,6 +34,8 @@ export interface AiAgentAdminMemoryFiltersState {
     >;
     selectedUserUuids: NonNullable<AiAgentAdminMemoryFilters['userUuids']>;
     selectedStatuses: AiAgentMemoryStatus[];
+    // Empty means every scope: unlike statuses, there is no default subset
+    selectedScopes: AiAgentMemoryScope[];
     sortField: AiAgentAdminMemorySortField;
     sortDirection: AiAgentAdminMemorySort['direction'];
 }
@@ -37,6 +45,7 @@ const DEFAULT_FILTERS: AiAgentAdminMemoryFiltersState = {
     selectedProjectUuids: [],
     selectedUserUuids: [],
     selectedStatuses: ['active'],
+    selectedScopes: [],
     sortField: 'generatedAt',
     sortDirection: 'desc',
 };
@@ -50,6 +59,7 @@ export const useAiAgentAdminMemoryFilters = () => {
     const projectsParam = useSearchParams<string>('projects');
     const usersParam = useSearchParams<string>('users');
     const statusesParam = useSearchParams<string>('statuses');
+    const scopesParam = useSearchParams<string>('scopes');
     const sortByParam = useSearchParams<AiAgentAdminMemorySortField>('sortBy');
     const sortDirectionParam = useSearchParams<'asc' | 'desc'>('sortDirection');
 
@@ -67,6 +77,9 @@ export const useAiAgentAdminMemoryFilters = () => {
                     ? []
                     : statusesParam?.split(',').filter(isMemoryStatus) ||
                       DEFAULT_FILTERS.selectedStatuses,
+            selectedScopes:
+                scopesParam?.split(',').filter(isMemoryScope) ||
+                DEFAULT_FILTERS.selectedScopes,
             sortField: sortByParam || DEFAULT_FILTERS.sortField,
             sortDirection: sortDirectionParam || DEFAULT_FILTERS.sortDirection,
         }),
@@ -75,6 +88,7 @@ export const useAiAgentAdminMemoryFilters = () => {
             projectsParam,
             usersParam,
             statusesParam,
+            scopesParam,
             sortByParam,
             sortDirectionParam,
         ],
@@ -109,6 +123,9 @@ export const useAiAgentAdminMemoryFilters = () => {
                     'statuses',
                     newFilters.selectedStatuses.join(','),
                 );
+            }
+            if (newFilters.selectedScopes.length > 0) {
+                searchParams.set('scopes', newFilters.selectedScopes.join(','));
             }
             if (newFilters.sortField !== DEFAULT_FILTERS.sortField) {
                 searchParams.set('sortBy', newFilters.sortField);
@@ -162,6 +179,16 @@ export const useAiAgentAdminMemoryFilters = () => {
         [updateUrl, currentFilters],
     );
 
+    const setSelectedScopes = useCallback(
+        (scopes: string[]) => {
+            updateUrl({
+                ...currentFilters,
+                selectedScopes: scopes.filter(isMemoryScope),
+            });
+        },
+        [updateUrl, currentFilters],
+    );
+
     const setSorting = useCallback(
         (
             sortField: AiAgentAdminMemorySortField,
@@ -184,7 +211,8 @@ export const useAiAgentAdminMemoryFilters = () => {
             currentFilters.selectedProjectUuids.length > 0 ||
             currentFilters.selectedUserUuids.length > 0 ||
             currentFilters.selectedStatuses.join(',') !==
-                DEFAULT_FILTERS.selectedStatuses.join(','),
+                DEFAULT_FILTERS.selectedStatuses.join(',') ||
+            currentFilters.selectedScopes.length > 0,
         [currentFilters],
     );
 
@@ -203,6 +231,9 @@ export const useAiAgentAdminMemoryFilters = () => {
         if (currentFilters.selectedStatuses.length > 0) {
             result.statuses = currentFilters.selectedStatuses;
         }
+        if (currentFilters.selectedScopes.length > 0) {
+            result.scopes = currentFilters.selectedScopes;
+        }
 
         return result;
     }, [currentFilters]);
@@ -216,6 +247,7 @@ export const useAiAgentAdminMemoryFilters = () => {
         setSelectedProjectUuids,
         setSelectedUserUuids,
         setSelectedStatuses,
+        setSelectedScopes,
         setSorting,
 
         resetFilters,
