@@ -217,6 +217,10 @@
     color: var(--mantine-color-indigo-7);
 }
 
+.objectLinkIcon {
+    flex: none;
+}
+
 @media (max-width: 820px) {
     .layout {
         grid-template-columns: minmax(0, 1fr);
