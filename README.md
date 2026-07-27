@@ -84,6 +84,7 @@ Sign up for [Lightdash Cloud](https://www.lightdash.com/start) to get a hosted w
 
 Run Lightdash on your own infrastructure with Docker or Kubernetes.
 If you're deploying to production, start with the [production deployment checklist](https://docs.lightdash.com/self-host/production-deployment-checklist).
+Enterprise features are available on self-hosted deployments with a license key; [speak to the Lightdash team](https://lightdash.cal.com/lightdash/talk) to get one.
 
 - [Self-hosting guide](https://docs.lightdash.com/self-host/self-host-lightdash)
 - [Helm charts](https://github.com/lightdash/helm-charts)
