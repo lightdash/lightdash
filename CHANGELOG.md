@@ -1,3 +1,12 @@
+# [1.1.0](https://github.com/lightdash/lightdash/compare/1.0.0...1.1.0) (2026-07-27)
+
+
+### Features
+
+* **data-apps:** sandbox skill mapping SDK features to host-UI names and wiring ([#26224](https://github.com/lightdash/lightdash/issues/26224)) ([f3332ff](https://github.com/lightdash/lightdash/commit/f3332ffdf9369a6a5643a873ac8203db7f99824b))
+* **data-apps:** upgrade staleness badge and what's-new from the SDK manifest ([#26040](https://github.com/lightdash/lightdash/issues/26040)) ([1c57b8a](https://github.com/lightdash/lightdash/commit/1c57b8aac384a78d6c23b6059b6c376620d7257a))
+* show enterprise license status in About modal ([#26235](https://github.com/lightdash/lightdash/issues/26235)) ([63d1b04](https://github.com/lightdash/lightdash/commit/63d1b04bc979c2ffe1f63dc86c518605f8f1c135))
+
 # [1.0.0](https://github.com/lightdash/lightdash/compare/0.3487.0...1.0.0) (2026-07-27)
 
 
