@@ -6,7 +6,7 @@
 // https://github.com/pnpm/pnpm/issues/5391
 
 // TypeScript 7 has a new API; isolate tools that still require the legacy API.
-const LEGACY_TYPESCRIPT_API_VERSION = '5.9.3';
+const LEGACY_TYPESCRIPT_API_PACKAGE = 'npm:@typescript/typescript6@6.0.2';
 
 const legacyTypeScriptApiPackages = new Set([
     '@joshwooding/vite-plugin-react-docgen-typescript',
@@ -90,7 +90,7 @@ function overridesPeerDependencies(pkg) {
                 legacyTypeScriptApiPackages.has(pkg.name))
         ) {
             pkg.dependencies ??= {};
-            pkg.dependencies.typescript = LEGACY_TYPESCRIPT_API_VERSION;
+            pkg.dependencies.typescript = LEGACY_TYPESCRIPT_API_PACKAGE;
             delete pkg.peerDependencies.typescript;
             delete pkg.peerDependenciesMeta?.typescript;
         }
