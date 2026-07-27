@@ -165,8 +165,8 @@ const ProviderRow: FC<ProviderRowProps> = ({
             {showAvailability && isEnabled && (
                 <MultiSelect
                     size="xs"
-                    label="Allowed models"
-                    aria-label={`${label} allowed models`}
+                    label="Ask AI models"
+                    aria-label={`${label} Ask AI models`}
                     placeholder={
                         visibility?.allowedModels?.length
                             ? undefined

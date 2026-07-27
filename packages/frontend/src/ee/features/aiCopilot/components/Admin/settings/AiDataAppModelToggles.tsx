@@ -21,9 +21,11 @@ type AiDataAppModelTogglesProps = {
 
 /**
  * Data App model availability, rendered inside the Anthropic provider row.
- * Separate from the provider's "Allowed models" list because Data Apps run
- * the Claude CLI, which takes capability aliases (opus/sonnet/haiku) that
- * track the latest model in each tier rather than pinned model ids.
+ * Separate from the provider's "Ask AI models" list because Data Apps run the
+ * Claude CLI, which takes capability aliases (opus/sonnet/haiku) that track
+ * the latest model in each tier rather than pinned model ids. The two can't be
+ * derived from each other: allowing only "Claude Sonnet 4" for Ask AI would
+ * still let `--model sonnet` run a newer Sonnet the allowlist excludes.
  */
 export const AiDataAppModelToggles: FC<AiDataAppModelTogglesProps> = ({
     dataAppModelVisibility,
@@ -38,9 +40,10 @@ export const AiDataAppModelToggles: FC<AiDataAppModelTogglesProps> = ({
                 Data Apps models
             </Text>
             <Text c="dimmed" fz="xs">
-                Which models users can pick when building a Data App. Apps
-                already built with a hidden model keep working — it just
-                can&apos;t be selected again.
+                Which models users can pick when building a Data App. Data Apps
+                run the Claude CLI, which picks the latest model in each tier —
+                so these are set separately from Ask AI models. Apps already
+                built with a hidden model keep working.
             </Text>
             <Group gap="lg" mt={4}>
                 {DATA_APP_CLAUDE_MODELS.map((model) => {
