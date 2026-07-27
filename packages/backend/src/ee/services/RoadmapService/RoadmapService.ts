@@ -16,6 +16,8 @@ import type { LightdashConfig } from '../../../config/parseConfig';
 import { BaseService } from '../../../services/BaseService';
 import type { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 
+const ROADMAP_URL =
+    'https://roadmap.lightdash.com/api/v1/roadmap/organizations';
 const ROADMAP_REQUEST_TIMEOUT_MS = 10_000;
 
 type Dependencies = {
@@ -65,9 +67,7 @@ export class RoadmapService extends BaseService {
         }
 
         const { licenseKey } = this.lightdashConfig.license;
-        // todo: temporary env var
-        const roadmapUrl = process.env.ROADMAP_URL;
-        if (!licenseKey || !roadmapUrl) {
+        if (!licenseKey) {
             throw new UnexpectedServerError(
                 'Could not load the organization roadmap',
             );
@@ -82,7 +82,7 @@ export class RoadmapService extends BaseService {
 
         let url: URL;
         try {
-            url = new URL(roadmapUrl);
+            url = new URL(ROADMAP_URL);
             const basePath = url.pathname.replace(/\/$/, '');
             url.pathname = `${basePath}/${encodeURIComponent(organizationUuid)}`;
         } catch {
