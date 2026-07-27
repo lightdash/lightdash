@@ -210,7 +210,7 @@ export class ValidationService extends BaseService {
     ): string[] {
         const parseTableField = (field: string) =>
             // Transform ${table.field} references on table calculation to table_field
-            field.replace('${', '').replace('}', '').replace('.', '_');
+            field.replaceAll('${', '').replaceAll('}', '').replaceAll('.', '_');
 
         const tableCalculationFieldsInSql: string[] = tableCalculations.reduce<
             string[]
