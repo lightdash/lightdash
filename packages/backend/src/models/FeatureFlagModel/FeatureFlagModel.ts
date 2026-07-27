@@ -46,6 +46,8 @@ export class FeatureFlagModel {
                     this.lightdashConfig.results.cacheEnabled,
                     options,
                 ),
+            [FeatureFlags.DashboardFilterRequirements]: (flagArgs, options) =>
+                this.getWithEnvFallback(flagArgs, true, options),
         };
     }
 

@@ -331,6 +331,53 @@ describe('FeatureFlagModel', () => {
         });
     });
 
+    describe('DashboardFilterRequirements default', () => {
+        it('defaults to enabled when the DB has no opinion', async () => {
+            const model = buildModel({}, buildFakeDatabase({}));
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.DashboardFilterRequirements,
+                user: dbUser,
+            });
+
+            expect(result).toEqual({
+                id: FeatureFlags.DashboardFilterRequirements,
+                enabled: true,
+            });
+        });
+
+        it('an org override of false beats the enabled default', async () => {
+            const model = buildModel(
+                {},
+                buildFakeDatabase({
+                    flag: { default_enabled: null },
+                    orgOverride: { enabled: false },
+                }),
+            );
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.DashboardFilterRequirements,
+                user: dbUser,
+            });
+
+            expect(result.enabled).toBe(false);
+        });
+
+        it('LIGHTDASH_DISABLE_FEATURE_FLAGS forces it off', async () => {
+            const model = buildModel({
+                disabledFeatureFlags: new Set([
+                    FeatureFlags.DashboardFilterRequirements,
+                ]),
+            });
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.DashboardFilterRequirements,
+            });
+
+            expect(result.enabled).toBe(false);
+        });
+    });
+
     describe('database error resilience', () => {
         // Reproduces the embed-account regression: a non-UUID userUuid
         // (e.g. `external::…`) makes Postgres throw 22P02 on the override
