@@ -12,6 +12,11 @@ You are editing a Lightdash **data app** that was downloaded with the Lightdash 
 - All data access goes through `@lightdash/query-sdk` (a postMessage bridge to Lightdash). There is **no** `fetch`, no REST calls, no other network access at runtime — anything else is blocked.
 - For the SDK surface (query builder, `useLightdash`, filters, downloads), read the `lightdash-data-app` skill in this folder.
 
+## External HTTP APIs go through linked connections
+
+- The one sanctioned path to a third-party API is `lightdash.externalFetch('<alias>', ...)` against an **external connection** a project admin configured and linked to this app (see the `lightdash-data-app` skill).
+- If the app needs an API that is not linked, **stop and say so** — do not vendor an HTTP client or try to reach it another way. An admin must create the connection (in project settings, or as code: `lightdash download --include-external-connections`, edit `lightdash/external-connections/<slug>.yml`, `lightdash upload` with the secret in `LIGHTDASH_EXTERNAL_CONNECTION_SECRET_<SLUG>`) and link it to the app in Lightdash. That is project configuration, not part of this folder's source tree.
+
 ## Library boundaries — build with what's preinstalled
 
 - The app builds against a **fixed template dependency set** — see `package.json` (React, Recharts, d3 + d3-cloud/d3-sankey, Radix primitives, Tailwind, lucide-react, date-fns, html-to-image, jspdf, and more). **Design within this set**; it covers almost all data-app needs.

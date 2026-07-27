@@ -23,6 +23,7 @@ const connection: ExternalConnection = {
     projectUuid,
     organizationUuid: orgUuid,
     name: 'Test API',
+    slug: 'test-api',
     type: 'bearer_token',
     origin: 'https://api.example.com',
     instructions: null,

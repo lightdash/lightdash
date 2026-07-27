@@ -29,6 +29,7 @@ const makeDbConnection = (overrides: Record<string, unknown> = {}) => ({
     project_uuid: PROJECT_UUID,
     organization_uuid: ORG_UUID,
     name: 'Acme API',
+    slug: 'acme-api',
     type: 'bearer_token',
     origin: 'https://api.acme.com',
     instructions: null,
@@ -79,6 +80,8 @@ describe('ExternalConnectionModel', () => {
 
     describe('create', () => {
         it('encrypts the secret before inserting it and never returns plaintext', async () => {
+            // Slug-uniqueness lookup before the insert
+            tracker.on.select(ExternalConnectionsTableName).responseOnce([]);
             tracker.on
                 .insert(ExternalConnectionsTableName)
                 .responseOnce([makeDbConnection()]);
@@ -123,6 +126,7 @@ describe('ExternalConnectionModel', () => {
         });
 
         it('does not insert a secret row for type "none"', async () => {
+            tracker.on.select(ExternalConnectionsTableName).responseOnce([]);
             tracker.on
                 .insert(ExternalConnectionsTableName)
                 .responseOnce([makeDbConnection({ type: 'none' })]);
@@ -150,6 +154,7 @@ describe('ExternalConnectionModel', () => {
         });
 
         it('serializes jsonb array columns to JSON strings on insert', async () => {
+            tracker.on.select(ExternalConnectionsTableName).responseOnce([]);
             tracker.on
                 .insert(ExternalConnectionsTableName)
                 .responseOnce([makeDbConnection({ type: 'none' })]);
@@ -177,6 +182,161 @@ describe('ExternalConnectionModel', () => {
             expect(connInsert?.bindings.some((b) => Array.isArray(b))).toBe(
                 false,
             );
+        });
+    });
+
+    describe('create slug generation', () => {
+        it('dedupes the generated slug against existing slugs, including soft-deleted rows', async () => {
+            tracker.on
+                .select(ExternalConnectionsTableName)
+                .responseOnce([{ slug: 'acme-api' }, { slug: 'acme-api-1' }]);
+            tracker.on
+                .insert(ExternalConnectionsTableName)
+                .responseOnce([makeDbConnection({ slug: 'acme-api-2' })]);
+
+            const result = await model.create(
+                PROJECT_UUID,
+                ORG_UUID,
+                USER_UUID,
+                {
+                    name: 'Acme API',
+                    type: 'none',
+                    origin: 'https://api.acme.com',
+                    allowedPathPrefixes: [],
+                    allowedMethods: ['GET'],
+                    allowedContentTypes: ['application/json'],
+                    secret: null,
+                },
+            );
+
+            expect(result.slug).toBe('acme-api-2');
+            const connInsert = tracker.history.insert.find((q) =>
+                q.sql.includes(ExternalConnectionsTableName),
+            );
+            expect(connInsert?.bindings).toContain('acme-api-2');
+            // Slug uniqueness must span soft-deleted rows: the lookup has no
+            // deleted_at filter so a restored connection can never collide.
+            const slugLookup = tracker.history.select.find((q) =>
+                q.sql.includes('like'),
+            );
+            expect(slugLookup?.sql).not.toContain('deleted_at');
+        });
+
+        it('inserts a forced slug exactly, without a uniqueness lookup', async () => {
+            tracker.on
+                .insert(ExternalConnectionsTableName)
+                .responseOnce([makeDbConnection({ slug: 'forced-slug' })]);
+
+            const result = await model.create(
+                PROJECT_UUID,
+                ORG_UUID,
+                USER_UUID,
+                {
+                    name: 'Acme API',
+                    type: 'none',
+                    origin: 'https://api.acme.com',
+                    allowedPathPrefixes: [],
+                    allowedMethods: ['GET'],
+                    allowedContentTypes: ['application/json'],
+                    secret: null,
+                },
+                { slug: 'forced-slug' },
+            );
+
+            expect(result.slug).toBe('forced-slug');
+            expect(tracker.history.select).toHaveLength(0);
+            const connInsert = tracker.history.insert.find((q) =>
+                q.sql.includes(ExternalConnectionsTableName),
+            );
+            expect(connInsert?.bindings).toContain('forced-slug');
+        });
+
+        it('maps a unique-index violation on a forced slug to AlreadyExistsError', async () => {
+            const uniqueViolation = Object.assign(
+                new Error('duplicate key value violates unique constraint'),
+                {
+                    code: '23505',
+                    constraint: 'external_connections_project_uuid_slug_unique',
+                },
+            );
+            tracker.on
+                .insert(ExternalConnectionsTableName)
+                .simulateErrorOnce(uniqueViolation);
+
+            await expect(
+                model.create(
+                    PROJECT_UUID,
+                    ORG_UUID,
+                    USER_UUID,
+                    {
+                        name: 'Acme API',
+                        type: 'none',
+                        origin: 'https://api.acme.com',
+                        allowedPathPrefixes: [],
+                        allowedMethods: ['GET'],
+                        allowedContentTypes: ['application/json'],
+                        secret: null,
+                    },
+                    { slug: 'taken-slug' },
+                ),
+            ).rejects.toThrow(
+                'An external connection with slug "taken-slug" already exists',
+            );
+        });
+    });
+
+    describe('findBySlug', () => {
+        it('returns the read shape for a live connection scoped to project and org', async () => {
+            tracker.on.select(ExternalConnectionsTableName).responseOnce([
+                {
+                    ...makeDbConnection(),
+                    encrypted_payload: null,
+                },
+            ]);
+
+            const result = await model.findBySlug(
+                PROJECT_UUID,
+                ORG_UUID,
+                'acme-api',
+            );
+
+            expect(result?.slug).toBe('acme-api');
+            expect(result?.hasSecret).toBe(false);
+            const query = tracker.history.select[0];
+            expect(query.sql).toContain('deleted_at');
+            expect(query.bindings).toEqual(
+                expect.arrayContaining([PROJECT_UUID, ORG_UUID, 'acme-api']),
+            );
+        });
+    });
+
+    describe('copyConnectionsToProject', () => {
+        it('carries the source slug onto the cloned connection', async () => {
+            tracker.on
+                .select(ExternalConnectionsTableName)
+                .responseOnce([makeDbConnection()]);
+            tracker.on
+                .insert(ExternalConnectionsTableName)
+                .responseOnce([
+                    { external_connection_uuid: 'cloned-conn-uuid' },
+                ]);
+            // No secret row and no samples for the source connection
+            tracker.on
+                .select(ExternalConnectionSecretsTableName)
+                .responseOnce([]);
+            tracker.on
+                .select(ExternalConnectionSamplesTableName)
+                .responseOnce([]);
+
+            await model.copyConnectionsToProject(
+                PROJECT_UUID,
+                'target-project-uuid',
+            );
+
+            const cloneInsert = tracker.history.insert.find((q) =>
+                q.sql.includes(ExternalConnectionsTableName),
+            );
+            expect(cloneInsert?.bindings).toContain('acme-api');
         });
     });
 

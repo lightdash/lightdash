@@ -164,6 +164,9 @@ export class ExternalConnectionService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         data: CreateExternalConnection,
+        // Forced slug is only used by content-as-code upserts; the public
+        // CRUD API always generates one from the name.
+        options?: { slug?: string },
     ): Promise<ExternalConnection> {
         // Derive the org from the project — never trust the caller's org — so an
         // org admin cannot create a connection against another org's project.
@@ -184,6 +187,7 @@ export class ExternalConnectionService extends BaseService {
             organizationUuid,
             account.user.id,
             data,
+            options,
         );
         this.analytics.track({
             event: 'external_connection.created',
@@ -1189,6 +1193,7 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             organizationUuid,
             name: data.name,
+            slug: 'unsaved',
             type: data.type,
             origin: data.origin,
             instructions: data.instructions ?? null,
