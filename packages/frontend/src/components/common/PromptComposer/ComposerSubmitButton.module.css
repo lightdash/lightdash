@@ -1,0 +1,54 @@
+.submitButton {
+    flex-shrink: 0;
+    border-radius: var(--mantine-radius-xl);
+    transition:
+        transform 150ms ease,
+        opacity 150ms ease,
+        background-color 150ms ease;
+
+    background-color: var(--mantine-color-foreground-0) !important;
+
+    &:hover:not(:disabled) {
+        background-color: var(--mantine-color-foreground-1) !important;
+    }
+
+    &:disabled {
+        opacity: 0.4;
+    }
+
+    &:active:not(:disabled) {
+        transform: scale(0.95);
+    }
+}
+
+.submitButton[data-composer-size='lg'] {
+    width: rem(40px);
+    height: rem(40px);
+    min-width: rem(40px);
+    min-height: rem(40px);
+}
+
+.submitButton[data-composer-size='sm'] {
+    width: rem(32px);
+    height: rem(32px);
+    min-width: rem(32px);
+    min-height: rem(32px);
+}
+
+.submitButton[data-accent='indigo'] {
+    background-color: var(--mantine-color-indigo-6) !important;
+
+    &:hover:not(:disabled) {
+        background-color: var(--mantine-color-indigo-7) !important;
+    }
+}
+
+/* Destructive action (stop/interrupt) keeps the composer geometry but the
+ * semantic colour of the Mantine `red` ActionIcon. */
+.submitButton[data-destructive='true'] {
+    background-color: var(--mantine-color-red-filled) !important;
+
+    &:hover:not(:disabled) {
+        background-color: var(--mantine-color-red-filled-hover) !important;
+    }
+}

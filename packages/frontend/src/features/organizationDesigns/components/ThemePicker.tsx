@@ -2,13 +2,18 @@ import {
     Box,
     Button,
     Group,
-    Popover,
+    Menu,
+    ScrollArea,
     Stack,
     Text,
     Tooltip,
-    UnstyledButton,
 } from '@mantine-8/core';
-import { IconBrush, IconCheck, IconChevronDown } from '@tabler/icons-react';
+import {
+    IconBrush,
+    IconCheck,
+    IconChevronDown,
+    IconSettings,
+} from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -16,6 +21,9 @@ import { useOrganizationDesigns } from '../hooks/useOrganizationDesigns';
 import classes from './ThemePicker.module.css';
 
 const LIGHTDASH_DEFAULT_LABEL = 'No theme';
+// The compact trigger is a call to action when nothing is picked yet, so it
+// reads as an invitation rather than a status.
+const COMPACT_EMPTY_LABEL = 'Apply theme';
 const LIGHTDASH_DEFAULT_DESCRIPTION =
     'No shared design assets - prompt any style you want';
 
@@ -51,23 +59,41 @@ export const ThemePicker: FC<Props> = ({
         ? selected.description || null
         : LIGHTDASH_DEFAULT_DESCRIPTION;
 
+    // Compact trigger reads as a call to action until a theme is picked, then
+    // switches to showing the selected theme's name.
+    const compactLabel = selected ? label : COMPACT_EMPTY_LABEL;
     const button = compact ? (
         <Button
-            variant="default"
+            variant="subtle"
             size="xs"
             radius="xl"
             color="gray"
             h="auto"
             py={6}
+            className={classes.compactTrigger}
+            data-selected={!!selected}
             onClick={() => setOpened((o) => !o)}
             disabled={disabled || lockedAfterCreation}
             leftSection={<MantineIcon icon={IconBrush} size={14} />}
             rightSection={<MantineIcon icon={IconChevronDown} size={12} />}
-            aria-label={`Theme: ${label}`}
+            aria-label={selected ? `Theme: ${label}` : COMPACT_EMPTY_LABEL}
         >
-            <Text size="sm" fw={500} lh={1.2} lineClamp={1}>
-                {label}
-            </Text>
+            <Group gap={5} wrap="nowrap">
+                {selected && (
+                    <Text
+                        span
+                        size="xs"
+                        fw={500}
+                        lh={1.2}
+                        className={classes.compactPrefix}
+                    >
+                        Theme:
+                    </Text>
+                )}
+                <Text span size="xs" fw={600} lh={1.2} lineClamp={1}>
+                    {compactLabel}
+                </Text>
+            </Group>
         </Button>
     ) : (
         <Button
@@ -98,16 +124,56 @@ export const ThemePicker: FC<Props> = ({
         </Button>
     );
 
+    const themeOption = (
+        key: string,
+        optionLabel: string,
+        optionDescription: string | null,
+        isActive: boolean,
+        onSelect: () => void,
+        badge?: string,
+    ) => (
+        <Menu.Item
+            key={key}
+            onClick={onSelect}
+            aria-current={isActive}
+            className={classes.option}
+            rightSection={
+                isActive ? (
+                    <MantineIcon icon={IconCheck} size={14} color="indigo.6" />
+                ) : null
+            }
+        >
+            <Group gap="xs" align="center" wrap="nowrap">
+                <Text size="sm" fw={500}>
+                    {optionLabel}
+                </Text>
+                {badge && (
+                    <Text size="xs" c="dimmed">
+                        {badge}
+                    </Text>
+                )}
+            </Group>
+            {optionDescription && (
+                <Text size="xs" c="dimmed" lineClamp={1}>
+                    {optionDescription}
+                </Text>
+            )}
+        </Menu.Item>
+    );
+
     return (
-        <Popover
+        <Menu
             opened={opened}
             onChange={setOpened}
-            position="bottom"
+            onDismiss={() => setOpened(false)}
+            position={compact ? 'top-start' : 'bottom-start'}
             offset={8}
             shadow="md"
-            trapFocus
+            width={300}
+            withinPortal
+            closeOnItemClick
         >
-            <Popover.Target>
+            <Menu.Target>
                 {lockedAfterCreation ? (
                     <Tooltip
                         label="Theme can't be changed after creation"
@@ -121,89 +187,35 @@ export const ThemePicker: FC<Props> = ({
                 ) : (
                     button
                 )}
-            </Popover.Target>
-            <Popover.Dropdown className={classes.dropdown} p={0}>
-                <Box py="xs">
-                    <UnstyledButton
-                        className={classes.option}
-                        onClick={() => {
-                            onChange(null);
-                            setOpened(false);
-                        }}
-                        aria-pressed={value === null}
-                    >
-                        <Box flex={1}>
-                            <Group gap="xs" align="center">
-                                <Text size="sm" fw={500}>
-                                    {LIGHTDASH_DEFAULT_LABEL}
-                                </Text>
-                                {value === null && (
-                                    <MantineIcon
-                                        icon={IconCheck}
-                                        size={14}
-                                        color="indigo.6"
-                                    />
-                                )}
-                            </Group>
-                            <Text size="xs" c="dimmed">
-                                {LIGHTDASH_DEFAULT_DESCRIPTION}
-                            </Text>
-                        </Box>
-                    </UnstyledButton>
-                    {themes.map((theme) => {
-                        const isActive = theme.designUuid === value;
-                        return (
-                            <UnstyledButton
-                                key={theme.designUuid}
-                                className={classes.option}
-                                onClick={() => {
-                                    onChange(theme.designUuid);
-                                    setOpened(false);
-                                }}
-                                aria-pressed={isActive}
-                            >
-                                <Box flex={1}>
-                                    <Group gap="xs" align="center">
-                                        <Text size="sm" fw={500}>
-                                            {theme.name}
-                                        </Text>
-                                        {theme.isDefault && (
-                                            <Text size="xs" c="dimmed">
-                                                Default
-                                            </Text>
-                                        )}
-                                        {isActive && (
-                                            <MantineIcon
-                                                icon={IconCheck}
-                                                size={14}
-                                                color="indigo.6"
-                                            />
-                                        )}
-                                    </Group>
-                                    {theme.description && (
-                                        <Text size="xs" c="dimmed">
-                                            {theme.description}
-                                        </Text>
-                                    )}
-                                </Box>
-                            </UnstyledButton>
-                        );
-                    })}
-                </Box>
-                <Box className={classes.footer} px="md" py="xs">
-                    <UnstyledButton
-                        className={classes.manageLink}
-                        onClick={() => {
-                            setOpened(false);
-                            void navigate('/generalSettings/themes');
-                        }}
-                    >
-                        <Text size="xs" c="blue.6">
-                            Manage themes →
-                        </Text>
-                    </UnstyledButton>
-                </Box>
-            </Popover.Dropdown>
-        </Popover>
+            </Menu.Target>
+            <Menu.Dropdown className={classes.dropdown}>
+                <ScrollArea.Autosize mah={280} type="scroll">
+                    {themeOption(
+                        'none',
+                        LIGHTDASH_DEFAULT_LABEL,
+                        LIGHTDASH_DEFAULT_DESCRIPTION,
+                        value === null,
+                        () => onChange(null),
+                    )}
+                    {themes.map((theme) =>
+                        themeOption(
+                            theme.designUuid,
+                            theme.name,
+                            theme.description || null,
+                            theme.designUuid === value,
+                            () => onChange(theme.designUuid),
+                            theme.isDefault ? 'Default' : undefined,
+                        ),
+                    )}
+                </ScrollArea.Autosize>
+                <Menu.Divider />
+                <Menu.Item
+                    leftSection={<MantineIcon icon={IconSettings} size={14} />}
+                    onClick={() => void navigate('/generalSettings/themes')}
+                >
+                    <Text size="xs">Manage themes</Text>
+                </Menu.Item>
+            </Menu.Dropdown>
+        </Menu>
     );
 };

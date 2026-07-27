@@ -13,7 +13,6 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import { RichTextEditor } from '@mantine-8/tiptap';
 import {
     IconArrowUp,
     IconPlayerStop,
@@ -21,14 +20,16 @@ import {
     IconTerminal2,
 } from '@tabler/icons-react';
 import Mention from '@tiptap/extension-mention';
-import Placeholder from '@tiptap/extension-placeholder';
-import { useEditor, type Editor } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
+import { type AnyExtension, type Editor } from '@tiptap/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
+import {
+    ComposerSubmitButton,
+    PromptComposer,
+} from '../../../../../components/common/PromptComposer';
 import useUser from '../../../../../hooks/user/useUser';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -196,8 +197,6 @@ export const AgentChatInput = ({
     disabledRef.current = disabled;
     const clearOnSubmitRef = useRef(clearOnSubmit);
     clearOnSubmitRef.current = clearOnSubmit;
-    const canSteerRef = useRef(false);
-    const handleSubmitRef = useRef<() => void>(() => undefined);
     const projectUuidRef = useRef(projectUuid);
     projectUuidRef.current = projectUuid;
     const contentMentionPriorityItemsRef = useRef(contentMentionPriorityItems);
@@ -302,17 +301,11 @@ export const AgentChatInput = ({
         enabled: emptyStateMode || postResponseMode,
     });
 
-    const editor = useEditor({
-        extensions: [
-            StarterKit.configure({
-                heading: false,
-                bulletList: false,
-                orderedList: false,
-                blockquote: false,
-                codeBlock: false,
-                horizontalRule: false,
-            }),
-            Placeholder.configure({ placeholder }),
+    const [editor, setEditor] = useState<Editor | null>(null);
+    editorRef.current = editor;
+
+    const composerExtensions = useMemo<AnyExtension[]>(
+        () => [
             SuggestionChipMention.configure({
                 renderText: ({ node }) =>
                     typeof node.attrs.label === 'string'
@@ -334,51 +327,21 @@ export const AgentChatInput = ({
                 },
             }),
         ],
-        editable: !disabled,
-        autofocus: true,
-        content: defaultValue ?? '',
-        onUpdate: ({ editor: ed }) => {
-            const text = ed.getText();
-            setValueState(text);
-            onValueChangeRef.current?.(text);
-        },
-        editorProps: {
-            handleKeyDown: (_, event) => {
-                if (
-                    event.key === 'Enter' &&
-                    !event.shiftKey &&
-                    !event.isComposing
-                ) {
-                    const ed = editorRef.current;
-                    if (
-                        isContentMentionSuggestionActive(ed) ||
-                        contentMentionPopupOpenRef.current
-                    ) {
-                        return false;
-                    }
-                    if (
-                        disabledRef.current ||
-                        (loadingRef.current && !canSteerRef.current)
-                    ) {
-                        return true;
-                    }
-                    if (!ed) return false;
-                    const text = ed.getText().trim();
-                    if (!text) return true;
-                    event.preventDefault();
-                    handleSubmitRef.current();
-                    return true;
-                }
-                return false;
-            },
-        },
-    });
-    editorRef.current = editor;
+        [],
+    );
 
-    useEffect(() => {
-        if (!editor) return;
-        editor.setEditable(!disabled);
-    }, [editor, disabled]);
+    // An open @-mention dropdown owns Enter — it selects rather than submits.
+    const shouldBlockSubmit = useCallback(
+        (ed: Editor | null) =>
+            isContentMentionSuggestionActive(ed) ||
+            contentMentionPopupOpenRef.current,
+        [],
+    );
+
+    const handleComposerValueChange = useCallback((text: string) => {
+        setValueState(text);
+        onValueChangeRef.current?.(text);
+    }, []);
 
     useEffect(() => {
         if (!editor || !threadUuid) return undefined;
@@ -485,7 +448,6 @@ export const AgentChatInput = ({
     );
 
     const hasValue = value.trim().length > 0;
-    const showMinimalPlaceholder = isMinimalMode && !hasValue;
     const showDisabledBanner = disabled && disabledReason;
     const isThreadInput = Boolean(threadUuid);
     const canStartDeepResearch = Boolean(
@@ -519,7 +481,6 @@ export const AgentChatInput = ({
         activeMessageUuid,
     );
     const canSteer = canInterrupt && !disabled && !hasRequestedInterrupt;
-    canSteerRef.current = canSteer;
 
     const handleStartDeepResearch = async () => {
         const ed = editorRef.current;
@@ -567,7 +528,6 @@ export const AgentChatInput = ({
             setValueState('');
         }
     };
-    handleSubmitRef.current = handleSubmit;
 
     const handleSteer = async (message: string) => {
         if (!projectUuid || !agentUuid || !threadUuid || !activeMessageUuid) {
@@ -717,6 +677,100 @@ export const AgentChatInput = ({
         );
     };
 
+    const renderComposerHeader = (inline: boolean) => {
+        if (composerMode !== 'deep_research') return null;
+        return inline ? (
+            <Group gap={4} wrap="nowrap" aria-label="Deep research mode">
+                <Box className={styles.minimalResearchIndicator}>
+                    <MantineIcon icon={IconTelescope} size={15} stroke={1.8} />
+                </Box>
+                <Badge
+                    size="xs"
+                    variant="light"
+                    color="blue"
+                    tt="none"
+                    className={styles.minimalResearchBeta}
+                >
+                    Beta
+                </Badge>
+            </Group>
+        ) : (
+            <Group gap={6} aria-label="Deep research mode">
+                <MantineIcon icon={IconTelescope} size={15} stroke={1.8} />
+                <Text size="xs" fw={600}>
+                    Deep research
+                </Text>
+                <Badge size="xs" variant="light" color="blue" tt="none">
+                    Beta
+                </Badge>
+            </Group>
+        );
+    };
+
+    const renderComposerAction = (size: 'sm' | 'lg') => {
+        if (canSteer && hasValue) {
+            return (
+                <ComposerSubmitButton
+                    icon={IconArrowUp}
+                    label="Send guidance"
+                    size={size}
+                    disabled={steerMutation.isLoading}
+                    loading={steerMutation.isLoading}
+                    onClick={handleSubmit}
+                />
+            );
+        }
+        if (canInterrupt) {
+            return (
+                <ComposerSubmitButton
+                    icon={IconPlayerStop}
+                    label="Stop agent"
+                    destructive
+                    size={size}
+                    disabled={hasRequestedInterrupt}
+                    loading={
+                        interruptMutation.isLoading || hasRequestedInterrupt
+                    }
+                    onClick={() => void handleInterrupt()}
+                />
+            );
+        }
+        const isDeepResearch = composerMode === 'deep_research';
+        return (
+            <ComposerSubmitButton
+                icon={isDeepResearch ? IconTelescope : IconArrowUp}
+                label={isDeepResearch ? 'Start research' : 'Send message'}
+                size={size}
+                accent={isDeepResearch ? 'indigo' : 'none'}
+                disabled={
+                    disabled ||
+                    !hasValue ||
+                    (isDeepResearch &&
+                        (loading || !isDeepResearchPreflightReady))
+                }
+                loading={isDeepResearch ? isStartingDeepResearch : loading}
+                onClick={handleSubmit}
+            />
+        );
+    };
+
+    const composerCommonProps = {
+        accent:
+            composerMode === 'deep_research'
+                ? ('indigo' as const)
+                : ('none' as const),
+        placeholder,
+        defaultValue,
+        autoFocus: true,
+        disabled,
+        submitDisabled: disabled || (loading && !canSteer),
+        extensions: composerExtensions,
+        onEditorReady: setEditor,
+        onValueChange: handleComposerValueChange,
+        shouldBlockSubmit,
+        onSubmit: handleSubmit,
+    };
+
     if (isMinimalMode) {
         return (
             <Box
@@ -729,140 +783,12 @@ export const AgentChatInput = ({
                 {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
                 <Box className={styles.threadInputStack}>
-                    <Box
-                        className={`${styles.minimalInputWrapper} ${
-                            composerMode === 'deep_research'
-                                ? styles.deepResearchInput
-                                : ''
-                        }`}
-                        pos="relative"
-                    >
-                        {composerMode === 'deep_research' && (
-                            <Group
-                                gap={4}
-                                wrap="nowrap"
-                                aria-label="Deep research mode"
-                            >
-                                <Box
-                                    className={styles.minimalResearchIndicator}
-                                >
-                                    <MantineIcon
-                                        icon={IconTelescope}
-                                        size={15}
-                                        stroke={1.8}
-                                    />
-                                </Box>
-                                <Badge
-                                    size="xs"
-                                    variant="light"
-                                    color="blue"
-                                    tt="none"
-                                    className={styles.minimalResearchBeta}
-                                >
-                                    Beta
-                                </Badge>
-                            </Group>
-                        )}
-                        <RichTextEditor
-                            editor={editor}
-                            classNames={{
-                                root: styles.editorRoot,
-                                content: styles.minimalEditorContent,
-                            }}
-                        >
-                            <RichTextEditor.Content />
-                        </RichTextEditor>
-
-                        {showMinimalPlaceholder && (
-                            <Text
-                                aria-hidden
-                                className={styles.minimalPlaceholder}
-                            >
-                                {placeholder}
-                            </Text>
-                        )}
-
-                        {canSteer && hasValue ? (
-                            <ActionIcon
-                                variant="filled"
-                                size="md"
-                                className={`${styles.minimalSubmitButton} ${styles.minimalStreamActionButton}`}
-                                disabled={steerMutation.isLoading}
-                                loading={steerMutation.isLoading}
-                                onClick={handleSubmit}
-                                aria-label="Send guidance"
-                            >
-                                <MantineIcon
-                                    icon={IconArrowUp}
-                                    color="ldGray.0"
-                                    size={18}
-                                    stroke={2}
-                                />
-                            </ActionIcon>
-                        ) : canInterrupt ? (
-                            <ActionIcon
-                                variant="filled"
-                                color="red"
-                                size="md"
-                                className={`${styles.minimalSubmitButton} ${styles.minimalStreamActionButton}`}
-                                disabled={hasRequestedInterrupt}
-                                loading={
-                                    interruptMutation.isLoading ||
-                                    hasRequestedInterrupt
-                                }
-                                onClick={() => void handleInterrupt()}
-                                aria-label="Stop agent"
-                            >
-                                <MantineIcon
-                                    icon={IconPlayerStop}
-                                    color="ldGray.0"
-                                    size={18}
-                                    stroke={2}
-                                />
-                            </ActionIcon>
-                        ) : (
-                            <ActionIcon
-                                right={12}
-                                bottom={10}
-                                variant="filled"
-                                size="md"
-                                className={`${styles.minimalSubmitButton} ${
-                                    composerMode === 'deep_research'
-                                        ? styles.deepResearchSubmitButton
-                                        : ''
-                                }`}
-                                disabled={
-                                    disabled ||
-                                    !hasValue ||
-                                    (composerMode === 'deep_research' &&
-                                        (loading ||
-                                            !isDeepResearchPreflightReady))
-                                }
-                                loading={
-                                    composerMode === 'deep_research'
-                                        ? isStartingDeepResearch
-                                        : loading
-                                }
-                                onClick={handleSubmit}
-                                aria-label={
-                                    composerMode === 'deep_research'
-                                        ? 'Start research'
-                                        : 'Send message'
-                                }
-                            >
-                                <MantineIcon
-                                    icon={
-                                        composerMode === 'deep_research'
-                                            ? IconTelescope
-                                            : IconArrowUp
-                                    }
-                                    color="ldGray.0"
-                                    size={18}
-                                    stroke={2}
-                                />
-                            </ActionIcon>
-                        )}
-                    </Box>
+                    <PromptComposer
+                        {...composerCommonProps}
+                        variant="inline"
+                        header={renderComposerHeader(true)}
+                        toolbarRight={renderComposerAction('sm')}
+                    />
                     {deepResearchPreflight}
                 </Box>
 
@@ -910,57 +836,25 @@ export const AgentChatInput = ({
             {deepResearchControlPortal}
             {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
-            <Box
-                className={`${styles.inputCard} ${
-                    composerMode === 'deep_research'
-                        ? styles.deepResearchInput
-                        : ''
-                }`}
+            <PromptComposer
+                {...composerCommonProps}
+                variant="card"
+                size={dense ? 'sm' : 'lg'}
+                className={styles.agentComposer}
                 onMouseDown={handleInputCardMouseDown}
-            >
-                {composerMode === 'deep_research' && (
-                    <Group
-                        gap={6}
-                        className={styles.deepResearchIndicator}
-                        aria-label="Deep research mode"
-                    >
-                        <MantineIcon
-                            icon={IconTelescope}
-                            size={15}
-                            stroke={1.8}
-                        />
-                        <Text size="xs" fw={600}>
-                            Deep research
-                        </Text>
-                        <Badge size="xs" variant="light" color="blue" tt="none">
-                            Beta
-                        </Badge>
-                    </Group>
-                )}
-                <RichTextEditor
-                    editor={editor}
-                    classNames={{
-                        root: styles.editorRoot,
-                        content: `${styles.editorContent} ${
-                            composerMode === 'deep_research'
-                                ? styles.deepResearchEditorContent
-                                : ''
-                        }`,
-                    }}
-                >
-                    <RichTextEditor.Content />
-                </RichTextEditor>
-
-                <Box className={styles.toolbar}>
-                    <Box className={styles.toolbarActions}>
-                        {!isThreadInput && deepResearchControl}
-                        {!isThreadInput &&
-                            renderSqlModeControl({
+                header={renderComposerHeader(false)}
+                toolbarLeft={
+                    !isThreadInput && (
+                        <>
+                            {deepResearchControl}
+                            {renderSqlModeControl({
                                 actionSize: 30,
                                 iconSize: 15,
                             })}
-                    </Box>
-
+                        </>
+                    )
+                }
+                toolbarRight={
                     <Group gap="xs" align="center" wrap="nowrap">
                         {showAgentSelector && (
                             <Box
@@ -995,87 +889,10 @@ export const AgentChatInput = ({
                                 </Box>
                             )}
 
-                        {canSteer && hasValue ? (
-                            <ActionIcon
-                                variant="filled"
-                                size="lg"
-                                className={styles.submitButton}
-                                disabled={steerMutation.isLoading}
-                                loading={steerMutation.isLoading}
-                                onClick={handleSubmit}
-                                aria-label="Send guidance"
-                            >
-                                <MantineIcon
-                                    icon={IconArrowUp}
-                                    color="ldGray.0"
-                                    size={20}
-                                    stroke={2}
-                                />
-                            </ActionIcon>
-                        ) : canInterrupt ? (
-                            <ActionIcon
-                                variant="filled"
-                                color="red"
-                                size="lg"
-                                className={styles.submitButton}
-                                disabled={hasRequestedInterrupt}
-                                loading={
-                                    interruptMutation.isLoading ||
-                                    hasRequestedInterrupt
-                                }
-                                onClick={() => void handleInterrupt()}
-                                aria-label="Stop agent"
-                            >
-                                <MantineIcon
-                                    icon={IconPlayerStop}
-                                    color="ldGray.0"
-                                    size={20}
-                                    stroke={2}
-                                />
-                            </ActionIcon>
-                        ) : (
-                            <ActionIcon
-                                variant="filled"
-                                size="lg"
-                                className={`${styles.submitButton} ${
-                                    composerMode === 'deep_research'
-                                        ? styles.deepResearchSubmitButton
-                                        : ''
-                                }`}
-                                disabled={
-                                    disabled ||
-                                    !hasValue ||
-                                    (composerMode === 'deep_research' &&
-                                        (loading ||
-                                            !isDeepResearchPreflightReady))
-                                }
-                                loading={
-                                    composerMode === 'deep_research'
-                                        ? isStartingDeepResearch
-                                        : loading
-                                }
-                                onClick={handleSubmit}
-                                aria-label={
-                                    composerMode === 'deep_research'
-                                        ? 'Start research'
-                                        : 'Send message'
-                                }
-                            >
-                                <MantineIcon
-                                    icon={
-                                        composerMode === 'deep_research'
-                                            ? IconTelescope
-                                            : IconArrowUp
-                                    }
-                                    color="ldGray.0"
-                                    size={20}
-                                    stroke={2}
-                                />
-                            </ActionIcon>
-                        )}
+                        {renderComposerAction('lg')}
                     </Group>
-                </Box>
-            </Box>
+                }
+            />
 
             {deepResearchPreflight}
 

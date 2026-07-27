@@ -111,9 +111,33 @@
     letter-spacing: -0.02em;
 }
 
+/* Non-interactive "starting point" chip. Sits in a row of borderless icon
+   controls, so it reads as a filled tag rather than another button. */
 .startingFromChip {
     align-self: center;
     max-width: 220px;
+    min-width: 0;
+    padding: 5px 10px;
+    border-radius: var(--mantine-radius-xl);
+    cursor: default;
+
+    @mixin light {
+        color: var(--mantine-color-ldGray-9);
+        background-color: var(--mantine-color-ldGray-1);
+    }
+    @mixin dark {
+        color: var(--mantine-color-ldGray-8);
+        background-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.startingFromLabel {
+    @mixin light {
+        color: var(--mantine-color-ldGray-7);
+    }
+    @mixin dark {
+        color: var(--mantine-color-ldGray-6);
+    }
 }
 
 .chatPanelCompose {
@@ -284,92 +308,10 @@
     padding-top: var(--mantine-spacing-sm);
 }
 
-.inputWrapper {
-    display: flex;
-    flex-direction: column;
-    gap: var(--mantine-spacing-xs);
-    border-radius: var(--mantine-radius-lg);
-    padding: var(--mantine-spacing-sm);
-    transition:
-        border-color 150ms ease,
-        box-shadow 150ms ease;
-
-    @mixin light {
-        background-color: var(--mantine-color-white);
-        border: 1px solid var(--mantine-color-ldGray-3);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-ldDark-2);
-        border: 1px solid var(--mantine-color-ldDark-6);
-    }
-
-    &:focus-within {
-        @mixin light {
-            border-color: var(--mantine-color-ldGray-5);
-            box-shadow: 0 0 0 4px var(--mantine-color-ldGray-2);
-        }
-        @mixin dark {
-            border-color: var(--mantine-color-ldDark-7);
-            box-shadow: 0 0 0 4px var(--mantine-color-ldDark-4);
-        }
-    }
-}
-
 .attachedResources {
     display: flex;
     flex-direction: column;
     gap: var(--mantine-spacing-xs);
-}
-
-.inputBottomRow {
-    flex-wrap: nowrap;
-}
-
-.textarea {
-    border: none;
-    background: transparent;
-    resize: none;
-    padding: 0;
-    padding-right: var(--mantine-spacing-sm);
-    font-size: var(--mantine-font-size-sm);
-    line-height: 1.5;
-    min-height: unset;
-
-    &:focus {
-        outline: none;
-        box-shadow: none;
-    }
-}
-
-.textareaRoot {
-    width: 100%;
-}
-
-.textareaWrapper {
-    --input-bd: transparent;
-    --input-bg: transparent;
-}
-
-.submitButton {
-    flex-shrink: 0;
-    border-radius: var(--mantine-radius-xl);
-    transition:
-        transform 150ms ease,
-        opacity 150ms ease;
-
-    background-color: var(--mantine-color-foreground-0);
-
-    &:hover:not(:disabled) {
-        background-color: var(--mantine-color-foreground-1);
-    }
-
-    &:disabled {
-        opacity: 0.4;
-    }
-
-    &:active:not(:disabled) {
-        transform: scale(0.95);
-    }
 }
 
 .resizeHandle {
