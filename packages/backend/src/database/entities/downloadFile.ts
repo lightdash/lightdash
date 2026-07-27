@@ -7,6 +7,7 @@ export type DbDownloadFile = {
     path: string;
     type: string;
     created_at: Date;
+    project_uuid: string | null;
 };
 
 type CreateDownloadFile = Omit<DbDownloadFile, 'created_at'>;
