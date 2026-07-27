@@ -44,8 +44,52 @@ describe('useAiAgentAdminMemoryFilters', () => {
         expect(result.current.sortField).toBe('generatedAt');
         expect(result.current.sortDirection).toBe('desc');
         expect(result.current.selectedStatuses).toEqual(['active']);
+        expect(result.current.selectedScopes).toEqual([]);
         expect(result.current.apiFilters).toEqual({ statuses: ['active'] });
         expect(result.current.hasActiveFilters).toBe(false);
+    });
+
+    it('loads the scope filter from the URL', () => {
+        const { result } = renderHook(() => useAiAgentAdminMemoryFilters(), {
+            wrapper: createWrapper('?scopes=project'),
+        });
+
+        expect(result.current.selectedScopes).toEqual(['project']);
+        expect(result.current.apiFilters.scopes).toEqual(['project']);
+        expect(result.current.hasActiveFilters).toBe(true);
+    });
+
+    it('drops unknown scopes from the URL', () => {
+        const { result } = renderHook(() => useAiAgentAdminMemoryFilters(), {
+            wrapper: createWrapper('?scopes=project,bogus'),
+        });
+
+        expect(result.current.selectedScopes).toEqual(['project']);
+        expect(result.current.apiFilters.scopes).toEqual(['project']);
+    });
+
+    it('round-trips a scope selection through the URL and clears it', async () => {
+        const { result } = renderHook(() => useAiAgentAdminMemoryFilters(), {
+            wrapper: createWrapper(),
+        });
+
+        act(() => result.current.setSelectedScopes(['user', 'project']));
+
+        await waitFor(() => {
+            expect(result.current.selectedScopes).toEqual(['user', 'project']);
+            expect(result.current.apiFilters.scopes).toEqual([
+                'user',
+                'project',
+            ]);
+        });
+
+        act(() => result.current.setSelectedScopes([]));
+
+        await waitFor(() => {
+            expect(result.current.selectedScopes).toEqual([]);
+            expect(result.current.apiFilters.scopes).toBeUndefined();
+            expect(result.current.hasActiveFilters).toBe(false);
+        });
     });
 
     it('treats the "all" status token as no status filter', () => {
@@ -82,7 +126,7 @@ describe('useAiAgentAdminMemoryFilters', () => {
 
     it('persists sorting and resets every filter', async () => {
         const { result } = renderHook(() => useAiAgentAdminMemoryFilters(), {
-            wrapper: createWrapper(`?projects=${PROJECT_UUID}`),
+            wrapper: createWrapper(`?projects=${PROJECT_UUID}&scopes=project`),
         });
 
         act(() => result.current.setSorting('citedCount', 'asc'));
@@ -99,6 +143,7 @@ describe('useAiAgentAdminMemoryFilters', () => {
             expect(result.current.hasActiveFilters).toBe(false);
             expect(result.current.selectedProjectUuids).toEqual([]);
             expect(result.current.selectedStatuses).toEqual(['active']);
+            expect(result.current.selectedScopes).toEqual([]);
             expect(result.current.sortField).toBe('generatedAt');
         });
     });

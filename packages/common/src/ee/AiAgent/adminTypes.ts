@@ -1,6 +1,7 @@
 import type { ApiSuccess, KnexPaginatedData } from '../..';
 import type { DataAppModelVisibility } from '../apps/types';
 import type {
+    AiAgentMemoryScope,
     AiAgentMemoryStatus,
     AiAgentSummary,
     AiAgentThreadSummary,
@@ -68,6 +69,7 @@ export type AiAgentAdminMemoryFilters = {
     projectUuids?: string[];
     userUuids?: string[];
     statuses?: AiAgentMemoryStatus[];
+    scopes?: AiAgentMemoryScope[];
     search?: string; // Search by memory title, slug or body
 };
 
@@ -85,6 +87,7 @@ export type AiAgentAdminMemoryItem = {
     // Memory body, truncated server-side for the list view
     summary: string;
     status: AiAgentMemoryStatus;
+    scope: AiAgentMemoryScope;
     project: {
         uuid: string;
         name: string;

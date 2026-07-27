@@ -24,6 +24,7 @@ import {
     IconClock,
     IconQuote,
     IconRobotFace,
+    IconTag,
     IconTrash,
     IconUser,
 } from '@tabler/icons-react';
@@ -50,6 +51,8 @@ import {
     type AdminMemorySelection,
 } from './AdminMemoryDetailsModal';
 import styles from './AiAgentAdminMemoriesTable.module.css';
+import { MEMORY_SCOPE_COLORS, MEMORY_SCOPE_LABELS } from './memoryScope';
+import MemoryScopeFilter from './MemoryScopeFilter';
 import { MEMORY_STATUS_COLORS, MEMORY_STATUS_LABELS } from './memoryStatus';
 import MemoryStatusFilter from './MemoryStatusFilter';
 import ProjectsFilter from './ProjectsFilter';
@@ -77,6 +80,7 @@ const AiAgentAdminMemoriesTable = () => {
         selectedProjectUuids,
         selectedUserUuids,
         selectedStatuses,
+        selectedScopes,
         sortField,
         sortDirection,
         apiFilters,
@@ -84,6 +88,7 @@ const AiAgentAdminMemoriesTable = () => {
         setSelectedProjectUuids,
         setSelectedUserUuids,
         setSelectedStatuses,
+        setSelectedScopes,
         setSorting,
         hasActiveFilters,
         resetFilters,
@@ -212,6 +217,28 @@ const AiAgentAdminMemoriesTable = () => {
                         color={MEMORY_STATUS_COLORS[row.original.status]}
                     >
                         {MEMORY_STATUS_LABELS[row.original.status]}
+                    </Badge>
+                ),
+            },
+            {
+                accessorKey: 'scope',
+                header: 'Scope',
+                enableSorting: false,
+                size: 120,
+                Header: ({ column }) => (
+                    <Group gap="two">
+                        <MantineIcon icon={IconTag} color="ldGray.6" />
+                        {column.columnDef.header}
+                    </Group>
+                ),
+                Cell: ({ row }) => (
+                    <Badge
+                        variant="light"
+                        radius="sm"
+                        tt="none"
+                        color={MEMORY_SCOPE_COLORS[row.original.scope]}
+                    >
+                        {MEMORY_SCOPE_LABELS[row.original.scope]}
                     </Badge>
                 ),
             },
@@ -442,6 +469,10 @@ const AiAgentAdminMemoriesTable = () => {
                         <MemoryStatusFilter
                             selectedStatuses={selectedStatuses}
                             setSelectedStatuses={setSelectedStatuses}
+                        />
+                        <MemoryScopeFilter
+                            selectedScopes={selectedScopes}
+                            setSelectedScopes={setSelectedScopes}
                         />
 
                         {hasActiveFilters && (
