@@ -31,7 +31,6 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC, type MouseEvent } from 'react';
 import {
-    formatDisplayValue,
     getConditionalRuleLabel,
     getConditionalRuleLabelFromItem,
     getFilterRuleTables,
@@ -46,6 +45,7 @@ import FilterConfiguration from '../FilterConfiguration';
 import { useFilterBarPopovers } from '../FilterRequirements/useFilterBarPopovers';
 import { useFilterChipRequirementState } from '../FilterRequirements/useFilterChipRequirementState';
 import classes from './Filter.module.css';
+import { getTruncatedValuesDisplay } from './utils';
 
 type Props = {
     isEditMode: boolean;
@@ -216,39 +216,15 @@ const Filter: FC<Props> = ({
     }, [field?.type, filterRule.target.fallbackType]);
 
     // Truncated values display - show max 2 values with "+N" badge
-    // Skip for date filters since their values include units (e.g., "2 months")
-    const MAX_DISPLAYED_VALUES = 2;
-    const truncatedValuesDisplay = useMemo(() => {
-        // Don't use truncated display for date filters - they have formatted values
-        if (isDateFilter) {
-            return {
-                displayedValues: [],
-                additionalValues: [],
-                hasMore: false,
-            };
-        }
-
-        const values = filterRule.values;
-        if (!values || values.length === 0) {
-            return {
-                displayedValues: [],
-                additionalValues: [],
-                hasMore: false,
-            };
-        }
-
-        const formattedValues = values.map((v) =>
-            formatDisplayValue(String(v)),
-        );
-        const displayedValues = formattedValues.slice(0, MAX_DISPLAYED_VALUES);
-        const additionalValues = formattedValues.slice(MAX_DISPLAYED_VALUES);
-
-        return {
-            displayedValues,
-            additionalValues,
-            hasMore: additionalValues.length > 0,
-        };
-    }, [filterRule.values, isDateFilter]);
+    const truncatedValuesDisplay = useMemo(
+        () =>
+            getTruncatedValuesDisplay(
+                filterRule.values,
+                isDateFilter,
+                filterRule.operator,
+            ),
+        [filterRule.values, filterRule.operator, isDateFilter],
+    );
 
     const {
         showRequirementIcon,
