@@ -19,6 +19,11 @@ export type DataAppManifest = {
     codeVersion: 1;
     appUuid: string;
     projectUuid: string;
+    // Project-scoped identity used to match uploads to existing apps, the
+    // same pattern charts/dashboards-as-code use. Optional because bundles
+    // downloaded before slugs existed don't carry it (those fall back to
+    // appUuid matching); slug-aware servers always emit it.
+    slug?: string;
     version: number;
     name: string;
     description: string;
@@ -82,9 +87,13 @@ export type ApiGetAppCodeResponse = ApiSuccess<DataAppCodeDownload>;
 
 export type ImportAppCodeRequestBody = {
     code: DataAppCode;
-    // when present and the app exists in the target project -> append a version; otherwise create a new app
+    // Legacy identity for pre-slug bundles and old CLIs: append when this app
+    // exists in the target project. Ignored when the manifest carries a slug.
     targetAppUuid?: string;
     spaceUuid?: string;
+    // Force-create a new app (with a fresh generated slug) even when the
+    // manifest slug matches an existing app in the target project (--create-new).
+    createNew?: boolean;
 };
 
 export type ApiImportAppCodeResponse = ApiSuccess<{
