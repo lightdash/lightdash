@@ -53,7 +53,7 @@ const getEvaluation = async (
     });
 };
 
-const getEvaluationRuns = async (
+export const getEvaluationRuns = async (
     projectUuid: string,
     agentUuid: string,
     evalUuid: string,

@@ -575,6 +575,86 @@ describe('AiAgentAdminService.getAllMemories', () => {
     });
 });
 
+describe('AiAgentAdminService.getAllEvals', () => {
+    it('rejects principals without manage access to any project', async () => {
+        const service = makeService();
+
+        await expect(service.getAllEvals(makeOrgViewerUser())).rejects.toThrow(
+            'Insufficient permissions to access AI agent features',
+        );
+    });
+
+    it('scopes project-scoped principals to their own projects', async () => {
+        const findAdminEvalsPaginated = vi
+            .fn()
+            .mockResolvedValue({ data: { evals: [] } });
+        const service = makeService({
+            aiAgentModel: { findAdminEvalsPaginated },
+            projectModel: {
+                getAllByOrganizationUuid: vi
+                    .fn()
+                    .mockResolvedValue([
+                        { projectUuid: PROJECT_UUID },
+                        { projectUuid: OTHER_PROJECT_UUID },
+                    ]),
+            },
+        });
+
+        await service.getAllEvals(makeProjectUser(), undefined, {
+            projectUuids: [PROJECT_UUID, OTHER_PROJECT_UUID],
+        });
+
+        expect(findAdminEvalsPaginated).toHaveBeenCalledWith(
+            expect.objectContaining({
+                organizationUuid: ORGANIZATION_UUID,
+                filters: { projectUuids: [PROJECT_UUID] },
+            }),
+        );
+    });
+
+    it('returns an empty page without querying when the scope is empty', async () => {
+        const findAdminEvalsPaginated = vi.fn();
+        const service = makeService({
+            aiAgentModel: { findAdminEvalsPaginated },
+            projectModel: {
+                getAllByOrganizationUuid: vi
+                    .fn()
+                    .mockResolvedValue([{ projectUuid: PROJECT_UUID }]),
+            },
+        });
+
+        const result = await service.getAllEvals(makeProjectUser(), undefined, {
+            projectUuids: [OTHER_PROJECT_UUID],
+        });
+
+        expect(result).toEqual({ data: { evals: [] } });
+        expect(findAdminEvalsPaginated).not.toHaveBeenCalled();
+    });
+
+    it('passes pagination, filters and sort through for org admins', async () => {
+        const findAdminEvalsPaginated = vi
+            .fn()
+            .mockResolvedValue({ data: { evals: [] } });
+        const service = makeService({
+            aiAgentModel: { findAdminEvalsPaginated },
+        });
+
+        await service.getAllEvals(
+            makeAdminUser(),
+            { page: 2, pageSize: 25 },
+            { agentUuids: ['agent-1'], search: 'regression' },
+            { field: 'title', direction: 'asc' },
+        );
+
+        expect(findAdminEvalsPaginated).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            paginateArgs: { page: 2, pageSize: 25 },
+            filters: { agentUuids: ['agent-1'], search: 'regression' },
+            sort: { field: 'title', direction: 'asc' },
+        });
+    });
+});
+
 describe('AiAgentAdminService.captureReviewReplayInputs', () => {
     it('rejects when the feature flag is disabled', async () => {
         const service = makeService({

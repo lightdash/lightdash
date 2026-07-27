@@ -2,6 +2,7 @@ import type { ApiSuccess, KnexPaginatedData } from '../..';
 import type { DataAppModelVisibility } from '../apps/types';
 import type {
     AiAgentMemoryScope,
+    AiAgentEvaluationRunSummary,
     AiAgentMemoryStatus,
     AiAgentSummary,
     AiAgentThreadSummary,
@@ -63,6 +64,38 @@ export type AiAgentAdminConversationsSummary = {
 
 export type ApiAiAgentAdminConversationsResponse = ApiSuccess<
     KnexPaginatedData<AiAgentAdminConversationsSummary>
+>;
+
+export type AiAgentAdminEvalFilters = {
+    projectUuids?: string[];
+    agentUuids?: string[];
+    search?: string; // Search by eval title
+};
+
+export type AiAgentAdminEvalSummary = {
+    evalUuid: string;
+    title: string;
+    description: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    agent: Pick<AiAgentSummary, 'uuid' | 'name' | 'imageUrl'>;
+    project: {
+        uuid: string;
+        name: string;
+    };
+    promptCount: number;
+    latestRun: Pick<
+        AiAgentEvaluationRunSummary,
+        'runUuid' | 'status' | 'createdAt' | 'completedAt'
+    > | null;
+};
+
+export type AiAgentAdminEvalsSummary = {
+    evals: AiAgentAdminEvalSummary[];
+};
+
+export type ApiAiAgentAdminEvalsResponse = ApiSuccess<
+    KnexPaginatedData<AiAgentAdminEvalsSummary>
 >;
 
 export type AiAgentAdminMemoryFilters = {

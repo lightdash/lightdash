@@ -1,6 +1,8 @@
 import { subject } from '@casl/ability';
 import {
     AiAgentAdminConversationsSummary,
+    AiAgentAdminEvalFilters,
+    AiAgentAdminEvalsSummary,
     AiAgentAdminFilters,
     AiAgentAdminMemoriesSummary,
     AiAgentAdminMemoryFilters,
@@ -568,6 +570,35 @@ export class AiAgentAdminService extends BaseService {
         // TODO: Check if filter contains agentUuid and check if they exist in the organization
 
         return this.aiAgentModel.findAdminThreadsPaginated({
+            organizationUuid,
+            paginateArgs,
+            filters: scopedFilters,
+            sort,
+        });
+    }
+
+    /**
+     * Org-wide eval audit surface. Same scope rules as threads:
+     * org principals see all, project-scoped principals see their projects.
+     */
+    async getAllEvals(
+        user: SessionUser,
+        paginateArgs?: KnexPaginateArgs,
+        filters?: AiAgentAdminEvalFilters,
+        sort?: AiAgentAdminSort,
+    ): Promise<KnexPaginatedData<AiAgentAdminEvalsSummary>> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        const scope = await this.resolveReadScope(user, organizationUuid);
+        const { filters: scopedFilters, empty } =
+            AiAgentAdminService.restrictFiltersToScope(scope, filters);
+        if (empty) {
+            return { data: { evals: [] } };
+        }
+
+        return this.aiAgentModel.findAdminEvalsPaginated({
             organizationUuid,
             paginateArgs,
             filters: scopedFilters,

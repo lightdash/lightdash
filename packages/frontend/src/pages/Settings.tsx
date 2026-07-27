@@ -71,6 +71,7 @@ import UsersAndGroupsPanel from '../components/UserSettings/UsersAndGroupsPanel'
 import VerifiedDomainsPanel from '../components/UserSettings/VerifiedDomains/VerifiedDomainsPanel';
 import { ReviewRemediationWorkspace } from '../ee/features/aiCopilot/components/Admin/ReviewRemediationWorkspace';
 import { AiAgentsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiAgentsSettingsPage';
+import { AiEvalsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiEvalsSettingsPage';
 import { AiGeneralSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiGeneralSettingsPage';
 import { AiMemoriesSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiMemoriesSettingsPage';
 import { AiReviewsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiReviewsSettingsPage';
@@ -640,6 +641,14 @@ const Settings: FC = () => {
                 element: (
                     <AiSettingsProviders>
                         <AiAgentsSettingsPage />
+                    </AiSettingsProviders>
+                ),
+            });
+            allowedRoutes.push({
+                path: '/ai/evals',
+                element: (
+                    <AiSettingsProviders>
+                        <AiEvalsSettingsPage />
                     </AiSettingsProviders>
                 ),
             });

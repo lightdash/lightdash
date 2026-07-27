@@ -1,4 +1,5 @@
 import {
+    AiAgentAdminEvalFilters,
     AiAgentAdminFilters,
     AiAgentAdminMemoryFilters,
     AiAgentAdminMemorySort,
@@ -6,6 +7,7 @@ import {
     AiAgentReviewItemStatus,
     AiAgentReviewReplayCaptureRequest,
     ApiAiAgentAdminConversationsResponse,
+    ApiAiAgentAdminEvalsResponse,
     ApiAiAgentAdminMemoriesResponse,
     ApiAiAgentAdminPromptActivityResponse,
     ApiAiAgentReviewItemActivityResponse,
@@ -162,6 +164,62 @@ export class AiAgentAdminController extends BaseController {
         return {
             status: 'ok',
             results: threads,
+        };
+    }
+
+    /**
+     * Get all AI agent evaluations for admin
+     * @summary List AI agent evaluations
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/evals')
+    @OperationId('getAllEvals')
+    async getAllEvals(
+        @Request() req: express.Request,
+        // Pagination
+        @Query() page?: KnexPaginateArgs['page'],
+        @Query() pageSize?: KnexPaginateArgs['pageSize'],
+        // Filtering
+        @Query() projectUuids?: AiAgentAdminEvalFilters['projectUuids'],
+        @Query() agentUuids?: AiAgentAdminEvalFilters['agentUuids'],
+        @Query() search?: AiAgentAdminEvalFilters['search'],
+        // Sorting
+        @Query() sortField?: AiAgentAdminSort['field'],
+        @Query() sortDirection?: AiAgentAdminSort['direction'],
+    ): Promise<ApiAiAgentAdminEvalsResponse> {
+        assertRegisteredAccount(req.account);
+        validateUuidFilter('projectUuids', projectUuids);
+        validateUuidFilter('agentUuids', agentUuids);
+        const paginateArgs: KnexPaginateArgs = {
+            page: page ?? 1,
+            pageSize: pageSize ?? 50,
+        };
+
+        const filters: AiAgentAdminEvalFilters = {
+            ...(projectUuids && { projectUuids }),
+            ...(agentUuids && { agentUuids }),
+            ...(search && { search }),
+        };
+
+        const sort: AiAgentAdminSort | undefined = sortField
+            ? {
+                  field: sortField,
+                  direction: sortDirection ?? 'desc',
+              }
+            : undefined;
+
+        const results = await this.getAiAgentAdminService().getAllEvals(
+            toSessionUser(req.account),
+            paginateArgs,
+            filters,
+            sort,
+        );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results,
         };
     }
 
