@@ -637,26 +637,20 @@ export const ContentPanel: FC = () => {
                             shadow="none"
                             radius={0}
                             withBorder={false}
-                            style={{ flex: 1 }}
+                            style={{ flex: 1, position: 'relative' }}
                             className={styles.inputPaper}
                         >
                             <Box
                                 style={{
                                     flex: 1,
                                     position: 'absolute',
+                                    inset: 0,
                                     overflowY: isVizTableConfig(
                                         currentVizConfig,
                                     )
                                         ? 'auto'
                                         : 'hidden',
-                                    height: inputSectionHeight,
-                                    width: inputSectionWidth,
                                 }}
-                                pt={
-                                    activeEditorTab === EditorTabs.SQL
-                                        ? 'md'
-                                        : 0
-                                }
                             >
                                 <ConditionalVisibility
                                     isVisible={
