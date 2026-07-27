@@ -1,6 +1,8 @@
 import { aiProjectContextTypedObjectRefSchema } from '@lightdash/common';
 import { z } from 'zod';
 
+export const distillMemoryScopes = ['user', 'project'] as const;
+
 export const distillNoOpReasons = [
     'insufficient_signal',
     'authoritative_source_duplicate',
@@ -56,6 +58,16 @@ const memorySchema = z
             .max(20)
             .describe(
                 'Exact typed explore or field references seen in non-MCP Lightdash tool calls/results.',
+            ),
+        // Nullable rather than optional or defaulted: only `.nullable()` keeps
+        // the property in the JSON schema's `required` set, which OpenAI
+        // structured outputs demands.
+        scope: z
+            .enum(distillMemoryScopes)
+            .nullable()
+            .transform((scope) => scope ?? 'user')
+            .describe(
+                "'project' when the memory reads as project-general knowledge worth nominating for promotion review, 'user' when it reads as this user's own working preference. Use 'user', or null, whenever the signal is ambiguous.",
             ),
     })
     .strict();

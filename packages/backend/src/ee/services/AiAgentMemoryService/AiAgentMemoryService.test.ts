@@ -11,10 +11,39 @@ import {
     type MemberAbility,
 } from '@lightdash/common';
 import { vi } from 'vitest';
+import type { AiAgentMemoryThread } from '../../models/AiAgentMemoryModel';
 import {
     AiAgentMemoryService,
     validateMemoryObjects,
 } from './AiAgentMemoryService';
+
+const distillableThread = (
+    activity: Date,
+    overrides: Partial<AiAgentMemoryThread> = {},
+): AiAgentMemoryThread => ({
+    threadUuid: 'thread-enabled',
+    organizationUuid: 'org-enabled',
+    projectUuid: 'project-enabled',
+    agentUuid: 'agent-1',
+    title: 'Revenue definitions',
+    createdFrom: 'slack',
+    projectType: ProjectType.DEFAULT,
+    latestActivity: activity,
+    distilledUpTo: null,
+    turns: [
+        {
+            promptUuid: 'prompt-1',
+            createdAt: activity,
+            userText: 'Revenue means net revenue here',
+            assistantText: 'Answer',
+            errorMessage: null,
+            respondedAt: activity,
+            interrupted: false,
+            tools: [],
+        },
+    ],
+    ...overrides,
+});
 
 const explore: Explore = {
     targetDatabase: SupportedDbtAdapter.POSTGRES,
@@ -150,8 +179,9 @@ describe('AiAgentMemoryService', () => {
                 projectUuid === 'project-other' ? 'org-other' : 'org-enabled',
         }));
         const distillCall = vi.fn();
+        const track = vi.fn();
         const service = new AiAgentMemoryService({
-            analytics: { track: vi.fn() } as AnyType,
+            analytics: { track } as AnyType,
             aiAgentMemoryModel: {
                 findByProjectAndSlug,
                 findThreadsDueForDistill,
@@ -183,6 +213,7 @@ describe('AiAgentMemoryService', () => {
             getAgent,
             findThreadOwnership,
             distillCall,
+            track,
         };
     };
 
@@ -196,6 +227,7 @@ describe('AiAgentMemoryService', () => {
         terms: [],
         objects: [],
         status: 'active',
+        scope: 'user',
         agent_uuid: 'agent-1',
         user_uuid: 'source-user',
         source_thread_uuid: 'thread-enabled',
@@ -273,6 +305,7 @@ describe('AiAgentMemoryService', () => {
             title: 'Net revenue convention',
             generatedAt: '2026-07-22T10:00:00.000Z',
             citedCount: 3,
+            scope: 'user',
             provenance: {
                 type: 'source_thread',
                 source: {
@@ -491,6 +524,7 @@ describe('AiAgentMemoryService', () => {
                 raw_memory: 'Use net revenue.',
                 terms: ['net revenue'],
                 objects: [],
+                scope: 'user',
             },
         });
 
@@ -555,6 +589,7 @@ describe('AiAgentMemoryService', () => {
                 raw_memory: 'Use net revenue.',
                 terms: [],
                 objects: [],
+                scope: 'user',
             },
         });
 
@@ -570,6 +605,96 @@ describe('AiAgentMemoryService', () => {
         expect(upsertSourceThreadMemory).toHaveBeenCalledWith(
             expect.objectContaining({ userUuid: null }),
         );
+    });
+
+    it('persists a project label without loosening ownership, and reports it', async () => {
+        const {
+            service,
+            findThreadForDistill,
+            upsertSourceThreadMemory,
+            distillCall,
+            track,
+        } = build();
+        const activity = new Date('2026-07-22T05:00:00.000Z');
+        findThreadForDistill.mockResolvedValue(distillableThread(activity));
+        distillCall.mockResolvedValue({
+            result: {
+                type: 'memory',
+                thread_summary: 'The user corrected the revenue definition.',
+                slug: 'net-revenue',
+                title: 'Net revenue convention',
+                raw_memory: 'Use net revenue.',
+                terms: [],
+                objects: [],
+                scope: 'project',
+            },
+        });
+
+        await expect(
+            service.distillThread({
+                organizationUuid: 'org-enabled',
+                projectUuid: 'project-enabled',
+                userUuid: 'system',
+                threadUuid: 'thread-enabled',
+                sweptUpdatedAt: activity.toISOString(),
+            }),
+        ).resolves.toBe('memory');
+
+        // A `project` label is a promotion nomination, never a broadcast: the
+        // row stays owned by the thread owner exactly as a `user` one does.
+        expect(upsertSourceThreadMemory).toHaveBeenCalledWith(
+            expect.objectContaining({
+                scope: 'project',
+                userUuid: 'source-user',
+            }),
+        );
+        expect(track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'ai_agent_memory.generated',
+                properties: expect.objectContaining({ scope: 'project' }),
+            }),
+        );
+    });
+
+    it('reports the memory-generated event without any memory content', async () => {
+        const { service, findThreadForDistill, distillCall, track } = build();
+        const activity = new Date('2026-07-22T05:00:00.000Z');
+        findThreadForDistill.mockResolvedValue(distillableThread(activity));
+        distillCall.mockResolvedValue({
+            result: {
+                type: 'memory',
+                thread_summary: 'The user corrected the revenue definition.',
+                slug: 'net-revenue',
+                title: 'Net revenue convention',
+                raw_memory: 'Use net revenue.',
+                terms: ['net revenue'],
+                objects: [{ type: 'explore', name: 'orders' }],
+                scope: 'project',
+            },
+        });
+
+        await service.distillThread({
+            organizationUuid: 'org-enabled',
+            projectUuid: 'project-enabled',
+            userUuid: 'system',
+            threadUuid: 'thread-enabled',
+            sweptUpdatedAt: activity.toISOString(),
+        });
+
+        const generated = track.mock.calls
+            .map(([call]) => call)
+            .find((call) => call.event === 'ai_agent_memory.generated');
+        expect(Object.keys(generated.properties).sort()).toEqual([
+            'agentId',
+            'channel',
+            'isRedistill',
+            'memoryId',
+            'objectCount',
+            'organizationId',
+            'projectId',
+            'scope',
+            'unresolvedObjectCount',
+        ]);
     });
 
     it('returns not found without reading rows when the flag is off', async () => {

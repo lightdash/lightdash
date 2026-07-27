@@ -179,6 +179,7 @@ describe('MemoryCitation', () => {
                             terms: [],
                             objects: [],
                             status: 'active',
+                            scope: 'user',
                             generatedAt: '2026-07-22T00:00:00.000Z',
                             citedCount: 0,
                             provenance: {

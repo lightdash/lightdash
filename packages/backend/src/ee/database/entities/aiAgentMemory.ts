@@ -1,4 +1,5 @@
 import type {
+    AiAgentMemoryScope,
     AiAgentMemoryStatus,
     AiProjectContextTypedObjectRef,
 } from '@lightdash/common';
@@ -28,6 +29,7 @@ export type DbAiAgentMemory = {
     objects: AiProjectContextTypedObjectRef[];
     unresolved_objects: AiProjectContextTypedObjectRef[];
     status: AiAgentMemoryStatus;
+    scope: AiAgentMemoryScope;
     superseded_by_uuid: string | null;
     generated_at: Date;
     cited_count: number;

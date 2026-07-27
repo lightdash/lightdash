@@ -29,6 +29,7 @@ import {
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
+    type AiAgentMemoryScope,
     type AiAgentReviewItemStatus,
     type AiAgentReviewItemWritebackBlockedReason,
     type AiAgentReviewItemWritebackStrategy,
@@ -2746,6 +2747,7 @@ export type AiAgentMemoryGeneratedEvent = BaseTrack & {
         memoryId: string;
         channel: 'web' | 'slack';
         isRedistill: boolean;
+        scope: AiAgentMemoryScope;
         objectCount: number;
         unresolvedObjectCount: number;
     };
