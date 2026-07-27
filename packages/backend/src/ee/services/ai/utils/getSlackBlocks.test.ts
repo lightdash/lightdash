@@ -9,6 +9,7 @@ import {
     buildSlackTaskUpdate,
     getFollowUpToolBlocks,
     getMarkdownBlocks,
+    getMemoryCitationBlocks,
     getModernArtifactCardBlocks,
     getModernPullRequestCardBlocks,
     getProjectSelectionBlocks,
@@ -139,6 +140,94 @@ describe('Slack AI agent blocks', () => {
 
         expect(blocks).toEqual([{ type: 'markdown', text: 'Answer. Next.' }]);
         expect(JSON.stringify(blocks)).not.toContain('ld-mem-cite');
+    });
+
+    it('renders cited memories as native citation elements', () => {
+        const blocks = getMemoryCitationBlocks([
+            {
+                memoryId: 'memory-uuid-1',
+                slug: 'revenue-is-net',
+                title: 'Revenue is net of refunds',
+                url: 'https://ld.example.com/projects/p1/ai-agents/a1/memories/revenue-is-net',
+            },
+            {
+                memoryId: 'memory-uuid-2',
+                slug: 'fiscal-year',
+                title: 'x'.repeat(200),
+                url: 'https://ld.example.com/projects/p1/ai-agents/a1/memories/fiscal-year',
+            },
+        ]);
+
+        expect(blocks).toEqual([
+            {
+                type: 'rich_text',
+                elements: [
+                    {
+                        type: 'rich_text_section',
+                        elements: [
+                            {
+                                type: 'citation',
+                                url: 'https://ld.example.com/projects/p1/ai-agents/a1/memories/revenue-is-net',
+                                text: 'Revenue is net of refunds',
+                                index: 1,
+                                from_llm: true,
+                                details: {
+                                    citation_type: 'memory',
+                                    memory_id: 'memory-uuid-1',
+                                },
+                            },
+                            {
+                                type: 'citation',
+                                url: 'https://ld.example.com/projects/p1/ai-agents/a1/memories/fiscal-year',
+                                text: `${'x'.repeat(72)}...`,
+                                index: 2,
+                                from_llm: true,
+                                details: {
+                                    citation_type: 'memory',
+                                    memory_id: 'memory-uuid-2',
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+        ]);
+    });
+
+    it('renders no citation block without citations', () => {
+        expect(getMemoryCitationBlocks([])).toEqual([]);
+    });
+
+    it('labels a citation by slug when the memory has no title', () => {
+        const blocks = getMemoryCitationBlocks([
+            {
+                memoryId: 'memory-uuid-1',
+                slug: 'fiscal-year',
+                title: '   ',
+                url: 'https://ld.example.com/memories/fiscal-year',
+            },
+        ]);
+
+        expect(blocks).toMatchObject([
+            {
+                elements: [
+                    { elements: [{ type: 'citation', text: 'fiscal-year' }] },
+                ],
+            },
+        ]);
+    });
+
+    it('renders no citation block when nothing can be labelled', () => {
+        expect(
+            getMemoryCitationBlocks([
+                {
+                    memoryId: 'memory-uuid-1',
+                    slug: '',
+                    title: '',
+                    url: 'https://ld.example.com/memories/x',
+                },
+            ]),
+        ).toEqual([]);
     });
 
     it('keeps project picker option values within Slack limits', () => {

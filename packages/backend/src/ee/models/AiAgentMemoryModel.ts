@@ -560,6 +560,28 @@ export class AiAgentMemoryModel {
         return { memory, sources, replacement };
     }
 
+    async findActiveBySlugs(args: {
+        projectUuid: string;
+        slugs: string[];
+    }): Promise<Array<{ memoryId: string; slug: string; title: string }>> {
+        const slugs = [...new Set(args.slugs)];
+        if (slugs.length === 0) return [];
+
+        const rows = await this.database<AiAgentMemoryTable>(
+            AiAgentMemoryTableName,
+        )
+            .where('project_uuid', args.projectUuid)
+            .where('status', 'active')
+            .whereIn('slug', slugs)
+            .select(['ai_agent_memory_uuid', 'slug', 'title']);
+
+        return rows.map(({ ai_agent_memory_uuid: memoryId, slug, title }) => ({
+            memoryId,
+            slug,
+            title,
+        }));
+    }
+
     async incrementPulledForActiveMemories(args: {
         projectUuid: string;
         slugs: string[];
