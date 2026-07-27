@@ -1,3 +1,10 @@
+# [0.3480.0](https://github.com/lightdash/lightdash/compare/0.3479.0...0.3480.0) (2026-07-27)
+
+
+### Features
+
+* add Slack Block Kit memory citations ([#26177](https://github.com/lightdash/lightdash/issues/26177)) ([e6f3729](https://github.com/lightdash/lightdash/commit/e6f37297e85a5e8428d30fa1252c6044a824fd17))
+
 # [0.3479.0](https://github.com/lightdash/lightdash/compare/0.3478.0...0.3479.0) (2026-07-27)
 
 
