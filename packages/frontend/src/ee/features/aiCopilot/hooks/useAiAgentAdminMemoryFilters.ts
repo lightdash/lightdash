@@ -17,6 +17,10 @@ const MEMORY_STATUSES: AiAgentMemoryStatus[] = [
 const isMemoryStatus = (value: string): value is AiAgentMemoryStatus =>
     MEMORY_STATUSES.includes(value as AiAgentMemoryStatus);
 
+// An absent `statuses` param means the default (active only), so clearing the
+// status filter needs its own token to mean "every status"
+const ALL_STATUSES_PARAM = 'all';
+
 export interface AiAgentAdminMemoryFiltersState {
     search: AiAgentAdminMemoryFilters['search'];
     selectedProjectUuids: NonNullable<
@@ -32,7 +36,7 @@ const DEFAULT_FILTERS: AiAgentAdminMemoryFiltersState = {
     search: undefined,
     selectedProjectUuids: [],
     selectedUserUuids: [],
-    selectedStatuses: [],
+    selectedStatuses: ['active'],
     sortField: 'generatedAt',
     sortDirection: 'desc',
 };
@@ -59,8 +63,10 @@ export const useAiAgentAdminMemoryFilters = () => {
                 usersParam?.split(',').filter(Boolean) ||
                 DEFAULT_FILTERS.selectedUserUuids,
             selectedStatuses:
-                statusesParam?.split(',').filter(isMemoryStatus) ||
-                DEFAULT_FILTERS.selectedStatuses,
+                statusesParam === ALL_STATUSES_PARAM
+                    ? []
+                    : statusesParam?.split(',').filter(isMemoryStatus) ||
+                      DEFAULT_FILTERS.selectedStatuses,
             sortField: sortByParam || DEFAULT_FILTERS.sortField,
             sortDirection: sortDirectionParam || DEFAULT_FILTERS.sortDirection,
         }),
@@ -93,7 +99,12 @@ export const useAiAgentAdminMemoryFilters = () => {
                     newFilters.selectedUserUuids.join(','),
                 );
             }
-            if (newFilters.selectedStatuses.length > 0) {
+            if (newFilters.selectedStatuses.length === 0) {
+                searchParams.set('statuses', ALL_STATUSES_PARAM);
+            } else if (
+                newFilters.selectedStatuses.join(',') !==
+                DEFAULT_FILTERS.selectedStatuses.join(',')
+            ) {
                 searchParams.set(
                     'statuses',
                     newFilters.selectedStatuses.join(','),
@@ -172,7 +183,8 @@ export const useAiAgentAdminMemoryFilters = () => {
             currentFilters.search !== DEFAULT_FILTERS.search ||
             currentFilters.selectedProjectUuids.length > 0 ||
             currentFilters.selectedUserUuids.length > 0 ||
-            currentFilters.selectedStatuses.length > 0,
+            currentFilters.selectedStatuses.join(',') !==
+                DEFAULT_FILTERS.selectedStatuses.join(','),
         [currentFilters],
     );
 

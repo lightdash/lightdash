@@ -3,7 +3,6 @@ import {
     type AiAgentAdminMemorySortField,
 } from '@lightdash/common';
 import {
-    Anchor,
     Badge,
     Box,
     Button,
@@ -24,14 +23,19 @@ import {
     IconCircleDotted,
     IconClock,
     IconFileText,
-    IconMessageCircleStar,
     IconQuote,
     IconRobotFace,
     IconTrash,
     IconUser,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useRef, type UIEvent } from 'react';
-import { Link, useNavigate } from 'react-router';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type UIEvent,
+} from 'react';
 import {
     ContentTable,
     useContentTable,
@@ -42,6 +46,10 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useInfiniteAiAgentAdminMemories } from '../../hooks/useAiAgentAdmin';
 import { useAiAgentAdminMemoryFilters } from '../../hooks/useAiAgentAdminMemoryFilters';
 import { AgentNamePill } from '../AgentNamePill';
+import {
+    AdminMemoryDetailsModal,
+    type AdminMemorySelection,
+} from './AdminMemoryDetailsModal';
 import styles from './AiAgentAdminMemoriesTable.module.css';
 import { MEMORY_STATUS_COLORS, MEMORY_STATUS_LABELS } from './memoryStatus';
 import MemoryStatusFilter from './MemoryStatusFilter';
@@ -60,40 +68,10 @@ const isSortableColumn = (id: string): id is AiAgentAdminMemorySortField =>
 const formatDate = (value: string | null) =>
     value ? new Date(value).toLocaleDateString() : 'Never';
 
-const telemetryColumn = ({
-    countKey,
-    lastAtKey,
-    header,
-    sortable,
-}: {
-    countKey: 'citedCount' | 'pulledCount';
-    lastAtKey: 'lastCitedAt' | 'lastPulledAt';
-    header: string;
-    sortable: boolean;
-}): ContentTableColumnDef<AiAgentAdminMemoryItem> => ({
-    accessorKey: countKey,
-    header,
-    enableSorting: sortable,
-    size: 140,
-    Header: ({ column }) => (
-        <Group gap="two">
-            <MantineIcon icon={IconQuote} color="ldGray.6" />
-            {column.columnDef.header}
-        </Group>
-    ),
-    Cell: ({ row }) => (
-        <Stack gap={2}>
-            <Badge variant="default">{row.original[countKey]}</Badge>
-            <Text fz="xs" c="ldGray.6">
-                {formatDate(row.original[lastAtKey])}
-            </Text>
-        </Stack>
-    ),
-});
-
 const AiAgentAdminMemoriesTable = () => {
     const theme = useMantineTheme();
-    const navigate = useNavigate();
+    const [selectedMemory, setSelectedMemory] =
+        useState<AdminMemorySelection | null>(null);
 
     const {
         search,
@@ -342,60 +320,27 @@ const AiAgentAdminMemoriesTable = () => {
                 },
             },
             {
-                accessorKey: 'sourceThreadUuid',
-                header: 'Provenance',
-                enableSorting: false,
+                accessorKey: 'citedCount',
+                header: 'Cited',
+                enableSorting: true,
                 size: 140,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon
-                            icon={IconMessageCircleStar}
-                            color="ldGray.6"
-                        />
+                        <MantineIcon icon={IconQuote} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
-                Cell: ({ row }) => {
-                    const { agent, project, sourceThreadUuid } = row.original;
-                    if (!sourceThreadUuid) {
-                        return (
-                            <Text fz="xs" c="ldGray.7" fw={500}>
-                                Consolidated
-                            </Text>
-                        );
-                    }
-                    if (!agent) {
-                        return (
-                            <Text fz="xs" c="ldGray.7" fw={500}>
-                                Thread
-                            </Text>
-                        );
-                    }
-                    return (
-                        <Anchor
-                            component={Link}
-                            fz="xs"
-                            fw={500}
-                            to={`/projects/${project.uuid}/ai-agents/${agent.uuid}/threads/${sourceThreadUuid}`}
-                            onClick={(event) => event.stopPropagation()}
-                        >
-                            Thread
-                        </Anchor>
-                    );
-                },
+                Cell: ({ row }) => (
+                    <Stack gap={2}>
+                        <Badge variant="default">
+                            {row.original.citedCount}
+                        </Badge>
+                        <Text fz="xs" c="ldGray.6">
+                            {formatDate(row.original.lastCitedAt)}
+                        </Text>
+                    </Stack>
+                ),
             },
-            telemetryColumn({
-                countKey: 'citedCount',
-                lastAtKey: 'lastCitedAt',
-                header: 'Cited',
-                sortable: true,
-            }),
-            telemetryColumn({
-                countKey: 'pulledCount',
-                lastAtKey: 'lastPulledAt',
-                header: 'Pulled',
-                sortable: false,
-            }),
             {
                 accessorKey: 'generatedAt',
                 header: 'Generated',
@@ -465,18 +410,20 @@ const AiAgentAdminMemoriesTable = () => {
                 return {};
             }
 
-            const { agent, project, slug } = row.original;
+            const { agent, project, slug, title } = row.original;
             if (!agent) {
                 return {};
             }
 
             return {
                 style: { cursor: 'pointer' },
-                onClick: () => {
-                    void navigate(
-                        `/projects/${project.uuid}/ai-agents/${agent.uuid}/memories/${slug}`,
-                    );
-                },
+                onClick: () =>
+                    setSelectedMemory({
+                        projectUuid: project.uuid,
+                        agentUuid: agent.uuid,
+                        slug,
+                        title,
+                    }),
             };
         },
         mantineTableBodyCellProps: {
@@ -599,7 +546,17 @@ const AiAgentAdminMemoriesTable = () => {
         },
     });
 
-    return <ContentTable table={table} />;
+    return (
+        <>
+            <ContentTable table={table} />
+            {selectedMemory && (
+                <AdminMemoryDetailsModal
+                    selection={selectedMemory}
+                    onClose={() => setSelectedMemory(null)}
+                />
+            )}
+        </>
+    );
 };
 
 export default AiAgentAdminMemoriesTable;

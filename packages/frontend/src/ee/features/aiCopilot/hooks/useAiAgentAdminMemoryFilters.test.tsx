@@ -31,19 +31,44 @@ describe('useAiAgentAdminMemoryFilters', () => {
         expect(result.current.apiFilters).toEqual({
             projectUuids: [PROJECT_UUID],
             userUuids: [USER_UUID],
+            statuses: ['active'],
         });
         expect(result.current.hasActiveFilters).toBe(true);
     });
 
-    it('defaults to newest-first with no filters', () => {
+    it('defaults to newest-first, active memories only', () => {
         const { result } = renderHook(() => useAiAgentAdminMemoryFilters(), {
             wrapper: createWrapper(),
         });
 
         expect(result.current.sortField).toBe('generatedAt');
         expect(result.current.sortDirection).toBe('desc');
-        expect(result.current.apiFilters).toEqual({});
+        expect(result.current.selectedStatuses).toEqual(['active']);
+        expect(result.current.apiFilters).toEqual({ statuses: ['active'] });
         expect(result.current.hasActiveFilters).toBe(false);
+    });
+
+    it('treats the "all" status token as no status filter', () => {
+        const { result } = renderHook(() => useAiAgentAdminMemoryFilters(), {
+            wrapper: createWrapper('?statuses=all'),
+        });
+
+        expect(result.current.selectedStatuses).toEqual([]);
+        expect(result.current.apiFilters.statuses).toBeUndefined();
+        expect(result.current.hasActiveFilters).toBe(true);
+    });
+
+    it('round-trips a cleared status filter through the URL', async () => {
+        const { result } = renderHook(() => useAiAgentAdminMemoryFilters(), {
+            wrapper: createWrapper(),
+        });
+
+        act(() => result.current.setSelectedStatuses([]));
+
+        await waitFor(() => {
+            expect(result.current.selectedStatuses).toEqual([]);
+            expect(result.current.apiFilters.statuses).toBeUndefined();
+        });
     });
 
     it('drops unknown statuses from the URL', () => {
@@ -73,6 +98,7 @@ describe('useAiAgentAdminMemoryFilters', () => {
         await waitFor(() => {
             expect(result.current.hasActiveFilters).toBe(false);
             expect(result.current.selectedProjectUuids).toEqual([]);
+            expect(result.current.selectedStatuses).toEqual(['active']);
             expect(result.current.sortField).toBe('generatedAt');
         });
     });
