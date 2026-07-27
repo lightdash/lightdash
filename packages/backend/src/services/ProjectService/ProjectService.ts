@@ -9888,22 +9888,21 @@ export class ProjectService extends BaseService {
         }
 
         const webhookSecret = project.dbtConnection.webhook_hmac_secret;
-        if (webhookSecret) {
-            if (
-                !webhookAuth.rawBody ||
-                !webhookAuth.signature ||
-                !isValidDbtCloudWebhookSignature(
-                    webhookSecret,
-                    webhookAuth.rawBody,
-                    webhookAuth.signature,
-                )
-            ) {
-                throw new ForbiddenError('Invalid dbt Cloud webhook signature');
-            }
-        } else {
-            this.logger.info(
-                `dbt Cloud webhook for project ${projectUuid} processed without signature verification (no webhook_hmac_secret configured)`,
+        if (!webhookSecret) {
+            throw new ForbiddenError(
+                'dbt Cloud webhook rejected: no webhook_hmac_secret configured for this project',
             );
+        }
+        if (
+            !webhookAuth.rawBody ||
+            !webhookAuth.signature ||
+            !isValidDbtCloudWebhookSignature(
+                webhookSecret,
+                webhookAuth.rawBody,
+                webhookAuth.signature,
+            )
+        ) {
+            throw new ForbiddenError('Invalid dbt Cloud webhook signature');
         }
 
         // todo: fix this
