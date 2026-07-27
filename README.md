@@ -70,7 +70,7 @@ Self-host the core BI platform, contribute improvements, and run Lightdash in yo
 
 ## Build with agents
 
-Lightdash gives coding agents the context they need to make safe analytics changes.
+Lightdash gives coding agents the context they need to make safe analytics changes: install the Lightdash skills, preview what changed, then validate the project before anything lands.
 
 ```bash
 lightdash install-skills
@@ -78,7 +78,7 @@ lightdash preview
 lightdash validate
 ```
 
-Use agent skills and the Lightdash MCP server to build charts, dashboards, metrics, and Data Apps from your editor or terminal. Every change can still go through the workflow your team trusts: preview, validate, review, merge.
+Use agent skills and the Lightdash MCP server to build charts, dashboards, metrics, and Data Apps from your editor or terminal. Every change can still go through the workflow your team trusts: preview the branch, validate the project, review the pull request, merge.
 
 ## Installation
 
