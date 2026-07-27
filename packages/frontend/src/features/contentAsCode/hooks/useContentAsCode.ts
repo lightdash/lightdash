@@ -34,7 +34,7 @@ export const useContentAsCode = <Results>({
         if (!document) return undefined;
 
         return yaml.dump(omit(document, fieldsToOmit), {
-            quotingType: '"',
+            quoteStyle: 'double',
             sortKeys: true,
         });
     }, [fieldsToOmit, query.data, selectDocument]);
