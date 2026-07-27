@@ -8944,10 +8944,13 @@ export class AppGenerateService extends BaseService {
     async getAppCode(
         user: SessionUser,
         projectUuid: string,
-        appUuid: string,
+        appUuidOrSlug: string,
         version?: number,
     ): Promise<DataAppCodeDownload> {
-        const app = await this.appModel.getApp(appUuid, projectUuid);
+        const app = await this.appModel.getAppByUuidOrSlug(
+            projectUuid,
+            appUuidOrSlug,
+        );
         await this.assertCanViewApp(user, app);
 
         let resolvedVersion: number;
@@ -8961,7 +8964,7 @@ export class AppGenerateService extends BaseService {
             );
             if (!latestReady) {
                 throw new NotFoundError(
-                    `Data app has no ready version yet: ${appUuid}`,
+                    `Data app has no ready version yet: ${appUuidOrSlug}`,
                 );
             }
             resolvedVersion = latestReady.version;
@@ -8969,7 +8972,7 @@ export class AppGenerateService extends BaseService {
         }
 
         const { client: s3Client, bucket } = this.getS3Client();
-        const sourceTarKey = `${versionPrefix(appUuid, resolvedVersion)}source.tar`;
+        const sourceTarKey = `${versionPrefix(app.app_id, resolvedVersion)}source.tar`;
 
         // Download the single source archive for this version
         let tarBuffer: Buffer;
@@ -8995,7 +8998,7 @@ export class AppGenerateService extends BaseService {
             const name = err instanceof Error ? err.name : undefined;
             if (code === 'NoSuchKey' || name === 'NoSuchKey') {
                 throw new NotFoundError(
-                    `Source not found for app ${appUuid} version ${resolvedVersion}`,
+                    `Source not found for app ${appUuidOrSlug} version ${resolvedVersion}`,
                 );
             }
             throw err;
@@ -9048,7 +9051,8 @@ export class AppGenerateService extends BaseService {
         );
 
         const manifest = buildManifest({
-            appUuid,
+            appUuid: app.app_id,
+            slug: app.slug,
             projectUuid,
             version: resolvedVersion,
             name: app.name,
@@ -9088,7 +9092,7 @@ export class AppGenerateService extends BaseService {
                     'This app declares custom dependencies, and custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED), so it cannot be downloaded.',
                 );
             }
-            const depsPrefix = `${versionPrefix(appUuid, resolvedVersion)}deps/`;
+            const depsPrefix = `${versionPrefix(app.app_id, resolvedVersion)}deps/`;
             const [packageJsonBuffer, lockfileBuffer] = await Promise.all([
                 readS3ObjectAsBuffer(
                     s3Client,
@@ -9113,7 +9117,7 @@ export class AppGenerateService extends BaseService {
             properties: {
                 organizationId: app.organization_uuid,
                 projectId: projectUuid,
-                appUuid,
+                appUuid: app.app_id,
                 version: resolvedVersion,
                 versionPinned: version !== undefined,
                 fileCount: files.length,

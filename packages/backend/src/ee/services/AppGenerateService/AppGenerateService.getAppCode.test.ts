@@ -27,6 +27,7 @@ vi.mock('./appAuthz', () => ({
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 const APP_UUID = 'app-uuid-1234';
+const APP_SLUG = 'my-app-slug';
 const PROJECT_UUID = 'project-uuid-5678';
 const ORG_UUID = 'org-uuid-abcd';
 const VERSION = 3;
@@ -68,6 +69,7 @@ async function buildSourceTar(): Promise<Buffer> {
 
 const fakeApp = {
     app_id: APP_UUID,
+    slug: APP_SLUG,
     project_uuid: PROJECT_UUID,
     organization_uuid: ORG_UUID,
     space_uuid: null,
@@ -255,7 +257,7 @@ describe('AppGenerateService.getAppCode', () => {
     it('returns a DataAppCode with manifest and extracted source files for the latest ready version', async () => {
         const fakeS3 = makeFakeS3(sourceTarBuffer);
         const appModel = {
-            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
             getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
         };
 
@@ -265,6 +267,7 @@ describe('AppGenerateService.getAppCode', () => {
 
         // manifest fields
         expect(result.manifest.appUuid).toBe(APP_UUID);
+        expect(result.manifest.slug).toBe(APP_SLUG);
         expect(result.manifest.projectUuid).toBe(PROJECT_UUID);
         expect(result.manifest.version).toBe(VERSION);
         expect(result.manifest.name).toBe('My App');
@@ -308,6 +311,55 @@ describe('AppGenerateService.getAppCode', () => {
         });
     });
 
+    it('resolves the app via the uuid-or-slug lookup when given a slug', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+        const getAppByUuidOrSlugSpy = vi.fn().mockResolvedValue(fakeApp);
+        const appModel = {
+            getAppByUuidOrSlug: getAppByUuidOrSlugSpy,
+            getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
+        };
+
+        const svc = buildService({ appModel, s3ClientOverride: fakeS3 });
+
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_SLUG);
+
+        expect(getAppByUuidOrSlugSpy).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            APP_SLUG,
+        );
+        expect(result.manifest.appUuid).toBe(APP_UUID);
+        expect(result.manifest.slug).toBe(APP_SLUG);
+        expect(result.files).toHaveLength(2);
+    });
+
+    it('uses the resolved app_id — never the raw uuid-or-slug ref — for the S3 source key and manifest appUuid', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+        const appModel = {
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
+            getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
+        };
+
+        const svc = buildService({ appModel, s3ClientOverride: fakeS3 });
+
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_SLUG);
+
+        expect(fakeS3.send).toHaveBeenCalledWith(
+            expect.objectContaining({
+                input: expect.objectContaining({
+                    Key: `apps/${APP_UUID}/versions/${VERSION}/source.tar`,
+                }),
+            }),
+        );
+
+        const [[sentCommand]] = fakeS3.send.mock.calls as [
+            [{ input: { Key: string } }],
+        ];
+        expect(sentCommand.input.Key).not.toContain(APP_SLUG);
+
+        expect(result.manifest.appUuid).toBe(APP_UUID);
+        expect(result.manifest.appUuid).not.toBe(APP_SLUG);
+    });
+
     it('includes the version viz schema in the manifest for a data app viz', async () => {
         const vizSchema = {
             fields: [
@@ -328,7 +380,7 @@ describe('AppGenerateService.getAppCode', () => {
         };
         const fakeS3 = makeFakeS3(sourceTarBuffer);
         const appModel = {
-            getApp: vi
+            getAppByUuidOrSlug: vi
                 .fn()
                 .mockResolvedValue({ ...fakeApp, template: 'data_app_viz' }),
             getLatestReadyVersion: vi.fn().mockResolvedValue({
@@ -347,7 +399,7 @@ describe('AppGenerateService.getAppCode', () => {
     it('omits vizSchema from the manifest when the version has no schema', async () => {
         const fakeS3 = makeFakeS3(sourceTarBuffer);
         const appModel = {
-            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
             getLatestReadyVersion: vi
                 .fn()
                 .mockResolvedValue({ ...fakeAppVersion, viz_schema: null }),
@@ -403,7 +455,7 @@ describe('AppGenerateService.getAppCode', () => {
         const fakeS3 = makeFakeS3(sourceTarBuffer, EXPLICIT_VERSION);
 
         const appModel = {
-            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
             getLatestReadyVersion: vi.fn(),
             getVersion: vi.fn().mockResolvedValue({
                 ...fakeAppVersion,
@@ -438,7 +490,7 @@ describe('AppGenerateService.getAppCode', () => {
     it('refuses to download an app with custom deps when the kill-switch is off', async () => {
         const fakeS3 = makeFakeS3(sourceTarBuffer, 3);
         const appModel = {
-            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
             getLatestReadyVersion: vi.fn(),
             getVersion: vi.fn().mockResolvedValue({
                 ...fakeAppVersion,
@@ -463,7 +515,7 @@ describe('AppGenerateService.getAppCode', () => {
 
     it('throws NotFoundError when no ready version exists and version is omitted', async () => {
         const appModel = {
-            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
             getLatestReadyVersion: vi.fn().mockResolvedValue(null),
         };
 
@@ -488,7 +540,7 @@ describe('AppGenerateService.getAppCode', () => {
         const fakeS3 = { client: { send } as never, bucket: 'test-bucket' };
 
         const appModel = {
-            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
             getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
         };
 
@@ -507,7 +559,7 @@ describe('AppGenerateService.getAppCode', () => {
         );
 
         const appModel = {
-            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
         };
 
         const svc = buildService({
@@ -524,7 +576,7 @@ describe('AppGenerateService.getAppCode', () => {
         const fakeS3 = makeFakeS3(sourceTarBuffer);
 
         const appModel = {
-            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
             getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
             getAppWithVersions: vi
                 .fn()
@@ -575,7 +627,7 @@ describe('AppGenerateService.getAppCode', () => {
             .mockResolvedValue({ versions: [], hasMore: false });
 
         const appModel = {
-            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
             getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
             getAppWithVersions: getAppWithVersionsSpy,
         };
@@ -629,7 +681,9 @@ describe('AppGenerateService.getAppCode', () => {
         ];
 
         const appModel = {
-            getApp: vi.fn().mockResolvedValue({ ...fakeApp, version: VERSION }),
+            getAppByUuidOrSlug: vi
+                .fn()
+                .mockResolvedValue({ ...fakeApp, version: VERSION }),
             getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
             getAppWithVersions: vi
                 .fn()

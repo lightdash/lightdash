@@ -34,6 +34,7 @@ import {
     type GenerateAppRequestBody,
     type ImportAppCodeRequestBody,
     type UpgradeAppRequestBody,
+    type UuidOrSlug,
 } from '@lightdash/common';
 import {
     Body,
@@ -646,12 +647,12 @@ export class AppGenerateController extends BaseController {
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/{appUuid}/download')
+    @Get('/{appUuidOrSlug}/download')
     @OperationId('getAppCode')
     async getAppCode(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Path() appUuid: string,
+        @Path() appUuidOrSlug: UuidOrSlug,
         @Query() version?: number,
     ): Promise<ApiGetAppCodeResponse> {
         assertRegisteredAccount(req.account);
@@ -660,7 +661,7 @@ export class AppGenerateController extends BaseController {
             results: await this.getAppGenerateService().getAppCode(
                 toSessionUser(req.account),
                 projectUuid,
-                appUuid,
+                appUuidOrSlug,
                 version,
             ),
         };
