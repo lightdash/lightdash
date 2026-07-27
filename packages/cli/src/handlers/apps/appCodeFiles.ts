@@ -150,27 +150,20 @@ export const buildImportBody = (
         code,
         targetAppUuid,
         spaceUuid: opts.space,
+        ...(opts.createNew ? { createNew: true } : {}),
     };
 };
 
 /**
- * Points a downloaded app folder's manifest at a different app, so future
- * uploads update that app instead of the one it was downloaded from.
+ * The persistent slug from a slug-aware server is the folder name (stable
+ * across app renames). Pre-slug servers fall back to name-derived folders.
  */
-export const retargetManifest = async (
-    dir: string,
-    target: { appUuid: string; projectUuid: string; version: number },
-): Promise<void> => {
-    const manifestPath = path.join(dir, MANIFEST_FILENAME);
-    const manifest = YAML.parse(
-        await fs.readFile(manifestPath, 'utf-8'),
-    ) as DataAppManifest;
-    await fs.writeFile(
-        manifestPath,
-        YAML.stringify({ ...manifest, ...target }),
-        'utf-8',
-    );
-};
+export const resolveAppFolderName = (
+    manifest: DataAppManifest,
+    takenFolders: Set<string>,
+): string =>
+    manifest.slug ??
+    appFolderName(manifest.name, manifest.appUuid, takenFolders);
 
 /**
  * Writes server-provided dependency files as the app folder's package.json +
