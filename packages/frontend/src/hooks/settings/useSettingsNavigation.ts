@@ -7,6 +7,7 @@ import {
     IconBrowser,
     IconBrush,
     IconBuildingSkyscraper,
+    IconBulb,
     IconCalendarStats,
     IconChecklist,
     IconClock,
@@ -78,6 +79,7 @@ export const useSettingsNavigation = (
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
+        shouldShowAiAgentMemories,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
         embeddingEnabled,
@@ -482,6 +484,17 @@ export const useSettingsNavigation = (
                 });
             }
 
+            if (shouldShowAiAgentMemories) {
+                aiChildren.push({
+                    label: 'Memories',
+                    to: '/generalSettings/ai/memories',
+                    icon: IconBulb,
+                    keywords: ['memory', 'memories', 'learned', 'knowledge'],
+                    children: [],
+                    exact: true,
+                });
+            }
+
             organizationItems.push({
                 label: 'Ask AI',
                 to: '/generalSettings/ai',
@@ -866,6 +879,7 @@ export const useSettingsNavigation = (
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
+        shouldShowAiAgentMemories,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
         isEmbeddingEnabled,

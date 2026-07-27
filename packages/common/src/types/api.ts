@@ -8,6 +8,7 @@ import type {
     ApiAgentOnboardingRunResponse,
     ApiAgentSuggestionsResponse,
     ApiAiAgentAdminConversationsResponse,
+    ApiAiAgentAdminMemoriesResponse,
     ApiAiAgentAdminPromptActivityResponse,
     ApiAiAgentArtifactResponse,
     ApiAiAgentArtifactVizQueryResponse,
@@ -1258,6 +1259,7 @@ type ApiResults =
     | ApiAiAgentProjectThreadSummaryListResponse['results']
     | Account
     | ApiAiAgentAdminConversationsResponse['results']
+    | ApiAiAgentAdminMemoriesResponse['results']
     | ApiAiAgentAdminPromptActivityResponse['results']
     | ApiMcpActivityResponse['results']
     | ApiMcpActivityStatsResponse['results']

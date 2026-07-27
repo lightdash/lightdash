@@ -1,10 +1,12 @@
-import type { AiProjectContextTypedObjectRef } from '@lightdash/common';
+import type {
+    AiAgentMemoryStatus,
+    AiProjectContextTypedObjectRef,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const AiAgentMemoryTableName = 'ai_agent_memory';
 export const AiAgentThreadDistillTableName = 'ai_agent_thread_distill';
 
-export type AiAgentMemoryStatus = 'active' | 'superseded' | 'retired';
 export type AiAgentThreadDistillOutcome =
     | 'memory'
     | 'no_op'

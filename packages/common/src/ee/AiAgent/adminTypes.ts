@@ -1,5 +1,6 @@
 import type { ApiSuccess, KnexPaginatedData } from '../..';
 import type {
+    AiAgentMemoryStatus,
     AiAgentSummary,
     AiAgentThreadSummary,
     AiAgentUser,
@@ -60,6 +61,57 @@ export type AiAgentAdminConversationsSummary = {
 
 export type ApiAiAgentAdminConversationsResponse = ApiSuccess<
     KnexPaginatedData<AiAgentAdminConversationsSummary>
+>;
+
+export type AiAgentAdminMemoryFilters = {
+    projectUuids?: string[];
+    userUuids?: string[];
+    statuses?: AiAgentMemoryStatus[];
+    search?: string; // Search by memory title, slug or body
+};
+
+export type AiAgentAdminMemorySortField = 'generatedAt' | 'citedCount';
+
+export type AiAgentAdminMemorySort = {
+    field: AiAgentAdminMemorySortField;
+    direction: 'asc' | 'desc';
+};
+
+export type AiAgentAdminMemoryItem = {
+    uuid: string;
+    slug: string;
+    title: string;
+    // Memory body, truncated server-side for the list view
+    summary: string;
+    status: AiAgentMemoryStatus;
+    project: {
+        uuid: string;
+        name: string;
+    };
+    agent: {
+        uuid: string;
+        name: string;
+        imageUrl: string | null;
+    } | null;
+    user: {
+        uuid: string;
+        name: string;
+        email: string | null;
+    } | null;
+    sourceThreadUuid: string | null;
+    citedCount: number;
+    lastCitedAt: string | null;
+    pulledCount: number;
+    lastPulledAt: string | null;
+    generatedAt: string;
+};
+
+export type AiAgentAdminMemoriesSummary = {
+    memories: AiAgentAdminMemoryItem[];
+};
+
+export type ApiAiAgentAdminMemoriesResponse = ApiSuccess<
+    KnexPaginatedData<AiAgentAdminMemoriesSummary>
 >;
 
 export type AiAgentAdminPromptActivityPoint = {

@@ -215,6 +215,10 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
         element: <Navigate to="/generalSettings/ai/agents" replace />,
     },
     {
+        path: '/ai-agents/admin/memories',
+        element: <Navigate to="/generalSettings/ai/memories" replace />,
+    },
+    {
         path: '/ai-agents/admin/reviews',
         element: <Navigate to="/generalSettings/ai/issues" replace />,
     },

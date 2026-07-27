@@ -491,6 +491,119 @@ describe('AiAgentMemoryModel integration', () => {
         expect(Number(ledgerCount?.count)).toBe(1);
     });
 
+    it('paginates admin memories with project, user, status and search filters', async () => {
+        const [citedThread, uncitedThread, retiredThread] = await Promise.all([
+            createThread(),
+            createThread(),
+            createThread(),
+        ]);
+        const cited = await model.upsertSourceThreadMemory(
+            memoryInput(citedThread, {
+                title: 'Net revenue convention',
+                rawMemory: 'Use net revenue for every board report.',
+                userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                generatedAt: new Date('2026-07-22T12:00:00Z'),
+            }),
+        );
+        const uncited = await model.upsertSourceThreadMemory(
+            memoryInput(uncitedThread, {
+                title: 'Fiscal year offset',
+                rawMemory: 'The fiscal year starts in February.',
+                generatedAt: new Date('2026-07-22T11:00:00Z'),
+            }),
+        );
+        const retired = await model.upsertSourceThreadMemory(
+            memoryInput(retiredThread, {
+                title: 'Legacy tiering',
+                rawMemory: 'Tiers were retired.',
+                generatedAt: new Date('2026-07-22T10:00:00Z'),
+            }),
+        );
+        await database(AiAgentMemoryTableName)
+            .where('ai_agent_memory_uuid', cited.ai_agent_memory_uuid)
+            .update({ cited_count: 4, last_cited_at: new Date() });
+        await database(AiAgentMemoryTableName)
+            .where('ai_agent_memory_uuid', retired.ai_agent_memory_uuid)
+            .update({ status: 'retired' });
+
+        const listAll = await model.findAdminMemoriesPaginated({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            paginateArgs: { page: 1, pageSize: 50 },
+            filters: { projectUuids: [SEED_PROJECT.project_uuid] },
+        });
+        const listed = listAll.data.memories.filter((memory) =>
+            [
+                cited.ai_agent_memory_uuid,
+                uncited.ai_agent_memory_uuid,
+                retired.ai_agent_memory_uuid,
+            ].includes(memory.uuid),
+        );
+        expect(listed.map((memory) => memory.uuid)).toEqual([
+            cited.ai_agent_memory_uuid,
+            uncited.ai_agent_memory_uuid,
+            retired.ai_agent_memory_uuid,
+        ]);
+        expect(listed[0]).toMatchObject({
+            slug: cited.slug,
+            title: 'Net revenue convention',
+            summary: 'Use net revenue for every board report.',
+            status: 'active',
+            project: { uuid: SEED_PROJECT.project_uuid },
+            citedCount: 4,
+            sourceThreadUuid: citedThread,
+        });
+        expect(listed[0].user?.uuid).toBe(SEED_ORG_1_ADMIN.user_uuid);
+        expect(listed[1].user).toBeNull();
+
+        const byUser = await model.findAdminMemoriesPaginated({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            paginateArgs: { page: 1, pageSize: 50 },
+            filters: { userUuids: [SEED_ORG_1_ADMIN.user_uuid] },
+        });
+        expect(
+            byUser.data.memories.some(
+                (memory) => memory.uuid === cited.ai_agent_memory_uuid,
+            ),
+        ).toBe(true);
+        expect(
+            byUser.data.memories.some(
+                (memory) => memory.uuid === uncited.ai_agent_memory_uuid,
+            ),
+        ).toBe(false);
+
+        const retiredOnly = await model.findAdminMemoriesPaginated({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            paginateArgs: { page: 1, pageSize: 50 },
+            filters: {
+                projectUuids: [SEED_PROJECT.project_uuid],
+                statuses: ['retired'],
+                search: 'Legacy',
+            },
+        });
+        expect(
+            retiredOnly.data.memories.map((memory) => memory.uuid),
+        ).toContain(retired.ai_agent_memory_uuid);
+        expect(
+            retiredOnly.data.memories.every(
+                (memory) => memory.status === 'retired',
+            ),
+        ).toBe(true);
+
+        const firstPage = await model.findAdminMemoriesPaginated({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            paginateArgs: { page: 1, pageSize: 1 },
+            filters: { projectUuids: [SEED_PROJECT.project_uuid] },
+            sort: { field: 'citedCount', direction: 'desc' },
+        });
+        expect(firstPage.data.memories).toHaveLength(1);
+        expect(firstPage.data.memories[0].uuid).toBe(
+            cited.ai_agent_memory_uuid,
+        );
+        expect(firstPage.pagination?.totalResults).toBe(
+            listAll.pagination?.totalResults,
+        );
+    });
+
     it('returns only active project memories in citation then generation order', async () => {
         const [firstThread, secondThread, thirdThread, retiredThread] =
             await Promise.all([

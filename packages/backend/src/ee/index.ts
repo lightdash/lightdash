@@ -499,6 +499,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiAgentAdminService({
                     analytics: context.lightdashAnalytics,
                     aiAgentModel: models.getAiAgentModel(),
+                    aiAgentMemoryModel:
+                        models.getAiAgentMemoryModel<AiAgentMemoryModel>(),
                     aiAgentReviewClassifierModel:
                         models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
                     aiAgentReviewClassifierService:

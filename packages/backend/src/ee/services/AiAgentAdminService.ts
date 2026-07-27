@@ -2,6 +2,9 @@ import { subject } from '@casl/ability';
 import {
     AiAgentAdminConversationsSummary,
     AiAgentAdminFilters,
+    AiAgentAdminMemoriesSummary,
+    AiAgentAdminMemoryFilters,
+    AiAgentAdminMemorySort,
     AiAgentAdminPromptActivityPoint,
     AiAgentAdminSort,
     AiAgentReviewActivityEvent,
@@ -75,6 +78,7 @@ import { type UserModel } from '../../models/UserModel';
 import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type ProjectService } from '../../services/ProjectService/ProjectService';
+import { type AiAgentMemoryModel } from '../models/AiAgentMemoryModel';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
@@ -95,6 +99,7 @@ import { type ProjectContextService } from './ProjectContextService/ProjectConte
 type AiAgentAdminServiceDependencies = {
     analytics: LightdashAnalytics;
     aiAgentModel: AiAgentModel;
+    aiAgentMemoryModel: Pick<AiAgentMemoryModel, 'findAdminMemoriesPaginated'>;
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
     aiAgentReviewClassifierService: Pick<
         AiAgentReviewClassifierService,
@@ -325,6 +330,8 @@ export class AiAgentAdminService extends BaseService {
 
     private readonly aiAgentModel: AiAgentModel;
 
+    private readonly aiAgentMemoryModel: AiAgentAdminServiceDependencies['aiAgentMemoryModel'];
+
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
@@ -370,6 +377,7 @@ export class AiAgentAdminService extends BaseService {
         super();
         this.analytics = dependencies.analytics;
         this.aiAgentModel = dependencies.aiAgentModel;
+        this.aiAgentMemoryModel = dependencies.aiAgentMemoryModel;
         this.aiAgentReviewClassifierModel =
             dependencies.aiAgentReviewClassifierModel;
         this.aiAgentReviewClassifierService =
@@ -646,6 +654,43 @@ export class AiAgentAdminService extends BaseService {
             organizationUuid,
             projectUuid,
             days: boundedDays,
+        });
+    }
+
+    /**
+     * Read-only org-wide memory audit surface. Same scope rules as threads:
+     * org principals see all, project-scoped principals see their projects.
+     */
+    async getAllMemories(
+        user: SessionUser,
+        paginateArgs?: KnexPaginateArgs,
+        filters?: AiAgentAdminMemoryFilters,
+        sort?: AiAgentAdminMemorySort,
+    ): Promise<KnexPaginatedData<AiAgentAdminMemoriesSummary>> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        const { enabled } = await this.featureFlagService.get({
+            featureFlagId: FeatureFlags.AiAgentMemory,
+            user,
+        });
+        if (!enabled) {
+            throw new ForbiddenError('AI agent memory is not enabled');
+        }
+
+        const scope = await this.resolveReadScope(user, organizationUuid);
+        const { filters: scopedFilters, empty } =
+            AiAgentAdminService.restrictFiltersToScope(scope, filters);
+        if (empty) {
+            return { data: { memories: [] } };
+        }
+
+        return this.aiAgentMemoryModel.findAdminMemoriesPaginated({
+            organizationUuid,
+            paginateArgs,
+            filters: scopedFilters,
+            sort,
         });
     }
 

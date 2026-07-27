@@ -350,13 +350,15 @@ export type AiAgentMemorySource = {
       }
 );
 
+export type AiAgentMemoryStatus = 'active' | 'superseded' | 'retired';
+
 export type AiAgentMemory = {
     slug: string;
     title: string;
     rawMemory: string;
     terms: string[];
     objects: AiProjectContextTypedObjectRef[];
-    status: 'active' | 'superseded' | 'retired';
+    status: AiAgentMemoryStatus;
     generatedAt: string;
     citedCount: number;
     provenance:

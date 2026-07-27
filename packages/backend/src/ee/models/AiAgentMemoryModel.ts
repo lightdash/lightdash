@@ -1,11 +1,19 @@
 import {
     ProjectType,
+    type AiAgentAdminMemoriesSummary,
+    type AiAgentAdminMemoryFilters,
+    type AiAgentAdminMemorySort,
     type AiProjectContextTypedObjectRef,
     type AiThreadCreatedFrom,
+    type KnexPaginateArgs,
+    type KnexPaginatedData,
     type UUID,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { EmailTableName } from '../../database/entities/emails';
 import { ProjectTableName } from '../../database/entities/projects';
+import { UserTableName } from '../../database/entities/users';
+import KnexPaginate from '../../database/pagination';
 import {
     AiAgentToolCallTableName,
     AiAgentToolResultTableName,
@@ -13,6 +21,7 @@ import {
     AiPromptTableName,
     AiThreadTableName,
 } from '../database/entities/ai';
+import { AiAgentTableName } from '../database/entities/aiAgent';
 import {
     AiAgentMemoryTableName,
     AiAgentThreadDistillTableName,
@@ -21,6 +30,9 @@ import {
     type DbAiAgentMemory,
     type DbAiAgentThreadDistill,
 } from '../database/entities/aiAgentMemory';
+
+// Keeps the admin list payload bounded; the memory page shows the full body
+const ADMIN_MEMORY_SUMMARY_MAX_LENGTH = 280;
 
 export const AI_AGENT_MEMORY_THREAD_SOURCES = [
     'web_app',
@@ -432,6 +444,200 @@ export class AiAgentMemoryModel {
         }
 
         return query;
+    }
+
+    private buildAdminMemoriesQuery(
+        organizationUuid: string,
+        filters: AiAgentAdminMemoryFilters | undefined,
+    ) {
+        const query = this.database<AiAgentMemoryTable>(
+            AiAgentMemoryTableName,
+        ).where(
+            `${AiAgentMemoryTableName}.organization_uuid`,
+            organizationUuid,
+        );
+
+        if (filters?.projectUuids && filters.projectUuids.length > 0) {
+            void query.whereIn(
+                `${AiAgentMemoryTableName}.project_uuid`,
+                filters.projectUuids,
+            );
+        }
+        if (filters?.userUuids && filters.userUuids.length > 0) {
+            void query.whereIn(
+                `${AiAgentMemoryTableName}.user_uuid`,
+                filters.userUuids,
+            );
+        }
+        if (filters?.statuses && filters.statuses.length > 0) {
+            void query.whereIn(
+                `${AiAgentMemoryTableName}.status`,
+                filters.statuses,
+            );
+        }
+        if (filters?.search) {
+            const pattern = `%${filters.search}%`;
+            void query.where((builder) => {
+                void builder
+                    .whereILike(`${AiAgentMemoryTableName}.title`, pattern)
+                    .orWhereILike(`${AiAgentMemoryTableName}.slug`, pattern)
+                    .orWhereILike(
+                        `${AiAgentMemoryTableName}.raw_memory`,
+                        pattern,
+                    );
+            });
+        }
+
+        return query;
+    }
+
+    async findAdminMemoriesPaginated(args: {
+        organizationUuid: string;
+        paginateArgs?: KnexPaginateArgs;
+        filters?: AiAgentAdminMemoryFilters;
+        sort?: AiAgentAdminMemorySort;
+    }): Promise<KnexPaginatedData<AiAgentAdminMemoriesSummary>> {
+        const sortColumn = {
+            generatedAt: 'generated_at',
+            citedCount: 'cited_count',
+        }[args.sort?.field ?? 'generatedAt'];
+        const direction = args.sort?.direction ?? 'desc';
+
+        const query = this.buildAdminMemoriesQuery(
+            args.organizationUuid,
+            args.filters,
+        )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${AiAgentMemoryTableName}.project_uuid`,
+            )
+            .leftJoin(
+                AiAgentTableName,
+                `${AiAgentTableName}.ai_agent_uuid`,
+                `${AiAgentMemoryTableName}.agent_uuid`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${AiAgentMemoryTableName}.user_uuid`,
+            )
+            .leftJoin(EmailTableName, function joinPrimaryEmail() {
+                void this.on(
+                    `${EmailTableName}.user_id`,
+                    '=',
+                    `${UserTableName}.user_id`,
+                ).andOnVal(`${EmailTableName}.is_primary`, true);
+            })
+            .select<
+                Array<{
+                    ai_agent_memory_uuid: string;
+                    slug: string;
+                    title: string;
+                    summary: string;
+                    status: DbAiAgentMemory['status'];
+                    project_uuid: string;
+                    project_name: string;
+                    agent_uuid: string | null;
+                    agent_name: string | null;
+                    agent_image_url: string | null;
+                    user_uuid: string | null;
+                    user_name: string | null;
+                    user_email: string | null;
+                    source_thread_uuid: string | null;
+                    cited_count: number;
+                    last_cited_at: Date | null;
+                    pulled_count: number;
+                    last_pulled_at: Date | null;
+                    generated_at: Date;
+                }>
+            >([
+                `${AiAgentMemoryTableName}.ai_agent_memory_uuid`,
+                `${AiAgentMemoryTableName}.slug`,
+                `${AiAgentMemoryTableName}.title`,
+                this.database.raw('LEFT(??, ?) as summary', [
+                    `${AiAgentMemoryTableName}.raw_memory`,
+                    ADMIN_MEMORY_SUMMARY_MAX_LENGTH,
+                ]),
+                `${AiAgentMemoryTableName}.status`,
+                `${AiAgentMemoryTableName}.project_uuid`,
+                `${ProjectTableName}.name as project_name`,
+                `${AiAgentMemoryTableName}.agent_uuid`,
+                `${AiAgentTableName}.name as agent_name`,
+                `${AiAgentTableName}.image_url as agent_image_url`,
+                `${AiAgentMemoryTableName}.user_uuid`,
+                this.database.raw(
+                    `NULLIF(TRIM(CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)), '') as user_name`,
+                ),
+                `${EmailTableName}.email as user_email`,
+                `${AiAgentMemoryTableName}.source_thread_uuid`,
+                `${AiAgentMemoryTableName}.cited_count`,
+                `${AiAgentMemoryTableName}.last_cited_at`,
+                `${AiAgentMemoryTableName}.pulled_count`,
+                `${AiAgentMemoryTableName}.last_pulled_at`,
+                `${AiAgentMemoryTableName}.generated_at`,
+            ])
+            // uuid tie-breaker keeps pagination stable when sort values collide
+            .orderBy([
+                {
+                    column: `${AiAgentMemoryTableName}.${sortColumn}`,
+                    order: direction,
+                    nulls: 'last',
+                },
+                {
+                    column: `${AiAgentMemoryTableName}.ai_agent_memory_uuid`,
+                    order: 'asc',
+                },
+            ]);
+
+        // Counting the un-joined base query skips the display joins. Row count
+        // is identical: project_uuid is NOT NULL with a CASCADE FK, so the
+        // project inner join never drops a memory.
+        const { data, pagination } = await KnexPaginate.paginate(
+            query,
+            args.paginateArgs,
+            this.buildAdminMemoriesQuery(args.organizationUuid, args.filters),
+        );
+
+        return {
+            data: {
+                memories: data.map((row) => ({
+                    uuid: row.ai_agent_memory_uuid,
+                    slug: row.slug,
+                    title: row.title,
+                    summary: row.summary,
+                    status: row.status,
+                    project: {
+                        uuid: row.project_uuid,
+                        name: row.project_name,
+                    },
+                    agent: row.agent_uuid
+                        ? {
+                              uuid: row.agent_uuid,
+                              name: row.agent_name ?? 'Unknown agent',
+                              imageUrl: row.agent_image_url,
+                          }
+                        : null,
+                    user: row.user_uuid
+                        ? {
+                              uuid: row.user_uuid,
+                              name:
+                                  row.user_name ??
+                                  row.user_email ??
+                                  'Unknown user',
+                              email: row.user_email,
+                          }
+                        : null,
+                    sourceThreadUuid: row.source_thread_uuid,
+                    citedCount: row.cited_count,
+                    lastCitedAt: row.last_cited_at?.toISOString() ?? null,
+                    pulledCount: row.pulled_count,
+                    lastPulledAt: row.last_pulled_at?.toISOString() ?? null,
+                    generatedAt: row.generated_at.toISOString(),
+                })),
+            },
+            pagination,
+        };
     }
 
     async findByProjectAndSlug(args: {

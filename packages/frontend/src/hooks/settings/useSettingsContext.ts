@@ -35,6 +35,11 @@ export const useSettingsContext = (): SettingsContext => {
     const shouldShowAiAgentReviews =
         aiOrganizationSettingsQuery.data?.aiAgentReviewsEnabled === true;
 
+    const { data: aiAgentMemoryFlag } = useServerFeatureFlag(
+        FeatureFlags.AiAgentMemory,
+    );
+    const shouldShowAiAgentMemories = aiAgentMemoryFlag?.enabled ?? false;
+
     const { data: serviceAccountsFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.ServiceAccounts,
     );
@@ -181,6 +186,7 @@ export const useSettingsContext = (): SettingsContext => {
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
+        shouldShowAiAgentMemories,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
         isAiOrganizationSettingsLoading:
