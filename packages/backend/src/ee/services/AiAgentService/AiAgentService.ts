@@ -325,6 +325,7 @@ import {
     getFeedbackBlocks,
     getFollowUpToolBlocks,
     getMarkdownBlocks,
+    getMemoryCitationBlocks,
     getModernArtifactCardBlocks,
     getModernPullRequestCardBlocks,
     getProjectSelectionBlocks,
@@ -9516,15 +9517,73 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         return [uuid, createdThread];
     }
 
+    // Markers are stripped from Slack prose, so cited memories surface as native
+    // citation elements instead. Slugs without an active memory row are dropped.
+    private async getSlackMemoryCitationBlocks({
+        slackPrompt,
+        agent,
+        response,
+    }: {
+        slackPrompt: SlackPrompt;
+        agent: AiAgent | undefined;
+        response: string;
+    }): Promise<(Block | KnownBlock)[]> {
+        if (!agent) return [];
+
+        const { slugs } = parseMemoryCitations(response);
+        if (slugs.length === 0) return [];
+
+        try {
+            const memories = await this.aiAgentMemoryModel.findActiveBySlugs({
+                projectUuid: slackPrompt.projectUuid,
+                slugs,
+            });
+            const memoriesBySlug = new Map(
+                memories.map((memory) => [memory.slug, memory]),
+            );
+            const citations = slugs.flatMap((slug) => {
+                const memory = memoriesBySlug.get(slug);
+                if (!memory) return [];
+                return [
+                    {
+                        slug,
+                        title: memory.title,
+                        url: `${this.lightdashConfig.siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agent.uuid}/memories/${slug}`,
+                    },
+                ];
+            });
+
+            if (citations.length < slugs.length) {
+                this.logger.warn(
+                    `Dropped ${
+                        slugs.length - citations.length
+                    } unknown or inactive memory citation(s) from Slack answer for prompt ${
+                        slackPrompt.promptUuid
+                    }`,
+                );
+            }
+
+            return getMemoryCitationBlocks(citations);
+        } catch (error) {
+            this.logger.error(
+                `Failed to build Slack memory citation blocks for prompt ${slackPrompt.promptUuid}`,
+                error,
+            );
+            return [];
+        }
+    }
+
     // TODO: user permissions
     private async getSlackAgentFinalBlocks({
         user,
         slackPrompt,
         agent,
+        response,
     }: {
         user: SessionUser;
         slackPrompt: SlackPrompt;
         agent: AiAgent | undefined;
+        response: string;
     }): Promise<(Block | KnownBlock)[]> {
         const referencedArtifactsMap =
             await this.aiAgentModel.findThreadReferencedArtifacts({
@@ -9640,7 +9699,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                   )
                 : [];
 
+        const memoryCitationBlocks = await this.getSlackMemoryCitationBlocks({
+            slackPrompt,
+            agent,
+            response,
+        });
+
         return [
+            ...memoryCitationBlocks,
             ...exploreBlocks,
             ...sqlArtifactBlocks,
             ...editDbtProjectBlocks,
@@ -10479,6 +10545,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 user,
                 slackPrompt,
                 agent,
+                response,
             });
             const slackResponse = stripMemoryCitations(response);
             const slackifiedMarkdown = slackifyMarkdown(slackResponse).replace(

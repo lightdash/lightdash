@@ -199,6 +199,67 @@ const truncateTaskText = (text: string, maxLength = 256) =>
 const truncateCardText = (text: string, maxLength: number) =>
     text.length > maxLength ? `${text.slice(0, maxLength - 3)}...` : text;
 
+// Slack renders citations as compact chips, so keep the label short.
+const SLACK_CITATION_TEXT_LIMIT = 75;
+
+export type SlackMemoryCitation = {
+    slug: string;
+    title: string;
+    url: string;
+};
+
+/**
+ * Native Block Kit citation elements for the memories an answer cited. They're
+ * rich-text-only (not valid inside `markdown` blocks), so they ride in their
+ * own trailing `rich_text` block after the answer prose.
+ *
+ * Uses the `web` details variant, not `memory`: Slack resolves `memory` against
+ * its own memory store, ignoring our `url` and label.
+ */
+export const getMemoryCitationBlocks = (
+    citations: SlackMemoryCitation[],
+): (Block | KnownBlock)[] => {
+    // Slack rejects a citation with empty `text` (min_length 1), and an
+    // invalid block fails the whole answer message — so drop unlabelled ones.
+    const labelled = citations.flatMap((citation) => {
+        const text = citation.title.trim() || citation.slug.trim();
+        return text ? [{ ...citation, text }] : [];
+    });
+    if (labelled.length === 0) {
+        return [];
+    }
+
+    return [
+        {
+            type: 'rich_text',
+            elements: [
+                {
+                    type: 'rich_text_section',
+                    elements: labelled.map((citation, index) => {
+                        const text = truncateCardText(
+                            citation.text,
+                            SLACK_CITATION_TEXT_LIMIT,
+                        );
+                        return {
+                            type: 'citation',
+                            url: citation.url,
+                            text,
+                            index: index + 1,
+                            from_llm: true,
+                            is_slack_url: false,
+                            details: {
+                                citation_type: 'web',
+                                display_name: 'Lightdash memory',
+                                title: text,
+                            },
+                        };
+                    }),
+                },
+            ],
+        } as unknown as Block,
+    ];
+};
+
 const getSlackTaskId = (toolName: string) =>
     toolName.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 80);
 
