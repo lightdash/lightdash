@@ -12,24 +12,13 @@
 </p>
 
 <p align="center">
-  <a href="https://www.lightdash.com/start"><b>Start on Cloud</b></a> ·
-  <a href="https://docs.lightdash.com"><b>Documentation</b></a> ·
-  <a href="https://demo.lightdash.com/login"><b>Live demo</b></a> ·
-  <a href="https://www.lightdash.com/bi-as-code"><b>BI as code</b></a> ·
-  <a href="https://go.lightdash.com/community"><b>Community</b></a>
-</p>
-
-<p align="center">
   <a href="https://github.com/lightdash/lightdash/blob/main/LICENSE"><img src="https://img.shields.io/github/license/lightdash/lightdash" alt="License" /></a>
   <a href="https://github.com/lightdash/lightdash/stargazers"><img src="https://img.shields.io/github/stars/lightdash/lightdash?style=social" alt="GitHub stars" /></a>
   <a href="https://hub.docker.com/r/lightdash/lightdash"><img src="https://img.shields.io/docker/v/lightdash/lightdash?label=docker" alt="Docker image version" /></a>
 </p>
 
-<p align="center">
-  <a href="https://context-layer-teal.vercel.app/">
-    <img src="./static/screenshots/context-layer-readme.png" alt="Lightdash context layer connecting warehouse sources to agents, apps, dashboards, SDKs, embedding, and MCP" />
-  </a>
-</p>
+> [!NOTE]
+> Hero placeholder: add a new product-led image here before merge. It should show Lightdash Cloud, AI agents, BI as code, Data Apps, and the context layer without falling back to a generic chart screenshot.
 
 ## Why Lightdash
 
@@ -43,46 +32,41 @@ The fastest way to use Lightdash is [Lightdash Cloud](https://www.lightdash.com/
 
 Want to explore first? Try the [live demo](https://demo.lightdash.com/login), read the [docs](https://docs.lightdash.com), or [book a walkthrough](https://www.lightdash.com/start).
 
-## Everything you need
+## What you can build
 
-<table>
-  <tr>
-    <td width="50%" valign="top">
-      <h3>BI as code</h3>
-      <p>Your metrics, charts, and dashboards live as files. Build them with coding agents, preview changes from the CLI, validate in CI, and review analytics in pull requests.</p>
-      <p><a href="https://www.lightdash.com/bi-as-code">Learn about BI as code</a></p>
-    </td>
-    <td width="50%" valign="top">
-      <h3>AI agents</h3>
-      <p>Lightdash agents answer from your context layer, not raw table guesses. They respect permissions, return inspectable queries, reuse verified answers, and improve through reviews and evaluations.</p>
-      <p><a href="https://www.lightdash.com/conversational-analytics">Explore Conversational Analytics</a></p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <h3>Data Apps</h3>
-      <p>Build custom reports, workbooks, slide decks, forecasting tools, and customer-facing data products from a prompt, with your context layer, permissions, and auth already built in.</p>
-      <p><a href="https://www.lightdash.com/data-apps">See Data Apps</a></p>
-    </td>
-    <td width="50%" valign="top">
-      <h3>Context layer</h3>
-      <p>Define metrics, dimensions, joins, descriptions, caching, and access rules in one governed layer. Use dbt projects or standalone Lightdash YAML pointed at your warehouse.</p>
-      <p><a href="https://context-layer-teal.vercel.app/">View the context-layer model</a></p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <h3>Embedded analytics</h3>
-      <p>Embed dashboards, AI agents, and Data Apps in your product with the Lightdash SDK, row-level security, user attributes, and customer-facing permissions.</p>
-      <p><a href="https://docs.lightdash.com/references/embedding">Read embedding docs</a></p>
-    </td>
-    <td width="50%" valign="top">
-      <h3>Open-source core</h3>
-      <p>Self-host the core BI platform, contribute improvements, and run Lightdash in your own infrastructure. Enterprise deployments can add commercial features and support.</p>
-      <p><a href="https://docs.lightdash.com/self-host/self-host-lightdash">Self-host Lightdash</a></p>
-    </td>
-  </tr>
-</table>
+### BI as code
+
+Your metrics, charts, and dashboards live as files. Build them with coding agents, preview changes from the CLI, validate in CI, and review analytics in pull requests.
+
+[Learn about BI as code](https://www.lightdash.com/bi-as-code)
+
+### AI agents
+
+Lightdash agents answer from your context layer, not raw table guesses. They respect permissions, return inspectable queries, reuse verified answers, and improve through reviews and evaluations.
+
+[Explore Conversational Analytics](https://www.lightdash.com/conversational-analytics)
+
+### Data Apps
+
+Build custom reports, workbooks, slide decks, forecasting tools, and customer-facing data products from a prompt, with your context layer, permissions, and auth already built in.
+
+[See Data Apps](https://www.lightdash.com/data-apps)
+
+### Context layer
+
+Define metrics, dimensions, joins, descriptions, caching, and access rules in one governed layer. Use dbt projects or standalone Lightdash YAML pointed at your warehouse.
+
+### Embedded analytics
+
+Embed dashboards, AI agents, and Data Apps in your product with the Lightdash SDK, row-level security, user attributes, and customer-facing permissions.
+
+[Read embedding docs](https://docs.lightdash.com/references/embedding)
+
+### Open-source core
+
+Self-host the core BI platform, contribute improvements, and run Lightdash in your own infrastructure. Enterprise deployments can add commercial features and support.
+
+[Self-host Lightdash](https://docs.lightdash.com/self-host/self-host-lightdash)
 
 ## Build with agents
 
