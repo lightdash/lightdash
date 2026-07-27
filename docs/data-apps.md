@@ -1070,12 +1070,12 @@ All scaffolding and context files are read-only reference — see [Upload is sou
 #### The local loop
 
 ```sh
-edit src/  →  pnpm install && pnpm build  →  lightdash upload --apps <appUuid>  →  server rebuilds
+edit src/  →  pnpm install && pnpm build  →  lightdash upload --apps <slug>  →  server rebuilds
 ```
 
 1. Edit files under `src/`.
 2. Run `pnpm install && pnpm build` as a pre-flight compile check against the downloaded scaffolding.
-3. Upload with `lightdash upload --apps <appUuid>` — or `--include-apps` for every downloaded app folder (fire-and-forget, as in Phase 1). The server rebuilds in its trusted sandbox.
+3. Upload with `lightdash upload --apps <slug>` — or `--include-apps` for every downloaded app folder (fire-and-forget, as in Phase 1). The server rebuilds in its trusted sandbox.
 
 **The server's build is authoritative.** Your local build is a compile check only; the deployed app is always the server's output.
 
