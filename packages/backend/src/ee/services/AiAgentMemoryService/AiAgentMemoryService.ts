@@ -319,6 +319,7 @@ export class AiAgentMemoryService extends BaseService {
             terms: result.memory.terms,
             objects: result.memory.objects,
             status: result.memory.status,
+            scope: result.memory.scope,
             generatedAt: result.memory.generated_at.toISOString(),
             citedCount: result.memory.cited_count,
             provenance:
@@ -514,6 +515,7 @@ export class AiAgentMemoryService extends BaseService {
                     terms: output.result.terms,
                     objects: output.result.objects,
                     unresolvedObjects,
+                    scope: output.result.scope,
                     generatedAt: new Date(),
                 });
             memoryGenerated = true;
@@ -527,6 +529,7 @@ export class AiAgentMemoryService extends BaseService {
                     memoryId: memory.ai_agent_memory_uuid,
                     channel: thread.createdFrom === 'slack' ? 'slack' : 'web',
                     isRedistill: thread.distilledUpTo !== null,
+                    scope: output.result.scope,
                     objectCount: output.result.objects.length,
                     unresolvedObjectCount: unresolvedObjects.length,
                 },

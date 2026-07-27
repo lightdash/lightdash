@@ -347,6 +347,12 @@ export type AiAgentMemorySource = {
 
 export type AiAgentMemoryStatus = 'active' | 'superseded' | 'retired';
 
+/**
+ * Advisory label only: it never affects injection, pull, ranking or access.
+ * `project` means "nominate for review", never "safe to broadcast".
+ */
+export type AiAgentMemoryScope = 'user' | 'project';
+
 export type AiAgentMemory = {
     slug: string;
     title: string;
@@ -354,6 +360,7 @@ export type AiAgentMemory = {
     terms: string[];
     objects: AiProjectContextTypedObjectRef[];
     status: AiAgentMemoryStatus;
+    scope: AiAgentMemoryScope;
     generatedAt: string;
     citedCount: number;
     provenance:

@@ -3,6 +3,7 @@ import {
     type AiAgentAdminMemoriesSummary,
     type AiAgentAdminMemoryFilters,
     type AiAgentAdminMemorySort,
+    type AiAgentMemoryScope,
     type AiProjectContextTypedObjectRef,
     type AiThreadCreatedFrom,
     type KnexPaginateArgs,
@@ -52,6 +53,7 @@ type SourceThreadMemory = {
     terms: string[];
     objects: AiProjectContextTypedObjectRef[];
     unresolvedObjects: AiProjectContextTypedObjectRef[];
+    scope: AiAgentMemoryScope;
     generatedAt: Date;
 };
 
@@ -324,6 +326,8 @@ export class AiAgentMemoryModel {
     async upsertSourceThreadMemory(
         memory: SourceThreadMemory,
     ): Promise<DbAiAgentMemory> {
+        // scope is distilled content, so a re-distill that reclassifies the
+        // thread updates the label; ownership stays fixed at insert.
         const content = {
             title: memory.title,
             raw_memory: memory.rawMemory,
@@ -331,6 +335,7 @@ export class AiAgentMemoryModel {
             terms: JSON.stringify(memory.terms),
             objects: JSON.stringify(memory.objects),
             unresolved_objects: JSON.stringify(memory.unresolvedObjects),
+            scope: memory.scope,
             generated_at: memory.generatedAt,
         };
         const [row] = await this.database<AiAgentMemoryTable>(
@@ -369,6 +374,7 @@ export class AiAgentMemoryModel {
                 'objects',
                 'unresolved_objects',
                 'status',
+                'scope',
                 'superseded_by_uuid',
                 'generated_at',
                 'cited_count',

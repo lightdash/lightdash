@@ -245,6 +245,7 @@ describe('AiAgentMemoryModel integration', () => {
             },
         ],
         unresolvedObjects: [],
+        scope: 'user' as const,
         generatedAt: new Date('2026-07-22T10:00:00Z'),
         ...overrides,
     });
@@ -295,6 +296,7 @@ describe('AiAgentMemoryModel integration', () => {
                 unresolvedObjects: [
                     { type: 'explore', name: 'missing_orders' },
                 ],
+                scope: 'project',
                 generatedAt,
             }),
         );
@@ -308,6 +310,8 @@ describe('AiAgentMemoryModel integration', () => {
             terms: ['net revenue'],
             objects: [{ type: 'explore', name: 'orders' }],
             unresolved_objects: [{ type: 'explore', name: 'missing_orders' }],
+            // scope is distilled content, so a re-distill reclassifies it
+            scope: 'project',
             generated_at: generatedAt,
             cited_count: 3,
             last_cited_at: citedAt,
@@ -781,6 +785,7 @@ describe('AiAgentMemoryModel integration', () => {
                     raw_memory: 'Use net revenue.',
                     terms: ['net revenue'],
                     objects: [],
+                    scope: 'project',
                 },
             });
 
@@ -1296,6 +1301,7 @@ describe('AiAgentMemoryModel integration', () => {
                     raw_memory: 'Use the completed revenue convention.',
                     terms: ['completed revenue'],
                     objects: [{ type: 'explore', name: 'missing_orders' }],
+                    scope: 'user',
                 },
             })
             .mockResolvedValueOnce({
@@ -1389,6 +1395,7 @@ describe('AiAgentMemoryModel integration', () => {
                     raw_memory: 'Use net revenue.',
                     terms: ['net revenue'],
                     objects,
+                    scope: 'user',
                 },
             });
         const findExploresFromCache = vi
