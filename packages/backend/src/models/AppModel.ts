@@ -50,6 +50,12 @@ type AppModelArguments = {
 
 const AppSlugSequence = 'apps_slug_sequence';
 
+type AppWithOrgAndPin = DbApp & {
+    organization_uuid: string;
+    pinned_list_uuid: string | null;
+    pinned_list_order: number | null;
+};
+
 export class AppModel {
     private readonly database: Knex;
 
@@ -378,18 +384,42 @@ export class AppModel {
     async getApp(
         appId: string,
         projectUuid: string,
-    ): Promise<
-        DbApp & {
-            organization_uuid: string;
-            pinned_list_uuid: string | null;
-            pinned_list_order: number | null;
-        }
-    > {
+    ): Promise<AppWithOrgAndPin> {
         const row = await this.findApp(appId, projectUuid);
         if (!row) {
             throw new NotFoundError(`App not found: ${appId}`);
         }
         return row;
+    }
+
+    /**
+     * Shared joins/select for the app + its organization + its pinned-list
+     * placement, underlying `findApp`, `findAppBySlug`, and
+     * `findAppByUuidOrSlug`. Callers add their own where-clauses.
+     */
+    private appWithOrgAndPinQuery() {
+        return this.database(AppsTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${AppsTableName}.project_uuid`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .leftJoin(
+                PinnedAppTableName,
+                `${PinnedAppTableName}.app_uuid`,
+                `${AppsTableName}.app_id`,
+            )
+            .select<AppWithOrgAndPin[]>(
+                `${AppsTableName}.*`,
+                `${OrganizationTableName}.organization_uuid`,
+                `${PinnedAppTableName}.pinned_list_uuid`,
+                `${PinnedAppTableName}.order as pinned_list_order`,
+            );
     }
 
     async findAppByUuid(appId: string): Promise<
@@ -425,106 +455,55 @@ export class AppModel {
     async findApp(
         appId: string,
         projectUuid: string,
-    ): Promise<
-        | (DbApp & {
-              organization_uuid: string;
-              pinned_list_uuid: string | null;
-              pinned_list_order: number | null;
-          })
-        | undefined
-    > {
-        return this.database(AppsTableName)
-            .innerJoin(
-                ProjectTableName,
-                `${ProjectTableName}.project_uuid`,
-                `${AppsTableName}.project_uuid`,
-            )
-            .innerJoin(
-                OrganizationTableName,
-                `${OrganizationTableName}.organization_id`,
-                `${ProjectTableName}.organization_id`,
-            )
-            .leftJoin(
-                PinnedAppTableName,
-                `${PinnedAppTableName}.app_uuid`,
-                `${AppsTableName}.app_id`,
-            )
+    ): Promise<AppWithOrgAndPin | undefined> {
+        return this.appWithOrgAndPinQuery()
             .where(`${AppsTableName}.app_id`, appId)
             .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
             .whereNull(`${AppsTableName}.deleted_at`)
-            .select<
-                (DbApp & {
-                    organization_uuid: string;
-                    pinned_list_uuid: string | null;
-                    pinned_list_order: number | null;
-                })[]
-            >(
-                `${AppsTableName}.*`,
-                `${OrganizationTableName}.organization_uuid`,
-                `${PinnedAppTableName}.pinned_list_uuid`,
-                `${PinnedAppTableName}.order as pinned_list_order`,
-            )
             .first();
     }
 
     async findAppBySlug(
         projectUuid: string,
         slug: string,
-    ): Promise<
-        | (DbApp & {
-              organization_uuid: string;
-              pinned_list_uuid: string | null;
-              pinned_list_order: number | null;
-          })
-        | undefined
-    > {
-        return this.database(AppsTableName)
-            .innerJoin(
-                ProjectTableName,
-                `${ProjectTableName}.project_uuid`,
-                `${AppsTableName}.project_uuid`,
-            )
-            .innerJoin(
-                OrganizationTableName,
-                `${OrganizationTableName}.organization_id`,
-                `${ProjectTableName}.organization_id`,
-            )
-            .leftJoin(
-                PinnedAppTableName,
-                `${PinnedAppTableName}.app_uuid`,
-                `${AppsTableName}.app_id`,
-            )
+    ): Promise<AppWithOrgAndPin | undefined> {
+        return this.appWithOrgAndPinQuery()
             .where(`${AppsTableName}.slug`, slug)
             .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
             .whereNull(`${AppsTableName}.deleted_at`)
-            .select<
-                (DbApp & {
-                    organization_uuid: string;
-                    pinned_list_uuid: string | null;
-                    pinned_list_order: number | null;
-                })[]
-            >(
-                `${AppsTableName}.*`,
-                `${OrganizationTableName}.organization_uuid`,
-                `${PinnedAppTableName}.pinned_list_uuid`,
-                `${PinnedAppTableName}.order as pinned_list_order`,
-            )
             .first();
+    }
+
+    /**
+     * Resolve an app by uuid or slug. A value that parses as a UUID may
+     * still be a slug (slugs aren't guaranteed non-uuid-shaped), so
+     * uuid-shaped input matches either column; non-uuid input matches slug
+     * only. Mirrors `DashboardModel.getByIdOrSlug`'s resolution.
+     */
+    async findAppByUuidOrSlug(
+        projectUuid: string,
+        appUuidOrSlug: string,
+    ): Promise<AppWithOrgAndPin | undefined> {
+        const query = this.appWithOrgAndPinQuery()
+            .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
+            .whereNull(`${AppsTableName}.deleted_at`);
+        if (isValidUuid(appUuidOrSlug)) {
+            void query.where((builder) => {
+                void builder
+                    .where(`${AppsTableName}.app_id`, appUuidOrSlug)
+                    .orWhere(`${AppsTableName}.slug`, appUuidOrSlug);
+            });
+        } else {
+            void query.where(`${AppsTableName}.slug`, appUuidOrSlug);
+        }
+        return query.first();
     }
 
     async getAppByUuidOrSlug(
         projectUuid: string,
         appUuidOrSlug: string,
-    ): Promise<
-        DbApp & {
-            organization_uuid: string;
-            pinned_list_uuid: string | null;
-            pinned_list_order: number | null;
-        }
-    > {
-        const row = isValidUuid(appUuidOrSlug)
-            ? await this.findApp(appUuidOrSlug, projectUuid)
-            : await this.findAppBySlug(projectUuid, appUuidOrSlug);
+    ): Promise<AppWithOrgAndPin> {
+        const row = await this.findAppByUuidOrSlug(projectUuid, appUuidOrSlug);
         if (!row) {
             throw new NotFoundError(`App not found: ${appUuidOrSlug}`);
         }
