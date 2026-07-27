@@ -338,7 +338,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                             color="red"
                             onClick={() => {
                                 dispatch(
-                                    explorerActions.removeField(
+                                    explorerActions.toggleDimension(
                                         getItemId(item),
                                     ),
                                 );
