@@ -2,15 +2,10 @@ import {
     getErrorMessage,
     getItemId,
     getItemMap,
-    isCustomDimension,
-    isDimension,
-    isMetric,
     isSummaryExploreError,
-    isTableCalculation,
     QueryExecutionContext,
     type DataAppVizContext,
     type DataAppVizSchema,
-    type Item,
 } from '@lightdash/common';
 import { Button, Card, Group, Select, Stack, Text } from '@mantine-8/core';
 import { useEffect, useMemo, useState, type FC } from 'react';
@@ -20,6 +15,7 @@ import { useExploreByProjectUuid } from '../../../hooks/useExplore';
 import { useExplores } from '../../../hooks/useExplores';
 import { type QueryResultsProps } from '../../../hooks/useQueryResults';
 import { useQueryExecutor } from '../../../providers/Explorer/useQueryExecutor';
+import { getDataAppVizFieldItems } from '../utils/getDataAppVizFieldItems';
 import DataAppVizFieldTypeBadge from './DataAppVizFieldTypeBadge';
 import { buildTestMetricQuery, isMappingComplete } from './dataAppVizTestQuery';
 
@@ -47,7 +43,7 @@ const DataAppVizTestPanel: FC<Props> = ({
     // the query so nothing fires while the user is still picking fields.
     const [run, setRun] = useState<Run | null>(null);
 
-    const explores = useExplores(projectUuid);
+    const explores = useExplores(projectUuid, true);
     const explore = useExploreByProjectUuid(
         exploreName ?? undefined,
         projectUuid,
@@ -57,20 +53,9 @@ const DataAppVizTestPanel: FC<Props> = ({
         () => (explore.data ? getItemMap(explore.data) : {}),
         [explore.data],
     );
-    const allItems = useMemo(() => Object.values(itemsMap), [itemsMap]);
-    const dimensions = useMemo(
-        () =>
-            allItems.filter(
-                (i) => isDimension(i as Item) || isCustomDimension(i as Item),
-            ),
-        [allItems],
-    );
-    const metrics = useMemo(
-        () =>
-            allItems.filter(
-                (i) => isMetric(i as Item) || isTableCalculation(i as Item),
-            ),
-        [allItems],
+    const { dimensions, metrics } = useMemo(
+        () => getDataAppVizFieldItems(itemsMap),
+        [itemsMap],
     );
 
     const [{ query, queryResults }] = useQueryExecutor(

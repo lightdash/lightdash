@@ -1,29 +1,16 @@
-import {
-    getItemId,
-    isCustomDimension,
-    isDimension,
-    isMetric,
-    isTableCalculation,
-    type DataAppVizField,
-    type Item,
-} from '@lightdash/common';
+import { getItemId, type DataAppVizField, type Item } from '@lightdash/common';
 import { Stack, Text } from '@mantine-8/core';
 import { MantineProvider, useMantineColorScheme } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import DataAppVizLibraryPicker from '../../../features/apps/components/DataAppVizLibraryPicker';
 import { useDataAppVisualization } from '../../../features/apps/hooks/useDataAppVisualization';
+import { getDataAppVizFieldItems } from '../../../features/apps/utils/getDataAppVizFieldItems';
 import FieldSelect from '../../common/FieldSelect';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import { getVizConfigThemeOverride } from '../mantineTheme';
-
-const isDimensionItem = (item: Item): boolean =>
-    isDimension(item) || isCustomDimension(item);
-
-const isMetricItem = (item: Item): boolean =>
-    isMetric(item) || isTableCalculation(item);
 
 export const ConfigTabs: FC = memo(() => {
     const { colorScheme } = useMantineColorScheme();
@@ -44,12 +31,10 @@ export const ConfigTabs: FC = memo(() => {
         dataAppVizUuid || undefined,
     );
 
-    const allItems = useMemo(() => Object.values(itemsMap ?? {}), [itemsMap]);
-    const dimensions = useMemo(
-        () => allItems.filter(isDimensionItem),
-        [allItems],
+    const { dimensions, metrics } = useMemo(
+        () => getDataAppVizFieldItems(itemsMap ?? {}),
+        [itemsMap],
     );
-    const metrics = useMemo(() => allItems.filter(isMetricItem), [allItems]);
 
     const fieldItems = (field: DataAppVizField): Item[] =>
         field.type === 'metric' ? metrics : dimensions;

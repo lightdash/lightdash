@@ -1,10 +1,32 @@
-import { type DataAppVizSchema } from '@lightdash/common';
+import {
+    DimensionType,
+    FieldType,
+    getItemId,
+    MetricType,
+    SupportedDbtAdapter,
+    type CompiledDimension,
+    type CompiledMetric,
+    type DataAppVizSchema,
+    type Explore,
+    type Item,
+} from '@lightdash/common';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import DataAppVizTestPanel from './DataAppVizTestPanel';
 import { buildTestMetricQuery, isMappingComplete } from './dataAppVizTestQuery';
 
+const { fieldSelectItems } = vi.hoisted(() => ({
+    fieldSelectItems: [] as Item[][],
+}));
+
+vi.mock('../../../components/common/FieldSelect', () => ({
+    default: ({ items }: { items: Item[] }) => {
+        fieldSelectItems.push(items);
+        return <div data-testid="field-select" />;
+    },
+}));
 vi.mock('../../../hooks/useExplores', () => ({
     useExplores: vi.fn(),
 }));
@@ -26,6 +48,59 @@ const schema: DataAppVizSchema = {
         { name: 'value', label: 'Value', type: 'metric', required: true },
     ],
     configOptions: [],
+};
+
+const makeDimension = (name: string, hidden: boolean): CompiledDimension => ({
+    compiledSql: '',
+    tablesReferences: [],
+    fieldType: FieldType.DIMENSION,
+    type: DimensionType.STRING,
+    name,
+    label: name,
+    table: 'orders',
+    tableLabel: 'Orders',
+    sql: '',
+    hidden,
+});
+
+const makeMetric = (name: string, hidden: boolean): CompiledMetric => ({
+    compiledSql: '',
+    tablesReferences: [],
+    fieldType: FieldType.METRIC,
+    type: MetricType.COUNT,
+    name,
+    label: name,
+    table: 'orders',
+    tableLabel: 'Orders',
+    sql: '',
+    hidden,
+});
+
+const exploreWithHiddenFields: Explore = {
+    name: 'orders',
+    label: 'Orders',
+    tags: [],
+    baseTable: 'orders',
+    joinedTables: [],
+    tables: {
+        orders: {
+            name: 'orders',
+            label: 'Orders',
+            database: '',
+            schema: '',
+            sqlTable: 'orders',
+            dimensions: {
+                visible: makeDimension('visible', false),
+                hidden: makeDimension('hidden', true),
+            },
+            metrics: {
+                visible_metric: makeMetric('visible_metric', false),
+                hidden_metric: makeMetric('hidden_metric', true),
+            },
+            lineageGraph: {},
+        },
+    },
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
 };
 
 describe('isMappingComplete', () => {
@@ -79,6 +154,7 @@ describe('buildTestMetricQuery', () => {
 
 describe('DataAppVizTestPanel', () => {
     beforeEach(() => {
+        fieldSelectItems.length = 0;
         vi.mocked(useExplores).mockReturnValue({
             data: [
                 { name: 'orders', label: 'Orders' },
@@ -120,6 +196,18 @@ describe('DataAppVizTestPanel', () => {
         expect(screen.getByText('Value')).toBeInTheDocument();
     });
 
+    it('requests the same filtered Explore list as Explorer', () => {
+        renderWithProviders(
+            <DataAppVizTestPanel
+                projectUuid="p1"
+                schema={schema}
+                onContextChange={vi.fn()}
+            />,
+        );
+
+        expect(useExplores).toHaveBeenCalledWith('p1', true);
+    });
+
     it('hides the run action until an explore is selected', () => {
         renderWithProviders(
             <DataAppVizTestPanel
@@ -132,5 +220,44 @@ describe('DataAppVizTestPanel', () => {
         expect(
             screen.queryByRole('button', { name: /run test query/i }),
         ).not.toBeInTheDocument();
+    });
+
+    it('matches Explorer field visibility', async () => {
+        const user = userEvent.setup();
+        vi.mocked(useExploreByProjectUuid).mockReturnValue({
+            data: exploreWithHiddenFields,
+        } as unknown as ReturnType<typeof useExploreByProjectUuid>);
+
+        renderWithProviders(
+            <DataAppVizTestPanel
+                projectUuid="p1"
+                schema={{
+                    fields: [
+                        {
+                            name: 'source',
+                            label: 'Source',
+                            type: 'dimension',
+                            required: true,
+                        },
+                        {
+                            name: 'value',
+                            label: 'Value',
+                            type: 'metric',
+                            required: true,
+                        },
+                    ],
+                    configOptions: [],
+                }}
+                onContextChange={vi.fn()}
+            />,
+        );
+
+        await user.click(screen.getByPlaceholderText('Select an explore'));
+        await user.click(await screen.findByText('Orders'));
+
+        expect(fieldSelectItems.map((items) => items.map(getItemId))).toEqual([
+            ['orders_visible'],
+            ['orders_visible_metric'],
+        ]);
     });
 });
