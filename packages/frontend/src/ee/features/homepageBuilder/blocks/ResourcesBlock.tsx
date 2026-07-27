@@ -278,17 +278,20 @@ const itemHref = (item: HomepageResourceItem, projectUuid: string): string =>
         ? dataAppHref(projectUuid, item.appUuid)
         : item.url;
 
-const ResourceCard: FC<{ item: HomepageResourceItem; projectUuid: string }> = ({
-    item,
-    projectUuid,
-}) => {
+const ResourceCard: FC<{
+    item: HomepageResourceItem;
+    projectUuid: string;
+    standalone: boolean;
+}> = ({ item, projectUuid, standalone }) => {
     const dataApp = isDataApp(item);
     return (
         <a
             href={itemHref(item, projectUuid)}
             target={dataApp ? undefined : '_blank'}
             rel={dataApp ? undefined : 'noopener noreferrer'}
-            className={`${classes.mediaCard} ${classes.cardUnit1} ${classes.clickable} ${classes.plainLink}`}
+            className={`${classes.mediaCard} ${classes.cardUnit1} ${
+                standalone ? classes.mediaCardTall : ''
+            } ${classes.clickable} ${classes.plainLink}`}
         >
             {!dataApp && (
                 <MantineIcon
@@ -349,6 +352,7 @@ export const ResourcesBlockView: FC<BlockComponentProps> = ({
     block,
     itemSpan,
     projectUuid,
+    standalone = false,
 }) => {
     if (block.type !== 'resources' || block.config.items.length === 0) {
         return null;
@@ -364,6 +368,7 @@ export const ResourcesBlockView: FC<BlockComponentProps> = ({
                             <ResourceCard
                                 item={item}
                                 projectUuid={projectUuid}
+                                standalone={standalone}
                             />
                         </PageGridItem>
                     ))}
@@ -449,8 +454,18 @@ const KindControl: FC<{
         <KindSelect value={item.kind} onChange={onChange} />
     );
 
-const BuildCard: FC<EditProps> = ({ item, projectUuid, onPatch, onRemove }) => (
-    <div className={classes.mediaCard}>
+const BuildCard: FC<EditProps & { standalone: boolean }> = ({
+    item,
+    projectUuid,
+    standalone,
+    onPatch,
+    onRemove,
+}) => (
+    <div
+        className={`${classes.mediaCard} ${
+            standalone ? classes.mediaCardTall : ''
+        }`}
+    >
         <CardThumb item={item} projectUuid={projectUuid} />
         <div className={classes.mediaBody}>
             <Group gap={4} justify="space-between" wrap="nowrap">
@@ -539,6 +554,7 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
     projectUuid,
     onChange,
     itemSpan,
+    standalone = false,
 }) => {
     const [pasteValue, setPasteValue] = useState('');
     const [batch, setBatch] = useState<BatchEntry[]>([]);
@@ -681,6 +697,7 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
                             <BuildCard
                                 item={item}
                                 projectUuid={projectUuid}
+                                standalone={standalone}
                                 onPatch={(patch) => patchItem(i, patch)}
                                 onRemove={() => removeItem(i)}
                             />
@@ -691,6 +708,7 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
                             <ResourceCard
                                 item={e.item}
                                 projectUuid={projectUuid}
+                                standalone={standalone}
                             />
                         </PageGridItem>
                     ))}

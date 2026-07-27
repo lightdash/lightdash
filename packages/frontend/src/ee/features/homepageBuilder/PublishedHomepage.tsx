@@ -23,7 +23,15 @@ const BlockRenderer: FC<{
     personalPlaceholders: boolean;
     presentation?: BlockPresentation;
     itemSpan: number | null;
-}> = ({ block, projectUuid, personalPlaceholders, presentation, itemSpan }) => {
+    standalone: boolean;
+}> = ({
+    block,
+    projectUuid,
+    personalPlaceholders,
+    presentation,
+    itemSpan,
+    standalone,
+}) => {
     const definition = getBlockDefinition(block.type);
     if (!definition) return null;
     if (personalPlaceholders && PERSONAL_BLOCK_TYPES.includes(block.type)) {
@@ -48,6 +56,7 @@ const BlockRenderer: FC<{
             projectUuid={projectUuid}
             presentation={presentation}
             itemSpan={itemSpan}
+            standalone={standalone}
         />
     );
 };
@@ -76,6 +85,7 @@ const RowRenderer: FC<{
                     projectUuid={projectUuid}
                     personalPlaceholders={personalPlaceholders}
                     itemSpan={column.itemSpan}
+                    standalone={row.columns.length === 1}
                 />
             </Box>
         ))}
@@ -127,6 +137,7 @@ export const PublishedHomepage: FC<Props> = ({
                             personalPlaceholders={personalPlaceholders}
                             presentation="hero"
                             itemSpan={hero.row.columns[0].itemSpan}
+                            standalone={hero.row.columns.length === 1}
                         />
                     </div>
                 </div>

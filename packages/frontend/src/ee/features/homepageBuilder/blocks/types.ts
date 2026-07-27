@@ -14,6 +14,11 @@ export type BlockComponentProps = {
     // silently omits it renders every card full width, and that failed once
     // already — the compiler now catches it instead of a reviewer.
     itemSpan: number | null;
+    // True when the block is the only one in its row. The resources card grid
+    // uses it to render taller cards so wide 16:9 thumbnails (e.g. YouTube
+    // stills) aren't cropped as hard. Other blocks ignore it. Optional because
+    // omitting it (the default, non-standalone) is the safe current behaviour.
+    standalone?: boolean;
 };
 
 export type BuildComponentProps = BlockComponentProps & {

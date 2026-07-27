@@ -333,6 +333,7 @@ type BlockCardProps = {
     onChange: (updated: HomepageBlock) => void;
     justPlaced: boolean;
     itemSpan: number | null;
+    standalone: boolean;
 };
 
 const BlockCard: FC<BlockCardProps> = ({
@@ -348,6 +349,7 @@ const BlockCard: FC<BlockCardProps> = ({
     onChange,
     justPlaced,
     itemSpan,
+    standalone,
 }) => {
     const {
         attributes,
@@ -438,6 +440,7 @@ const BlockCard: FC<BlockCardProps> = ({
                 projectUuid={projectUuid}
                 onChange={onChange}
                 itemSpan={itemSpan}
+                standalone={standalone}
             />
         </div>
     );
@@ -1051,6 +1054,14 @@ export const HomepageEditor: FC<Props> = ({
                                                                                     blockIndex
                                                                                 ]
                                                                                     .itemSpan
+                                                                            }
+                                                                            standalone={
+                                                                                resolvedRows[
+                                                                                    rowIndex
+                                                                                ]
+                                                                                    .columns
+                                                                                    .length ===
+                                                                                1
                                                                             }
                                                                             block={
                                                                                 block
