@@ -121,7 +121,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                 onClose={() => setIsOpen(false)}
                 title="About Lightdash"
                 icon={IconInfoCircle}
-                size="sm"
+                size="md"
                 modalBodyProps={{ py: 'lg' }}
             >
                 <TrackPage
