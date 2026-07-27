@@ -38,14 +38,19 @@ jobs:
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
+      # The okteto/context docker action authenticates inside its container
+      # only; the run steps below need the CLI on the runner itself
+      - name: Install Okteto CLI
+        run: |
+          curl -sSfL -o okteto https://github.com/okteto/okteto/releases/download/3.7.0/okteto-Linux-x86_64
+          chmod +x okteto
+          sudo mv okteto /usr/local/bin/okteto
+
       - name: Okteto context
-        uses: okteto/context@5212ce5ebf9d3584bafd33f4a295a8521fc5abe7 # latest
-        with:
-          url: ${{ secrets.OKTETO_CONTEXT }}
-          token: ${{ secrets.OKTETO_TOKEN }}
+        run: okteto context use "${{ secrets.OKTETO_CONTEXT }}" --token "${{ secrets.OKTETO_TOKEN }}"
 
       - name: Create namespace if missing
-        run: okteto namespace create db-snapshot || true
+        run: okteto namespace create db-snapshot || echo "namespace already exists, continuing"
 
       - name: Reset builder state
         run: |
