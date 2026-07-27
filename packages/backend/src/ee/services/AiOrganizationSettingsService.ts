@@ -412,21 +412,31 @@ export class AiOrganizationSettingsService extends BaseService {
             }
         }
 
-        if (data.modelVisibility) {
+        // A supplied default has to be checked against the visibility the write
+        // lands on, whether or not this request is the one changing it —
+        // visibility filters model LISTINGS only, never resolution, so a
+        // default pointing at a restricted model would still be served.
+        if (data.modelVisibility || data.defaultAiAgentModelConfig) {
             // Validate against the EFFECTIVE visibility (implicit auto-hide
             // merged under the submission) and real key access — so disabling
             // the only provider whose toggle isn't locked can't leave an empty
             // selector, and an allowlist of only a key-unlocked hidden model
-            // (e.g. opus 4.8) still counts.
-            const [overrides, effectiveVisibility] = await Promise.all([
+            // (e.g. opus 4.8) still counts. When this request doesn't touch
+            // visibility, validate against what is already stored.
+            const [overrides, submittedVisibility] = await Promise.all([
                 this.orgAiCopilotConfigResolver.getOrgModelOverrides(
                     user.organizationUuid,
                 ),
-                this.orgAiCopilotConfigResolver.resolveEffectiveModelVisibilityForOrg(
-                    user.organizationUuid,
-                    data.modelVisibility,
-                ),
+                data.modelVisibility
+                    ? this.orgAiCopilotConfigResolver.resolveEffectiveModelVisibilityForOrg(
+                          user.organizationUuid,
+                          data.modelVisibility,
+                      )
+                    : null,
             ]);
+            const effectiveVisibility = data.modelVisibility
+                ? submittedVisibility
+                : overrides.modelVisibility;
             const remaining = filterModelsForOrg(
                 getAvailableModels(this.lightdashConfig.ai.copilot),
                 {
@@ -434,15 +444,12 @@ export class AiOrganizationSettingsService extends BaseService {
                     keyAccessibleModelIds: overrides.keyAccessibleModelIds,
                 },
             );
-            if (remaining.length === 0) {
+            if (data.modelVisibility && remaining.length === 0) {
                 throw new ParameterError(
                     'At least one AI model must remain available',
                 );
             }
 
-            // A default supplied in the same request must itself survive the
-            // new visibility, otherwise the write would persist exactly the
-            // stale-unselectable state the reconciliation below exists to fix.
             if (
                 data.defaultAiAgentModelConfig &&
                 !isModelConfigAvailable(
@@ -457,10 +464,13 @@ export class AiOrganizationSettingsService extends BaseService {
 
             // When the update hides the org's configured default and the
             // request doesn't set a new one, repoint it at a model that is
-            // still available. Not null: visibility filters listings only, so
-            // a null default resolves to the instance default, which may be
-            // the very model this org just restricted.
-            if (data.defaultAiAgentModelConfig === undefined) {
+            // still available. Not null: a null default resolves to the
+            // instance default, which may be the very model this org just
+            // restricted.
+            if (
+                data.modelVisibility &&
+                data.defaultAiAgentModelConfig === undefined
+            ) {
                 const currentDefault = (
                     await this.aiOrganizationSettingsModel.findByOrganizationUuid(
                         user.organizationUuid,

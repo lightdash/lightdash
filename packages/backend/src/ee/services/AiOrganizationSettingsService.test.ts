@@ -1,6 +1,7 @@
 import { AiOrganizationSettings } from '@lightdash/common';
 import type { ModelPreset, ModelPresetProvider } from './ai/models/presets';
 import {
+    AiOrganizationSettingsService,
     areReviewsEnabledForSettings,
     findUnconfiguredProviderKeyWrites,
     isModelConfigAvailable,
@@ -238,5 +239,133 @@ describe('pickReplacementDefaultModelConfig', () => {
         expect(
             pickReplacementDefaultModelConfig([], null, previous),
         ).toBeNull();
+    });
+});
+
+describe('upsertSettings model validation', () => {
+    const ANTHROPIC_ONLY_CONFIG = {
+        ai: {
+            copilot: {
+                defaultProvider: 'anthropic',
+                providers: { anthropic: { modelName: 'claude-sonnet-5' } },
+            },
+        },
+    };
+
+    const buildService = ({
+        storedVisibility = null,
+        storedDefault = null,
+    }: {
+        storedVisibility?: unknown;
+        storedDefault?: unknown;
+    } = {}) => {
+        const upsert = vi.fn(async (_org: string, data: unknown) => data);
+        const service = new AiOrganizationSettingsService({
+            aiOrganizationSettingsModel: {
+                findByOrganizationUuid: async () => ({
+                    defaultAiAgentModelConfig: storedDefault,
+                }),
+                upsert,
+            },
+            organizationModel: {},
+            commercialFeatureFlagModel: {
+                get: async () => ({ enabled: true }),
+            },
+            lightdashConfig: ANTHROPIC_ONLY_CONFIG,
+            orgAiCopilotConfigResolver: {
+                // Writing modelVisibility is gated on the BYO-keys flag.
+                isEnabled: async () => true,
+                getOrgModelOverrides: async () => ({
+                    modelVisibility: storedVisibility,
+                    keyAccessibleModelIds: null,
+                }),
+                resolveEffectiveModelVisibilityForOrg: async (
+                    _org: string,
+                    submitted: unknown,
+                ) => submitted,
+            },
+        } as never);
+        // Bypass real CASL — this covers validation flow, not authorization.
+        (
+            service as unknown as { createAuditedAbility: () => unknown }
+        ).createAuditedAbility = () => ({ can: () => true });
+        return { service, upsert };
+    };
+
+    const user = { organizationUuid: 'org-uuid' } as never;
+    const restrictToSonnet = {
+        anthropic: { enabled: true, allowedModels: ['claude-sonnet-5'] },
+    };
+
+    // Regression: this validation used to live inside the modelVisibility
+    // branch, so a default-only request skipped it entirely — and because
+    // visibility filters listings but never resolution, that default would
+    // still be served.
+    it('rejects a default that the ALREADY-STORED visibility hides, with no visibility in the request', async () => {
+        const { service } = buildService({
+            storedVisibility: restrictToSonnet,
+        });
+        await expect(
+            service.upsertSettings(user, {
+                defaultAiAgentModelConfig: {
+                    modelName: 'claude-haiku-4-5',
+                    modelProvider: 'anthropic',
+                },
+            }),
+        ).rejects.toThrow(
+            'The default AI model is not available under this model visibility',
+        );
+    });
+
+    it('accepts a default the stored visibility allows', async () => {
+        const { service, upsert } = buildService({
+            storedVisibility: restrictToSonnet,
+        });
+        await service.upsertSettings(user, {
+            defaultAiAgentModelConfig: {
+                modelName: 'claude-sonnet-5',
+                modelProvider: 'anthropic',
+            },
+        });
+        expect(upsert).toHaveBeenCalled();
+    });
+
+    it('accepts any default when the org has no visibility restrictions', async () => {
+        const { service, upsert } = buildService();
+        await service.upsertSettings(user, {
+            defaultAiAgentModelConfig: {
+                modelName: 'claude-haiku-4-5',
+                modelProvider: 'anthropic',
+            },
+        });
+        expect(upsert).toHaveBeenCalled();
+    });
+
+    it('accepts clearing the default', async () => {
+        const { service, upsert } = buildService({
+            storedVisibility: restrictToSonnet,
+        });
+        await service.upsertSettings(user, {
+            defaultAiAgentModelConfig: null,
+        });
+        expect(upsert).toHaveBeenCalled();
+    });
+
+    it('repoints a stored default that the new visibility hides', async () => {
+        const { service, upsert } = buildService({
+            storedDefault: {
+                modelName: 'claude-haiku-4-5',
+                modelProvider: 'anthropic',
+            },
+        });
+        await service.upsertSettings(user, {
+            modelVisibility: restrictToSonnet,
+        });
+        expect(upsert.mock.calls[0][1]).toMatchObject({
+            defaultAiAgentModelConfig: {
+                modelName: 'claude-sonnet-5',
+                modelProvider: 'anthropic',
+            },
+        });
     });
 });
