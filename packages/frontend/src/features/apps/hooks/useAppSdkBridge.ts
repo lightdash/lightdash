@@ -383,7 +383,13 @@ export function useAppSdkBridge({
             }
 
             if (data?.type === 'lightdash:lineage:available') {
-                onLineageAvailable?.();
+                // Only trust announces that carry proof of stamped elements.
+                // Legacy SDK bundles announced unconditionally, enabling the
+                // Inspect-data toggle in apps where clicks can never resolve.
+                const stampCount: unknown = data.stampCount;
+                if (typeof stampCount === 'number' && stampCount > 0) {
+                    onLineageAvailable?.();
+                }
                 return;
             }
 
