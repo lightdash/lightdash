@@ -1,6 +1,10 @@
 import { type DashboardTile } from '../types/dashboard';
 import { ParameterError } from '../types/errors';
-import { isTileInSelectedTabs, validateSelectedTabs } from './dashboard';
+import {
+    expandSelectedTabs,
+    isTileInSelectedTabs,
+    validateSelectedTabs,
+} from './dashboard';
 
 describe('validateSelectedTabs', () => {
     // Simple mock that focuses on just the tabUuid property
@@ -81,5 +85,38 @@ describe('isTileInSelectedTabs', () => {
     it('excludes non-orphan tiles when selectedTabs is empty', () => {
         expect(isTileInSelectedTabs({ tabUuid: 'tab1' }, [])).toBe(false);
         expect(isTileInSelectedTabs({ tabUuid: null }, [])).toBe(true);
+    });
+});
+
+describe('expandSelectedTabs', () => {
+    it('returns the explicit selection unchanged', () => {
+        expect(
+            expandSelectedTabs(['tab1'], [{ tabUuid: 'tab1' }]),
+        ).toStrictEqual(['tab1']);
+        expect(expandSelectedTabs([], [{ tabUuid: 'tab1' }])).toStrictEqual([]);
+    });
+
+    it('expands null into every tab UUID present on the tiles, deduplicated', () => {
+        expect(
+            expandSelectedTabs(null, [
+                { tabUuid: 'tab1' },
+                { tabUuid: 'tab2' },
+                { tabUuid: 'tab1' },
+            ]),
+        ).toStrictEqual(['tab1', 'tab2']);
+    });
+
+    it('includes a null sentinel for orphan tiles', () => {
+        expect(
+            expandSelectedTabs(null, [
+                { tabUuid: 'tab1' },
+                { tabUuid: null },
+                { tabUuid: undefined },
+            ]),
+        ).toStrictEqual(['tab1', null]);
+    });
+
+    it('returns an empty list for a dashboard without tiles', () => {
+        expect(expandSelectedTabs(null, [])).toStrictEqual([]);
     });
 });

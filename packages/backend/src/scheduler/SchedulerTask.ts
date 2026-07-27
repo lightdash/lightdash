@@ -17,6 +17,7 @@ import {
     DimensionType,
     DownloadFileType,
     EmailNotificationPayload,
+    expandSelectedTabs,
     ExportContentPayload,
     ExportCsvDashboardPayload,
     FeatureFlags,
@@ -550,8 +551,15 @@ export default class SchedulerTask {
 
             const queryParams = new URLSearchParams();
             if (schedulerUuid) queryParams.set('schedulerUuid', schedulerUuid);
-            if (selectedTabs)
-                queryParams.set('selectedTabs', JSON.stringify(selectedTabs));
+            const selectedTabsList = expandSelectedTabs(
+                selectedTabs,
+                dashboard.tiles,
+            );
+            if (selectedTabsList.length > 0)
+                queryParams.set(
+                    'selectedTabs',
+                    JSON.stringify(selectedTabsList),
+                );
             if (context) queryParams.set('context', context);
 
             return {
