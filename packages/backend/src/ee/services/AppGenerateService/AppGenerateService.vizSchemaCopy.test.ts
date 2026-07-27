@@ -89,6 +89,7 @@ function buildService() {
         setUpstreamAppUuid: vi.fn().mockResolvedValue(undefined),
         syncPromotedApp: vi.fn().mockResolvedValue(undefined),
         updateStatusMessage: vi.fn().mockResolvedValue(undefined),
+        recordBuildNarration: vi.fn().mockResolvedValue(undefined),
         listAppsByProject: vi.fn().mockResolvedValue([sourceApp]),
         remapPreviewDashboardTileApps: vi.fn().mockResolvedValue(undefined),
     };

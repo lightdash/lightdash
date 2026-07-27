@@ -33,6 +33,9 @@ type Props = {
      * elsewhere on the bubble — not in this meta row.
      */
     version?: VersionInfo;
+    /** Extra class for the row — used to align the meta with sibling
+     *  content whose inset this component can't know about. */
+    className?: string;
 };
 
 /**
@@ -41,7 +44,12 @@ type Props = {
  * to a ready version); the right slot holds the relative timestamp with a
  * tooltip for the absolute date.
  */
-const ChatBubbleMeta: FC<Props> = ({ timestamp, userName, version }) => {
+const ChatBubbleMeta: FC<Props> = ({
+    timestamp,
+    userName,
+    version,
+    className,
+}) => {
     const timeAgo = useTimeAgo(timestamp);
     // Only user bubbles split (name left, timestamp right) — that pattern
     // anchors the sender's name to the bubble edge. Assistant bubbles keep
@@ -53,7 +61,7 @@ const ChatBubbleMeta: FC<Props> = ({ timestamp, userName, version }) => {
             gap="xs"
             wrap="nowrap"
             justify={justify}
-            className={classes.meta}
+            className={[classes.meta, className].filter(Boolean).join(' ')}
         >
             {userName && (
                 <Text fz="xs" fw={600} className={classes.name} truncate>

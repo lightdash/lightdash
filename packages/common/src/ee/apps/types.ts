@@ -359,11 +359,30 @@ export type ApiAppThumbnailUrlResponse = ApiSuccess<{
     thumbnailUrl: string;
 }>;
 
+// What produced a narration entry: a pipeline stage label, a summarized
+// thinking snippet from the generation stream, or a tool-activity status.
+// The chat UI renders 'thinking' (Reasoning row) and 'tool' (Activity row);
+// 'stage' entries are stored but filtered out of API responses.
+export type AppVersionStatusHistoryEntryKind = 'stage' | 'thinking' | 'tool';
+
+// One narration message recorded while a version was building. Persisted on
+// app_versions.status_history (jsonb) so the full chain survives the poll
+// cadence and page reloads.
+export type AppVersionStatusHistoryEntry = {
+    message: string;
+    // ISO-8601, stamped when the message was recorded.
+    timestamp: string;
+    kind: AppVersionStatusHistoryEntryKind;
+};
+
 export type ApiAppVersionSummary = {
     version: number;
     prompt: string;
     status: AppVersionStatus;
     statusMessage: string | null;
+    // Accumulated build narration, oldest first — live and after completion.
+    // Server-filtered before serving; see filterStatusHistoryForApi.
+    statusHistory: AppVersionStatusHistoryEntry[];
     // Detailed failure reason (e.g. the build's stderr) when `status` is
     // `error`; null otherwise. `statusMessage` carries the short user-facing
     // line (e.g. "Build failed"); this carries the why.

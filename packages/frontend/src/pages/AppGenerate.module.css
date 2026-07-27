@@ -271,10 +271,16 @@
     color: var(--mantine-color-dimmed) !important;
 }
 
-/* Align the "continue building" hint with the status text above it, which is
- * rendered via AiMarkdown and carries the shared 7px markdown padding-left. */
-.buildingHint {
-    padding-left: 7px;
+/* Matches the Reasoning/Activity rows' 12px horizontal padding so the
+ * working line's text starts flush with their icon chips. */
+.workingLine {
+    padding-left: 12px;
+}
+
+/* Same 12px inset for the assistant meta row (version chip + timestamp) so
+ * the chip lines up with the Reasoning/Activity icon chips below it. */
+.assistantBubbleMeta {
+    padding-left: 12px;
 }
 
 .chatInputArea {
@@ -383,47 +389,6 @@
     }
     @mixin dark {
         color: var(--mantine-color-ldDark-8);
-    }
-}
-
-.loadingDots {
-    display: inline-flex;
-    gap: 4px;
-    align-items: center;
-}
-
-.loadingDot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    animation: dotPulse 1.4s ease-in-out infinite;
-
-    @mixin light {
-        background-color: var(--mantine-color-ldGray-5);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-ldDark-8);
-    }
-}
-
-.loadingDot:nth-child(2) {
-    animation-delay: 0.2s;
-}
-
-.loadingDot:nth-child(3) {
-    animation-delay: 0.4s;
-}
-
-@keyframes dotPulse {
-    0%,
-    80%,
-    100% {
-        opacity: 0.3;
-        transform: scale(0.8);
-    }
-    40% {
-        opacity: 1;
-        transform: scale(1);
     }
 }
 

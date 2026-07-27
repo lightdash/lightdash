@@ -30,6 +30,13 @@ export type ChatMessage = {
     timestamp: Date;
     userName: string | null;
     vizSchema: DataAppVizSchema | null;
+    // Thinking snippets accumulated while the version generated; shown as a
+    // collapsed Reasoning row on assistant bubbles. Empty for user bubbles
+    // and versions predating reasoning capture.
+    reasoning: string[];
+    // Tool actions ("Creating App.tsx") from the same narration history;
+    // shown as a collapsed Activity row on assistant bubbles.
+    activity: string[];
     // For optimistic (local) user bubbles only. Records the latest server
     // version number known at submit time. The bubble is dropped from the
     // merged view once the server has produced a higher version — that's the
