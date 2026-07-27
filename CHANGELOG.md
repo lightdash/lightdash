@@ -1,3 +1,15 @@
+# [0.3485.0](https://github.com/lightdash/lightdash/compare/0.3484.1...0.3485.0) (2026-07-27)
+
+
+### Bug Fixes
+
+* prevent SQL runner layout jitter ([#26208](https://github.com/lightdash/lightdash/issues/26208)) ([910bf50](https://github.com/lightdash/lightdash/commit/910bf5077d2f18085fabf5fbcf38fad1054267b7))
+
+
+### Features
+
+* show app state as kv pairs in scheduler form ([#26181](https://github.com/lightdash/lightdash/issues/26181)) ([0761fa9](https://github.com/lightdash/lightdash/commit/0761fa90a7e763d56f5bae548363d7586b8de9cf))
+
 ## [0.3484.1](https://github.com/lightdash/lightdash/compare/0.3484.0...0.3484.1) (2026-07-27)
 
 
