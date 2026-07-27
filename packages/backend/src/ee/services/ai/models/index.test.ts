@@ -313,6 +313,23 @@ describe('filterModelsForOrg', () => {
         });
         expect(withKey.map((p) => p.name)).toContain('claude-opus-4-8');
     });
+
+    it('offers claude-opus-5 to every org, with or without key access', () => {
+        const realPresets = MODEL_PRESETS.anthropic;
+        expect(realPresets.some((p) => p.name === 'claude-opus-5')).toBe(true);
+
+        const noKey = filterModelsForOrg(realPresets, {
+            modelVisibility: null,
+            keyAccessibleModelIds: null,
+        });
+        expect(noKey.map((p) => p.name)).toContain('claude-opus-5');
+
+        const withKey = filterModelsForOrg(realPresets, {
+            modelVisibility: null,
+            keyAccessibleModelIds: { anthropic: ['claude-opus-5'] },
+        });
+        expect(withKey.map((p) => p.name)).toContain('claude-opus-5');
+    });
 });
 
 describe('applyStreamingCapability', () => {
