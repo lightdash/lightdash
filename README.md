@@ -50,6 +50,8 @@ Build custom reports, workbooks, slide decks, forecasting tools, and customer-fa
 
 Define metrics, dimensions, joins, descriptions, caching, and access rules in one governed layer. Use dbt projects or standalone Lightdash YAML pointed at your warehouse.
 
+[View the context-layer visual](https://context-layer-teal.vercel.app/)
+
 ### Embedded analytics
 
 Embed dashboards, AI agents, and Data Apps in your product with the Lightdash SDK, row-level security, user attributes, and customer-facing permissions.
