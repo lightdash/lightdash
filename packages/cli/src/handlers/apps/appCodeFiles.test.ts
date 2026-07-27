@@ -319,6 +319,33 @@ describe('resolveAppFolderName', () => {
             appFolderName(code.manifest.name, code.manifest.appUuid, new Set()),
         );
     });
+
+    // Defense-in-depth: a tampered manifest (or a server of unknown version)
+    // must not be able to steer the write path via an invalid slug.
+    it('falls back to appFolderName when the slug is a path-traversal attempt', () => {
+        const code = makeCode(
+            'abcd1234-ef56-7890-ab12-cdef01234567',
+            'proj-uuid-1',
+        );
+        expect(
+            resolveAppFolderName(
+                { ...code.manifest, slug: '../../../../tmp/evil' },
+                new Set(),
+            ),
+        ).toBe(
+            appFolderName(code.manifest.name, code.manifest.appUuid, new Set()),
+        );
+    });
+
+    it('still uses a valid manifest slug (unaffected by the new validation)', () => {
+        const code = makeCode('app-uuid-1', 'proj-uuid-1');
+        expect(
+            resolveAppFolderName(
+                { ...code.manifest, slug: 'sales-app-2' },
+                new Set(),
+            ),
+        ).toBe('sales-app-2');
+    });
 });
 
 // ─── readDependenciesFromDir ──────────────────────────────────────────────────

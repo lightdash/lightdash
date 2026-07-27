@@ -31,6 +31,7 @@ import {
     getVisibleDataAppClaudeModels,
     isDashboardChartTileType,
     isExploreError,
+    isValidDataAppSlug,
     MAX_APP_FILES_PER_VERSION,
     MissingConfigError,
     NotFoundError,
@@ -9460,6 +9461,15 @@ export class AppGenerateService extends BaseService {
         // missing → create with that exact slug. targetAppUuid remains as the
         // fallback for pre-slug bundles/CLIs; createNew forces a fresh app.
         const manifestSlug = code.manifest.slug;
+        // Reject before any lookup: the slug becomes a project-scoped index
+        // key here and a filesystem folder name on the CLI's next download —
+        // a hand-edited manifest (e.g. `slug: ../../../../tmp/evil`) must
+        // never reach either use unvalidated.
+        if (manifestSlug !== undefined && !isValidDataAppSlug(manifestSlug)) {
+            throw new ParameterError(
+                `Invalid slug "${manifestSlug}" in the app manifest. Slugs must start with a lowercase letter or digit and contain only lowercase letters, digits, and hyphens, up to 255 characters. Re-download the app or fix lightdash-app.yml.`,
+            );
+        }
         let existingApp: Awaited<ReturnType<AppModel['findApp']>> | undefined;
         if (body.createNew) {
             existingApp = undefined;

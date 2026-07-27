@@ -1071,3 +1071,72 @@ describe('importAppCode slug identity', () => {
         expect(appModel.createWithVersion).not.toHaveBeenCalled();
     });
 });
+
+describe('importAppCode slug validation', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        s3SendSpy.mockResolvedValue({});
+    });
+
+    it('rejects a path-traversal slug before any app lookup', async () => {
+        const { service, appModel } = buildService();
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(undefined, { slug: '../evil' }),
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow(ParameterError);
+
+        expect(appModel.findAppBySlug).not.toHaveBeenCalled();
+        expect(appModel.findApp).not.toHaveBeenCalled();
+        expect(appModel.createWithVersion).not.toHaveBeenCalled();
+    });
+
+    it('rejects an absolute-path-style slug before any app lookup', async () => {
+        const { service, appModel } = buildService();
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(undefined, { slug: '/etc/passwd' }),
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow(ParameterError);
+
+        expect(appModel.findAppBySlug).not.toHaveBeenCalled();
+    });
+
+    it('rejects an over-length (300 char) slug before any app lookup', async () => {
+        const { service, appModel } = buildService();
+        const longSlug = 'a'.repeat(300);
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(undefined, { slug: longSlug }),
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow(ParameterError);
+
+        expect(appModel.findAppBySlug).not.toHaveBeenCalled();
+    });
+
+    it('still accepts a valid slug and proceeds to create as before', async () => {
+        const { service, appModel } = buildService();
+        appModel.findAppBySlug.mockResolvedValue(undefined);
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, { slug: 'my-app-2' }),
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('create');
+        expect(appModel.findAppBySlug).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            'my-app-2',
+        );
+        expect(appModel.createWithVersion).toHaveBeenCalledWith(
+            expect.objectContaining({ slug: 'my-app-2' }),
+            { version: 1, prompt: '' },
+            'pending',
+            expect.any(Object),
+            undefined,
+            undefined,
+        );
+    });
+});

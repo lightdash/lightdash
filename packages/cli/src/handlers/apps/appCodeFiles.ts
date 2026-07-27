@@ -1,6 +1,7 @@
 import {
     generateSlug,
     getErrorMessage,
+    isValidDataAppSlug,
     validateDataAppCode,
     type DataAppCode,
     type DataAppCodeFile,
@@ -161,9 +162,16 @@ export const buildImportBody = (
 export const resolveAppFolderName = (
     manifest: DataAppManifest,
     takenFolders: Set<string>,
-): string =>
-    manifest.slug ??
-    appFolderName(manifest.name, manifest.appUuid, takenFolders);
+): string => {
+    // Defense-in-depth: a server of unknown version, or a hand-tampered
+    // manifest on disk, must not steer the local write path via an
+    // unvalidated slug (e.g. `../../etc`) — only trust it once it passes the
+    // same shape check the server enforces on upload.
+    if (manifest.slug !== undefined && isValidDataAppSlug(manifest.slug)) {
+        return manifest.slug;
+    }
+    return appFolderName(manifest.name, manifest.appUuid, takenFolders);
+};
 
 /**
  * Writes server-provided dependency files as the app folder's package.json +

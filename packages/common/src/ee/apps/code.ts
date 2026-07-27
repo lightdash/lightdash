@@ -400,6 +400,28 @@ export function validateDataAppDependencies(
     return { customDeps };
 }
 
+// Matches every generateSlug() output; also caps length defensively (the DB
+// unique index already rejects absurdly long values, but reject loudly here
+// instead of relying on that).
+const MAX_DATA_APP_SLUG_LENGTH = 255;
+const DATA_APP_SLUG_RE = /^[a-z0-9][a-z0-9-]*$/;
+
+/**
+ * Validates a data app manifest slug's shape. The slug is used as a folder
+ * name client-side (CLI download) and a project-scoped lookup key
+ * server-side (upload identity resolution) — an unvalidated value (e.g. a
+ * hand-edited `../../etc` in lightdash-app.yml) must never be trusted for
+ * either of those uses.
+ */
+export function isValidDataAppSlug(slug: string): boolean {
+    return (
+        typeof slug === 'string' &&
+        slug.length > 0 &&
+        slug.length <= MAX_DATA_APP_SLUG_LENGTH &&
+        DATA_APP_SLUG_RE.test(slug)
+    );
+}
+
 const isSafeRelPath = (p: string): boolean => {
     if (typeof p !== 'string' || p.length === 0 || p.startsWith('/'))
         return false;
