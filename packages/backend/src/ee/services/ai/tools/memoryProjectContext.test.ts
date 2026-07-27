@@ -16,6 +16,7 @@ const memories = [
     {
         slug: 'completed-order-revenue',
         content: 'Use completed orders for recognized revenue.',
+        scope: 'project' as const,
         terms: ['recognized revenue'],
         objects: [{ type: 'explore' as const, name: 'orders' }],
         ageDays: 0,

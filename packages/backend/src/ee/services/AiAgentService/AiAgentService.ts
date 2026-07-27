@@ -7749,6 +7749,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 return memories.map((memory) => ({
                     slug: memory.slug,
                     content: memory.raw_memory,
+                    scope: memory.scope,
                     terms: memory.terms,
                     objects: memory.objects,
                     ageDays: Math.max(

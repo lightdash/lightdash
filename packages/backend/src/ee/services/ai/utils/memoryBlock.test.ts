@@ -1,3 +1,4 @@
+import type { AiAgentMemoryScope } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     AI_AGENT_MEMORY_BLOCK_MAX_CHARS,
@@ -9,9 +10,11 @@ import {
 const memory = (
     slug: string,
     content = 'Use completed orders for recognized revenue.',
+    scope: AiAgentMemoryScope = 'project',
 ): AiAgentMemoryBlockEntry => ({
     slug,
     content,
+    scope,
     ageDays: 2,
     objects: [
         { type: 'explore', name: 'orders' },
@@ -20,12 +23,20 @@ const memory = (
 });
 
 describe('renderMemoryBlock', () => {
-    it('renders entry fences with age and object references', () => {
+    it('renders entry fences with scope, age and object references', () => {
         expect(renderMemoryBlock([memory('recognized-revenue')])).toBe(
             '<ld-memories>\n' +
-                '<ld-memory id="recognized-revenue" age_days="2" objects="explore &quot;orders&quot;, field &quot;orders.status&quot; in explore &quot;orders&quot;">Use completed orders for recognized revenue.</ld-memory>\n' +
+                '<ld-memory id="recognized-revenue" scope="project" age_days="2" objects="explore &quot;orders&quot;, field &quot;orders.status&quot; in explore &quot;orders&quot;">Use completed orders for recognized revenue.</ld-memory>\n' +
                 '</ld-memories>',
         );
+    });
+
+    it('renders the user scope on its own entries', () => {
+        expect(
+            renderMemoryBlock([
+                memory('prefers-bar-charts', 'Prefers bar charts.', 'user'),
+            ]),
+        ).toContain('<ld-memory id="prefers-bar-charts" scope="user" ');
     });
 
     it('keeps memory content inside its fence', () => {
@@ -38,9 +49,14 @@ describe('renderMemoryBlock', () => {
         );
     });
 
-    it('strips exactly what the renderer injects', () => {
-        const block = renderMemoryBlock([memory('recognized-revenue')])!;
+    it('strips exactly what the renderer injects, scope attribute included', () => {
+        const block = renderMemoryBlock([
+            memory('recognized-revenue'),
+            memory('prefers-bar-charts', 'Prefers bar charts.', 'user'),
+        ])!;
 
+        expect(block).toContain('scope="user"');
+        expect(block).toContain('scope="project"');
         expect(stripMemoryBlocks(block)).toBe('');
         expect(stripMemoryBlocks(`${block}Question`)).toBe('Question');
     });
