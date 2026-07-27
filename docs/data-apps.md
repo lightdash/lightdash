@@ -12,8 +12,9 @@ the hood, Claude Code runs inside an isolated sandbox, reads the project's dbt m
 builds it with Vite, and deploys the artifacts to S3. The resulting app is served in a sandboxed iframe and can query
 Lightdash metrics through a secure postMessage bridge.
 
-When creating a new app, users start from a **Starter Template** (Dashboard / Slide Show / PDF Report / Custom) and
-answer a few clarifying questions to seed the first prompt. See [Starter Templates](#starter-templates) below.
+When creating a new app, users optionally pick a **Starter Template** (Dashboard / Slide Show / PDF Report / Data app
+visualization) and may be asked a few clarifying questions before the build starts. See
+[Starter Templates](#starter-templates) below.
 
 The feature is enterprise-only, gated behind the `APP_RUNTIME_ENABLED` flag and the `view:DataApp` / `create:DataApp` / `manage:DataApp` permission scopes (see [Permissions](#permissions) below).
 
@@ -67,30 +68,36 @@ flowchart LR
 
 ### Starter Templates
 
-To avoid the blank-page problem, the **new-app** flow opens with a 3-stage wizard instead of an empty chat:
+To avoid the blank-page problem, the **new-app** flow opens with a template picker above the chat textarea:
 
-1. **Pick a template** - `Dashboard`, `Slide Show`, `PDF Report`, or `Custom`. Each describes a layout intent.
-2. **Answer 2-3 clarifying questions** - template-specific (e.g., topic, audience, key metrics for Dashboard).
-   "Custom" skips this stage.
-3. **Review & generate** - the wizard composes a starting prompt from the answers, prefills the textarea, and
-   the user can edit it before hitting send.
+1. **Pick a template** (optional) - `Dashboard`, `Slide Show`, `PDF Report`, or `Data app visualization`. Each
+   describes a layout intent. Clicking the selected card again deselects it; picking nothing is the "custom" case.
+2. **Describe the app** in the textarea and send. A [pre-build clarifier](#pre-build-clarifying-questions) may ask
+   0-4 questions before the build kicks off.
 
-Templates are **only meaningful for v1**. Iteration prompts (v2+) never see the wizard.
+Templates are **only meaningful for v1**. Iteration prompts (v2+) never see the picker.
+
+`Data app visualization` (`data_app_viz`) is a template like the others - same clarify and build path - but it produces
+a single reusable chart component rather than an app. It never runs a query: it receives `rows` plus a `fieldMapping`
+from `useVizContext()` and renders whatever the host explore hands it, and it declares the fields it reads as a
+`DataAppVizSchema` (structured output, not a file). The full contract is in `DATA_APP_VIZ_INSTRUCTIONS`
+(`AppGenerateService/templates.ts`).
 
 How the template flows through the stack:
 
-- The frontend sends a structured `template: 'dashboard' | 'slideshow' | 'pdf' | 'custom'` field on
-  `POST /api/v1/ee/projects/{projectUuid}/apps/`, alongside the user's prompt.
+- The frontend sends a structured `template: 'dashboard' | 'slideshow' | 'pdf' | 'custom' | 'data_app_viz'` field on
+  `POST /api/v1/ee/projects/{projectUuid}/apps/`, alongside the user's prompt. The picker itself never emits
+  `'custom'` - it sends nothing at all when no card is selected.
 - The backend `AppGenerateService` carries `template` into the `appGeneratePipeline` job payload.
 - During the `catalog` stage in `writeCatalogAndPrompt`, the backend prepends a template-specific instruction block
   (from `AppGenerateService/templates.ts`) to the prompt before writing it to `/tmp/prompt.txt`. This is the same
   prepend slot used today for chart references and image references.
 - For `template === 'custom'`, no instructions are prepended - Claude only sees the user's free-text prompt.
 - The chosen template is persisted on the `apps` row (`apps.template`) so the chip above the chat textarea
-  survives reload. `'custom'` is stored as `NULL` — it's the absence of a template, not a template itself, so
+  survives reload. Custom is stored as `NULL` — it's the absence of a template, not a template itself, so
   no chip is shown for custom apps. The template is set once at creation and is **not** editable afterwards:
-  once the wizard's prompt is composed, switching templates would leave the user's typed text out of sync with
-  a different instruction prepend, so we lock it in.
+  switching templates after the fact would leave the user's typed text out of sync with a different instruction
+  prepend, so we lock it in.
 - Templates only influence the first generation. Iteration prompts (v2+) never re-prepend instructions.
 
 Where the template metadata lives:
@@ -98,33 +105,48 @@ Where the template metadata lives:
 | Concern                                | Location                                                                                     |
 | -------------------------------------- | -------------------------------------------------------------------------------------------- |
 | Enum + request type                    | `packages/common/src/ee/apps/types.ts` (`DATA_APP_TEMPLATES`, `DataAppTemplate`)             |
-| Backend instructions                   | `packages/backend/src/ee/services/AppGenerateService/templates.ts`                           |
-| Frontend metadata + prompt composition | `packages/frontend/src/features/apps/templates.ts`                                           |
-| Wizard UI                              | `AppTemplatePicker.tsx`, `AppTemplateQuestions.tsx`; orchestrated by `pages/AppGenerate.tsx` |
+| Backend build instructions             | `packages/backend/src/ee/services/AppGenerateService/templates.ts`                           |
+| Backend clarifier prompts              | `packages/backend/src/ee/services/AppGenerateService/clarifierPrompts.ts`                    |
+| Frontend metadata                      | `packages/frontend/src/features/apps/templates.ts`                                           |
+| Picker UI                              | `AppTemplatePicker.tsx`; orchestrated by `pages/AppGenerate.tsx`                             |
 
 ### Pre-build clarifying questions
 
-There is a **second** clarifying-question flow that runs after the template wizard and before code generation. It's a
-single LLM call (`POST /api/v1/ee/projects/{projectUuid}/apps/clarify`) that returns 0–4 short questions whose answers
-would materially change what gets built. The user answers them inline in the chat before the build kicks off; their
-answers are sent back as `clarifications` on the eventual generate request and persisted on
-`app_versions.resources.clarifications` for chat rendering.
+After the user sends their prompt and before code generation, a single LLM call
+(`POST /api/v1/ee/projects/{projectUuid}/apps/clarify`) returns 0–4 short questions whose answers would materially
+change what gets built. The user answers them inline in the chat before the build kicks off; their answers are sent
+back as `clarifications` on the eventual generate request and persisted on `app_versions.resources.clarifications`
+for chat rendering.
 
 Properties of this flow:
 
 - **Stateless and best-effort.** No DB writes, no sandbox spin-up. The frontend ignores errors and falls through to
   build without clarifications — a clarifier outage must not block the actual feature. Capped at a 15s LLM timeout.
 - **First-build only.** Iteration prompts (v2+) skip clarify entirely; intent is already grounded in the prior version.
-- **Inputs the LLM sees.** Prompt + template + a compact catalog summary (top 30 tables, up to 5 dimensions/metrics
-  each) + the resources the user has already attached in the picker (chart names + their explores, dashboard name,
-  count of attached images).
+- **Two prompt variants, keyed on template.** Both live in `AppGenerateService/clarifierPrompts.ts`.
+  - `CLARIFY_APP_SYSTEM_PROMPT` — dashboard / slideshow / pdf / custom. Catalog-grounded, so it can ask which
+    tables or metrics to query, what default time range, and who the audience is.
+  - `CLARIFY_VIZ_SYSTEM_PROMPT` — `data_app_viz` only. A viz never runs a query, so questions about explores,
+    dimensions, metrics or time ranges are unanswerable at build time. The askable set is narrowed to what changes
+    the component or its declared `DataAppVizSchema`: chart type, whether a series/breakdown field is needed, and
+    whether the value axis carries one metric or several.
+- **Inputs the LLM sees.** Prompt + the resources the user has already attached in the picker (chart names + their
+  explores, dashboard name, count of attached images). For non-viz templates it also gets the app kind and a compact
+  catalog summary (top 30 tables, up to 5 dimensions/metrics each). **For `data_app_viz` the catalog summary is
+  neither sent nor fetched** — skipping the read is the point, since context the model can't act on only invites
+  questions the user can't answer.
+- **The response schema description is shared.** `clarifySchema`'s zod `.describe()` becomes JSON Schema on every
+  call, both variants, so it is deliberately worded template-neutrally ("what gets built", not "the app").
 - **What it deliberately doesn't do.** No sample-data fetch and no S3 image read for the clarify call. Sample rows and
   pixel content don't change _whether_ a question is worth asking, and skipping them keeps the call inside the 15s
   budget. Both happen later in the generate pipeline if opted in.
 - **Resources flow.** The frontend forwards the same `charts: { uuid, includeSampleData }[]`,
   `dashboard: { uuid, includeSampleData }`, and `imageIds` already in scope at the chat input. `includeSampleData` is
-  ignored at this stage. The system prompt explicitly tells the model not to ask which chart/dashboard/image to use
+  ignored at this stage. Both system prompts explicitly tell the model not to ask which chart/dashboard/image to use
   when the resources block is non-empty.
+
+Unit tests around this call can only pin what is _sent_ to the model — the messages and the schema — never what comes
+back. Changes to either prompt need verifying against a real model.
 
 ### Sample data (opt-in)
 
@@ -550,7 +572,7 @@ type DbApp = {
   project_uuid: string;
   space_uuid: string | null;
   sandbox_id: string | null; // E2B sandbox ID for resume
-  template: 'dashboard' | 'slideshow' | 'pdf' | null; // null = custom (or pre-persistence)
+  template: 'dashboard' | 'slideshow' | 'pdf' | 'data_app_viz' | null; // null = custom (or pre-persistence)
   created_at: Date;
   created_by_user_uuid: string;
   deleted_at: Date | null; // soft delete
