@@ -19,7 +19,7 @@ import {
     IconFileSearch,
     IconPlayerStop,
     IconPlugConnected,
-    IconReportSearch,
+    IconTelescope,
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -143,7 +143,7 @@ export const DeepResearchRunCard = ({
                 <Group justify="space-between" align="flex-start" wrap="nowrap">
                     <Group align="flex-start" wrap="nowrap">
                         <ThemeIcon color="indigo" variant="light" radius="md">
-                            <MantineIcon icon={IconReportSearch} size={18} />
+                            <MantineIcon icon={IconTelescope} size={18} />
                         </ThemeIcon>
                         <Stack gap={3}>
                             <Group gap="xs">

@@ -17,7 +17,7 @@ import { RichTextEditor } from '@mantine-8/tiptap';
 import {
     IconArrowUp,
     IconPlayerStop,
-    IconReportSearch,
+    IconTelescope,
     IconTerminal2,
 } from '@tabler/icons-react';
 import Mention from '@tiptap/extension-mention';
@@ -747,7 +747,7 @@ export const AgentChatInput = ({
                                     className={styles.minimalResearchIndicator}
                                 >
                                     <MantineIcon
-                                        icon={IconReportSearch}
+                                        icon={IconTelescope}
                                         size={15}
                                         stroke={1.8}
                                     />
@@ -853,7 +853,7 @@ export const AgentChatInput = ({
                                 <MantineIcon
                                     icon={
                                         composerMode === 'deep_research'
-                                            ? IconReportSearch
+                                            ? IconTelescope
                                             : IconArrowUp
                                     }
                                     color="ldGray.0"
@@ -925,7 +925,7 @@ export const AgentChatInput = ({
                         aria-label="Deep research mode"
                     >
                         <MantineIcon
-                            icon={IconReportSearch}
+                            icon={IconTelescope}
                             size={15}
                             stroke={1.8}
                         />
@@ -1064,7 +1064,7 @@ export const AgentChatInput = ({
                                 <MantineIcon
                                     icon={
                                         composerMode === 'deep_research'
-                                            ? IconReportSearch
+                                            ? IconTelescope
                                             : IconArrowUp
                                     }
                                     color="ldGray.0"

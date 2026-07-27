@@ -1,5 +1,5 @@
 import { Badge, Button, Group } from '@mantine-8/core';
-import { IconReportSearch } from '@tabler/icons-react';
+import { IconTelescope } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 
 export type AgentComposerMode = 'ask' | 'deep_research';
@@ -18,7 +18,7 @@ export const DeepResearchModeControl = ({ mode, onModeChange }: Props) => {
             variant={isDeepResearch ? 'light' : 'subtle'}
             color="blue"
             leftSection={
-                <MantineIcon icon={IconReportSearch} size={14} stroke={1.8} />
+                <MantineIcon icon={IconTelescope} size={14} stroke={1.8} />
             }
             onClick={() =>
                 onModeChange(isDeepResearch ? 'ask' : 'deep_research')
