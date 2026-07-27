@@ -255,15 +255,44 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     </Menu.Item>
                 ) : null}
 
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconTrash} />}
-                    color="red"
-                    onClick={() => {
-                        dispatch(explorerActions.removeField(itemFieldId));
-                    }}
-                >
-                    Remove
-                </Menu.Item>
+                {isItemAdditionalMetric && !isPopAdditionalMetric ? (
+                    <>
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconMinus} />}
+                            onClick={() => {
+                                dispatch(
+                                    explorerActions.toggleMetric(itemFieldId),
+                                );
+                            }}
+                        >
+                            Remove
+                        </Menu.Item>
+
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            color="red"
+                            onClick={() => {
+                                dispatch(
+                                    explorerActions.removeAdditionalMetric(
+                                        itemFieldId,
+                                    ),
+                                );
+                            }}
+                        >
+                            Delete custom metric
+                        </Menu.Item>
+                    </>
+                ) : (
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconTrash} />}
+                        color="red"
+                        onClick={() => {
+                            dispatch(explorerActions.removeField(itemFieldId));
+                        }}
+                    >
+                        Remove
+                    </Menu.Item>
+                )}
             </>
         );
     } else if (meta?.isInvalidItem) {
