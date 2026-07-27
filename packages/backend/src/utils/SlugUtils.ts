@@ -1,6 +1,7 @@
 import { assertUnreachable, generateSlug } from '@lightdash/common';
 import { Knex } from 'knex';
 import { customAlphabet as createCustomNanoid } from 'nanoid';
+import { AppsTableName } from '../database/entities/apps';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
@@ -8,6 +9,7 @@ import { SavedSqlTableName } from '../database/entities/savedSql';
 import { SpaceTableName } from '../database/entities/spaces';
 
 type SlugTables =
+    | typeof AppsTableName
     | typeof SavedChartsTableName
     | typeof SavedSqlTableName
     | typeof DashboardsTableName
@@ -104,7 +106,11 @@ export const generateUniqueSlugScopedToProject = async (
     tableName: SlugTables,
     name: string,
 ) => {
-    const baseSlug = generateSlug(name);
+    const generatedSlug = generateSlug(name);
+    const baseSlug =
+        tableName === AppsTableName
+            ? generatedSlug.slice(0, 255)
+            : generatedSlug;
     let matchingSlugs: string[];
     switch (tableName) {
         case SavedChartsTableName:
@@ -161,6 +167,13 @@ export const generateUniqueSlugScopedToProject = async (
                 .where(`${SavedSqlTableName}.slug`, 'like', `${baseSlug}%`)
                 .pluck(`${SavedSqlTableName}.slug`);
             break;
+        case AppsTableName:
+            matchingSlugs = await trx(AppsTableName)
+                .where(`${AppsTableName}.project_uuid`, projectUuid)
+                .select(`${AppsTableName}.slug`)
+                .where(`${AppsTableName}.slug`, 'like', `${baseSlug}%`)
+                .pluck(`${AppsTableName}.slug`);
+            break;
         case SpaceTableName:
             throw new Error('Not implemented');
         default:
@@ -170,11 +183,15 @@ export const generateUniqueSlugScopedToProject = async (
             );
     }
 
-    let slug = generateSlug(name);
+    let slug = baseSlug;
     let inc = 0;
     while (matchingSlugs.includes(slug)) {
         inc += 1;
-        slug = `${baseSlug}-${inc}`; // generate new slug with number suffix
+        const suffix = `-${inc}`;
+        slug =
+            tableName === AppsTableName
+                ? `${baseSlug.slice(0, 255 - suffix.length)}${suffix}`
+                : `${baseSlug}${suffix}`;
     }
     return slug;
 };

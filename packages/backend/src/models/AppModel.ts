@@ -1,6 +1,7 @@
 import {
     APP_VERSION_CANCELLED_BY_USER,
     DATA_APP_VIZ_TEMPLATE,
+    generateSlug,
     NotFoundError,
     ProjectType,
     type AppVersionDependencies,
@@ -10,6 +11,7 @@ import {
     type KnexPaginatedData,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { v4 as uuidv4 } from 'uuid';
 import {
     APP_VERSION_TERMINAL_STATUSES,
     AppsTableName,
@@ -31,10 +33,16 @@ import { ProjectTableName } from '../database/entities/projects';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
+import {
+    acquireProjectSlugLock,
+    generateUniqueSlugScopedToProject,
+} from '../utils/SlugUtils';
 
 type AppModelArguments = {
     database: Knex;
 };
+
+const AppSlugSequence = 'apps_slug_sequence';
 
 export class AppModel {
     private readonly database: Knex;
@@ -63,8 +71,31 @@ export class AppModel {
         vizSchema?: DataAppVizSchema,
     ): Promise<{ app: DbApp; version: DbAppVersion }> {
         return this.database.transaction(async (trx) => {
+            const appId = app.app_id ?? uuidv4();
+            const appName = app.name ?? '';
+            const hasSlugName = /[a-z0-9]/i.test(appName);
+            const slugSource = hasSlugName
+                ? appName
+                : (
+                      await trx.raw<{ rows: Array<{ slug: string }> }>(
+                          `SELECT 'app-' || nextval(?)::text AS slug`,
+                          [AppSlugSequence],
+                      )
+                  ).rows[0].slug;
+            const baseSlug = generateSlug(slugSource).slice(0, 255);
+            await acquireProjectSlugLock(trx, app.project_uuid, baseSlug);
+            const slug = await generateUniqueSlugScopedToProject(
+                trx,
+                app.project_uuid,
+                AppsTableName,
+                baseSlug,
+            );
             const [appRow] = await trx(AppsTableName)
-                .insert(app)
+                .insert({
+                    ...app,
+                    app_id: appId,
+                    slug,
+                })
                 .returning('*');
             const [versionRow] = await trx(AppVersionsTableName)
                 .insert({
