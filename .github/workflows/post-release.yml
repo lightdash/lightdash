@@ -477,7 +477,33 @@ jobs:
           git push origin main
 
   # ============================================================================
-  # Job 4: Publish versioned E2B templates
+  # Job 4: Update Helm chart default version
+  # ============================================================================
+  update-helm-chart:
+    name: Update Helm Chart Version
+    needs: build-and-push-images
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      # Dispatches the existing version-bump workflow in lightdash/helm-charts,
+      # which bumps Chart.yaml (appVersion + chart patch version) and maintains
+      # a rolling PR against that repo.
+      - name: Trigger helm-charts version bump
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION="${TAG#v}"
+          gh workflow run increment-lightdash-app-version.yml \
+            --repo lightdash/helm-charts \
+            -f lightdash-version="$VERSION"
+
+  # ============================================================================
+  # Job 5: Publish versioned E2B templates
   # ============================================================================
   e2b-templates:
     name: Publish ${{ matrix.template.display_name }} (${{ matrix.region }})
