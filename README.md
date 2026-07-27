@@ -24,7 +24,7 @@ Data teams can build and maintain analytics with any AI agent, then use the term
 
 The fastest way to use Lightdash is [Lightdash Cloud](https://www.lightdash.com/start): no infrastructure to run, always up to date, and ready for AI agents, Data Apps, scheduled deliveries, embedding, and enterprise controls.
 
-Want to explore first? Try the [live demo](https://demo.lightdash.com/login), read the [docs](https://docs.lightdash.com), or [book a walkthrough](https://www.lightdash.com/start).
+Want to explore first? Try the [live demo](https://demo.lightdash.com/login), read the [docs](https://docs.lightdash.com), or [book a sales call](https://lightdash.cal.com/ian/30).
 
 ## What you can build
 
@@ -83,9 +83,9 @@ Sign up for [Lightdash Cloud](https://www.lightdash.com/start) to get a hosted w
 ### Self-host
 
 Run Lightdash on your own infrastructure with Docker or Kubernetes.
+If you're deploying to production, start with the [production deployment checklist](https://docs.lightdash.com/self-host/production-deployment-checklist).
 
 - [Self-hosting guide](https://docs.lightdash.com/self-host/self-host-lightdash)
-- [Production deployment checklist](https://docs.lightdash.com/self-host/production-deployment-checklist)
 - [Helm charts](https://github.com/lightdash/helm-charts)
 
 ### Local development
