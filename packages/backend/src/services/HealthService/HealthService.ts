@@ -13,10 +13,12 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { VERSION } from '../../version';
 import { BaseService } from '../BaseService';
+import { LicenseService } from '../LicenseService/LicenseService';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 
 type HealthServiceArguments = {
     lightdashConfig: LightdashConfig;
+    licenseService: LicenseService;
     organizationModel: OrganizationModel;
     migrationModel: MigrationModel;
     organizationSettingsModel: OrganizationSettingsModel;
@@ -24,6 +26,8 @@ type HealthServiceArguments = {
 
 export class HealthService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
+
+    private readonly licenseService: LicenseService;
 
     private readonly organizationModel: OrganizationModel;
 
@@ -35,10 +39,12 @@ export class HealthService extends BaseService {
         organizationModel,
         migrationModel,
         lightdashConfig,
+        licenseService,
         organizationSettingsModel,
     }: HealthServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
+        this.licenseService = licenseService;
         this.organizationModel = organizationModel;
         this.migrationModel = migrationModel;
         this.organizationSettingsModel = organizationSettingsModel;
@@ -119,6 +125,7 @@ export class HealthService extends BaseService {
 
         return {
             healthy: true,
+            license: this.licenseService.getLicenseStatus(),
             mode: this.lightdashConfig.mode,
             version: VERSION,
             localDbtEnabled,

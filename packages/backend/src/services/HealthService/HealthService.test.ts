@@ -5,6 +5,7 @@ import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
+import { LicenseService } from '../LicenseService/LicenseService';
 import { HealthService } from './HealthService';
 import { BaseResponse, userMock } from './HealthService.mock';
 
@@ -31,10 +32,23 @@ const organizationSettingsModel = {
     get: vi.fn(async () => ({ queryLimit: null, csvCellsLimit: null })),
 };
 
+const licenseService = new LicenseService({ licenseKey: null });
+const invalidLicenseService = new LicenseService({
+    licenseKey: 'invalid-license-key',
+});
+const validLicenseService = new LicenseService({
+    licenseKey: 'valid-license-key',
+});
+vi.spyOn(validLicenseService, 'getLicenseStatus').mockReturnValue({
+    hasLicenseKey: true,
+    valid: true,
+});
+
 describe('health', () => {
     const healthService = new HealthService({
         organizationModel: organizationModel as unknown as OrganizationModel,
         lightdashConfig: lightdashConfigMock,
+        licenseService,
         migrationModel: migrationModel as unknown as MigrationModel,
         organizationSettingsModel:
             organizationSettingsModel as unknown as OrganizationSettingsModel,
@@ -84,8 +98,11 @@ describe('health', () => {
                 organizationModel as unknown as OrganizationModel,
             lightdashConfig: {
                 ...lightdashConfigMock,
-                license: { licenseKey: 'test-license-key' },
+                license: {
+                    licenseKey: 'test-license-key',
+                },
             },
+            licenseService,
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
@@ -95,6 +112,48 @@ describe('health', () => {
                 .hasPlaygroundProjects,
         ).toBe(true);
     });
+    it('returns the enterprise license validation result', async () => {
+        expect((await healthService.getHealthState(undefined)).license).toEqual(
+            {
+                hasLicenseKey: false,
+                valid: false,
+            },
+        );
+
+        const invalidService = new HealthService({
+            organizationModel:
+                organizationModel as unknown as OrganizationModel,
+            lightdashConfig: lightdashConfigMock,
+            licenseService: invalidLicenseService,
+            migrationModel: migrationModel as unknown as MigrationModel,
+            organizationSettingsModel:
+                organizationSettingsModel as unknown as OrganizationSettingsModel,
+        });
+
+        expect(
+            (await invalidService.getHealthState(undefined)).license,
+        ).toEqual({
+            hasLicenseKey: true,
+            valid: false,
+        });
+
+        const validatedService = new HealthService({
+            organizationModel:
+                organizationModel as unknown as OrganizationModel,
+            lightdashConfig: lightdashConfigMock,
+            licenseService: validLicenseService,
+            migrationModel: migrationModel as unknown as MigrationModel,
+            organizationSettingsModel:
+                organizationSettingsModel as unknown as OrganizationSettingsModel,
+        });
+
+        expect(
+            (await validatedService.getHealthState(undefined)).license,
+        ).toEqual({
+            hasLicenseKey: true,
+            valid: true,
+        });
+    });
     it('Should return localDbtEnabled false when in cloud beta mode', async () => {
         const service = new HealthService({
             organizationModel:
@@ -103,6 +162,7 @@ describe('health', () => {
                 ...lightdashConfigMock,
                 mode: LightdashMode.CLOUD_BETA,
             },
+            licenseService,
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
@@ -181,6 +241,7 @@ describe('health', () => {
                         identityVerificationSecret: testSecret,
                     },
                 },
+                licenseService,
                 migrationModel: migrationModel as unknown as MigrationModel,
                 organizationSettingsModel:
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
@@ -201,6 +262,7 @@ describe('health', () => {
                         identityVerificationSecret: testSecret,
                     },
                 },
+                licenseService,
                 migrationModel: migrationModel as unknown as MigrationModel,
                 organizationSettingsModel:
                     organizationSettingsModel as unknown as OrganizationSettingsModel,

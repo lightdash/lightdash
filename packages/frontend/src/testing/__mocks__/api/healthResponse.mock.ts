@@ -5,6 +5,10 @@ export default function mockHealthResponse(
 ): HealthState {
     return {
         healthy: true,
+        license: {
+            hasLicenseKey: false,
+            valid: false,
+        },
         mode: LightdashMode.CLOUD_BETA,
         version: '0.0.0',
         localDbtEnabled: true,

@@ -1,4 +1,3 @@
-import { ForbiddenError } from '@lightdash/common';
 import express, { Express } from 'express';
 import { AppArguments } from '../App';
 import {
@@ -84,6 +83,7 @@ import { EmbedService } from './services/EmbedService/EmbedService';
 import { ExternalConnectionCoderService } from './services/ExternalConnectionCoderService/ExternalConnectionCoderService';
 import { ExternalConnectionService } from './services/ExternalConnectionService/ExternalConnectionService';
 import { GoogleServiceAccountTokenProvider } from './services/ExternalConnectionService/GoogleServiceAccountTokenProvider';
+import { EnterpriseLicenseService } from './services/LicenseService/LicenseService';
 import { ManagedAgentService } from './services/ManagedAgentService/ManagedAgentService';
 import { McpService } from './services/McpService/McpService';
 import { OnboardingAgentService } from './services/OnboardingAgentService/OnboardingAgentService';
@@ -126,9 +126,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             `Enterprise license for ${lightdashConfig.siteUrl} is valid.`,
         );
     } else {
-        throw new ForbiddenError(
+        Logger.warn(
             `Enterprise license for ${lightdashConfig.siteUrl} ${license.detail} [${license.code}]`,
         );
+        return {};
     }
 
     // Register EE-specific NATS streams
@@ -136,6 +137,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
 
     return {
         serviceProviders: {
+            licenseService: () =>
+                new EnterpriseLicenseService({
+                    licenseKey: lightdashConfig.license.licenseKey,
+                }),
             aiAgentMemoryService: ({
                 models,
                 clients,
