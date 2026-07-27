@@ -1,3 +1,10 @@
+# [0.3478.0](https://github.com/lightdash/lightdash/compare/0.3477.0...0.3478.0) (2026-07-27)
+
+
+### Features
+
+* add AI agent memory prometheus metrics ([#26149](https://github.com/lightdash/lightdash/issues/26149)) ([5eabe63](https://github.com/lightdash/lightdash/commit/5eabe63699bff7764e2d019a637e7267618d79ea))
+
 # [0.3477.0](https://github.com/lightdash/lightdash/compare/0.3476.1...0.3477.0) (2026-07-27)
 
 
