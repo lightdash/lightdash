@@ -42,6 +42,7 @@
         "react": "^18.x || ^19.x"
     },
     "devDependencies": {
+        "@lightdash/common": "workspace:*",
         "@types/node": "22.13.1",
         "@types/react": "19.2.2",
         "jsdom": "26.1.0",
