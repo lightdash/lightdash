@@ -9451,14 +9451,29 @@ export class AppGenerateService extends BaseService {
             }
         }
 
-        // Determine mode: append to existing app or create new one
-        const existingApp = body.targetAppUuid
-            ? await this.appModel.findApp(body.targetAppUuid, projectUuid)
-            : undefined;
-        if (body.targetAppUuid && existingApp === undefined) {
-            throw new ParameterError(
-                `App ${body.targetAppUuid} not found in project ${projectUuid}`,
+        // Identity resolution (charts-as-code pattern): the manifest slug is
+        // matched against the TARGET project — found → append a version,
+        // missing → create with that exact slug. targetAppUuid remains as the
+        // fallback for pre-slug bundles/CLIs; createNew forces a fresh app.
+        const manifestSlug = code.manifest.slug;
+        let existingApp: Awaited<ReturnType<AppModel['findApp']>> | undefined;
+        if (body.createNew) {
+            existingApp = undefined;
+        } else if (manifestSlug !== undefined) {
+            existingApp = await this.appModel.findAppBySlug(
+                projectUuid,
+                manifestSlug,
             );
+        } else if (body.targetAppUuid) {
+            existingApp = await this.appModel.findApp(
+                body.targetAppUuid,
+                projectUuid,
+            );
+            if (existingApp === undefined) {
+                throw new ParameterError(
+                    `App ${body.targetAppUuid} not found in project ${projectUuid}`,
+                );
+            }
         }
         const action: 'create' | 'append' =
             existingApp !== undefined ? 'append' : 'create';
@@ -9542,6 +9557,11 @@ export class AppGenerateService extends BaseService {
                     description: code.manifest.description,
                     template: code.manifest.template,
                     space_uuid: body.spaceUuid ?? null,
+                    // Round-trip the manifest slug exactly; createNew and
+                    // pre-slug bundles let the model generate a unique one.
+                    ...(manifestSlug !== undefined && !body.createNew
+                        ? { slug: manifestSlug }
+                        : {}),
                 },
                 { version: newVersion, prompt: '' },
                 'pending',

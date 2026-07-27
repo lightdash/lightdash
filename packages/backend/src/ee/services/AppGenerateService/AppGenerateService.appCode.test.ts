@@ -108,6 +108,7 @@ function buildService(
 ) {
     const appModel = {
         findApp: vi.fn(),
+        findAppBySlug: vi.fn(),
         getApp: vi.fn(),
         createWithVersion: vi.fn().mockResolvedValue({
             app: { app_id: NEW_APP_UUID },
@@ -956,6 +957,117 @@ describe('AppGenerateService.importAppCode external connection links', () => {
             } as ImportAppCodeRequestBody),
         ).rejects.toThrow(ForbiddenError);
 
+        expect(appModel.createWithVersion).not.toHaveBeenCalled();
+    });
+});
+
+describe('importAppCode slug identity', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        s3SendSpy.mockResolvedValue({});
+    });
+
+    const existingAppRow = {
+        app_id: EXISTING_APP_UUID,
+        project_uuid: PROJECT_UUID,
+        space_uuid: null,
+        created_by_user_uuid: USER_UUID,
+        organization_uuid: PROJECT_ORG_UUID,
+        name: 'Test App',
+        description: 'A test app',
+    };
+
+    it('appends when the manifest slug matches an app in the target project', async () => {
+        const { service, appModel } = buildService();
+
+        appModel.findAppBySlug.mockResolvedValue(existingAppRow);
+        appModel.getLatestVersion.mockResolvedValue({ version: 4 });
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, { slug: 'my-app' }),
+            // Slug takes precedence even when a (different) targetAppUuid is set.
+            targetAppUuid: 'some-other-app-uuid',
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('append');
+        expect(result.appUuid).toBe(EXISTING_APP_UUID);
+        expect(appModel.findAppBySlug).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            'my-app',
+        );
+        expect(appModel.findApp).not.toHaveBeenCalled();
+    });
+
+    it('creates with the exact manifest slug when no app has it', async () => {
+        const { service, appModel } = buildService();
+
+        appModel.findAppBySlug.mockResolvedValue(undefined);
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, { slug: 'my-app' }),
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('create');
+        expect(appModel.createWithVersion).toHaveBeenCalledWith(
+            expect.objectContaining({ slug: 'my-app' }),
+            { version: 1, prompt: '' },
+            'pending',
+            expect.any(Object),
+            undefined,
+            undefined,
+        );
+    });
+
+    it('createNew forces create and does not force the manifest slug', async () => {
+        const { service, appModel } = buildService();
+
+        appModel.findAppBySlug.mockResolvedValue(existingAppRow);
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, { slug: 'my-app' }),
+            createNew: true,
+        } as ImportAppCodeRequestBody);
+
+        expect(appModel.findAppBySlug).not.toHaveBeenCalled();
+        expect(result.action).toBe('create');
+        expect(appModel.createWithVersion).toHaveBeenCalledOnce();
+        const [appArg] = appModel.createWithVersion.mock.calls[0];
+        expect(appArg).not.toHaveProperty('slug');
+    });
+
+    it('falls back to targetAppUuid append for pre-slug manifests', async () => {
+        const { service, appModel } = buildService();
+
+        appModel.findApp.mockResolvedValue(existingAppRow);
+        appModel.getLatestVersion.mockResolvedValue({ version: 4 });
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('append');
+        expect(result.appUuid).toBe(EXISTING_APP_UUID);
+        expect(appModel.findAppBySlug).not.toHaveBeenCalled();
+        expect(appModel.findApp).toHaveBeenCalledWith(
+            EXISTING_APP_UUID,
+            PROJECT_UUID,
+        );
+    });
+
+    it('still 404s a targetAppUuid missing from the project (pre-slug path)', async () => {
+        const { service, appModel } = buildService();
+
+        appModel.findApp.mockResolvedValue(undefined);
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(),
+                targetAppUuid: EXISTING_APP_UUID,
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow(ParameterError);
+
+        expect(appModel.findAppBySlug).not.toHaveBeenCalled();
         expect(appModel.createWithVersion).not.toHaveBeenCalled();
     });
 });
