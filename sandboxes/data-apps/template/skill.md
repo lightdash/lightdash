@@ -646,43 +646,49 @@ Lightdash-specific constraints that apply on top of `frontend-design`'s directio
 
 - **Chart series colors must come from `CHART_COLORS` in `@/lib/theme`** — the canonical Lightdash palette, so generated apps' charts visually match native Lightdash dashboards. Cycle by index for multi-series (`CHART_COLORS[i % CHART_COLORS.length]`). `frontend-design`'s chosen accent/background/typography colors are independent of this.
 - **Use semantic shadcn tokens for UI chrome** — `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `text-destructive`, `border`, etc. Don't hardcode hex values for surfaces, text, or borders. (`frontend-design` may direct you to redefine the underlying CSS variables for a chosen theme — that's fine; the rule is no inline hex, not "use only the default token values".)
-- **Commit to one theme; don't design for dark while rendering light.** The template's `:root` defaults to white (light tokens). If your design needs a dark background, you must do *one* of: (a) apply `className="dark"` to your top-level `<div>` so Tailwind activates the dark token values, or (b) override the CSS variables on `:root` directly to match your chosen theme. **Never** author colors that assume a dark background without ensuring the page actually loads dark — the symptom is invisible secondary text (faint red/gray on white). Before declaring done, check: does the page background actually look the way you described it? If not, you have a theme-wiring bug.
+- **Commit to one theme; don't design for dark while rendering light.** The template's `:root` defaults to white (light tokens). If your design needs a dark background, you must do *one* of: (a) apply `className="dark bg-background text-foreground"` to your top-level `<div>` so Tailwind activates the dark token values *and* re-resolves the inherited text color there, or (b) override the CSS variables on `:root` directly to match your chosen theme. **Never** author colors that assume a dark background without ensuring the page actually loads dark — the symptom is invisible secondary text (faint red/gray on white). Before declaring done, check: does the page background actually look the way you described it? If not, you have a theme-wiring bug.
 - **Theme CSS variables hold complete raw colors, consumed as `var(--x)`.** The template's tokens are `oklch(…)` values, and everything — Tailwind utilities, the floating-surface chrome, your own CSS — reads them with plain `var(--x)`. When overriding on `:root`, write full CSS colors (`--background: oklch(0.14 0.005 286);` — any valid color works). **Never write bare `H S% L%` triplets and never wrap a variable in `hsl(var(--x))`** — both come from a different shadcn convention this template does not use; they produce invalid CSS that browsers silently drop, which breaks text colors or turns popovers/tooltips transparent.
-- **Leave a gutter at the bottom of the page.** Don't let the last card, chart, or footer sit flush against the iframe's bottom edge — it reads as clipped. Add bottom padding (`pb-8` or similar) on your page's top-level themed wrapper so the gutter inherits the theme's background. Don't push the gutter onto `#root` or `body` instead — those sit outside your theme, so any space below the wrapper falls back to the template default and shows as a mismatched strip.
+- **The page background must reach the bottom of the iframe.** Viewers render the app in an iframe as tall as their browser window, and app content is routinely shorter than that. So structure every page as a **full-height themed shell** (theme class, background, `text-foreground`, `min-h-screen`) wrapping a **content-sized inner wrapper** that owns the padding — see the example in the next section. Putting the background on a content-sized element instead leaves everything below it painting the template default: a hard edge across the page where your theme stops, and the single most common way a generated app reads as broken. Never paint the page background on `#root` or `body` instead; they sit outside your theme.
+- **Leave a gutter at the bottom of the content.** Don't let the last card, chart, or footer sit flush against the bottom edge — it reads as clipped. Put the bottom padding (`pb-8` or similar) on the inner wrapper, so the gutter sits inside both the theme and the screenshot bounds.
 
 ### Sizing for scheduled-delivery screenshots
 
-Scheduled deliveries (Slack/email) render the app inside a tall **1400×4000** iframe and screenshot from the top down to the deepest visible element. If the app stretches to fill that height — via viewport-relative heights or full-bleed decorative backgrounds — the delivered image is mostly empty space around a small island of content.
+Scheduled deliveries (Slack/email) render the app inside a tall **1400×4000** iframe and screenshot from the top down to the bottom of the content. If the *content* stretches to fill that height — via viewport-relative heights or full-bleed decorative layers in the flow — the delivered image is mostly empty space around a small island of content.
 
-
-**Mark the content extent with `data-screenshot-bounds`.** Put the attribute on your top-level themed wrapper — the same element that carries the background and bottom gutter from the rule above. The delivery pipeline uses that element's bottom edge as the image height and crops anything below it. Without the attribute it falls back to a best-effort measurement that the patterns below easily inflate, so set it.
+**Mark the content extent with `data-screenshot-bounds`.** Put the attribute on the inner content wrapper from the rule above — **not** on the full-height shell. The delivery pipeline uses that element's bottom edge as the image height and crops everything below it, which is exactly why the shell may fill the iframe for free: the shell's `min-h-screen` never reaches the delivered image, and the crop still lands just under your last row. Without the attribute the pipeline falls back to a best-effort measurement that the patterns below easily inflate, so set it.
 
 ```tsx
-<div data-screenshot-bounds className="dark bg-background p-8 pb-12">
-
-  <Header />
-  <ChartGrid />
-  <Footer />
+<div className="dark bg-background text-foreground min-h-screen">   {/* fills the viewport, not measured */}
+    <div data-screenshot-bounds className="p-8 pb-12">             {/* measured: crop lands here */}
+        <Header />
+        <ChartGrid />
+        <Footer />
+    </div>
 </div>
 ```
 
-Then keep the layout from inflating the canvas:
+`text-foreground` on the shell is not optional: `dark` re-points the theme variables but not the `color` already inherited from `<body>`, so without it every bare `<h1>`/`<p>`/`<div>` renders in light-theme ink on your dark background.
 
-- **No viewport-relative heights on root or near-root containers** — avoid `min-h-screen`, `h-screen`, `h-[100vh]`, or `min-height: 100vh` on the page wrapper; let it size to its content. A nested component that genuinely needs a fixed height (e.g. a resizable panel) may still use one, as long as it lives inside `data-screenshot-bounds`.
-- **Don't vertically center variable-height content in a viewport-height parent** — `h-screen flex items-center justify-center` around a short widget parks it in the middle of a 4000px-tall screenshot.
-- **Keep decorative backgrounds within the content area** — themed sprites, gradients, particle layers, and landscape art paint on the `data-screenshot-bounds` element itself, never on a separate 100vh layer that extends past the content.
+Then keep the content from inflating the canvas:
+
+- **No viewport-relative heights inside the bounds element** — avoid `min-h-screen`, `h-screen`, `h-[100vh]`, or `min-height: 100vh` on the content wrapper or anything in its flow; let it size to its content. A nested component that genuinely needs a fixed height (e.g. a resizable panel) may still use one. The page's only viewport height belongs to the shell, outside `data-screenshot-bounds`.
+- **Don't vertically center variable-height content in a viewport-height parent** — `min-h-screen flex items-center justify-center` around a short widget parks it in the middle of a 4000px-tall canvas, and the crop keeps every empty pixel above it. Top-align content in the shell and let the shell grow.
+- **Keep decorative backgrounds out of the flow** — themed sprites, gradients, particle layers, and landscape art paint on the shell itself or on a `fixed inset-0 -z-10` layer, never as an in-flow 100vh element inside the bounds.
 
 Avoid — each of these inflates the screenshot:
 
 ```tsx
-// min-h-screen blows up to 4000px in the delivery iframe
-<div className="min-h-screen bg-blue-400">…</div>
+// crop marker on a viewport-height element → 4000px of empty canvas
+<div data-screenshot-bounds className="min-h-screen bg-blue-400">…</div>
 
 // a short widget centered in 100vh ends up mid-screenshot
-<div className="h-screen flex items-center justify-center"><SmallWidget /></div>
+<div className="min-h-screen flex items-center justify-center"><SmallWidget /></div>
 
-// a decorative background filling 100vh past the real content
-<div className="h-screen bg-[url('/sky.png')] bg-cover"><Dashboard /></div>
+// an in-flow decorative layer that outgrows the real content
+<div data-screenshot-bounds>
+    <div className="h-screen bg-[url('/sky.png')] bg-cover" />
+    <Dashboard />
+</div>
 ```
 
 ### Organization themes
