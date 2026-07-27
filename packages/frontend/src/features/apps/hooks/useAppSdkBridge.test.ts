@@ -443,7 +443,30 @@ describe('lineage message routing', () => {
         expect(onLineageSelected).toHaveBeenCalledWith({ queryUuid: 'q-9' });
     });
 
-    it('routes lightdash:lineage:available to onLineageAvailable', () => {
+    it('routes lightdash:lineage:available to onLineageAvailable when it carries a stamp count', () => {
+        const onLineageAvailable = vi.fn();
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                onLineageAvailable,
+            }),
+        );
+
+        dispatchFetchMessage({
+            type: 'lightdash:lineage:available',
+            stampCount: 3,
+        });
+
+        expect(onLineageAvailable).toHaveBeenCalled();
+    });
+
+    it('ignores lineage:available without a stamp count (legacy SDKs announced with zero stamps)', () => {
         const onLineageAvailable = vi.fn();
         const iframeRef = {
             current: { contentWindow: window } as unknown as HTMLIFrameElement,
@@ -462,7 +485,34 @@ describe('lineage message routing', () => {
             type: 'lightdash:lineage:available',
         });
 
-        expect(onLineageAvailable).toHaveBeenCalled();
+        expect(onLineageAvailable).not.toHaveBeenCalled();
+    });
+
+    it('ignores lineage:available with a zero or malformed stamp count', () => {
+        const onLineageAvailable = vi.fn();
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                onLineageAvailable,
+            }),
+        );
+
+        dispatchFetchMessage({
+            type: 'lightdash:lineage:available',
+            stampCount: 0,
+        });
+        dispatchFetchMessage({
+            type: 'lightdash:lineage:available',
+            stampCount: 'lots',
+        });
+
+        expect(onLineageAvailable).not.toHaveBeenCalled();
     });
 });
 
