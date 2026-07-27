@@ -10,6 +10,7 @@
  */
 
 import { createApiTransport, type FetchAdapter } from './apiTransport';
+import { announceSdkManifest } from './manifest';
 import type {
     ExternalFetchMethod,
     ExternalFetchOptions,
@@ -356,6 +357,8 @@ type PostMessageTransportConfig = {
 export function createPostMessageTransport(
     config: PostMessageTransportConfig,
 ): Transport {
+    // Report this bundle's SDK capabilities so the host can offer upgrades.
+    announceSdkManifest(config.targetWindow);
     const adapter = createPostMessageFetchAdapter({
         targetWindow: config.targetWindow,
         timeoutMs: config.timeoutMs,

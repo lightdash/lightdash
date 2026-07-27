@@ -19,14 +19,20 @@
         ".": {
             "types": "./dist/index.d.ts",
             "import": "./dist/index.js"
+        },
+        "./features": {
+            "types": "./dist/features.d.ts",
+            "import": "./dist/features.js"
         }
     },
     "scripts": {
+        "prebuild": "node ./scripts/generateSdkVersion.mjs",
         "build": "tsc6 --project tsconfig.build.json",
         "build:fast": "tsc --project tsconfig.build.fast.json",
         "typecheck": "tsc6 --noEmit",
         "typecheck:fast": "tsc --project tsconfig.fast.json --noEmit",
         "lint": "eslint src/",
+        "pretest": "node ./scripts/generateSdkVersion.mjs",
         "test": "vitest run",
         "format": "oxfmt ./src --check",
         "fix-format": "oxfmt ./src",
@@ -36,6 +42,7 @@
         "react": "^18.x || ^19.x"
     },
     "devDependencies": {
+        "@types/node": "22.13.1",
         "@types/react": "19.2.2",
         "jsdom": "26.1.0",
         "typescript": "npm:@typescript/typescript6@6.0.1",
