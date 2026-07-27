@@ -32,9 +32,15 @@ const organizationSettingsModel = {
     get: vi.fn(async () => ({ queryLimit: null, csvCellsLimit: null })),
 };
 
-const licenseService = new LicenseService();
-const validLicenseService = new LicenseService();
+const licenseService = new LicenseService({ licenseKey: null });
+const invalidLicenseService = new LicenseService({
+    licenseKey: 'invalid-license-key',
+});
+const validLicenseService = new LicenseService({
+    licenseKey: 'valid-license-key',
+});
 vi.spyOn(validLicenseService, 'getLicenseStatus').mockReturnValue({
+    hasLicenseKey: true,
     valid: true,
 });
 
@@ -109,9 +115,27 @@ describe('health', () => {
     it('returns the enterprise license validation result', async () => {
         expect((await healthService.getHealthState(undefined)).license).toEqual(
             {
+                hasLicenseKey: false,
                 valid: false,
             },
         );
+
+        const invalidService = new HealthService({
+            organizationModel:
+                organizationModel as unknown as OrganizationModel,
+            lightdashConfig: lightdashConfigMock,
+            licenseService: invalidLicenseService,
+            migrationModel: migrationModel as unknown as MigrationModel,
+            organizationSettingsModel:
+                organizationSettingsModel as unknown as OrganizationSettingsModel,
+        });
+
+        expect(
+            (await invalidService.getHealthState(undefined)).license,
+        ).toEqual({
+            hasLicenseKey: true,
+            valid: false,
+        });
 
         const validatedService = new HealthService({
             organizationModel:
@@ -126,6 +150,7 @@ describe('health', () => {
         expect(
             (await validatedService.getHealthState(undefined)).license,
         ).toEqual({
+            hasLicenseKey: true,
             valid: true,
         });
     });

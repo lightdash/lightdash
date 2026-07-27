@@ -1,4 +1,3 @@
-import { ForbiddenError } from '@lightdash/common';
 import express, { Express } from 'express';
 import { AppArguments } from '../App';
 import {
@@ -126,9 +125,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             `Enterprise license for ${lightdashConfig.siteUrl} is valid.`,
         );
     } else {
-        throw new ForbiddenError(
+        Logger.warn(
             `Enterprise license for ${lightdashConfig.siteUrl} ${license.detail} [${license.code}]`,
         );
+        return {};
     }
 
     // Register EE-specific NATS streams
@@ -136,7 +136,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
 
     return {
         serviceProviders: {
-            licenseService: () => new EnterpriseLicenseService(),
+            licenseService: () =>
+                new EnterpriseLicenseService({
+                    licenseKey: lightdashConfig.license.licenseKey,
+                }),
             aiAgentMemoryService: ({
                 models,
                 clients,

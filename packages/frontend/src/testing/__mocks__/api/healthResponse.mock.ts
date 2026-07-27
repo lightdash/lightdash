@@ -6,6 +6,7 @@ export default function mockHealthResponse(
     return {
         healthy: true,
         license: {
+            hasLicenseKey: false,
             valid: false,
         },
         mode: LightdashMode.CLOUD_BETA,

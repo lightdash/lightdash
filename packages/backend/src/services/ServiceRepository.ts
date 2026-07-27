@@ -1569,7 +1569,13 @@ export class ServiceRepository
     }
 
     public getLicenseService(): LicenseService {
-        return this.getService('licenseService', () => new LicenseService());
+        return this.getService(
+            'licenseService',
+            () =>
+                new LicenseService({
+                    licenseKey: this.context.lightdashConfig.license.licenseKey,
+                }),
+        );
     }
 
     public getCacheService<CacheServiceImplT>(): CacheServiceImplT {

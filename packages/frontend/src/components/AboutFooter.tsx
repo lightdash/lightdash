@@ -40,7 +40,24 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
         healthState.data?.latest.version &&
         healthState.data.version !== healthState.data.latest.version &&
         healthState.data?.mode === LightdashMode.DEFAULT;
-    const isLicenseValid = healthState.data?.license.valid ?? false;
+    const licenseStatus = healthState.data?.license;
+    const licenseDisplay = licenseStatus?.valid
+        ? {
+              badge: 'Valid',
+              color: 'green',
+              description: 'Enterprise features are enabled.',
+          }
+        : licenseStatus?.hasLicenseKey
+          ? {
+                badge: 'Not valid',
+                color: 'red',
+                description: 'The configured license key is not valid.',
+            }
+          : {
+                badge: 'No license',
+                color: 'gray',
+                description: 'No enterprise license key is configured.',
+            };
 
     return (
         <TrackSection name={SectionName.PAGE_FOOTER}>
@@ -158,21 +175,15 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                                             Enterprise license
                                         </Text>
                                         <Text fz="xs" c="ldGray.6">
-                                            {isLicenseValid
-                                                ? 'Enterprise features are enabled.'
-                                                : 'This instance has no enterprise license.'}
+                                            {licenseDisplay.description}
                                         </Text>
                                     </Box>
                                     <Badge
-                                        color={
-                                            isLicenseValid ? 'green' : 'gray'
-                                        }
+                                        color={licenseDisplay.color}
                                         variant="light"
                                         flex="none"
                                     >
-                                        {isLicenseValid
-                                            ? 'Valid'
-                                            : 'No license'}
+                                        {licenseDisplay.badge}
                                     </Badge>
                                 </Group>
                             </Stack>

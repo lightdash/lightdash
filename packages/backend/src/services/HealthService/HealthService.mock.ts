@@ -8,6 +8,7 @@ import {
 export const BaseResponse: HealthState = {
     healthy: true,
     license: {
+        hasLicenseKey: false,
         valid: false,
     },
     version: '0.1.0',
