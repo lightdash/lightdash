@@ -78,4 +78,29 @@
   html, body {
     @apply bg-background text-foreground;
   }
+  /* Safety net for pages that theme a content-sized wrapper instead of a
+     full-height shell (see skill.md) — otherwise the iframe area below the
+     content paints the template default as a hard edge. Wrapped in :where() so
+     anything the app sets itself still wins. */
+  :where(#root > :first-child:not([data-screenshot-bounds])) {
+    min-height: 100vh;
+  }
+  /* The crop marker defines the delivery-screenshot height, so it can't be
+     stretched — repaint its background behind the whole viewport instead.
+     `fixed` on both layers keeps a gradient from seaming at the content edge. */
+  :where(#root > [data-screenshot-bounds]:first-child) {
+    background-attachment: fixed;
+  }
+  #root > [data-screenshot-bounds]:first-child::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: inherit;
+  }
+  /* `dark` on the shell re-points the theme variables but not the color already
+     inherited from <body>, which would leave bare text in light-theme ink. */
+  :where(#root > .dark:first-child) {
+    color: var(--foreground);
+  }
 }
