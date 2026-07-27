@@ -1,4 +1,5 @@
 import {
+    AlreadyExistsError,
     APP_VERSION_CANCELLED_BY_USER,
     DATA_APP_VIZ_TEMPLATE,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
@@ -15,7 +16,7 @@ import {
     type KnexPaginatedData,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { v4 as uuidv4 } from 'uuid';
+import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import {
     APP_VERSION_TERMINAL_STATUSES,
     AppsTableName,
@@ -75,30 +76,53 @@ export class AppModel {
         resources?: AppVersionResources,
         dependencies?: AppVersionDependencies,
         vizSchema?: DataAppVizSchema,
+        // forceSlug (as-code upload round-trip): use app.slug verbatim and
+        // fail loudly on a conflict, so re-uploads stay idempotent instead of
+        // silently minting suffixed duplicates. Default: app.slug is a base
+        // hint — normalized and dedupe-suffixed (duplication derives copies'
+        // slugs from the source slug this way).
+        opts?: { forceSlug?: boolean },
     ): Promise<{ app: DbApp; version: DbAppVersion }> {
         return this.database.transaction(async (trx) => {
             const appId = app.app_id ?? uuidv4();
-            const appName = app.name ?? '';
-            const hasSlugName = /[a-z0-9]/i.test(appName);
-            const slugSource =
-                app.slug ??
-                (hasSlugName
-                    ? appName
-                    : (
-                          await trx.raw<{
-                              rows: Array<{ slug: string }>;
-                          }>(`SELECT 'app-' || nextval(?)::text AS slug`, [
-                              AppSlugSequence,
-                          ])
-                      ).rows[0].slug);
-            const baseSlug = generateSlug(slugSource).slice(0, 255);
-            await acquireProjectSlugLock(trx, app.project_uuid, baseSlug);
-            const slug = await generateUniqueSlugScopedToProject(
-                trx,
-                app.project_uuid,
-                AppsTableName,
-                baseSlug,
-            );
+            let slug: string;
+            if (opts?.forceSlug && app.slug !== undefined) {
+                // Serialize racing creates on the same (project, slug), then
+                // check for a holder — including soft-deleted apps, which
+                // still occupy the unique constraint.
+                await acquireProjectSlugLock(trx, app.project_uuid, app.slug);
+                const slugHolder = await trx(AppsTableName)
+                    .where({ project_uuid: app.project_uuid, slug: app.slug })
+                    .first();
+                if (slugHolder) {
+                    throw new AlreadyExistsError(
+                        `A data app with slug "${app.slug}" already exists in this project (it may be soft-deleted). Re-run the upload to append, or restore/permanently delete the conflicting app.`,
+                    );
+                }
+                slug = app.slug;
+            } else {
+                const appName = app.name ?? '';
+                const hasSlugName = /[a-z0-9]/i.test(appName);
+                const slugSource =
+                    app.slug ??
+                    (hasSlugName
+                        ? appName
+                        : (
+                              await trx.raw<{
+                                  rows: Array<{ slug: string }>;
+                              }>(`SELECT 'app-' || nextval(?)::text AS slug`, [
+                                  AppSlugSequence,
+                              ])
+                          ).rows[0].slug);
+                const baseSlug = generateSlug(slugSource).slice(0, 255);
+                await acquireProjectSlugLock(trx, app.project_uuid, baseSlug);
+                slug = await generateUniqueSlugScopedToProject(
+                    trx,
+                    app.project_uuid,
+                    AppsTableName,
+                    baseSlug,
+                );
+            }
             const [appRow] = await trx(AppsTableName)
                 .insert({
                     ...app,
@@ -441,6 +465,70 @@ export class AppModel {
                 `${PinnedAppTableName}.order as pinned_list_order`,
             )
             .first();
+    }
+
+    async findAppBySlug(
+        projectUuid: string,
+        slug: string,
+    ): Promise<
+        | (DbApp & {
+              organization_uuid: string;
+              pinned_list_uuid: string | null;
+              pinned_list_order: number | null;
+          })
+        | undefined
+    > {
+        return this.database(AppsTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${AppsTableName}.project_uuid`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .leftJoin(
+                PinnedAppTableName,
+                `${PinnedAppTableName}.app_uuid`,
+                `${AppsTableName}.app_id`,
+            )
+            .where(`${AppsTableName}.slug`, slug)
+            .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .select<
+                (DbApp & {
+                    organization_uuid: string;
+                    pinned_list_uuid: string | null;
+                    pinned_list_order: number | null;
+                })[]
+            >(
+                `${AppsTableName}.*`,
+                `${OrganizationTableName}.organization_uuid`,
+                `${PinnedAppTableName}.pinned_list_uuid`,
+                `${PinnedAppTableName}.order as pinned_list_order`,
+            )
+            .first();
+    }
+
+    async getAppByUuidOrSlug(
+        projectUuid: string,
+        appUuidOrSlug: string,
+    ): Promise<
+        DbApp & {
+            organization_uuid: string;
+            pinned_list_uuid: string | null;
+            pinned_list_order: number | null;
+        }
+    > {
+        const row = isValidUuid(appUuidOrSlug)
+            ? await this.findApp(appUuidOrSlug, projectUuid)
+            : await this.findAppBySlug(projectUuid, appUuidOrSlug);
+        if (!row) {
+            throw new NotFoundError(`App not found: ${appUuidOrSlug}`);
+        }
+        return row;
     }
 
     /** Versions that declared custom dependencies, newest first. */
