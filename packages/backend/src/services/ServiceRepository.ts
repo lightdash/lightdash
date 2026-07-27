@@ -41,6 +41,7 @@ import { GitIntegrationService } from './GitIntegrationService/GitIntegrationSer
 import { GitlabAppService } from './GitlabAppService/GitlabAppService';
 import { GroupsService } from './GroupService';
 import { HealthService } from './HealthService/HealthService';
+import { LicenseService } from './LicenseService/LicenseService';
 import { LightdashAnalyticsService } from './LightdashAnalyticsService/LightdashAnalyticsService';
 import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorerService';
 import { NotificationsService } from './NotificationsService/NotificationsService';
@@ -103,6 +104,7 @@ interface ServiceManifest {
     gdriveService: GdriveService;
     groupService: GroupsService;
     healthService: HealthService;
+    licenseService: LicenseService;
     notificationService: NotificationsService;
     oauthService: OAuthService;
 
@@ -567,6 +569,7 @@ export class ServiceRepository
             () =>
                 new HealthService({
                     lightdashConfig: this.context.lightdashConfig,
+                    licenseService: this.getLicenseService(),
                     organizationModel: this.models.getOrganizationModel(),
                     migrationModel: this.models.getMigrationModel(),
                     organizationSettingsModel:
@@ -1563,6 +1566,10 @@ export class ServiceRepository
                     savedChartModel: this.models.getSavedChartModel(),
                 }),
         );
+    }
+
+    public getLicenseService(): LicenseService {
+        return this.getService('licenseService', () => new LicenseService());
     }
 
     public getCacheService<CacheServiceImplT>(): CacheServiceImplT {

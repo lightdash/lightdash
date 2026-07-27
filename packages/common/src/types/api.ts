@@ -498,6 +498,9 @@ export enum LightdashMode {
 
 export type HealthState = {
     healthy: boolean;
+    license: {
+        valid: boolean;
+    };
     mode: LightdashMode;
     version: string;
     localDbtEnabled: boolean;

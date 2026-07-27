@@ -84,6 +84,7 @@ import { EmbedService } from './services/EmbedService/EmbedService';
 import { ExternalConnectionCoderService } from './services/ExternalConnectionCoderService/ExternalConnectionCoderService';
 import { ExternalConnectionService } from './services/ExternalConnectionService/ExternalConnectionService';
 import { GoogleServiceAccountTokenProvider } from './services/ExternalConnectionService/GoogleServiceAccountTokenProvider';
+import { EnterpriseLicenseService } from './services/LicenseService/LicenseService';
 import { ManagedAgentService } from './services/ManagedAgentService/ManagedAgentService';
 import { McpService } from './services/McpService/McpService';
 import { OnboardingAgentService } from './services/OnboardingAgentService/OnboardingAgentService';
@@ -135,6 +136,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
 
     return {
         serviceProviders: {
+            licenseService: () => new EnterpriseLicenseService(),
             aiAgentMemoryService: ({
                 models,
                 clients,

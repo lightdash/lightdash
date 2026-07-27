@@ -7,6 +7,9 @@ import {
 
 export const BaseResponse: HealthState = {
     healthy: true,
+    license: {
+        valid: false,
+    },
     version: '0.1.0',
     mode: LightdashMode.DEFAULT,
     isAuthenticated: false,
