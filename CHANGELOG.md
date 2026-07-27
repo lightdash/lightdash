@@ -1,3 +1,16 @@
+# [0.3482.0](https://github.com/lightdash/lightdash/compare/0.3481.0...0.3482.0) (2026-07-27)
+
+
+### Bug Fixes
+
+* remove memory summary column ([#26199](https://github.com/lightdash/lightdash/issues/26199)) ([630ce22](https://github.com/lightdash/lightdash/commit/630ce22b969f0f08e2eb0400ff7c27435f98538c))
+* simplify memory citation popover ([#26195](https://github.com/lightdash/lightdash/issues/26195)) ([3574091](https://github.com/lightdash/lightdash/commit/35740913b160f2563f0a660083ece35fc42e1ef4))
+
+
+### Features
+
+* collapse secondary memory details ([#26198](https://github.com/lightdash/lightdash/issues/26198)) ([880bb7f](https://github.com/lightdash/lightdash/commit/880bb7f6e2fb22cbd72202a5dd0982aa0a8f5292))
+
 # [0.3481.0](https://github.com/lightdash/lightdash/compare/0.3480.0...0.3481.0) (2026-07-27)
 
 
