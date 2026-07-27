@@ -22,7 +22,6 @@ import {
     IconBrain,
     IconCircleDotted,
     IconClock,
-    IconFileText,
     IconQuote,
     IconRobotFace,
     IconTrash,
@@ -193,31 +192,6 @@ const AiAgentAdminMemoriesTable = () => {
                         </Stack>
                     );
                 },
-            },
-            {
-                accessorKey: 'summary',
-                header: 'Summary',
-                enableSorting: false,
-                size: 320,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconFileText} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => (
-                    <Tooltip
-                        withinPortal
-                        label={row.original.summary}
-                        disabled={!row.original.summary}
-                        multiline
-                        maw={400}
-                    >
-                        <Text fz="sm" c="ldGray.7" lineClamp={2}>
-                            {row.original.summary}
-                        </Text>
-                    </Tooltip>
-                ),
             },
             {
                 accessorKey: 'status',
