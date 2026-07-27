@@ -258,17 +258,23 @@ export const AiGeneralSettingsPage = () => {
                             />
                         )}
 
-                    {dataAppsFlag.data?.enabled && (
-                        <AiDataAppsModelCard
-                            dataAppModelVisibility={
-                                settings.dataAppModelVisibility ?? null
-                            }
-                            disabled={isUpdatingSettings}
-                            onUpdateVisibility={(dataAppModelVisibility) =>
-                                updateSettings({ dataAppModelVisibility })
-                            }
-                        />
-                    )}
+                    {/* Restricting Data App models only means something on the
+                        org's own Anthropic key — without one, apps run on the
+                        instance key and the backend ignores stored settings. */}
+                    {orgAiProviderKeysFlag.data?.enabled &&
+                        settings.isCopilotEnabled &&
+                        dataAppsFlag.data?.enabled &&
+                        settings.providerApiKeysSet.anthropic && (
+                            <AiDataAppsModelCard
+                                dataAppModelVisibility={
+                                    settings.dataAppModelVisibility ?? null
+                                }
+                                disabled={isUpdatingSettings}
+                                onUpdateVisibility={(dataAppModelVisibility) =>
+                                    updateSettings({ dataAppModelVisibility })
+                                }
+                            />
+                        )}
 
                     <SettingsCard>
                         <Stack gap="md">

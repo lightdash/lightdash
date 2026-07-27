@@ -432,76 +432,56 @@ export const useSettingsNavigation = (
             });
         }
 
-        // Keep in sync with the route gating in Settings.tsx. Data Apps is
-        // flagged independently of Ask AI, and its model-visibility controls
-        // live on the General page, so that page stays reachable for an org
-        // running Data Apps without copilot.
-        const canReachAiGeneral =
-            canManageOrgAiAgent &&
-            (isAiCopilotEnabledOrTrial || isDataAppsEnabled);
-
-        if (
-            (isAiCopilotEnabledOrTrial && hasAnyAiAgentAccess) ||
-            canReachAiGeneral
-        ) {
+        if (isAiCopilotEnabledOrTrial && hasAnyAiAgentAccess) {
             const aiChildren: SettingsNavigationItem[] = [];
-            // General is org-wide config (router, org settings, Data Apps
-            // models) — org admins only.
-            if (canReachAiGeneral) {
+            // General is org-wide config (router, org settings) — org admins only.
+            if (canManageOrgAiAgent) {
                 aiChildren.push({
                     label: 'General',
                     to: '/generalSettings/ai/general',
                     icon: IconSettings,
-                    keywords: ['ai', 'settings', 'data apps', 'models'],
+                    keywords: ['ai', 'settings'],
                     children: [],
                     exact: true,
                 });
             }
             // Threads & Agents are project-filtered for project-scoped users.
-            if (isAiCopilotEnabledOrTrial && hasAnyAiAgentAccess) {
-                aiChildren.push(
-                    {
-                        label: 'Threads',
-                        to: '/generalSettings/ai/threads',
-                        icon: IconMessageCircle,
-                        keywords: ['conversations'],
-                        children: [],
-                        exact: true,
-                    },
-                    {
-                        label: 'Agents',
-                        to: '/generalSettings/ai/agents',
-                        icon: IconRobotFace,
-                        keywords: ['bots'],
-                        children: [],
-                        exact: true,
-                    },
-                    {
-                        label: 'MCP',
-                        to: '/generalSettings/ai/mcp',
-                        icon: IconPlugConnected,
-                        keywords: [
-                            'mcp',
-                            'tools',
-                            'activity',
-                            'claude',
-                            'cursor',
-                        ],
-                        children: [],
-                        exact: true,
-                    },
-                );
+            aiChildren.push(
+                {
+                    label: 'Threads',
+                    to: '/generalSettings/ai/threads',
+                    icon: IconMessageCircle,
+                    keywords: ['conversations'],
+                    children: [],
+                    exact: true,
+                },
+                {
+                    label: 'Agents',
+                    to: '/generalSettings/ai/agents',
+                    icon: IconRobotFace,
+                    keywords: ['bots'],
+                    children: [],
+                    exact: true,
+                },
+                {
+                    label: 'MCP',
+                    to: '/generalSettings/ai/mcp',
+                    icon: IconPlugConnected,
+                    keywords: ['mcp', 'tools', 'activity', 'claude', 'cursor'],
+                    children: [],
+                    exact: true,
+                },
+            );
 
-                if (shouldShowAiAgentReviews) {
-                    aiChildren.push({
-                        label: 'Issues',
-                        to: '/generalSettings/ai/issues',
-                        icon: IconListCheck,
-                        keywords: ['classifier', 'reviews'],
-                        children: [],
-                        exact: true,
-                    });
-                }
+            if (shouldShowAiAgentReviews) {
+                aiChildren.push({
+                    label: 'Issues',
+                    to: '/generalSettings/ai/issues',
+                    icon: IconListCheck,
+                    keywords: ['classifier', 'reviews'],
+                    children: [],
+                    exact: true,
+                });
             }
 
             if (shouldShowAiAgentMemories) {

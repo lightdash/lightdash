@@ -297,9 +297,13 @@ export class AiOrganizationSettingsService extends BaseService {
         const [
             { effectiveOptions, configurableOptions, effectiveModelVisibility },
             reviewJudge,
+            effectiveDataAppModelVisibility,
         ] = await Promise.all([
             this.getModelOptionLists(user.organizationUuid),
             this.orgAiCopilotConfigResolver.getReviewJudgeAvailability(
+                user.organizationUuid,
+            ),
+            this.orgAiCopilotConfigResolver.getDataAppModelVisibility(
                 user.organizationUuid,
             ),
         ]);
@@ -336,6 +340,9 @@ export class AiOrganizationSettingsService extends BaseService {
             // Surface the effective visibility (implicit BYOK defaults merged in)
             // so the admin card reflects what users actually see.
             modelVisibility: effectiveModelVisibility,
+            // Likewise: stored Data App settings are inert without a BYO key,
+            // so the picker must not filter on them when the backend won't.
+            dataAppModelVisibility: effectiveDataAppModelVisibility,
             isTrial: isTrialEligible,
             isCopilotEnabled,
             defaultAiAgentModelOptions: effectiveOptions,

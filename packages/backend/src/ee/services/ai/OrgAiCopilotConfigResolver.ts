@@ -253,14 +253,23 @@ export class OrgAiCopilotConfigResolver {
 
     /**
      * Org-admin visibility settings for Data App Claude models (opus/sonnet/
-     * haiku). Unlike Ask AI's modelVisibility, this isn't gated by a BYO key —
-     * these are CLI model aliases, not provider-specific model ids — so it's
-     * available whenever the org has stored settings at all.
+     * haiku). Gated the same way as getOrgModelOverrides: null unless the flag
+     * is on AND the org brings its own Anthropic key, so removing the key
+     * leaves stored settings inert rather than restricting models on the
+     * instance's own key. Anthropic specifically — getClaudeCodeConfig only
+     * swaps in an org key for Anthropic, since the Claude CLI speaks no other
+     * BYO provider.
      */
     async getDataAppModelVisibility(
         organizationUuid: string | null | undefined,
     ): Promise<DataAppModelVisibility | null> {
         if (!organizationUuid) return null;
+        if (!(await this.isEnabled(organizationUuid))) return null;
+        const orgKeys =
+            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
+                organizationUuid,
+            );
+        if (!orgKeys?.anthropic) return null;
         const settings =
             await this.aiOrganizationSettingsModel.findByOrganizationUuid(
                 organizationUuid,
