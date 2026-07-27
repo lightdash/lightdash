@@ -1,3 +1,17 @@
+# [0.3483.0](https://github.com/lightdash/lightdash/compare/0.3482.1...0.3483.0) (2026-07-27)
+
+
+### Bug Fixes
+
+* **ai:** recover deep research reports from empty agent turns ([#26203](https://github.com/lightdash/lightdash/issues/26203)) ([a9b69f6](https://github.com/lightdash/lightdash/commit/a9b69f679796b4763ee86a2bdf778454ff58b140))
+
+
+### Features
+
+* **ai:** use telescope icon for Deep Research ([#26204](https://github.com/lightdash/lightdash/issues/26204)) ([a1e9454](https://github.com/lightdash/lightdash/commit/a1e94544191bef06b7849b22f6a931e5099246d8))
+* **data-apps:** admin-controlled Data App model visibility ([#26194](https://github.com/lightdash/lightdash/issues/26194)) ([7e65353](https://github.com/lightdash/lightdash/commit/7e65353c5d259863f12dd631d3cf6606a5d70e31)), closes [#26185](https://github.com/lightdash/lightdash/issues/26185)
+* manage data app external connections as code via the CLI ([#26148](https://github.com/lightdash/lightdash/issues/26148)) ([11a062f](https://github.com/lightdash/lightdash/commit/11a062f0ae2d674242a7fcf1c696fa2d20b3e4b5))
+
 ## [0.3482.1](https://github.com/lightdash/lightdash/compare/0.3482.0...0.3482.1) (2026-07-27)
 
 

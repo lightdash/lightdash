@@ -6243,6 +6243,180 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ContentAsCodeType.EXTERNAL_CONNECTION": {
+                "enum": ["external_connection"],
+                "type": "string"
+            },
+            "ExternalConnectionAuthType": {
+                "type": "string",
+                "enum": [
+                    "none",
+                    "api_key",
+                    "bearer_token",
+                    "google_service_account"
+                ]
+            },
+            "ExternalConnectionMethod": {
+                "type": "string",
+                "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"]
+            },
+            "ApiKeyLocation": {
+                "type": "string",
+                "enum": ["header", "query"]
+            },
+            "ExternalConnectionAsCode": {
+                "properties": {
+                    "customHeaders": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Record_string.string_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "oauthScopes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "apiKeyLocation": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiKeyLocation"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "apiKeyName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "rateLimitPerMinute": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "timeoutMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "requestMaxBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "responseMaxBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "allowedContentTypes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "allowedMethods": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalConnectionMethod"
+                        },
+                        "type": "array"
+                    },
+                    "allowedPathPrefixes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "instructions": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "origin": {
+                        "type": "string"
+                    },
+                    "authType": {
+                        "$ref": "#/components/schemas/ExternalConnectionAuthType"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentAsCodeType.EXTERNAL_CONNECTION"
+                    }
+                },
+                "required": [
+                    "customHeaders",
+                    "oauthScopes",
+                    "apiKeyLocation",
+                    "apiKeyName",
+                    "rateLimitPerMinute",
+                    "timeoutMs",
+                    "requestMaxBytes",
+                    "responseMaxBytes",
+                    "allowedContentTypes",
+                    "allowedMethods",
+                    "allowedPathPrefixes",
+                    "instructions",
+                    "origin",
+                    "authType",
+                    "name",
+                    "slug",
+                    "version",
+                    "contentType"
+                ],
+                "type": "object",
+                "description": "Portable document for an external connection, stored as\n`lightdash/external-connections/<slug>.yml`. Never carries the secret —\nuploads resolve it from the LIGHTDASH_EXTERNAL_CONNECTION_SECRET_<SLUG>\nenvironment variable on the CLI side."
+            },
+            "ApiExternalConnectionAsCodeListResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "offset": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "total": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "missingSlugs": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "externalConnections": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ExternalConnectionAsCode"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "offset",
+                            "total",
+                            "missingSlugs",
+                            "externalConnections"
+                        ],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "PromotionAction.CREATE": {
                 "enum": ["create"],
                 "type": "string"
@@ -8111,6 +8285,50 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "ApiExternalConnectionAsCodeUpsertResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "action": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.CREATE"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.UPDATE"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.NO_CHANGES"
+                                    }
+                                ]
+                            }
+                        },
+                        "required": ["action"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiExternalConnectionAsCodeUpsertRequest": {
+                "properties": {
+                    "secret": {
+                        "type": "string",
+                        "description": "Resolved by the CLI from LIGHTDASH_EXTERNAL_CONNECTION_SECRET_<SLUG> at\nupload time. Omitted = leave any stored secret unchanged."
+                    },
+                    "connection": {
+                        "$ref": "#/components/schemas/ExternalConnectionAsCode"
+                    }
+                },
+                "required": ["connection"],
+                "type": "object",
+                "description": "Deliberately a flat wrapper, NOT `ExternalConnectionAsCode & { secret }`:\nTSOA validates intersection bodies in remove-extras mode, which empties\nRecord<string, string> fields (customHeaders). Same workaround as\nApiTestExternalConnectionConfigRequest."
             },
             "ApiSuccessEmpty": {
                 "properties": {
@@ -10908,23 +11126,6 @@
                 ],
                 "type": "object"
             },
-            "ExternalConnectionAuthType": {
-                "type": "string",
-                "enum": [
-                    "none",
-                    "api_key",
-                    "bearer_token",
-                    "google_service_account"
-                ]
-            },
-            "ExternalConnectionMethod": {
-                "type": "string",
-                "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"]
-            },
-            "ApiKeyLocation": {
-                "type": "string",
-                "enum": ["header", "query"]
-            },
             "ExternalConnection": {
                 "properties": {
                     "updatedAt": {
@@ -11018,6 +11219,9 @@
                     "type": {
                         "$ref": "#/components/schemas/ExternalConnectionAuthType"
                     },
+                    "slug": {
+                        "type": "string"
+                    },
                     "name": {
                         "type": "string"
                     },
@@ -11051,6 +11255,7 @@
                     "instructions",
                     "origin",
                     "type",
+                    "slug",
                     "name",
                     "organizationUuid",
                     "projectUuid",
@@ -32597,6 +32802,25 @@
             "AiOrgModelVisibility": {
                 "$ref": "#/components/schemas/Partial_Record_ByoAiProvider.AiOrgProviderModelVisibility__"
             },
+            "Partial_Record_DataAppClaudeModel.boolean__": {
+                "properties": {
+                    "opus": {
+                        "type": "boolean"
+                    },
+                    "sonnet": {
+                        "type": "boolean"
+                    },
+                    "haiku": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "DataAppModelVisibility": {
+                "$ref": "#/components/schemas/Partial_Record_DataAppClaudeModel.boolean__",
+                "description": "Org-admin control over which Data App Claude models users can pick.\nA model is hidden only when explicitly set to `false`; an absent key (or a\nnull/undefined visibility map) defaults to visible."
+            },
             "AiProviderApiKeysSet": {
                 "properties": {
                     "openai": {
@@ -32630,6 +32854,14 @@
                     },
                     "providerApiKeysSet": {
                         "$ref": "#/components/schemas/AiProviderApiKeysSet"
+                    },
+                    "dataAppModelVisibility": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppModelVisibility"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "modelVisibility": {
                         "allOf": [
@@ -32761,6 +32993,14 @@
                 "properties": {
                     "providerApiKeys": {
                         "$ref": "#/components/schemas/UpdateAiProviderApiKeys"
+                    },
+                    "dataAppModelVisibility": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppModelVisibility"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "modelVisibility": {
                         "allOf": [
@@ -49940,7 +50180,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3482.1",
+        "version": "0.3483.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -50696,6 +50936,67 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/code/externalConnections": {
+            "get": {
+                "operationId": "getCodeExternalConnections",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiExternalConnectionAsCodeListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get data-app external connections in code representation. Enterprise\nonly; requires the manage ExternalConnection permission. Secrets are\nnever included.",
+                "summary": "List external connections as code",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "slugs",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "offset",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/code/virtualViews/{slug}": {
             "post": {
                 "operationId": "upsertCodeVirtualView",
@@ -51226,6 +51527,73 @@
                                         "type": "object"
                                     }
                                 ]
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/code/externalConnections/{slug}": {
+            "post": {
+                "operationId": "upsertCodeExternalConnection",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiExternalConnectionAsCodeUpsertResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create or update a data-app external connection from its code\nrepresentation. Enterprise only; requires the manage ExternalConnection\npermission. The body nests the document under `connection`; the optional\n`secret` rides alongside it and is never part of the YAML document.",
+                "summary": "Upsert external connection as code",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "slug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "force",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiExternalConnectionAsCodeUpsertRequest"
                             }
                         }
                     }
