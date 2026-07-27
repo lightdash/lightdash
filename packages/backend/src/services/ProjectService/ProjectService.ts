@@ -9094,7 +9094,19 @@ export class ProjectService extends BaseService {
             chartUrl: string;
         }[]
     > {
-        // TODO implement permissions
+        const project = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         const chartSummaries = await this.savedChartModel.find({
             projectUuid,
         });
