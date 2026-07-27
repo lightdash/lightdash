@@ -1,3 +1,10 @@
+## [0.3482.1](https://github.com/lightdash/lightdash/compare/0.3482.0...0.3482.1) (2026-07-27)
+
+
+### Bug Fixes
+
+* hide fields from data app field pickers ([#26192](https://github.com/lightdash/lightdash/issues/26192)) ([4d7cd1d](https://github.com/lightdash/lightdash/commit/4d7cd1dc58924f7f7ad4a404864240ac30634d91))
+
 # [0.3482.0](https://github.com/lightdash/lightdash/compare/0.3481.0...0.3482.0) (2026-07-27)
 
 
