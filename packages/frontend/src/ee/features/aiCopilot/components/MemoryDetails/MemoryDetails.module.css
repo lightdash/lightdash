@@ -36,10 +36,65 @@
     font-size: 14px;
 }
 
-.section {
-    margin-top: 32px;
-    padding-top: 26px;
-    border-top: 1px solid var(--mantine-color-ldGray-1);
+.disclosures {
+    margin-top: 28px;
+    border-top: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.disclosureItem {
+    border-bottom-color: var(--mantine-color-ldGray-2);
+}
+
+.disclosureControl {
+    min-height: 60px;
+    padding: 10px 4px;
+    border-radius: 8px;
+}
+
+.disclosureControl:hover {
+    background: light-dark(
+        var(--mantine-color-ldGray-0),
+        var(--mantine-color-dark-6)
+    );
+}
+
+.disclosureLabel {
+    padding: 0;
+}
+
+.disclosureChevron {
+    color: var(--mantine-color-ldGray-5);
+}
+
+.disclosureContent {
+    padding: 2px 28px 20px 4px;
+}
+
+.disclosureTitle {
+    color: var(--mantine-color-ldGray-9);
+    font-size: 13px;
+    font-weight: 550;
+    line-height: 1.4;
+}
+
+.disclosureDescription {
+    margin-top: 2px;
+    color: var(--mantine-color-ldGray-6);
+    font-size: 11.5px;
+    line-height: 1.4;
+}
+
+.disclosureMarkdown {
+    padding-left: 0;
+    color: var(--mantine-color-ldGray-8);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.disclosureMarkdown p,
+.disclosureMarkdown li {
+    color: inherit;
+    font-size: inherit;
 }
 
 .sourceList {
