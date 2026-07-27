@@ -1,3 +1,15 @@
+# [0.3481.0](https://github.com/lightdash/lightdash/compare/0.3480.0...0.3481.0) (2026-07-27)
+
+
+### Bug Fixes
+
+* **data-apps:** make the generated page background fill the iframe ([#26189](https://github.com/lightdash/lightdash/issues/26189)) ([be88d6c](https://github.com/lightdash/lightdash/commit/be88d6c1775896a5b6ab390e64138ae631773343))
+
+
+### Features
+
+* add AI agent memories admin tab ([#26178](https://github.com/lightdash/lightdash/issues/26178)) ([64602bb](https://github.com/lightdash/lightdash/commit/64602bb1e2c2f65e0a9ebee23423d12a61f9c046))
+
 # [0.3480.0](https://github.com/lightdash/lightdash/compare/0.3479.0...0.3480.0) (2026-07-27)
 
 

@@ -19670,6 +19670,10 @@
                     }
                 ]
             },
+            "AiAgentMemoryStatus": {
+                "type": "string",
+                "enum": ["active", "superseded", "retired"]
+            },
             "AiAgentMemorySource": {
                 "allOf": [
                     {
@@ -19778,8 +19782,7 @@
                         "type": "string"
                     },
                     "status": {
-                        "type": "string",
-                        "enum": ["active", "superseded", "retired"]
+                        "$ref": "#/components/schemas/AiAgentMemoryStatus"
                     },
                     "objects": {
                         "items": {
@@ -30642,6 +30645,174 @@
             },
             "ApiAiAgentAdminPromptActivityResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiAgentAdminPromptActivityPoint-Array_"
+            },
+            "AiAgentAdminMemoryItem": {
+                "properties": {
+                    "generatedAt": {
+                        "type": "string"
+                    },
+                    "lastPulledAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pulledCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "lastCitedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "citedCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sourceThreadUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "user": {
+                        "properties": {
+                            "email": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["email", "name", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "agent": {
+                        "properties": {
+                            "imageUrl": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["imageUrl", "name", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "project": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/AiAgentMemoryStatus"
+                    },
+                    "summary": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "generatedAt",
+                    "lastPulledAt",
+                    "pulledCount",
+                    "lastCitedAt",
+                    "citedCount",
+                    "sourceThreadUuid",
+                    "user",
+                    "agent",
+                    "project",
+                    "status",
+                    "summary",
+                    "title",
+                    "slug",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "AiAgentAdminMemoriesSummary": {
+                "properties": {
+                    "memories": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentAdminMemoryItem"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["memories"],
+                "type": "object"
+            },
+            "KnexPaginatedData_AiAgentAdminMemoriesSummary_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/AiAgentAdminMemoriesSummary"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiSuccess_KnexPaginatedData_AiAgentAdminMemoriesSummary__": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_AiAgentAdminMemoriesSummary_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentAdminMemoriesResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_AiAgentAdminMemoriesSummary__"
+            },
+            "AiAgentAdminMemorySortField": {
+                "type": "string",
+                "enum": ["generatedAt", "citedCount"]
             },
             "AiAgentReviewItemSource": {
                 "type": "string",
@@ -49769,7 +49940,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3480.0",
+        "version": "0.3481.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -61954,6 +62125,114 @@
                 "summary": "List AI agents",
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v1/aiAgents/admin/memories": {
+            "get": {
+                "operationId": "getAllAiAgentMemories",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentAdminMemoriesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get all AI agent memories for admin",
+                "summary": "List AI agent memories",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "projectUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "userUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "statuses",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/components/schemas/AiAgentMemoryStatus"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "search",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "sortField",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/AiAgentAdminMemorySortField"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "sortDirection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["asc", "desc"]
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/aiAgents/admin/review-items": {
