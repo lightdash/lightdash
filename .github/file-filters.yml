@@ -6,6 +6,13 @@ preview:
   - "docker/**/*"
   - "okteto.preview.yaml"
 
+# Previews divert their database from a pre-seeded snapshot of main; PRs that
+# change the seed data itself must migrate and seed from scratch instead
+preview_db_full:
+  - "examples/full-jaffle-shop-demo/**"
+  - "packages/backend/src/database/seeds/**"
+  - "packages/backend/src/ee/database/seeds/**"
+
 cli:
   - "packages/cli/**/*"
   - "packages/e2e/cypress/cli/**/*"

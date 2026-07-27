@@ -1,5 +1,16 @@
 volumes:
     node_modules:
+    # When DB_SNAPSHOT_NAME is set (see okteto.preview.yaml), Okteto's webhook
+    # diverts this volume to a copy-on-write clone of a pre-seeded snapshot
+    # instead of a blank disk. Empty values deploy a normal blank volume.
+    # csi-okteto is required: the default storage class can't restore snapshots.
+    db-data:
+        driver_opts:
+            class: csi-okteto
+            size: 2Gi
+        labels:
+            dev.okteto.com/from-snapshot-name: ${DB_SNAPSHOT_NAME:-}
+            dev.okteto.com/from-snapshot-namespace: ${DB_SNAPSHOT_NAMESPACE:-}
 
 # Okteto specific
 endpoints:
@@ -15,6 +26,8 @@ services:
             - POSTGRES_PASSWORD=${PGPASSWORD}
         ports:
             - '5432'
+        volumes:
+            - db-data:/var/lib/postgresql
 
     headless-browser:
         build:
