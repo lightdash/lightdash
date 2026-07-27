@@ -498,7 +498,7 @@ export enum LightdashMode {
 
 export type HealthState = {
     healthy: boolean;
-    license: {
+    license?: {
         hasLicenseKey: boolean;
         valid: boolean;
     };
