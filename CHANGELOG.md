@@ -1,3 +1,11 @@
+# [0.3484.0](https://github.com/lightdash/lightdash/compare/0.3483.0...0.3484.0) (2026-07-27)
+
+
+### Features
+
+* add Claude Opus 5 as a selectable model ([#26201](https://github.com/lightdash/lightdash/issues/26201)) ([6744b2e](https://github.com/lightdash/lightdash/commit/6744b2ea1dd35a6a1a0d5c25b9986312949389c4)), closes [/linear.app/lightdash/issue/PROD-9247/add-claude-opus-5-as-a-selectable-model#agent-session-570dcd22](https://github.com//linear.app/lightdash/issue/PROD-9247/add-claude-opus-5-as-a-selectable-model/issues/agent-session-570dcd22)
+* ask viz-specific clarifying questions for data app vizs ([#26202](https://github.com/lightdash/lightdash/issues/26202)) ([f705e79](https://github.com/lightdash/lightdash/commit/f705e798981418bd6a223c5d185b096cc191031b))
+
 # [0.3483.0](https://github.com/lightdash/lightdash/compare/0.3482.1...0.3483.0) (2026-07-27)
 
 
