@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ChartKind,
     type ChartContent,
+    type AiModelOption,
     type DataAppClaudeModel,
     type ExternalConnection,
 } from '@lightdash/common';
@@ -38,13 +39,13 @@ import {
     IconPlugConnected,
     IconPlus,
     IconSearch,
-    IconSparkles,
     IconX,
 } from '@tabler/icons-react';
 import uniqBy from 'lodash/uniqBy';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
+import { ModelSelector } from '../../components/common/ModelSelector/ModelSelector';
 import { ChartIcon, IconBox } from '../../components/common/ResourceIcon';
 import { getChartIcon } from '../../components/common/ResourceIcon/utils';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
@@ -98,19 +99,25 @@ const SAMPLE_DATA_TOOLTIP =
  * Button that captures a screenshot of the live preview and adds it as an
  * image attachment. Shows a loader while the capture is in flight.
  *
- * Always rendered so the toolbar shape is stable; pass `disabled` when the
- * preview isn't mounted or the iframe SDK hasn't announced screenshot support.
+ * Rendered only once the preview is mounted and the iframe SDK has announced
+ * screenshot support — an always-present but permanently dead control reads as
+ * broken on the compose screen, where no app exists yet.
  */
 export const ScreenshotButton: FC<{
     onClick: () => void;
     disabled: boolean;
     loading?: boolean;
 }> = ({ onClick, disabled, loading }) => (
-    <Tooltip label="Capture screenshot" withArrow position="top">
+    <Tooltip
+        label="Capture a screenshot of the preview and attach it"
+        withArrow
+        position="top"
+    >
         <ActionIcon
-            variant="default"
-            size="lg"
-            radius="md"
+            variant="subtle"
+            color="gray"
+            size="md"
+            radius="xl"
             onClick={onClick}
             disabled={disabled}
             loading={loading}
@@ -127,8 +134,8 @@ export const ScreenshotButton: FC<{
  * inserted as bracketed references at the textarea cursor (e.g.
  * `[button "Total Revenue"]: `), so the user can compose targeted edits.
  *
- * Always rendered so the toolbar shape is stable; pass `disabled` when the
- * preview isn't mounted or the iframe SDK hasn't announced inspector support.
+ * Rendered only once the iframe SDK has announced inspector support, for the
+ * same reason as the screenshot button.
  */
 export const InspectButton: FC<{
     enabled: boolean;
@@ -136,18 +143,23 @@ export const InspectButton: FC<{
     disabled?: boolean;
 }> = ({ enabled, onToggle, disabled }) => (
     <Tooltip
-        label={enabled ? 'Inspect mode: on' : 'Inspect element'}
+        label={
+            enabled
+                ? 'Inspect mode on - click any element in the preview'
+                : 'Point at an element in the preview to reference it'
+        }
         withArrow
         position="top"
     >
         <ActionIcon
-            variant={enabled ? 'filled' : 'default'}
-            color={enabled ? 'violet' : undefined}
-            size="lg"
-            radius="md"
+            variant={enabled ? 'light' : 'subtle'}
+            color={enabled ? 'indigo' : 'gray'}
+            size="md"
+            radius="xl"
             onClick={onToggle}
             disabled={disabled}
             aria-label="Toggle element inspector"
+            aria-pressed={enabled}
         >
             <MantineIcon icon={IconClick} size={16} />
         </ActionIcon>
@@ -197,6 +209,22 @@ const findModelOption = (value: DataAppClaudeModel): ModelOption =>
     MODEL_OPTIONS.find((o) => o.isDefault) ??
     MODEL_OPTIONS[0];
 
+// All data-app models are Anthropic's; the shared selector keys models by
+// "provider:name".
+const DATA_APP_MODEL_PROVIDER = 'anthropic';
+
+const toModelKey = (value: DataAppClaudeModel): string =>
+    `${DATA_APP_MODEL_PROVIDER}:${value}`;
+
+const toModelOption = (opt: ModelOption): AiModelOption => ({
+    name: opt.value,
+    displayName: opt.label,
+    description: opt.tagline,
+    provider: DATA_APP_MODEL_PROVIDER,
+    default: opt.isDefault === true,
+    supportsReasoning: false,
+});
+
 /**
  * Picker for the Claude model the agent uses to build the data app.
  *
@@ -204,94 +232,41 @@ const findModelOption = (value: DataAppClaudeModel): ModelOption =>
  * also editable mid-iteration — `claude --continue` accepts a fresh
  * `--model` flag each turn while preserving the prior conversation context.
  *
- * The label of the current choice ("Sonnet" / "Haiku") is shown on the
- * trigger so the user doesn't have to open the popover to confirm what
- * they're about to run with. The advantages are summarised in the popover
- * itself rather than a tooltip, so both options are visible at the same time.
+ * Renders the shared `ModelSelector` so the data-app composer and the AI
+ * agent chat offer the same control; the data-app model union is mapped onto
+ * the provider-qualified model options that selector expects.
  */
 export const ModelPicker: FC<{
     value: DataAppClaudeModel;
     onChange: (value: DataAppClaudeModel) => void;
     disabled?: boolean;
-    /** Restrict the popover to these models (org admin visibility settings).
+    /** Restrict the picker to these models (org admin visibility settings).
      *  Defaults to all models when omitted. */
     visibleModels?: DataAppClaudeModel[];
 }> = ({ value, onChange, disabled, visibleModels }) => {
-    const [opened, setOpened] = useState(false);
-    const current = findModelOption(value);
-    const options = visibleModels
-        ? MODEL_OPTIONS.filter((opt) => visibleModels.includes(opt.value))
-        : MODEL_OPTIONS;
+    const models = useMemo(
+        () =>
+            MODEL_OPTIONS.filter(
+                (opt) => !visibleModels || visibleModels.includes(opt.value),
+            ).map(toModelOption),
+        [visibleModels],
+    );
 
     return (
-        <Popover
-            opened={opened}
-            onChange={setOpened}
-            position="top-end"
-            offset={8}
-            shadow="md"
-            trapFocus
-        >
-            <Popover.Target>
-                <Tooltip
-                    label={`Claude model: ${current.label}`}
-                    withArrow
-                    position="top"
-                >
-                    <ActionIcon
-                        variant="default"
-                        size="lg"
-                        radius="md"
-                        onClick={() => setOpened((o) => !o)}
-                        disabled={disabled}
-                        aria-label={`Claude model: ${current.label}`}
-                    >
-                        <MantineIcon icon={IconSparkles} size={16} />
-                    </ActionIcon>
-                </Tooltip>
-            </Popover.Target>
-            <Popover.Dropdown className={classes.queryDropdown} p={0}>
-                <Box py="xs">
-                    {options.map((opt) => {
-                        const isActive = opt.value === value;
-                        return (
-                            <UnstyledButton
-                                key={opt.value}
-                                className={classes.attachMenuItem}
-                                onClick={() => {
-                                    onChange(opt.value);
-                                    setOpened(false);
-                                }}
-                                aria-pressed={isActive}
-                            >
-                                <Box flex={1}>
-                                    <Group gap="xs" align="center">
-                                        <Text size="sm" fw={500}>
-                                            {opt.label}
-                                        </Text>
-                                        {opt.isDefault && (
-                                            <Text size="xs" c="dimmed">
-                                                Default
-                                            </Text>
-                                        )}
-                                        {isActive && (
-                                            <MantineIcon
-                                                icon={IconCheck}
-                                                size={14}
-                                                color="indigo.6"
-                                            />
-                                        )}
-                                    </Group>
-                                    <Text size="xs" c="dimmed">
-                                        {opt.tagline}
-                                    </Text>
-                                </Box>
-                            </UnstyledButton>
-                        );
-                    })}
-                </Box>
-            </Popover.Dropdown>
-        </Popover>
+        <ModelSelector
+            models={models}
+            value={toModelKey(findModelOption(value).value)}
+            onChange={(modelKey) => {
+                const picked = MODEL_OPTIONS.find(
+                    (opt) => toModelKey(opt.value) === modelKey,
+                );
+                if (picked) onChange(picked.value);
+            }}
+            disabled={disabled}
+            variant="subtle"
+            color="gray"
+            size="xs"
+        />
     );
 };
 
@@ -1059,17 +1034,28 @@ export const AttachButton: FC<{
             trapFocus
         >
             <Popover.Target>
-                <Tooltip label="Add resources" withArrow position="top">
-                    <ActionIcon
-                        variant="default"
-                        size="lg"
-                        radius="md"
+                <Tooltip
+                    label="Add charts, dashboards, connections or images"
+                    withArrow
+                    position="top"
+                >
+                    <Button
+                        variant="subtle"
+                        color="gray"
+                        size="xs"
+                        radius="xl"
+                        h="auto"
+                        px={8}
+                        py={6}
                         onClick={() => setOpened((o) => !o)}
                         disabled={disabled}
                         aria-label="Attach resources"
+                        leftSection={<MantineIcon icon={IconPlus} size={14} />}
                     >
-                        <MantineIcon icon={IconPlus} size={16} />
-                    </ActionIcon>
+                        <Text span size="xs" fw={600} lh={1.2} c="inherit">
+                            Attach
+                        </Text>
+                    </Button>
                 </Tooltip>
             </Popover.Target>
             <Popover.Dropdown className={classes.queryDropdown} p={0}>
@@ -1077,6 +1063,7 @@ export const AttachButton: FC<{
                     <Box py="xs">
                         <UnstyledButton
                             className={classes.attachMenuItem}
+                            ff="inherit"
                             onClick={() => setView('queries')}
                         >
                             <MantineIcon icon={IconChartBar} />
@@ -1091,6 +1078,7 @@ export const AttachButton: FC<{
                         </UnstyledButton>
                         <UnstyledButton
                             className={classes.attachMenuItem}
+                            ff="inherit"
                             onClick={() => setView('dashboard')}
                         >
                             <MantineIcon icon={IconLayoutDashboard} />
@@ -1107,6 +1095,7 @@ export const AttachButton: FC<{
                             className={classes.attachMenuItem}
                             onClick={handleImagesClick}
                             disabled={imagesDisabled}
+                            ff="inherit"
                             data-disabled={imagesDisabled || undefined}
                         >
                             <MantineIcon icon={IconPhoto} />
@@ -1124,6 +1113,7 @@ export const AttachButton: FC<{
                         <UnstyledButton
                             className={classes.attachMenuItem}
                             onClick={() => setView('connections')}
+                            ff="inherit"
                         >
                             <MantineIcon icon={IconPlugConnected} />
                             <Box flex={1}>

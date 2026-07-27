@@ -28,139 +28,6 @@
     display: none;
 }
 
-.inputCard {
-    position: relative;
-    z-index: 1;
-    border-radius: rem(24px);
-    overflow: hidden;
-    transition:
-        box-shadow 150ms ease,
-        border-color 150ms ease;
-
-    @mixin light {
-        background-color: var(--mantine-color-white);
-        border: 1px solid var(--mantine-color-ldGray-2);
-        box-shadow:
-            0 8px 24px rgba(15, 23, 42, 0.05),
-            0 1px 4px rgba(15, 23, 42, 0.04);
-    }
-
-    @mixin dark {
-        background-color: var(--mantine-color-dark-6);
-        border: 1px solid var(--mantine-color-dark-4);
-        box-shadow:
-            0 10px 32px rgba(0, 0, 0, 0.22),
-            0 1px 4px rgba(0, 0, 0, 0.18);
-    }
-
-    &:focus-within {
-        @mixin light {
-            border-color: var(--mantine-color-gray-4);
-            box-shadow:
-                0 10px 28px rgba(15, 23, 42, 0.06),
-                0 0 0 2px rgba(15, 23, 42, 0.04);
-        }
-
-        @mixin dark {
-            border-color: var(--mantine-color-dark-3);
-            box-shadow:
-                0 12px 36px rgba(0, 0, 0, 0.26),
-                0 0 0 2px rgba(255, 255, 255, 0.04);
-        }
-    }
-}
-
-.deepResearchInput {
-    @mixin light {
-        border-color: var(--mantine-color-indigo-3);
-        background-color: color-mix(
-            in srgb,
-            var(--mantine-color-indigo-0) 38%,
-            var(--mantine-color-white)
-        );
-        box-shadow:
-            0 8px 24px rgba(76, 110, 245, 0.08),
-            0 0 0 1px rgba(76, 110, 245, 0.06);
-    }
-
-    @mixin dark {
-        border-color: var(--mantine-color-indigo-8);
-        background-color: color-mix(
-            in srgb,
-            var(--mantine-color-indigo-9) 16%,
-            var(--mantine-color-dark-6)
-        );
-    }
-}
-
-.inputCard.deepResearchInput:focus-within {
-    @mixin light {
-        border-color: var(--mantine-color-indigo-4);
-        box-shadow:
-            0 10px 28px rgba(76, 110, 245, 0.1),
-            0 0 0 2px rgba(76, 110, 245, 0.08);
-    }
-
-    @mixin dark {
-        border-color: var(--mantine-color-indigo-7);
-    }
-}
-
-.deepResearchIndicator {
-    position: absolute;
-    top: rem(12px);
-    left: rem(20px);
-    z-index: 2;
-    color: var(--mantine-color-indigo-6);
-}
-
-.deepResearchEditorContent {
-    padding-top: rem(42px);
-}
-
-.textarea {
-    border: none;
-    background: transparent;
-    resize: none;
-    padding: var(--mantine-spacing-md) var(--mantine-spacing-lg);
-    padding-bottom: var(--mantine-spacing-sm);
-    font-size: var(--mantine-font-size-md);
-    line-height: 1.5;
-    min-height: 60px;
-
-    &:focus {
-        outline: none;
-        box-shadow: none;
-    }
-}
-
-.textareaWrapper {
-    --input-bd: transparent;
-    --input-bg: transparent;
-}
-
-.divider {
-    display: none;
-    margin: 0;
-    border: none;
-}
-
-.toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--mantine-spacing-xs);
-    min-height: rem(50px);
-    padding: 0 rem(8px) rem(8px);
-}
-
-.toolbarActions {
-    display: flex;
-    align-items: center;
-    gap: var(--mantine-spacing-xs);
-    min-width: 0;
-}
-
 .agentSelectorReveal {
     transition:
         opacity 160ms ease,
@@ -176,32 +43,6 @@
 @media (prefers-reduced-motion: reduce) {
     .agentSelectorReveal {
         transition: none;
-    }
-}
-
-.submitButton {
-    width: rem(40px);
-    height: rem(40px);
-    min-width: rem(40px);
-    min-height: rem(40px);
-    border-radius: var(--mantine-radius-xl);
-    transition:
-        transform 150ms ease,
-        opacity 150ms ease,
-        background-color 150ms ease;
-
-    background-color: var(--mantine-color-foreground-0) !important;
-
-    &:hover:not(:disabled) {
-        background-color: var(--mantine-color-foreground-1) !important;
-    }
-
-    &:disabled {
-        opacity: 0.4;
-    }
-
-    &:active:not(:disabled) {
-        transform: scale(0.95);
     }
 }
 
@@ -222,11 +63,6 @@
         border: 1px solid var(--mantine-color-ldDark-4);
         border-top: none;
     }
-}
-
-.disabledBannerVisible .inputCard {
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
 }
 
 /* Minimal mode styles for existing threads */
@@ -310,56 +146,6 @@
     }
 }
 
-/* Long, gentle ease applies both when toggling on *and* off. */
-.minimalInputWrapper,
-.inputCard {
-    transition:
-        border-color 520ms cubic-bezier(0.4, 0, 0.2, 1),
-        box-shadow 520ms cubic-bezier(0.4, 0, 0.2, 1),
-        background-color 150ms ease;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .minimalInputWrapper,
-    .inputCard {
-        transition: none;
-    }
-}
-
-.minimalInputWrapper {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    width: 100%;
-    border-radius: rem(18px);
-    padding: 4px var(--mantine-spacing-xs);
-    gap: 4px;
-    transition:
-        background-color 150ms ease,
-        border-color 150ms ease;
-
-    @mixin light {
-        background-color: var(--mantine-color-white);
-        border: 1px solid var(--mantine-color-ldGray-2);
-    }
-
-    @mixin dark {
-        background-color: var(--ai-chat-input-bg, var(--mantine-color-dark-8));
-        border: 1px solid var(--mantine-color-ldDark-6);
-    }
-
-    &:focus-within {
-        @mixin light {
-            border-color: var(--mantine-color-ldGray-4);
-        }
-
-        @mixin dark {
-            border-color: var(--mantine-color-ldDark-5);
-        }
-    }
-}
-
 .minimalResearchIndicator {
     display: flex;
     flex: 0 0 rem(26px);
@@ -376,224 +162,6 @@
     flex-shrink: 0;
 }
 
-.minimalInputWrapper.deepResearchInput,
-.minimalInputWrapper.deepResearchInput:focus-within {
-    @mixin light {
-        border-color: var(--mantine-color-indigo-3);
-        background-color: color-mix(
-            in srgb,
-            var(--mantine-color-indigo-0) 38%,
-            var(--mantine-color-white)
-        );
-    }
-
-    @mixin dark {
-        border-color: var(--mantine-color-indigo-8);
-        background-color: color-mix(
-            in srgb,
-            var(--mantine-color-indigo-9) 16%,
-            var(--ai-chat-input-bg, var(--mantine-color-dark-8))
-        );
-    }
-}
-
-.minimalInputWrapper.deepResearchInput .minimalPlaceholder {
-    left: rem(88px);
-}
-
-.minimalTextarea {
-    border: none;
-    background: transparent;
-    resize: none;
-    padding: 0;
-    padding-right: var(--mantine-spacing-sm);
-    font-size: var(--mantine-font-size-sm);
-    line-height: 1.5;
-    min-height: unset;
-
-    &[data-disabled='true'] {
-        background-color: transparent;
-    }
-
-    &:focus {
-        outline: none;
-        box-shadow: none;
-    }
-}
-
-.minimalTextareaWrapper {
-    flex: 1;
-    --input-bd: transparent;
-    --input-bg: transparent;
-}
-
-.minimalPlaceholder {
-    position: absolute;
-    left: rem(30px);
-    right: rem(60px);
-    top: 50%;
-    transform: translateY(-50%);
-    pointer-events: none;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    font-size: var(--mantine-font-size-sm);
-    line-height: 1.5;
-
-    @mixin light {
-        color: var(--mantine-color-ldGray-6);
-    }
-
-    @mixin dark {
-        color: var(--mantine-color-ldGray-7);
-    }
-}
-
-.minimalSubmitButton {
-    flex-shrink: 0;
-    align-self: flex-end;
-    border-radius: var(--mantine-radius-xl);
-    transition:
-        transform 150ms ease,
-        opacity 150ms ease;
-
-    @mixin light {
-        background-color: var(--mantine-color-gray-8);
-
-        &:hover:not(:disabled) {
-            background-color: var(--mantine-color-gray-9);
-        }
-    }
-
-    @mixin dark {
-        background-color: var(--mantine-color-gray-3);
-
-        &:hover:not(:disabled) {
-            background-color: var(--mantine-color-gray-2);
-        }
-    }
-
-    &:disabled {
-        opacity: 0.4;
-    }
-
-    &:active:not(:disabled) {
-        transform: scale(0.95);
-    }
-
-    &[data-loading='true'] {
-        @mixin dark {
-            background-color: var(--mantine-color-ldDark-7);
-        }
-    }
-}
-
-.submitButton.deepResearchSubmitButton,
-.minimalSubmitButton.deepResearchSubmitButton {
-    background-color: var(--mantine-color-indigo-6) !important;
-
-    &:hover:not(:disabled) {
-        background-color: var(--mantine-color-indigo-7) !important;
-    }
-}
-
-.minimalStreamActionButton {
-    align-self: center;
-}
-
-.editorRoot {
-    border: none;
-    background: transparent;
-    flex: 1;
-    min-width: 0;
-    --rte-bg: transparent;
-    --rte-border-color: transparent;
-
-    :global(.mantine-RichTextEditor-content),
-    :global(.mantine-8-RichTextEditor-content) {
-        background: transparent;
-        border: none;
-    }
-}
-
-.container[data-dense='true'] .editorContent {
-    padding: rem(14px) rem(18px) rem(6px);
-    font-size: var(--mantine-font-size-sm);
-    min-height: rem(60px);
-
-    :global(.ProseMirror) {
-        min-height: rem(34px);
-    }
-}
-
-.container[data-dense='true'] .toolbar {
-    min-height: rem(40px);
-    padding: 0 rem(6px) rem(6px);
-}
-
-.container[data-dense='true'] .submitButton {
-    width: rem(32px);
-    height: rem(32px);
-    min-width: rem(32px);
-    min-height: rem(32px);
-}
-
-.editorContent {
-    padding: rem(22px) rem(24px) rem(10px);
-    font-size: var(--mantine-font-size-md);
-    line-height: 1.5;
-    min-height: rem(118px);
-    max-height: 240px;
-    overflow-y: auto;
-
-    :global(.ProseMirror) {
-        outline: none;
-        min-height: rem(82px);
-    }
-
-    :global(p.is-empty.is-editor-empty::before) {
-        content: attr(data-placeholder);
-        float: left;
-        pointer-events: none;
-        height: 0;
-
-        @mixin light {
-            color: var(--mantine-color-ldGray-6);
-        }
-
-        @mixin dark {
-            color: var(--mantine-color-ldGray-7);
-        }
-    }
-}
-
-.minimalEditorContent {
-    padding: 0 var(--mantine-spacing-xs) 0 rem(6px);
-    font-size: var(--mantine-font-size-sm);
-    line-height: 1.5;
-    min-height: 24px;
-    max-height: 144px;
-    overflow-y: auto;
-    scrollbar-width: none;
-    flex: 1;
-    background: transparent;
-
-    &::-webkit-scrollbar {
-        display: none;
-    }
-
-    :global(.ProseMirror) {
-        outline: none;
-        background: transparent;
-    }
-
-    :global(p.is-empty.is-editor-empty::before),
-    :global(p.is-empty.is-editor-empty:first-child::before),
-    :global(.ProseMirror p.is-editor-empty:first-child::before) {
-        content: none;
-    }
-}
-
 .sqlModeButton {
     flex-shrink: 0;
     border-radius: var(--mantine-radius-xl);
@@ -601,38 +169,6 @@
 
 .sqlModeControl {
     flex-shrink: 0;
-}
-
-@media (max-width: 48em) {
-    .inputCard {
-        border-radius: rem(22px);
-    }
-
-    .editorContent {
-        padding: rem(20px) rem(18px) rem(12px);
-        font-size: var(--mantine-font-size-md);
-        min-height: rem(112px);
-
-        :global(.ProseMirror) {
-            min-height: rem(70px);
-        }
-    }
-
-    .toolbar {
-        min-height: rem(52px);
-        padding: 0 rem(8px) rem(8px);
-    }
-
-    .toolbarActions {
-        min-width: auto;
-    }
-
-    .submitButton {
-        width: rem(40px);
-        height: rem(40px);
-        min-width: rem(40px);
-        min-height: rem(40px);
-    }
 }
 
 .chipMention {
@@ -757,4 +293,11 @@
 .contentMentionSuggestionLabel {
     min-width: 0;
     max-width: 100%;
+}
+
+/* The composer squares off where the disabled banner joins it. Doubled
+ * selector so it outranks the composer's own variant rule. */
+.disabledBannerVisible .agentComposer.agentComposer {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
 }
