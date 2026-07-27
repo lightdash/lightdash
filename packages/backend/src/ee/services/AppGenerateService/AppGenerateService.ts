@@ -161,6 +161,10 @@ import {
 } from './appCode';
 import { contextFile, promptHistoryToMarkdown } from './appContext';
 import {
+    CLARIFY_APP_SYSTEM_PROMPT,
+    CLARIFY_VIZ_SYSTEM_PROMPT,
+} from './clarifierPrompts';
+import {
     classifyClaudeCliFailure,
     ClaudeGenerationError,
 } from './claudeCliFailure';
@@ -4456,6 +4460,10 @@ export class AppGenerateService extends BaseService {
      * Anthropic — mirroring the data-apps sandbox provider switch in
      * `claudeCodeEnv.ts` so the clarifier and code generation use the same
      * provider.
+     *
+     * Branches on template: a data app viz gets a component-scoped prompt and
+     * no catalog context, because it never runs a query. Everything else shares
+     * the cap, timeout and fall-through behaviour. See `clarifierPrompts.ts`.
      */
     async clarifyApp(
         user: SessionUser,
@@ -4502,8 +4510,16 @@ export class AppGenerateService extends BaseService {
             return { questions: [] };
         }
 
+        // A data app viz never runs a query — it renders whatever rows the host
+        // explore hands it — so catalog context would only invite questions
+        // about explores, dimensions and time ranges that nobody can answer at
+        // build time. Skip the summary entirely (and its catalog read).
+        const isVizTemplate = template === DATA_APP_VIZ_TEMPLATE;
+
         const [catalogSummary, attachedResources] = await Promise.all([
-            this.buildCatalogSummaryForClarifier(projectUuid),
+            isVizTemplate
+                ? Promise.resolve(null)
+                : this.buildCatalogSummaryForClarifier(projectUuid),
             this.buildAttachedResourcesForClarifier(charts, dashboard, user),
         ]);
         const imageCount = imageIds?.length ?? 0;
@@ -4512,11 +4528,12 @@ export class AppGenerateService extends BaseService {
         // rejects `maxItems` in the schema. The prompt already pins the
         // 1–4 cap and we slice client-side after the response.
         const clarifySchema = z.object({
-            questions: z
-                .array(z.string())
-                .describe(
-                    '0–4 short clarifying questions, each a single sentence (5–15 words). Default to empty — only include questions whose answers would materially change the app.',
-                ),
+            questions: z.array(z.string()).describe(
+                // Deliberately says "what gets built", not "the app" — this
+                // description reaches the model alongside a system prompt
+                // that may be insisting it is building a viz, not an app.
+                '0–4 short clarifying questions, each a single sentence (5–15 words). Default to empty — only include questions whose answers would materially change what gets built.',
+            ),
         });
 
         // Cap the LLM call so a stalled provider can't pin the chat input
@@ -4533,6 +4550,9 @@ export class AppGenerateService extends BaseService {
             userUuid: user.userUuid,
             ...getLanguageModelAttribution(modelOptions.model),
             keyManagement: modelOptions.keyManagement,
+            // Which prompt variant ran — the two ask for very different things,
+            // so spend and question counts are only comparable within a variant.
+            extra: { template: template ?? 'custom' },
         });
         let result;
         try {
@@ -4546,36 +4566,18 @@ export class AppGenerateService extends BaseService {
                 messages: [
                     {
                         role: 'system',
-                        content: `You help a user scope a React data app on top of their semantic layer before any code is written. Given the user's prompt, the kind of app they're building, and a summary of the available tables, decide whether 0–4 short clarifying questions would materially change what gets built.
-
-DEFAULT TO ASKING NOTHING. Empty is the right answer for most well-formed prompts. Only ask when the answer would meaningfully change the app's structure, content, or scope — never to fine-tune cosmetics or pick between two equally reasonable defaults. If you're unsure whether to ask, don't. Reasonable defaults during the build beat slowing the user down.
-
-Worth asking about (only when the prompt is silent on them):
-- Which tables or metrics to query, when several plausible options exist
-- Default time range, when the prompt doesn't imply one
-- Audience, when it would change the level of detail (executive vs analyst)
-- The shape of the app (single-page vs tabs, drill-down vs flat) when truly ambiguous
-
-App kind context (use to prioritize, not as a checklist):
-- dashboard: audience, key metrics/KPIs, default time range, layout density.
-- slideshow: number of slides, narrative arc, takeaway per slide.
-- pdf: page orientation, audience, what gets exported vs interactive.
-- custom: focus on the most impactful unknowns.
-
-Do NOT ask about:
-- Cosmetic details with reasonable defaults (date format, exact colors, number formatting, axis labels, column widths).
-- Anything already stated in the prompt — even partially.
-- Things you can look up in the catalog (table names, field names).
-- Picking between two readings of a phrase when one is the obvious interpretation.
-- Multi-part or open-ended — each question must be answerable in one short line.
-- Which chart, dashboard, or image to use, when the user has already attached resources — those are listed under "Resources the user attached".
-
-Each question, when asked, must be a single sentence, 5–15 words.`,
+                        content: isVizTemplate
+                            ? CLARIFY_VIZ_SYSTEM_PROMPT
+                            : CLARIFY_APP_SYSTEM_PROMPT,
                     },
                     {
                         role: 'user',
                         content: [
-                            `App kind: ${template ?? 'custom'}`,
+                            // The viz system prompt already fixes the kind, and
+                            // there is no catalog to describe.
+                            ...(isVizTemplate
+                                ? []
+                                : [`App kind: ${template ?? 'custom'}`]),
                             `\nUser prompt:\n${trimmed}`,
                             `\nResources the user attached:\n${
                                 AppGenerateService.formatAttachedResourcesForClarifier(
@@ -4583,16 +4585,21 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                                     imageCount,
                                 ) || '(none)'
                             }`,
-                            `\nAvailable tables and key fields:\n${
-                                catalogSummary || '(no catalog available)'
-                            }`,
+                            ...(isVizTemplate
+                                ? []
+                                : [
+                                      `\nAvailable tables and key fields:\n${
+                                          catalogSummary ||
+                                          '(no catalog available)'
+                                      }`,
+                                  ]),
                         ].join('\n'),
                     },
                 ],
             });
         } catch (err) {
             this.logger.warn(
-                `App clarify failed after ${AppGenerateService.elapsed(start)}ms (project=${projectUuid}, llm=${llmProvider}): ${getErrorMessage(err)}`,
+                `App clarify failed after ${AppGenerateService.elapsed(start)}ms (project=${projectUuid}, template=${template ?? 'custom'}, llm=${llmProvider}): ${getErrorMessage(err)}`,
             );
             return { questions: [] };
         }
@@ -4605,7 +4612,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             .slice(0, 4);
 
         this.logger.info(
-            `App clarify: ${questions.length} question(s) in ${elapsedMs}ms (project=${projectUuid}, llm=${llmProvider})`,
+            `App clarify: ${questions.length} question(s) in ${elapsedMs}ms (project=${projectUuid}, template=${template ?? 'custom'}, llm=${llmProvider})`,
         );
 
         return { questions };
