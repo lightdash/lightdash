@@ -403,6 +403,7 @@ type GenerateAgentExecutionOptions =
           budget: AiDeepResearchBudget;
           selectedMcpServerUuids: string[];
           abortSignal?: AbortSignal;
+          initialTokenUsage?: number;
           onStepUsage?: (tokens: number) => void | Promise<void>;
           onWarehouseQuery?: () => void | Promise<void>;
           onExecutionContextResolved?: (
@@ -8859,6 +8860,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     responseExecution.budget.maxToolCalls +
                     DEEP_RESEARCH_STEP_HEADROOM,
                 budget: responseExecution.budget,
+                initialTokenUsage: responseExecution.initialTokenUsage ?? 0,
                 onStepUsage: responseExecution.onStepUsage,
                 onExecutionContextResolved:
                     responseExecution.onExecutionContextResolved,

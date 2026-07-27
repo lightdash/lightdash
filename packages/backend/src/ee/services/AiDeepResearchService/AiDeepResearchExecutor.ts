@@ -368,70 +368,79 @@ export class AiDeepResearchExecutor {
             ]);
         };
 
-        let executionError: unknown = null;
-        try {
-            await this.dependencies.aiAgentService.generateAgentThreadResponse(
-                user,
-                {
-                    agentUuid: run.agent_uuid,
-                    threadUuid: run.ai_thread_uuid,
-                    promptUuid: run.prompt_uuid,
-                    autoApproveSql: true,
-                    execution: {
-                        mode: 'deep_research',
-                        budget: run.budget_snapshot,
-                        selectedMcpServerUuids: run.selected_mcp_server_uuids,
-                        abortSignal: runSignal,
-                        onStepUsage: (stepTokens) => {
-                            tokens += stepTokens;
-                            if (tokens > run.budget_snapshot.maxTokens) {
-                                budgetExceeded = 'maxTokens';
-                                controller.abort(
-                                    new Error(
-                                        'Deep Research exceeded its token budget',
-                                    ),
-                                );
-                                throw new Error(
+        const generateReport = (forceReportSubmission = false) =>
+            this.dependencies.aiAgentService.generateAgentThreadResponse(user, {
+                agentUuid: run.agent_uuid,
+                threadUuid: run.ai_thread_uuid,
+                promptUuid: run.prompt_uuid,
+                autoApproveSql: true,
+                ...(forceReportSubmission
+                    ? {
+                          toolHints: [AI_DEEP_RESEARCH_REPORT_TOOL_NAME],
+                          forceToolHints: true,
+                      }
+                    : {}),
+                execution: {
+                    mode: 'deep_research',
+                    budget: run.budget_snapshot,
+                    selectedMcpServerUuids: run.selected_mcp_server_uuids,
+                    abortSignal: runSignal,
+                    initialTokenUsage: tokens,
+                    onStepUsage: (stepTokens) => {
+                        tokens += stepTokens;
+                        if (tokens > run.budget_snapshot.maxTokens) {
+                            budgetExceeded = 'maxTokens';
+                            controller.abort(
+                                new Error(
                                     'Deep Research exceeded its token budget',
-                                );
-                            }
-                        },
-                        onWarehouseQuery: () => {
-                            warehouseQueries += 1;
-                            if (
-                                warehouseQueries >
-                                run.budget_snapshot.maxWarehouseQueries
-                            ) {
-                                budgetExceeded = 'maxWarehouseQueries';
-                                const error = new Error(
-                                    'Deep Research exceeded its warehouse-query budget',
-                                );
-                                controller.abort(error);
-                                throw error;
-                            }
-                        },
-                        onExecutionContextResolved: (snapshot) =>
-                            this.dependencies.aiDeepResearchRunModel.updateExecutionContextSnapshot(
-                                run.ai_deep_research_run_uuid,
-                                snapshot,
-                            ),
-                    },
-                    onStepProgress: async (
-                        _progress,
-                        toolName,
-                        toolCallId,
-                        status = 'in_progress',
-                    ) => {
-                        if (
-                            status === 'in_progress' &&
-                            toolName &&
-                            toolCallId
-                        ) {
-                            await recordProgress(toolName, toolCallId);
+                                ),
+                            );
+                            throw new Error(
+                                'Deep Research exceeded its token budget',
+                            );
                         }
                     },
+                    onWarehouseQuery: () => {
+                        warehouseQueries += 1;
+                        if (
+                            warehouseQueries >
+                            run.budget_snapshot.maxWarehouseQueries
+                        ) {
+                            budgetExceeded = 'maxWarehouseQueries';
+                            const error = new Error(
+                                'Deep Research exceeded its warehouse-query budget',
+                            );
+                            controller.abort(error);
+                            throw error;
+                        }
+                    },
+                    onExecutionContextResolved: (snapshot) =>
+                        this.dependencies.aiDeepResearchRunModel.updateExecutionContextSnapshot(
+                            run.ai_deep_research_run_uuid,
+                            snapshot,
+                        ),
                 },
+                onStepProgress: async (
+                    _progress,
+                    toolName,
+                    toolCallId,
+                    status = 'in_progress',
+                ) => {
+                    if (status === 'in_progress' && toolName && toolCallId) {
+                        await recordProgress(toolName, toolCallId);
+                    }
+                },
+            });
+
+        let executionError: unknown = null;
+        try {
+            await generateReport();
+            const initialReport = getLatestReport(
+                await this.getProvenance(run.prompt_uuid),
             );
+            if (!initialReport && !runSignal.aborted) {
+                await generateReport(true);
+            }
         } catch (error) {
             executionError = error;
         } finally {

@@ -295,6 +295,7 @@ describe('AiDeepResearchExecutor', () => {
             report,
             warehouseQueryUuids: [queryUuid],
         });
+        expect(generateAgentThreadResponse).toHaveBeenCalledTimes(1);
         expect(
             aiDeepResearchRunModel.updateExecutionContextSnapshot,
         ).toHaveBeenCalledWith('run-1', executionContextSnapshot);
@@ -472,8 +473,123 @@ describe('AiDeepResearchExecutor', () => {
         });
     });
 
+    it('retries once with forced report submission when generation ends without a report', async () => {
+        const generateAgentThreadResponse = vi.fn(
+            async (
+                _user: SessionUser,
+                options: {
+                    execution: {
+                        onStepUsage: (tokens: number) => void;
+                    };
+                },
+            ) => {
+                if (generateAgentThreadResponse.mock.calls.length === 1) {
+                    options.execution.onStepUsage(600);
+                }
+            },
+        );
+        const { executor, aiAgentModel } = buildExecutor({
+            generateAgentThreadResponse,
+            provenance: [],
+        });
+        aiAgentModel.getToolCallsAndResultsForPrompt
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce([reportSubmission()]);
+
+        await expect(
+            executor.execute(run(), {
+                signal: new AbortController().signal,
+            }),
+        ).resolves.toEqual({
+            status: 'completed',
+            report,
+            warehouseQueryUuids: [],
+        });
+        expect(generateAgentThreadResponse).toHaveBeenCalledTimes(2);
+        expect(generateAgentThreadResponse).toHaveBeenNthCalledWith(
+            2,
+            expect.anything(),
+            expect.objectContaining({
+                toolHints: [AI_DEEP_RESEARCH_REPORT_TOOL_NAME],
+                forceToolHints: true,
+                execution: expect.objectContaining({
+                    initialTokenUsage: 600,
+                }),
+            }),
+        );
+    });
+
+    it.each([
+        {
+            budgetName: 'maxTokens',
+            budget: { ...budget, maxTokens: 1 },
+            consumeBudget: async (options: AnyType, _attempt: number) => {
+                await options.execution.onStepUsage(1);
+            },
+        },
+        {
+            budgetName: 'maxToolCalls',
+            budget: { ...budget, maxToolCalls: 1 },
+            consumeBudget: async (options: AnyType, attempt: number) => {
+                await options.onStepProgress(
+                    'Reading content',
+                    'readContent',
+                    `content-${attempt}`,
+                );
+            },
+        },
+        {
+            budgetName: 'maxWarehouseQueries',
+            budget: { ...budget, maxWarehouseQueries: 1 },
+            consumeBudget: async (options: AnyType, _attempt: number) => {
+                await options.execution.onWarehouseQuery();
+            },
+        },
+    ])(
+        'enforces the cumulative $budgetName budget across report recovery',
+        async ({ budget: recoveryBudget, consumeBudget }) => {
+            let attempt = 0;
+            const generateAgentThreadResponse = vi.fn(
+                async (_user: SessionUser, options: AnyType) => {
+                    attempt += 1;
+                    await consumeBudget(options, attempt);
+                },
+            );
+            const { executor } = buildExecutor({
+                generateAgentThreadResponse,
+                provenance: [],
+            });
+
+            const result = await executor.execute(
+                run({ budget_snapshot: recoveryBudget }),
+                { signal: new AbortController().signal },
+            );
+
+            expect(result.status).toBe('partially_completed');
+            expect(generateAgentThreadResponse).toHaveBeenCalledTimes(2);
+        },
+    );
+
+    it('does not recover after the run is aborted between agent calls', async () => {
+        const controller = new AbortController();
+        const generateAgentThreadResponse = vi.fn(async () => {
+            controller.abort();
+        });
+        const { executor } = buildExecutor({
+            generateAgentThreadResponse,
+            provenance: [],
+        });
+
+        await expect(
+            executor.execute(run(), { signal: controller.signal }),
+        ).resolves.toEqual({ status: 'cancelled' });
+        expect(generateAgentThreadResponse).toHaveBeenCalledTimes(1);
+    });
+
     it('fails when execution ends without a valid submitted report', async () => {
-        const { executor } = buildExecutor({ provenance: [] });
+        const { executor, generateAgentThreadResponse } = buildExecutor({
+            provenance: [],
+        });
 
         await expect(
             executor.execute(run(), {
@@ -483,6 +599,7 @@ describe('AiDeepResearchExecutor', () => {
             status: 'failed',
             errorMessage: 'Deep Research finished without submitting a report',
         });
+        expect(generateAgentThreadResponse).toHaveBeenCalledTimes(2);
     });
 
     it('does not start an already cancelled run', async () => {

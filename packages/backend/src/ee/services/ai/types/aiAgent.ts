@@ -118,6 +118,7 @@ export type AiAgentExecutionConfig =
           mode: 'deep_research';
           maxSteps: number;
           budget: AiDeepResearchBudget;
+          initialTokenUsage: number;
           onStepUsage?: (tokens: number) => void | Promise<void>;
           onExecutionContextResolved?: (
               snapshot: AiDeepResearchExecutionContextSnapshot,

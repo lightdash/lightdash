@@ -2,12 +2,35 @@ import type { ModelMessage } from 'ai';
 import type { AiAgentArgs, AiAgentDependencies } from '../types/aiAgent';
 import {
     buildDeepResearchExecutionContextSnapshot,
+    buildForcedFirstStep,
     buildMessagesWithMemoryBlock,
     getAgentTools,
     normalizeToolOutput,
     withEarlyToolProgress,
     type AgentMcpToolSetup,
 } from './agentV2';
+
+describe('buildForcedFirstStep', () => {
+    it('forces the hinted report tool on only the opening step', () => {
+        const prepareStep = buildForcedFirstStep(
+            {
+                forceToolHints: true,
+                toolHints: ['submitResearchReport'],
+            } as AiAgentArgs,
+            {
+                submitResearchReport: {} as never,
+            },
+        );
+
+        expect(prepareStep?.({ stepNumber: 0 })).toEqual({
+            toolChoice: {
+                type: 'tool',
+                toolName: 'submitResearchReport',
+            },
+        });
+        expect(prepareStep?.({ stepNumber: 1 })).toEqual({});
+    });
+});
 
 describe('buildDeepResearchExecutionContextSnapshot', () => {
     it('captures the effective runtime without secret-bearing fields', () => {
@@ -343,6 +366,7 @@ describe('getAgentTools workstream tool gate', () => {
                 maxWarehouseQueries: 10,
                 maxResultRows: 1_000,
             },
+            initialTokenUsage: 0,
         };
         const tools = getAgentTools(
             args,
