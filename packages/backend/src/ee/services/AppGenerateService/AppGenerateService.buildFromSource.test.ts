@@ -74,6 +74,7 @@ function buildService(
         updateVersionStatusIfInProgress: vi.fn().mockResolvedValue(true),
         updateSandboxUuid: vi.fn().mockResolvedValue(undefined),
         updateStatusMessage: vi.fn().mockResolvedValue(undefined),
+        recordBuildNarration: vi.fn().mockResolvedValue(undefined),
         getVersion: vi
             .fn()
             .mockResolvedValue(

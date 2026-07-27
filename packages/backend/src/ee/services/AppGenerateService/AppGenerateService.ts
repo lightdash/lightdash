@@ -54,6 +54,8 @@ import {
     type AppVersionDependencyEntry,
     type AppVersionExternalConnectionResource,
     type AppVersionResources,
+    type AppVersionStatusHistoryEntry,
+    type AppVersionStatusHistoryEntryKind,
     type ChartConfig,
     type ChartReference,
     type ChartSampleData,
@@ -2461,7 +2463,12 @@ export class AppGenerateService extends BaseService {
      * Convert an internal tool description (e.g. "Write /app/src/Dashboard.tsx")
      * into a user-friendly status message (e.g. "Creating Dashboard.tsx").
      */
-    private static toolDescriptionToStatusMessage(description: string): string {
+    /** Human-readable status for a recognized tool; null for tools we have
+     *  no meaningful description for (the caller shows a coding phrase as
+     *  the live status instead, without recording it in the history). */
+    private static toolDescriptionToStatusMessage(
+        description: string,
+    ): string | null {
         const parts = description.split(' ');
         const tool = parts[0];
         const filePath = parts.slice(1).join(' ');
@@ -2480,7 +2487,7 @@ export class AppGenerateService extends BaseService {
             case 'TodoWrite':
                 return 'Updating TODOs';
             default:
-                return AppGenerateService.randomCodingPhrase();
+                return null;
         }
     }
 
@@ -2667,10 +2674,13 @@ export class AppGenerateService extends BaseService {
                                         this.logger.info(
                                             `App ${appUuid}: claude turn #${event.turn}: thinking`,
                                         );
+                                        // Live-status placeholder only — not
+                                        // worth keeping in the transcript.
                                         this.updateAppStatus(
                                             appUuid,
                                             version,
                                             'Thinking',
+                                            null,
                                         );
                                         break;
                                     case 'thinking_snippet':
@@ -2678,6 +2688,7 @@ export class AppGenerateService extends BaseService {
                                             appUuid,
                                             version,
                                             event.snippet,
+                                            'thinking',
                                         );
                                         break;
                                     case 'tool_use': {
@@ -2689,12 +2700,18 @@ export class AppGenerateService extends BaseService {
                                         // use only the first tool for the status.
                                         const firstTool =
                                             event.description.split(', ')[0];
+                                        const toolStatus =
+                                            AppGenerateService.toolDescriptionToStatusMessage(
+                                                firstTool,
+                                            );
+                                        // Unknown tools get a fun live status
+                                        // but stay out of the transcript.
                                         this.updateAppStatus(
                                             appUuid,
                                             version,
-                                            AppGenerateService.toolDescriptionToStatusMessage(
-                                                firstTool,
-                                            ),
+                                            toolStatus ??
+                                                AppGenerateService.randomCodingPhrase(),
+                                            toolStatus ? 'tool' : null,
                                         );
                                         break;
                                     }
@@ -2845,15 +2862,17 @@ export class AppGenerateService extends BaseService {
     /**
      * Fire-and-forget app status message update. Logs (but does not propagate)
      * failures so transient DB errors during a long generation don't kill the
-     * pipeline.
+     * pipeline. `kind` tags the entry in the narration history; `null` shows
+     * the message as the live status without recording it.
      */
     private updateAppStatus(
         appUuid: string,
         version: number,
         message: string,
+        kind: AppVersionStatusHistoryEntryKind | null = 'stage',
     ): void {
         void this.appModel
-            .updateStatusMessage(appUuid, version, message)
+            .recordBuildNarration(appUuid, version, message, kind)
             .catch((e) => {
                 this.logger.warn(
                     `App ${appUuid}: failed to update status message: ${getErrorMessage(e)}`,
@@ -3067,10 +3086,11 @@ export class AppGenerateService extends BaseService {
             );
 
             try {
-                await this.appModel.updateStatusMessage(
+                await this.appModel.recordBuildNarration(
                     appUuid,
                     version,
                     isBuildError ? 'Fixing build errors' : 'Fixing blank app',
+                    'stage',
                 );
             } catch (e) {
                 this.logger.warn(
@@ -3136,10 +3156,11 @@ export class AppGenerateService extends BaseService {
             fixUsage = addClaudeUsage(fixUsage, generation.usage);
 
             try {
-                await this.appModel.updateStatusMessage(
+                await this.appModel.recordBuildNarration(
                     appUuid,
                     version,
                     'Rebuilding',
+                    'stage',
                 );
             } catch (e) {
                 this.logger.warn(
@@ -4008,10 +4029,11 @@ export class AppGenerateService extends BaseService {
                 // the Vite build. Skipped for template-only versions.
                 if (versionDeps !== null) {
                     try {
-                        await this.appModel.updateStatusMessage(
+                        await this.appModel.recordBuildNarration(
                             appUuid,
                             version,
                             'Installing dependencies',
+                            'stage',
                         );
                     } catch (e) {
                         this.logger.warn(
@@ -4058,10 +4080,11 @@ export class AppGenerateService extends BaseService {
                         return;
                     }
                     try {
-                        await this.appModel.updateStatusMessage(
+                        await this.appModel.recordBuildNarration(
                             appUuid,
                             version,
                             'Packaging your app',
+                            'stage',
                         );
                     } catch (e) {
                         this.logger.warn(
@@ -6610,6 +6633,38 @@ export class AppGenerateService extends BaseService {
         }
     }
 
+    /**
+     * Narration entries as served to the chat UI. Stage labels are always
+     * dropped (transient progress the live status line already showed). On
+     * terminal versions, reasoning entries restated in the final completion
+     * message are dropped too — the snippet stream can't tell Claude's
+     * closing response apart from mid-run narration, so its sentences also
+     * land in the history. Snippets are verbatim extracts, so a normalized
+     * substring check identifies them exactly.
+     */
+    private static filterStatusHistoryForApi(
+        history: AppVersionStatusHistoryEntry[] | null,
+        status: AppVersionStatus,
+        statusMessage: string | null,
+    ): AppVersionStatusHistoryEntry[] {
+        const normalize = (s: string) => s.replace(/\s+/g, ' ').trim();
+        const finalText =
+            !isAppVersionInProgress(status) && statusMessage
+                ? normalize(statusMessage)
+                : null;
+        return (history ?? []).filter((entry) => {
+            if (entry.kind === 'stage') return false;
+            if (
+                finalText &&
+                entry.kind === 'thinking' &&
+                finalText.includes(normalize(entry.message))
+            ) {
+                return false;
+            }
+            return true;
+        });
+    }
+
     async getAppVersions(
         user: SessionUser,
         projectUuid: string,
@@ -6630,6 +6685,7 @@ export class AppGenerateService extends BaseService {
             prompt: string;
             status: AppVersionStatus;
             statusMessage: string | null;
+            statusHistory: AppVersionStatusHistoryEntry[];
             error: string | null;
             createdAt: Date;
             statusUpdatedAt: Date | null;
@@ -6686,6 +6742,11 @@ export class AppGenerateService extends BaseService {
                 prompt: v.prompt,
                 status: v.status,
                 statusMessage: v.status_message,
+                statusHistory: AppGenerateService.filterStatusHistoryForApi(
+                    v.status_history,
+                    v.status,
+                    v.status_message,
+                ),
                 error: v.error,
                 // Attach `vizSchema` even when `resources` JSONB is null (a
                 // viz with no other attachments) — never drop existing
@@ -8650,10 +8711,11 @@ export class AppGenerateService extends BaseService {
             // package.json + lockfile and run pnpm install before the build.
             if (versionDeps !== null) {
                 try {
-                    await this.appModel.updateStatusMessage(
+                    await this.appModel.recordBuildNarration(
                         appUuid,
                         version,
                         'Installing dependencies',
+                        'stage',
                     );
                 } catch (e) {
                     this.logger.warn(

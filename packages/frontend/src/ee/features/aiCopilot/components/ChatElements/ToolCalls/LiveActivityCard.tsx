@@ -14,7 +14,11 @@ import {
     Text,
     UnstyledButton,
 } from '@mantine-8/core';
-import { IconChevronRight, IconNotes } from '@tabler/icons-react';
+import {
+    IconChevronRight,
+    IconNotes,
+    type Icon as TablerIconType,
+} from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
@@ -174,7 +178,11 @@ const McpSummaryIconStack: FC<{
 export const ReasoningHistoryRow: FC<{
     texts: string[];
     isLive: boolean;
-}> = ({ texts, isLive }) => {
+    /** Row identity overrides so other surfaces (e.g. data-app builds) can
+     *  reuse the collapsed-history pattern for non-reasoning content. */
+    icon?: TablerIconType;
+    label?: string;
+}> = ({ texts, isLive, icon = IconNotes, label = 'Reasoning' }) => {
     const [open, setOpen] = useState(false);
     const combined = texts.join('\n\n');
     // While streaming, the preview is the *latest* reasoning chunk (it rolls
@@ -198,7 +206,7 @@ export const ReasoningHistoryRow: FC<{
                     {isLive ? (
                         <Box className={styles.iconChip} data-live="true">
                             <MantineIcon
-                                icon={IconNotes}
+                                icon={icon}
                                 size={12}
                                 stroke={1.7}
                                 className={styles.reasoningIcon}
@@ -207,7 +215,7 @@ export const ReasoningHistoryRow: FC<{
                         </Box>
                     ) : (
                         <MantineIcon
-                            icon={IconNotes}
+                            icon={icon}
                             size={13}
                             stroke={1.6}
                             className={styles.reasoningIcon}
@@ -218,12 +226,12 @@ export const ReasoningHistoryRow: FC<{
                         className={styles.reasoningLabel}
                         data-live={isLive ? 'true' : 'false'}
                     >
-                        Reasoning
+                        {label}
                     </Text>
                     <Text
                         size="xs"
                         c="dimmed"
-                        lineClamp={1}
+                        truncate
                         fs="italic"
                         className={styles.reasoningPreview}
                     >

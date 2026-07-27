@@ -430,6 +430,9 @@
     text-align: left;
     border-radius: 10px;
     padding: 7px 12px;
+    /* <button> doesn't inherit font — without this the preview renders in
+     * the UA sans-serif, whose metrics sit visibly off against the label. */
+    font-family: var(--mantine-font-family);
 }
 
 .reasoningIcon {
@@ -443,11 +446,13 @@
     animation: livePulse 1.6s ease-in-out infinite;
 }
 
+/* Label and preview must share the default line-height — mismatched
+ * line-heights (or the -webkit-box a lineClamp creates) center their boxes
+ * but visibly misalign the glyphs against each other. Font-family comes
+ * from .reasoningHeader so label and preview always share metrics. */
 .reasoningLabel {
     flex-shrink: 0;
-    line-height: 1;
     color: var(--mantine-color-ldGray-8);
-    font-family: var(--mantine-font-family);
     font-weight: 500;
     letter-spacing: -0.005em;
 }

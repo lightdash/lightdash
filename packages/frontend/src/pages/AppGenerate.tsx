@@ -13,6 +13,8 @@ import {
     type AppDashboardReference,
     type AppExternalConnectionReference,
     type AppVersionDependencyEntry,
+    type AppVersionStatusHistoryEntry,
+    type AppVersionStatusHistoryEntryKind,
     type DataAppClaudeModel,
     type DataAppTemplate,
     type DataAppVizContext,
@@ -38,6 +40,7 @@ import {
     IconCheck,
     IconArrowUp,
     IconBrush,
+    IconHammer,
     IconExternalLink,
     IconArrowBackUp,
     IconLayoutDashboard,
@@ -79,6 +82,7 @@ import {
 } from '../components/common/PromptComposer';
 import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
+import { ReasoningHistoryRow } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/LiveActivityCard';
 import { useAiOrganizationSettings } from '../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import AppIframePreview, {
     type AppIframePreviewHandle,
@@ -110,6 +114,7 @@ import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import AppSpaceChip from '../features/apps/components/AppSpaceChip';
 import DataAppVizResultCard from '../features/apps/components/DataAppVizResultCard';
 import DataAppVizTestPanel from '../features/apps/components/DataAppVizTestPanel';
+import LoadingDots from '../features/apps/components/LoadingDots';
 import { getAppVersionFailureMessage } from '../features/apps/getAppVersionFailureMessage';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
@@ -166,6 +171,19 @@ function parseElementRefLabel(label: string): ElementRef | null {
         );
     if (!m) return null;
     return { tag: m[1] ?? '', text: m[2] ?? '', loc: m[3] ?? '' };
+}
+
+// The null guard exists because the poll worker feeds raw fetch JSON into
+// the query cache; the consecutive dedupe because a retry can restart the
+// generation stream and re-emit the same entry.
+function versionNarrationTexts(
+    history: AppVersionStatusHistoryEntry[] | undefined,
+    kind: AppVersionStatusHistoryEntryKind,
+): string[] {
+    return (history ?? [])
+        .filter((entry) => entry.kind === kind)
+        .map((entry) => entry.message)
+        .filter((message, index, all) => message !== all[index - 1]);
 }
 
 // Run a layout-changing state update inside a native View Transition so the
@@ -313,14 +331,6 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
 );
 
 AppPreview.displayName = 'AppPreview';
-
-const LoadingDots: FC = () => (
-    <span className={classes.loadingDots}>
-        <span className={classes.loadingDot} />
-        <span className={classes.loadingDot} />
-        <span className={classes.loadingDot} />
-    </span>
-);
 
 const TemplateChip: FC<{ template: DataAppTemplate }> = ({ template }) => {
     const t = getTemplate(template);
@@ -861,6 +871,20 @@ const AppGenerate: FC = () => {
         return null;
     }, [appData]);
     const isBuilding = latestBuildingVersion !== null;
+    // Accumulated narration for the live build's Reasoning / Activity rows.
+    const reasoningTexts = useMemo<string[]>(
+        () =>
+            versionNarrationTexts(
+                latestBuildingVersion?.statusHistory,
+                'thinking',
+            ),
+        [latestBuildingVersion],
+    );
+    const activityTexts = useMemo<string[]>(
+        () =>
+            versionNarrationTexts(latestBuildingVersion?.statusHistory, 'tool'),
+        [latestBuildingVersion],
+    );
     // Clarifying counts as loading for the chat input (disable send; typing
     // stays enabled so the next prompt can be drafted), and a pending
     // unanswered clarification keeps send disabled until the user clicks
@@ -944,6 +968,11 @@ const AppGenerate: FC = () => {
                 v.version === 1
                     ? 'Your app is ready!'
                     : `Version ${v.version} is ready!`;
+            const reasoning = versionNarrationTexts(
+                v.statusHistory,
+                'thinking',
+            );
+            const activity = versionNarrationTexts(v.statusHistory, 'tool');
             const msgs: ChatMessage[] = [
                 {
                     role: 'user',
@@ -959,6 +988,8 @@ const AppGenerate: FC = () => {
                     timestamp: new Date(v.createdAt),
                     userName: authorName,
                     vizSchema: null,
+                    reasoning: [],
+                    activity: [],
                 },
             ];
             if (v.status === 'ready') {
@@ -978,6 +1009,8 @@ const AppGenerate: FC = () => {
                     timestamp: new Date(replyTimestamp),
                     userName: null,
                     vizSchema: v.resources?.vizSchema ?? null,
+                    reasoning,
+                    activity,
                 });
             } else if (v.status === 'error') {
                 msgs.push({
@@ -994,6 +1027,8 @@ const AppGenerate: FC = () => {
                     timestamp: new Date(replyTimestamp),
                     userName: null,
                     vizSchema: null,
+                    reasoning,
+                    activity,
                 });
             }
             // 'building' status is not rendered as a history message —
@@ -1207,6 +1242,8 @@ const AppGenerate: FC = () => {
                             .filter((s): s is string => !!s && s.length > 0)
                             .join(' ') || null,
                     vizSchema: null,
+                    reasoning: [],
+                    activity: [],
                     submittedAtVersion: maxHistoryVersion,
                 },
             ]);
@@ -1248,6 +1285,8 @@ const AppGenerate: FC = () => {
                                 timestamp: new Date(),
                                 userName: null,
                                 vizSchema: null,
+                                reasoning: [],
+                                activity: [],
                             },
                         ]);
                     },
@@ -1702,6 +1741,8 @@ const AppGenerate: FC = () => {
                     timestamp: new Date(),
                     userName: null,
                     vizSchema: null,
+                    reasoning: [],
+                    activity: [],
                 },
             ]);
         },
@@ -1853,6 +1894,8 @@ const AppGenerate: FC = () => {
                             .filter((s): s is string => !!s && s.length > 0)
                             .join(' ') || null,
                     vizSchema: null,
+                    reasoning: [],
+                    activity: [],
                     // Snapshot the highest server version known at submit time.
                     // Once history catches up past this number the optimistic
                     // bubble is dropped by `mergeChatMessages` — even if the
@@ -2452,11 +2495,36 @@ const AppGenerate: FC = () => {
                                                                       )
                                                                     : undefined
                                                             }
+                                                            className={
+                                                                classes.assistantBubbleMeta
+                                                            }
                                                         />
                                                         {msg.version !== null &&
                                                             renderVersionDepsChip(
                                                                 msg.version,
                                                             )}
+                                                        {msg.reasoning.length >
+                                                            0 && (
+                                                            <ReasoningHistoryRow
+                                                                texts={
+                                                                    msg.reasoning
+                                                                }
+                                                                isLive={false}
+                                                            />
+                                                        )}
+                                                        {msg.activity.length >
+                                                            0 && (
+                                                            <ReasoningHistoryRow
+                                                                texts={
+                                                                    msg.activity
+                                                                }
+                                                                isLive={false}
+                                                                icon={
+                                                                    IconHammer
+                                                                }
+                                                                label="Activity"
+                                                            />
+                                                        )}
                                                         {msg.vizSchema ? (
                                                             msg.version !==
                                                                 null &&
@@ -2602,64 +2670,90 @@ const AppGenerate: FC = () => {
                                                                 starting{' '}
                                                                 <LoadingDots />
                                                             </Text>
-                                                        ) : latestBuildingVersion?.statusMessage ? (
-                                                            <AiMarkdown
-                                                                className={
-                                                                    classes.statusMarkdown
-                                                                }
-                                                                components={{
-                                                                    p: ({
-                                                                        node: _node,
-                                                                        children,
-                                                                        ...rest
-                                                                    }) => (
-                                                                        <p
-                                                                            {...rest}
-                                                                        >
-                                                                            {
-                                                                                children
-                                                                            }{' '}
-                                                                            <LoadingDots />
-                                                                        </p>
-                                                                    ),
-                                                                }}
-                                                            >
-                                                                {
-                                                                    latestBuildingVersion.statusMessage
-                                                                }
-                                                            </AiMarkdown>
                                                         ) : (
-                                                            <Text
-                                                                size="sm"
-                                                                c="dimmed"
-                                                            >
-                                                                Generating your
-                                                                app{' '}
-                                                                <LoadingDots />
-                                                            </Text>
+                                                            <>
+                                                                {reasoningTexts.length >
+                                                                    0 && (
+                                                                    <ReasoningHistoryRow
+                                                                        texts={
+                                                                            reasoningTexts
+                                                                        }
+                                                                        isLive
+                                                                    />
+                                                                )}
+                                                                {activityTexts.length >
+                                                                    0 && (
+                                                                    <ReasoningHistoryRow
+                                                                        texts={
+                                                                            activityTexts
+                                                                        }
+                                                                        isLive
+                                                                        icon={
+                                                                            IconHammer
+                                                                        }
+                                                                        label="Activity"
+                                                                    />
+                                                                )}
+                                                                {latestBuildingVersion?.status ===
+                                                                'generating' ? (
+                                                                    // A status line here would duplicate the live
+                                                                    // previews of the Reasoning/Activity rows above.
+                                                                    <Text
+                                                                        size="sm"
+                                                                        c="dimmed"
+                                                                        className={
+                                                                            classes.workingLine
+                                                                        }
+                                                                    >
+                                                                        Working
+                                                                        on your
+                                                                        app —
+                                                                        feel
+                                                                        free to
+                                                                        switch
+                                                                        tabs or
+                                                                        close
+                                                                        this one{' '}
+                                                                        <LoadingDots />
+                                                                    </Text>
+                                                                ) : latestBuildingVersion?.statusMessage ? (
+                                                                    <AiMarkdown
+                                                                        className={
+                                                                            classes.statusMarkdown
+                                                                        }
+                                                                        components={{
+                                                                            p: ({
+                                                                                node: _node,
+                                                                                children,
+                                                                                ...rest
+                                                                            }) => (
+                                                                                <p
+                                                                                    {...rest}
+                                                                                >
+                                                                                    {
+                                                                                        children
+                                                                                    }{' '}
+                                                                                    <LoadingDots />
+                                                                                </p>
+                                                                            ),
+                                                                        }}
+                                                                    >
+                                                                        {
+                                                                            latestBuildingVersion.statusMessage
+                                                                        }
+                                                                    </AiMarkdown>
+                                                                ) : (
+                                                                    <Text
+                                                                        size="sm"
+                                                                        c="dimmed"
+                                                                    >
+                                                                        Generating
+                                                                        your app{' '}
+                                                                        <LoadingDots />
+                                                                    </Text>
+                                                                )}
+                                                            </>
                                                         )}
-                                                        {!isClarifying &&
-                                                            latestBuildingVersion?.status ===
-                                                                'generating' && (
-                                                                <Text
-                                                                    className={
-                                                                        classes.buildingHint
-                                                                    }
-                                                                    fz={11}
-                                                                    c="dimmed"
-                                                                    mt={6}
-                                                                >
-                                                                    I'll
-                                                                    continue
-                                                                    building in
-                                                                    the
-                                                                    background —
-                                                                    feel free to
-                                                                    switch tabs
-                                                                    or close
-                                                                    this one.
-                                                                </Text>
-                                                            )}
                                                     </Box>
                                                 </Box>
                                             </Box>

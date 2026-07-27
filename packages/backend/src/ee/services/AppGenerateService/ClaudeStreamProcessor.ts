@@ -121,22 +121,14 @@ const SNIPPET_SENTENCES = 1;
 
 /**
  * Return the most recent `n` complete sentences from `buf` as a single
- * paragraph: whitespace collapsed to single spaces, trailing periods
- * stripped (so they don't visually merge with the UI's animated "..."
- * indicator — `!` and `?` stay since they read distinctly), text-in-progress
- * after the last terminator dropped. Returns `''` while no complete sentence
+ * paragraph: whitespace collapsed to single spaces, text-in-progress after
+ * the last terminator dropped. Returns `''` while no complete sentence
  * exists yet — the caller skips empty updates so the status holds at
  * "Thinking".
  *
  * A sentence terminator is `[.!?]` followed by either whitespace + a capital
  * letter (which skips abbreviations like "e.g." that are followed by a
  * lowercase word) or end-of-string.
- *
- * Invariant for the frontend: the snippet collapses whitespace to a single
- * space, so it is always a single paragraph. The chat UI's `<p>` override
- * that injects `<LoadingDots />` inside the rendered paragraph relies on
- * this — if you change the snippet to preserve `\n\n`, the override needs
- * to learn about "last paragraph only".
  */
 function lastSentencesSnippet(buf: string, n: number): string {
     const flat = buf.replace(/\s+/g, ' ').trim();
@@ -151,10 +143,7 @@ function lastSentencesSnippet(buf: string, n: number): string {
     const end = positions[positions.length - 1];
     const sliceStart =
         positions.length > n ? positions[positions.length - n - 1] + 1 : 0;
-    return flat
-        .slice(sliceStart, end + 1)
-        .trim()
-        .replace(/\.+$/, '');
+    return flat.slice(sliceStart, end + 1).trim();
 }
 
 /**

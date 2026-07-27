@@ -5,6 +5,7 @@ import {
     ProjectType,
     type AppVersionDependencies,
     type AppVersionResources,
+    type AppVersionStatusHistoryEntryKind,
     type DataAppVizSchema,
     type KnexPaginateArgs,
     type KnexPaginatedData,
@@ -99,6 +100,31 @@ export class AppModel {
         });
     }
 
+    /**
+     * Cap on status_history entries per version. Snippet updates are
+     * throttled to one per ~3s upstream, so normal builds stay well under
+     * this; the cap only guards pathological runs (long retries against the
+     * 55-min sandbox timeout) from growing the row without bound. Once hit,
+     * new messages still update status_message but stop being recorded.
+     */
+    private static readonly MAX_STATUS_HISTORY_ENTRIES = 500;
+
+    /** SQL expression appending one entry to status_history, respecting the cap. */
+    private statusHistoryAppend(
+        message: string,
+        kind: AppVersionStatusHistoryEntryKind,
+    ): DbAppVersion['status_history'] {
+        return this.database.raw(
+            `CASE WHEN jsonb_array_length(status_history) < ? THEN status_history || ?::jsonb ELSE status_history END`,
+            [
+                AppModel.MAX_STATUS_HISTORY_ENTRIES,
+                JSON.stringify([
+                    { message, timestamp: new Date().toISOString(), kind },
+                ]),
+            ],
+        ) as unknown as DbAppVersion['status_history'];
+    }
+
     async updateVersionStatus(
         appId: string,
         version: number,
@@ -120,6 +146,11 @@ export class AppModel {
      * Update version status only if it is currently in progress.
      * Returns true if the update was applied, false if the version was
      * already in a terminal state (e.g. cancelled by the user).
+     *
+     * Stage messages for non-terminal transitions are also appended to the
+     * status_history narration log. Terminal messages are not — the final
+     * completion message lives in status_message and is rendered as the
+     * assistant reply, not as part of the build narration.
      */
     async updateVersionStatusIfInProgress(
         appId: string,
@@ -135,11 +166,24 @@ export class AppModel {
                 status,
                 error: error ?? null,
                 status_message: statusMessage ?? null,
+                ...(statusMessage && isAppVersionInProgress(status)
+                    ? {
+                          status_history: this.statusHistoryAppend(
+                              statusMessage,
+                              'stage',
+                          ),
+                      }
+                    : {}),
                 status_updated_at: this.database.fn.now() as unknown as Date,
             });
         return updatedRows > 0;
     }
 
+    /**
+     * Plain status_message setter with no in-progress guard — used by flows
+     * that stamp a message on an already-terminal version (restore, promote,
+     * duplicate). Build pipelines must use `recordBuildNarration` instead.
+     */
     async updateStatusMessage(
         appId: string,
         version: number,
@@ -149,6 +193,38 @@ export class AppModel {
             .where({ app_id: appId, version })
             .update({
                 status_message: statusMessage,
+                status_updated_at: this.database.fn.now() as unknown as Date,
+            });
+    }
+
+    /**
+     * Record a live narration message for an in-progress build: overwrites
+     * status_message and (when `kind` is non-null) appends to the
+     * status_history log. `kind: null` is for transient placeholders (e.g.
+     * "Thinking") that should show as the live status but aren't worth
+     * keeping in the transcript. No-ops once the version reached a terminal
+     * state, so a late fire-and-forget write from the generation stream
+     * can't clobber the final completion message.
+     */
+    async recordBuildNarration(
+        appId: string,
+        version: number,
+        statusMessage: string,
+        kind: AppVersionStatusHistoryEntryKind | null,
+    ): Promise<void> {
+        await this.database(AppVersionsTableName)
+            .where({ app_id: appId, version })
+            .whereNotIn('status', [...APP_VERSION_TERMINAL_STATUSES])
+            .update({
+                status_message: statusMessage,
+                ...(kind
+                    ? {
+                          status_history: this.statusHistoryAppend(
+                              statusMessage,
+                              kind,
+                          ),
+                      }
+                    : {}),
                 status_updated_at: this.database.fn.now() as unknown as Date,
             });
     }

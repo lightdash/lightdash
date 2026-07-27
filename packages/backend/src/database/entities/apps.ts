@@ -2,6 +2,7 @@ import {
     type AppVersionDependencies,
     type AppVersionResources,
     type AppVersionStatus,
+    type AppVersionStatusHistoryEntry,
     type DataAppTemplate,
     type DataAppVizSchema,
 } from '@lightdash/common';
@@ -84,6 +85,8 @@ export type DbAppVersion = {
     status: AppVersionStatus;
     error: string | null;
     status_message: string | null;
+    // Append-only build narration log; defaults to [] on insert.
+    status_history: AppVersionStatusHistoryEntry[];
     status_updated_at: Date | null;
     resources: AppVersionResources | null;
     // Declared-dependency summary for the version's build; null = template set.
@@ -112,6 +115,7 @@ export type AppVersionsTable = Knex.CompositeTableType<
             | 'status'
             | 'error'
             | 'status_message'
+            | 'status_history'
             | 'status_updated_at'
             | 'viz_schema'
         >
