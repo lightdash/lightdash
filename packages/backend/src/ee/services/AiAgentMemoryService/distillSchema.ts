@@ -1,16 +1,17 @@
 import { aiProjectContextTypedObjectRefSchema } from '@lightdash/common';
 import { z } from 'zod';
 
+export const distillNoOpReasons = [
+    'insufficient_signal',
+    'authoritative_source_duplicate',
+    'no_positive_evidence',
+    'failed_quality_rubric',
+] as const;
+
 const noOpSchema = z
     .object({
         type: z.literal('no_op'),
-        reason: z.enum([
-            'insufficient_signal',
-            'authoritative_source_duplicate',
-            'no_positive_evidence',
-            'not_project_shared',
-            'failed_quality_rubric',
-        ]),
+        reason: z.enum(distillNoOpReasons),
     })
     .strict();
 
