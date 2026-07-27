@@ -61,6 +61,7 @@ export type CaslSubjectNames =
     | 'PinnedItems'
     | 'Project'
     | 'ProjectHomepage'
+    | 'Roadmap'
     | 'SavedChart'
     | 'ScheduledDeliveries'
     | 'SemanticViewer'

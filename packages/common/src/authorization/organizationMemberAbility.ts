@@ -413,6 +413,10 @@ export const applyOrganizationMemberStaticAbilities: Record<
     admin(member, { can }) {
         applyOrganizationMemberStaticAbilities.developer(member, { can });
 
+        can('view', 'Roadmap', {
+            organizationUuid: member.organizationUuid,
+        });
+
         can('manage', 'DataApp', {
             organizationUuid: member.organizationUuid,
         });

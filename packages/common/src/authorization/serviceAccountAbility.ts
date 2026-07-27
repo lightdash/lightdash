@@ -246,6 +246,9 @@ const applyServiceAccountStaticAbilities: Record<
             userUuid,
             builder: { can },
         });
+        can('view', 'Roadmap', {
+            organizationUuid,
+        });
         can('manage', 'PreAggregation', {
             organizationUuid,
         });

@@ -1,11 +1,13 @@
 import { Box, Button, Group, Stack, Text, Title } from '@mantine-8/core';
 import { IconExternalLink } from '@tabler/icons-react';
 import { type FC, type PropsWithChildren, type ReactNode } from 'react';
+import { BetaBadge } from '../BetaBadge';
 import MantineIcon from '../MantineIcon';
 import classes from './SettingsPage.module.css';
 
 type SettingsPageProps = {
     title: string;
+    isBeta?: boolean;
     description?: ReactNode;
     actions?: ReactNode;
 };
@@ -39,6 +41,7 @@ const SettingsPageDocumentationLink: FC<{
 
 const SettingsPage: FC<PropsWithChildren<SettingsPageProps>> = ({
     title,
+    isBeta,
     description,
     actions,
     children,
@@ -53,9 +56,12 @@ const SettingsPage: FC<PropsWithChildren<SettingsPageProps>> = ({
                 className={classes.header}
             >
                 <Stack gap={4} className={classes.heading}>
-                    <Title order={4} className={classes.title}>
-                        {title}
-                    </Title>
+                    <Group gap="xs" wrap="nowrap">
+                        <Title order={4} className={classes.title}>
+                            {title}
+                        </Title>
+                        {isBeta ? <BetaBadge /> : null}
+                    </Group>
                     {description ? (
                         <Text
                             fz="sm"

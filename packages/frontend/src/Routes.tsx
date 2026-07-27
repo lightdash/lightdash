@@ -960,6 +960,10 @@ const PRIVATE_ROUTES: RouteObject[] = [
                 },
             },
             {
+                path: '/roadmap',
+                element: <Navigate to="/generalSettings/roadmap" replace />,
+            },
+            {
                 path: '/no-access',
                 handle: { hideAILauncher: true },
                 element: (

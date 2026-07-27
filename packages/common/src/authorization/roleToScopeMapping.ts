@@ -188,6 +188,7 @@ const BASE_ROLE_SCOPES = {
         'manage:OrganizationWarehouseCredentials',
         'manage:Organization',
         'manage:OrganizationColorPalette',
+        'view:Roadmap',
         'impersonate:User',
 
         // PAT management. Granted dynamically at runtime via
@@ -283,6 +284,7 @@ export const getNonEnterpriseScopesForRole = (
         'manage:ExternalConnection',
         'view:OrganizationDesign',
         'manage:OrganizationDesign',
+        'view:Roadmap',
         'manage:PersonalAccessToken',
         'manage:PreAggregation',
     ]);

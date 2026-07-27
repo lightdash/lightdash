@@ -63,6 +63,8 @@ export type SettingsContext = {
     isLeaveOrganizationEnabled: boolean;
     isCustomRolesEnabled: boolean | undefined;
     isProLimitsEnabled: boolean;
+    isOrganizationRoadmapEnabled: boolean;
+    isOrganizationRoadmapLoading: boolean;
     isSsoOrganizationSettingsEnabled: boolean;
     isEmailWhitelabelEnabled: boolean;
     isScimTokenManagementEnabled: FeatureFlag | undefined;

@@ -93,6 +93,7 @@ import { ProjectContextService } from './services/ProjectContextService/ProjectC
 import { ProjectHomepageService } from './services/ProjectHomepageService';
 import { provisionOnboardingHomepage } from './services/ProjectService/provisionOnboardingHomepage';
 import { provisionPlaygroundProject } from './services/ProjectService/provisionPlaygroundProject';
+import { RoadmapService } from './services/RoadmapService/RoadmapService';
 import { SchedulerAiAugmentationService } from './services/SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 import { ScimService } from './services/ScimService/ScimService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
@@ -332,6 +333,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         featureFlagService: repository.getFeatureFlagService(),
                         aiModelCatalog,
                     }),
+                }),
+            roadmapService: ({ context, repository }) =>
+                new RoadmapService({
+                    lightdashConfig: context.lightdashConfig,
+                    featureFlagService: repository.getFeatureFlagService(),
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({

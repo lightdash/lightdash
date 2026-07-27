@@ -83,6 +83,7 @@ import { CustomRoleCreate } from '../ee/pages/customRoles/CustomRoleCreate';
 import { CustomRoleDuplicate } from '../ee/pages/customRoles/CustomRoleDuplicate';
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
+import Roadmap from '../ee/pages/Roadmap';
 import DesignListPage from '../features/organizationDesigns/components/DesignListPage';
 import { filterSettingsNavigation } from '../hooks/settings/filterSettingsNavigation';
 import { useSettingsContext } from '../hooks/settings/useSettingsContext';
@@ -158,6 +159,8 @@ const Settings: FC = () => {
         isLeaveOrganizationEnabled,
         isCustomRolesEnabled,
         isProLimitsEnabled,
+        isOrganizationRoadmapEnabled,
+        isOrganizationRoadmapLoading,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
         isServiceAccountsEnabled,
@@ -584,6 +587,25 @@ const Settings: FC = () => {
             });
         }
 
+        if (
+            isOrganizationRoadmapEnabled &&
+            user?.ability.can(
+                'view',
+                subject('Roadmap', {
+                    organizationUuid: organization?.organizationUuid,
+                }),
+            )
+        ) {
+            allowedRoutes.push({
+                path: '/roadmap',
+                element: (
+                    <TrackPage name={PageName.ROADMAP}>
+                        <Roadmap />
+                    </TrackPage>
+                ),
+            });
+        }
+
         if (isAiCopilotEnabledOrTrial && hasAnyAiAgentAccess) {
             allowedRoutes.push({
                 path: '/ai',
@@ -706,6 +728,7 @@ const Settings: FC = () => {
         health?.auth.google.enabled,
         dataAppsFlag?.enabled,
         isProLimitsEnabled,
+        isOrganizationRoadmapEnabled,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
         isLeaveOrganizationEnabled,
@@ -811,7 +834,8 @@ const Settings: FC = () => {
             !matchPath(
                 { path: '/generalSettings/ai/issues/:fingerprint' },
                 location.pathname,
-            )
+            ) &&
+            !matchPath({ path: '/generalSettings/roadmap' }, location.pathname)
         );
     }, [location.pathname]);
 
@@ -822,6 +846,9 @@ const Settings: FC = () => {
     const isAwaitingAiSettingsRoute =
         isAiOrganizationSettingsLoading &&
         Boolean(matchPath('/generalSettings/ai/*', location.pathname));
+    const isAwaitingRoadmapRoute =
+        isOrganizationRoadmapLoading &&
+        Boolean(matchPath('/generalSettings/roadmap', location.pathname));
 
     if (
         isHealthLoading ||
@@ -829,7 +856,8 @@ const Settings: FC = () => {
         isOrganizationLoading ||
         isActiveProjectUuidLoading ||
         isProjectLoading ||
-        isAwaitingAiSettingsRoute
+        isAwaitingAiSettingsRoute ||
+        isAwaitingRoadmapRoute
     ) {
         return <PageSpinner />;
     }

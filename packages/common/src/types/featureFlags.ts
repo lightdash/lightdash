@@ -236,6 +236,11 @@ export enum FeatureFlags {
     ProLimits = 'pro-limits',
 
     /**
+     * Show the organization roadmap and enable its read-only API proxy.
+     */
+    OrganizationRoadmap = 'organization-roadmap',
+
+    /**
      * Replace the discoverFields sub-agent with a deterministic grep over an
      * in-memory, annotated view of the project's cached explores (explore =
      * directory, field = file). Connection-agnostic (reads compiled explores,
