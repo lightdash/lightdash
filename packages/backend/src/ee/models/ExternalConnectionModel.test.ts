@@ -492,6 +492,41 @@ describe('ExternalConnectionModel', () => {
             );
         });
 
+        it('replaceAppLinks deletes stale aliases and upserts with repoint-on-conflict', async () => {
+            tracker.on.delete(AppExternalConnectionsTableName).responseOnce(1);
+            tracker.on
+                .insert(AppExternalConnectionsTableName)
+                .responseOnce([{}]);
+
+            await model.replaceAppLinks(APP_ID, [
+                { externalConnectionUuid: CONNECTION_UUID, alias: 'acme' },
+            ]);
+
+            expect(tracker.history.delete).toHaveLength(1);
+            const deleteQuery = tracker.history.delete[0];
+            // Kept aliases must be excluded from the delete
+            expect(deleteQuery.sql).toContain('not in');
+            expect(deleteQuery.bindings).toEqual(
+                expect.arrayContaining([APP_ID, 'acme']),
+            );
+
+            expect(tracker.history.insert).toHaveLength(1);
+            const insertQuery = tracker.history.insert[0];
+            // Must repoint an existing alias, not conflict-ignore like linkToApp
+            expect(insertQuery.sql).toContain('on conflict');
+            expect(insertQuery.sql).toContain('do update');
+        });
+
+        it('replaceAppLinks with an empty set deletes all links and inserts nothing', async () => {
+            tracker.on.delete(AppExternalConnectionsTableName).responseOnce(2);
+
+            await model.replaceAppLinks(APP_ID, []);
+
+            expect(tracker.history.delete).toHaveLength(1);
+            expect(tracker.history.delete[0].sql).not.toContain('not in');
+            expect(tracker.history.insert).toHaveLength(0);
+        });
+
         it('resolves a linked, non-deleted connection by alias', async () => {
             tracker.on.select(AppExternalConnectionsTableName).responseOnce([
                 {

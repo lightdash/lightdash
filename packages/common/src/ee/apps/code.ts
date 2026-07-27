@@ -7,6 +7,14 @@ export const currentDataAppCodeVersion = 1 as const;
 export const MAX_DECLARED_DEPENDENCIES = 60;
 export const MAX_LOCKFILE_BYTES = 2 * 1024 * 1024; // 2 MB
 
+// App↔connection link carried in the manifest. The connection is referenced
+// by its project-scoped slug (apps have no stable cross-instance identity, so
+// the app→connection direction is the only portable one).
+export type DataAppManifestExternalConnection = {
+    alias: string;
+    connectionSlug: string;
+};
+
 export type DataAppManifest = {
     codeVersion: 1;
     appUuid: string;
@@ -22,6 +30,11 @@ export type DataAppManifest = {
     // re-emit it — without it the uploaded viz never appears in the viz picker.
     // Omitted for non-viz apps and bundles downloaded before this field.
     vizSchema?: DataAppVizSchema;
+    // External connection links, resolved by connectionSlug in the target
+    // project on upload. Present (including []) → the app's links are
+    // reconciled to match exactly; absent → existing links are left untouched
+    // (bundles downloaded before this field, or apps with no links).
+    externalConnections?: DataAppManifestExternalConnection[];
     downloadedAt: string; // ISO
     scaffoldingVersion?: string; // CLI/SDK version the vendored scaffolding came from (Phase 2)
 };
@@ -78,6 +91,10 @@ export type ApiImportAppCodeResponse = ApiSuccess<{
     appUuid: string;
     version: number;
     action: 'create' | 'append';
+    // Non-fatal issues the CLI should surface (e.g. a manifest link whose
+    // connectionSlug does not exist in the target project was skipped).
+    // Optional for compatibility with servers predating link support.
+    warnings?: string[];
 }>;
 
 export type DataAppDepsValidationResult = {

@@ -719,6 +719,43 @@ export class ExternalConnectionModel {
             .ignore();
     }
 
+    /**
+     * Reconciles an app's links to exactly match `links`: removes links whose
+     * alias is absent, and upserts the rest — repointing an existing alias to
+     * a different connection, unlike `linkToApp`'s conflict-ignore.
+     */
+    async replaceAppLinks(
+        appId: string,
+        links: Array<{ externalConnectionUuid: string; alias: string }>,
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await trx(AppExternalConnectionsTableName)
+                .where('app_id', appId)
+                .modify((query) => {
+                    if (links.length > 0) {
+                        void query.whereNotIn(
+                            'alias',
+                            links.map((link) => link.alias),
+                        );
+                    }
+                })
+                .delete();
+            if (links.length > 0) {
+                await trx(AppExternalConnectionsTableName)
+                    .insert(
+                        links.map((link) => ({
+                            app_id: appId,
+                            external_connection_uuid:
+                                link.externalConnectionUuid,
+                            alias: link.alias,
+                        })),
+                    )
+                    .onConflict(['app_id', 'alias'])
+                    .merge(['external_connection_uuid']);
+            }
+        });
+    }
+
     async unlinkFromApp(appId: string, alias: string): Promise<void> {
         const count = await this.database(AppExternalConnectionsTableName)
             .where('app_id', appId)

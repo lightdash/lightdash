@@ -95,6 +95,25 @@ Secrets never appear in YAML files or downloads. At upload the CLI reads the env
 - Clearing a secret is not supported as code — use the settings UI.
 - Never write a `secret` key into the YAML. The CLI strips it with a warning rather than uploading it, but it should not be in version control in the first place.
 
+### Linking connections to data apps
+
+The app↔connection link (the `alias` an app's `externalFetch('<alias>', …)` calls resolve through) lives in the app bundle's manifest, `apps/<app-folder>/lightdash-app.yml`, referencing connections by slug:
+
+```yaml
+externalConnections:
+  - alias: stripe
+    connectionSlug: stripe-api
+```
+
+Semantics on app upload:
+
+- **Field present** (including an empty list): the app's links are reconciled to match the manifest exactly — links are added, repointed, and removed as needed. An empty list removes all links.
+- **Field absent**: existing links are left untouched (bundles downloaded before link support, or apps that never had links; downloads omit the field when the app has no links).
+- **`connectionSlug` not found in the target project**: the app still uploads; the link is skipped and the CLI prints a warning. Fix the slug or upload the connection first — under `--include-all`, external connections upload before apps, so the ordering works automatically.
+- Linking requires `manage:ExternalConnection` on each referenced connection, on top of the app upload permission. If the upload reports a skipped or forbidden link, surface it to the user rather than retrying.
+
+This makes links portable across projects and instances: move the connection configs as code (secrets via env vars), then upload the app bundle and its aliases resolve against the same-slug connections in the target project.
+
 ### Authoring a new connection
 
 To wire a data app to a new API, an agent can author the config directly instead of using the settings UI:
@@ -103,7 +122,7 @@ To wire a data app to a new API, an agent can author the config directly instead
 2. Write `external-connections/<slug>.yml` with the narrowest `allowedMethods` and `allowedPathPrefixes` the app needs (`GET`-only unless writes are required), and detailed `instructions`.
 3. Have the secret exported as `LIGHTDASH_EXTERNAL_CONNECTION_SECRET_<SLUG>` — never pasted into a file.
 4. `lightdash upload --external-connections <slug>` and check the action summary.
-5. Linking the connection to a specific data app is a separate step done in Lightdash (app builder or API), not through content as code.
+5. Link the connection to the data app by adding `{alias, connectionSlug}` under `externalConnections` in the app's `lightdash-app.yml` and uploading the app (see [Linking connections to data apps](#linking-connections-to-data-apps)).
 
 ## What Is Not Included
 

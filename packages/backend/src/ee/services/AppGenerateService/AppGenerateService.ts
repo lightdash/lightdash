@@ -65,6 +65,7 @@ import {
     type DataAppCodeDownload,
     type DataAppContext,
     type DataAppDependencies,
+    type DataAppManifestExternalConnection,
     type DataAppTemplate,
     type DataAppViz,
     type DataAppVizSchema,
@@ -874,6 +875,82 @@ export class AppGenerateService extends BaseService {
                 conn.alias,
             );
         }
+    }
+
+    /**
+     * Resolves manifest `{alias, connectionSlug}` links against the target
+     * project. Invalid aliases and authz failures throw — rejecting the upload
+     * before any side effects — while a slug with no matching connection is
+     * skipped with a warning the CLI surfaces: the app still uploads and the
+     * missing link shows up as an in-app fetch error, not an upload failure.
+     */
+    private async resolveManifestExternalConnections(
+        user: SessionUser,
+        projectUuid: string,
+        organizationUuid: string,
+        links: DataAppManifestExternalConnection[] | undefined,
+    ): Promise<{
+        resolvedLinks: AppExternalConnectionReference[];
+        linkWarnings: string[];
+    }> {
+        if (!links || links.length === 0) {
+            return { resolvedLinks: [], linkWarnings: [] };
+        }
+        const seenAliases = new Set<string>();
+        for (const link of links) {
+            // The alias becomes a sandbox file path — same charset rule as
+            // linkToApp and the generation pipeline.
+            if (!/^[a-z0-9_-]+$/i.test(link.alias) || link.alias.length > 64) {
+                throw new ParameterError(
+                    `Invalid external connection alias "${link.alias}" in the app manifest: aliases must contain only letters, numbers, hyphens, and underscores (max 64 chars)`,
+                );
+            }
+            if (seenAliases.has(link.alias)) {
+                throw new ParameterError(
+                    `Duplicate external connection alias "${link.alias}" in the app manifest`,
+                );
+            }
+            seenAliases.add(link.alias);
+        }
+
+        const ability = this.createAuditedAbility(user);
+        const resolvedLinks: AppExternalConnectionReference[] = [];
+        const linkWarnings: string[] = [];
+        for (const link of links) {
+            // eslint-disable-next-line no-await-in-loop
+            const connection = await this.externalConnectionModel.findBySlug(
+                projectUuid,
+                organizationUuid,
+                link.connectionSlug,
+            );
+            if (!connection) {
+                linkWarnings.push(
+                    `Skipped linking external connection alias "${link.alias}": no connection with slug "${link.connectionSlug}" exists in the target project. Upload it first ('lightdash upload --external-connections ${link.connectionSlug}') or fix connectionSlug in lightdash-app.yml.`,
+                );
+                // eslint-disable-next-line no-continue
+                continue;
+            }
+            // Linking attaches a credentialed connection to an app — hold the
+            // same bar as the admin API and the generation pipeline.
+            if (
+                ability.cannot(
+                    'manage',
+                    subject('ExternalConnection', {
+                        organizationUuid: connection.organizationUuid,
+                        projectUuid: connection.projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    'You do not have permission to link this external connection',
+                );
+            }
+            resolvedLinks.push({
+                externalConnectionUuid: connection.externalConnectionUuid,
+                alias: link.alias,
+            });
+        }
+        return { resolvedLinks, linkWarnings };
     }
 
     /**
@@ -5893,6 +5970,41 @@ export class AppGenerateService extends BaseService {
             throw error;
         }
 
+        // Re-establish external-connection links on the production app by
+        // slug: preview connections are clones that keep the upstream slug,
+        // so each source link maps back to the same-slug upstream connection.
+        // Links to connections that exist only in the preview are skipped —
+        // there is nothing in production to point them at.
+        const sourceLinks = await this.externalConnectionModel.listAppLinks(
+            sourceApp.app_id,
+        );
+        const upstreamLinks: AppExternalConnectionReference[] = [];
+        for (const link of sourceLinks) {
+            const upstreamConnection =
+                // eslint-disable-next-line no-await-in-loop
+                await this.externalConnectionModel.findBySlug(
+                    upstreamProjectUuid,
+                    upstreamOrganizationUuid,
+                    link.connection.slug,
+                );
+            if (!upstreamConnection) {
+                this.logger.warn(
+                    `App ${targetAppUuid}: skipping external connection link "${link.alias}" — no connection with slug "${link.connection.slug}" in upstream project ${upstreamProjectUuid}`,
+                );
+                // eslint-disable-next-line no-continue
+                continue;
+            }
+            upstreamLinks.push({
+                externalConnectionUuid:
+                    upstreamConnection.externalConnectionUuid,
+                alias: link.alias,
+            });
+        }
+        await this.externalConnectionModel.replaceAppLinks(
+            targetAppUuid,
+            upstreamLinks,
+        );
+
         this.analytics.track({
             event: 'data_app.promoted',
             userId: user.userUuid,
@@ -7835,6 +7947,13 @@ export class AppGenerateService extends BaseService {
             passThrough.end(tarBuffer);
         });
 
+        // Emit the app's live links so a cross-project/instance upload can
+        // re-establish them by connection slug. Omit the key when there are
+        // none so link-less manifests stay unchanged.
+        const appLinks = await this.externalConnectionModel.listAppLinks(
+            app.app_id,
+        );
+
         const manifest = buildManifest({
             appUuid,
             projectUuid,
@@ -7846,6 +7965,14 @@ export class AppGenerateService extends BaseService {
             // so non-viz manifests stay unchanged.
             ...(versionRow?.viz_schema
                 ? { vizSchema: versionRow.viz_schema }
+                : {}),
+            ...(appLinks.length > 0
+                ? {
+                      externalConnections: appLinks.map((link) => ({
+                          alias: link.alias,
+                          connectionSlug: link.connection.slug,
+                      })),
+                  }
                 : {}),
             downloadedAt: new Date().toISOString(),
         });
@@ -8023,6 +8150,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string;
         version: number;
         action: 'create' | 'append';
+        warnings: string[];
     }> {
         await this.assertDataAppsEnabled(user);
 
@@ -8035,6 +8163,17 @@ export class AppGenerateService extends BaseService {
         }
 
         const organizationUuid = await this.getProjectOrgUuid(projectUuid);
+
+        // Resolve manifest external-connection links up front so a broken
+        // bundle rejects before creating anything.
+        const manifestLinks = code.manifest.externalConnections;
+        const { resolvedLinks, linkWarnings } =
+            await this.resolveManifestExternalConnections(
+                user,
+                projectUuid,
+                organizationUuid,
+                manifestLinks,
+            );
 
         // Validate the round-tripped viz schema up front and fail loud: the
         // build-from-source pipeline has no generation run to re-emit it, so
@@ -8322,6 +8461,15 @@ export class AppGenerateService extends BaseService {
             newAppUuid = app.app_id;
         }
 
+        // Reconcile links only when the manifest carries the field — bundles
+        // downloaded before link support must leave existing links untouched.
+        if (manifestLinks !== undefined) {
+            await this.externalConnectionModel.replaceAppLinks(
+                newAppUuid,
+                resolvedLinks,
+            );
+        }
+
         // Re-tar the source files into a single source.tar Buffer
         const sourceTar = await new Promise<Buffer>((resolve, reject) => {
             const packer = tarPack();
@@ -8420,7 +8568,12 @@ export class AppGenerateService extends BaseService {
             },
         });
 
-        return { appUuid: newAppUuid, version: newVersion, action };
+        return {
+            appUuid: newAppUuid,
+            version: newVersion,
+            action,
+            warnings: linkWarnings,
+        };
     }
 
     async runBuildFromSourcePipeline(

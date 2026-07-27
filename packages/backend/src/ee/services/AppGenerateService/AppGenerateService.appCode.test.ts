@@ -34,7 +34,10 @@ const makeUser = () =>
         organizationUuid: USER_ORG_UUID,
     }) as never;
 
-const makeCode = (files?: DataAppCode['files']): DataAppCode => ({
+const makeCode = (
+    files?: DataAppCode['files'],
+    manifestOverrides?: Partial<DataAppCode['manifest']>,
+): DataAppCode => ({
     manifest: {
         codeVersion: 1,
         appUuid: 'some-uuid',
@@ -44,6 +47,7 @@ const makeCode = (files?: DataAppCode['files']): DataAppCode => ({
         description: 'A test app',
         template: null,
         downloadedAt: new Date().toISOString(),
+        ...manifestOverrides,
     },
     files: files ?? [
         {
@@ -155,6 +159,11 @@ function buildService(
 
     const analytics = { track: vi.fn() };
 
+    const externalConnectionModel = {
+        findBySlug: vi.fn().mockResolvedValue(undefined),
+        replaceAppLinks: vi.fn().mockResolvedValue(undefined),
+    };
+
     const service = new AppGenerateService({
         lightdashConfig: lightdashConfig as never,
         analytics: analytics as never,
@@ -173,7 +182,7 @@ function buildService(
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
-        externalConnectionModel: {} as never,
+        externalConnectionModel: externalConnectionModel as never,
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
     });
@@ -212,7 +221,13 @@ function buildService(
         });
     }
 
-    return { service, appModel, schedulerClient, analytics };
+    return {
+        service,
+        appModel,
+        schedulerClient,
+        analytics,
+        externalConnectionModel,
+    };
 }
 
 describe('AppGenerateService.importAppCode', () => {
@@ -786,5 +801,160 @@ describe('AppGenerateService.importAppCode', () => {
         });
 
         expect(entryNames).toEqual(['src/App.jsx']);
+    });
+});
+
+describe('AppGenerateService.importAppCode external connection links', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        s3SendSpy.mockResolvedValue({});
+    });
+
+    const CONN_UUID = 'conn-uuid-1';
+    const makeConnection = (overrides: Record<string, unknown> = {}) => ({
+        externalConnectionUuid: CONN_UUID,
+        organizationUuid: PROJECT_ORG_UUID,
+        projectUuid: PROJECT_UUID,
+        slug: 'stripe-api',
+        name: 'Stripe API',
+        ...overrides,
+    });
+
+    it('reconciles manifest links by slug in the target project', async () => {
+        const { service, appModel, externalConnectionModel } = buildService();
+        appModel.findApp.mockResolvedValue(undefined);
+        externalConnectionModel.findBySlug.mockResolvedValue(makeConnection());
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, {
+                externalConnections: [
+                    { alias: 'stripe', connectionSlug: 'stripe-api' },
+                ],
+            }),
+        } as ImportAppCodeRequestBody);
+
+        expect(externalConnectionModel.findBySlug).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            PROJECT_ORG_UUID,
+            'stripe-api',
+        );
+        expect(externalConnectionModel.replaceAppLinks).toHaveBeenCalledWith(
+            NEW_APP_UUID,
+            [{ externalConnectionUuid: CONN_UUID, alias: 'stripe' }],
+        );
+        expect(result.warnings).toEqual([]);
+    });
+
+    it('warns and skips a missing slug while still applying resolvable links', async () => {
+        const { service, appModel, externalConnectionModel } = buildService();
+        appModel.findApp.mockResolvedValue(undefined);
+        externalConnectionModel.findBySlug.mockImplementation(
+            async (_project: string, _org: string, slug: string) =>
+                slug === 'stripe-api' ? makeConnection() : undefined,
+        );
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, {
+                externalConnections: [
+                    { alias: 'stripe', connectionSlug: 'stripe-api' },
+                    { alias: 'crm', connectionSlug: 'hubspot' },
+                ],
+            }),
+        } as ImportAppCodeRequestBody);
+
+        expect(externalConnectionModel.replaceAppLinks).toHaveBeenCalledWith(
+            NEW_APP_UUID,
+            [{ externalConnectionUuid: CONN_UUID, alias: 'stripe' }],
+        );
+        expect(result.warnings).toHaveLength(1);
+        expect(result.warnings[0]).toContain('hubspot');
+        expect(result.warnings[0]).toContain('crm');
+    });
+
+    it('leaves links untouched when the manifest has no externalConnections field', async () => {
+        const { service, appModel, externalConnectionModel } = buildService();
+        appModel.findApp.mockResolvedValue(undefined);
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(),
+        } as ImportAppCodeRequestBody);
+
+        expect(externalConnectionModel.replaceAppLinks).not.toHaveBeenCalled();
+        expect(result.warnings).toEqual([]);
+    });
+
+    it('removes all links when the manifest carries an empty list', async () => {
+        const { service, appModel, externalConnectionModel } = buildService();
+        appModel.findApp.mockResolvedValue(undefined);
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, { externalConnections: [] }),
+        } as ImportAppCodeRequestBody);
+
+        expect(externalConnectionModel.findBySlug).not.toHaveBeenCalled();
+        expect(externalConnectionModel.replaceAppLinks).toHaveBeenCalledWith(
+            NEW_APP_UUID,
+            [],
+        );
+    });
+
+    it('rejects an invalid alias before creating the app', async () => {
+        const { service, appModel } = buildService();
+        appModel.findApp.mockResolvedValue(undefined);
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(undefined, {
+                    externalConnections: [
+                        { alias: 'bad/alias', connectionSlug: 'stripe-api' },
+                    ],
+                }),
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow(ParameterError);
+
+        expect(appModel.createWithVersion).not.toHaveBeenCalled();
+    });
+
+    it('rejects duplicate aliases in the manifest', async () => {
+        const { service, appModel } = buildService();
+        appModel.findApp.mockResolvedValue(undefined);
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(undefined, {
+                    externalConnections: [
+                        { alias: 'stripe', connectionSlug: 'stripe-api' },
+                        { alias: 'stripe', connectionSlug: 'stripe-live' },
+                    ],
+                }),
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow('Duplicate external connection alias');
+
+        expect(appModel.createWithVersion).not.toHaveBeenCalled();
+    });
+
+    it('throws ForbiddenError when the user cannot manage the resolved connection', async () => {
+        const { service, appModel, externalConnectionModel } = buildService();
+        appModel.findApp.mockResolvedValue(undefined);
+        externalConnectionModel.findBySlug.mockResolvedValue(makeConnection());
+        vi.spyOn(
+            service as unknown as { createAuditedAbility: () => unknown },
+            'createAuditedAbility',
+        ).mockReturnValue({
+            can: () => false,
+            cannot: () => true,
+        });
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(undefined, {
+                    externalConnections: [
+                        { alias: 'stripe', connectionSlug: 'stripe-api' },
+                    ],
+                }),
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow(ForbiddenError);
+
+        expect(appModel.createWithVersion).not.toHaveBeenCalled();
     });
 });

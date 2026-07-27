@@ -266,6 +266,11 @@ naming the expected variable. Clearing a secret is not supported as code —
 use the settings UI. A stray `secret` key in a YAML file is stripped and
 warned about, never uploaded.
 
+App↔connection links are not part of these documents — each data app's
+bundle manifest (`lightdash-app.yml`) carries them as
+`externalConnections: [{alias, connectionSlug}]`, resolved by slug in the
+target project on app upload. See `docs/data-apps.md` → *Data apps as code*.
+
 ## Spaces and access
 
 Project space definitions use `.space.yml` files. New flat downloads place them

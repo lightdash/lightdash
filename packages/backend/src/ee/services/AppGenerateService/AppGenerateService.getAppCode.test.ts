@@ -155,6 +155,7 @@ function buildService(overrides: {
     projectModel?: Record<string, unknown>;
     projectParametersModel?: Record<string, unknown>;
     organizationDesignModel?: Record<string, unknown>;
+    externalConnectionModel?: Record<string, unknown>;
     customDependenciesEnabled?: boolean;
 }): AppGenerateService {
     const {
@@ -163,6 +164,7 @@ function buildService(overrides: {
         projectModel = {},
         projectParametersModel = {},
         organizationDesignModel = {},
+        externalConnectionModel = {},
         customDependenciesEnabled = true,
     } = overrides;
 
@@ -187,6 +189,11 @@ function buildService(overrides: {
     const fullOrganizationDesignModel = {
         findInOrganization: vi.fn().mockResolvedValue(null),
         ...organizationDesignModel,
+    };
+
+    const fullExternalConnectionModel = {
+        listAppLinks: vi.fn().mockResolvedValue([]),
+        ...externalConnectionModel,
     };
 
     const featureFlagModel = {
@@ -216,7 +223,7 @@ function buildService(overrides: {
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
-        externalConnectionModel: {} as never,
+        externalConnectionModel: fullExternalConnectionModel as never,
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
     });
@@ -265,6 +272,8 @@ describe('AppGenerateService.getAppCode', () => {
         expect(result.manifest.template).toBeNull();
         expect(typeof result.manifest.downloadedAt).toBe('string');
         expect(result.manifest.codeVersion).toBe(1);
+        // No links → the key is omitted so link-less manifests stay unchanged
+        expect(result.manifest).not.toHaveProperty('externalConnections');
 
         // files — exactly the two source entries
         expect(result.files).toHaveLength(2);
@@ -348,6 +357,45 @@ describe('AppGenerateService.getAppCode', () => {
         const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
 
         expect(result.manifest).not.toHaveProperty('vizSchema');
+    });
+
+    it('emits app external-connection links as {alias, connectionSlug} in the manifest', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+        const appModel = {
+            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
+        };
+        const listAppLinks = vi.fn().mockResolvedValue([
+            {
+                alias: 'stripe',
+                connection: {
+                    externalConnectionUuid: 'conn-uuid-1',
+                    slug: 'stripe-api',
+                    name: 'Stripe API',
+                },
+            },
+            {
+                alias: 'crm',
+                connection: {
+                    externalConnectionUuid: 'conn-uuid-2',
+                    slug: 'hubspot',
+                    name: 'HubSpot',
+                },
+            },
+        ]);
+
+        const svc = buildService({
+            appModel,
+            s3ClientOverride: fakeS3,
+            externalConnectionModel: { listAppLinks },
+        });
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
+
+        expect(listAppLinks).toHaveBeenCalledWith(APP_UUID);
+        expect(result.manifest.externalConnections).toEqual([
+            { alias: 'stripe', connectionSlug: 'stripe-api' },
+            { alias: 'crm', connectionSlug: 'hubspot' },
+        ]);
     });
 
     it('uses the provided version number instead of latest ready', async () => {
