@@ -11,12 +11,6 @@
   Ship analytics through Git, CI, MCP, and the Lightdash CLI.
 </p>
 
-<p align="center">
-  <a href="https://github.com/lightdash/lightdash/blob/main/LICENSE"><img src="https://img.shields.io/github/license/lightdash/lightdash" alt="License" /></a>
-  <a href="https://github.com/lightdash/lightdash/stargazers"><img src="https://img.shields.io/github/stars/lightdash/lightdash?style=social" alt="GitHub stars" /></a>
-  <a href="https://hub.docker.com/r/lightdash/lightdash"><img src="https://img.shields.io/docker/v/lightdash/lightdash?label=docker" alt="Docker image version" /></a>
-</p>
-
 > [!NOTE]
 > Hero placeholder: add a new product-led image here before merge. It should show Lightdash Cloud, AI agents, BI as code, Data Apps, and the context layer without falling back to a generic chart screenshot.
 
