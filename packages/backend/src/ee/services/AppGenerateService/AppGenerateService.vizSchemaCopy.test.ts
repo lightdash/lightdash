@@ -97,6 +97,8 @@ function buildService() {
         listAppLinks: vi.fn().mockResolvedValue([]),
         copyConnectionsToProject: vi.fn().mockResolvedValue(new Map()),
         linkToApp: vi.fn().mockResolvedValue(undefined),
+        findBySlug: vi.fn().mockResolvedValue(undefined),
+        replaceAppLinks: vi.fn().mockResolvedValue(undefined),
     };
 
     const organizationDesignModel = {
@@ -154,7 +156,7 @@ function buildService() {
         bucket: 'test-bucket',
     });
 
-    return { service, appModel };
+    return { service, appModel, externalConnectionModel };
 }
 
 describe('viz_schema propagation on app copy paths', () => {
@@ -251,6 +253,70 @@ describe('viz_schema propagation on app copy paths', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             VIZ_SCHEMA,
+        );
+    });
+
+    it('promoteApp re-links external connections by slug, skipping slugs missing upstream', async () => {
+        const { service, externalConnectionModel } = buildService();
+
+        vi.spyOn(
+            service as unknown as {
+                getUpstreamProjectForPromotion: () => Promise<unknown>;
+            },
+            'getUpstreamProjectForPromotion',
+        ).mockResolvedValue({
+            upstreamProjectUuid: UPSTREAM_PROJECT_UUID,
+            upstreamProjectName: 'Production',
+            upstreamOrganizationUuid: ORG_UUID,
+        });
+        vi.spyOn(
+            service as unknown as {
+                findLinkedUpstreamApp: () => Promise<unknown>;
+            },
+            'findLinkedUpstreamApp',
+        ).mockResolvedValue({
+            app_id: UPSTREAM_APP_UUID,
+            project_uuid: UPSTREAM_PROJECT_UUID,
+        });
+
+        externalConnectionModel.listAppLinks.mockResolvedValue([
+            {
+                alias: 'stripe',
+                connection: {
+                    externalConnectionUuid: 'preview-conn-1',
+                    slug: 'stripe-api',
+                },
+            },
+            {
+                alias: 'crm',
+                connection: {
+                    externalConnectionUuid: 'preview-conn-2',
+                    slug: 'preview-only',
+                },
+            },
+        ]);
+        externalConnectionModel.findBySlug.mockImplementation(
+            async (_project: string, _org: string, slug: string) =>
+                slug === 'stripe-api'
+                    ? {
+                          externalConnectionUuid: 'upstream-conn-1',
+                          slug: 'stripe-api',
+                      }
+                    : undefined,
+        );
+
+        await service.promoteApp(makeUser(), PROJECT_UUID, SOURCE_APP_UUID);
+
+        expect(externalConnectionModel.findBySlug).toHaveBeenCalledWith(
+            UPSTREAM_PROJECT_UUID,
+            ORG_UUID,
+            'stripe-api',
+        );
+        // Mapped to the UPSTREAM connection uuid, not the preview clone's;
+        // the preview-only slug is dropped.
+        expect(externalConnectionModel.replaceAppLinks).toHaveBeenCalledWith(
+            UPSTREAM_APP_UUID,
+            [{ externalConnectionUuid: 'upstream-conn-1', alias: 'stripe' }],
         );
     });
 

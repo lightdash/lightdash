@@ -3317,13 +3317,20 @@ export const uploadHandler = async (
                     });
 
                     // eslint-disable-next-line no-await-in-loop
-                    const { appUuid, version, action } = await lightdashApi<
-                        ApiImportAppCodeResponse['results']
-                    >({
-                        method: 'POST',
-                        url: `/api/v1/ee/projects/${projectId}/apps/upload`,
-                        body: JSON.stringify(body),
-                    });
+                    const { appUuid, version, action, warnings } =
+                        await lightdashApi<ApiImportAppCodeResponse['results']>(
+                            {
+                                method: 'POST',
+                                url: `/api/v1/ee/projects/${projectId}/apps/upload`,
+                                body: JSON.stringify(body),
+                            },
+                        );
+
+                    // e.g. a manifest external-connection link whose slug is
+                    // missing in the target project was skipped
+                    (warnings ?? []).forEach((warning) =>
+                        GlobalState.log(styles.warning(warning)),
+                    );
 
                     if (action === 'create') {
                         appsCreated += 1;
