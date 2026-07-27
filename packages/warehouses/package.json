@@ -13,7 +13,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
+    "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
     "formatter": "oxfmt",
     "lint": "pnpm run linter ./src",
     "fix-lint": "pnpm run linter ./src --fix",
@@ -47,6 +47,8 @@
   },
   "devDependencies": {
     "@types/big.js": "6.2.2",
+    "oxlint": "1.57.0",
+    "oxlint-tsgolint": "0.18.1",
     "@types/node-fetch": "2.6.13",
     "@types/pg": "8.11.10",
     "@types/pg-cursor": "2.7.0",

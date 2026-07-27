@@ -1,0 +1,17 @@
+{
+    "$schema": "../../node_modules/oxlint/configuration_schema.json",
+    "extends": ["../../.oxlintrc.base.json"],
+    "options": {
+        "typeAware": true
+    },
+    "ignorePatterns": ["package.json"],
+    "rules": {
+        "import/prefer-default-export": "error",
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-loop-func": "off",
+        "no-unused-vars": "off",
+        "no-await-in-loop": "off",
+        "no-plusplus": "off",
+        "no-promise-executor-return": "off"
+    }
+}

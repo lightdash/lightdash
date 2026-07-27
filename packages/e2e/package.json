@@ -8,7 +8,7 @@
         "cypress:open": "cypress open --e2e",
         "cypress:open:native": "RUNTIME=native cypress open --e2e",
         "cypress:run": "cypress run",
-        "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
+        "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
         "formatter": "oxfmt",
         "lint": "pnpm run linter ./cypress",
         "fix-lint": "pnpm run linter ./cypress --fix",
@@ -24,6 +24,8 @@
         "js-yaml": "4.3.0"
     },
     "devDependencies": {
+        "oxlint": "1.57.0",
+        "oxlint-tsgolint": "0.18.1",
         "typescript": "npm:@typescript/typescript6@6.0.2"
     }
 }
