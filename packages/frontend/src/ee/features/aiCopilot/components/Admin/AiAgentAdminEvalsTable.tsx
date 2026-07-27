@@ -12,6 +12,7 @@ import {
     Divider,
     Group,
     Loader,
+    Stack,
     Text,
     Tooltip,
     useMantineTheme,
@@ -25,11 +26,11 @@ import {
     IconChevronRight,
     IconClock,
     IconCornerDownRight,
+    IconHistory,
     IconMessages,
     IconRobotFace,
     IconTextCaption,
     IconTrash,
-    IconWand,
 } from '@tabler/icons-react';
 import { useQueries } from '@tanstack/react-query';
 import {
@@ -51,6 +52,7 @@ import {
 } from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
+import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import { useInfiniteAiAgentAdminEvals } from '../../hooks/useAiAgentAdmin';
 import { useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
 import { getEvaluationRuns } from '../../hooks/useAiAgentEvaluations';
@@ -85,6 +87,17 @@ const RunStatusBadge = ({
         {statusConfig[status].label}
     </Badge>
 );
+
+const TimeAgo = ({ date, fz, c }: { date: Date; fz: string; c: string }) => {
+    const timeAgo = useTimeAgo(date);
+    return (
+        <Tooltip withinPortal label={new Date(date).toLocaleString()}>
+            <Text fz={fz} c={c} truncate>
+                {timeAgo}
+            </Text>
+        </Tooltip>
+    );
+};
 
 const AiAgentAdminEvalsTable = () => {
     const theme = useMantineTheme();
@@ -310,7 +323,7 @@ const AiAgentAdminEvalsTable = () => {
             header: 'Eval',
             enableSorting: false,
             enableEditing: false,
-            size: 320,
+            size: 240,
             Header: ({ column }) => (
                 <Group gap="two">
                     <MantineIcon icon={IconTextCaption} color="ldGray.6" />
@@ -345,12 +358,14 @@ const AiAgentAdminEvalsTable = () => {
                                 icon={IconCornerDownRight}
                                 color="ldGray.5"
                             />
-                            <Text fz="sm" c="ldGray.8">
-                                Run{' '}
-                                {new Date(
-                                    tableRow.run.createdAt,
-                                ).toLocaleString()}
+                            <Text fz="sm" fw={500} c="ldGray.8">
+                                Run
                             </Text>
+                            <TimeAgo
+                                date={tableRow.run.createdAt}
+                                fz="xs"
+                                c="ldGray.6"
+                            />
                         </Group>
                     );
                 }
@@ -380,22 +395,29 @@ const AiAgentAdminEvalsTable = () => {
                                 }
                             />
                         </ActionIcon>
-                        <Tooltip
-                            withinPortal
-                            label={tableRow.eval.title}
-                            disabled={!isTruncated.isTruncated}
-                            multiline
-                            maw={300}
-                        >
-                            <Text
-                                fw={500}
-                                fz="sm"
-                                truncate
-                                ref={isTruncated.ref}
+                        <Stack gap={0} miw={0}>
+                            <Tooltip
+                                withinPortal
+                                label={tableRow.eval.title}
+                                disabled={!isTruncated.isTruncated}
+                                multiline
+                                maw={300}
                             >
-                                {tableRow.eval.title}
-                            </Text>
-                        </Tooltip>
+                                <Text
+                                    fw={500}
+                                    fz="sm"
+                                    truncate
+                                    ref={isTruncated.ref}
+                                >
+                                    {tableRow.eval.title}
+                                </Text>
+                            </Tooltip>
+                            {tableRow.eval.description && (
+                                <Text fz="xs" c="ldGray.6" truncate>
+                                    {tableRow.eval.description}
+                                </Text>
+                            )}
+                        </Stack>
                     </Group>
                 );
             },
@@ -405,7 +427,7 @@ const AiAgentAdminEvalsTable = () => {
             header: 'Agent',
             enableSorting: false,
             enableEditing: false,
-            size: 170,
+            size: 120,
             Header: ({ column }) => (
                 <Group gap="two">
                     <MantineIcon icon={IconRobotFace} color="ldGray.6" />
@@ -428,6 +450,7 @@ const AiAgentAdminEvalsTable = () => {
             header: 'Project',
             enableSorting: false,
             enableEditing: false,
+            size: 110,
             Header: ({ column }) => (
                 <Group gap="two">
                     <MantineIcon icon={IconBox} color="ldGray.6" />
@@ -449,7 +472,7 @@ const AiAgentAdminEvalsTable = () => {
             header: 'Prompts',
             enableSorting: false,
             enableEditing: false,
-            size: 110,
+            size: 80,
             Header: ({ column }) => (
                 <Group gap="two" wrap="nowrap">
                     <MantineIcon icon={IconMessages} color="ldGray.6" />
@@ -469,10 +492,10 @@ const AiAgentAdminEvalsTable = () => {
             header: 'Latest run',
             enableSorting: false,
             enableEditing: false,
-            size: 220,
+            size: 180,
             Header: ({ column }) => (
-                <Group gap="two">
-                    <MantineIcon icon={IconWand} color="ldGray.6" />
+                <Group gap="two" wrap="nowrap">
+                    <MantineIcon icon={IconHistory} color="ldGray.6" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -504,14 +527,14 @@ const AiAgentAdminEvalsTable = () => {
                     );
                 }
                 return (
-                    <Group gap="xs" wrap="nowrap">
+                    <Stack gap={2} align="flex-start">
                         <RunStatusBadge status={latestRun.status} />
-                        <Text fz="xs" c="ldGray.7">
-                            {new Date(
-                                latestRun.completedAt ?? latestRun.createdAt,
-                            ).toLocaleDateString()}
-                        </Text>
-                    </Group>
+                        <TimeAgo
+                            date={latestRun.completedAt ?? latestRun.createdAt}
+                            fz="xs"
+                            c="ldGray.6"
+                        />
+                    </Stack>
                 );
             },
         },
@@ -520,6 +543,7 @@ const AiAgentAdminEvalsTable = () => {
             header: 'Created',
             enableSorting: true,
             enableEditing: false,
+            size: 100,
             Header: ({ column }) => (
                 <Group gap="two">
                     <MantineIcon icon={IconClock} color="ldGray.6" />
@@ -542,7 +566,7 @@ const AiAgentAdminEvalsTable = () => {
         columns,
         data: tableRows,
         getRowId: (row) => row.key,
-        enableColumnResizing: true,
+        enableColumnResizing: false,
         enableRowNumbers: false,
         enableRowVirtualization: true,
         enablePagination: false,
@@ -561,9 +585,17 @@ const AiAgentAdminEvalsTable = () => {
         onSortingChange: handleSortingChange,
         enableTopToolbar: true,
         positionGlobalFilter: 'left',
+        emptyState: {
+            entityName: 'evals',
+            emptyMessage:
+                "No evals yet. Create one from an agent's Evals tab to benchmark its answers.",
+            search,
+            hasActiveFilters,
+            onClearFilters: resetFilters,
+        },
         mantinePaperProps: {
             shadow: undefined,
-            sx: {
+            style: {
                 border: `1px solid ${theme.colors.ldGray[2]}`,
                 borderRadius: theme.spacing.sm,
                 boxShadow: theme.shadows.subtle,
@@ -573,88 +605,18 @@ const AiAgentAdminEvalsTable = () => {
         },
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            sx: {
-                maxHeight: 'calc(100dvh - 350px)',
-                minHeight: '600px',
-                display: 'flex',
-                flexDirection: 'column',
+            style: {
+                maxHeight: 'calc(100dvh - 320px)',
             },
             onScroll: (event: UIEvent<HTMLDivElement>) =>
                 fetchMoreOnBottomReached(event.target as HTMLDivElement),
         },
         mantineTableProps: {
             highlightOnHover: true,
-            withColumnBorders: Boolean(tableRows.length),
-            sx: {
-                flexGrow: 1,
-                display: 'flex',
-                flexDirection: 'column',
-            },
         },
         mantineTableHeadRowProps: {
-            sx: {
+            style: {
                 boxShadow: 'none',
-                'th > div > div:last-child': {
-                    top: -10,
-                    right: -5,
-                },
-                'th > div > div:last-child > .mantine-Divider-root': {
-                    border: 'none',
-                },
-            },
-        },
-        mantineTableHeadCellProps: (props) => {
-            const isAnyColumnResizing = props.table
-                .getAllColumns()
-                .some((c) => c.getIsResizing());
-
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
-
-            const canResize = props.column.getCanResize();
-
-            return {
-                bg: 'ldGray.0',
-                h: '3xl',
-                pos: 'relative',
-                style: {
-                    userSelect: 'none',
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderRight: props.column.getIsResizing()
-                        ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${
-                              isLastColumn
-                                  ? 'transparent'
-                                  : theme.colors.ldGray[2]
-                          }`,
-                    borderTop: 'none',
-                    borderLeft: 'none',
-                },
-                sx: {
-                    justifyContent: 'center',
-                    '&:hover': canResize
-                        ? {
-                              borderRight: !isAnyColumnResizing
-                                  ? `2px solid ${theme.colors.blue[3]} !important`
-                                  : undefined,
-                              transition: `border-right ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                          }
-                        : {},
-                },
-            };
-        },
-        mantineTableBodyProps: {
-            sx: {
-                flexGrow: 1,
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                'tr:last-of-type > td': {
-                    borderBottom: 'none',
-                    borderLeft: 'none !important',
-                },
             },
         },
         mantineTableBodyRowProps: ({ row, table: tableInstance }) => {
@@ -688,19 +650,16 @@ const AiAgentAdminEvalsTable = () => {
             };
         },
         mantineTableBodyCellProps: ({ row }) => {
+            const isEvalRow = row.original.type === 'eval';
             return {
-                h: row.original.type === 'eval' ? 64 : 48,
                 style: {
-                    padding: `${theme.spacing.sm} ${theme.spacing.xl}`,
+                    padding: isEvalRow
+                        ? `${theme.spacing.sm} ${theme.spacing.md}`
+                        : `${theme.spacing.xs} ${theme.spacing.md}`,
                     borderRight: 'none',
                     borderLeft: 'none',
                     borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     borderTop: 'none',
-                },
-                sx: {
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    flexShrink: 0,
                 },
             };
         },
@@ -842,7 +801,7 @@ const AiAgentAdminEvalsTable = () => {
             showGlobalFilter: true,
         },
         rowVirtualizerInstanceRef,
-        rowVirtualizerProps: { estimateSize: () => 64, overscan: 40 },
+        rowVirtualizerProps: { estimateSize: () => 52, overscan: 40 },
         enableFilterMatchHighlighting: true,
         enableRowActions: false,
     });

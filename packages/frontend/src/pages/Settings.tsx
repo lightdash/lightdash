@@ -821,6 +821,10 @@ const Settings: FC = () => {
                 location.pathname,
             ) &&
             !matchPath(
+                { path: '/generalSettings/ai/evals' },
+                location.pathname,
+            ) &&
+            !matchPath(
                 { path: '/generalSettings/ai/mcp' },
                 location.pathname,
             ) &&
