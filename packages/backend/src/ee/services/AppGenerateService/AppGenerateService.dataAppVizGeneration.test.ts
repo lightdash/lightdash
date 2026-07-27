@@ -131,6 +131,7 @@ describe('AppGenerateService.parseSchema', () => {
             { name: 'value', label: 'Value', type: 'metric', required: true },
         ],
         configOptions: [],
+        colorPalette: null,
     };
 
     it('validates a well-formed schema', () => {
@@ -139,7 +140,7 @@ describe('AppGenerateService.parseSchema', () => {
         );
     });
 
-    it('defaults configOptions to [] when omitted', () => {
+    it('defaults configOptions to [] and colorPalette to null when omitted', () => {
         expect(
             AppGenerateService.parseSchema({ fields: validSchema.fields }),
         ).toEqual(validSchema);

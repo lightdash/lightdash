@@ -77,6 +77,7 @@ const VIZ_SCHEMA = {
         },
     ],
     configOptions: [],
+    colorPalette: null,
 };
 
 const makeDeps = (

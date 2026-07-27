@@ -48,6 +48,7 @@ const schema: DataAppVizSchema = {
         { name: 'value', label: 'Value', type: 'metric', required: true },
     ],
     configOptions: [],
+    colorPalette: null,
 };
 
 const makeDimension = (name: string, hidden: boolean): CompiledDimension => ({
@@ -186,8 +187,6 @@ describe('DataAppVizTestPanel', () => {
             />,
         );
 
-        expect(screen.getByText('Visualization ready')).toBeInTheDocument();
-        expect(screen.getByText('Test with data')).toBeInTheDocument();
         expect(
             screen.getByPlaceholderText('Select an explore'),
         ).toBeInTheDocument();
@@ -208,7 +207,8 @@ describe('DataAppVizTestPanel', () => {
         expect(useExplores).toHaveBeenCalledWith('p1', true);
     });
 
-    it('hides the run action until an explore is selected', () => {
+    it('hides the run action until an explore is selected', async () => {
+        const user = userEvent.setup();
         renderWithProviders(
             <DataAppVizTestPanel
                 projectUuid="p1"
@@ -220,6 +220,63 @@ describe('DataAppVizTestPanel', () => {
         expect(
             screen.queryByRole('button', { name: /run test query/i }),
         ).not.toBeInTheDocument();
+
+        await user.click(screen.getByPlaceholderText('Select an explore'));
+        await user.click(await screen.findByText('Orders'));
+
+        // Still disabled — no field is mapped yet.
+        expect(
+            screen.getByRole('button', { name: /run test query/i }),
+        ).toBeDisabled();
+    });
+
+    it('groups declared options into config tabs, defaults applied', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(
+            <DataAppVizTestPanel
+                projectUuid="p1"
+                schema={{
+                    fields: schema.fields,
+                    configOptions: [
+                        {
+                            type: 'boolean',
+                            name: 'showLegend',
+                            label: 'Show legend',
+                            group: 'Style',
+                            default: true,
+                        },
+                    ],
+                    colorPalette: null,
+                }}
+                onContextChange={vi.fn()}
+            />,
+        );
+
+        expect(
+            screen.getAllByRole('tab').map((tab) => tab.textContent),
+        ).toEqual(['General', 'Style']);
+
+        await user.click(screen.getByRole('tab', { name: 'Style' }));
+        expect(screen.getByLabelText('Show legend')).toBeChecked();
+    });
+
+    it('offers the palette picker for a declared palette', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(
+            <DataAppVizTestPanel
+                projectUuid="p1"
+                schema={{
+                    fields: schema.fields,
+                    configOptions: [],
+                    colorPalette: { group: 'Colours' },
+                }}
+                onContextChange={vi.fn()}
+            />,
+        );
+
+        await user.click(screen.getByRole('tab', { name: 'Colours' }));
+
+        expect(screen.getByText('Color palette')).toBeInTheDocument();
     });
 
     it('matches Explorer field visibility', async () => {
@@ -247,6 +304,7 @@ describe('DataAppVizTestPanel', () => {
                         },
                     ],
                     configOptions: [],
+                    colorPalette: null,
                 }}
                 onContextChange={vi.fn()}
             />,

@@ -32,14 +32,26 @@ export type VizContextCell = {
 export type VizContextRow = Record<string, VizContextCell | undefined>;
 
 /**
+ * A config option value. Its shape follows the option's declared type:
+ * `boolean` → boolean, `number` → number, `select`/`text`/`color` → string.
+ * Series colours are not an option — they arrive on `colorPalette`.
+ */
+export type VizContextOptionValue = boolean | number | string;
+
+/**
  * Pushed by the host into the iframe. `fieldMapping` maps each field name the
  * renderer declared to the query field id it resolves to; `rows` are the
- * host-fetched result rows keyed by field id.
+ * host-fetched result rows keyed by field id; `options` holds the current
+ * value of each config option the renderer declared; `colorPalette` is the
+ * Lightdash palette resolved for this chart, pushed whether or not the
+ * renderer declared one.
  */
 export type DataAppVizContextMessage = {
     type: 'lightdash:sdk:data-app-viz-context';
     fieldMapping: Record<string, string>;
     rows: VizContextRow[];
+    options: Record<string, VizContextOptionValue>;
+    colorPalette: string[];
 };
 
 /** Posted by the iframe on mount so the host pushes the current context. */
@@ -73,14 +85,50 @@ export type VizContext = {
     fieldMapping: Record<string, string>;
     /** Host-fetched result rows, keyed by query field id. */
     rows: VizContextRow[];
+    /** Config option name → current value (the user's choice, else the declared default). */
+    options: Record<string, VizContextOptionValue>;
+    /**
+     * Ordered series colours resolved from the Lightdash palette the viewer
+     * picked. Colour multi-series charts with
+     * `colorPalette[i % colorPalette.length]`. Empty only when the host
+     * resolved no palette; keep a fallback array in your own code for that.
+     */
+    colorPalette: string[];
     /** False until the first context arrives — render a placeholder while false. */
     ready: boolean;
 };
 
-type VizContextState = {
+type VizContextValue = {
     fieldMapping: Record<string, string>;
     rows: VizContextRow[];
-} | null;
+    options: Record<string, VizContextOptionValue>;
+    colorPalette: string[];
+};
+
+type VizContextState = VizContextValue | null;
+
+/**
+ * Normalises an inbound host message into provider state. The payload crosses a
+ * postMessage boundary so every key is treated as untrusted; `options` and
+ * `colorPalette` are also absent from hosts predating them, and fall back to
+ * `{}` / `[]`.
+ */
+export function toVizContextState(
+    message: DataAppVizContextMessage,
+): VizContextValue {
+    const { options, colorPalette } = message;
+    return {
+        fieldMapping: message.fieldMapping ?? {},
+        rows: Array.isArray(message.rows) ? message.rows : [],
+        options:
+            typeof options === 'object' &&
+            options !== null &&
+            !Array.isArray(options)
+                ? options
+                : {},
+        colorPalette: Array.isArray(colorPalette) ? colorPalette : [],
+    };
+}
 
 // Distinguishes "no provider mounted" from "provider present, no context yet".
 const NO_PROVIDER = Symbol('viz-context/no-provider');
@@ -103,10 +151,7 @@ function useVizContextSubscription(enabled: boolean): VizContextState {
         const handleMessage = (event: MessageEvent) => {
             const data = event.data as DataAppVizContextMessage | undefined;
             if (!data || data.type !== DATA_APP_VIZ_CONTEXT_MESSAGE) return;
-            setContext({
-                fieldMapping: data.fieldMapping ?? {},
-                rows: Array.isArray(data.rows) ? data.rows : [],
-            });
+            setContext(toVizContextState(data));
         };
 
         window.addEventListener('message', handleMessage);
@@ -145,7 +190,8 @@ export function VizContextProvider({ children }: { children: ReactNode }) {
  * one is mounted (the scaffold default); otherwise self-subscribes so the hook
  * still works standalone. Re-renders whenever the host pushes (on load, on
  * mapping change, on query change). Resolve a declared field to its bound cell
- * with `fieldMapping[name]` then `getFormatted`/`getRaw`.
+ * with `fieldMapping[name]` then `getFormatted`/`getRaw`; read a declared
+ * config option with `options[name]`, and colour series from `colorPalette`.
  */
 export function useVizContext(): VizContext {
     const fromProvider = useContext(VizContextContext);
@@ -162,6 +208,8 @@ export function useVizContext(): VizContext {
     return {
         fieldMapping: context?.fieldMapping ?? {},
         rows: context?.rows ?? [],
+        options: context?.options ?? {},
+        colorPalette: context?.colorPalette ?? [],
         ready: context !== null,
     };
 }
