@@ -11,6 +11,7 @@ import {
     ProjectType,
     type AiAgentMemory,
     type AiAgentMemoryDistillJobPayload,
+    type AiAgentMemorySource,
     type AiProjectContextTypedObjectRef,
     type Explore,
     type ExploreError,
@@ -33,10 +34,10 @@ import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { type AiAgentMemoryDistillOutcome } from '../../../prometheus/PrometheusMetrics';
 import { BaseService } from '../../../services/BaseService';
 import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
+import { type DbAiAgentMemory } from '../../database/entities/aiAgentMemory';
 import {
     AI_AGENT_MEMORY_THREAD_SOURCES,
     AiAgentMemoryModel,
-    type AiAgentMemoryLineageSource,
     type AiAgentMemoryThread,
 } from '../../models/AiAgentMemoryModel';
 import { type AiAgentModel } from '../../models/AiAgentModel';
@@ -176,43 +177,29 @@ export class AiAgentMemoryService extends BaseService {
         }
     }
 
-    private async canViewSourceThread(
+    /**
+     * Decided from the memory row alone — never loads the source thread, so a
+     * memory outlives the thread it came from. Same predicate that gates thread
+     * access: agent access AND (owns the memory OR can manage the agent).
+     */
+    private async canReadMemory(
         user: SessionUser,
         organizationUuid: string,
         projectUuid: string,
-        source: AiAgentMemoryLineageSource,
+        memory: Pick<DbAiAgentMemory, 'agent_uuid' | 'user_uuid'>,
     ): Promise<boolean> {
-        if (!source.agent_uuid) return false;
+        if (!memory.agent_uuid) return false;
 
-        const [agent, ownership] = await Promise.all([
-            this.aiAgentModel.getAgent({
-                organizationUuid,
-                agentUuid: source.agent_uuid,
-            }),
-            this.aiAgentModel.findThreadOwnership({
-                organizationUuid,
-                threadUuid: source.source_thread_uuid ?? '',
-            }),
-        ]);
-        if (
-            !agent ||
-            agent.projectUuid !== projectUuid ||
-            !ownership ||
-            ownership.projectUuid !== projectUuid ||
-            ownership.agentUuid !== source.agent_uuid
-        ) {
-            return false;
-        }
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid: memory.agent_uuid,
+        });
+        if (!agent || agent.projectUuid !== projectUuid) return false;
 
-        return canAccessAiAgentThread(
-            user,
-            agent,
-            ownership.ownerUserUuid ?? '',
-            {
-                auditedAbility: this.createAuditedAbility(user),
-                groupsModel: this.groupsModel,
-            },
-        );
+        return canAccessAiAgentThread(user, agent, memory.user_uuid ?? '', {
+            auditedAbility: this.createAuditedAbility(user),
+            groupsModel: this.groupsModel,
+        });
     }
 
     private async isEnabled(organizationUuid: UUID): Promise<boolean> {
@@ -295,39 +282,35 @@ export class AiAgentMemoryService extends BaseService {
             projectUuid,
             slug,
         });
-        if (!result) {
+        if (
+            !result ||
+            !(await this.canReadMemory(
+                user,
+                organizationUuid,
+                projectUuid,
+                result.memory,
+            ))
+        ) {
+            // Same error as a missing row so a reader can't probe for existence
             throw new NotFoundError(`Memory not found: ${slug}`);
         }
 
-        const sources = (
-            await Promise.all(
-                result.sources.map(async (source) => {
-                    if (!source.source_thread_uuid || !source.thread_summary) {
-                        return null;
-                    }
-
-                    const hasThreadAccess = await this.canViewSourceThread(
-                        user,
-                        organizationUuid,
-                        projectUuid,
-                        source,
-                    );
-                    return hasThreadAccess
-                        ? {
+        // Reading the memory grants its lineage: the check above already covers
+        // the whole row, so there is nothing left to redact per source.
+        const sources = result.sources.flatMap(
+            (source): AiAgentMemorySource[] =>
+                source.source_thread_uuid && source.thread_summary
+                    ? [
+                          {
                               slug: source.slug,
-                              hasThreadAccess: true as const,
                               agentUuid: source.agent_uuid,
                               threadUuid: source.source_thread_uuid,
                               threadTitle: source.thread_title,
                               threadSummary: source.thread_summary,
-                          }
-                        : {
-                              slug: source.slug,
-                              hasThreadAccess: false as const,
-                          };
-                }),
-            )
-        ).filter((source) => source !== null);
+                          },
+                      ]
+                    : [],
+        );
 
         const response: AiAgentMemory = {
             slug: result.memory.slug,
@@ -511,12 +494,18 @@ export class AiAgentMemoryService extends BaseService {
             );
             abortSignal?.throwIfAborted();
             failureStage = 'persistence';
+            // The memory belongs to the thread's owner (its first prompter),
+            // not whoever happened to prompt last in a shared Slack thread.
+            const ownership = await this.aiAgentModel.findThreadOwnership({
+                organizationUuid: thread.organizationUuid,
+                threadUuid: thread.threadUuid,
+            });
             const memory =
                 await this.aiAgentMemoryModel.upsertSourceThreadMemory({
                     organizationUuid: thread.organizationUuid,
                     projectUuid: thread.projectUuid,
                     agentUuid: thread.agentUuid,
-                    userUuid: thread.userUuid,
+                    userUuid: ownership?.ownerUserUuid ?? null,
                     sourceThreadUuid: thread.threadUuid,
                     slug: `${output.result.slug}-${randomBytes(4).toString('hex')}`,
                     title: output.result.title,

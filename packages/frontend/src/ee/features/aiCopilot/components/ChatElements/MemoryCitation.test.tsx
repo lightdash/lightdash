@@ -37,7 +37,6 @@ Use net revenue for future revenue questions.`,
                 type: 'source_thread',
                 source: {
                     slug: 'net-revenue',
-                    hasThreadAccess: true,
                     threadUuid: 'thread-uuid',
                     agentUuid: 'agent-uuid',
                     threadTitle: 'Revenue conventions',
@@ -166,7 +165,7 @@ describe('MemoryCitation', () => {
         expect(within(dialog).getByText('Open thread')).toBeInTheDocument();
     });
 
-    it('does not render restricted source thread details', () => {
+    it('renders a source thread without a link when its agent is gone', () => {
         render(
             <MemoryRouter>
                 <MantineProvider>
@@ -186,7 +185,10 @@ describe('MemoryCitation', () => {
                                 type: 'source_thread',
                                 source: {
                                     slug: 'net-revenue',
-                                    hasThreadAccess: false,
+                                    agentUuid: null,
+                                    threadUuid: 'thread-uuid',
+                                    threadTitle: 'Revenue conventions',
+                                    threadSummary: 'Defined net revenue.',
                                 },
                             },
                             replacementSlug: null,
@@ -198,16 +200,8 @@ describe('MemoryCitation', () => {
 
         fireEvent.click(screen.getByRole('button', { name: /Source/ }));
 
-        expect(screen.getByText('Source thread')).toBeInTheDocument();
-        expect(
-            screen.getByText(
-                'Thread details are only visible to its owner and agent managers.',
-            ),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Revenue conventions')).toBeInTheDocument();
         expect(screen.queryByText('Open thread')).not.toBeInTheDocument();
-        expect(
-            screen.queryByText('Private thread title'),
-        ).not.toBeInTheDocument();
     });
 
     it('opens details without navigating when the marker is clicked', async () => {

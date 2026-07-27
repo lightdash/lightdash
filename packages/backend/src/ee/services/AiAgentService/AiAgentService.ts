@@ -7647,6 +7647,40 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         }
     }
 
+    /**
+     * A memory belongs to the owner of the thread it came from, so every memory
+     * read in a turn resolves to that owner rather than the current prompter.
+     * Null means the thread has no owner — such a thread sees no memories.
+     */
+    private async findThreadMemoryOwnerUuid(args: {
+        organizationUuid: string;
+        projectUuid: string;
+        threadUuid: string;
+    }): Promise<string | null> {
+        // findThreadOwnership only filters by organization, so the project has
+        // to be asserted here before the owner is trusted.
+        const ownership = await this.aiAgentModel.findThreadOwnership({
+            organizationUuid: args.organizationUuid,
+            threadUuid: args.threadUuid,
+        });
+        return ownership?.projectUuid === args.projectUuid
+            ? ownership.ownerUserUuid
+            : null;
+    }
+
+    // Memoizes the owner lookup for the life of one agent run.
+    private createThreadMemoryOwnerResolver(args: {
+        organizationUuid: string;
+        projectUuid: string;
+        threadUuid: string;
+    }): () => Promise<string | null> {
+        let ownerPromise: Promise<string | null> | undefined;
+        return () => {
+            ownerPromise ??= this.findThreadMemoryOwnerUuid(args);
+            return ownerPromise;
+        };
+    }
+
     // Defines the functions that AI Agent tools can use to interact with the Lightdash backend or slack
     // This is scoped to the project, user and prompt (closure)
     private async getAiAgentDependencies(
@@ -7693,11 +7727,23 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const getProjectContextDocument: AiAgentDependencies['getProjectContextDocument'] =
             () => this.projectContextModel.getDocument(projectUuid);
+        // Memories are scoped to the thread's owner, so a Slack thread keeps one
+        // memory context for its whole life no matter who prompts in a turn.
+        // Resolved lazily and once per run — a memory-disabled run never asks.
+        const resolveThreadMemoryOwnerUuid =
+            this.createThreadMemoryOwnerResolver({
+                organizationUuid,
+                projectUuid,
+                threadUuid: prompt.threadUuid,
+            });
         const getAiAgentMemoryContextEntries: AiAgentDependencies['getAiAgentMemoryContextEntries'] =
             async () => {
+                const ownerUserUuid = await resolveThreadMemoryOwnerUuid();
+                if (!ownerUserUuid) return [];
                 const memories =
                     await this.aiAgentMemoryModel.findActiveForProject({
                         projectUuid,
+                        userUuid: ownerUserUuid,
                     });
                 const now = Date.now();
                 return memories.map((memory) => ({
@@ -7715,13 +7761,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 }));
             };
         const incrementAiAgentMemoryPulls: AiAgentDependencies['incrementAiAgentMemoryPulls'] =
-            (entries) =>
-                this.aiAgentMemoryModel.incrementPulledForActiveMemories({
+            async (entries) => {
+                const slugs = entries
+                    .filter((entry) => entry.source === 'memory')
+                    .map((entry) => entry.id);
+                if (slugs.length === 0) return;
+                const ownerUserUuid = await resolveThreadMemoryOwnerUuid();
+                if (!ownerUserUuid) return;
+                await this.aiAgentMemoryModel.incrementPulledForActiveMemories({
                     projectUuid,
-                    slugs: entries
-                        .filter((entry) => entry.source === 'memory')
-                        .map((entry) => entry.id),
+                    userUuid: ownerUserUuid,
+                    slugs,
                 });
+            };
 
         const updateProgress: UpdateProgressFn = (
             progress,
@@ -8291,6 +8343,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getProjectContextDocument,
             getAiAgentMemoryContextEntries,
             incrementAiAgentMemoryPulls,
+            resolveThreadMemoryOwnerUuid,
             getExplore: toolsRuntime.getExplore,
             listContent: toolsRuntime.listContent,
             findContent: toolsRuntime.findContent,
@@ -8493,6 +8546,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getProjectContextDocument,
             getAiAgentMemoryContextEntries,
             incrementAiAgentMemoryPulls,
+            resolveThreadMemoryOwnerUuid,
             getExplore,
             listContent,
             findContent,
@@ -9080,10 +9134,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                               if (slugs.length === 0) return;
 
                               try {
+                                  const ownerUserUuid =
+                                      await resolveThreadMemoryOwnerUuid();
+                                  if (!ownerUserUuid) return;
                                   const citedMemories =
                                       await this.aiAgentMemoryModel.incrementCitedForActiveMemories(
                                           {
                                               projectUuid: prompt.projectUuid,
+                                              userUuid: ownerUserUuid,
                                               slugs,
                                           },
                                       );
@@ -9536,8 +9594,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         if (slugs.length === 0) return [];
 
         try {
+            const ownerUserUuid = await this.findThreadMemoryOwnerUuid({
+                organizationUuid: slackPrompt.organizationUuid,
+                projectUuid: slackPrompt.projectUuid,
+                threadUuid: slackPrompt.threadUuid,
+            });
+            if (!ownerUserUuid) return [];
             const memories = await this.aiAgentMemoryModel.findActiveBySlugs({
                 projectUuid: slackPrompt.projectUuid,
+                userUuid: ownerUserUuid,
                 slugs,
             });
             const memoriesBySlug = new Map(

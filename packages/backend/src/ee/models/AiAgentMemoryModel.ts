@@ -92,7 +92,6 @@ export type AiAgentMemoryThreadCandidate = {
 export type AiAgentMemoryThread = AiAgentMemoryThreadCandidate & {
     distilledUpTo: Date | null;
     agentUuid: UUID | null;
-    userUuid: UUID | null;
     title: string | null;
     createdFrom: AiThreadCreatedFrom;
     projectType: ProjectType;
@@ -212,7 +211,6 @@ export class AiAgentMemoryModel {
                     distilledUpTo: Date | null;
                     promptUuid: UUID;
                     createdAt: Date;
-                    userUuid: UUID | null;
                     userText: string;
                     assistantText: string | null;
                     errorMessage: string | null;
@@ -232,7 +230,6 @@ export class AiAgentMemoryModel {
                 distilledUpTo: 'distill.distilled_up_to',
                 promptUuid: 'prompt.ai_prompt_uuid',
                 createdAt: 'prompt.created_at',
-                userUuid: 'prompt.created_by_user_uuid',
                 userText: 'prompt.prompt',
                 assistantText: 'prompt.response',
                 errorMessage: 'prompt.error_message',
@@ -298,9 +295,6 @@ export class AiAgentMemoryModel {
             organizationUuid: first.organizationUuid,
             projectUuid: first.projectUuid,
             agentUuid: first.agentUuid,
-            userUuid:
-                promptRows.findLast((row) => row.userUuid !== null)?.userUuid ??
-                null,
             title: first.title,
             createdFrom: first.createdFrom,
             projectType: first.projectType,
@@ -429,12 +423,16 @@ export class AiAgentMemoryModel {
         return row;
     }
 
+    // Memories are owned by a single user; a null-owner row is nobody's, so
+    // callers must resolve a real owner before asking for a set.
     async findActiveForProject(args: {
         projectUuid: string;
+        userUuid: string;
         limit?: number;
     }): Promise<DbAiAgentMemory[]> {
         const query = this.database<AiAgentMemoryTable>(AiAgentMemoryTableName)
             .where('project_uuid', args.projectUuid)
+            .where('user_uuid', args.userUuid)
             .where('status', 'active')
             .orderBy('last_cited_at', 'desc', 'last')
             .orderBy('generated_at', 'desc');
@@ -768,6 +766,7 @@ export class AiAgentMemoryModel {
 
     async findActiveBySlugs(args: {
         projectUuid: string;
+        userUuid: string;
         slugs: string[];
     }): Promise<Array<{ slug: string; title: string }>> {
         const slugs = [...new Set(args.slugs)];
@@ -775,6 +774,7 @@ export class AiAgentMemoryModel {
 
         return this.database<AiAgentMemoryTable>(AiAgentMemoryTableName)
             .where('project_uuid', args.projectUuid)
+            .where('user_uuid', args.userUuid)
             .where('status', 'active')
             .whereIn('slug', slugs)
             .select(['slug', 'title']);
@@ -782,6 +782,7 @@ export class AiAgentMemoryModel {
 
     async incrementPulledForActiveMemories(args: {
         projectUuid: string;
+        userUuid: string;
         slugs: string[];
     }): Promise<void> {
         const slugs = [...new Set(args.slugs)];
@@ -789,6 +790,7 @@ export class AiAgentMemoryModel {
 
         await this.database<AiAgentMemoryTable>(AiAgentMemoryTableName)
             .where('project_uuid', args.projectUuid)
+            .where('user_uuid', args.userUuid)
             .where('status', 'active')
             .whereIn('slug', slugs)
             .update({
@@ -799,6 +801,7 @@ export class AiAgentMemoryModel {
 
     async incrementCitedForActiveMemories(args: {
         projectUuid: string;
+        userUuid: string;
         slugs: string[];
     }): Promise<Array<{ memoryId: string; slug: string }>> {
         const slugs = [...new Set(args.slugs)];
@@ -808,6 +811,7 @@ export class AiAgentMemoryModel {
             AiAgentMemoryTableName,
         )
             .where('project_uuid', args.projectUuid)
+            .where('user_uuid', args.userUuid)
             .where('status', 'active')
             .whereIn('slug', slugs)
             .update({
