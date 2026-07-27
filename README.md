@@ -24,7 +24,7 @@ Data teams can build and maintain analytics with any AI agent, then use the term
 
 The fastest way to use Lightdash is [Lightdash Cloud](https://www.lightdash.com/start): no infrastructure to run, always up to date, and ready for AI agents, Data Apps, scheduled deliveries, embedding, and enterprise controls.
 
-Want to explore first? Try the [live demo](https://demo.lightdash.com/login), read the [docs](https://docs.lightdash.com), or [book a sales call](https://lightdash.cal.com/ian/30).
+Want to explore first? Try the [live demo](https://demo.lightdash.com/login), read the [docs](https://docs.lightdash.com), or [book a sales call](https://lightdash.cal.com/lightdash/talk).
 
 ## What you can build
 
