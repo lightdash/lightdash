@@ -65,14 +65,13 @@ import {
     type ContentAsCodeOutputVariant,
 } from '../terminal/contentAsCodeOutput';
 import {
-    appFolderName,
     applySdkMirrorToTemplateDeps,
     attachDependenciesToCode,
     buildDepsWarningLines,
     buildImportBody,
     readBundleFromDir,
     readDependenciesFromDir,
-    retargetManifest,
+    resolveAppFolderName,
     writeBundleToDir,
     writeContextToDir,
     writeDependenciesToDir,
@@ -82,13 +81,12 @@ import {
     appsDownloadSummary,
     capListedApps,
     classifyAppDownloadError,
-    classifyAppUpload,
     ensureDownloadedAppContext,
     getDataAppUploadFilter,
-    manifestRetargetHint,
     resolveAppsLimit,
     selectAppsToDownload,
     shouldFallBackToSpaceScopedListing,
+    uploadFilterMatches,
     type AppDownloadFailure,
 } from './apps/appsDownload';
 import {
@@ -1991,11 +1989,11 @@ export const downloadHandler = async (
 
         if (appsSelection.mode !== 'none') {
             output.startItem('Data apps');
-            let appUuidsToDownload: string[];
+            let appRefsToDownload: string[];
             let appListingError: string | null = null;
 
             if (appsSelection.mode === 'explicit') {
-                appUuidsToDownload = appsSelection.appUuids;
+                appRefsToDownload = appsSelection.appRefs;
             } else {
                 // List every app in the project (includes apps not in any space)
                 output.updateActive('listing project apps…');
@@ -2036,15 +2034,15 @@ export const downloadHandler = async (
                         ),
                     );
                 }
-                appUuidsToDownload = [
+                appRefsToDownload = [
                     ...new Set([
                         ...cappedAppUuids,
-                        ...appsSelection.extraAppUuids,
+                        ...appsSelection.extraAppRefs,
                     ]),
                 ];
             }
 
-            if (appUuidsToDownload.length === 0) {
+            if (appRefsToDownload.length === 0) {
                 if (appListingError === null) {
                     output.completeItem('0 found');
                 } else {
@@ -2055,7 +2053,7 @@ export const downloadHandler = async (
                 }
             } else {
                 output.updateActive(
-                    `0 of ${appUuidsToDownload.length} downloaded`,
+                    `0 of ${appRefsToDownload.length} downloaded`,
                 );
                 const baseDir = getDownloadFolder(options.path);
                 const appsDir = path.join(baseDir, 'apps');
@@ -2064,21 +2062,20 @@ export const downloadHandler = async (
                 let appSkippedNotBuiltCount = 0;
                 const appFailures: AppDownloadFailure[] = [];
 
-                for (const appUuid of appUuidsToDownload) {
+                for (const appRef of appRefsToDownload) {
                     try {
                         // eslint-disable-next-line no-await-in-loop
                         const code = ensureDownloadedAppContext(
-                            appUuid,
+                            appRef,
                             await lightdashApi<DataAppCodeDownload>({
                                 method: 'GET',
-                                url: `/api/v1/ee/projects/${projectId}/apps/${appUuid}/download`,
+                                url: `/api/v1/ee/projects/${projectId}/apps/${appRef}/download`,
                                 body: undefined,
                             }),
                         );
 
-                        const folder = appFolderName(
-                            code.manifest.name,
-                            appUuid,
+                        const folder = resolveAppFolderName(
+                            code.manifest,
                             takenFolders,
                         );
                         takenFolders.add(folder);
@@ -2115,16 +2112,16 @@ export const downloadHandler = async (
                         if (outcome.kind === 'skip-not-built') {
                             appSkippedNotBuiltCount += 1;
                             GlobalState.debug(
-                                `> Skipped app ${appUuid}: no built version to download`,
+                                `> Skipped app ${appRef}: no built version to download`,
                             );
                         } else {
                             appFailures.push({
-                                appUuid,
+                                appRef,
                                 message: outcome.message,
                             });
                             GlobalState.log(
                                 styles.error(
-                                    `Failed to download app ${appUuid}: ${outcome.message}`,
+                                    `Failed to download app ${appRef}: ${outcome.message}`,
                                 ),
                             );
                         }
@@ -2134,13 +2131,13 @@ export const downloadHandler = async (
                             appSuccessCount +
                             appSkippedNotBuiltCount +
                             appFailures.length
-                        } of ${appUuidsToDownload.length} processed`,
+                        } of ${appRefsToDownload.length} processed`,
                     );
                 }
 
                 const summary = appsDownloadSummary(
                     appSuccessCount,
-                    appUuidsToDownload.length,
+                    appRefsToDownload.length,
                     appFailures,
                     appsDir,
                     appSkippedNotBuiltCount,
@@ -3118,8 +3115,8 @@ export const uploadHandler = async (
         } else if (shouldUploadApps) {
             output.startItem('Data apps');
             // --include-apps uploads every folder on disk; explicit references
-            // filter folders by their manifest appUuid
-            const filterUuids = getDataAppUploadFilter(
+            // filter folders by their manifest slug or appUuid
+            const uploadFilter = getDataAppUploadFilter(
                 explicitAppReferences,
                 options.includeApps === true,
             );
@@ -3159,55 +3156,12 @@ export const uploadHandler = async (
                     // eslint-disable-next-line no-await-in-loop
                     const code = await readBundleFromDir(folderPath);
 
-                    if (
-                        filterUuids &&
-                        !filterUuids.has(code.manifest.appUuid)
-                    ) {
+                    if (!uploadFilterMatches(uploadFilter, code.manifest)) {
                         GlobalState.debug(
-                            `Skipping app folder "${subDir.name}" (uuid ${code.manifest.appUuid} not in filter)`,
+                            `Skipping app folder "${subDir.name}" (not in filter)`,
                         );
                         // eslint-disable-next-line no-continue
                         continue;
-                    }
-
-                    // Guard: cross-project create
-                    const uploadDecision = classifyAppUpload(
-                        code.manifest.projectUuid,
-                        projectId,
-                        options.createNew === true,
-                    );
-
-                    if (uploadDecision === 'needs-confirmation') {
-                        if (process.stdin.isTTY && process.stdout.isTTY) {
-                            // eslint-disable-next-line no-await-in-loop
-                            const { confirmed } = await inquirer.prompt<{
-                                confirmed: boolean;
-                            }>([
-                                {
-                                    type: 'confirm',
-                                    name: 'confirmed',
-                                    message: `"${subDir.name}" was downloaded from project ${code.manifest.projectUuid}, but you are uploading to project ${projectId}. This will CREATE a new app. Continue?`,
-                                    default: false,
-                                },
-                            ]);
-                            if (!confirmed) {
-                                GlobalState.log(
-                                    `Skipped "${subDir.name}" (cross-project create declined). Pass --create-new to make this explicit. If this app was already moved to the target project, set appUuid and projectUuid in lightdash-app.yml to the moved app instead.`,
-                                );
-                                appsSkipped += 1;
-                                // eslint-disable-next-line no-continue
-                                continue;
-                            }
-                        } else {
-                            GlobalState.log(
-                                styles.error(
-                                    `Cannot upload "${subDir.name}": its manifest targets project ${code.manifest.projectUuid} but you are uploading to project ${projectId}. Pass --create-new to create a new app in the target project. If this app was already moved there, set appUuid and projectUuid in lightdash-app.yml to the moved app instead.`,
-                                ),
-                            );
-                            appsFailed += 1;
-                            // eslint-disable-next-line no-continue
-                            continue;
-                        }
                     }
 
                     // Read declared dependencies from the app folder (optional).
@@ -3350,52 +3304,6 @@ export const uploadHandler = async (
                         GlobalState.log(
                             `New app: ${config.context.serverUrl}/projects/${projectId}/apps/${appUuid}`,
                         );
-                        if (process.stdin.isTTY && process.stdout.isTTY) {
-                            // eslint-disable-next-line no-await-in-loop
-                            const { retarget } = await inquirer.prompt<{
-                                retarget: boolean;
-                            }>([
-                                {
-                                    type: 'confirm',
-                                    name: 'retarget',
-                                    message: `Update ${subDir.name}/lightdash-app.yml to target the new app? This sets appUuid ${appUuid}, projectUuid ${projectId}, version ${version} — future uploads will update this app.`,
-                                    default: true,
-                                },
-                            ]);
-                            if (retarget) {
-                                // eslint-disable-next-line no-await-in-loop
-                                await retargetManifest(folderPath, {
-                                    appUuid,
-                                    projectUuid: projectId,
-                                    version,
-                                });
-                                GlobalState.log(
-                                    styles.success(
-                                        `Updated ${subDir.name}/lightdash-app.yml → appUuid ${appUuid}, projectUuid ${projectId}, version ${version}.`,
-                                    ),
-                                );
-                            } else {
-                                GlobalState.log(
-                                    styles.warning(
-                                        manifestRetargetHint({
-                                            folder: subDir.name,
-                                            appUuid,
-                                            projectUuid: projectId,
-                                        }),
-                                    ),
-                                );
-                            }
-                        } else {
-                            GlobalState.log(
-                                styles.warning(
-                                    manifestRetargetHint({
-                                        folder: subDir.name,
-                                        appUuid,
-                                        projectUuid: projectId,
-                                    }),
-                                ),
-                            );
-                        }
                     }
                 } catch (appErr) {
                     appsFailed += 1;
