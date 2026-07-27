@@ -1,11 +1,11 @@
 ## How to use this project in Lightdash 
 
 ### Install Lightdash:
-Take advantage of our installation script to easily run Lightdash locally. Check the [documentation page](https://docs.lightdash.com/get-started/setup-lightdash/install-lightdash#deploy-locally-with-our-installation-script) for more details.
+Take advantage of our installation script to easily run Lightdash locally. See the [self-hosting docs](https://docs.lightdash.com/self-host/self-host-lightdash-docker-compose) for other ways to run Lightdash locally.
 ```bash
 git clone https://github.com/lightdash/lightdash
 cd lightdash
-./install.sh
+./scripts/install.sh
 
 # when prompted, select "fast" setup (option 1)
 ```

@@ -101,7 +101,7 @@ Step 1 - ⚡️ [Self-host Lightdash (optional)](https://docs.lightdash.com/self
 
 Step 2 - 🔌 [Connect a project](https://docs.lightdash.com/get-started/setup-lightdash/connect-project)
 
-Step 3 - 👩‍💻 [Create your first metric](https://docs.lightdash.com/get-started/setup-lightdash/intro-metrics-dimensions)
+Step 3 - 👩‍💻 [Create your first metric](https://docs.lightdash.com/get-started/develop-in-lightdash/how-to-create-metrics)
 
 ## Community Support
 
@@ -161,7 +161,7 @@ See our [instructions](https://github.com/lightdash/lightdash/blob/main/.github/
 
 ## Contributors ✨
 
-Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
+Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/en/reference/emoji-key/)):
 
 <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
 <!-- prettier-ignore-start -->
