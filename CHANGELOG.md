@@ -1,3 +1,10 @@
+## [0.3485.1](https://github.com/lightdash/lightdash/compare/0.3485.0...0.3485.1) (2026-07-27)
+
+
+### Bug Fixes
+
+* include all tabs in scheduled dashboard image exports ([#26196](https://github.com/lightdash/lightdash/issues/26196)) ([60a1953](https://github.com/lightdash/lightdash/commit/60a195317ccdebeec696445a6c85781b98392bc3))
+
 # [0.3485.0](https://github.com/lightdash/lightdash/compare/0.3484.1...0.3485.0) (2026-07-27)
 
 
