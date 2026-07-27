@@ -3527,6 +3527,11 @@ const AppGenerate: FC = () => {
                                         focusedQueryUuid={focusedQueryUuid}
                                         lineageEnabled={lineageEnabled}
                                         lineageAvailable={lineageAvailable}
+                                        lineageSupportedBySdk={
+                                            sdkUpgradeOffer.reportedFeatures?.includes(
+                                                'lineage',
+                                            ) ?? false
+                                        }
                                         onToggleLineage={handleToggleLineage}
                                     />
                                 )}
