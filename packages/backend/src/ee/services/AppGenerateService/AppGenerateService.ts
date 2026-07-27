@@ -5461,7 +5461,7 @@ export class AppGenerateService extends BaseService {
                       ),
                       '   Keep only the ones that BOTH exist in the SDK installed in this workspace (verify in node_modules/@lightdash/query-sdk, e.g. dist/features.js) AND would be genuinely useful for what this app does. Silently discard the rest.',
                       '   A feature marked [wiring needed] still counts as available — if it fits the app, OFFER it (the wiring happens later, only if the user asks). Remember its wiring note: it is how you implement the feature when they do.',
-                      '   A candidate that is ALREADY working after this rebuild (it activates automatically on the new SDK, or the app already contains its wiring) belongs on the "Now active" line of your final message, not the ask-list.',
+                      '   A candidate that is ALREADY working after this rebuild (it activates automatically on the new SDK, or the app already contains its wiring) belongs in the "Now active" section of your final message, not the ask-list.',
                   ].join('\n')
                 : '2. Read SDK_FEATURES from node_modules/@lightdash/query-sdk/dist/features.js to see what is available. If that file does not exist, the installed SDK predates feature reporting — there is nothing to offer; skip the feature list entirely.';
         return [
@@ -5474,12 +5474,13 @@ export class AppGenerateService extends BaseService {
             '',
             '   The app was upgraded to the latest template successfully. [or, on failure, one plain sentence saying what broke]',
             '',
-            '   Now active: **<feature label>** — one short phrase on what it does. [only for candidates you VERIFIED are already working after the rebuild; omit the line when there are none]',
+            '   Now active:',
+            '   - **<feature label>** — one short phrase on what it does. [one bullet per candidate you VERIFIED is already working after the rebuild]',
             '',
             '   Newly available — ask me to add any of these:',
             '   - **<feature label>** — one short sentence on what it would do for this app.',
             '',
-            '   Omit the "Now active" line and/or the "Newly available" section when empty.',
+            '   Omit the "Now active" and/or "Newly available" sections when empty.',
             '   It is for a non-technical app owner: never describe what you checked or how, never mention files, code, or APIs, and do not discuss features outside the bullet list.',
             '   Do not implement any of the features now.',
         ].join('\n');
