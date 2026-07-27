@@ -1,5 +1,6 @@
 import {
     formatAiProjectContextObjectRef,
+    type AiAgentMemoryScope,
     type AiProjectContextTypedObjectRef,
 } from '@lightdash/common';
 
@@ -23,6 +24,7 @@ const escapeXmlAttribute = (value: string): string =>
 export type AiAgentMemoryBlockEntry = {
     slug: string;
     content: string;
+    scope: AiAgentMemoryScope;
     objects: AiProjectContextTypedObjectRef[];
     ageDays: number;
 };
@@ -32,7 +34,7 @@ const renderEntry = (entry: AiAgentMemoryBlockEntry): string => {
         .map(formatAiProjectContextObjectRef)
         .join(', ');
 
-    return `<ld-memory id="${escapeXmlAttribute(entry.slug)}" age_days="${entry.ageDays}" objects="${escapeXmlAttribute(objects)}">${escapeXmlText(entry.content)}</ld-memory>`;
+    return `<ld-memory id="${escapeXmlAttribute(entry.slug)}" scope="${escapeXmlAttribute(entry.scope)}" age_days="${entry.ageDays}" objects="${escapeXmlAttribute(objects)}">${escapeXmlText(entry.content)}</ld-memory>`;
 };
 
 const wrapEntries = (entries: string[], truncatedCount: number): string =>

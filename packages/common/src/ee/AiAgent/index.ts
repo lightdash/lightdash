@@ -348,7 +348,9 @@ export type AiAgentMemorySource = {
 export type AiAgentMemoryStatus = 'active' | 'superseded' | 'retired';
 
 /**
- * Advisory label only: it never affects injection, pull, ranking or access.
+ * Never affects which memories are recalled: selection, pull, ranking and
+ * access all filter on ownership alone. The label IS rendered into the injected
+ * fence, so it shapes how the agent treats an entry it already has.
  * `project` means "nominate for review", never "safe to broadcast".
  */
 export type AiAgentMemoryScope = 'user' | 'project';

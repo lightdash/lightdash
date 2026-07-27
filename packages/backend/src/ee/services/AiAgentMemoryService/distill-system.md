@@ -342,7 +342,7 @@ Non-empty `title`:
 
 Required `scope`:
 
-`scope` is an advisory label for a later human review that may promote a memory to the whole project. It never changes who this memory is recalled for: every memory stays scoped to the thread's owner regardless of its label.
+`scope` labels a memory for a later human review that may promote it to the whole project. It never changes who this memory is recalled for: every memory stays scoped to the thread's owner regardless of its label. It is shown to the recalling agent, which treats a `user` label as a preference to adopt as a default, so label by what the memory is, not by how you want it applied.
 
 - `scope: "user"` — the memory encodes how _this user_ wants work done: a standing presentation, scoping, or verification preference, a personal workflow habit, or anything whose wording ties it to the speaker rather than the project.
 - `scope: "project"` — the memory encodes knowledge that would hold for _any_ analyst on this project regardless of who asked: a corrected business definition, a routing or join convention, a semantic invariant, or a demonstrated failure shield.
