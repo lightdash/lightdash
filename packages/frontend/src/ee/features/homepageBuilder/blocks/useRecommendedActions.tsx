@@ -146,10 +146,10 @@ export const useRecommendedActions = (projectUuid: string | null) => {
         setSkippedActions(readSkippedActions(projectUuid));
     }, [projectUuid]);
 
-    // On sample data the only step worth offering is the way out — the rest
-    // point at the playground's own settings
+    // The playground is a throwaway sample-data project — the setup checklist
+    // has no place there, so nothing is offered and the block hides itself.
     const visibleActions = isPlaygroundProject
-        ? (['connect-warehouse'] as HomepageRecommendedActionKey[])
+        ? []
         : RECOMMENDED_ACTION_KEYS.filter((key) => statuses[key].isVisible);
     const hasPendingActions =
         canManageProject &&
