@@ -11,6 +11,7 @@ import {
 import { ScimPatch } from 'scim-patch';
 import { ScimService } from './ScimService';
 import {
+    mockOrganizationCustomRole,
     mockScimAccount,
     mockUser,
     ScimServiceArgumentsMock,
@@ -18,6 +19,12 @@ import {
 
 describe('ScimService', () => {
     const service = new ScimService(ScimServiceArgumentsMock);
+    const organizationCustomScimRole: ScimUserRole = {
+        value: mockOrganizationCustomRole.roleUuid,
+        display: mockOrganizationCustomRole.name,
+        type: 'Organization',
+        primary: true,
+    };
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -193,6 +200,26 @@ describe('ScimService', () => {
         });
     });
 
+    describe('getUser', () => {
+        test('should return an organization-level custom role', async () => {
+            const { organizationMemberProfileModel } = ScimServiceArgumentsMock;
+            vi.mocked(
+                organizationMemberProfileModel.getOrganizationMemberByUuid,
+            ).mockResolvedValueOnce({
+                ...mockUser,
+                roleUuid: mockOrganizationCustomRole.roleUuid,
+            });
+
+            const result = await service.getUser({
+                account: mockScimAccount,
+                userUuid: mockUser.userUuid,
+                organizationUuid: mockUser.organizationUuid,
+            });
+
+            expect(result.roles).toContainEqual(organizationCustomScimRole);
+        });
+    });
+
     describe('createUser', () => {
         test('should create user with default role when no role is provided', async () => {
             // Create a SCIM user without a role in the extension schema
@@ -270,6 +297,39 @@ describe('ScimService', () => {
                 userUuid: mockUser.userUuid,
                 role: OrganizationMemberRole.ADMIN, // Provided role
             });
+        });
+
+        test('should create user with an organization-level custom role', async () => {
+            const { rolesModel } = ScimServiceArgumentsMock;
+
+            await service.createUser({
+                account: mockScimAccount,
+                user: {
+                    schemas: [ScimSchemaType.USER],
+                    userName: 'new-user@example.com',
+                    name: {
+                        givenName: 'New',
+                        familyName: 'User',
+                    },
+                    active: true,
+                    emails: [
+                        {
+                            value: 'new-user@example.com',
+                            primary: true,
+                        },
+                    ],
+                    roles: [organizationCustomScimRole],
+                },
+                organizationUuid: 'org-uuid',
+            });
+
+            expect(rolesModel.setUserOrgAndProjectRoles).toHaveBeenCalledWith(
+                'org-uuid',
+                mockUser.userUuid,
+                mockOrganizationCustomRole.roleUuid,
+                [],
+                true,
+            );
         });
 
         test('should adopt orphan user (verified email but no organization) instead of creating', async () => {
@@ -425,25 +485,63 @@ describe('ScimService', () => {
                 organizationUuid: mockUser.organizationUuid,
             });
 
-            // Org role downgraded to MEMBER
-            expect(
-                organizationMemberProfileModel.updateOrganizationMember,
-            ).toHaveBeenCalledWith(
+            expect(rolesModel.setUserOrgAndProjectRoles).toHaveBeenCalledWith(
                 mockUser.organizationUuid,
                 mockUser.userUuid,
-                { role: OrganizationMemberRole.MEMBER },
+                OrganizationMemberRole.MEMBER,
+                [],
+                false,
             );
-
-            // Removed from all projects
-            expect(
-                rolesModel.removeUserAccessFromAllProjects,
-            ).toHaveBeenCalledWith(mockUser.userUuid);
 
             // Removed from all groups in org
             expect(groupsModel.removeUserFromAllGroups).toHaveBeenCalledWith({
                 organizationUuid: mockUser.organizationUuid,
                 userUuid: mockUser.userUuid,
             });
+        });
+
+        test('should clear a custom organization role when deactivating user', async () => {
+            const { organizationMemberProfileModel, rolesModel } =
+                ScimServiceArgumentsMock;
+            vi.mocked(
+                organizationMemberProfileModel.getOrganizationMemberByUuid,
+            ).mockResolvedValueOnce({
+                ...mockUser,
+                roleUuid: mockOrganizationCustomRole.roleUuid,
+            });
+
+            await service.updateUser({
+                account: mockScimAccount,
+                user: {
+                    schemas: [ScimSchemaType.USER],
+                    userName: mockUser.email,
+                    name: {
+                        givenName: mockUser.firstName,
+                        familyName: mockUser.lastName,
+                    },
+                    active: false,
+                    emails: [
+                        {
+                            value: mockUser.email,
+                            primary: true,
+                        },
+                    ],
+                    roles: [organizationCustomScimRole],
+                },
+                userUuid: mockUser.userUuid,
+                organizationUuid: mockUser.organizationUuid,
+            });
+
+            expect(rolesModel.setUserOrgAndProjectRoles).toHaveBeenCalledTimes(
+                1,
+            );
+            expect(rolesModel.setUserOrgAndProjectRoles).toHaveBeenCalledWith(
+                mockUser.organizationUuid,
+                mockUser.userUuid,
+                OrganizationMemberRole.MEMBER,
+                [],
+                false,
+            );
         });
 
         test('should throw error when an invalid role is provided', async () => {
@@ -595,6 +693,76 @@ describe('ScimService', () => {
             );
         });
 
+        test('should update user with an organization-level custom role', async () => {
+            const { rolesModel } = ScimServiceArgumentsMock;
+
+            await service.updateUser({
+                account: mockScimAccount,
+                user: {
+                    schemas: [ScimSchemaType.USER],
+                    userName: mockUser.email,
+                    name: {
+                        givenName: mockUser.firstName,
+                        familyName: mockUser.lastName,
+                    },
+                    active: mockUser.isActive,
+                    emails: [
+                        {
+                            value: mockUser.email,
+                            primary: true,
+                        },
+                    ],
+                    roles: [organizationCustomScimRole],
+                },
+                userUuid: mockUser.userUuid,
+                organizationUuid: mockUser.organizationUuid,
+            });
+
+            expect(rolesModel.setUserOrgAndProjectRoles).toHaveBeenCalledWith(
+                mockUser.organizationUuid,
+                mockUser.userUuid,
+                mockOrganizationCustomRole.roleUuid,
+                [],
+                true,
+            );
+        });
+
+        test('should reject a bare project-level custom role UUID', async () => {
+            await expect(
+                service.updateUser({
+                    account: mockScimAccount,
+                    user: {
+                        schemas: [ScimSchemaType.USER],
+                        userName: mockUser.email,
+                        name: {
+                            givenName: mockUser.firstName,
+                            familyName: mockUser.lastName,
+                        },
+                        active: mockUser.isActive,
+                        emails: [
+                            {
+                                value: mockUser.email,
+                                primary: true,
+                            },
+                        ],
+                        roles: [
+                            {
+                                value: 'custom-role-1-uuid',
+                                type: 'Organization',
+                                primary: true,
+                            },
+                        ],
+                    },
+                    userUuid: mockUser.userUuid,
+                    organizationUuid: mockUser.organizationUuid,
+                }),
+            ).rejects.toMatchObject({
+                detail: 'Invalid role values: custom-role-1-uuid',
+                status: '400',
+                scimType: 'invalidValue',
+            });
+        });
+
         test('should handle organization-only roles in roles array via unified method', async () => {
             const { organizationMemberProfileModel, rolesModel } =
                 ScimServiceArgumentsMock;
@@ -724,6 +892,34 @@ describe('ScimService', () => {
                 );
             },
         );
+
+        test('should replace the organization role with a custom role', async () => {
+            const { rolesModel } = ScimServiceArgumentsMock;
+
+            await service.patchUser({
+                account: mockScimAccount,
+                userUuid: mockUser.userUuid,
+                organizationUuid: mockUser.organizationUuid,
+                patchOp: {
+                    schemas: [ScimSchemaType.PATCH],
+                    Operations: [
+                        {
+                            op: 'Replace',
+                            path: 'roles[primary eq true].value',
+                            value: mockOrganizationCustomRole.roleUuid,
+                        },
+                    ],
+                },
+            });
+
+            expect(rolesModel.setUserOrgAndProjectRoles).toHaveBeenCalledWith(
+                mockUser.organizationUuid,
+                mockUser.userUuid,
+                mockOrganizationCustomRole.roleUuid,
+                [],
+                true,
+            );
+        });
     });
 
     describe('updateGroup', () => {
@@ -1387,7 +1583,7 @@ describe('ScimService', () => {
 
                 expect(result).toEqual({
                     schemas: [ScimSchemaType.LIST_RESPONSE],
-                    totalResults: 20, // 6 org system + 7 per project (2 projects) = 6+14 = 20
+                    totalResults: 21,
                     itemsPerPage: 100,
                     startIndex: 1,
                     Resources: expect.arrayContaining([
@@ -1408,7 +1604,7 @@ describe('ScimService', () => {
                 });
 
                 // Verify we have the expected number of roles
-                expect(result.Resources).toHaveLength(20);
+                expect(result.Resources).toHaveLength(21);
 
                 // Verify some specific role values
                 const roleValues = result.Resources.map((role) => role.value);
@@ -1423,6 +1619,12 @@ describe('ScimService', () => {
                 expect(roleValues).toContain(
                     'project-2-uuid:custom-role-2-uuid',
                 ); // project-level custom role
+                expect(roleValues).toContain(
+                    mockOrganizationCustomRole.roleUuid,
+                );
+                expect(roleValues).not.toContain(
+                    `project-1-uuid:${mockOrganizationCustomRole.roleUuid}`,
+                );
 
                 // Verify we don't have preview project roles
                 const previewRoles = roleValues.filter((value) =>
@@ -1452,6 +1654,30 @@ describe('ScimService', () => {
                         lastModified: undefined, // System roles don't have modification dates
                         location: expect.stringContaining(
                             '/api/v1/scim/v2/Roles/admin',
+                        ),
+                    },
+                });
+            });
+
+            test('should return an organization-level custom role by UUID', async () => {
+                const result = await service.getRole(
+                    'test-org-uuid',
+                    mockOrganizationCustomRole.roleUuid,
+                );
+
+                expect(result).toEqual({
+                    schemas: [ScimSchemaType.ROLE],
+                    id: mockOrganizationCustomRole.roleUuid,
+                    value: mockOrganizationCustomRole.roleUuid,
+                    display: mockOrganizationCustomRole.name,
+                    type: 'Organization',
+                    supported: true,
+                    meta: {
+                        resourceType: 'Role',
+                        created: mockOrganizationCustomRole.createdAt,
+                        lastModified: mockOrganizationCustomRole.updatedAt,
+                        location: expect.stringContaining(
+                            `/api/v1/scim/v2/Roles/${mockOrganizationCustomRole.roleUuid}`,
                         ),
                     },
                 });
