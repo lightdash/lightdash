@@ -33,6 +33,7 @@ import {
     IconClick,
     IconDatabase,
     IconDatabasePlus,
+    IconFileDescription,
     IconLayoutDashboard,
     IconLink,
     IconPhoto,
@@ -449,43 +450,85 @@ const QueryPickerView: FC<{
 };
 
 /**
- * Renders selected images as rounded thumbnails with remove buttons.
+ * Renders selected attachments with remove buttons: images as rounded
+ * thumbnails, other files as filename pills matching the query-pill look.
  */
-export const SelectedImageSection: FC<{
-    images: Array<{ previewUrl: string }>;
-    onRemove: (previewUrl: string) => void;
+export const SelectedAttachmentSection: FC<{
+    attachments: Array<{
+        id: string;
+        /** Object URL for image thumbnails; null renders a filename pill. */
+        previewUrl: string | null;
+        filename: string;
+    }>;
+    onRemove: (id: string) => void;
     disabled?: boolean;
     loading?: boolean;
-}> = ({ images, onRemove, disabled, loading }) => {
-    if (images.length === 0) return null;
+}> = ({ attachments, onRemove, disabled, loading }) => {
+    if (attachments.length === 0) return null;
 
     return (
         <Group gap="xs">
-            {images.map((img) => (
-                <Box key={img.previewUrl} className={classes.imageItem}>
-                    <Image
-                        src={img.previewUrl}
-                        className={classes.imageThumb}
-                        alt="Attached"
-                    />
-                    <LoadingOverlay
-                        visible={loading ?? false}
-                        loaderProps={{ size: 'xs' }}
-                        overlayProps={{
-                            radius: 'md',
-                            backgroundOpacity: 0.5,
-                        }}
-                    />
-                    {!loading && (
-                        <CloseButton
-                            size="xs"
-                            className={classes.imageRemove}
-                            onClick={() => onRemove(img.previewUrl)}
-                            disabled={disabled}
+            {attachments.map((att) =>
+                att.previewUrl ? (
+                    <Box key={att.id} className={classes.imageItem}>
+                        <Image
+                            src={att.previewUrl}
+                            className={classes.imageThumb}
+                            alt="Attached"
                         />
-                    )}
-                </Box>
-            ))}
+                        <LoadingOverlay
+                            visible={loading ?? false}
+                            loaderProps={{ size: 'xs' }}
+                            overlayProps={{
+                                radius: 'md',
+                                backgroundOpacity: 0.5,
+                            }}
+                        />
+                        {!loading && (
+                            <CloseButton
+                                size="xs"
+                                className={classes.imageRemove}
+                                onClick={() => onRemove(att.id)}
+                                disabled={disabled}
+                            />
+                        )}
+                    </Box>
+                ) : (
+                    <Box
+                        key={att.id}
+                        className={`${classes.selectedQueryItem} ${classes.fileItem}`}
+                    >
+                        <Box className={classes.selectedQueryItemIcon}>
+                            <MantineIcon icon={IconFileDescription} size={12} />
+                        </Box>
+                        <Text
+                            fw={500}
+                            truncate
+                            className={classes.selectedQueryItemName}
+                        >
+                            {att.filename}
+                        </Text>
+                        <ActionIcon
+                            size="xs"
+                            variant="subtle"
+                            color="gray"
+                            radius="xl"
+                            onClick={() => onRemove(att.id)}
+                            disabled={disabled || loading}
+                        >
+                            <MantineIcon icon={IconX} size={10} />
+                        </ActionIcon>
+                        <LoadingOverlay
+                            visible={loading ?? false}
+                            loaderProps={{ size: 'xs' }}
+                            overlayProps={{
+                                radius: 'xl',
+                                backgroundOpacity: 0.5,
+                            }}
+                        />
+                    </Box>
+                ),
+            )}
         </Group>
     );
 };
@@ -969,9 +1012,9 @@ export const AttachButton: FC<{
     selectedConnections: SelectedConnection[];
     onSelectConnection: (connection: SelectedConnection) => void;
     onDeselectConnection: (uuid: string) => void;
-    onAddImages: () => void;
+    onAddFiles: () => void;
     disabled: boolean;
-    imagesDisabled: boolean;
+    filesDisabled: boolean;
 }> = ({
     selectedCharts,
     onSelectChart,
@@ -982,9 +1025,9 @@ export const AttachButton: FC<{
     selectedConnections,
     onSelectConnection,
     onDeselectConnection,
-    onAddImages,
+    onAddFiles,
     disabled,
-    imagesDisabled,
+    filesDisabled,
 }) => {
     const [opened, setOpened] = useState(false);
     const [view, setView] = useState<AttachView>('menu');
@@ -1003,11 +1046,11 @@ export const AttachButton: FC<{
         [onSelectDashboard],
     );
 
-    const handleImagesClick = useCallback(() => {
+    const handleFilesClick = useCallback(() => {
         setOpened(false);
         setView('menu');
-        onAddImages();
-    }, [onAddImages]);
+        onAddFiles();
+    }, [onAddFiles]);
 
     const headerTitle =
         // eslint-disable-next-line no-nested-ternary
@@ -1035,7 +1078,7 @@ export const AttachButton: FC<{
         >
             <Popover.Target>
                 <Tooltip
-                    label="Add charts, dashboards, connections or images"
+                    label="Add charts, dashboards, connections or files"
                     withArrow
                     position="top"
                 >
@@ -1093,20 +1136,20 @@ export const AttachButton: FC<{
                         </UnstyledButton>
                         <UnstyledButton
                             className={classes.attachMenuItem}
-                            onClick={handleImagesClick}
-                            disabled={imagesDisabled}
+                            onClick={handleFilesClick}
+                            disabled={filesDisabled}
                             ff="inherit"
-                            data-disabled={imagesDisabled || undefined}
+                            data-disabled={filesDisabled || undefined}
                         >
                             <MantineIcon icon={IconPhoto} />
                             <Box flex={1}>
                                 <Text size="sm" fw={500}>
-                                    Images
+                                    Files
                                 </Text>
                                 <Text size="xs" c="dimmed">
-                                    {imagesDisabled
-                                        ? 'Image limit reached'
-                                        : 'Upload reference images'}
+                                    {filesDisabled
+                                        ? 'Attachment limit reached'
+                                        : 'Upload images, PDFs, or text files'}
                                 </Text>
                             </Box>
                         </UnstyledButton>

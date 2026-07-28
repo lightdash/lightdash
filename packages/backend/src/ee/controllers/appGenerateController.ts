@@ -2,7 +2,7 @@ import {
     ApiErrorPayload,
     assertRegisteredAccount,
     ParameterError,
-    type ApiAppImageUploadResponse,
+    type ApiAppFileUploadResponse,
     type ApiAppImageUrlResponse,
     type ApiAppSchedulersResponse,
     type ApiAppThumbnailUrlResponse,
@@ -78,7 +78,7 @@ export class AppGenerateController extends BaseController {
             toSessionUser(req.account),
             projectUuid,
             body.prompt,
-            body.imageIds ?? [],
+            body.fileIds ?? body.imageIds ?? [],
             body.appUuid,
             body.charts,
             body.dashboard,
@@ -201,7 +201,7 @@ export class AppGenerateController extends BaseController {
             body.template,
             body.charts,
             body.dashboard,
-            body.imageIds,
+            body.fileIds ?? body.imageIds,
         );
         return {
             status: 'ok',
@@ -210,10 +210,33 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
+     * Upload a file attachment for a data app generation request.
+     * Send raw bytes with the appropriate Content-Type header; pass the
+     * original filename via the `filename` query parameter. Supported:
+     * images (PNG, JPEG, GIF, WEBP), PDFs, and text-based files (JSON,
+     * CSV, Markdown, XML/TWB, YAML, code, …).
+     * @summary Upload app file
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/upload-file')
+    @OperationId('uploadAppFile')
+    async uploadFile(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Query() filename?: string,
+        @Query() kind?: 'screenshot',
+    ): Promise<ApiAppFileUploadResponse> {
+        this.setStatus(200);
+        return this.handleUploadFile(req, projectUuid, appUuid, filename, kind);
+    }
+
+    /**
      * Upload an image for a data app generation request.
-     * Send raw image bytes with the appropriate Content-Type header.
-     * The request body is streamed directly to S3 without buffering.
      * @summary Upload app image
+     * @deprecated Use the upload-file endpoint — this alias remains for older
+     * clients and accepts the same payloads.
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -223,10 +246,21 @@ export class AppGenerateController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() appUuid: string,
+        @Query() filename?: string,
         @Query() kind?: 'screenshot',
-    ): Promise<ApiAppImageUploadResponse> {
-        assertRegisteredAccount(req.account);
+    ): Promise<ApiAppFileUploadResponse> {
         this.setStatus(200);
+        return this.handleUploadFile(req, projectUuid, appUuid, filename, kind);
+    }
+
+    private async handleUploadFile(
+        req: express.Request,
+        projectUuid: string,
+        appUuid: string,
+        filename?: string,
+        kind?: 'screenshot',
+    ): Promise<ApiAppFileUploadResponse> {
+        assertRegisteredAccount(req.account);
         const mimeType = req.headers['content-type'];
         if (!mimeType) {
             throw new ParameterError('Content-Type header is required');
@@ -240,13 +274,14 @@ export class AppGenerateController extends BaseController {
                 'Content-Length must be a positive integer',
             );
         }
-        const result = await this.getAppGenerateService().uploadImage(
+        const result = await this.getAppGenerateService().uploadFile(
             toSessionUser(req.account),
             projectUuid,
             mimeType,
             req,
             contentLength,
             appUuid,
+            filename,
             kind,
         );
         return {
@@ -305,7 +340,7 @@ export class AppGenerateController extends BaseController {
             projectUuid,
             appUuid,
             body.prompt,
-            body.imageIds ?? [],
+            body.fileIds ?? body.imageIds ?? [],
             body.charts,
             body.dashboard,
             body.claudeModel,

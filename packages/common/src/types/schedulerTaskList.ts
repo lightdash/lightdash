@@ -55,7 +55,12 @@ export type AppGeneratePipelineJobPayload = TraceTaskBase & {
     version: number;
     prompt: string;
     template?: DataAppTemplate; // starter template selected on creation; absent on iteration
+    /** @deprecated Use `fileIds` — still read so jobs enqueued before the
+     *  rename keep working after a deploy. */
     imageIds?: string[];
+    // Staged attachment ids (images, PDFs, text files). Type and filename are
+    // resolved from the staged S3 object's ContentType/metadata at write time.
+    fileIds?: string[];
     isIteration: boolean;
     // Upgrade-as-iteration: the worker destroys the app's sandbox (carrying
     // the Claude session best-effort) so this run cold-starts on the current

@@ -13,7 +13,7 @@ type IterateAppParams = {
     projectUuid: string;
     appUuid: string;
     prompt: string;
-    imageIds?: string[];
+    fileIds?: string[];
     charts?: AppChartReference[];
     dashboard?: AppDashboardReference;
     claudeModel?: DataAppClaudeModel;
@@ -27,7 +27,7 @@ const iterateApp = async ({
     projectUuid,
     appUuid,
     prompt,
-    imageIds,
+    fileIds,
     charts,
     dashboard,
     claudeModel,
@@ -39,7 +39,7 @@ const iterateApp = async ({
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/versions`,
         body: JSON.stringify({
             prompt,
-            imageIds,
+            fileIds,
             charts,
             dashboard,
             claudeModel,
