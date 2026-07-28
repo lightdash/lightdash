@@ -5,6 +5,7 @@ import {
     LightdashAppUuidHeader,
     type DashboardFilters,
     type DataAppVizContext,
+    type DeliveryQuery,
 } from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
 import { type RefObject } from 'react';
@@ -1154,5 +1155,74 @@ describe('data-app-viz-context push', () => {
             }),
             '*',
         );
+    });
+});
+
+function renderBridgeWithDelivery(
+    onDeliveryQueries: (queries: DeliveryQuery[]) => void,
+) {
+    const iframeRef = {
+        current: { contentWindow: window } as unknown as HTMLIFrameElement,
+    } as RefObject<HTMLIFrameElement | null>;
+    renderHook(() =>
+        useAppSdkBridge({
+            iframeRef,
+            expectedPreviewOrigin: window.location.origin,
+            projectUuid: PROJECT_UUID,
+            appUuid: APP_UUID,
+            onDeliveryQueries,
+        }),
+    );
+}
+
+const DELIVERY_DECLARATION = {
+    kind: 'query',
+    label: 'Revenue',
+    query: { exploreName: 'orders', dimensions: [], metrics: [], limit: 500 },
+};
+
+describe('delivery query declarations', () => {
+    it('forwards a valid declared set', () => {
+        const received: DeliveryQuery[][] = [];
+        renderBridgeWithDelivery((queries) => received.push(queries));
+
+        dispatchFetchMessage({
+            type: 'lightdash:delivery:available',
+            queries: [DELIVERY_DECLARATION],
+        });
+
+        expect(received).toHaveLength(1);
+        expect(received[0]).toEqual([DELIVERY_DECLARATION]);
+    });
+
+    it('replaces the previous set rather than accumulating', () => {
+        const received: DeliveryQuery[][] = [];
+        renderBridgeWithDelivery((queries) => received.push(queries));
+
+        dispatchFetchMessage({
+            type: 'lightdash:delivery:available',
+            queries: [DELIVERY_DECLARATION],
+        });
+        dispatchFetchMessage({
+            type: 'lightdash:delivery:available',
+            queries: [DELIVERY_DECLARATION, DELIVERY_DECLARATION],
+        });
+
+        expect(received[1]).toHaveLength(2);
+    });
+
+    it('ignores an invalid payload and warns', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const received: DeliveryQuery[][] = [];
+        renderBridgeWithDelivery((queries) => received.push(queries));
+
+        dispatchFetchMessage({
+            type: 'lightdash:delivery:available',
+            queries: [{ kind: 'nonsense' }],
+        });
+
+        expect(received).toHaveLength(0);
+        expect(warn).toHaveBeenCalled();
+        warn.mockRestore();
     });
 });

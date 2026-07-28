@@ -3,8 +3,10 @@ import {
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     JWT_HEADER_NAME,
     LightdashAppUuidHeader,
+    parseDeliveryQueries,
     type DataAppVizContext,
     type DashboardFilters,
+    type DeliveryQuery,
 } from '@lightdash/common';
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import { lightdashApi } from '../../../api';
@@ -238,6 +240,13 @@ export type UseAppSdkBridgeParams = {
     onLineageAvailable?: () => void;
     onLineageSelected?: (event: { queryUuid: string }) => void;
     /**
+     * Fires when the iframe SDK declares which queries belong in a scheduled
+     * delivery (`lightdash:delivery:available`). The SDK republishes the full
+     * set on change, so each call carries the complete list, not a delta.
+     * Left undefined, the message is ignored.
+     */
+    onDeliveryQueries?: (queries: DeliveryQuery[]) => void;
+    /**
      * Fires when the iframe SDK reports its capability manifest
      * (`lightdash:sdk:manifest`) — sent by SDKs new enough to have a feature
      * registry. Old bundles never send it; the parent owns the "no manifest
@@ -273,6 +282,7 @@ export function useAppSdkBridge({
     capabilities,
     onLineageAvailable,
     onLineageSelected,
+    onDeliveryQueries,
     onExternalRequestEvent,
     dataAppVizContext,
     onUrlStateChange,
@@ -390,6 +400,22 @@ export function useAppSdkBridge({
                 if (typeof stampCount === 'number' && stampCount > 0) {
                     onLineageAvailable?.();
                 }
+                return;
+            }
+
+            if (data?.type === 'lightdash:delivery:available') {
+                if (!onDeliveryQueries) return;
+                const queries = parseDeliveryQueries(data.queries);
+                if (!queries) {
+                    // Untrusted app payload: warn rather than drop silently — a
+                    // silent drop looks like the app declared nothing, which is
+                    // a legitimate state and would hide the bug.
+                    console.warn(
+                        '[lightdash] Ignoring app delivery declarations: invalid payload',
+                    );
+                    return;
+                }
+                onDeliveryQueries(queries);
                 return;
             }
 
@@ -932,6 +958,7 @@ export function useAppSdkBridge({
             capabilities,
             onLineageAvailable,
             onLineageSelected,
+            onDeliveryQueries,
             onExternalRequestEvent,
             pushDataAppVizContext,
             onUrlStateChange,
