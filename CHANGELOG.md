@@ -1,3 +1,10 @@
+# [1.8.0](https://github.com/lightdash/lightdash/compare/1.7.1...1.8.0) (2026-07-28)
+
+
+### Features
+
+* **data-apps:** attach charts and dashboards by pasting a link ([#26285](https://github.com/lightdash/lightdash/issues/26285)) ([bc9ab07](https://github.com/lightdash/lightdash/commit/bc9ab07c15483b85a8bcae3d6540ca6dd28939fc))
+
 ## [1.7.1](https://github.com/lightdash/lightdash/compare/1.7.0...1.7.1) (2026-07-28)
 
 
