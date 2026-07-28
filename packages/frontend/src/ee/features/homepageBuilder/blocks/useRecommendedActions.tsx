@@ -150,6 +150,7 @@ const useActionStatuses = (
 export const useRecommendedActions = (projectUuid: string | null) => {
     const { user } = useApp();
     const { statuses, isLoading } = useActionStatuses(projectUuid);
+    const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
     const { data: project } = useProject(projectUuid ?? undefined);
     const isPlaygroundProject = isPlaygroundProvisioningSource(
         project?.provisioningSource,
@@ -177,6 +178,7 @@ export const useRecommendedActions = (projectUuid: string | null) => {
         ? []
         : RECOMMENDED_ACTION_KEYS.filter((key) => statuses[key].isVisible);
     const hasPendingActions =
+        newOnboardingFlag.data?.enabled === true &&
         !isLoading &&
         canManageProject &&
         visibleActions.some(

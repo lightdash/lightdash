@@ -149,6 +149,34 @@ describe('useRecommendedActions', () => {
         ).toBeNull();
     });
 
+    describe('new-onboarding gate', () => {
+        it('has no pending actions while new-onboarding is disabled', () => {
+            const { result } = renderHook(() =>
+                useRecommendedActions('project-uuid'),
+            );
+
+            expect(result.current.visibleActions).toContain(
+                'connect-warehouse',
+            );
+            expect(result.current.hasPendingActions).toBe(false);
+        });
+
+        it('has pending actions once new-onboarding is enabled', () => {
+            vi.mocked(useServerFeatureFlag).mockImplementation(
+                (flag) =>
+                    ({
+                        data: { enabled: flag === FeatureFlags.NewOnboarding },
+                    }) as ReturnType<typeof useServerFeatureFlag>,
+            );
+
+            const { result } = renderHook(() =>
+                useRecommendedActions('project-uuid'),
+            );
+
+            expect(result.current.hasPendingActions).toBe(true);
+        });
+    });
+
     describe('on a playground project', () => {
         beforeEach(() => {
             vi.mocked(useOrganization).mockReturnValue({
