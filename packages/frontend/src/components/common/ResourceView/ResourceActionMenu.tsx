@@ -29,6 +29,7 @@ import {
 import { type FC, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import { FavoritePersonalDataAppModal } from '../../../features/apps/components/DataAppFavoriteMenuItem';
 import { PromoteAppModal } from '../../../features/apps/components/PromoteAppModal';
 import { useDuplicateApp } from '../../../features/apps/hooks/useDuplicateApp';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
@@ -86,6 +87,8 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: project } = useProject(projectUuid);
     const [isPromoteAppOpen, setIsPromoteAppOpen] = useState(false);
+    const [isFavoriteSpaceModalOpen, setIsFavoriteSpaceModalOpen] =
+        useState(false);
     const { mutate: duplicateApp } = useDuplicateApp();
     const organizationUuid = user.data?.organizationUuid;
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
@@ -352,6 +355,12 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                 )
                             }
                             onClick={() => {
+                                // Space-less apps can't be favorited — offer
+                                // the same move-to-space flow as the app header
+                                if (isPersonalDataApp && !isFavorited) {
+                                    setIsFavoriteSpaceModalOpen(true);
+                                    return;
+                                }
                                 favoritesContext.toggleFavorite(
                                     item.type,
                                     item.data.uuid,
@@ -737,6 +746,16 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                         appUuid={item.data.uuid}
                         opened
                         onClose={() => setIsPromoteAppOpen(false)}
+                    />
+                )}
+            {isFavoriteSpaceModalOpen &&
+                projectUuid &&
+                item.type === ResourceViewItemType.DATA_APP && (
+                    <FavoritePersonalDataAppModal
+                        projectUuid={projectUuid}
+                        app={item.data}
+                        opened
+                        onClose={() => setIsFavoriteSpaceModalOpen(false)}
                     />
                 )}
         </>
