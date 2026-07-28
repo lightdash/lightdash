@@ -191,6 +191,7 @@ export const mockUserModel: Record<string, MockFn> = {
     getUserDetailsByUuid: vi.fn().mockResolvedValue({
         firstName: 'Test',
         lastName: 'User',
+        organizationUuid: 'test-org-uuid',
     }),
 };
 
@@ -216,6 +217,7 @@ export const mockGroupsModel: Record<string, MockFn> = {
     getGroup: vi.fn().mockResolvedValue({
         groupUuid: 'test-group-uuid',
         name: 'Test Group',
+        organizationUuid: 'test-org-uuid',
     }),
 };
 
