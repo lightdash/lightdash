@@ -68,7 +68,7 @@ export const blockLibrary: BlockDefinition[] = [
         create: () => ({
             id: uuidv4(),
             type: 'quick-actions',
-            config: { actions: getDefaultQuickActions(true) },
+            config: { actions: getDefaultQuickActions(false) },
         }),
         View: QuickActionsBlockView,
         Build: QuickActionsBlockBuild,

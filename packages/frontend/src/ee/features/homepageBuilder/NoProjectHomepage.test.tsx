@@ -8,6 +8,7 @@ const state = vi.hoisted(() => ({
     isCopilotEnabled: true,
     isCopilotLoading: false,
     isHomepageBuilderEnabled: true,
+    hasPendingActions: false,
 }));
 
 vi.mock('../../../providers/App/useApp', () => ({
@@ -43,7 +44,16 @@ vi.mock('./hooks/useProjectHomepage', () => ({
 }));
 
 vi.mock('./blocks/useRecommendedActions', () => ({
-    useRecommendedActions: () => ({ hasPendingActions: false }),
+    useRecommendedActions: () => ({
+        hasPendingActions: state.hasPendingActions,
+        statuses: {
+            'connect-warehouse': { url: '/onboarding/data-source' },
+        },
+    }),
+}));
+
+vi.mock('./blocks/RecommendedActionsChecklist', () => ({
+    RecommendedActionsChecklist: () => <div data-testid="setup-checklist" />,
 }));
 
 vi.mock('./DayOneAskInput', () => ({
@@ -75,6 +85,7 @@ describe('NoProjectHomepage', () => {
         state.isCopilotEnabled = true;
         state.isCopilotLoading = false;
         state.isHomepageBuilderEnabled = true;
+        state.hasPendingActions = false;
     });
 
     it('renders the decorative sky on the stage that holds the hero', () => {
@@ -96,12 +107,28 @@ describe('NoProjectHomepage', () => {
         expect(screen.queryByTestId('homepage-stars')).toBeNull();
     });
 
-    it('redirects away when the organization has no copilot', () => {
+    it('offers the warehouse connection instead of the composer without copilot', () => {
         state.isCopilotEnabled = false;
         renderHomepage();
 
-        expect(screen.getByText('redirected')).toBeInTheDocument();
+        expect(screen.queryByText('redirected')).toBeNull();
         expect(screen.queryByTestId('ask-input')).toBeNull();
+        expect(screen.getByTestId('homepage-stars')).toBeInTheDocument();
+        const cta = screen.getByRole('link', {
+            name: /Connect a data warehouse/,
+        });
+        expect(cta).toHaveAttribute('href', '/onboarding/data-source');
+    });
+
+    it('lets the setup checklist carry the warehouse step rather than repeating it', () => {
+        state.isCopilotEnabled = false;
+        state.hasPendingActions = true;
+        renderHomepage();
+
+        expect(screen.getByTestId('setup-checklist')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('link', { name: /Connect a data warehouse/ }),
+        ).toBeNull();
     });
 
     it('redirects away when the homepage builder is disabled', () => {
@@ -112,12 +139,14 @@ describe('NoProjectHomepage', () => {
         expect(screen.queryByTestId('ask-input')).toBeNull();
     });
 
-    it('waits for the copilot signal before deciding', () => {
+    it('waits for the copilot signal before deciding which hero to show', () => {
         state.isCopilotEnabled = false;
         state.isCopilotLoading = true;
         renderHomepage();
 
-        expect(screen.queryByText('redirected')).toBeNull();
         expect(screen.queryByTestId('ask-input')).toBeNull();
+        expect(
+            screen.queryByRole('link', { name: /Connect a data warehouse/ }),
+        ).toBeNull();
     });
 });

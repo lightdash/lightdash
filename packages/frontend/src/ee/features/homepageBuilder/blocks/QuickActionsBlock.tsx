@@ -30,7 +30,7 @@ import MantineModal from '../../../../components/common/MantineModal';
 import { useInfiniteContent } from '../../../../hooks/useContent';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
-import { useAiAgentButtonVisibility } from '../../aiCopilot/hooks/useAiAgentsButtonVisibility';
+import { useHomepageAiState } from '../hooks/useHomepageAiState';
 import classes from './blockStyles.module.css';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
@@ -92,9 +92,9 @@ export const QuickActionCards: FC<{
     projectUuid: string;
 }> = ({ actions, projectUuid }) => {
     const { track } = useTracking();
-    const isAiEnabled = useAiAgentButtonVisibility();
+    const { canAskAi } = useHomepageAiState(projectUuid);
     const visibleActions = actions.filter(
-        (action) => action.type !== 'ask-ai' || isAiEnabled,
+        (action) => action.type !== 'ask-ai' || canAskAi,
     );
     if (visibleActions.length === 0) return null;
     return (
@@ -209,6 +209,7 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
     projectUuid,
     onChange,
 }) => {
+    const { canAskAi } = useHomepageAiState(projectUuid);
     const [isDashboardPickerOpen, setIsDashboardPickerOpen] = useState(false);
     if (block.type !== 'quick-actions') return null;
 
@@ -226,7 +227,9 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
     const missingStatics = (
         Object.keys(STATIC_ACTIONS) as Array<keyof typeof STATIC_ACTIONS>
     ).filter(
-        (type) => !block.config.actions.some((action) => action.type === type),
+        (type) =>
+            !block.config.actions.some((action) => action.type === type) &&
+            (type !== 'ask-ai' || canAskAi),
     );
 
     return (
@@ -237,6 +240,8 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                         action,
                         projectUuid,
                     );
+                    // Matches the view: no agent, no Ask AI row
+                    if (action.type === 'ask-ai' && !canAskAi) return null;
                     return (
                         <Group
                             key={`${action.type}-${index}`}

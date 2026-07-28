@@ -1,7 +1,6 @@
 import { FeatureFlags } from '@lightdash/common';
 import { type FC } from 'react';
 import { Navigate, useLocation } from 'react-router';
-import { useIsCopilotEnabled } from '../ee/features/aiCopilot/hooks/useIsCopilotEnabled';
 import { useHomepageBuilderFlag } from '../ee/features/homepageBuilder/hooks/useProjectHomepage';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -15,8 +14,6 @@ const AppRoute: FC<React.PropsWithChildren> = ({ children }) => {
     const orgRequest = useOrganization();
     const homepageBuilderFlag = useHomepageBuilderFlag();
     const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
-    const { isCopilotEnabled, isLoading: isCopilotLoading } =
-        useIsCopilotEnabled();
 
     if (health.isInitialLoading || orgRequest.isInitialLoading) {
         return <PageSpinner />;
@@ -31,18 +28,12 @@ const AppRoute: FC<React.PropsWithChildren> = ({ children }) => {
     }
 
     if (orgRequest?.data?.needsProject) {
-        if (
-            homepageBuilderFlag.isLoading ||
-            orgSetupPageFlag.isLoading ||
-            isCopilotLoading
-        ) {
+        if (homepageBuilderFlag.isLoading || orgSetupPageFlag.isLoading) {
             return <PageSpinner />;
         }
         const isNewOnboardingEnabled = orgSetupPageFlag.data?.enabled ?? false;
         const showGetStarted =
-            homepageBuilderFlag.isEnabled &&
-            isCopilotEnabled &&
-            isNewOnboardingEnabled;
+            homepageBuilderFlag.isEnabled && isNewOnboardingEnabled;
         const pathname = showGetStarted
             ? '/get-started'
             : isNewOnboardingEnabled

@@ -1,3 +1,4 @@
+import { MantineProvider } from '@mantine-8/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render } from '@testing-library/react';
 import { type ComponentProps } from 'react';
@@ -137,9 +138,11 @@ const renderInput = (routerEnabled = false) => {
     queryClient.setQueryData(['ai-router'], { enabled: routerEnabled });
 
     return render(
-        <QueryClientProvider client={queryClient}>
-            <DayOneAskInput projectUuid="project-1" hideSuggestions />
-        </QueryClientProvider>,
+        <MantineProvider>
+            <QueryClientProvider client={queryClient}>
+                <DayOneAskInput projectUuid="project-1" hideSuggestions />
+            </QueryClientProvider>
+        </MantineProvider>,
     );
 };
 
@@ -221,5 +224,16 @@ describe('DayOneAskInput', () => {
         expect(
             agentChatInputProps.current?.onStartDeepResearch,
         ).toBeUndefined();
+    });
+
+    it('shows the agent setup nudge instead of the composer when the project has no agents', () => {
+        agents.current = [];
+
+        const { getByText, queryByTestId } = renderInput();
+
+        expect(queryByTestId('agent-chat-input')).toBeNull();
+        expect(
+            getByText(/Set up an AI agent to enable Ask AI here/),
+        ).toBeInTheDocument();
     });
 });

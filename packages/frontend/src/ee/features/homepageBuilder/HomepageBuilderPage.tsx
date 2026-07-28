@@ -2,20 +2,16 @@ import { subject } from '@casl/ability';
 import { type ProjectHomepage } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
-import {
-    Navigate,
-    useNavigate,
-    useParams,
-    useSearchParams,
-} from 'react-router';
+import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
 import Page from '../../../components/common/Page/Page';
 import ForbiddenPanel from '../../../components/ForbiddenPanel';
 import PageSpinner from '../../../components/PageSpinner';
 import useApp from '../../../providers/App/useApp';
-import { useIsCopilotEnabled } from '../aiCopilot/hooks/useIsCopilotEnabled';
+import { getDefaultQuickActions } from './blocks/quickActionDefaults';
 import { CreateHomepageModal } from './CreateHomepageModal';
 import { HomepageEditor } from './HomepageEditor';
+import { useHomepageAiState } from './hooks/useHomepageAiState';
 import {
     useCreateHomepageWithDraft,
     useHomepageBuilderFlag,
@@ -37,8 +33,9 @@ export const HomepageBuilderPage: FC = () => {
     const { user } = useApp();
     const { isEnabled: isFlagEnabled, isLoading: isFlagLoading } =
         useHomepageBuilderFlag();
-    const { isCopilotEnabled, isLoading: isCopilotLoading } =
-        useIsCopilotEnabled();
+    const { canAskAi, isLoading: isAiStateLoading } = useHomepageAiState(
+        projectUuid ?? '',
+    );
     const homepage = useHomepageForBuilder(projectUuid, {
         enabled: isFlagEnabled,
         homepageUuid: selectedHomepageUuid,
@@ -72,7 +69,7 @@ export const HomepageBuilderPage: FC = () => {
     const didAutoCreate = useRef(false);
     const shouldAutoCreate =
         isFlagEnabled &&
-        isCopilotEnabled &&
+        !isAiStateLoading &&
         canManage &&
         !!projectUuid &&
         homepage.isFetchedAfterMount &&
@@ -90,12 +87,23 @@ export const HomepageBuilderPage: FC = () => {
                     rows: [
                         {
                             id: uuidv4(),
+                            // Without an agent, seed quick actions rather
+                            // than a composer nobody can use.
                             blocks: [
-                                {
-                                    id: uuidv4(),
-                                    type: 'ask-ai-hero',
-                                    config: { showGreeting: true },
-                                },
+                                canAskAi
+                                    ? {
+                                          id: uuidv4(),
+                                          type: 'ask-ai-hero',
+                                          config: { showGreeting: true },
+                                      }
+                                    : {
+                                          id: uuidv4(),
+                                          type: 'quick-actions',
+                                          config: {
+                                              actions:
+                                                  getDefaultQuickActions(false),
+                                          },
+                                      },
                             ],
                         },
                     ],
@@ -103,20 +111,10 @@ export const HomepageBuilderPage: FC = () => {
             },
             { onSuccess: openHomepage },
         );
-    }, [shouldAutoCreate, createFirstHomepage, openHomepage]);
+    }, [shouldAutoCreate, createFirstHomepage, openHomepage, canAskAi]);
 
-    if (isFlagLoading || isCopilotLoading) {
+    if (isFlagLoading || isAiStateLoading) {
         return <PageSpinner />;
-    }
-
-    // Without copilot the builder is disabled (see Home.tsx) — send anyone who
-    // reaches this route directly back to the classic homepage.
-    if (isFlagEnabled && !isCopilotEnabled) {
-        return projectUuid ? (
-            <Navigate to={`/projects/${projectUuid}/home`} replace />
-        ) : (
-            <ForbiddenPanel />
-        );
     }
 
     // Wait for a fresh fetch: the editor snapshots the draft on mount, so
