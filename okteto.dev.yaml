@@ -1,0 +1,67 @@
+# Cloud development environment: a preview-like environment with hot reloading.
+#
+#   okteto deploy -f okteto.dev.yaml --wait   # create/update the environment
+#   okteto up -f okteto.dev.yaml              # sync code + start dev servers
+#
+# The public endpoint is https://lightdash-<namespace>.lightdash.okteto.dev
+# (named after the dev environment, "lightdash") and serves the Vite dev
+# server, so synced changes hot-reload in the browser.
+deploy:
+    commands:
+        - name: Configuring database...
+          command: |
+              set -e
+              # Stable password shared with the snapshot builder
+              # (docker/docker-compose.db-snapshot.yml): a database diverted
+              # from a snapshot keeps the password it was initialised with
+              echo "PGPASSWORD=not-very-secret-preview-db" >> "$OKTETO_ENV"
+
+              # Boot the database from the newest pre-seeded snapshot so the
+              # environment starts with demo data and no migrate/seed wait.
+              # Only on first deploy: the volume is kept afterwards.
+              SNAPSHOT=""
+              if ! kubectl get pvc db-data >/dev/null 2>&1; then
+                SNAPSHOT=$(kubectl get volumesnapshots -n db-snapshot \
+                  -l app.kubernetes.io/part-of=lightdash-preview-db \
+                  --sort-by=.metadata.creationTimestamp \
+                  -o jsonpath='{range .items[?(@.status.readyToUse==true)]}{.metadata.name}{"\n"}{end}' \
+                  2>/dev/null | tail -n 1 || true)
+              fi
+              if [ -n "$SNAPSHOT" ]; then
+                echo "Booting dev database from snapshot db-snapshot/$SNAPSHOT"
+                echo "DB_SNAPSHOT_NAME=$SNAPSHOT" >> "$OKTETO_ENV"
+                echo "DB_SNAPSHOT_NAMESPACE=db-snapshot" >> "$OKTETO_ENV"
+              else
+                echo "Reusing existing database volume (or starting blank if no snapshot is ready)"
+              fi
+
+              echo "SITE_URL=https://lightdash-${OKTETO_NAMESPACE}.${OKTETO_DOMAIN}" >> "$OKTETO_ENV"
+        - name: Deploying compose...
+          command: okteto deploy -f docker/docker-compose.okteto-dev.yml
+
+dev:
+    lightdash-dev:
+        # Nightly-baked warm image (see .github/workflows/dev-warm-image.yml):
+        # source at main + node_modules + pre-built dists, so a fresh namespace
+        # only syncs the branch diff and builds incrementally
+        image: okteto.global/lightdash-dev-warm:latest
+        command: bash scripts/okteto-dev-up.sh
+        sync:
+            - .:/usr/app
+        resources:
+            requests:
+                cpu: '1'
+                memory: 4Gi
+            # Cluster LimitRange max is 2 CPU / 8Gi per container
+            limits:
+                cpu: '2'
+                memory: 8Gi
+        forward:
+            # Node.js debugger (tsx watch --inspect). Local 9230 because a
+            # local dev stack usually holds 9229 already
+            - 9230:9229
+        # No persistent volume: it would shadow the warm image's baked
+        # /usr/app. A pod restart re-syncs (~1 min) — acceptable for
+        # ephemeral dev namespaces
+        persistentVolume:
+            enabled: false

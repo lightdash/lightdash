@@ -91,6 +91,29 @@ EXPOSE 3000
 EXPOSE 8080
 
 # -----------------------------
+# Stage 1b: warm development environment
+# -----------------------------
+# Dev image with expensive-to-derive node state baked in: source at main,
+# installed node_modules, and pre-built package dists. Okteto cloud dev
+# environments (okteto.dev.yaml) start from this so a fresh namespace only
+# syncs the branch diff and builds incrementally instead of paying a full
+# install and cold builds. Published nightly by
+# .github/workflows/dev-warm-image.yml.
+FROM dev AS dev-warm
+
+COPY . .
+
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --prefer-offline
+
+# Pre-build the packages the backend imports as dist; scripts/okteto-dev-up.sh
+# reuses the emitted dists and *.tsbuildinfo for incremental rebuilds
+RUN export NODE_OPTIONS="--max-old-space-size=4096" \
+    && pnpm formula:build:fast \
+    && pnpm common-build:fast \
+    && pnpm warehouses-build:fast
+
+# -----------------------------
 # Stage 2: continue build for production environment
 # -----------------------------
 
