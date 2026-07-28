@@ -1,6 +1,7 @@
 import { MantineProvider } from '@mantine-8/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import { MemoryDetails } from '../MemoryDetails/MemoryDetails';
@@ -11,10 +12,15 @@ import {
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
 
+const { statusMutationSpy } = vi.hoisted(() => ({
+    statusMutationSpy: vi.fn(),
+}));
+
 vi.mock('../../hooks/useAiAgentMemory', () => ({
     useAiAgentMemory: () => ({
         isLoading: false,
         data: {
+            uuid: 'memory-uuid',
             slug: 'net-revenue-ab12cd34',
             title: 'Net revenue convention',
             rawMemory: `## Memory
@@ -45,6 +51,10 @@ Use net revenue for future revenue questions.`,
             },
             replacementSlug: null,
         },
+    }),
+    useUpdateAiAgentMemoryStatus: () => ({
+        isLoading: false,
+        mutate: statusMutationSpy,
     }),
 }));
 
@@ -163,6 +173,34 @@ describe('MemoryCitation', () => {
         expect(within(dialog).getByText('Citations')).toBeInTheDocument();
         expect(within(dialog).getByText('3')).toBeInTheDocument();
         expect(within(dialog).getByText('Open thread')).toBeInTheDocument();
+    });
+
+    it('changes status from the modal menu without closing it', async () => {
+        statusMutationSpy.mockClear();
+        const user = userEvent.setup();
+        renderMarkdown(
+            'Supported sentence.<ld-mem-cite id="net-revenue"></ld-mem-cite>',
+        );
+
+        fireEvent.click(screen.getByTitle('Memory: net-revenue'));
+        const dialog = await screen.findByRole('dialog');
+
+        await user.click(
+            within(dialog).getByRole('button', {
+                name: 'Change memory status',
+            }),
+        );
+        await user.click(
+            await screen.findByRole('menuitem', { name: 'Retired' }),
+        );
+
+        expect(statusMutationSpy).toHaveBeenCalledWith({
+            projectUuid: 'project-uuid',
+            memoryUuid: 'memory-uuid',
+            slug: 'net-revenue-ab12cd34',
+            status: 'retired',
+        });
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
 
     it('renders a source thread without a link when its agent is gone', () => {
