@@ -116,7 +116,10 @@ const Register: FC = () => {
                 onSubmit={(data: CreateEmailOnlyUserArgs) => {
                     track({
                         name: EventName.SIGNUP_FORM_SUBMITTED,
-                        properties: { variant: 'email_only' },
+                        properties: {
+                            variant: 'email_only',
+                            onboardingFlow: 'new',
+                        },
                     });
                     mutate(data);
                 }}
@@ -127,7 +130,10 @@ const Register: FC = () => {
                 onSubmit={(data: CreateUserArgs) => {
                     track({
                         name: EventName.SIGNUP_FORM_SUBMITTED,
-                        properties: { variant: 'password' },
+                        properties: {
+                            variant: 'password',
+                            onboardingFlow: 'legacy',
+                        },
                     });
                     mutate(data);
                 }}

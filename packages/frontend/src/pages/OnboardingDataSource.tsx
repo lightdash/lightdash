@@ -135,6 +135,7 @@ const DataSourcePicker: FC = () => {
                 organizationId: organization?.organizationUuid ?? '',
                 warehouse: String(key),
                 tier,
+                onboardingFlow: 'new',
             },
         });
         void navigate(getWarehouseRoute(key));

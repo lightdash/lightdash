@@ -620,6 +620,7 @@ type SignupFormSubmittedEvent = {
     name: EventName.SIGNUP_FORM_SUBMITTED;
     properties: {
         variant: 'email_only' | 'password';
+        onboardingFlow: 'legacy' | 'new';
     };
 };
 
@@ -658,6 +659,7 @@ type OnboardingWarehouseSelectedEvent = {
         organizationId: string;
         warehouse: string;
         tier: 'popular' | 'all' | 'other';
+        onboardingFlow: 'legacy' | 'new';
     };
 };
 
@@ -672,6 +674,7 @@ type OnboardingProjectReadyStartExploringClickedEvent = {
     name: EventName.ONBOARDING_PROJECT_READY_START_EXPLORING_CLICKED;
     properties: {
         projectId: string;
+        onboardingFlow: 'legacy' | 'new';
     };
 };
 
