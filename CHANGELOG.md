@@ -1,3 +1,10 @@
+## [1.5.1](https://github.com/lightdash/lightdash/compare/1.5.0...1.5.1) (2026-07-28)
+
+
+### Bug Fixes
+
+* **ai:** stop the agent inventing a row limit and calling it a system limit ([#26221](https://github.com/lightdash/lightdash/issues/26221)) ([8bfa8f4](https://github.com/lightdash/lightdash/commit/8bfa8f4e90249f505a8676d8797af89fce569e23)), closes [#26220](https://github.com/lightdash/lightdash/issues/26220) [#26220](https://github.com/lightdash/lightdash/issues/26220) [#26220](https://github.com/lightdash/lightdash/issues/26220)
+
 # [1.5.0](https://github.com/lightdash/lightdash/compare/1.4.1...1.5.0) (2026-07-28)
 
 
