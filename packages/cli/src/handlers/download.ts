@@ -83,6 +83,7 @@ import {
     classifyAppDownloadError,
     ensureDownloadedAppContext,
     getDataAppUploadFilter,
+    preSlugUploadHint,
     resolveAppsLimit,
     selectAppsToDownload,
     shouldFallBackToSpaceScopedListing,
@@ -3271,7 +3272,7 @@ export const uploadHandler = async (
                     });
 
                     // eslint-disable-next-line no-await-in-loop
-                    const { appUuid, version, action, warnings } =
+                    const { appUuid, version, action, slug, warnings } =
                         await lightdashApi<ApiImportAppCodeResponse['results']>(
                             {
                                 method: 'POST',
@@ -3299,6 +3300,17 @@ export const uploadHandler = async (
                             `Uploaded "${code.manifest.name}" — ${actionLabel} v${version} (${appUuid}). Building in the background; the app will show "building" until the server finishes.`,
                         ),
                     );
+
+                    if (code.manifest.slug === undefined) {
+                        GlobalState.log(
+                            styles.warning(
+                                preSlugUploadHint({
+                                    folder: subDir.name,
+                                    slug,
+                                }),
+                            ),
+                        );
+                    }
 
                     if (action === 'create') {
                         GlobalState.log(

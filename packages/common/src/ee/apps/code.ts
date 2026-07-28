@@ -100,6 +100,8 @@ export type ApiImportAppCodeResponse = ApiSuccess<{
     appUuid: string;
     version: number;
     action: 'create' | 'append';
+    // The app's project-scoped slug, so the CLI can tell pre-slug bundles what to add.
+    slug: string;
     // Non-fatal issues the CLI should surface (e.g. a manifest link whose
     // connectionSlug does not exist in the target project was skipped).
     // Optional for compatibility with servers predating link support.

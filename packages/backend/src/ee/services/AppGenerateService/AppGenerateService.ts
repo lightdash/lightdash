@@ -9248,6 +9248,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string;
         version: number;
         action: 'create' | 'append';
+        slug: string;
         warnings: string[];
     }> {
         await this.assertDataAppsEnabled(user);
@@ -9501,6 +9502,7 @@ export class AppGenerateService extends BaseService {
         }
 
         let newAppUuid: string;
+        let newAppSlug: string;
         let newVersion: number;
 
         if (action === 'append' && existingApp !== undefined) {
@@ -9523,6 +9525,7 @@ export class AppGenerateService extends BaseService {
                 );
             }
             newAppUuid = existingApp.app_id;
+            newAppSlug = existingApp.slug;
             const latestVersion = await this.appModel.getLatestVersion(
                 existingApp.app_id,
             );
@@ -9586,6 +9589,7 @@ export class AppGenerateService extends BaseService {
                     : undefined,
             );
             newAppUuid = app.app_id;
+            newAppSlug = app.slug;
         }
 
         // Reconcile links only when the manifest carries the field — bundles
@@ -9699,6 +9703,7 @@ export class AppGenerateService extends BaseService {
             appUuid: newAppUuid,
             version: newVersion,
             action,
+            slug: newAppSlug,
             warnings: linkWarnings,
         };
     }

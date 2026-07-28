@@ -13,6 +13,7 @@ import {
     ensureDownloadedAppContext,
     getDataAppReference,
     getDataAppUploadFilter,
+    preSlugUploadHint,
     resolveAppsLimit,
     selectAppsToDownload,
     shouldFallBackToSpaceScopedListing,
@@ -289,6 +290,30 @@ describe('ensureDownloadedAppContext', () => {
                 withoutContext as DataAppCodeDownload,
             ),
         ).toThrow(/does not support app context downloads/i);
+    });
+});
+
+describe('preSlugUploadHint', () => {
+    it('suggests adding the slug to lightdash-app.yml when the server returned one', () => {
+        const hint = preSlugUploadHint({
+            folder: 'lightdash/apps/my-app',
+            slug: 'my-app',
+        });
+        expect(hint).toContain('lightdash/apps/my-app/lightdash-app.yml');
+        expect(hint).toContain('predates slug identity');
+        expect(hint).toContain('add `slug: my-app` to lightdash-app.yml');
+        expect(hint).toContain('Uploads keep working via uuid matching');
+    });
+
+    it('omits the add-slug suggestion when the server did not return a slug', () => {
+        const hint = preSlugUploadHint({
+            folder: 'lightdash/apps/my-app',
+            slug: undefined,
+        });
+        expect(hint).toContain('lightdash/apps/my-app/lightdash-app.yml');
+        expect(hint).toContain('predates slug identity');
+        expect(hint).not.toContain('add `slug:');
+        expect(hint).toContain('Uploads keep working via uuid matching');
     });
 });
 

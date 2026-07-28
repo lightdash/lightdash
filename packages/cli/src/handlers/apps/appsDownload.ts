@@ -131,6 +131,20 @@ export const ensureDownloadedAppContext = (
     return code;
 };
 
+/**
+ * Shown after uploading a bundle whose manifest predates slug identity —
+ * uploads keep working via the uuid fallback, but the user should upgrade.
+ */
+export const preSlugUploadHint = (args: {
+    folder: string;
+    slug: string | undefined;
+}): string =>
+    `${args.folder}/lightdash-app.yml predates slug identity. Re-download the app to upgrade${
+        args.slug !== undefined
+            ? ` (or add \`slug: ${args.slug}\` to lightdash-app.yml)`
+            : ''
+    }. Uploads keep working via uuid matching meanwhile.`;
+
 export type AppDownloadFailure = { appRef: string; message: string };
 
 export type AppDownloadErrorOutcome =

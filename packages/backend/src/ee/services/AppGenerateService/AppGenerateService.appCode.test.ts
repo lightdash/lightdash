@@ -26,7 +26,9 @@ const PROJECT_ORG_UUID = 'org-uuid-project'; // org derived from the project
 const USER_ORG_UUID = 'org-uuid-user'; // org from the user session (different)
 const USER_UUID = 'user-uuid-1';
 const NEW_APP_UUID = 'new-app-uuid';
+const NEW_APP_SLUG = 'new-app-slug';
 const EXISTING_APP_UUID = 'existing-app-uuid';
+const EXISTING_APP_SLUG = 'existing-app-slug';
 
 const makeUser = () =>
     ({
@@ -111,7 +113,7 @@ function buildService(
         findAppBySlug: vi.fn(),
         getApp: vi.fn(),
         createWithVersion: vi.fn().mockResolvedValue({
-            app: { app_id: NEW_APP_UUID },
+            app: { app_id: NEW_APP_UUID, slug: NEW_APP_SLUG },
             version: { version: 1 },
         }),
         createVersion: vi.fn().mockResolvedValue({ version: 1 }),
@@ -310,6 +312,7 @@ describe('AppGenerateService.importAppCode', () => {
             organization_uuid: PROJECT_ORG_UUID,
             name: 'Test App',
             description: 'A test app',
+            slug: EXISTING_APP_SLUG,
         };
         appModel.findApp.mockResolvedValue(existingApp);
         appModel.getLatestVersion.mockResolvedValue({ version: 4 });
@@ -322,6 +325,7 @@ describe('AppGenerateService.importAppCode', () => {
         expect(result.action).toBe('append');
         expect(result.version).toBe(5);
         expect(result.appUuid).toBe(EXISTING_APP_UUID);
+        expect(result.slug).toBe(EXISTING_APP_SLUG);
 
         // createVersion called with pending status and version 5
         expect(appModel.createVersion).toHaveBeenCalledWith(
@@ -1002,12 +1006,19 @@ describe('importAppCode slug identity', () => {
         const { service, appModel } = buildService();
 
         appModel.findAppBySlug.mockResolvedValue(undefined);
+        // The DB row round-trips the manifest slug exactly, so the response
+        // should carry it too — not the default mock fixture's slug.
+        appModel.createWithVersion.mockResolvedValueOnce({
+            app: { app_id: NEW_APP_UUID, slug: 'my-app' },
+            version: { version: 1 },
+        });
 
         const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
             code: makeCode(undefined, { slug: 'my-app' }),
         } as ImportAppCodeRequestBody);
 
         expect(result.action).toBe('create');
+        expect(result.slug).toBe('my-app');
         expect(appModel.createWithVersion).toHaveBeenCalledWith(
             expect.objectContaining({ slug: 'my-app' }),
             { version: 1, prompt: '' },
