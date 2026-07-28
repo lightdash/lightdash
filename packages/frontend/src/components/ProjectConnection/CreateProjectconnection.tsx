@@ -7,6 +7,7 @@ import {
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
 import { Button } from '@mantine-8/core';
+import confetti from 'canvas-confetti';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { useCreateMutation } from '../../hooks/useProject';
@@ -31,6 +32,8 @@ interface CreateProjectConnectionProps {
     selectedWarehouse?: WarehouseTypes | undefined;
     warehouseOnly?: boolean;
     successRedirect?: (projectUuid: string) => string;
+    /** Fire a confetti burst when the connection is saved successfully. */
+    celebrateOnSuccess?: boolean;
 }
 
 const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
@@ -38,6 +41,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     selectedWarehouse,
     warehouseOnly = false,
     successRedirect,
+    celebrateOnSuccess = false,
 }) => {
     const navigate = useNavigate();
     const { user, health } = useApp();
@@ -48,6 +52,9 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         warehouseOnly,
     });
     const onProjectError = useOnProjectError();
+
+    const submitButtonRef = useRef<HTMLButtonElement>(null);
+    const hasFiredConfettiRef = useRef(false);
 
     const warehouseType = selectedWarehouse ?? WarehouseTypes.BIGQUERY;
     const dbtType = health.data?.defaultProject?.type ?? dbtDefaults.dbtType;
@@ -120,13 +127,40 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             activeJob.jobResults?.projectUuid
         ) {
             const { projectUuid } = activeJob.jobResults;
+            if (celebrateOnSuccess && !hasFiredConfettiRef.current) {
+                // Guard against the effect re-running on every job-status poll.
+                hasFiredConfettiRef.current = true;
+                const rect = submitButtonRef.current?.getBoundingClientRect();
+                const origin = rect
+                    ? {
+                          x: (rect.left + rect.width / 2) / window.innerWidth,
+                          y: (rect.top + rect.height / 2) / window.innerHeight,
+                      }
+                    : { x: 0.5, y: 0.7 };
+                // The canvas outlives the client-side navigation, so the burst
+                // carries over onto the page we land on.
+                void confetti({
+                    disableForReducedMotion: true,
+                    startVelocity: 35,
+                    particleCount: 120,
+                    spread: 100,
+                    gravity: 0.7,
+                    origin,
+                });
+            }
             void navigate({
                 pathname: successRedirect
                     ? successRedirect(projectUuid)
                     : `/createProjectSettings/${projectUuid}`,
             });
         }
-    }, [activeJob, createProjectJobId, navigate, successRedirect]);
+    }, [
+        activeJob,
+        celebrateOnSuccess,
+        createProjectJobId,
+        navigate,
+        successRedirect,
+    ]);
 
     // The warehouse adapter test runs inside the async create job, so
     // connection failures surface as the job's ERROR status, not via the
@@ -187,6 +221,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                         />
 
                         <Button
+                            ref={submitButtonRef}
                             style={{ alignSelf: 'end' }}
                             type="submit"
                             loading={isSavingProject}
