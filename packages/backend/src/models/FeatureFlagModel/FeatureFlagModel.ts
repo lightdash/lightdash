@@ -98,15 +98,20 @@ export class FeatureFlagModel {
         };
     }
 
+    // On by default. Disable it instance-wide with
+    // LIGHTDASH_ENABLE_TIMEZONE_SUPPORT=false (or LIGHTDASH_DISABLE_FEATURE_FLAGS),
+    // or per organization/user with a `feature_flag_overrides` row.
     private async getEnableTimezoneSupportEnabled(
         args: FeatureFlagLogicArgs,
         options: FeatureFlagQueryOptions = {},
     ): Promise<FeatureFlag> {
-        if (this.lightdashConfig.query.enableTimezoneSupport) {
-            return { id: args.featureFlagId, enabled: true };
+        if (this.lightdashConfig.query.enableTimezoneSupport !== undefined) {
+            return {
+                id: args.featureFlagId,
+                enabled: this.lightdashConfig.query.enableTimezoneSupport,
+            };
         }
-        const dbResult = await this.tryGetFromDatabase(args, options);
-        return dbResult ?? { id: args.featureFlagId, enabled: false };
+        return this.getWithEnvFallback(args, true, options);
     }
 
     private async getEnableDataAppsEnabled(
@@ -121,15 +126,15 @@ export class FeatureFlagModel {
     }
 
     // DB value (user override → org override → flag default) wins. Falls
-    // back to the env-derived value when the flag has no DB row and no
+    // back to the supplied default when the flag has no DB row and no
     // override applies.
     private async getWithEnvFallback(
         args: FeatureFlagLogicArgs,
-        envFallback: boolean,
+        fallback: boolean,
         options: FeatureFlagQueryOptions = {},
     ): Promise<FeatureFlag> {
         const dbResult = await this.tryGetFromDatabase(args, options);
-        return dbResult ?? { id: args.featureFlagId, enabled: envFallback };
+        return dbResult ?? { id: args.featureFlagId, enabled: fallback };
     }
 
     protected async tryGetFromDatabase(
