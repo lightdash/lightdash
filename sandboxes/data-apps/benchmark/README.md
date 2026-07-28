@@ -31,6 +31,11 @@ benchmark leans on two better ones:
      no exceptions"). String-category axes without a formatter render fine
      and are the common failure — a fail here is contract drift, not
      necessarily a user-visible bug.
+   - Some rules don't apply to every template. `multiple-source-files` is
+     dropped for a `data_app_viz` prompt (a viz is ONE component by
+     contract), as are the query render rules (the host owns the query).
+     Dropped ≠ failed: the summary counts each rule only over the runs it
+     applies to.
 2. **Stream-timing buckets** (`stream.ts`, mirrors the backend's
    `ClaudeStreamProcessor`) — apiLatency / thinking / text / toolInput /
    toolExec, plus tokens and turns. Compare medians per bucket, paired by
@@ -108,14 +113,72 @@ pnpm bench:render runs/<timestamp>/   # re-render + refresh gallery
 pnpm bench:gallery runs/<timestamp>/  # regenerate gallery.html only
 ```
 
+## Data app viz coverage
+
+Two prompts — `viz-multi-series` and `viz-ranked-bars` — carry
+`"template": "data_app_viz"`. A templated prompt mirrors the viz pipeline:
+the template instructions lead the prompt, and the run collects its
+declaration (`fields` + `configOptions`) as CLI structured output via
+`--json-schema`, the same channel the backend persists to
+`app_versions.viz_schema`. The declaration lands on
+`analysis.structuredOutput` in `results.json`, so a suspicious rule can be
+read back per run.
+
+Viz subset only:
+
+```bash
+pnpm bench --variant candidate=lightdash-data-app:latest \
+    --prompts viz-multi-series,viz-ranked-bars --reps 3
+```
+
+Six generations exercise the current checkout's prompt and schema. Add a
+second template variant only when comparing sandbox-image or skill changes:
+template variants do not vary these checkout-owned inputs.
+
+Its objective declaration rules are deliberately small:
+
+- `emits-valid-viz-declaration` — the structured output has the field, option,
+  default, uniqueness, and palette shape the persisted contract accepts.
+- `declares-fields` — at least one data-binding field is present.
+- `declares-config-options` — the emitted declaration has a non-empty
+  `configOptions`. Zero options is the headline failure: a viz whose config
+  panel is empty, frozen until somebody regenerates it.
+- `declares-color-palette` — the declaration's `colorPalette` is non-null.
+
+The prompts describe the chart wanted and never mention config options,
+colours or the config panel. A prompt that asked for options would make these
+rules pass without proving anything — don't reword them that way.
+
+The render gate maps the declaration onto deterministic orders fields, pushes
+rows, declared defaults, and a sentinel palette through the real
+`viz-context-request` handshake, and requires the mounted root to change after
+delivery. This proves the built component receives and responds to a real viz
+context; the screenshot gallery is the human check for whether the requested
+chart, options, and colours are actually good. The harness makes no semantic
+claims from regexes over generated source.
+
+`fixtures/data-app-viz-instructions.txt` and
+`fixtures/data-app-viz-output-schema.json` are byte-stable copies of the
+pipeline's `getTemplateInstructions('data_app_viz')` and
+`dataAppVizJsonSchema`. They are explicit benchmark inputs, not assertions over
+production source paths; refresh them deliberately when evaluating a changed
+prompt or schema.
+
+Focused harness checks:
+
+```bash
+pnpm bench:rules   # tsx --test benchmark/assertions.test.ts
+```
+
 ## Fixtures
 
 - `fixtures/schema.yml` — byte-stable catalog (3 models, joins, grains) so
   catalog size/content never confounds a comparison. Don't point the
   benchmark at a live project.
 - `prompts.json` — the suite. Each prompt declares `mustRead` /
-  `mustNotRead` reference files (progressive-disclosure discipline) and can
-  ship extra sandbox files (e.g. the chart-reference fixture) plus a prompt
+  `mustNotRead` reference files (progressive-disclosure discipline), an
+  optional `template` (absent = the default generation), and can ship extra
+  sandbox files (e.g. the chart-reference fixture) plus a prompt
   prepend mirroring the pipeline's format. Note the prepends encode the
   **current** pipeline wording — on templates predating the references/
   layout, the chart-reference prompt tells the model to read a file that
@@ -144,4 +207,5 @@ pnpm bench:gallery runs/<timestamp>/  # regenerate gallery.html only
 ## Costs
 
 Every run is a real sandbox + real Claude generation (~$0.5–1.5 per run on
-sonnet). A 2-variant × 6-prompt × 3-rep matrix is 36 generations.
+sonnet). The suite is 8 prompts, so a 2-variant × 3-rep full matrix is 48
+generations; `--prompts` a subset when you only changed one contract.

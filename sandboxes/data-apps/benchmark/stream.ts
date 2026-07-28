@@ -30,6 +30,13 @@ export type StreamAnalysis = {
     /** Subset of toolErrors that look like permission denials. */
     deniedTools: string[];
     resultText: string | null;
+    /**
+     * The run's `--json-schema` structured output, as the CLI emits it on the
+     * result event. Null for runs that declared no schema. This is the same
+     * channel the backend reads the viz declaration from before persisting it
+     * to `app_versions.viz_schema`.
+     */
+    structuredOutput: unknown;
     usage: {
         inputTokens: number;
         outputTokens: number;
@@ -66,6 +73,7 @@ export function analyzeStream(events: Timestamped[]): StreamAnalysis {
         toolErrors: [],
         deniedTools: [],
         resultText: null,
+        structuredOutput: null,
         usage: null,
     };
 
@@ -181,6 +189,7 @@ export function analyzeStream(events: Timestamped[]): StreamAnalysis {
             }
             analysis.resultText =
                 typeof event.result === 'string' ? event.result : null;
+            analysis.structuredOutput = event.structured_output ?? null;
             const usage = (event.usage ?? {}) as Record<string, unknown>;
             analysis.usage = {
                 inputTokens: num(usage.input_tokens),

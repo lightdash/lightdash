@@ -54,6 +54,34 @@
                 "/app/references/sheets-export.md",
                 "/app/references/pdf-downloads.md"
             ]
+        },
+        {
+            "id": "viz-multi-series",
+            "template": "data_app_viz",
+            "prompt": "Build a line chart that plots a metric over time with one line per category, so several categories can be compared at once.",
+            "mustRead": [
+                "/app/.claude/skills/reusable-visualization/SKILL.md"
+            ],
+            "mustNotRead": [
+                "/app/references/sheets-export.md",
+                "/app/references/pdf-downloads.md",
+                "/app/references/chart-references.md",
+                "/app/references/external-apis.md"
+            ]
+        },
+        {
+            "id": "viz-ranked-bars",
+            "template": "data_app_viz",
+            "prompt": "Build a horizontal bar chart that ranks categories by a single metric, biggest first, with the value written at the end of each bar.",
+            "mustRead": [
+                "/app/.claude/skills/reusable-visualization/SKILL.md"
+            ],
+            "mustNotRead": [
+                "/app/references/sheets-export.md",
+                "/app/references/pdf-downloads.md",
+                "/app/references/chart-references.md",
+                "/app/references/external-apis.md"
+            ]
         }
     ]
 }

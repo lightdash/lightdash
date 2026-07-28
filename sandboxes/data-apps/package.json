@@ -5,6 +5,7 @@
         "build": "tsx build-sandbox.ts",
         "test": "tsx test-generate.ts",
         "bench": "tsx benchmark/run.ts",
+        "bench:rules": "tsx --test benchmark/assertions.test.ts",
         "bench:render": "tsx benchmark/renderGate.ts",
         "bench:gallery": "tsx benchmark/gallery.ts"
     },

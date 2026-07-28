@@ -23,6 +23,8 @@ var state = {
     exports: [],
     externalFetches: [],
     fetchCount: 0,
+    vizContextRequests: 0,
+    vizContextInitialRoot: null,
     activityAt: Date.now(),
 };
 window.__bench = state;
@@ -520,6 +522,42 @@ function postToApp(message) {
     }
 }
 
+function appRootHtml() {
+    try {
+        var root =
+            iframe && iframe.contentDocument
+                ? iframe.contentDocument.getElementById('root')
+                : null;
+        return root ? root.innerHTML : null;
+    } catch (err) {
+        return null;
+    }
+}
+
+function pushVizContext() {
+    var fixture = CONFIG.vizContext;
+    if (!fixture) return;
+    state.vizContextRequests += 1;
+    if (state.vizContextInitialRoot === null) {
+        state.vizContextInitialRoot = appRootHtml();
+    }
+    var synthesized = synthesizeRows(
+        'orders',
+        fixture.dimensions || [],
+        fixture.metrics || [],
+        120,
+        [],
+    );
+    postToApp({
+        type: 'lightdash:sdk:data-app-viz-context',
+        fieldMapping: fixture.fieldMapping || {},
+        rows: synthesized.rows,
+        options: fixture.options || {},
+        colorPalette: fixture.colorPalette || [],
+    });
+    touch();
+}
+
 window.addEventListener('message', function onMessage(event) {
     if (!iframe || !iframe.contentWindow || event.source !== iframe.contentWindow) {
         return;
@@ -530,7 +568,9 @@ window.addEventListener('message', function onMessage(event) {
     }
     touch();
 
-    if (data.type === 'lightdash:sdk:fetch') {
+    if (data.type === 'lightdash:sdk:viz-context-request') {
+        pushVizContext();
+    } else if (data.type === 'lightdash:sdk:fetch') {
         state.fetchCount += 1;
         var response;
         try {

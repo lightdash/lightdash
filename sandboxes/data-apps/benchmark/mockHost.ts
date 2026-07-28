@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import YAML from 'yaml';
+import type { PromptTemplate, VizDeclaration } from './assertions.ts';
 
 const BENCH_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -36,6 +37,14 @@ export type ChartFixture = {
     metricQuery: Record<string, unknown>;
 };
 
+type VizContextFixture = {
+    fieldMapping: Record<string, string>;
+    dimensions: string[];
+    metrics: string[];
+    options: Record<string, boolean | number | string>;
+    colorPalette: string[];
+};
+
 type SchemaColumn = {
     name: string;
     description?: string;
@@ -61,7 +70,9 @@ type SchemaModel = {
  * "Order status: placed, shipped, completed, returned." so synthesized rows
  * carry the values generated apps expect to see (and filter on).
  */
-function extractCategoryValues(description: string | undefined): string[] | null {
+function extractCategoryValues(
+    description: string | undefined,
+): string[] | null {
     if (!description) return null;
     const colon = description.lastIndexOf(':');
     const candidate = colon === -1 ? description : description.slice(colon + 1);
@@ -144,7 +155,9 @@ export function parseCatalog(schemaYmlPath: string): Catalog {
         ].filter((t) => tableFields.has(t));
         const fields: Record<string, CatalogFieldMeta> = {};
         for (const table of tables) {
-            for (const [name, meta] of Object.entries(tableFields.get(table)!)) {
+            for (const [name, meta] of Object.entries(
+                tableFields.get(table)!,
+            )) {
                 fields[`${table}_${name}`] = meta;
             }
         }
@@ -196,13 +209,94 @@ export function loadChartFixtures(
     return charts;
 }
 
+/** The prompt's generation template; null for the default template. */
+export function loadPromptTemplate(
+    promptsJsonPath: string,
+    promptId: string,
+): PromptTemplate | null {
+    const suite = JSON.parse(fs.readFileSync(promptsJsonPath, 'utf-8')) as {
+        prompts: { id: string; template?: PromptTemplate }[];
+    };
+    return suite.prompts.find((p) => p.id === promptId)?.template ?? null;
+}
+
+const chooseVizField = (
+    field: VizDeclaration['fields'][number],
+    used: Set<string>,
+): string => {
+    const hint = `${field.name} ${field.label}`.toLowerCase();
+    const candidates =
+        field.type === 'metric'
+            ? [
+                  'orders_total_revenue',
+                  'orders_order_count',
+                  'orders_average_order_value',
+              ]
+            : /date|time|month|year|week|day|trend/.test(hint)
+              ? [
+                    'orders_order_date_month',
+                    'orders_order_date_day',
+                    'orders_customer_segment',
+                ]
+              : field.type === 'series'
+                ? ['orders_customer_segment', 'orders_region', 'orders_status']
+                : [
+                      'orders_customer_segment',
+                      'orders_region',
+                      'orders_status',
+                      'orders_order_date_month',
+                  ];
+    return (
+        candidates.find((candidate) => !used.has(candidate)) ?? candidates[0]
+    );
+};
+
+const buildVizContextFixture = (
+    declaration: VizDeclaration | null,
+): VizContextFixture | null => {
+    if (!declaration) return null;
+    const used = new Set<string>();
+    const fieldMapping: Record<string, string> = {};
+    const dimensions: string[] = [];
+    const metrics: string[] = [];
+
+    for (const field of declaration.fields) {
+        const fieldId = chooseVizField(field, used);
+        used.add(fieldId);
+        fieldMapping[field.name] = fieldId;
+        (field.type === 'metric' ? metrics : dimensions).push(fieldId);
+    }
+
+    return {
+        fieldMapping,
+        dimensions,
+        metrics,
+        options: Object.fromEntries(
+            declaration.configOptions.map((option) => [
+                option.name,
+                option.default,
+            ]),
+        ),
+        colorPalette: ['#FF3B30', '#007AFF', '#34C759', '#AF52DE'],
+    };
+};
+
 export function buildHarnessHtml(
     catalog: Catalog,
     charts: Record<string, ChartFixture>,
     projectUuid: string,
+    vizDeclaration: VizDeclaration | null = null,
 ): string {
-    const harnessJs = fs.readFileSync(path.join(BENCH_DIR, 'harness.js'), 'utf-8');
-    const config = { projectUuid, explores: catalog.explores, charts };
+    const harnessJs = fs.readFileSync(
+        path.join(BENCH_DIR, 'harness.js'),
+        'utf-8',
+    );
+    const config = {
+        projectUuid,
+        explores: catalog.explores,
+        charts,
+        vizContext: buildVizContextFixture(vizDeclaration),
+    };
     // <-escape so a stray "</script>" inside config can't break the page.
     const configJson = JSON.stringify(config).replace(/</g, '\\u003c');
     // Target the assignment specifically — the docblock also mentions the

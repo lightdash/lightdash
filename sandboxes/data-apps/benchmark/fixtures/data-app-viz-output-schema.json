@@ -1,0 +1,257 @@
+{
+    "type": "object",
+    "properties": {
+        "fields": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Key the component reads from `fieldMapping`. Unique across fields, no spaces."
+                    },
+                    "label": {
+                        "type": "string",
+                        "description": "Human label shown in the field-mapping UI."
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "dimension",
+                            "metric",
+                            "series"
+                        ],
+                        "description": "dimension = a category/grouping column, metric = a numeric measure, series = a dimension used to split or colour the chart."
+                    },
+                    "required": {
+                        "type": "boolean",
+                        "description": "false only when the chart still renders with this field unmapped."
+                    }
+                },
+                "required": [
+                    "name",
+                    "label",
+                    "type",
+                    "required"
+                ],
+                "additionalProperties": false
+            },
+            "description": "Every data column the component reads. Declare exactly what you read — no more, no less."
+        },
+        "configOptions": {
+            "type": "array",
+            "items": {
+                "anyOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "Key the component reads from `options`. Unique across options, no spaces."
+                            },
+                            "label": {
+                                "type": "string",
+                                "description": "Human label shown next to the control in the config panel."
+                            },
+                            "group": {
+                                "type": "string",
+                                "description": "Optional tab name. Options sharing a group are rendered in the same config tab; ungrouped options share a default tab."
+                            },
+                            "type": {
+                                "type": "string",
+                                "const": "boolean"
+                            },
+                            "default": {
+                                "type": "boolean",
+                                "description": "Value used until the viewer changes it."
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "label",
+                            "type",
+                            "default"
+                        ],
+                        "additionalProperties": false
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "$ref": "#/properties/configOptions/items/anyOf/0/properties/name"
+                            },
+                            "label": {
+                                "$ref": "#/properties/configOptions/items/anyOf/0/properties/label"
+                            },
+                            "group": {
+                                "$ref": "#/properties/configOptions/items/anyOf/0/properties/group"
+                            },
+                            "type": {
+                                "type": "string",
+                                "const": "select"
+                            },
+                            "choices": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "value": {
+                                            "type": "string",
+                                            "description": "Value delivered on `options`."
+                                        },
+                                        "label": {
+                                            "type": "string",
+                                            "description": "Human label in the list."
+                                        }
+                                    },
+                                    "required": [
+                                        "value",
+                                        "label"
+                                    ],
+                                    "additionalProperties": false
+                                },
+                                "minItems": 1,
+                                "description": "The selectable choices; at least one."
+                            },
+                            "default": {
+                                "type": "string",
+                                "description": "One of the declared choice `value`s."
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "label",
+                            "type",
+                            "choices",
+                            "default"
+                        ],
+                        "additionalProperties": false
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "$ref": "#/properties/configOptions/items/anyOf/0/properties/name"
+                            },
+                            "label": {
+                                "$ref": "#/properties/configOptions/items/anyOf/0/properties/label"
+                            },
+                            "group": {
+                                "$ref": "#/properties/configOptions/items/anyOf/0/properties/group"
+                            },
+                            "type": {
+                                "type": "string",
+                                "const": "number"
+                            },
+                            "default": {
+                                "type": "number",
+                                "description": "Value used until the viewer changes it."
+                            },
+                            "min": {
+                                "type": "number",
+                                "description": "Optional lower bound."
+                            },
+                            "max": {
+                                "type": "number",
+                                "description": "Optional upper bound."
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "label",
+                            "type",
+                            "default"
+                        ],
+                        "additionalProperties": false
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "$ref": "#/properties/configOptions/items/anyOf/0/properties/name"
+                            },
+                            "label": {
+                                "$ref": "#/properties/configOptions/items/anyOf/0/properties/label"
+                            },
+                            "group": {
+                                "$ref": "#/properties/configOptions/items/anyOf/0/properties/group"
+                            },
+                            "type": {
+                                "type": "string",
+                                "const": "text"
+                            },
+                            "default": {
+                                "type": "string",
+                                "description": "Value used until the viewer changes it."
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "label",
+                            "type",
+                            "default"
+                        ],
+                        "additionalProperties": false
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "$ref": "#/properties/configOptions/items/anyOf/0/properties/name"
+                            },
+                            "label": {
+                                "$ref": "#/properties/configOptions/items/anyOf/0/properties/label"
+                            },
+                            "group": {
+                                "$ref": "#/properties/configOptions/items/anyOf/0/properties/group"
+                            },
+                            "type": {
+                                "type": "string",
+                                "const": "color"
+                            },
+                            "default": {
+                                "type": "string",
+                                "description": "Hex colour used until the viewer changes it."
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "label",
+                            "type",
+                            "default"
+                        ],
+                        "additionalProperties": false
+                    }
+                ]
+            },
+            "description": "Every setting the viewer can change from the chart config panel without regenerating the viz — one per literal the component would otherwise hardcode: what it shows or hides, which variant it picked, and the numbers and labels it wrote in. Each `name` must be a key the component reads from `options`. Series colours are not among them: declare `colorPalette` instead. Empty is only right for a component that hardcodes nothing a viewer would want different."
+        },
+        "colorPalette": {
+            "anyOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "group": {
+                            "type": "string",
+                            "description": "Optional tab name, matching a config option `group`. The picker gets its own tab when no option shares it."
+                        }
+                    },
+                    "additionalProperties": false
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "description": "Declare this when the component colours anything from `colorPalette`. It surfaces the standard Lightdash palette picker, so the viz inherits the same colours as the charts around it. Not a config option: the chosen colours arrive on `colorPalette`, never on `options`. Null when the component colours nothing."
+        }
+    },
+    "required": [
+        "fields",
+        "configOptions",
+        "colorPalette"
+    ],
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+}

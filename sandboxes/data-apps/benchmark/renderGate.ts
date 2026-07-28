@@ -15,10 +15,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser } from 'playwright';
+import {
+    parseVizDeclaration,
+    type PromptTemplate,
+    type VizDeclaration,
+} from './assertions.ts';
 import { writeGallery } from './gallery.ts';
 import {
     buildHarnessHtml,
     loadChartFixtures,
+    loadPromptTemplate,
     parseCatalog,
 } from './mockHost.ts';
 
@@ -48,6 +54,8 @@ export type RenderResult = {
     boundaryMarker: boolean;
     rootChildren: number;
     rootTextLength: number;
+    vizContextRequests: number;
+    vizContextChanged: boolean;
     queries: IssuedQuery[];
     blockedFetches: string[];
     exports: unknown[];
@@ -57,14 +65,29 @@ export type RenderResult = {
 
 export function renderRules(
     result: Omit<RenderResult, 'rules'>,
+    template: PromptTemplate | null,
 ): Record<string, boolean> {
-    return {
+    const rules: Record<string, boolean> = {
         'renders-clean':
             result.error === null &&
             result.pageErrors.length === 0 &&
             !result.fatalMarker &&
             !result.boundaryMarker &&
+            result.settled &&
             result.rootChildren > 0,
+    };
+    // A viz issues no queries — the host owns the query and pushes the rows —
+    // so the query rules don't apply to it and are omitted, not failed.
+    if (template === 'data_app_viz') {
+        return {
+            ...rules,
+            'received-viz-context': result.vizContextRequests > 0,
+            'renders-with-viz-context':
+                result.vizContextRequests > 0 && result.vizContextChanged,
+        };
+    }
+    return {
+        ...rules,
         'made-metric-queries': result.queries.some(
             (q) => q.kind === 'metric' || q.kind === 'chart',
         ),
@@ -102,6 +125,7 @@ async function renderCell(
     runDir: string,
     cell: string,
     harnessHtml: string,
+    template: PromptTemplate | null,
 ): Promise<RenderResult> {
     const distDir = path.join(runDir, 'dist', cell);
     const screenshotDir = path.join(runDir, 'screenshots');
@@ -120,6 +144,8 @@ async function renderCell(
         boundaryMarker: false,
         rootChildren: 0,
         rootTextLength: 0,
+        vizContextRequests: 0,
+        vizContextChanged: false,
         queries: [],
         blockedFetches: [],
         exports: [],
@@ -174,7 +200,9 @@ async function renderCell(
         const page = await context.newPage();
         page.on('pageerror', (err) => {
             if (result.pageErrors.length < 20) {
-                result.pageErrors.push(String(err.message ?? err).slice(0, 300));
+                result.pageErrors.push(
+                    String(err.message ?? err).slice(0, 300),
+                );
             }
         });
         page.on('console', (msg) => {
@@ -208,15 +236,14 @@ async function renderCell(
                 const bench = w.__bench ?? {};
                 let rootChildren = 0;
                 let rootTextLength = 0;
+                let rootHtml: string | null = null;
                 try {
-                    const frame = document.getElementById(
-                        'app-frame',
-                    ) as any;
-                    const root =
-                        frame?.contentDocument?.getElementById('root');
+                    const frame = document.getElementById('app-frame') as any;
+                    const root = frame?.contentDocument?.getElementById('root');
                     if (root) {
                         rootChildren = root.childElementCount;
                         rootTextLength = (root.innerText ?? '').length;
+                        rootHtml = root.innerHTML;
                     }
                 } catch {
                     // cross-origin shouldn't happen; treat as unmounted
@@ -228,6 +255,10 @@ async function renderCell(
                     exports: bench.exports ?? [],
                     rootChildren,
                     rootTextLength,
+                    vizContextRequests: bench.vizContextRequests ?? 0,
+                    vizContextChanged:
+                        typeof bench.vizContextInitialRoot === 'string' &&
+                        rootHtml !== bench.vizContextInitialRoot,
                 };
                 /* eslint-enable @typescript-eslint/no-explicit-any */
             });
@@ -238,6 +269,8 @@ async function renderCell(
             const s = await readState();
             result.rootChildren = s.rootChildren;
             result.rootTextLength = s.rootTextLength;
+            result.vizContextRequests = s.vizContextRequests;
+            result.vizContextChanged = s.vizContextChanged;
             if (
                 Date.now() - startedAt > 5_000 &&
                 Date.now() - s.activityAt > 3_000 &&
@@ -254,6 +287,8 @@ async function renderCell(
         const final = await readState();
         result.rootChildren = final.rootChildren;
         result.rootTextLength = final.rootTextLength;
+        result.vizContextRequests = final.vizContextRequests;
+        result.vizContextChanged = final.vizContextChanged;
         result.queries = final.queries as IssuedQuery[];
         result.blockedFetches = final.blocked as string[];
         result.exports = final.exports as unknown[];
@@ -284,7 +319,10 @@ async function renderCell(
     }
     result.durationMs = Date.now() - startedAt;
 
-    const full: RenderResult = { ...result, rules: renderRules(result) };
+    const full: RenderResult = {
+        ...result,
+        rules: renderRules(result, template),
+    };
     fs.writeFileSync(
         path.join(renderDir, `${cell}.json`),
         JSON.stringify(full, null, 2),
@@ -310,20 +348,39 @@ export async function renderRun(
         path.join(BENCH_DIR, 'fixtures', 'schema.yml'),
     );
     const promptsJsonPath = path.join(BENCH_DIR, 'prompts.json');
-    const harnessByPrompt = new Map<string, string>();
+    const declarations = new Map<string, VizDeclaration | null>();
+    const resultsPath = path.join(runDir, 'results.json');
+    if (fs.existsSync(resultsPath)) {
+        const runResults = JSON.parse(
+            fs.readFileSync(resultsPath, 'utf-8'),
+        ) as {
+            variant: string;
+            promptId: string;
+            rep: number;
+            analysis: { structuredOutput?: unknown } | null;
+        }[];
+        for (const result of runResults) {
+            declarations.set(
+                `${result.variant}__${result.promptId}__r${result.rep}`,
+                parseVizDeclaration(result.analysis?.structuredOutput),
+            );
+        }
+    }
+    const harnessByCell = new Map<string, string>();
     const harnessFor = (cell: string): string => {
         const promptId = promptIdOfCell(cell) ?? '';
-        if (!harnessByPrompt.has(promptId)) {
-            harnessByPrompt.set(
-                promptId,
+        if (!harnessByCell.has(cell)) {
+            harnessByCell.set(
+                cell,
                 buildHarnessHtml(
                     catalog,
                     loadChartFixtures(promptsJsonPath, promptId),
                     'bench-project-uuid',
+                    declarations.get(cell) ?? null,
                 ),
             );
         }
-        return harnessByPrompt.get(promptId)!;
+        return harnessByCell.get(cell)!;
     };
 
     const browser = await chromium.launch();
@@ -340,6 +397,10 @@ export async function renderRun(
                     runDir,
                     cell,
                     harnessFor(cell),
+                    loadPromptTemplate(
+                        promptsJsonPath,
+                        promptIdOfCell(cell) ?? '',
+                    ),
                 );
             }
         },

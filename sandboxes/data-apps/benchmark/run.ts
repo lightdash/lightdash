@@ -20,9 +20,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+    parseVizDeclaration,
     sourceRules,
     transcriptRules,
+    vizDeclarationRules,
     type PromptSpec,
+    type PromptTemplate,
     type RuleResults,
 } from './assertions.ts';
 import { writeGallery } from './gallery.ts';
@@ -35,6 +38,30 @@ const BENCH_DIR = path.dirname(fileURLToPath(import.meta.url));
 // benchmark measures the production configuration, not a lookalike.
 const ALLOWED_TOOLS =
     'Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Read(//tmp/external-data/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Glob(//tmp/external-data/**),Grep(//app/**),Grep(//tmp/dbt-repo/**),Grep(//tmp/external-data/**),Bash(pnpm check),Bash(pnpm check:*)';
+
+/**
+ * Per-template generation config, mirroring AppGenerateService: the template's
+ * instructions are prepended to the prompt, and a template that declares an
+ * output schema collects the run's declaration as CLI structured output
+ * (`--json-schema`, the channel the backend persists to `viz_schema`).
+ *
+ * Both files are byte-stable copies of the pipeline's current wording —
+ * `getTemplateInstructions()` and `dataAppVizJsonSchema` in the repo. Re-copy
+ * them when either changes, or the benchmark measures a prompt production no
+ * longer sends.
+ */
+const TEMPLATE_FIXTURES: Record<
+    PromptTemplate,
+    { instructions: string; outputSchema: string }
+> = {
+    data_app_viz: {
+        instructions: 'fixtures/data-app-viz-instructions.txt',
+        outputSchema: 'fixtures/data-app-viz-output-schema.json',
+    },
+};
+
+const readFixture = (relPath: string): string =>
+    fs.readFileSync(path.join(BENCH_DIR, relPath), 'utf-8');
 
 // ---------------------------------------------------------------------------
 // Config
@@ -157,8 +184,7 @@ function parseArgs(argv: string[]): Config {
     if (config.variants.length === 0) {
         config.variants.push({
             name: 'default',
-            templateRef:
-                process.env.E2B_TEMPLATE_NAME || 'lightdash-data-app',
+            templateRef: process.env.E2B_TEMPLATE_NAME || 'lightdash-data-app',
             effort: null,
             envs: {},
         });
@@ -232,9 +258,26 @@ async function runOne(
                 fs.readFileSync(path.join(BENCH_DIR, localRel), 'utf-8'),
             );
         }
+        // Template instructions lead the prompt and the output schema is
+        // spliced in as a single literal arg — same composition as the
+        // pipeline's writeCatalogAndPrompt / runClaudeGeneration.
+        const templateFixtures = spec.template
+            ? TEMPLATE_FIXTURES[spec.template]
+            : null;
+        const instructions = templateFixtures
+            ? `${readFixture(templateFixtures.instructions).trimEnd()}\n\n`
+            : '';
+        let jsonSchemaFlag = '';
+        if (templateFixtures) {
+            await sandbox.files.write(
+                '/tmp/output-schema.json',
+                readFixture(templateFixtures.outputSchema),
+            );
+            jsonSchemaFlag = '--json-schema "$(cat /tmp/output-schema.json)" ';
+        }
         await sandbox.files.write(
             '/tmp/prompt.txt',
-            `${spec.prepend ?? ''}${spec.prompt}\n`,
+            `${instructions}${spec.prepend ?? ''}${spec.prompt}\n`,
         );
 
         // Generation — flags mirror the production pipeline.
@@ -259,6 +302,7 @@ async function runOne(
                     (variant.effort ? `--effort ${variant.effort} ` : '') +
                     `--verbose --output-format stream-json --include-partial-messages ` +
                     `--allowedTools "${ALLOWED_TOOLS}" ` +
+                    jsonSchemaFlag +
                     `--append-system-prompt-file /app/skill.md`,
                 { cwd: '/app', timeoutMs: 20 * 60 * 1000, onStdout },
             );
@@ -335,6 +379,14 @@ async function runOne(
             files[path.relative(srcDir, full)] = fs.readFileSync(full, 'utf-8');
         }
         Object.assign(result.rules, sourceRules(files));
+        if (spec.template === 'data_app_viz') {
+            Object.assign(
+                result.rules,
+                vizDeclarationRules(
+                    parseVizDeclaration(result.analysis.structuredOutput),
+                ),
+            );
+        }
     } catch (err) {
         result.error = err instanceof Error ? err.message : String(err);
     } finally {
@@ -391,9 +443,9 @@ function summarize(results: RunResult[], config: Config): string {
                     seconds(m((r) => r.analysis!.timings.toolExecMs)).padEnd(
                         8,
                     ) +
-                    String(m((r) => r.analysis!.usage?.outputTokens ?? 0)).padEnd(
-                        8,
-                    ) +
+                    String(
+                        m((r) => r.analysis!.usage?.outputTokens ?? 0),
+                    ).padEnd(8) +
                     String(m((r) => r.analysis!.turns)),
             );
         }
@@ -418,7 +470,9 @@ function summarize(results: RunResult[], config: Config): string {
     if (config.variants.length > 1) {
         const baseline = config.variants[0].name;
         for (const variant of config.variants.slice(1)) {
-            lines.push(`\n=== ${variant.name} vs ${baseline} (median deltas) ===`);
+            lines.push(
+                `\n=== ${variant.name} vs ${baseline} (median deltas) ===`,
+            );
             const promptIds = [...new Set(ok.map((r) => r.promptId))];
             for (const promptId of promptIds) {
                 const pick = (v: string, f: (r: RunResult) => number) =>
@@ -532,6 +586,13 @@ async function main() {
         },
     );
     await Promise.all(workers);
+
+    // Write once before rendering so the standalone render path and this inline
+    // path both load viz declarations from the same artifact.
+    fs.writeFileSync(
+        path.join(config.outDir, 'results.json'),
+        JSON.stringify(results, null, 2),
+    );
 
     // Render gate: run every built app under the local mock host and fold
     // the runtime rules (renders-clean, query validity) into the rubric.

@@ -116,6 +116,8 @@ function collectRows(runDir: string): GalleryRow[] {
         const rules = { ...buildRules.get(cell), ...render?.rules };
         if (rules['build-passes'] === false) badges.push('build ✗');
         if (rules['renders-clean'] === false) badges.push('render ✗');
+        if (rules['renders-with-viz-context'] === false)
+            badges.push('viz context ✗');
         if (rules['queries-valid-fields'] === false) badges.push('queries ✗');
         if (rules['made-metric-queries'] === false) badges.push('no queries');
         if (!hasScreenshot) badges.push('no screenshot');
