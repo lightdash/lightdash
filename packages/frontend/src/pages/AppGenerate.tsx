@@ -1118,6 +1118,7 @@ const AppGenerate: FC = () => {
                 {
                     role: 'user',
                     status: null,
+                    durationMs: null,
                     content: prompt,
                     imagePreviewUrls: [],
                     imageResourceIds: [],
@@ -1166,6 +1167,7 @@ const AppGenerate: FC = () => {
                             {
                                 role: 'assistant',
                                 status: 'error',
+                                durationMs: null,
                                 content: themeErrorMessage,
                                 imagePreviewUrls: [],
                                 imageResourceIds: [],
@@ -1666,6 +1668,7 @@ const AppGenerate: FC = () => {
                 {
                     role: 'assistant' as const,
                     status: 'error' as const,
+                    durationMs: null,
                     content: errorMessage,
                     imagePreviewUrls: [],
                     imageResourceIds: [],
@@ -1827,6 +1830,7 @@ const AppGenerate: FC = () => {
                 {
                     role: 'user',
                     status: null,
+                    durationMs: null,
                     content: trimmed,
                     imagePreviewUrls: sentImageUrls,
                     imageResourceIds: [],

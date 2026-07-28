@@ -189,6 +189,21 @@ describe('versionsToChatMessages', () => {
         expect(assistant.activity).toEqual(['Creating App.tsx']);
     });
 
+    it('survives a resources blob missing its optional collections', () => {
+        // `resources` is JSONB; a viz-only version can carry just a vizSchema.
+        // Dereferencing charts/images unguarded took out the whole panel.
+        const [user, assistant] = convert([
+            version({
+                resources: {
+                    vizSchema: { fields: [], configOptions: [] },
+                } as unknown as ApiAppVersionSummary['resources'],
+            }),
+        ]);
+        expect(user.charts).toEqual([]);
+        expect(user.imageResourceIds).toEqual([]);
+        expect(assistant.vizSchema).toEqual({ fields: [], configOptions: [] });
+    });
+
     it('handles a missing author', () => {
         const [user] = convert([version({ createdByUser: null })]);
         expect(user.userName).toBeNull();

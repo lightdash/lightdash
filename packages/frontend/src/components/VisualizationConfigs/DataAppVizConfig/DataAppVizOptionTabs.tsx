@@ -25,6 +25,11 @@ type Props = {
      * owns the control; this component only places it.
      */
     paletteControl: ReactNode;
+    /**
+     * The viz's conversation. Null when no viz is picked, in which case no
+     * Thread tab is offered — there is nothing to have a history of.
+     */
+    threadContent: ReactNode;
 };
 
 /**
@@ -41,13 +46,17 @@ const DataAppVizOptionTabs: FC<Props> = ({
     onChange,
     colorPalette,
     paletteControl,
+    threadContent,
 }) => {
     const optionGroups = useMemo(
         () => groupDataAppVizOptions(configOptions, colorPalette),
         [configOptions, colorPalette],
     );
 
-    if (optionGroups.length === 0) return <>{generalContent}</>;
+    // Nothing to tab between: no declared options and no viz to have a
+    // history of, so the general content is the whole form.
+    if (optionGroups.length === 0 && !threadContent)
+        return <>{generalContent}</>;
 
     return (
         <Tabs defaultValue="general" keepMounted={false}>
@@ -60,9 +69,18 @@ const DataAppVizOptionTabs: FC<Props> = ({
                         {group.label}
                     </Tabs.Tab>
                 ))}
+                {threadContent && (
+                    <Tabs.Tab px="sm" value="thread">
+                        Thread
+                    </Tabs.Tab>
+                )}
             </Tabs.List>
 
             <Tabs.Panel value="general">{generalContent}</Tabs.Panel>
+
+            {threadContent && (
+                <Tabs.Panel value="thread">{threadContent}</Tabs.Panel>
+            )}
 
             {optionGroups.map((group) => (
                 <Tabs.Panel key={group.id} value={group.id}>

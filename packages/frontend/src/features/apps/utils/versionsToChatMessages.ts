@@ -72,7 +72,7 @@ export function versionsToChatMessages(
     return sorted.flatMap((v) => {
         // Prefer server-side resources; fall back to session maps.
         const serverCharts: ChatChart[] =
-            v.resources?.charts.map((c) => ({
+            v.resources?.charts?.map((c) => ({
                 name: c.chartName,
                 uuid: c.chartUuid,
                 chartKind: undefined,
@@ -95,7 +95,7 @@ export function versionsToChatMessages(
                 : (fallbacks.connections.get(v.prompt) ?? []);
 
         const imageResourceIds =
-            v.resources?.images.map((img) => img.imageId) ?? [];
+            v.resources?.images?.map((img) => img.imageId) ?? [];
         const imagePreviewUrls = fallbacks.imagePreviewUrls.get(v.prompt) ?? [];
         const files: ChatAttachedFile[] =
             v.resources?.files?.map((f) => ({ filename: f.filename })) ??
@@ -120,6 +120,12 @@ export function versionsToChatMessages(
             v.version === 1
                 ? 'Your app is ready!'
                 : `Version ${v.version} is ready!`;
+        // Null rather than 0 when the version never recorded a transition:
+        // an unknown duration is not a zero-second build.
+        const durationMs = v.statusUpdatedAt
+            ? new Date(v.statusUpdatedAt).getTime() -
+              new Date(v.createdAt).getTime()
+            : null;
         const reasoning = versionNarrationTexts(v.statusHistory, 'thinking');
         const activity = versionNarrationTexts(v.statusHistory, 'tool');
 
@@ -127,6 +133,7 @@ export function versionsToChatMessages(
             {
                 role: 'user',
                 status: null,
+                durationMs: null,
                 content: v.prompt,
                 imagePreviewUrls,
                 imageResourceIds,
@@ -149,6 +156,7 @@ export function versionsToChatMessages(
             msgs.push({
                 role: 'assistant',
                 status: 'ready',
+                durationMs,
                 content: isUploadedVersion
                     ? readyMessage
                     : (v.statusMessage ?? readyMessage),
@@ -171,6 +179,7 @@ export function versionsToChatMessages(
             msgs.push({
                 role: 'assistant',
                 status: 'error',
+                durationMs,
                 content: getAppVersionFailureMessage(v),
                 imagePreviewUrls: [],
                 imageResourceIds: [],

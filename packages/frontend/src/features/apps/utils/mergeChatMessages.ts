@@ -30,6 +30,11 @@ export type ChatMessage = {
      * happens to be absent.
      */
     status: 'ready' | 'error' | null;
+    /**
+     * How long the build took, for the thread's "built in 52s" receipt. Null on
+     * user bubbles and on versions predating completion-time capture.
+     */
+    durationMs: number | null;
     content: string;
     imagePreviewUrls: string[];
     imageResourceIds: string[];

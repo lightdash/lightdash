@@ -9,6 +9,7 @@ import { MantineProvider, useMantineColorScheme } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import DataAppVizLibraryPicker from '../../../features/apps/components/DataAppVizLibraryPicker';
+import DataAppVizThread from '../../../features/apps/components/DataAppVizThread';
 import { useDataAppVisualization } from '../../../features/apps/hooks/useDataAppVisualization';
 import {
     autoMapDataAppVizFields,
@@ -152,6 +153,14 @@ export const ConfigTabs: FC = memo(() => {
                 }
                 colorPalette={colorPalette}
                 paletteControl={<ColorPaletteSection />}
+                threadContent={
+                    projectUuid && dataAppVizUuid ? (
+                        <DataAppVizThread
+                            projectUuid={projectUuid}
+                            dataAppVizUuid={dataAppVizUuid}
+                        />
+                    ) : null
+                }
             />
         </MantineProvider>
     );
