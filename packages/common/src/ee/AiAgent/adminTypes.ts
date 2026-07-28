@@ -1,6 +1,7 @@
 import type { ApiSuccess, KnexPaginatedData } from '../..';
 import type { DataAppModelVisibility } from '../apps/types';
 import type {
+    AiAgentEvaluationRunSummary,
     AiAgentMemoryScope,
     AiAgentMemoryStatus,
     AiAgentSummary,
@@ -64,6 +65,52 @@ export type AiAgentAdminConversationsSummary = {
 export type ApiAiAgentAdminConversationsResponse = ApiSuccess<
     KnexPaginatedData<AiAgentAdminConversationsSummary>
 >;
+
+export type AiAgentAdminEvalFilters = {
+    projectUuids?: string[];
+    agentUuids?: string[];
+    search?: string;
+};
+
+export type AiAgentAdminEvalSummary = {
+    evalUuid: string;
+    title: string;
+    description: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    agent: Pick<AiAgentSummary, 'uuid' | 'name' | 'imageUrl'>;
+    project: {
+        uuid: string;
+        name: string;
+    };
+    promptCount: number;
+    latestRun: Pick<
+        AiAgentEvaluationRunSummary,
+        'runUuid' | 'status' | 'createdAt' | 'completedAt'
+    > | null;
+};
+
+export type AiAgentAdminEvalsSummary = {
+    evals: AiAgentAdminEvalSummary[];
+};
+
+export type ApiAiAgentAdminEvalsResponse = ApiSuccess<
+    KnexPaginatedData<AiAgentAdminEvalsSummary>
+>;
+
+export type AiAgentAdminEvalPrompt = {
+    evalPromptUuid: string;
+    // Text of the prompt; for thread-referenced prompts this is the original
+    // user prompt, null only if the referenced prompt was deleted
+    prompt: string | null;
+    expectedResponse: string | null;
+    threadUuid: string | null;
+    createdAt: Date;
+};
+
+export type ApiAiAgentAdminEvalPromptsResponse = ApiSuccess<{
+    prompts: AiAgentAdminEvalPrompt[];
+}>;
 
 export type AiAgentAdminMemoryFilters = {
     projectUuids?: string[];

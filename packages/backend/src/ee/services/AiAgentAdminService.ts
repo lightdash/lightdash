@@ -1,6 +1,9 @@
 import { subject } from '@casl/ability';
 import {
     AiAgentAdminConversationsSummary,
+    AiAgentAdminEvalFilters,
+    AiAgentAdminEvalPrompt,
+    AiAgentAdminEvalsSummary,
     AiAgentAdminFilters,
     AiAgentAdminMemoriesSummary,
     AiAgentAdminMemoryFilters,
@@ -573,6 +576,51 @@ export class AiAgentAdminService extends BaseService {
             filters: scopedFilters,
             sort,
         });
+    }
+
+    async getAllEvals(
+        user: SessionUser,
+        paginateArgs?: KnexPaginateArgs,
+        filters?: AiAgentAdminEvalFilters,
+        sort?: AiAgentAdminSort,
+    ): Promise<KnexPaginatedData<AiAgentAdminEvalsSummary>> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        const scope = await this.resolveReadScope(user, organizationUuid);
+        const { filters: scopedFilters, empty } =
+            AiAgentAdminService.restrictFiltersToScope(scope, filters);
+        if (empty) {
+            return { data: { evals: [] } };
+        }
+
+        return this.aiAgentModel.findAdminEvalsPaginated({
+            organizationUuid,
+            paginateArgs,
+            filters: scopedFilters,
+            sort,
+        });
+    }
+
+    async getEvalPrompts(
+        user: SessionUser,
+        evalUuid: string,
+    ): Promise<{ prompts: AiAgentAdminEvalPrompt[] }> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        const scope = await this.resolveReadScope(user, organizationUuid);
+        const result = await this.aiAgentModel.findAdminEvalPrompts({
+            organizationUuid,
+            evalUuid,
+        });
+        if (!result) {
+            throw new NotFoundError(`Evaluation not found: ${evalUuid}`);
+        }
+        AiAgentAdminService.assertProjectInScope(scope, result.projectUuid);
+        return { prompts: result.prompts };
     }
 
     async getMcpActivity(
