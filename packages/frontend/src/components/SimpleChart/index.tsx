@@ -57,6 +57,10 @@ export type EchartsSeriesClickEvent = EchartsBaseClickEvent & {
     // encode maps x/y axes to indices in dimensionNames (e.g., {x: [0], y: [1]})
     encode?: { x?: number[]; y?: number[] };
     pivotReference?: PivotReference;
+    // Full dataset row for the clicked item, resolved via dataIndex before the
+    // event is forwarded. Stacked bar series carry sparse [x, y] tuples, so
+    // this is the only way consumers can see the row's remaining columns.
+    datasetRow?: Record<string, unknown>;
 };
 
 type EchartsClickEvent = EchartsSeriesClickEvent | EchartsBaseClickEvent;
@@ -262,8 +266,13 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                             e.seriesIndex
                         ];
                         if (series && series.encode) {
+                            // Stacked bar series carry sparse [x, y] tuples,
+                            // so resolve the full dataset row via dataIndex
+                            // for consumers that need the remaining columns
+                            const datasetRow =
+                                eChartsOptions?.dataset?.source?.[e.dataIndex];
                             onSeriesContextMenu(
-                                e,
+                                { ...e, datasetRow },
                                 eChartsOptions?.series || [],
                             );
                         }
