@@ -12,7 +12,7 @@ SNAPSHOT_NAME="preview-db-${1:?usage: preview-db-snapshot.sh <suffix, e.g. short
 KEEP=3
 
 is_seeded() {
-    [ "$(kubectl -n "$NAMESPACE" exec statefulset/db-snapshot -- psql -U postgres -tAc \
+    [ "$(kubectl -n "$NAMESPACE" exec statefulset/db-preview -- psql -U postgres -tAc \
         "SELECT to_regclass('jaffle.orders') IS NOT NULL AND EXISTS (SELECT 1 FROM emails WHERE email = 'demo@lightdash.com')" \
         2>/dev/null)" = "t" ]
 }
@@ -32,7 +32,7 @@ done
 }
 
 # Flush to disk so the snapshot restores without WAL replay
-kubectl -n "$NAMESPACE" exec statefulset/db-snapshot -- psql -U postgres -c "CHECKPOINT;"
+kubectl -n "$NAMESPACE" exec statefulset/db-preview -- psql -U postgres -c "CHECKPOINT;"
 
 kubectl -n "$NAMESPACE" apply -f - <<EOF
 apiVersion: snapshot.storage.k8s.io/v1
