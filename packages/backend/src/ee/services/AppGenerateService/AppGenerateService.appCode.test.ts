@@ -253,6 +253,7 @@ describe('AppGenerateService.importAppCode', () => {
         expect(result.action).toBe('create');
         expect(result.version).toBe(1);
         expect(result.appUuid).toBe(NEW_APP_UUID);
+        expect(result.slug).toBe(NEW_APP_SLUG);
 
         // createWithVersion called with pending status
         expect(appModel.createWithVersion).toHaveBeenCalledWith(
@@ -979,6 +980,7 @@ describe('importAppCode slug identity', () => {
         organization_uuid: PROJECT_ORG_UUID,
         name: 'Test App',
         description: 'A test app',
+        slug: EXISTING_APP_SLUG,
     };
 
     it('appends when the manifest slug matches an app in the target project', async () => {
@@ -995,6 +997,7 @@ describe('importAppCode slug identity', () => {
 
         expect(result.action).toBe('append');
         expect(result.appUuid).toBe(EXISTING_APP_UUID);
+        expect(result.slug).toBe(EXISTING_APP_SLUG);
         expect(appModel.findAppBySlug).toHaveBeenCalledWith(
             PROJECT_UUID,
             'my-app',
@@ -1041,6 +1044,10 @@ describe('importAppCode slug identity', () => {
 
         expect(appModel.findAppBySlug).not.toHaveBeenCalled();
         expect(result.action).toBe('create');
+        // The mocked createWithVersion returns NEW_APP_SLUG — distinct from
+        // the manifest's 'my-app' — so this asserts the response reflects the
+        // DB row, not (accidentally) the ignored manifest slug.
+        expect(result.slug).toBe(NEW_APP_SLUG);
         expect(appModel.createWithVersion).toHaveBeenCalledOnce();
         const [appArg] = appModel.createWithVersion.mock.calls[0];
         expect(appArg).not.toHaveProperty('slug');
@@ -1059,6 +1066,7 @@ describe('importAppCode slug identity', () => {
 
         expect(result.action).toBe('append');
         expect(result.appUuid).toBe(EXISTING_APP_UUID);
+        expect(result.slug).toBe(EXISTING_APP_SLUG);
         expect(appModel.findAppBySlug).not.toHaveBeenCalled();
         expect(appModel.findApp).toHaveBeenCalledWith(
             EXISTING_APP_UUID,
