@@ -4,6 +4,7 @@ import {
     getVisibleDataAppClaudeModels,
     resolveDefaultVisibleDataAppClaudeModel,
     type DataAppVizConfigOption,
+    type DataAppVizOptionValue,
 } from './types';
 
 const validFields = {
@@ -116,15 +117,25 @@ describe('dataAppVizSchema', () => {
                     type: 'color',
                     default: '#7262ff',
                 },
-                {
-                    name: 'palette',
-                    label: 'Palette',
-                    type: 'palette',
-                    default: ['#111', '#222'],
-                },
             ],
         });
         expect(r.success).toBe(true);
+    });
+
+    it('rejects an option whose type is outside the declared vocabulary', () => {
+        expect(
+            dataAppVizSchema.safeParse({
+                fields: [],
+                configOptions: [
+                    {
+                        name: 'series',
+                        label: 'Series colours',
+                        type: 'palette',
+                        default: ['#111', '#222'],
+                    },
+                ],
+            }).success,
+        ).toBe(false);
     });
 
     it('rejects a boolean option with a non-boolean default', () => {
@@ -188,6 +199,71 @@ describe('getEffectiveOptionValues', () => {
                 { gone: 5, a: true },
             ),
         ).toEqual({ a: true });
+    });
+
+    it('ignores a stored value whose shape no longer matches the declared type', () => {
+        const declared: DataAppVizConfigOption[] = [
+            {
+                name: 'showLegend',
+                label: 'Show legend',
+                type: 'boolean',
+                default: true,
+            },
+            { name: 'maxBars', label: 'Max bars', type: 'number', default: 10 },
+            { name: 'title', label: 'Title', type: 'text', default: 'Sales' },
+            {
+                name: 'barColor',
+                label: 'Bar colour',
+                type: 'color',
+                default: '#7162FF',
+            },
+            {
+                name: 'layout',
+                label: 'Layout',
+                type: 'select',
+                choices: [
+                    { value: 'vertical', label: 'Vertical' },
+                    { value: 'horizontal', label: 'Horizontal' },
+                ],
+                default: 'vertical',
+            },
+        ];
+
+        // Each stored value was written under the same name by a declaration
+        // that gave the option a different type.
+        expect(
+            getEffectiveOptionValues(declared, {
+                showLegend: 'yes',
+                maxBars: '24',
+                title: 12,
+                // Stored values are untyped JSONB, so a shape the value type no
+                // longer allows can still be sitting in the column.
+                barColor: ['#7162FF'] as unknown as DataAppVizOptionValue,
+                layout: 24,
+            }),
+        ).toEqual({
+            showLegend: true,
+            maxBars: 10,
+            title: 'Sales',
+            barColor: '#7162FF',
+            layout: 'vertical',
+        });
+    });
+
+    it('ignores a stored select value that is no longer a declared choice', () => {
+        const declared: DataAppVizConfigOption[] = [
+            {
+                name: 'layout',
+                label: 'Layout',
+                type: 'select',
+                choices: [{ value: 'vertical', label: 'Vertical' }],
+                default: 'vertical',
+            },
+        ];
+
+        expect(
+            getEffectiveOptionValues(declared, { layout: 'horizontal' }),
+        ).toEqual({ layout: 'vertical' });
     });
 });
 

@@ -14,6 +14,17 @@ import {
 import { type MetricQuery } from '../../types/metricQuery';
 import { type DashboardParameters } from '../../types/parameters';
 import { type ChartConfig, type SavedChart } from '../../types/savedCharts';
+import assertUnreachable from '../../utils/assertUnreachable';
+import {
+    type DataAppVizConfigOption,
+    type DataAppVizOptionValue,
+} from './dataAppVizConfigOptions';
+
+export type {
+    DataAppVizConfigOption,
+    DataAppVizConfigOptionType,
+    DataAppVizOptionValue,
+} from './dataAppVizConfigOptions';
 
 /**
  * Ordered pipeline stages. Index position determines progression — used to
@@ -593,65 +604,6 @@ export type DataAppVizField = {
     required: boolean;
 };
 
-export type DataAppVizConfigOptionType =
-    | 'boolean'
-    | 'select'
-    | 'number'
-    | 'text'
-    | 'color'
-    | 'palette';
-
-// A whole-viz config option rendered as a form control; `group` is an optional tab label.
-export type DataAppVizConfigOption =
-    | {
-          type: 'boolean';
-          name: string;
-          label: string;
-          group?: string;
-          default: boolean;
-      }
-    | {
-          type: 'select';
-          name: string;
-          label: string;
-          group?: string;
-          choices: { value: string; label: string }[];
-          default: string;
-      }
-    | {
-          type: 'number';
-          name: string;
-          label: string;
-          group?: string;
-          default: number;
-          min?: number;
-          max?: number;
-      }
-    | {
-          type: 'text';
-          name: string;
-          label: string;
-          group?: string;
-          default: string;
-      }
-    | {
-          type: 'color';
-          name: string;
-          label: string;
-          group?: string;
-          default: string;
-      }
-    | {
-          type: 'palette';
-          name: string;
-          label: string;
-          group?: string;
-          default: string[];
-      };
-
-/** A persisted config value; its shape is set by the option's declared `type`. */
-export type DataAppVizOptionValue = boolean | number | string | string[];
-
 /** The full declaration a data app viz emits: data-binding fields + config form. */
 export type DataAppVizSchema = {
     fields: DataAppVizField[];
@@ -715,11 +667,6 @@ export const dataAppVizSchema = z.object({
                     type: z.literal('color'),
                     default: z.string(),
                 }),
-                z.object({
-                    ...optionBase,
-                    type: z.literal('palette'),
-                    default: z.array(z.string()),
-                }),
             ]),
         )
         .default([])
@@ -744,13 +691,54 @@ void dataAppVizSchemaMatchesApiType;
 // enforced by the runtime `safeParse`.
 export const dataAppVizJsonSchema = zodToJsonSchema(dataAppVizSchema);
 
-/** Effective option values = stored value ?? declared default (derive, never seed). */
+/** Whether a stored value still has the shape the option declares. */
+const matchesDeclaredType = (
+    option: DataAppVizConfigOption,
+    value: DataAppVizOptionValue,
+): boolean => {
+    switch (option.type) {
+        case 'boolean':
+            return typeof value === 'boolean';
+        case 'number':
+            return typeof value === 'number';
+        case 'select':
+            // A choice dropped by a regeneration is as stale as a wrong type.
+            return option.choices.some((choice) => choice.value === value);
+        case 'text':
+        case 'color':
+            return typeof value === 'string';
+        default:
+            return assertUnreachable(
+                option,
+                'Unknown data app viz config option type',
+            );
+    }
+};
+
+/**
+ * Effective value of one option: the stored value, or the declared default when
+ * nothing is stored or the stored value no longer matches the declared type —
+ * stored values are untyped JSONB and a regeneration can change an option's
+ * type (derive, never seed).
+ */
+export const getEffectiveOptionValue = <T extends DataAppVizConfigOption>(
+    option: T,
+    storedValue: DataAppVizOptionValue | undefined,
+): T['default'] =>
+    storedValue !== undefined && matchesDeclaredType(option, storedValue)
+        ? (storedValue as T['default'])
+        : option.default;
+
+/** Effective values for every declared option. */
 export const getEffectiveOptionValues = (
     configOptions: DataAppVizConfigOption[],
     optionValues: Record<string, DataAppVizOptionValue>,
 ): Record<string, DataAppVizOptionValue> =>
     Object.fromEntries(
-        configOptions.map((o) => [o.name, optionValues[o.name] ?? o.default]),
+        configOptions.map((o) => [
+            o.name,
+            getEffectiveOptionValue(o, optionValues[o.name]),
+        ]),
     );
 
 // A reusable, by-reference data app viz: a single-tile data app that declares a
