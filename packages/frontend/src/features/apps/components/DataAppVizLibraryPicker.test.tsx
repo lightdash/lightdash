@@ -40,7 +40,7 @@ const setData = (data: DataAppViz[]) => {
 };
 
 const render = (
-    onSelect: (id: string | null) => void,
+    onSelect: (dataAppViz: DataAppViz | null) => void,
     selected: DataAppViz | null = null,
 ) =>
     renderWithProviders(
@@ -48,6 +48,7 @@ const render = (
             projectUuid="project-1"
             selectedDataAppVizUuid={selected?.dataAppVizUuid ?? null}
             selectedDataAppViz={selected}
+            disabled={false}
             onSelect={onSelect}
         />,
     );
@@ -73,17 +74,21 @@ describe('DataAppVizLibraryPicker', () => {
         expect(screen.getByText('Bar race')).toBeDefined();
     });
 
-    it('returns the selected viz uuid on click', () => {
-        setData([
-            makeDataAppViz({ dataAppVizUuid: 'picked', name: 'Pick me' }),
-        ]);
+    it('returns the whole selected viz on click, contract included', () => {
+        const picked = makeDataAppViz({
+            dataAppVizUuid: 'picked',
+            name: 'Pick me',
+        });
+        setData([picked]);
         const onSelect = vi.fn();
         render(onSelect);
         openDropdown();
 
         fireEvent.click(screen.getByText('Pick me'));
 
-        expect(onSelect).toHaveBeenCalledWith('picked');
+        // The caller binds the contract straight away, so it needs the schema
+        // and not just the uuid.
+        expect(onSelect).toHaveBeenCalledWith(picked);
     });
 
     it('lists the whole library while the input still holds the selected label', () => {

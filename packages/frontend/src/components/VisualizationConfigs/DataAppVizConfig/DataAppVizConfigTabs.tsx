@@ -10,6 +10,11 @@ import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import DataAppVizLibraryPicker from '../../../features/apps/components/DataAppVizLibraryPicker';
 import { useDataAppVisualization } from '../../../features/apps/hooks/useDataAppVisualization';
+import {
+    autoMapDataAppVizFields,
+    poolKeyForSlot,
+    reconcileDataAppVizFieldMapping,
+} from '../../../features/apps/utils/autoMapDataAppVizFields';
 import { getDataAppVizFieldItems } from '../../../features/apps/utils/getDataAppVizFieldItems';
 import FieldSelect from '../../common/FieldSelect';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
@@ -38,10 +43,14 @@ export const ConfigTabs: FC = memo(() => {
         dataAppVizUuid || undefined,
     );
 
-    const { dimensions, metrics } = useMemo(
-        () => getDataAppVizFieldItems(itemsMap ?? {}),
-        [itemsMap],
-    );
+    const itemPools = useMemo(() => {
+        const { dimensions, metrics } = getDataAppVizFieldItems(itemsMap ?? {});
+        return { dimension: dimensions, metric: metrics };
+    }, [itemsMap]);
+    // Auto-binding cannot run without columns, and it only runs once, at pick
+    // time — so picking now would leave the slots empty for good.
+    const hasColumns =
+        itemPools.dimension.length > 0 || itemPools.metric.length > 0;
 
     const configOptions = useMemo(
         () => dataAppViz?.schema?.configOptions ?? [],
@@ -50,7 +59,7 @@ export const ConfigTabs: FC = memo(() => {
     const colorPalette = dataAppViz?.schema?.colorPalette ?? null;
 
     const fieldItems = (field: DataAppVizField): Item[] =>
-        field.type === 'metric' ? metrics : dimensions;
+        itemPools[poolKeyForSlot(field)];
 
     if (!isDataAppViz) return null;
 
@@ -66,6 +75,14 @@ export const ConfigTabs: FC = memo(() => {
         configOptions,
         optionValues,
     );
+    // The contract can change under a stable uuid when the viz is rebuilt, so
+    // what the selects show is the saved mapping reconciled against the
+    // contract and columns in force now — the same value the renderer uses.
+    const effectiveMapping = reconcileDataAppVizFieldMapping(
+        fields,
+        itemsMap ?? {},
+        fieldMapping,
+    );
 
     const generalPanel = (
         <Stack>
@@ -76,8 +93,24 @@ export const ConfigTabs: FC = memo(() => {
                         projectUuid={projectUuid ?? ''}
                         selectedDataAppVizUuid={dataAppVizUuid || null}
                         selectedDataAppViz={dataAppViz ?? null}
-                        onSelect={(uuid) => setDataAppVizUuid(uuid ?? '')}
+                        disabled={!hasColumns}
+                        onSelect={(picked) =>
+                            setDataAppVizUuid(
+                                picked?.dataAppVizUuid ?? '',
+                                picked
+                                    ? autoMapDataAppVizFields(
+                                          picked.schema?.fields ?? [],
+                                          itemsMap ?? {},
+                                      )
+                                    : {},
+                            )
+                        }
                     />
+                    {!hasColumns && (
+                        <Text c="dimmed" size="xs">
+                            Run your query to pick a visualization.
+                        </Text>
+                    )}
                 </Config.Section>
             </Config>
 
@@ -89,7 +122,7 @@ export const ConfigTabs: FC = memo(() => {
 
             {fields.map((field) => {
                 const items = fieldItems(field);
-                const selectedId = fieldMapping[field.name];
+                const selectedId = effectiveMapping[field.name];
                 const selectedItem = selectedId
                     ? items.find((i) => getItemId(i) === selectedId)
                     : undefined;
