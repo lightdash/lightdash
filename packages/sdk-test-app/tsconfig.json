@@ -1,26 +1,24 @@
 {
     "extends": "./../../tsconfig.json",
     "compilerOptions": {
-        "composite": false,
+        "composite": true,
         "target": "ESNext",
         "lib": ["dom", "dom.iterable", "esnext"],
         "module": "ESNext",
-        "moduleResolution": "bundler",
+        "baseUrl": ".",
+        "ignoreDeprecations": "6.0",
+        "moduleResolution": "node10",
         "jsx": "react-jsx",
-        "skipLibCheck": true,
         "paths": {
             "@lightdash/common": ["../common/src/index.ts"],
             "@lightdash/common/*": ["../common/src/*"],
             "@lightdash/sdk": ["../frontend/sdk/index.tsx"],
-            "@lightdash/sdk/sdk.css": ["../frontend/sdk/dist/sdk.css"],
-            "better-ajv-errors": [
-                "../common/node_modules/better-ajv-errors/typings.d.ts"
-            ]
+            "@lightdash/sdk/sdk.css": ["../frontend/sdk/dist/sdk.css"]
         },
         "types": [
             "vite/client",
             "./vite-env.d.ts"
         ]
     },
-    "include": ["src", "../frontend/src/types/**/*.d.ts"]
+    "include": ["src"]
 }

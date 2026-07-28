@@ -25,9 +25,6 @@
     "paths": {
       "@/*": [
         "./src/*"
-      ],
-      "better-ajv-errors": [
-        "../common/node_modules/better-ajv-errors/typings.d.ts"
       ]
     }
   },

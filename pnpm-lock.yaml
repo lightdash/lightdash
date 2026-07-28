@@ -1685,8 +1685,8 @@ importers:
         specifier: 8.5.18
         version: 8.5.18
       typescript:
-        specifier: 7.0.2
-        version: 7.0.2
+        specifier: npm:@typescript/typescript6@6.0.2
+        version: '@typescript/typescript6@6.0.2'
 
   packages/sdk-test-app:
     dependencies:
@@ -1698,7 +1698,7 @@ importers:
         version: 8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       i18next:
         specifier: 24.2.2
-        version: 24.2.2(typescript@7.0.2)
+        version: 24.2.2(@typescript/typescript6@6.0.2)
       i18next-browser-languagedetector:
         specifier: 8.0.3
         version: 8.0.3
@@ -1713,7 +1713,7 @@ importers:
         version: 19.2.0(react@19.2.0)
       react-i18next:
         specifier: 15.4.1
-        version: 15.4.1(i18next@24.2.2(typescript@7.0.2))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+        version: 15.4.1(i18next@24.2.2(@typescript/typescript6@6.0.2))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
     devDependencies:
       '@types/jsonwebtoken':
         specifier: 9.0.5
@@ -1743,8 +1743,8 @@ importers:
         specifier: 2.7.0
         version: 2.7.0
       typescript:
-        specifier: 7.0.2
-        version: 7.0.2
+        specifier: npm:@typescript/typescript6@6.0.2
+        version: '@typescript/typescript6@6.0.2'
       vite:
         specifier: 8.0.5
         version: 8.0.5(@emnapi/core@1.9.2)(@emnapi/runtime@1.11.1)(@types/node@24.13.2)(esbuild@0.27.7)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3)
@@ -28841,11 +28841,11 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  i18next@24.2.2(typescript@7.0.2):
+  i18next@24.2.2(@typescript/typescript6@6.0.2):
     dependencies:
       '@babel/runtime': 7.28.6
     optionalDependencies:
-      typescript: 7.0.2
+      typescript: '@typescript/typescript6@6.0.2'
 
   iconv-lite@0.4.24:
     dependencies:
@@ -32315,11 +32315,11 @@ snapshots:
       react-draggable: 4.4.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       react-resizable: 3.0.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
 
-  react-i18next@15.4.1(i18next@24.2.2(typescript@7.0.2))(react-dom@19.2.0(react@19.2.0))(react@19.2.0):
+  react-i18next@15.4.1(i18next@24.2.2(@typescript/typescript6@6.0.2))(react-dom@19.2.0(react@19.2.0))(react@19.2.0):
     dependencies:
       '@babel/runtime': 7.28.6
       html-parse-stringify: 3.0.1
-      i18next: 24.2.2(typescript@7.0.2)
+      i18next: 24.2.2(@typescript/typescript6@6.0.2)
       react: 19.2.0
     optionalDependencies:
       react-dom: 19.2.0(react@19.2.0)
