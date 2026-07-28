@@ -12,6 +12,10 @@ volumes:
             dev.okteto.com/from-snapshot-name: ${DB_SNAPSHOT_NAME:-}
             dev.okteto.com/from-snapshot-namespace: ${DB_SNAPSHOT_NAMESPACE:-}
 
+secrets:
+    TURBO_TOKEN:
+        environment: TURBO_TOKEN
+
 # Okteto specific
 endpoints:
     - path: /
@@ -41,6 +45,10 @@ services:
             target: pr-runner
             context: ..
             dockerfile: dockerfile-prs
+            args:
+                - TURBO_TEAM=$TURBO_TEAM
+            secrets:
+                - TURBO_TOKEN
         depends_on:
             - db-preview
             - headless-browser

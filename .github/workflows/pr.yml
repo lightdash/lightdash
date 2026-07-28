@@ -359,7 +359,7 @@ jobs:
           # retry with a full migrate + seed (see okteto.preview.yaml)
           timeout: 30m
           file: okteto.preview.yaml
-          variables: SITE_URL=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,DB_DIVERT=${{ needs.files-changed.outputs.db_divert }}
+          variables: SITE_URL=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,DB_DIVERT=${{ needs.files-changed.outputs.db_divert }},TURBO_TEAM=${{ vars.TURBO_TEAM }},TURBO_TOKEN=${{ secrets.TURBO_TOKEN }}
 
       - name: Set preview URL output
         run: echo "url=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev" >> "$GITHUB_OUTPUT"
