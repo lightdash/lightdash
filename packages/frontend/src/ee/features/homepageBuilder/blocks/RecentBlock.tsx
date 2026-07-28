@@ -77,7 +77,7 @@ const RecentRow: FC<{
     );
 };
 
-const RecentList: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+export const RecentList: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { data: recents, isInitialLoading } = useRecentlyViewed(projectUuid);
     const uuids = (recents ?? [])
         .slice(0, MAX_RECENT_ITEMS)
