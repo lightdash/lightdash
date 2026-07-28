@@ -1,3 +1,11 @@
+# [1.3.0](https://github.com/lightdash/lightdash/compare/1.2.0...1.3.0) (2026-07-28)
+
+
+### Features
+
+* **data-apps:** manifest-aware Inspect-data tooltip advice ([#26225](https://github.com/lightdash/lightdash/issues/26225)) ([7955f9d](https://github.com/lightdash/lightdash/commit/7955f9d91aa65428e00f3bdf5f05312a7833074d))
+* enforce project-scoped data app slugs ([#26212](https://github.com/lightdash/lightdash/issues/26212)) ([c938b83](https://github.com/lightdash/lightdash/commit/c938b834423d44dc82759b5f0a9d179791e854cf))
+
 # [1.2.0](https://github.com/lightdash/lightdash/compare/1.1.1...1.2.0) (2026-07-28)
 
 
