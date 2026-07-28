@@ -22,10 +22,6 @@ export const AdminHomepageControls: FC<Props> = ({
     const navigate = useNavigate();
     return (
         <div className={classes.corner}>
-            <div
-                className={classes.deepResearchTarget}
-                data-deep-research-control-target
-            />
             <Can
                 I="manage"
                 this={subject('ProjectHomepage', {
@@ -64,6 +60,10 @@ export const AdminHomepageControls: FC<Props> = ({
                     </span>
                 </button>
             </Can>
+            <div
+                className={classes.deepResearchTarget}
+                data-deep-research-control-target
+            />
         </div>
     );
 };

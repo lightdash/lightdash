@@ -20,11 +20,19 @@ describe('AdminHomepageControls', () => {
             />,
         );
 
+        const customizeButton = screen.getByRole('button', {
+            name: 'Customize homepage',
+        });
+        const deepResearchTarget = container.querySelector(
+            '[data-deep-research-control-target]',
+        );
+
+        expect(deepResearchTarget).toBeInTheDocument();
+        if (!deepResearchTarget) {
+            throw new Error('Deep Research target was not rendered');
+        }
         expect(
-            container.querySelector('[data-deep-research-control-target]'),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole('button', { name: 'Customize homepage' }),
-        ).toBeInTheDocument();
+            customizeButton.compareDocumentPosition(deepResearchTarget),
+        ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     });
 });
