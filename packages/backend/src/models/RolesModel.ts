@@ -937,7 +937,7 @@ export class RolesModel {
 
     /**
      * Set a user's organization and project roles to exactly match the provided values.
-     * - Organization role is REQUIRED and must be a valid system organization role id (no custom role allowed).
+     * - Organization role is REQUIRED and can be a system or custom organization role id.
      * - Project roles: adds or updates roles for listed projects; removes memberships for projects not present.
      * - If projectRoles is an empty array, all existing project memberships for the user are removed.
      * - If excludeProjectPreviews is true, preview projects are excluded from removal operations.
@@ -946,7 +946,7 @@ export class RolesModel {
     async setUserOrgAndProjectRoles(
         organizationUuid: string,
         userUuid: string,
-        orgRoleId: OrganizationMemberRole,
+        orgRoleId: string,
         projectRoles: Array<{ projectUuid: string; roleId: string }>,
         excludeProjectPreviews: boolean = false,
         tx?: Knex.Transaction,
