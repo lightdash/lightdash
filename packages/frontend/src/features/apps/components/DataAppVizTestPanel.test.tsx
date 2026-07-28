@@ -48,6 +48,7 @@ const schema: DataAppVizSchema = {
         { name: 'value', label: 'Value', type: 'metric', required: true },
     ],
     configOptions: [],
+    colorPalette: null,
 };
 
 const makeDimension = (name: string, hidden: boolean): CompiledDimension => ({
@@ -247,6 +248,7 @@ describe('DataAppVizTestPanel', () => {
                         },
                     ],
                     configOptions: [],
+                    colorPalette: null,
                 }}
                 onContextChange={vi.fn()}
             />,

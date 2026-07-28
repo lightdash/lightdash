@@ -1015,6 +1015,7 @@ describe('data-app-viz-context push', () => {
             },
         ],
         options: { showLegend: true, barColor: '#ff0000' },
+        colorPalette: ['#7162FF', '#1A1B1E'],
     };
 
     function renderWithDataAppVizContext(ctx: DataAppVizContext | undefined) {
@@ -1041,6 +1042,7 @@ describe('data-app-viz-context push', () => {
                 fieldMapping: dataAppVizContext.fieldMapping,
                 rows: dataAppVizContext.rows,
                 options: dataAppVizContext.options,
+                colorPalette: dataAppVizContext.colorPalette,
             }),
             '*',
         );
@@ -1075,6 +1077,40 @@ describe('data-app-viz-context push', () => {
                 fieldMapping: dataAppVizContext.fieldMapping,
                 rows: dataAppVizContext.rows,
                 options: { showLegend: false },
+            }),
+            '*',
+        );
+    });
+
+    it('re-pushes the context when only the color palette changes', () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        const { rerender } = renderHook(
+            ({ ctx }: { ctx: DataAppVizContext }) =>
+                useAppSdkBridge({
+                    iframeRef,
+                    expectedPreviewOrigin: window.location.origin,
+                    projectUuid: PROJECT_UUID,
+                    appUuid: APP_UUID,
+                    dataAppVizContext: ctx,
+                }),
+            { initialProps: { ctx: dataAppVizContext } },
+        );
+        postSpy.mockClear();
+
+        rerender({
+            ctx: { ...dataAppVizContext, colorPalette: ['#F2C94C'] },
+        });
+
+        expect(postSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                type: APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
+                fieldMapping: dataAppVizContext.fieldMapping,
+                rows: dataAppVizContext.rows,
+                options: dataAppVizContext.options,
+                colorPalette: ['#F2C94C'],
             }),
             '*',
         );

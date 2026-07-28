@@ -10,6 +10,7 @@ const schema: DataAppVizSchema = {
         { name: 'value', label: 'Value', type: 'metric', required: false },
     ],
     configOptions: [],
+    colorPalette: null,
 };
 
 describe('DataAppVizResultCard', () => {
@@ -30,7 +31,9 @@ describe('DataAppVizResultCard', () => {
 
     it('renders gracefully with an empty fields array', () => {
         renderWithProviders(
-            <DataAppVizResultCard schema={{ fields: [], configOptions: [] }} />,
+            <DataAppVizResultCard
+                schema={{ fields: [], configOptions: [], colorPalette: null }}
+            />,
         );
 
         expect(screen.getByText('Visualization ready')).toBeInTheDocument();

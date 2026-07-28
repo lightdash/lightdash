@@ -21,10 +21,13 @@ const validFields = {
 };
 
 describe('dataAppVizSchema', () => {
-    it('accepts a well-formed fields declaration (configOptions defaults to [])', () => {
+    it('accepts a well-formed fields declaration (configOptions defaults to [], colorPalette to null)', () => {
         const r = dataAppVizSchema.safeParse(validFields);
         expect(r.success).toBe(true);
-        if (r.success) expect(r.data.configOptions).toEqual([]);
+        if (r.success) {
+            expect(r.data.configOptions).toEqual([]);
+            expect(r.data.colorPalette).toBeNull();
+        }
     });
 
     it('accepts an empty field list', () => {
@@ -136,6 +139,24 @@ describe('dataAppVizSchema', () => {
                 ],
             }).success,
         ).toBe(false);
+    });
+
+    it('accepts a colorPalette declaration, with or without a group', () => {
+        const grouped = dataAppVizSchema.safeParse({
+            fields: [],
+            colorPalette: { group: 'Colours' },
+        });
+        expect(grouped.success).toBe(true);
+        if (grouped.success) {
+            expect(grouped.data.colorPalette).toEqual({ group: 'Colours' });
+        }
+
+        const ungrouped = dataAppVizSchema.safeParse({
+            fields: [],
+            colorPalette: {},
+        });
+        expect(ungrouped.success).toBe(true);
+        if (ungrouped.success) expect(ungrouped.data.colorPalette).toEqual({});
     });
 
     it('rejects a boolean option with a non-boolean default', () => {

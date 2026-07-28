@@ -60,6 +60,7 @@ vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
             rows: [{ 'orders.category': { value: { raw: 'Hardware' } } }],
             setFetchAll: mocks.setFetchAll,
         },
+        colorPalette: ['#7162FF'],
     }),
 }));
 
@@ -98,6 +99,7 @@ describe('DataAppVizRenderer option delivery', () => {
             expect.objectContaining({
                 dataAppVizContext: expect.objectContaining({
                     options: { title: 'Sales' },
+                    colorPalette: ['#7162FF'],
                 }),
             }),
             undefined,

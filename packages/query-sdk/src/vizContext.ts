@@ -34,6 +34,7 @@ export type VizContextRow = Record<string, VizContextCell | undefined>;
 /**
  * A config option value. Its shape follows the option's declared type:
  * `boolean` → boolean, `number` → number, `select`/`text`/`color` → string.
+ * Series colours are not an option — they arrive on `colorPalette`.
  */
 export type VizContextOptionValue = boolean | number | string;
 
@@ -41,7 +42,9 @@ export type VizContextOptionValue = boolean | number | string;
  * Pushed by the host into the iframe. `fieldMapping` maps each field name the
  * renderer declared to the query field id it resolves to; `rows` are the
  * host-fetched result rows keyed by field id; `options` holds the current
- * value of each config option the renderer declared.
+ * value of each config option the renderer declared; `colorPalette` is the
+ * Lightdash palette resolved for this chart, pushed whether or not the
+ * renderer declared one.
  */
 export type DataAppVizContextMessage = {
     type: 'lightdash:sdk:data-app-viz-context';
@@ -49,6 +52,8 @@ export type DataAppVizContextMessage = {
     rows: VizContextRow[];
     /** Absent when the installed host predates config-option delivery. */
     options?: Record<string, VizContextOptionValue>;
+    /** Absent when the installed host predates palette delivery. */
+    colorPalette?: string[];
 };
 
 /** Posted by the iframe on mount so the host pushes the current context. */
@@ -84,6 +89,13 @@ export type VizContext = {
     rows: VizContextRow[];
     /** Config option name → current value (the user's choice, else the declared default). */
     options: Record<string, VizContextOptionValue>;
+    /**
+     * Ordered series colours resolved from the Lightdash palette the viewer
+     * picked. Colour multi-series charts with
+     * `colorPalette[i % colorPalette.length]`. Empty only when the host
+     * resolved no palette; keep a fallback array in your own code for that.
+     */
+    colorPalette: string[];
     /** False until the first context arrives — render a placeholder while false. */
     ready: boolean;
 };
@@ -92,6 +104,7 @@ type VizContextValue = {
     fieldMapping: Record<string, string>;
     rows: VizContextRow[];
     options: Record<string, VizContextOptionValue>;
+    colorPalette: string[];
 };
 
 type VizContextState = VizContextValue | null;
@@ -123,8 +136,9 @@ const normalizeOptions = (
 
 /**
  * Normalises an inbound host message into provider state. The payload crosses a
- * postMessage boundary so every key is treated as untrusted; `options` is also
- * absent from hosts predating it, and falls back to `{}`.
+ * postMessage boundary so every key is treated as untrusted; `options` and
+ * `colorPalette` are also absent from hosts predating them, and fall back to
+ * `{}` / `[]`.
  */
 export function toVizContextState(
     message: DataAppVizContextMessage,
@@ -133,6 +147,11 @@ export function toVizContextState(
         fieldMapping: message.fieldMapping ?? {},
         rows: Array.isArray(message.rows) ? message.rows : [],
         options: normalizeOptions(message.options),
+        colorPalette: Array.isArray(message.colorPalette)
+            ? message.colorPalette.filter(
+                  (color): color is string => typeof color === 'string',
+              )
+            : [],
     };
 }
 
@@ -197,7 +216,7 @@ export function VizContextProvider({ children }: { children: ReactNode }) {
  * still works standalone. Re-renders whenever the host pushes (on load, on
  * mapping change, on query change). Resolve a declared field to its bound cell
  * with `fieldMapping[name]` then `getFormatted`/`getRaw`; read a declared
- * config option with `options[name]`.
+ * config option with `options[name]`, and colour series from `colorPalette`.
  */
 export function useVizContext(): VizContext {
     const fromProvider = useContext(VizContextContext);
@@ -215,6 +234,7 @@ export function useVizContext(): VizContext {
         fieldMapping: context?.fieldMapping ?? {},
         rows: context?.rows ?? [],
         options: context?.options ?? {},
+        colorPalette: context?.colorPalette ?? [],
         ready: context !== null,
     };
 }

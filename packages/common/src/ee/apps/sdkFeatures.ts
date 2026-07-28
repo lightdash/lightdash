@@ -80,6 +80,13 @@ export const SDK_FEATURES: SdkFeature[] = [
         description:
             'Receive query context when app visualizations are embedded in dashboards.',
     },
+    {
+        key: 'viz-config-options',
+        label: 'Visualization config options',
+        description:
+            "Let viewers adjust the visualization from the Lightdash config panel — toggles, dropdowns, numbers, text and colours — and take series colours from the chart's palette, without regenerating the app.",
+        wiring: 'Declare configOptions (and colorPalette, if the viz colours series) in the viz schema, then read options[name] and colorPalette from useVizContext().',
+    },
 ];
 
 export const SDK_FEATURE_KEYS: string[] = SDK_FEATURES.map((f) => f.key);

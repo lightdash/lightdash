@@ -31,7 +31,8 @@ const DataAppVizPlaceholder: FC<{ message: string }> = ({ message }) => (
 
 const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { visualizationConfig, resultsData } = useVisualizationContext();
+    const { visualizationConfig, resultsData, colorPalette } =
+        useVisualizationContext();
     const previewOrigin = usePreviewOrigin();
     const hasSignaledScreenshotReady = useRef(false);
 
@@ -94,8 +95,11 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
                 configOptions,
                 optionValues ?? {},
             ),
+            // Already resolved through the full palette cascade and dark-mode
+            // corrected by the visualization context.
+            colorPalette,
         };
-    }, [fieldMapping, rows, configOptions, optionValues]);
+    }, [fieldMapping, rows, configOptions, optionValues, colorPalette]);
 
     if (!projectUuid || !dataAppVizUuid) {
         return (
