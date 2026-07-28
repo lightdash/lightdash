@@ -1,5 +1,6 @@
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
+import { AppsTableName } from '../database/entities/apps';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
@@ -35,18 +36,34 @@ describe('generateUniqueSlugScopedToProject', () => {
         },
     );
 
-    it('uses native project ownership for saved SQL charts', async () => {
-        tracker.on.select(SavedSqlTableName).responseOnce([]);
+    it.each([SavedSqlTableName, AppsTableName] as const)(
+        'uses native project ownership for %s',
+        async (tableName) => {
+            tracker.on.select(tableName).responseOnce([]);
 
-        await generateUniqueSlugScopedToProject(
+            await generateUniqueSlugScopedToProject(
+                database,
+                '22222222-2222-4222-8222-222222222222',
+                tableName,
+                'Orders',
+            );
+
+            const [query] = tracker.history.select;
+            expect(query.sql).toContain(`"${tableName}"."project_uuid"`);
+            expect(query.sql).not.toContain(`join "${ProjectTableName}"`);
+        },
+    );
+
+    it('caps generated app slugs at 255 characters', async () => {
+        tracker.on.select(AppsTableName).responseOnce([]);
+
+        const slug = await generateUniqueSlugScopedToProject(
             database,
             '22222222-2222-4222-8222-222222222222',
-            SavedSqlTableName,
-            'Orders',
+            AppsTableName,
+            'a'.repeat(300),
         );
 
-        const [query] = tracker.history.select;
-        expect(query.sql).toContain(`"${SavedSqlTableName}"."project_uuid"`);
-        expect(query.sql).not.toContain(`join "${ProjectTableName}"`);
+        expect(slug).toHaveLength(255);
     });
 });

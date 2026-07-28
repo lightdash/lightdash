@@ -23,6 +23,7 @@ export type DbApp = {
     name: string;
     description: string;
     project_uuid: string;
+    slug: string;
     space_uuid: string | null;
     // Stable, registry-owned sandbox id (`sandbox_registry.sandbox_uuid`). Null
     // until the app's first generation creates a sandbox. The provider's own
@@ -47,7 +48,7 @@ export type DbApp = {
 
 export type AppsTable = Knex.CompositeTableType<
     DbApp,
-    Pick<DbApp, 'project_uuid' | 'created_by_user_uuid'> &
+    Pick<DbApp, 'project_uuid' | 'created_by_user_uuid' | 'slug'> &
         Partial<
             Pick<
                 DbApp,
