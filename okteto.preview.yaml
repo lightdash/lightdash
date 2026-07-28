@@ -59,14 +59,16 @@ deploy:
         if [ -n "${DB_SNAPSHOT_NAME:-}" ]; then
           # Divert must never break preview creation: cloning can fail at
           # deploy time (e.g. GCP throttles disk creation per source snapshot
-          # when several previews deploy at once). Recreate the volume blank
-          # and take the full migrate + seed path instead.
-          if ! okteto deploy -f docker/docker-compose.preview.yml; then
+          # when several previews deploy at once). The explicit timeout keeps
+          # a clone that hangs in Pending from eating the whole pipeline
+          # window, so the fallback below always gets its turn: recreate the
+          # volume blank and take the full migrate + seed path instead.
+          if ! okteto deploy -f docker/docker-compose.preview.yml --timeout 18m; then
             echo "Diverted deploy failed: retrying with a blank database volume"
             kubectl delete statefulset db-preview --ignore-not-found --wait
             kubectl delete pvc db-data --ignore-not-found --wait
             export DB_SNAPSHOT_NAME="" DB_SNAPSHOT_NAMESPACE=""
-            okteto deploy -f docker/docker-compose.preview.yml
+            okteto deploy -f docker/docker-compose.preview.yml --timeout 20m
           fi
         else
           okteto deploy -f docker/docker-compose.preview.yml

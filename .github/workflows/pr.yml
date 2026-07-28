@@ -355,9 +355,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           name: pr-${{ github.event.number }}
-          # Generous enough for a failed snapshot divert plus the blank-volume
+          # Covers a bounded diverted attempt (18m) plus the blank-volume
           # retry with a full migrate + seed (see okteto.preview.yaml)
-          timeout: 30m
+          timeout: 40m
           file: okteto.preview.yaml
           variables: SITE_URL=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,DB_DIVERT=${{ needs.files-changed.outputs.db_divert }},TURBO_TEAM=${{ vars.TURBO_TEAM }},TURBO_TOKEN=${{ secrets.TURBO_TOKEN }}
 
