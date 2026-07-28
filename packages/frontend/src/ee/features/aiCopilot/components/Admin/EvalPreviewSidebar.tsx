@@ -16,7 +16,7 @@ import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiAgentAdminEvalPrompts } from '../../hooks/useAiAgentAdmin';
 import { AgentNamePill } from '../AgentNamePill';
-import { RunStatusBadge, TimeAgo } from './EvalRunStatus';
+import { RunStatusIndicator, TimeAgo } from './EvalRunStatus';
 
 const getAdminEvalUrl = (evalSummary: AiAgentAdminEvalSummary) =>
     `/projects/${evalSummary.project.uuid}/ai-agents/${evalSummary.agent.uuid}/edit/evals/${evalSummary.evalUuid}`;
@@ -103,7 +103,7 @@ export const EvalPreviewSidebar: FC<EvalPreviewSidebarProps> = ({
                 <MetaField label="Latest run">
                     {latestRun ? (
                         <Group gap="xs" wrap="nowrap">
-                            <RunStatusBadge status={latestRun.status} />
+                            <RunStatusIndicator status={latestRun.status} />
                             <TimeAgo
                                 date={
                                     latestRun.completedAt ?? latestRun.createdAt

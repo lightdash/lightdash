@@ -1,16 +1,28 @@
 import { type AiAgentEvaluationRunSummary } from '@lightdash/common';
-import { Badge, Text, Tooltip } from '@mantine-8/core';
+import { Text, Tooltip, type MantineColor } from '@mantine-8/core';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import { statusConfig } from '../Evals/utils';
+import { StatusIndicator } from '../StatusIndicator';
 
-export const RunStatusBadge = ({
+const statusDotColor: Record<
+    AiAgentEvaluationRunSummary['status'],
+    MantineColor
+> = {
+    completed: 'green.6',
+    failed: 'red.6',
+    running: 'yellow.6',
+    pending: 'ldGray.6',
+};
+
+export const RunStatusIndicator = ({
     status,
 }: {
     status: AiAgentEvaluationRunSummary['status'];
 }) => (
-    <Badge variant="light" color={statusConfig[status].color}>
-        {statusConfig[status].label}
-    </Badge>
+    <StatusIndicator
+        color={statusDotColor[status]}
+        label={statusConfig[status].label}
+    />
 );
 
 export const TimeAgo = ({

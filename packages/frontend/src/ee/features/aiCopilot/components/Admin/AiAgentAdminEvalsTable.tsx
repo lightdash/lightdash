@@ -47,7 +47,7 @@ import { useInfiniteAiAgentAdminEvals } from '../../hooks/useAiAgentAdmin';
 import { useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
 import { AgentNamePill } from '../AgentNamePill';
 import AgentsFilter from './AgentsFilter';
-import { RunStatusBadge, TimeAgo } from './EvalRunStatus';
+import { RunStatusIndicator, TimeAgo } from './EvalRunStatus';
 import ProjectsFilter from './ProjectsFilter';
 import { SearchFilter } from './SearchFilter';
 
@@ -284,7 +284,7 @@ const AiAgentAdminEvalsTable = ({
                 }
                 return (
                     <Stack gap={2} align="flex-start">
-                        <RunStatusBadge status={latestRun.status} />
+                        <RunStatusIndicator status={latestRun.status} />
                         <TimeAgo
                             date={latestRun.completedAt ?? latestRun.createdAt}
                             fz="xs"
