@@ -5,14 +5,40 @@ set -e
 # already contains the dbt demo data and the Lightdash seed; it only needs
 # the branch's unapplied migrations. Any error in the check (blank database,
 # database not up yet) falls through to the full path.
+check_database() {
+    (
+        cd /usr/app/packages/backend
+        node -e '
+            const { Client } = require("pg");
+            const client = new Client();
+
+            (async () => {
+                try {
+                    await client.connect();
+                    const { rows } = await client.query(process.argv[1]);
+                    if (process.argv[2] === "seeded" && !rows[0].seeded) {
+                        process.exitCode = 1;
+                    }
+                } catch {
+                    process.exitCode = 1;
+                } finally {
+                    await client.end().catch(() => undefined);
+                }
+            })();
+        ' "$1" "${2:-}"
+    )
+}
+
 is_seeded() {
-    [ "$(psql -tAc "SELECT to_regclass('jaffle.orders') IS NOT NULL AND EXISTS (SELECT 1 FROM emails WHERE email = 'demo@lightdash.com')" 2>/dev/null)" = "t" ]
+    check_database \
+        "SELECT to_regclass('jaffle.orders') IS NOT NULL AND EXISTS (SELECT 1 FROM emails WHERE email = 'demo@lightdash.com') AS seeded" \
+        seeded
 }
 
 # Wait for the database before deciding which path to take, otherwise a
 # diverted database that is still starting up would be mistaken for blank
 for _ in $(seq 1 60); do
-    psql -tAc "SELECT 1" >/dev/null 2>&1 && break
+    check_database "SELECT 1" >/dev/null 2>&1 && break
     sleep 2
 done
 
