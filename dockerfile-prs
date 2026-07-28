@@ -57,6 +57,22 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-databricks~=1.11.0" \
     "dbt-trino~=1.10.0"
 
+FROM base AS package-manifests
+
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .pnpmfile.cjs ./
+COPY packages/common/package.json packages/common/
+COPY packages/formula/package.json packages/formula/
+COPY packages/warehouses/package.json packages/warehouses/
+COPY packages/backend/package.json packages/backend/
+
+FROM package-manifests AS prod-dependencies
+
+ENV NODE_ENV=production
+
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm --filter backend... install --prod \
+    --frozen-lockfile --prefer-offline
+
 # -----------------------------
 # Stage 1: Development environment
 # -----------------------------
@@ -172,23 +188,6 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 
 # output: /usr/app/packages/frontend/build
 
-############################
-# Build: deployment payload
-############################
-FROM prod-builder AS deploy-builder
-
-# Copy built artifacts, not sources
-COPY --from=build-backend  /usr/app/packages/backend/dist  packages/backend/dist
-COPY --from=build-frontend /usr/app/packages/frontend/build packages/frontend/build
-COPY --from=build-common   /usr/app/packages/common/dist   packages/common/dist
-COPY --from=build-formula  /usr/app/packages/formula/dist  packages/formula/dist
-COPY --from=build-warehouses /usr/app/packages/warehouses/dist packages/warehouses/dist
-
-ENV NODE_ENV=production
-
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm --filter backend --prod deploy /out/app/packages/backend --legacy
-
 # -----------------------------
 # Stage 3: execution environment for backend
 # -----------------------------
@@ -215,8 +214,12 @@ RUN ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt1.11
 
 # Run backend
 COPY ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
-COPY --from=deploy-builder /out/app/packages/backend /usr/app/packages/backend
-COPY --from=deploy-builder /usr/app/packages/frontend/build /usr/app/packages/frontend/build
+COPY --from=prod-dependencies /usr/app /usr/app
+COPY --from=build-common /usr/app/packages/common/dist /usr/app/packages/common/dist
+COPY --from=build-formula /usr/app/packages/formula/dist /usr/app/packages/formula/dist
+COPY --from=build-warehouses /usr/app/packages/warehouses/dist /usr/app/packages/warehouses/dist
+COPY --from=build-backend /usr/app/packages/backend/dist /usr/app/packages/backend/dist
+COPY --from=build-frontend /usr/app/packages/frontend/build /usr/app/packages/frontend/build
 
 EXPOSE 8080
 
