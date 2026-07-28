@@ -382,27 +382,30 @@ export class UserService extends BaseService {
         );
         if (updatedEmails.length > 0) {
             const onboardingFlow = await this.getOnboardingFlow(user);
+            const location = user.isSetupComplete ? 'settings' : 'onboarding';
             this.analytics.track({
                 userId: user.userUuid,
                 event: 'user.verified',
                 properties: {
                     email,
-                    location: user.isSetupComplete ? 'settings' : 'onboarding',
+                    location,
                     isTrackingAnonymized: user.isTrackingAnonymized,
                     method,
                     onboardingFlow,
                 },
             });
-            this.analytics.track({
-                userId: user.userUuid,
-                event: 'onboarding.step_completed',
-                properties: {
-                    step: 'verified',
-                    stepIndex: 2,
-                    onboardingFlow,
-                    organizationId: user.organizationUuid,
-                },
-            });
+            if (location === 'onboarding') {
+                this.analytics.track({
+                    userId: user.userUuid,
+                    event: 'onboarding.step_completed',
+                    properties: {
+                        step: 'verified',
+                        stepIndex: 2,
+                        onboardingFlow,
+                        organizationId: user.organizationUuid,
+                    },
+                });
+            }
         }
     }
 
