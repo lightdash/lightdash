@@ -251,7 +251,9 @@ export type SchedulerTaskArguments = {
  * the ExecutionContext write.
  */
 export function buildSchedulerLogContext(args: {
-    jobId?: string;
+    // graphile-worker types job.id as string but the global pg INT8 parser
+    // override (PostgresWarehouseClient) makes it a BigInt at runtime
+    jobId?: string | bigint;
     schedulerUuid?: string;
     schedulerName?: string;
     savedSqlUuid?: string | null;
@@ -260,7 +262,7 @@ export function buildSchedulerLogContext(args: {
     if (args.schedulerUuid) schedulerCtx.scheduler_uuid = args.schedulerUuid;
     if (args.schedulerName) schedulerCtx.scheduler_name = args.schedulerName;
     if (args.savedSqlUuid) schedulerCtx.saved_sql_uuid = args.savedSqlUuid;
-    if (args.jobId) schedulerCtx.job_id = args.jobId;
+    if (args.jobId) schedulerCtx.job_id = String(args.jobId);
     return Object.keys(schedulerCtx).length === 0 ? null : schedulerCtx;
 }
 
