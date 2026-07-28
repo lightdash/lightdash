@@ -93,12 +93,12 @@ describe('announceSdkManifest', () => {
             }),
         );
 
-    it('posts the manifest immediately, targeted at the serving origin', () => {
+    it('posts the manifest immediately with a wildcard target (cloud serves bundles cross-origin)', () => {
         const targetWindow = { postMessage: vi.fn() } as unknown as Window;
         cleanup = announceSdkManifest(targetWindow);
         expect(targetWindow.postMessage).toHaveBeenCalledWith(
             expectedMessage,
-            window.location.origin,
+            '*',
         );
     });
 
