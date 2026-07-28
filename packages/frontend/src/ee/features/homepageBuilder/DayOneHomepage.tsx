@@ -7,12 +7,12 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import FavoritesPanel from '../../../components/FavoritesPanel';
 import PinnedItemsPanel from '../../../components/PinnedItemsPanel';
 import useApp from '../../../providers/App/useApp';
-import { useAiAgentButtonVisibility } from '../aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { AskAiHero } from './blocks/AskAiHeroBlock';
 import { getDefaultQuickActions } from './blocks/quickActionDefaults';
 import { QuickActionCards } from './blocks/QuickActionsBlock';
 import classes from './DayOneHomepage.module.css';
 import layout from './homepageLayout.module.css';
+import { useHomepageAiEnabled } from './hooks/useHomepageAiEnabled';
 
 type Props = {
     projectUuid: string;
@@ -30,7 +30,7 @@ export const DayOneHomepage: FC<Props> = ({
     pinnedIsEnabled,
 }) => {
     const { user } = useApp();
-    const isAiEnabled = useAiAgentButtonVisibility();
+    const isAiEnabled = useHomepageAiEnabled();
 
     return (
         <div className={layout.page}>

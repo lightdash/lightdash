@@ -60,7 +60,6 @@ import { Fragment, useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
-import { useAiAgentButtonVisibility } from '../aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { TIER_CLASS, traitFor } from './blockLayout';
 import { IconSquare } from './blocks/BlockShell';
 import {
@@ -86,6 +85,7 @@ import {
 } from './configOps';
 import classes from './HomepageEditor.module.css';
 import layout from './homepageLayout.module.css';
+import { useHomepageAiEnabled } from './hooks/useHomepageAiEnabled';
 import {
     useDeleteHomepage,
     useDiscardHomepageDraft,
@@ -483,7 +483,7 @@ export const HomepageEditor: FC<Props> = ({
     const [isDiscardModalOpen, setIsDiscardModalOpen] = useState(false);
     const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
 
-    const isAiEnabled = useAiAgentButtonVisibility();
+    const isAiEnabled = useHomepageAiEnabled();
 
     const [draft, setDraft] = useState<HomepageConfig>(() =>
         migrateHomepageConfig(homepage.draftConfig),

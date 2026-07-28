@@ -6,8 +6,9 @@ import { AskAiHeroBlockBuild, AskAiHeroBlockView } from './AskAiHeroBlock';
 vi.mock('../DayOneAskInput', () => ({
     DayOneAskInput: () => <div data-testid="ask-input" />,
 }));
-vi.mock('../../aiCopilot/hooks/useAiAgentsButtonVisibility', () => ({
-    useAiAgentButtonVisibility: () => true,
+const mockIsAiEnabled = vi.hoisted(() => ({ value: true }));
+vi.mock('../hooks/useHomepageAiEnabled', () => ({
+    useHomepageAiEnabled: () => mockIsAiEnabled.value,
 }));
 vi.mock('../../../../providers/App/useApp', () => ({
     default: () => ({ user: { data: { firstName: 'Test' } } }),
@@ -65,6 +66,40 @@ describe('AskAiHeroBlockView', () => {
         );
         expect(screen.queryByText(/What do you want to know/)).toBeNull();
         expect(screen.getByTestId('ask-input')).toBeInTheDocument();
+    });
+
+    describe('without a configured agent', () => {
+        beforeEach(() => {
+            mockIsAiEnabled.value = false;
+        });
+        afterEach(() => {
+            mockIsAiEnabled.value = true;
+        });
+
+        it('keeps the greeting as a plain header, without the composer', () => {
+            wrap(
+                <AskAiHeroBlockView
+                    itemSpan={null}
+                    block={block}
+                    projectUuid="p1"
+                />,
+            );
+            expect(screen.getByText(/^Good /)).toBeInTheDocument();
+            expect(screen.queryByText(/What do you want to know/)).toBeNull();
+            expect(screen.queryByTestId('ask-input')).toBeNull();
+        });
+
+        it('renders nothing when the greeting is off', () => {
+            wrap(
+                <AskAiHeroBlockView
+                    itemSpan={null}
+                    block={{ ...block, config: { showGreeting: false } }}
+                    projectUuid="p1"
+                />,
+            );
+            expect(screen.queryByRole('heading')).toBeNull();
+            expect(screen.queryByTestId('ask-input')).toBeNull();
+        });
     });
 });
 

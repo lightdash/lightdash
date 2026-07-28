@@ -1,12 +1,26 @@
 import { Box, Stack, Switch, Text } from '@mantine-8/core';
 import { type FC } from 'react';
 import useApp from '../../../../providers/App/useApp';
-import { useAiAgentButtonVisibility } from '../../aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { DayOneAskInput } from '../DayOneAskInput';
 import { getGreeting } from '../greeting';
+import { useHomepageAiEnabled } from '../hooks/useHomepageAiEnabled';
 import { RecommendedActionsChecklist } from './RecommendedActionsChecklist';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 import { useRecommendedActions } from './useRecommendedActions';
+
+export const HeroHeading: FC<{ children: string }> = ({ children }) => (
+    <Text
+        component="h1"
+        fz={23}
+        fw={600}
+        lts="-0.02em"
+        lh={1.2}
+        ta="center"
+        m={0}
+    >
+        {children}
+    </Text>
+);
 
 // The day-0 hero, as a reusable unit: greeting + the real agent chat
 // composer with live suggestions. Shared between DayOneHomepage (always
@@ -31,18 +45,9 @@ export const AskAiHero: FC<{
     return (
         <Stack gap={16} align="center" w="100%">
             {showGreeting && (
-                <Text
-                    component="h1"
-                    fz={23}
-                    fw={600}
-                    lts="-0.02em"
-                    lh={1.2}
-                    ta="center"
-                    m={0}
-                >
-                    {getGreeting(user.data?.firstName)}. What do you want to
-                    know?
-                </Text>
+                <HeroHeading>{`${getGreeting(
+                    user.data?.firstName,
+                )}. What do you want to know?`}</HeroHeading>
             )}
             <Box w="100%">
                 <DayOneAskInput projectUuid={projectUuid} preview={preview} />
@@ -61,8 +66,17 @@ export const AskAiHeroBlockView: FC<BlockComponentProps> = ({
     block,
     projectUuid,
 }) => {
-    const isAiEnabled = useAiAgentButtonVisibility();
-    if (block.type !== 'ask-ai-hero' || !isAiEnabled) return null;
+    const { user } = useApp();
+    const isAiEnabled = useHomepageAiEnabled();
+    if (block.type !== 'ask-ai-hero') return null;
+    // No agent to talk to: keep the greeting as a plain page header and drop
+    // the composer. Greeting-less heroes never reach here — stripAiBlocks
+    // removes them from the config before the layout is resolved.
+    if (!isAiEnabled) {
+        return block.config.showGreeting ? (
+            <HeroHeading>{getGreeting(user.data?.firstName)}</HeroHeading>
+        ) : null;
+    }
     // The greeting follows its toggle regardless of the block's position; it
     // still renders inline mid-page rather than only in the hero slot.
     return (

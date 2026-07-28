@@ -4,15 +4,17 @@ import {
     type HomepageConfig,
 } from '@lightdash/common';
 import { Box, Paper, Text } from '@mantine-8/core';
-import { type FC, type ReactNode } from 'react';
+import { useMemo, type FC, type ReactNode } from 'react';
 import { TIER_CLASS } from './blockLayout';
 import { getBlockDefinition } from './blocks/registry';
 import { type BlockPresentation } from './blocks/types';
 import layout from './homepageLayout.module.css';
+import { useHomepageAiEnabled } from './hooks/useHomepageAiEnabled';
 import {
     resolveHomepageLayout,
     type ResolvedRow,
 } from './resolveHomepageLayout';
+import { stripUnavailableAiBlocks } from './stripAiBlocks';
 
 const PERSONAL_BLOCK_TYPES: HomepageBlock['type'][] = ['favorites', 'recent'];
 
@@ -108,7 +110,13 @@ export const PublishedHomepage: FC<Props> = ({
     personalPlaceholders = false,
     topBar = null,
 }) => {
-    const { hero, rows } = resolveHomepageLayout(migrateHomepageConfig(config));
+    const isAiEnabled = useHomepageAiEnabled();
+    const { hero, rows } = useMemo(() => {
+        const migrated = migrateHomepageConfig(config);
+        return resolveHomepageLayout(
+            isAiEnabled ? migrated : stripUnavailableAiBlocks(migrated),
+        );
+    }, [config, isAiEnabled]);
 
     return (
         <div className={layout.page}>

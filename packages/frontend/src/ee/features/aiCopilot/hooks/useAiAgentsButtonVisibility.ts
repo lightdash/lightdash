@@ -6,11 +6,21 @@ import { useAiAgentPermission } from './useAiAgentPermission';
 import { useAiOrganizationSettings } from './useAiOrganizationSettings';
 import { useProjectAiAgents } from './useProjectAiAgents';
 
+type AiAgentVisibility = {
+    /** AI surfaces may be shown — true for anyone who can manage agents, even
+     * when none exist yet. */
+    isVisible: boolean;
+    /** At least one agent is configured in the active project. */
+    hasAgents: boolean;
+    isLoading: boolean;
+};
+
 /**
- * This hook is used to determine if the ai agent button should be visible
- * @returns true if the ai agent button should be visible
+ * Resolves whether AI agent surfaces should be shown, and whether an agent is
+ * actually configured — callers that can't render anything useful without one
+ * (see `useHomepageAiEnabled`) need to tell those two cases apart.
  */
-export const useAiAgentButtonVisibility = () => {
+export const useAiAgentVisibility = (): AiAgentVisibility => {
     const activeProjectQuery = useActiveProject();
     const projectUuid = activeProjectQuery.data ?? undefined;
 
@@ -41,6 +51,8 @@ export const useAiAgentButtonVisibility = () => {
         CommercialFeatureFlags.AiCopilot,
     );
 
+    const hasAgents = !!agentsQuery.data && agentsQuery.data.length > 0;
+
     if (
         agentsQuery.isLoading ||
         aiOrganizationSettingsQuery.isLoading ||
@@ -48,25 +60,28 @@ export const useAiAgentButtonVisibility = () => {
         appQuery.health.isLoading ||
         aiCopilotFlagQuery.isLoading
     ) {
-        return false;
+        return { isVisible: false, hasAgents, isLoading: true };
     }
 
-    const hasAgents = agentsQuery.data && agentsQuery.data.length > 0;
     const canViewButton = (canViewAiAgents && hasAgents) || canManageAiAgents;
     const isAiAgentEnabled = aiOrganizationSettingsQuery.data?.aiAgentsVisible;
     const isAiCopilotEnabledOrTrial =
         aiCopilotFlagQuery.data?.enabled ||
         aiOrganizationSettingsQuery.data?.isTrial;
 
-    if (
-        !canViewButton ||
-        !canViewAiAgents ||
-        !isAiAgentEnabled ||
-        !projectUuid ||
-        !isAiCopilotEnabledOrTrial
-    ) {
-        return false;
-    }
+    const isVisible =
+        !!canViewButton &&
+        !!canViewAiAgents &&
+        !!isAiAgentEnabled &&
+        !!projectUuid &&
+        !!isAiCopilotEnabledOrTrial;
 
-    return true;
+    return { isVisible, hasAgents, isLoading: false };
 };
+
+/**
+ * This hook is used to determine if the ai agent button should be visible
+ * @returns true if the ai agent button should be visible
+ */
+export const useAiAgentButtonVisibility = () =>
+    useAiAgentVisibility().isVisible;

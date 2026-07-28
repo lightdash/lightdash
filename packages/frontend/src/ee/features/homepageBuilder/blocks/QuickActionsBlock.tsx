@@ -30,7 +30,7 @@ import MantineModal from '../../../../components/common/MantineModal';
 import { useInfiniteContent } from '../../../../hooks/useContent';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
-import { useAiAgentButtonVisibility } from '../../aiCopilot/hooks/useAiAgentsButtonVisibility';
+import { useHomepageAiEnabled } from '../hooks/useHomepageAiEnabled';
 import classes from './blockStyles.module.css';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
@@ -92,7 +92,7 @@ export const QuickActionCards: FC<{
     projectUuid: string;
 }> = ({ actions, projectUuid }) => {
     const { track } = useTracking();
-    const isAiEnabled = useAiAgentButtonVisibility();
+    const isAiEnabled = useHomepageAiEnabled();
     const visibleActions = actions.filter(
         (action) => action.type !== 'ask-ai' || isAiEnabled,
     );
@@ -210,6 +210,7 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
     onChange,
 }) => {
     const [isDashboardPickerOpen, setIsDashboardPickerOpen] = useState(false);
+    const isAiEnabled = useHomepageAiEnabled();
     if (block.type !== 'quick-actions') return null;
 
     const setActions = (actions: HomepageQuickAction[]) =>
@@ -226,7 +227,9 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
     const missingStatics = (
         Object.keys(STATIC_ACTIONS) as Array<keyof typeof STATIC_ACTIONS>
     ).filter(
-        (type) => !block.config.actions.some((action) => action.type === type),
+        (type) =>
+            (type !== 'ask-ai' || isAiEnabled) &&
+            !block.config.actions.some((action) => action.type === type),
     );
 
     return (

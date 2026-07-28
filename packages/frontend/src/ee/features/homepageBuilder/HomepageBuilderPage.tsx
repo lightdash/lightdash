@@ -14,8 +14,10 @@ import ForbiddenPanel from '../../../components/ForbiddenPanel';
 import PageSpinner from '../../../components/PageSpinner';
 import useApp from '../../../providers/App/useApp';
 import { useIsCopilotEnabled } from '../aiCopilot/hooks/useIsCopilotEnabled';
+import { getDefaultQuickActions } from './blocks/quickActionDefaults';
 import { CreateHomepageModal } from './CreateHomepageModal';
 import { HomepageEditor } from './HomepageEditor';
+import { useHomepageAiState } from './hooks/useHomepageAiEnabled';
 import {
     useCreateHomepageWithDraft,
     useHomepageBuilderFlag,
@@ -39,6 +41,7 @@ export const HomepageBuilderPage: FC = () => {
         useHomepageBuilderFlag();
     const { isCopilotEnabled, isLoading: isCopilotLoading } =
         useIsCopilotEnabled();
+    const { isAiEnabled, isLoading: isAiStateLoading } = useHomepageAiState();
     const homepage = useHomepageForBuilder(projectUuid, {
         enabled: isFlagEnabled,
         homepageUuid: selectedHomepageUuid,
@@ -73,6 +76,9 @@ export const HomepageBuilderPage: FC = () => {
     const shouldAutoCreate =
         isFlagEnabled &&
         isCopilotEnabled &&
+        // The seed depends on whether an agent is configured, so don't create
+        // until that is known.
+        !isAiStateLoading &&
         canManage &&
         !!projectUuid &&
         homepage.isFetchedAfterMount &&
@@ -91,11 +97,23 @@ export const HomepageBuilderPage: FC = () => {
                         {
                             id: uuidv4(),
                             blocks: [
-                                {
-                                    id: uuidv4(),
-                                    type: 'ask-ai-hero',
-                                    config: { showGreeting: true },
-                                },
+                                // Without a configured agent the Ask AI hero
+                                // isn't offered at all, so seed the next best
+                                // starting point.
+                                isAiEnabled
+                                    ? {
+                                          id: uuidv4(),
+                                          type: 'ask-ai-hero',
+                                          config: { showGreeting: true },
+                                      }
+                                    : {
+                                          id: uuidv4(),
+                                          type: 'quick-actions',
+                                          config: {
+                                              actions:
+                                                  getDefaultQuickActions(false),
+                                          },
+                                      },
                             ],
                         },
                     ],
@@ -103,7 +121,7 @@ export const HomepageBuilderPage: FC = () => {
             },
             { onSuccess: openHomepage },
         );
-    }, [shouldAutoCreate, createFirstHomepage, openHomepage]);
+    }, [shouldAutoCreate, createFirstHomepage, openHomepage, isAiEnabled]);
 
     if (isFlagLoading || isCopilotLoading) {
         return <PageSpinner />;
