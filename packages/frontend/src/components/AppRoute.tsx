@@ -38,20 +38,17 @@ const AppRoute: FC<React.PropsWithChildren> = ({ children }) => {
         ) {
             return <PageSpinner />;
         }
+        const isNewOnboardingEnabled = orgSetupPageFlag.data?.enabled ?? false;
         const showGetStarted =
             homepageBuilderFlag.isEnabled &&
             isCopilotEnabled &&
-            (orgSetupPageFlag.data?.enabled ?? false);
-        return (
-            <Navigate
-                to={{
-                    pathname: showGetStarted
-                        ? '/get-started'
-                        : '/createProject',
-                }}
-                state={{ from: location }}
-            />
-        );
+            isNewOnboardingEnabled;
+        const pathname = showGetStarted
+            ? '/get-started'
+            : isNewOnboardingEnabled
+              ? '/onboarding/data-source'
+              : '/createProject';
+        return <Navigate to={{ pathname }} state={{ from: location }} />;
     }
 
     return <>{children}</>;
