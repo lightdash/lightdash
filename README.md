@@ -13,7 +13,7 @@
 
 <p align="center">
   <a href="https://youtu.be/LPsHglF_b-E">
-    <img src="https://img.youtube.com/vi/LPsHglF_b-E/maxresdefault.jpg" width="900" alt="Watch Lightdash in action" />
+    <img src="./static/screenshots/platform-overview-readme.jpg" width="900" alt="Watch the Lightdash platform overview" />
   </a>
 </p>
 
@@ -59,7 +59,7 @@ Define metrics, dimensions, joins, descriptions, caching, and access rules in on
 
 Embed dashboards, AI agents, and Data Apps in your product with the Lightdash SDK which supports configurable row-level security, user attributes, and customer-facing permissions.
 
-Take a look at our [embedding showcase](https://embed.lightdash.com/) or read our [embedding docs](https://docs.lightdash.com/references/embedding).  
+Take a look at our [embedding showcase](https://embed.lightdash.com/) or read our [embedding docs](https://docs.lightdash.com/references/embedding).
 
 ### Open-source core
 
