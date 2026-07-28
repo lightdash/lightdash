@@ -8,9 +8,11 @@ import {
     getItemId,
     isExploreError,
     NotFoundError,
+    ParameterError,
     ProjectType,
     type AiAgentMemory,
     type AiAgentMemoryDistillJobPayload,
+    type AiAgentMemoryEditableStatus,
     type AiAgentMemorySource,
     type AiProjectContextTypedObjectRef,
     type Explore,
@@ -248,11 +250,11 @@ export class AiAgentMemoryService extends BaseService {
         }
     }
 
-    async getMemory(
+    private async getMemoryAccessContext(
         user: SessionUser,
         projectUuid: string,
-        slug: string,
-    ): Promise<AiAgentMemory> {
+        identifier: string,
+    ): Promise<string> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         if (
@@ -275,25 +277,59 @@ export class AiAgentMemoryService extends BaseService {
             }),
         ]);
         if (!copilot.enabled || !memoryFlag.enabled) {
-            throw new NotFoundError(`Memory not found: ${slug}`);
+            throw new NotFoundError(`Memory not found: ${identifier}`);
         }
+
+        return organizationUuid;
+    }
+
+    private async requireReadableMemory(
+        user: SessionUser,
+        organizationUuid: string,
+        projectUuid: string,
+        memory: DbAiAgentMemory | undefined,
+        identifier: string,
+    ): Promise<DbAiAgentMemory> {
+        if (
+            !memory ||
+            !(await this.canReadMemory(
+                user,
+                organizationUuid,
+                projectUuid,
+                memory,
+            ))
+        ) {
+            throw new NotFoundError(`Memory not found: ${identifier}`);
+        }
+
+        return memory;
+    }
+
+    async getMemory(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+    ): Promise<AiAgentMemory> {
+        const organizationUuid = await this.getMemoryAccessContext(
+            user,
+            projectUuid,
+            slug,
+        );
 
         const result = await this.aiAgentMemoryModel.findByProjectAndSlug({
             projectUuid,
             slug,
         });
-        if (
-            !result ||
-            !(await this.canReadMemory(
-                user,
-                organizationUuid,
-                projectUuid,
-                result.memory,
-            ))
-        ) {
-            // Same error as a missing row so a reader can't probe for existence
+        if (!result) {
             throw new NotFoundError(`Memory not found: ${slug}`);
         }
+        await this.requireReadableMemory(
+            user,
+            organizationUuid,
+            projectUuid,
+            result.memory,
+            slug,
+        );
 
         // Reading the memory grants its lineage: the check above already covers
         // the whole row, so there is nothing left to redact per source.
@@ -313,6 +349,7 @@ export class AiAgentMemoryService extends BaseService {
         );
 
         const response: AiAgentMemory = {
+            uuid: result.memory.ai_agent_memory_uuid,
             slug: result.memory.slug,
             title: result.memory.title,
             rawMemory: result.memory.raw_memory,
@@ -345,6 +382,57 @@ export class AiAgentMemoryService extends BaseService {
         });
 
         return response;
+    }
+
+    async updateMemoryStatus(
+        user: SessionUser,
+        projectUuid: string,
+        memoryUuid: string,
+        status: AiAgentMemoryEditableStatus,
+    ): Promise<void> {
+        const organizationUuid = await this.getMemoryAccessContext(
+            user,
+            projectUuid,
+            memoryUuid,
+        );
+        const memory = await this.requireReadableMemory(
+            user,
+            organizationUuid,
+            projectUuid,
+            await this.aiAgentMemoryModel.findByProjectAndUuid({
+                projectUuid,
+                memoryUuid,
+            }),
+            memoryUuid,
+        );
+
+        if (memory.status === 'superseded') {
+            throw new ParameterError('Superseded memories are read-only');
+        }
+
+        if (status === 'active' && memory.source_thread_uuid) {
+            const activeMemory =
+                await this.aiAgentMemoryModel.findActiveBySourceThread(
+                    memory.source_thread_uuid,
+                );
+            if (
+                activeMemory &&
+                activeMemory.ai_agent_memory_uuid !==
+                    memory.ai_agent_memory_uuid
+            ) {
+                throw new ParameterError(
+                    'A newer memory from this source is already active',
+                );
+            }
+        }
+
+        const updated = await this.aiAgentMemoryModel.updateStatus({
+            memoryUuid: memory.ai_agent_memory_uuid,
+            status,
+        });
+        if (!updated) {
+            throw new ParameterError('This memory can no longer be changed');
+        }
     }
 
     async sweep(now = new Date()): Promise<number> {
@@ -399,6 +487,20 @@ export class AiAgentMemoryService extends BaseService {
             Date.now() - startTime,
         );
         return outcome;
+    }
+
+    /** Single definition site for the ledger row every skip cause writes. */
+    private async recordSkip(
+        threadUuid: string,
+        distilledUpTo: Date,
+    ): Promise<'skipped'> {
+        await this.aiAgentMemoryModel.upsertThreadDistill({
+            aiThreadUuid: threadUuid,
+            outcome: 'skipped',
+            distillPromptHash: null,
+            distilledUpTo,
+        });
+        return 'skipped';
     }
 
     private async runDistillThread(
@@ -456,13 +558,18 @@ export class AiAgentMemoryService extends BaseService {
                     turn.assistantText !== null,
             )
         ) {
-            await this.aiAgentMemoryModel.upsertThreadDistill({
-                aiThreadUuid: thread.threadUuid,
-                outcome: 'skipped',
-                distillPromptHash: null,
-                distilledUpTo: sweptUpdatedAt,
-            });
-            return 'skipped';
+            return this.recordSkip(thread.threadUuid, sweptUpdatedAt);
+        }
+
+        // A thread whose memory was consolidated away or retired stops feeding
+        // memory: the one-active-row index would let a re-distill insert a
+        // second active row beside the row that replaced it.
+        const memoryState =
+            await this.aiAgentMemoryModel.resolveSourceThreadMemoryState(
+                thread.threadUuid,
+            );
+        if (memoryState === 'inactive') {
+            return this.recordSkip(thread.threadUuid, sweptUpdatedAt);
         }
 
         let failureStage: AiAgentMemoryGenerationFailedEvent['properties']['failureStage'] =
@@ -501,6 +608,15 @@ export class AiAgentMemoryService extends BaseService {
                 organizationUuid: thread.organizationUuid,
                 threadUuid: thread.threadUuid,
             });
+            // Re-read: the status can flip while the LLM call is in flight, and
+            // the upsert would then insert a second active row.
+            if (
+                (await this.aiAgentMemoryModel.resolveSourceThreadMemoryState(
+                    thread.threadUuid,
+                )) === 'inactive'
+            ) {
+                return await this.recordSkip(thread.threadUuid, sweptUpdatedAt);
+            }
             const memory =
                 await this.aiAgentMemoryModel.upsertSourceThreadMemory({
                     organizationUuid: thread.organizationUuid,

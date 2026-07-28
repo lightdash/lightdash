@@ -82,4 +82,10 @@ export class WarehouseConnectCodeModel {
             .first();
         return row ? WarehouseConnectCodeModel.convertRow(row) : null;
     }
+
+    async deleteExpired(): Promise<number> {
+        return this.database(WarehouseConnectCodeTableName)
+            .where('expires_at', '<=', this.database.fn.now())
+            .delete();
+    }
 }

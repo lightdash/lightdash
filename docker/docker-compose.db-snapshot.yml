@@ -10,8 +10,15 @@ volumes:
             class: csi-okteto
             size: 2Gi
 
+secrets:
+    TURBO_TOKEN:
+        environment: TURBO_TOKEN
+
 services:
-    db-snapshot:
+    # Must be named identically to the preview db service: the seed stores the
+    # project's warehouse connection (including this hostname) in the database,
+    # and a preview diverted from the snapshot must be able to resolve it
+    db-preview:
         image: pgvector/pgvector:pg18
         restart: always
         environment:
@@ -28,17 +35,22 @@ services:
             target: pr-runner
             context: ..
             dockerfile: dockerfile-prs
+            args:
+                - TURBO_TEAM=$TURBO_TEAM
+            secrets:
+                - TURBO_TOKEN
         restart: always
         depends_on:
-            - db-snapshot
+            - db-preview
         environment:
             NODE_ENV: production
             DBT_DEMO_DIR: /usr/app
+            LIGHTDASH_SEED_DBT_VERSION: v1.11
             # Must match the preview LIGHTDASH_SECRET in
             # docker-compose.preview.yml: the seed encrypts warehouse
             # credentials with it, and a diverted preview must decrypt them
             LIGHTDASH_SECRET: not very secret
-            PGHOST: db-snapshot
+            PGHOST: db-preview
             PGPORT: 5432
             PGDATABASE: postgres
             PGPASSWORD: not-very-secret-preview-db

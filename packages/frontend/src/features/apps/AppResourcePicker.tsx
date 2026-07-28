@@ -33,6 +33,7 @@ import {
     IconClick,
     IconDatabase,
     IconDatabasePlus,
+    IconFileDescription,
     IconLayoutDashboard,
     IconLink,
     IconPhoto,
@@ -42,7 +43,13 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import uniqBy from 'lodash/uniqBy';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import {
+    useCallback,
+    useMemo,
+    useState,
+    type ClipboardEvent,
+    type FC,
+} from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { ModelSelector } from '../../components/common/ModelSelector/ModelSelector';
@@ -54,6 +61,16 @@ import { useProject } from '../../hooks/useProject';
 import useApp from '../../providers/App/useApp';
 import { useExternalConnections } from '../externalConnections/hooks/useExternalConnections';
 import classes from './AppResourcePicker.module.css';
+import {
+    useAttachResourceLink,
+    type AttachableResourceType,
+    type AttachLinkOutcome,
+} from './hooks/useAttachResourceLink';
+
+type AttachFromLink = (
+    input: string,
+    accepts: AttachableResourceType,
+) => Promise<AttachLinkOutcome>;
 
 export type SelectedChart = {
     uuid: string;
@@ -271,6 +288,26 @@ export const ModelPicker: FC<{
 };
 
 /**
+ * Bound to paste rather than to every keystroke: a half-typed URL is still a
+ * syntactically valid link, so `onChange` would fire lookups for ids that
+ * don't exist yet. Clears the box on success, leaves the text on failure.
+ */
+const useLinkPasteHandler = (
+    attachFromLink: AttachFromLink,
+    accepts: AttachableResourceType,
+    setSearchQuery: (value: string) => void,
+) =>
+    useCallback(
+        async (event: ClipboardEvent<HTMLInputElement>) => {
+            const pasted = event.clipboardData.getData('text');
+            if ((await attachFromLink(pasted, accepts)) === 'attached') {
+                setSearchQuery('');
+            }
+        },
+        [attachFromLink, accepts, setSearchQuery],
+    );
+
+/**
  * Internal: chart list with search. Used inside `AttachButton`'s popover.
  * Selecting a chart adds it to the parent and keeps the picker open so
  * multiple can be added in one flow.
@@ -281,7 +318,17 @@ const QueryPickerView: FC<{
     onDeselect: (uuid: string) => void;
     onDone: () => void;
     enabled: boolean;
-}> = ({ selectedCharts, onSelect, onDeselect, onDone, enabled }) => {
+    attachFromLink: AttachFromLink;
+    isResolvingLink: boolean;
+}> = ({
+    selectedCharts,
+    onSelect,
+    onDeselect,
+    onDone,
+    enabled,
+    attachFromLink,
+    isResolvingLink,
+}) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
@@ -340,20 +387,27 @@ const QueryPickerView: FC<{
         [onSelect, onDeselect, selectedUuids],
     );
 
+    const handlePasteLink = useLinkPasteHandler(
+        attachFromLink,
+        'chart',
+        setSearchQuery,
+    );
+
     return (
         <>
             <Box px="xs" pb="xs">
                 <TextInput
                     size="xs"
-                    placeholder="Search queries..."
+                    placeholder="Search or paste a link..."
                     leftSection={<MantineIcon icon={IconSearch} size={14} />}
                     rightSection={
-                        isFetching && !isInitialLoading ? (
+                        (isFetching && !isInitialLoading) || isResolvingLink ? (
                             <Loader size={14} />
                         ) : undefined
                     }
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                    onPaste={(e) => void handlePasteLink(e)}
                     autoFocus
                 />
             </Box>
@@ -449,43 +503,85 @@ const QueryPickerView: FC<{
 };
 
 /**
- * Renders selected images as rounded thumbnails with remove buttons.
+ * Renders selected attachments with remove buttons: images as rounded
+ * thumbnails, other files as filename pills matching the query-pill look.
  */
-export const SelectedImageSection: FC<{
-    images: Array<{ previewUrl: string }>;
-    onRemove: (previewUrl: string) => void;
+export const SelectedAttachmentSection: FC<{
+    attachments: Array<{
+        id: string;
+        /** Object URL for image thumbnails; null renders a filename pill. */
+        previewUrl: string | null;
+        filename: string;
+    }>;
+    onRemove: (id: string) => void;
     disabled?: boolean;
     loading?: boolean;
-}> = ({ images, onRemove, disabled, loading }) => {
-    if (images.length === 0) return null;
+}> = ({ attachments, onRemove, disabled, loading }) => {
+    if (attachments.length === 0) return null;
 
     return (
         <Group gap="xs">
-            {images.map((img) => (
-                <Box key={img.previewUrl} className={classes.imageItem}>
-                    <Image
-                        src={img.previewUrl}
-                        className={classes.imageThumb}
-                        alt="Attached"
-                    />
-                    <LoadingOverlay
-                        visible={loading ?? false}
-                        loaderProps={{ size: 'xs' }}
-                        overlayProps={{
-                            radius: 'md',
-                            backgroundOpacity: 0.5,
-                        }}
-                    />
-                    {!loading && (
-                        <CloseButton
-                            size="xs"
-                            className={classes.imageRemove}
-                            onClick={() => onRemove(img.previewUrl)}
-                            disabled={disabled}
+            {attachments.map((att) =>
+                att.previewUrl ? (
+                    <Box key={att.id} className={classes.imageItem}>
+                        <Image
+                            src={att.previewUrl}
+                            className={classes.imageThumb}
+                            alt="Attached"
                         />
-                    )}
-                </Box>
-            ))}
+                        <LoadingOverlay
+                            visible={loading ?? false}
+                            loaderProps={{ size: 'xs' }}
+                            overlayProps={{
+                                radius: 'md',
+                                backgroundOpacity: 0.5,
+                            }}
+                        />
+                        {!loading && (
+                            <CloseButton
+                                size="xs"
+                                className={classes.imageRemove}
+                                onClick={() => onRemove(att.id)}
+                                disabled={disabled}
+                            />
+                        )}
+                    </Box>
+                ) : (
+                    <Box
+                        key={att.id}
+                        className={`${classes.selectedQueryItem} ${classes.fileItem}`}
+                    >
+                        <Box className={classes.selectedQueryItemIcon}>
+                            <MantineIcon icon={IconFileDescription} size={12} />
+                        </Box>
+                        <Text
+                            fw={500}
+                            truncate
+                            className={classes.selectedQueryItemName}
+                        >
+                            {att.filename}
+                        </Text>
+                        <ActionIcon
+                            size="xs"
+                            variant="subtle"
+                            color="gray"
+                            radius="xl"
+                            onClick={() => onRemove(att.id)}
+                            disabled={disabled || loading}
+                        >
+                            <MantineIcon icon={IconX} size={10} />
+                        </ActionIcon>
+                        <LoadingOverlay
+                            visible={loading ?? false}
+                            loaderProps={{ size: 'xs' }}
+                            overlayProps={{
+                                radius: 'xl',
+                                backgroundOpacity: 0.5,
+                            }}
+                        />
+                    </Box>
+                ),
+            )}
         </Group>
     );
 };
@@ -687,17 +783,27 @@ export const SelectedQuerySection: FC<{
 };
 
 /**
- * Internal: dashboard list with search. Used inside `AttachButton`'s
- * popover. Single-select: clicking a different dashboard replaces the
- * current one (and tells the parent to close the popover); clicking the
- * already-selected dashboard deselects and keeps the popover open.
+ * Internal: dashboard list with search. Interaction-identical to
+ * `QueryPickerView`; only the selection model differs — single-select, so
+ * picking a different dashboard replaces the current one.
  */
 const DashboardPickerView: FC<{
     selectedDashboard: SelectedDashboard | null;
     onSelect: (dashboard: SelectedDashboard) => void;
     onDeselect: () => void;
+    onDone: () => void;
     enabled: boolean;
-}> = ({ selectedDashboard, onSelect, onDeselect, enabled }) => {
+    attachFromLink: AttachFromLink;
+    isResolvingLink: boolean;
+}> = ({
+    selectedDashboard,
+    onSelect,
+    onDeselect,
+    onDone,
+    enabled,
+    attachFromLink,
+    isResolvingLink,
+}) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
@@ -728,15 +834,25 @@ const DashboardPickerView: FC<{
         [onSelect, onDeselect, selectedDashboard],
     );
 
+    const handlePasteLink = useLinkPasteHandler(
+        attachFromLink,
+        'dashboard',
+        setSearchQuery,
+    );
+
     return (
         <>
             <Box px="xs" pb="xs">
                 <TextInput
                     size="xs"
-                    placeholder="Search dashboards..."
+                    placeholder="Search or paste a link..."
                     leftSection={<MantineIcon icon={IconSearch} size={14} />}
+                    rightSection={
+                        isResolvingLink ? <Loader size={14} /> : undefined
+                    }
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                    onPaste={(e) => void handlePasteLink(e)}
                     autoFocus
                 />
             </Box>
@@ -785,6 +901,11 @@ const DashboardPickerView: FC<{
                     })
                 )}
             </ScrollArea.Autosize>
+            <Box className={classes.attachPickerFooter}>
+                <Button size="compact-xs" radius="md" onClick={onDone}>
+                    Done
+                </Button>
+            </Box>
         </>
     );
 };
@@ -969,9 +1090,9 @@ export const AttachButton: FC<{
     selectedConnections: SelectedConnection[];
     onSelectConnection: (connection: SelectedConnection) => void;
     onDeselectConnection: (uuid: string) => void;
-    onAddImages: () => void;
+    onAddFiles: () => void;
     disabled: boolean;
-    imagesDisabled: boolean;
+    filesDisabled: boolean;
 }> = ({
     selectedCharts,
     onSelectChart,
@@ -982,10 +1103,11 @@ export const AttachButton: FC<{
     selectedConnections,
     onSelectConnection,
     onDeselectConnection,
-    onAddImages,
+    onAddFiles,
     disabled,
-    imagesDisabled,
+    filesDisabled,
 }) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const [opened, setOpened] = useState(false);
     const [view, setView] = useState<AttachView>('menu');
 
@@ -994,20 +1116,17 @@ export const AttachButton: FC<{
         if (!isOpen) setView('menu');
     }, []);
 
-    const handleSelectDashboard = useCallback(
-        (dashboard: SelectedDashboard) => {
-            onSelectDashboard(dashboard);
-            setOpened(false);
-            setView('menu');
-        },
-        [onSelectDashboard],
-    );
+    const { attachFromLink, isResolvingLink } = useAttachResourceLink({
+        projectUuid,
+        onSelectChart,
+        onSelectDashboard,
+    });
 
-    const handleImagesClick = useCallback(() => {
+    const handleFilesClick = useCallback(() => {
         setOpened(false);
         setView('menu');
-        onAddImages();
-    }, [onAddImages]);
+        onAddFiles();
+    }, [onAddFiles]);
 
     const headerTitle =
         // eslint-disable-next-line no-nested-ternary
@@ -1035,7 +1154,7 @@ export const AttachButton: FC<{
         >
             <Popover.Target>
                 <Tooltip
-                    label="Add charts, dashboards, connections or images"
+                    label="Add charts, dashboards, connections or files"
                     withArrow
                     position="top"
                 >
@@ -1093,20 +1212,20 @@ export const AttachButton: FC<{
                         </UnstyledButton>
                         <UnstyledButton
                             className={classes.attachMenuItem}
-                            onClick={handleImagesClick}
-                            disabled={imagesDisabled}
+                            onClick={handleFilesClick}
+                            disabled={filesDisabled}
                             ff="inherit"
-                            data-disabled={imagesDisabled || undefined}
+                            data-disabled={filesDisabled || undefined}
                         >
                             <MantineIcon icon={IconPhoto} />
                             <Box flex={1}>
                                 <Text size="sm" fw={500}>
-                                    Images
+                                    Files
                                 </Text>
                                 <Text size="xs" c="dimmed">
-                                    {imagesDisabled
-                                        ? 'Image limit reached'
-                                        : 'Upload reference images'}
+                                    {filesDisabled
+                                        ? 'Attachment limit reached'
+                                        : 'Upload images, PDFs, or text files'}
                                 </Text>
                             </Box>
                         </UnstyledButton>
@@ -1160,6 +1279,8 @@ export const AttachButton: FC<{
                                     setView('menu');
                                 }}
                                 enabled={opened}
+                                attachFromLink={attachFromLink}
+                                isResolvingLink={isResolvingLink}
                             />
                         ) : view === 'connections' ? (
                             <ConnectionPickerView
@@ -1175,9 +1296,15 @@ export const AttachButton: FC<{
                         ) : (
                             <DashboardPickerView
                                 selectedDashboard={selectedDashboard}
-                                onSelect={handleSelectDashboard}
+                                onSelect={onSelectDashboard}
                                 onDeselect={onDeselectDashboard}
+                                onDone={() => {
+                                    setOpened(false);
+                                    setView('menu');
+                                }}
                                 enabled={opened}
+                                attachFromLink={attachFromLink}
+                                isResolvingLink={isResolvingLink}
                             />
                         )}
                     </>

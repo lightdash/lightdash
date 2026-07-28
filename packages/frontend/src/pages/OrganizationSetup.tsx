@@ -105,6 +105,7 @@ const buildBrandColors = (
 type OrganizationSetupFormValues = {
     organizationName: string;
     jobTitle: string;
+    howDidYouHearAboutUs: string;
     enableEmailDomainAccess: boolean;
     isMarketingOptedIn: boolean;
     isTrackingAnonymized: boolean;
@@ -136,6 +137,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                     ? inferOrganizationName(emailDomain)
                     : '',
             jobTitle: '',
+            howDidYouHearAboutUs: '',
             enableEmailDomainAccess: canEnableEmailDomainAccess,
             isMarketingOptedIn: true,
             isTrackingAnonymized: false,
@@ -244,21 +246,27 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         });
 
         if (user.organizationName) {
+            // Joining an existing org: no org name to set, and the brand
+            // belongs to the org (which a joiner — often a viewer — has no
+            // rights to change), so don't attempt to save it.
             completeMutation.mutate({
                 jobTitle: values.jobTitle,
+                howDidYouHearAboutUs: values.howDidYouHearAboutUs.trim(),
                 enableEmailDomainAccess: values.enableEmailDomainAccess,
                 isMarketingOptedIn: values.isMarketingOptedIn,
                 isTrackingAnonymized: values.isTrackingAnonymized,
             });
-        } else {
-            completeMutation.mutate({
-                organizationName: values.organizationName,
-                jobTitle: values.jobTitle,
-                enableEmailDomainAccess: values.enableEmailDomainAccess,
-                isMarketingOptedIn: values.isMarketingOptedIn,
-                isTrackingAnonymized: values.isTrackingAnonymized,
-            });
+            return;
         }
+
+        completeMutation.mutate({
+            organizationName: values.organizationName,
+            jobTitle: values.jobTitle,
+            howDidYouHearAboutUs: values.howDidYouHearAboutUs.trim(),
+            enableEmailDomainAccess: values.enableEmailDomainAccess,
+            isMarketingOptedIn: values.isMarketingOptedIn,
+            isTrackingAnonymized: values.isTrackingAnonymized,
+        });
 
         const brandDomain =
             detectedBrand?.domain ?? (isCompanyDomain ? emailDomain : null);
@@ -431,6 +439,15 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                     size="md"
                                     required
                                     {...form.getInputProps('jobTitle')}
+                                />
+
+                                <TextInput
+                                    label="How did you hear about us?"
+                                    placeholder="Google, a colleague, a podcast..."
+                                    size="md"
+                                    {...form.getInputProps(
+                                        'howDidYouHearAboutUs',
+                                    )}
                                 />
 
                                 <Stack gap="xs">

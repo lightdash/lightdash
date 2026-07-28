@@ -150,6 +150,7 @@ describe('AiAgentMemoryService', () => {
                     featureFlagId === CommercialFeatureFlags.AiCopilot),
         }));
         const findByProjectAndSlug = vi.fn();
+        const findByProjectAndUuid = vi.fn();
         const findThreadsDueForDistill = vi.fn();
         const findThreadForDistill = vi.fn();
         const upsertSourceThreadMemory = vi.fn().mockResolvedValue({
@@ -157,6 +158,11 @@ describe('AiAgentMemoryService', () => {
         });
         const upsertThreadDistill = vi.fn();
         const findActiveForProject = vi.fn().mockResolvedValue([]);
+        const findActiveBySourceThread = vi.fn().mockResolvedValue(undefined);
+        const resolveSourceThreadMemoryState = vi
+            .fn()
+            .mockResolvedValue('none');
+        const updateStatus = vi.fn().mockResolvedValue(true);
         const aiAgentMemoryDistill = vi.fn();
         const getAgent = vi.fn().mockResolvedValue({
             uuid: 'agent-1',
@@ -184,11 +190,15 @@ describe('AiAgentMemoryService', () => {
             analytics: { track } as AnyType,
             aiAgentMemoryModel: {
                 findByProjectAndSlug,
+                findByProjectAndUuid,
                 findThreadsDueForDistill,
                 findThreadForDistill,
                 upsertSourceThreadMemory,
                 upsertThreadDistill,
                 findActiveForProject,
+                findActiveBySourceThread,
+                resolveSourceThreadMemoryState,
+                updateStatus,
             } as AnyType,
             aiAgentModel: { getAgent, findThreadOwnership } as AnyType,
             groupsModel: { findUserInGroups } as AnyType,
@@ -204,11 +214,15 @@ describe('AiAgentMemoryService', () => {
             service,
             getFlag,
             findByProjectAndSlug,
+            findByProjectAndUuid,
             findThreadsDueForDistill,
             findThreadForDistill,
             upsertSourceThreadMemory,
             upsertThreadDistill,
             findActiveForProject,
+            findActiveBySourceThread,
+            resolveSourceThreadMemoryState,
+            updateStatus,
             aiAgentMemoryDistill,
             getAgent,
             findThreadOwnership,
@@ -301,6 +315,7 @@ describe('AiAgentMemoryService', () => {
         await expect(
             service.getMemory(user, 'project-enabled', 'net-revenue-ab12cd34'),
         ).resolves.toMatchObject({
+            uuid: 'memory-1',
             slug: 'net-revenue-ab12cd34',
             title: 'Net revenue convention',
             generatedAt: '2026-07-22T10:00:00.000Z',
@@ -356,6 +371,78 @@ describe('AiAgentMemoryService', () => {
                 source: { threadTitle: 'Owner-visible title' },
             },
         });
+    });
+
+    it('lets the owner retire an active memory by UUID', async () => {
+        const { service, findByProjectAndUuid, updateStatus } = build();
+        findByProjectAndUuid.mockResolvedValue(
+            memoryRow({ user_uuid: 'current-user' }),
+        );
+
+        await expect(
+            service.updateMemoryStatus(
+                buildUser(true),
+                'project-enabled',
+                'memory-1',
+                'retired',
+            ),
+        ).resolves.toBeUndefined();
+        expect(findByProjectAndUuid).toHaveBeenCalledWith({
+            projectUuid: 'project-enabled',
+            memoryUuid: 'memory-1',
+        });
+        expect(updateStatus).toHaveBeenCalledWith({
+            memoryUuid: 'memory-1',
+            status: 'retired',
+        });
+    });
+
+    it('does not reactivate a memory when its source has a newer active memory', async () => {
+        const {
+            service,
+            findByProjectAndUuid,
+            findActiveBySourceThread,
+            updateStatus,
+        } = build();
+        findByProjectAndUuid.mockResolvedValue(
+            memoryRow({
+                user_uuid: 'current-user',
+                status: 'retired',
+            }),
+        );
+        findActiveBySourceThread.mockResolvedValue({
+            ai_agent_memory_uuid: 'newer-memory',
+        });
+
+        await expect(
+            service.updateMemoryStatus(
+                buildUser(true),
+                'project-enabled',
+                'memory-1',
+                'active',
+            ),
+        ).rejects.toThrow('A newer memory from this source is already active');
+        expect(updateStatus).not.toHaveBeenCalled();
+    });
+
+    it('keeps superseded memories read-only', async () => {
+        const { service, findByProjectAndUuid, updateStatus } = build();
+        findByProjectAndUuid.mockResolvedValue(
+            memoryRow({
+                user_uuid: 'current-user',
+                status: 'superseded',
+            }),
+        );
+
+        await expect(
+            service.updateMemoryStatus(
+                buildUser(true),
+                'project-enabled',
+                'memory-1',
+                'active',
+            ),
+        ).rejects.toThrow('Superseded memories are read-only');
+        expect(updateStatus).not.toHaveBeenCalled();
     });
 
     it('decides access from the memory row without loading the source thread', async () => {
@@ -695,6 +782,124 @@ describe('AiAgentMemoryService', () => {
             'scope',
             'unresolvedObjectCount',
         ]);
+    });
+
+    it('skips a thread whose memory is no longer active without an LLM call', async () => {
+        const activity = new Date('2026-07-22T05:00:00.000Z');
+        const payload = {
+            organizationUuid: 'org-enabled',
+            projectUuid: 'project-enabled',
+            userUuid: 'system',
+            threadUuid: 'thread-enabled',
+            sweptUpdatedAt: activity.toISOString(),
+        };
+
+        const {
+            service,
+            findThreadForDistill,
+            resolveSourceThreadMemoryState,
+            upsertThreadDistill,
+            distillCall,
+        } = build();
+        findThreadForDistill.mockResolvedValue(distillableThread(activity));
+        resolveSourceThreadMemoryState.mockResolvedValue('inactive');
+
+        await expect(service.distillThread(payload)).resolves.toBe('skipped');
+
+        expect(distillCall).not.toHaveBeenCalled();
+        expect(upsertThreadDistill).toHaveBeenCalledExactlyOnceWith({
+            aiThreadUuid: 'thread-enabled',
+            outcome: 'skipped',
+            distillPromptHash: null,
+            distilledUpTo: activity,
+        });
+    });
+
+    it('distills a thread whose memory is still active or absent', async () => {
+        const activity = new Date('2026-07-22T05:00:00.000Z');
+        const payload = {
+            organizationUuid: 'org-enabled',
+            projectUuid: 'project-enabled',
+            userUuid: 'system',
+            threadUuid: 'thread-enabled',
+            sweptUpdatedAt: activity.toISOString(),
+        };
+        const distillOutput = {
+            result: {
+                type: 'no_op',
+                reason: 'no_positive_evidence',
+            },
+        };
+
+        const active = build();
+        active.findThreadForDistill.mockResolvedValue(
+            distillableThread(activity, { distilledUpTo: null }),
+        );
+        active.resolveSourceThreadMemoryState.mockResolvedValue('active');
+        active.distillCall.mockResolvedValue(distillOutput);
+        await expect(active.service.distillThread(payload)).resolves.toBe(
+            'no_op',
+        );
+        expect(active.distillCall).toHaveBeenCalledOnce();
+
+        const none = build();
+        none.findThreadForDistill.mockResolvedValue(
+            distillableThread(activity, { distilledUpTo: null }),
+        );
+        none.resolveSourceThreadMemoryState.mockResolvedValue('none');
+        none.distillCall.mockResolvedValue(distillOutput);
+        await expect(none.service.distillThread(payload)).resolves.toBe(
+            'no_op',
+        );
+        expect(none.distillCall).toHaveBeenCalledOnce();
+    });
+
+    it('skips without writing when the memory stops being active mid-distill', async () => {
+        const activity = new Date('2026-07-22T05:00:00.000Z');
+        const {
+            service,
+            findThreadForDistill,
+            resolveSourceThreadMemoryState,
+            upsertSourceThreadMemory,
+            upsertThreadDistill,
+            distillCall,
+        } = build();
+        findThreadForDistill.mockResolvedValue(
+            distillableThread(activity, { distilledUpTo: null }),
+        );
+        resolveSourceThreadMemoryState
+            .mockResolvedValueOnce('active')
+            .mockResolvedValueOnce('inactive');
+        distillCall.mockResolvedValue({
+            result: {
+                type: 'memory',
+                thread_summary: 'The users agreed a convention.',
+                slug: 'net-revenue',
+                title: 'Net revenue convention',
+                raw_memory: 'Use net revenue.',
+                terms: ['net revenue'],
+                objects: [],
+                scope: 'user',
+            },
+        });
+
+        await expect(
+            service.distillThread({
+                organizationUuid: 'org-enabled',
+                projectUuid: 'project-enabled',
+                userUuid: 'system',
+                threadUuid: 'thread-enabled',
+                sweptUpdatedAt: activity.toISOString(),
+            }),
+        ).resolves.toBe('skipped');
+
+        expect(upsertSourceThreadMemory).not.toHaveBeenCalled();
+        expect(upsertThreadDistill).toHaveBeenCalledExactlyOnceWith({
+            aiThreadUuid: 'thread-enabled',
+            outcome: 'skipped',
+            distillPromptHash: null,
+            distilledUpTo: activity,
+        });
     });
 
     it('returns not found without reading rows when the flag is off', async () => {

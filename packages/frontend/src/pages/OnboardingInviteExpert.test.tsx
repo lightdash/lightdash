@@ -190,6 +190,7 @@ describe('OnboardingInviteExpert', () => {
         });
         expect(mocks.track).toHaveBeenCalledWith({
             name: EventName.PLAYGROUND_PROJECT_ENTERED,
+            properties: { organizationId: 'org-1' },
         });
     });
 
@@ -275,6 +276,18 @@ describe('OnboardingInviteExpert', () => {
         expect(
             screen.queryByRole('button', { name: /try again/i }),
         ).not.toBeInTheDocument();
+        expect(mocks.track).toHaveBeenCalledWith({
+            name: EventName.PLAYGROUND_PROJECT_SETUP_FAILED,
+            properties: {
+                organizationId: 'org-1',
+                failureType: 'unavailable',
+            },
+        });
+        expect(mocks.track).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                name: EventName.PLAYGROUND_PROJECT_ENTERED,
+            }),
+        );
     });
 
     it('offers a retry for unrecognised failures', async () => {
@@ -292,6 +305,13 @@ describe('OnboardingInviteExpert', () => {
         expect(
             await screen.findByText(/something went wrong while preparing/i),
         ).toBeInTheDocument();
+        expect(mocks.track).toHaveBeenCalledWith({
+            name: EventName.PLAYGROUND_PROJECT_SETUP_FAILED,
+            properties: {
+                organizationId: 'org-1',
+                failureType: 'unknown',
+            },
+        });
 
         mocks.ensurePlayground.mockResolvedValue({ projectUuid: 'p1' });
         await userEvent.click(

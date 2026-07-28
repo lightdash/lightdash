@@ -120,6 +120,7 @@ const DataSourcePicker: FC = () => {
     const navigate = useNavigate();
     const { track } = useTracking();
     const { health } = useApp();
+    const { data: organization } = useOrganization();
     const popularWarehouses = getPopularWarehouses(
         health.data?.auth.google.enabled ?? false,
     );
@@ -130,7 +131,12 @@ const DataSourcePicker: FC = () => {
     ) => {
         track({
             name: EventName.ONBOARDING_WAREHOUSE_SELECTED,
-            properties: { warehouse: String(key), tier },
+            properties: {
+                organizationId: organization?.organizationUuid ?? '',
+                warehouse: String(key),
+                tier,
+                onboardingFlow: 'new',
+            },
         });
         void navigate(getWarehouseRoute(key));
     };
@@ -232,8 +238,9 @@ const WarehouseConnect: FC<{ selectedWarehouse: WarehouseTypes }> = ({
                     warehouseOnly
                     onBack={() => void navigate('/onboarding/data-source')}
                     successRedirect={(projectUuid) =>
-                        `/onboarding/project-ready/${projectUuid}`
+                        `/projects/${projectUuid}/home`
                     }
+                    celebrateOnSuccess
                 />
             </ProjectFormProvider>
         </Box>

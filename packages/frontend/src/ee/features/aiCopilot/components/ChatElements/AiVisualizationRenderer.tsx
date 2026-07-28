@@ -76,6 +76,7 @@ type Props = {
     headerContent?: ReactNode;
     displayFields?: boolean;
     displayFilters?: boolean;
+    loadExplore?: boolean;
 };
 
 export const AiVisualizationRenderer: FC<Props> = ({
@@ -89,6 +90,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
     headerContent,
     displayFields = true,
     displayFilters: displayFiltersProp = true,
+    loadExplore = true,
 }) => {
     const { data: health } = useHealth();
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -111,7 +113,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
 
     const { metricQuery, fields, resolvedTimezone } = vizQueryData.query;
     const tableName = metricQuery?.exploreName;
-    const { data: explore } = useExplore(tableName);
+    const { data: explore } = useExplore(loadExplore ? tableName : undefined);
 
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartsSeriesClickEvent | null>(null);

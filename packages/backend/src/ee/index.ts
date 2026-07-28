@@ -444,6 +444,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getAiAgentMemoryModel<AiAgentMemoryModel>(),
                     aiAgentDocumentModel:
                         models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
+                    aiDeepResearchRunModel:
+                        models.getAiDeepResearchRunModel<AiDeepResearchRunModel>(),
                     projectContextModel:
                         models.getProjectContextModel<ProjectContextModel>(),
                     catalogModel: models.getCatalogModel(),
@@ -1122,6 +1124,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.models.getOrganizationSettingsModel(),
                 emailWhitelabelService:
                     context.serviceRepository.getEmailWhitelabelService(),
+                warehouseConnectCodeModel:
+                    context.models.getWarehouseConnectCodeModel(),
                 managedAgentService:
                     context.serviceRepository.getManagedAgentService<ManagedAgentService>(),
                 appGenerateService:

@@ -173,6 +173,17 @@ export type UpdateUserEvent = BaseTrack & {
     };
 };
 
+type HearAboutUsSubmittedEvent = BaseTrack & {
+    event: 'hear_about_us.submitted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        onboardingFlow: OnboardingFlow;
+        answered: boolean;
+        answer: string | null;
+    };
+};
+
 function isUserUpdatedEvent(event: BaseTrack): event is UpdateUserEvent {
     return event.event === 'user.updated';
 }
@@ -867,6 +878,35 @@ type OnboardingHomepageProvisionedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         homepageUuid: string;
+        onboardingFlow: OnboardingFlow;
+    };
+};
+
+export type OnboardingHomepageSkippedReason =
+    | 'new_onboarding_flag_disabled'
+    | 'homepage_builder_flag_disabled'
+    | 'not_first_project'
+    | 'homepage_already_exists';
+
+type OnboardingHomepageSkippedEvent = BaseTrack & {
+    event: 'onboarding_homepage.skipped';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        onboardingFlow: OnboardingFlow;
+        reason: OnboardingHomepageSkippedReason;
+    };
+};
+
+type OnboardingHomepageFailedEvent = BaseTrack & {
+    event: 'onboarding_homepage.failed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        onboardingFlow: OnboardingFlow;
+        errorType: string;
     };
 };
 
@@ -877,6 +917,39 @@ type PlaygroundProjectProvisionedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         trigger: 'invite_expert';
+        onboardingFlow: OnboardingFlow;
+        catalogIndexErrorType: string | null;
+    };
+};
+
+export type PlaygroundProjectSkippedReason =
+    | 'new_onboarding_flag_disabled'
+    | 'playground_already_exists'
+    | 'organization_has_project'
+    | 'no_project_access'
+    | 'playground_previously_removed';
+
+type PlaygroundProjectSkippedEvent = BaseTrack & {
+    event: 'playground_project.skipped';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        trigger: 'invite_expert';
+        onboardingFlow: OnboardingFlow;
+        reason: PlaygroundProjectSkippedReason;
+    };
+};
+
+type PlaygroundProjectFailedEvent = BaseTrack & {
+    event: 'playground_project.failed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        trigger: 'invite_expert';
+        onboardingFlow: OnboardingFlow;
+        errorType: string;
     };
 };
 
@@ -1443,6 +1516,7 @@ export type DataAppCreatedEvent = BaseTrack & {
         version: number;
         promptLength: number;
         imageCount: number;
+        fileCount: number;
         template: DataAppTemplate | null;
         claudeModel: DataAppClaudeModel;
         samplesRequested: number;
@@ -1463,6 +1537,7 @@ export type DataAppIteratedEvent = BaseTrack & {
         iterationNumber: number;
         promptLength: number;
         imageCount: number;
+        fileCount: number;
         claudeModel: DataAppClaudeModel;
         themeChanged: boolean;
         designUuid: string | null;
@@ -1485,6 +1560,10 @@ export type DataAppUpgradeRequestedEvent = BaseTrack & {
         /** What the app's bundle self-reported; null for legacy bundles. */
         reportedSdkVersion: string | null;
         reportedFeatureCount: number | null;
+        /** Feature keys the frontend computed as possibly-new — what this
+         *  upgrade can newly enable. Compare with the app's next
+         *  reportedFeatures to measure adoption. Null for older clients. */
+        candidateFeatureKeys: string[] | null;
     };
 };
 
@@ -1510,6 +1589,7 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         appUuid: string;
         version: number;
         isIteration: boolean;
+        isUpgrade: boolean;
         claudeModel: DataAppClaudeModel;
         claudeProvider: 'anthropic' | 'bedrock';
         schedulerWaitMs: number;
@@ -1563,6 +1643,7 @@ export type DataAppVersionFailedEvent = BaseTrack & {
         appUuid: string;
         version: number;
         isIteration: boolean;
+        isUpgrade: boolean;
         claudeModel: DataAppClaudeModel;
         claudeProvider?: 'anthropic' | 'bedrock';
         schedulerWaitMs?: number;
@@ -1604,13 +1685,15 @@ export type DataAppVersionFailedEvent = BaseTrack & {
     };
 };
 
-export type DataAppImageUploadedEvent = BaseTrack & {
-    event: 'data_app.image_uploaded';
+export type DataAppFileUploadedEvent = BaseTrack & {
+    event: 'data_app.file_uploaded';
     userId: string;
     properties: {
         organizationId: string;
         projectId: string;
         appUuid?: string;
+        fileId: string;
+        category: 'image' | 'pdf' | 'text';
         mimeType: string;
         sizeBytes?: number;
     };
@@ -1729,7 +1812,7 @@ export type DataAppEvent =
     | DataAppVersionCancelledEvent
     | DataAppVersionCompletedEvent
     | DataAppVersionFailedEvent
-    | DataAppImageUploadedEvent
+    | DataAppFileUploadedEvent
     | DataAppViewedEvent
     | DataAppVersionRestoredEvent
     | DataAppDuplicatedEvent
@@ -2877,6 +2960,7 @@ type TypedEvent =
     | TrackSimpleEvent
     | CreateUserEvent
     | UpdateUserEvent
+    | HearAboutUsSubmittedEvent
     | DeleteUserEvent
     | VerifiedUserEvent
     | OneTimePasscodeSentEvent
@@ -2915,7 +2999,11 @@ type TypedEvent =
     | ApiErrorEvent
     | ProjectEvent
     | OnboardingHomepageProvisionedEvent
+    | OnboardingHomepageSkippedEvent
+    | OnboardingHomepageFailedEvent
     | PlaygroundProjectProvisionedEvent
+    | PlaygroundProjectSkippedEvent
+    | PlaygroundProjectFailedEvent
     | ProjectDeletedEvent
     | ProjectCompiledEvent
     | DbtSourceEvent

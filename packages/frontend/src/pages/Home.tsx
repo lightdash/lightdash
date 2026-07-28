@@ -14,7 +14,6 @@ import PageSpinner from '../components/PageSpinner';
 import PinnedAndFavoritesSection from '../components/PinnedAndFavoritesSection';
 import AiSearchBox from '../ee/components/Home/AiSearchBox';
 import { useAiAgentButtonVisibility } from '../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
-import { useIsCopilotEnabled } from '../ee/features/aiCopilot/hooks/useIsCopilotEnabled';
 import { AdminHomepageControls } from '../ee/features/homepageBuilder/AdminHomepageControls';
 import { PersonalFavoritesBar } from '../ee/features/homepageBuilder/blocks/FavoritesBlock';
 import { DayOneHomepage } from '../ee/features/homepageBuilder/DayOneHomepage';
@@ -52,17 +51,12 @@ const Home: FC = () => {
 
     const { user } = useApp();
     const isAiAgentsEnabled = useAiAgentButtonVisibility();
+    // The commercial flag (per-org, default-off) is the only gate — AI-less
+    // orgs get the day-0/builder experience with the non-AI hero variant.
     const {
-        isEnabled: isHomepageBuilderFlagEnabled,
+        isEnabled: isHomepageBuilderEnabled,
         isLoading: isHomepageBuilderFlagLoading,
     } = useHomepageBuilderFlag();
-    const { isCopilotEnabled, isLoading: isCopilotLoading } =
-        useIsCopilotEnabled();
-    // The builder's centerpiece is the AI hero, so without copilot it is a
-    // degraded experience — fall back to the classic homepage and hide the
-    // builder/customization until that is addressed.
-    const isHomepageBuilderEnabled =
-        isHomepageBuilderFlagEnabled && isCopilotEnabled;
     const resolvedHomepage = useResolvedHomepage(selectedProjectUuid, {
         enabled: isHomepageBuilderEnabled,
     });
@@ -73,7 +67,6 @@ const Home: FC = () => {
         isMostPopularAndRecentlyUpdatedLoading ||
         pinnedItems.isInitialLoading ||
         favorites.isInitialLoading ||
-        isCopilotLoading ||
         isHomepageBuilderFlagLoading ||
         resolvedHomepage.isInitialLoading;
 
@@ -151,15 +144,7 @@ const Home: FC = () => {
                     >
                         <DayOneHomepage
                             projectUuid={project.data.projectUuid}
-                            projectName={project.data.name}
                             pinnedItems={pinnedItems.data ?? []}
-                            favoriteItems={favorites.data ?? []}
-                            pinnedIsEnabled={Boolean(
-                                mostPopularAndRecentlyUpdated?.mostPopular
-                                    .length ||
-                                mostPopularAndRecentlyUpdated?.recentlyUpdated
-                                    .length,
-                            )}
                         />
                     </PinnedItemsProvider>
                 </FavoritesProvider>

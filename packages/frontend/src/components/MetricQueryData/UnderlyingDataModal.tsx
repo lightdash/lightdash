@@ -43,6 +43,7 @@ import MantineModal from '../common/MantineModal';
 import { type TableColumn } from '../common/Table/types';
 import ExportResults from '../ExportResults';
 import { getZoomedDimFilter } from './dateZoomFilter';
+import UnderlyingDataFilterBadges from './UnderlyingDataFilterBadges';
 import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 
@@ -146,12 +147,15 @@ const UnderlyingDataModalContent: FC = () => {
         [showUnderlyingValues, allFields],
     );
 
-    const filters = useMemo<Filters>(() => {
-        if (!underlyingDataConfig) return {};
+    // Flat rules scoping the results to the clicked chart segment/cell, kept
+    // separate from the grouped explore filters so they can be surfaced in the
+    // header filter summary
+    const filterParts = useMemo(() => {
+        if (!underlyingDataConfig) return null;
         const { item, fieldValues, pivotReference, value, dateZoom } =
             underlyingDataConfig;
 
-        if (item === undefined) return {};
+        if (item === undefined) return null;
 
         // If we are viewing data from a metric or a table calculation, we filter using all existing dimensions in the table
         const dimensionFilters = !isDimension(item)
@@ -239,6 +243,15 @@ const UnderlyingDataModalContent: FC = () => {
                 },
             })) || [];
 
+        return {
+            pointFilterRules: [...dimensionFilters, ...pivotFilter],
+            metricFilterRules: metricFilters,
+        };
+    }, [underlyingDataConfig, allDimensions, resolvedTimezone]);
+
+    const filters = useMemo<Filters>(() => {
+        if (!filterParts) return {};
+
         const exploreFilters =
             metricQuery?.filters?.dimensions !== undefined
                 ? [metricQuery.filters.dimensions]
@@ -246,9 +259,8 @@ const UnderlyingDataModalContent: FC = () => {
 
         const combinedFilters = [
             ...exploreFilters,
-            ...dimensionFilters,
-            ...pivotFilter,
-            ...metricFilters,
+            ...filterParts.pointFilterRules,
+            ...filterParts.metricFilterRules,
         ];
 
         return getFiltersFromGroup(
@@ -258,13 +270,7 @@ const UnderlyingDataModalContent: FC = () => {
             },
             allFields,
         );
-    }, [
-        underlyingDataConfig,
-        metricQuery,
-        allFields,
-        allDimensions,
-        resolvedTimezone,
-    ]);
+    }, [filterParts, metricQuery, allFields]);
 
     const {
         error,
@@ -369,6 +375,23 @@ const UnderlyingDataModalContent: FC = () => {
             }),
         );
 
+    const modalTitle = (
+        <>
+            View underlying data
+            <UnderlyingDataFilterBadges
+                filterRules={
+                    filterParts
+                        ? [
+                              ...filterParts.pointFilterRules,
+                              ...filterParts.metricFilterRules,
+                          ]
+                        : []
+                }
+                fields={allFields}
+            />
+        </>
+    );
+
     const headerActions = (
         <Group gap="sm">
             {canExportCsv && (
@@ -429,7 +452,7 @@ const UnderlyingDataModalContent: FC = () => {
             opened={isUnderlyingDataModalOpen}
             icon={IconStack}
             onClose={closeUnderlyingDataModal}
-            title="View underlying data"
+            title={modalTitle}
             fullScreen
             headerActions={headerActions}
             cancelLabel={false}

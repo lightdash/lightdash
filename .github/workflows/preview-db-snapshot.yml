@@ -42,7 +42,7 @@ jobs:
       # only; the run steps below need the CLI on the runner itself
       - name: Install Okteto CLI
         run: |
-          curl -sSfL -o okteto https://github.com/okteto/okteto/releases/download/3.7.0/okteto-Linux-x86_64
+          curl -sSfL -o okteto https://github.com/okteto/okteto/releases/download/3.21.0/okteto-Linux-x86_64
           chmod +x okteto
           sudo mv okteto /usr/local/bin/okteto
 
@@ -58,11 +58,16 @@ jobs:
           # Start from a blank volume so changed seeds and migrations are
           # fully re-applied instead of hitting the entrypoint's seed guard
           kubectl -n db-snapshot delete deployment db-snapshot-seeder --ignore-not-found --wait
+          kubectl -n db-snapshot delete statefulset db-preview --ignore-not-found --wait
+          # Transitional: the db service used to be named db-snapshot
           kubectl -n db-snapshot delete statefulset db-snapshot --ignore-not-found --wait
           kubectl -n db-snapshot delete pvc db-data --ignore-not-found --wait
 
       - name: Deploy database and seeder
         run: okteto deploy -f docker/docker-compose.db-snapshot.yml --namespace db-snapshot --name db-snapshot --timeout 30m
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
       - name: Snapshot the seeded volume
         run: ./scripts/preview-db-snapshot.sh "${GITHUB_SHA::7}"

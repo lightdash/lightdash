@@ -23,6 +23,7 @@ import {
     Trino,
 } from 'trino-client';
 import { WarehouseCatalog } from '../types';
+import { coerceTagToString, DriftedTagValue } from '../utils/coerceTagToString';
 import {
     DEFAULT_BATCH_SIZE,
     processPromisesInBatches,
@@ -35,8 +36,13 @@ const TRINO_CLIENT_TAGS_HEADER = 'X-Trino-Client-Tags';
 
 // Trino splits the header on commas and Node rejects non-latin1 header values,
 // so tag keys/values are restricted to a safe charset
-const sanitizeClientTag = (tag: string): string =>
-    tag.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 60);
+const sanitizeClientTag = (tag: DriftedTagValue): string =>
+    coerceTagToString(tag, {
+        caller: 'TrinoWarehouseClient.sanitizeClientTag',
+        key: null,
+    })
+        .replace(/[^a-zA-Z0-9_-]/g, '_')
+        .substring(0, 60);
 
 export enum TrinoTypes {
     BOOLEAN = 'boolean',
@@ -314,8 +320,12 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         try {
             let alteredQuery = sql;
             if (options?.tags) {
+                // tags can carry BigInt values at runtime; plain
+                // JSON.stringify would throw without the app-level toJSON patch
                 alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(
                     options?.tags,
+                    (_key, value) =>
+                        typeof value === 'bigint' ? value.toString() : value,
                 )}`;
             }
             if (options?.timezone) {

@@ -240,6 +240,7 @@ const getTagsForTask: {
     [SCHEDULER_TASKS.GENERATE_SLACK_CHANNEL_SYNC_JOBS]: () => ({}),
     [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_DEPLOY_SESSIONS]: () => ({}),
+    [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: () => ({}),
     [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: (payload) => ({
         'project.uuid': payload.projectUuid,
         'managed_agent.triggered_by': payload.triggeredBy ?? 'cron',

@@ -217,6 +217,7 @@ import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import { wrapSentryTransaction } from '../../../utils';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
+import { type DbAiDeepResearchRun } from '../../database/entities/aiDeepResearch';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
 import { AiAgentMemoryModel } from '../../models/AiAgentMemoryModel';
 import {
@@ -230,6 +231,7 @@ import {
 } from '../../models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from '../../models/AiAgentReviewClassifierModel';
 import { AiAgentReviewNotificationModel } from '../../models/AiAgentReviewNotificationModel';
+import { AiDeepResearchRunModel } from '../../models/AiDeepResearchRunModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
 import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
@@ -427,6 +429,10 @@ type AiAgentServiceDependencies = {
     aiAgentModel: AiAgentModel;
     aiAgentMemoryModel: AiAgentMemoryModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
+    aiDeepResearchRunModel: Pick<
+        AiDeepResearchRunModel,
+        'findByPromptUuidsScoped'
+    >;
     projectContextModel: ProjectContextModel;
     analytics: LightdashAnalytics;
     asyncQueryService: AsyncQueryService;
@@ -644,6 +650,11 @@ export class AiAgentService extends BaseService {
     private readonly aiAgentMemoryModel: AiAgentMemoryModel;
 
     private readonly aiAgentDocumentModel: AiAgentDocumentModel;
+
+    private readonly aiDeepResearchRunModel: Pick<
+        AiDeepResearchRunModel,
+        'findByPromptUuidsScoped'
+    >;
 
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
 
@@ -979,6 +990,7 @@ export class AiAgentService extends BaseService {
         this.aiAgentModel = dependencies.aiAgentModel;
         this.aiAgentMemoryModel = dependencies.aiAgentMemoryModel;
         this.aiAgentDocumentModel = dependencies.aiAgentDocumentModel;
+        this.aiDeepResearchRunModel = dependencies.aiDeepResearchRunModel;
         this.projectContextModel = dependencies.projectContextModel;
         this.analytics = dependencies.analytics;
         this.asyncQueryService = dependencies.asyncQueryService;
@@ -4661,8 +4673,26 @@ export class AiAgentService extends BaseService {
             },
         };
 
-        const serializedInput =
-            Compaction.serializeConversation(messagesToCompact);
+        const promptUuidsToCompact = [
+            ...new Set(messagesToCompact.map((message) => message.uuid)),
+        ];
+        const deepResearchRuns =
+            await this.aiDeepResearchRunModel.findByPromptUuidsScoped({
+                promptUuids: promptUuidsToCompact,
+                organizationUuid: user.organizationUuid,
+                projectUuid: prompt.projectUuid,
+            });
+        const deepResearchReportsByPromptUuid = new Map(
+            deepResearchRuns.flatMap((run) =>
+                run.result_markdown
+                    ? [[run.prompt_uuid, run.result_markdown] as const]
+                    : [],
+            ),
+        );
+        const serializedInput = Compaction.serializeConversation(
+            messagesToCompact,
+            { deepResearchReportsByPromptUuid },
+        );
 
         const summary = await generateCompactionSummary(compactionModel, {
             previousSummary: latestCompaction?.summary,
@@ -6761,6 +6791,23 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         } satisfies UserModelMessage;
     }
 
+    static createDeepResearchContextMessage(
+        run: Pick<DbAiDeepResearchRun, 'result_markdown'> | undefined,
+    ): AssistantModelMessage | null {
+        if (!run?.result_markdown) {
+            return null;
+        }
+
+        return {
+            role: 'assistant',
+            content: [
+                '<deep_research_report>',
+                run.result_markdown,
+                '</deep_research_report>',
+            ].join('\n'),
+        } satisfies AssistantModelMessage;
+    }
+
     static createPinnedContextMessage(
         context: AiPromptContext,
     ): UserModelMessage | null {
@@ -7131,8 +7178,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             currentPromptUuid: string;
         },
     ): Promise<ModelMessage[]> {
-        const contextMap = await this.aiAgentModel.getContextForPromptUuids(
-            threadMessages.map((m) => m.ai_prompt_uuid),
+        const promptUuids = threadMessages.map(
+            (message) => message.ai_prompt_uuid,
+        );
+        const [contextMap, deepResearchRuns] = await Promise.all([
+            this.aiAgentModel.getContextForPromptUuids(promptUuids),
+            this.aiDeepResearchRunModel.findByPromptUuidsScoped({
+                promptUuids,
+                organizationUuid: options.organizationUuid,
+                projectUuid: options.projectUuid,
+            }),
+        ]);
+        const deepResearchRunsByPromptUuid = new Map(
+            deepResearchRuns.map((run) => [run.prompt_uuid, run]),
         );
 
         const messagesWithToolCalls = await Promise.all(
@@ -7204,7 +7262,16 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         toolCallsAndResults,
                     );
 
-                if (
+                const deepResearchContextMessage =
+                    AiAgentService.createDeepResearchContextMessage(
+                        deepResearchRunsByPromptUuid.get(
+                            message.ai_prompt_uuid,
+                        ),
+                    );
+
+                if (deepResearchContextMessage) {
+                    messages.push(deepResearchContextMessage);
+                } else if (
                     message.response &&
                     !message.error_message &&
                     (!hasUnresolvedApproval || !isCurrentPrompt)

@@ -14,7 +14,7 @@ type ClarifyAppParams = {
     template?: DataAppTemplate;
     charts?: AppChartReference[];
     dashboard?: AppDashboardReference;
-    imageIds?: string[];
+    fileIds?: string[];
 };
 
 type ClarifyAppResult = ApiClarifyAppResponse['results'];
@@ -25,7 +25,7 @@ const clarifyApp = async ({
     template,
     charts,
     dashboard,
-    imageIds,
+    fileIds,
 }: ClarifyAppParams): Promise<ClarifyAppResult> =>
     lightdashApi<ClarifyAppResult>({
         method: 'POST',
@@ -35,7 +35,7 @@ const clarifyApp = async ({
             template,
             charts,
             dashboard,
-            imageIds,
+            fileIds,
         }),
     });
 

@@ -73,6 +73,24 @@ const CustomVisualization: FC<Props> = ({
         resultsData?.setFetchAll(true);
     }, [resultsData]);
 
+    // A tile that settles into a rendered empty state (no spec or zero rows)
+    // has finished loading, so it must still report screenshot-ready —
+    // otherwise dashboard exports wait for a Vega embed that will never
+    // happen and time out. Charts that do render signal via onEmbed/onError.
+    useEffect(() => {
+        if (hasSignaledScreenshotReady.current) return;
+        if (!onScreenshotReady && !onScreenshotError) return;
+        if (isLoading || !isCustomVisualizationConfig(visualizationConfig))
+            return;
+
+        const { validConfig, series } =
+            visualizationConfig.chartConfig as CustomVisualizationConfigAndData;
+        if (!validConfig.spec || !series || series.length === 0) {
+            onScreenshotReady?.();
+            hasSignaledScreenshotReady.current = true;
+        }
+    }, [isLoading, visualizationConfig, onScreenshotReady, onScreenshotError]);
+
     if (!isCustomVisualizationConfig(visualizationConfig)) return null;
     const spec = visualizationConfig.chartConfig.validConfig.spec;
 

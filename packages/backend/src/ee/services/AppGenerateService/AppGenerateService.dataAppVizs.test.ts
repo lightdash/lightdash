@@ -28,6 +28,7 @@ const vizSchema: DataAppVizSchema = {
         { name: 'value', label: 'Value', type: 'metric', required: true },
     ],
     configOptions: [],
+    colorPalette: null,
 };
 
 const makeDataAppVizRow = (overrides: Record<string, unknown> = {}) => ({

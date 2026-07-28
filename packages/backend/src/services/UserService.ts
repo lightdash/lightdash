@@ -22,7 +22,6 @@ import {
     DeleteOpenIdentity,
     EmailStatus,
     EmailStatusExpiring,
-    ExpiredError,
     FeatureFlags,
     ForbiddenError,
     getEmailDomain,
@@ -281,6 +280,8 @@ export class UserService extends BaseService {
 
     private readonly emailOneTimePasscodeMaxAttempts = 5;
 
+    private readonly emailOneTimePasscodeResendIntervalSeconds = 60;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -382,27 +383,30 @@ export class UserService extends BaseService {
         );
         if (updatedEmails.length > 0) {
             const onboardingFlow = await this.getOnboardingFlow(user);
+            const location = user.isSetupComplete ? 'settings' : 'onboarding';
             this.analytics.track({
                 userId: user.userUuid,
                 event: 'user.verified',
                 properties: {
                     email,
-                    location: user.isSetupComplete ? 'settings' : 'onboarding',
+                    location,
                     isTrackingAnonymized: user.isTrackingAnonymized,
                     method,
                     onboardingFlow,
                 },
             });
-            this.analytics.track({
-                userId: user.userUuid,
-                event: 'onboarding.step_completed',
-                properties: {
-                    step: 'verified',
-                    stepIndex: 2,
-                    onboardingFlow,
-                    organizationId: user.organizationUuid,
-                },
-            });
+            if (location === 'onboarding') {
+                this.analytics.track({
+                    userId: user.userUuid,
+                    event: 'onboarding.step_completed',
+                    properties: {
+                        step: 'verified',
+                        stepIndex: 2,
+                        onboardingFlow,
+                        organizationId: user.organizationUuid,
+                    },
+                });
+            }
         }
     }
 
@@ -1397,6 +1401,7 @@ export class UserService extends BaseService {
             isTrackingAnonymized,
             isMarketingOptedIn,
             enableEmailDomainAccess,
+            howDidYouHearAboutUs,
         }: CompleteUserArgs,
     ): Promise<LightdashUser> {
         if (!isUserWithOrg(user)) {
@@ -1452,6 +1457,10 @@ export class UserService extends BaseService {
                 );
             }
         }
+        const answer =
+            typeof howDidYouHearAboutUs === 'string'
+                ? howDidYouHearAboutUs.trim().slice(0, 1000)
+                : undefined;
         const completeUser = await this.userModel.updateUser(
             user.userUuid,
             undefined,
@@ -1459,8 +1468,23 @@ export class UserService extends BaseService {
                 isSetupComplete: true,
                 isTrackingAnonymized,
                 isMarketingOptedIn,
+                howDidYouHearAboutUs: answer,
             },
         );
+
+        if (answer !== undefined) {
+            const onboardingFlow = await this.getOnboardingFlow(user);
+            this.analytics.track({
+                event: 'hear_about_us.submitted',
+                userId: completeUser.userUuid,
+                properties: {
+                    organizationId: user.organizationUuid,
+                    onboardingFlow,
+                    answered: answer.length > 0,
+                    answer: answer.length > 0 ? answer : null,
+                },
+            });
+        }
 
         this.identifyUser(completeUser);
         this.analytics.track({
@@ -1509,17 +1533,7 @@ export class UserService extends BaseService {
     }
 
     async getInviteLink(inviteCode: string): Promise<InviteLink> {
-        const inviteLink = await this.inviteLinkModel.getByCode(inviteCode);
-        const now = new Date();
-        if (inviteLink.expiresAt <= now) {
-            try {
-                await this.inviteLinkModel.deleteByCode(inviteLink.inviteCode);
-            } catch (e) {
-                throw new NotFoundError('Invite link not found');
-            }
-            throw new ExpiredError('Invite link expired');
-        }
-        return inviteLink;
+        return this.inviteLinkModel.getByCode(inviteCode);
     }
 
     async loginWithPassword(
@@ -2087,6 +2101,9 @@ export class UserService extends BaseService {
         const emailStatus = await this.emailModel.createPrimaryEmailOtp({
             passcode,
             userUuid: user.userUuid,
+            resetAttemptsIfOtpCreatedBefore: new Date(
+                Date.now() - this.emailOneTimePasscodeExpirySeconds * 1000,
+            ),
         });
         await this.emailClient.sendOneTimePasscodeEmail({
             recipient: emailStatus.email,
@@ -2155,6 +2172,16 @@ export class UserService extends BaseService {
             !user ||
             !user.isActive ||
             !(await this.isStrictlyPasswordlessUser(user, normalizedEmail))
+        ) {
+            return;
+        }
+        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        if (
+            emailStatus.otp &&
+            Date.now() - emailStatus.otp.createdAt.getTime() <
+                this.emailOneTimePasscodeResendIntervalSeconds * 1000
         ) {
             return;
         }

@@ -464,7 +464,7 @@ Cypress.Commands.add(
                     type: 'dbt',
                     project_dir: Cypress.env('DBT_PROJECT_DIR'),
                 },
-                dbtVersion: 'v1.7',
+                dbtVersion: 'v1.11',
                 warehouseConnection: warehouseConfig || {
                     host: Cypress.env('PGHOST') || 'localhost',
                     user: 'postgres',

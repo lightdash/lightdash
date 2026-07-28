@@ -1294,6 +1294,11 @@ export class RolesService extends BaseService {
         await this.validateProjectAccess(account, projectUuid);
         const role = await this.rolesModel.getRoleWithScopesByUuid(roleId);
 
+        const user = await this.userModel.getUserDetailsByUuid(userUuid);
+        if (user.organizationUuid !== project.organizationUuid) {
+            throw new ForbiddenError();
+        }
+
         const userProjectRole =
             await this.rolesModel.getProjectAccessByUserUuid(
                 userUuid,
@@ -1307,6 +1312,10 @@ export class RolesService extends BaseService {
                 roleId,
             );
         } else {
+            if (role.organizationUuid !== project.organizationUuid) {
+                throw new ForbiddenError();
+            }
+
             if (role.scopes.length === 0) {
                 throw new ParameterError(
                     'Custom role must have at least one scope',
@@ -1321,7 +1330,6 @@ export class RolesService extends BaseService {
                 roleId,
             );
         }
-        const user = await this.userModel.getUserDetailsByUuid(userUuid);
 
         // If the user is added to the project for the first time, send an invitation email
         const userEmail = user.email;
@@ -1413,6 +1421,10 @@ export class RolesService extends BaseService {
         );
         await this.validateProjectAccess(account, projectUuid);
         const role = await this.rolesModel.getRoleWithScopesByUuid(roleId);
+        const group = await this.groupsModel.getGroup(groupUuid);
+        if (group.organizationUuid !== project.organizationUuid) {
+            throw new ForbiddenError();
+        }
 
         if (isSystemRole(roleId)) {
             await this.rolesModel.upsertSystemRoleGroupAccess(
@@ -1421,6 +1433,10 @@ export class RolesService extends BaseService {
                 roleId,
             );
         } else {
+            if (role.organizationUuid !== project.organizationUuid) {
+                throw new ForbiddenError();
+            }
+
             if (role.scopes.length === 0) {
                 throw new ParameterError(
                     'Custom role must have at least one scope',
@@ -1449,7 +1465,6 @@ export class RolesService extends BaseService {
             },
         });
 
-        const group = await this.groupsModel.getGroup(groupUuid);
         return {
             roleId,
             roleName: role.name,
@@ -1553,7 +1568,19 @@ export class RolesService extends BaseService {
         const auditedAbility = this.createAuditedAbility(account);
         RolesService.validateRoleOwnership(account, auditedAbility, role);
         RolesService.validateCustomRoleLevel(role, 'project');
+        const project = await this.projectModel.getSummary(projectUuid);
         await this.validateProjectAccess(account, projectUuid);
+
+        if (
+            !isSystemRole(roleUuid) &&
+            role.organizationUuid !== project.organizationUuid
+        ) {
+            throw new ForbiddenError();
+        }
+        const group = await this.groupsModel.getGroup(groupUuid);
+        if (group.organizationUuid !== project.organizationUuid) {
+            throw new ForbiddenError();
+        }
 
         await this.rolesModel.assignRoleToGroup(
             groupUuid,

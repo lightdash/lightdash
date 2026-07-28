@@ -1,33 +1,9 @@
 import {
     DbtSchemaEditor,
-    DimensionType,
     ParseError,
     SupportedDbtVersions,
 } from '@lightdash/common';
 import { promises as fs } from 'fs';
-
-type YamlColumnMeta = {
-    dimension?: {
-        type?: DimensionType;
-    };
-};
-
-type YamlColumn = {
-    name: string;
-    description?: string;
-    meta?: YamlColumnMeta;
-};
-
-export type YamlModel = {
-    name: string;
-    description?: string;
-    columns?: YamlColumn[];
-};
-
-export type YamlSchema = {
-    version?: 2;
-    models?: YamlModel[];
-};
 
 const loadYamlSchema = async (
     path: string,

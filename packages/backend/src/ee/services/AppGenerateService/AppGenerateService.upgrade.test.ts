@@ -168,6 +168,7 @@ describe('upgradeApp', () => {
                     version: 5,
                     reportedSdkVersion: '0.3400.0',
                     reportedFeatureCount: 2,
+                    candidateFeatureKeys: ['drill-down', 'lineage'],
                 }),
             }),
         );

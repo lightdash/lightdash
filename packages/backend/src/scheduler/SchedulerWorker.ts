@@ -261,6 +261,14 @@ export class SchedulerWorker extends SchedulerTask {
                     maxAttempts: 1,
                 },
             },
+            {
+                task: SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES,
+                pattern: '41 * * * *', // Hourly, off the top of the hour
+                options: {
+                    backfillPeriod: 2 * 3600 * 1000, // 2 hours in ms
+                    maxAttempts: 3,
+                },
+            },
             // worker-process pg liveness is driven by a setInterval (see startPgPing);
             // managed-agent heartbeat is self-scheduling (see SchedulerClient.scheduleManagedAgentHeartbeat).
         ];
@@ -1222,6 +1230,24 @@ export class SchedulerWorker extends SchedulerTask {
                 } catch (error) {
                     Logger.error(
                         'Error during deploy sessions cleanup:',
+                        error,
+                    );
+                    throw error;
+                }
+            },
+            [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: async () => {
+                Logger.info('Starting warehouse connect codes cleanup job');
+
+                try {
+                    const deletedCount =
+                        await this.warehouseConnectCodeModel.deleteExpired();
+
+                    Logger.info(
+                        `Warehouse connect codes cleanup completed. Deleted: ${deletedCount}`,
+                    );
+                } catch (error) {
+                    Logger.error(
+                        'Error during warehouse connect codes cleanup:',
                         error,
                     );
                     throw error;

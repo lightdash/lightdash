@@ -22,6 +22,7 @@ import {
 } from '@mantine-8/core';
 import { IconAlertTriangle, IconCheck, IconCopy } from '@tabler/icons-react';
 import { useEffect, useState, type FC, type ReactNode } from 'react';
+import { useLocation } from 'react-router';
 import {
     useMintWarehouseConnectCode,
     useWarehouseConnectCodeClaim,
@@ -146,6 +147,10 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
 }) => {
     const { health } = useApp();
     const { track } = useTracking();
+    const { pathname } = useLocation();
+    const onboardingFlow = pathname.startsWith('/onboarding/')
+        ? 'new'
+        : 'legacy';
     const form = useFormContext();
     const siteUrl = health.data?.siteUrl ?? '';
     const mint = useMintWarehouseConnectCode();
@@ -171,6 +176,10 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
             setClaimed(true);
             setInventory(claim.data.inventory);
             onDeposited(claim.data.credentials);
+            track({
+                name: EventName.SNOWFLAKE_CLI_SSO_CONNECT_COMPLETED,
+                properties: { success: true, onboardingFlow },
+            });
             const depositedInventory = claim.data.inventory;
             const selectedDatabase =
                 claim.data.credentials.database ??
@@ -198,15 +207,19 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                 }
             }
         }
-    }, [claimed, claim.data, onDeposited, form]);
+    }, [claimed, claim.data, onDeposited, form, track, onboardingFlow]);
 
     useEffect(() => {
         if (claim.error) {
             sessionStorage.removeItem(STORED_CODE_KEY);
             setCode(null);
             setSecondsRemaining(null);
+            track({
+                name: EventName.SNOWFLAKE_CLI_SSO_CONNECT_COMPLETED,
+                properties: { success: false, onboardingFlow },
+            });
         }
-    }, [claim.error]);
+    }, [claim.error, track, onboardingFlow]);
 
     useEffect(() => {
         if (secondsRemaining === null || secondsRemaining <= 0)
@@ -441,6 +454,7 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                             onCopy={() =>
                                 track({
                                     name: EventName.SNOWFLAKE_CLI_SSO_COMMAND_COPIED,
+                                    properties: { onboardingFlow },
                                 })
                             }
                         />

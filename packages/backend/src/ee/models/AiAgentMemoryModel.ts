@@ -122,6 +122,8 @@ export type AiAgentMemoryLineageSource = Pick<
     thread_title: string | null;
 };
 
+export type AiAgentMemorySourceThreadState = 'none' | 'active' | 'inactive';
+
 export type AiAgentMemoryWithLineage = {
     memory: DbAiAgentMemory;
     sources: AiAgentMemoryLineageSource[];
@@ -779,6 +781,16 @@ export class AiAgentMemoryModel {
         return { memory, sources, replacement };
     }
 
+    async findByProjectAndUuid(args: {
+        projectUuid: string;
+        memoryUuid: string;
+    }): Promise<DbAiAgentMemory | undefined> {
+        return this.database<AiAgentMemoryTable>(AiAgentMemoryTableName)
+            .where('project_uuid', args.projectUuid)
+            .where('ai_agent_memory_uuid', args.memoryUuid)
+            .first();
+    }
+
     async findActiveBySlugs(args: {
         projectUuid: string;
         userUuid: string;
@@ -793,6 +805,52 @@ export class AiAgentMemoryModel {
             .where('status', 'active')
             .whereIn('slug', slugs)
             .select(['slug', 'title']);
+    }
+
+    async findActiveBySourceThread(
+        sourceThreadUuid: string,
+    ): Promise<Pick<DbAiAgentMemory, 'ai_agent_memory_uuid'> | undefined> {
+        return this.database<AiAgentMemoryTable>(AiAgentMemoryTableName)
+            .where('source_thread_uuid', sourceThreadUuid)
+            .where('status', 'active')
+            .first('ai_agent_memory_uuid');
+    }
+
+    /**
+     * `inactive` means the thread produced memory that is no longer live —
+     * consolidated away or retired. An active row wins over stale siblings,
+     * because the one-active-row index leaves older rows behind.
+     */
+    async resolveSourceThreadMemoryState(
+        sourceThreadUuid: string,
+    ): Promise<AiAgentMemorySourceThreadState> {
+        const rows = await this.database<AiAgentMemoryTable>(
+            AiAgentMemoryTableName,
+        )
+            .where('source_thread_uuid', sourceThreadUuid)
+            .distinct('status');
+
+        if (rows.length === 0) return 'none';
+        return rows.some((row) => row.status === 'active')
+            ? 'active'
+            : 'inactive';
+    }
+
+    async updateStatus(args: {
+        memoryUuid: string;
+        status: 'active' | 'retired';
+    }): Promise<boolean> {
+        const updated = await this.database<AiAgentMemoryTable>(
+            AiAgentMemoryTableName,
+        )
+            .where('ai_agent_memory_uuid', args.memoryUuid)
+            .whereIn('status', ['active', 'retired'])
+            .update({
+                status: args.status,
+                updated_at: this.database.fn.now(),
+            });
+
+        return updated > 0;
     }
 
     async incrementPulledForActiveMemories(args: {

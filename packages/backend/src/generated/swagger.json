@@ -1676,8 +1676,39 @@
                 "$ref": "#/components/schemas/Record_string.string_",
                 "description": "Maps a data app viz's field name → the host query field id bound to it."
             },
+            "DataAppVizOptionValue": {
+                "anyOf": [
+                    {
+                        "type": "boolean"
+                    },
+                    {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    {
+                        "type": "string"
+                    }
+                ],
+                "description": "A persisted config value; its shape is set by the option's declared `type`."
+            },
+            "Record_string.DataAppVizOptionValue_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DataAppVizOptionValue"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "DataAppVizOptionValues": {
+                "$ref": "#/components/schemas/Record_string.DataAppVizOptionValue_",
+                "description": "Maps a declared config option's name → the value the user chose for it."
+            },
             "DataAppVizChart": {
                 "properties": {
+                    "optionValues": {
+                        "$ref": "#/components/schemas/DataAppVizOptionValues",
+                        "description": "Only options the user explicitly changed — declared defaults are never\nseeded here, they're resolved at render time. Absent on charts saved\nbefore config options shipped."
+                    },
                     "fieldMapping": {
                         "$ref": "#/components/schemas/DataAppVizFieldMapping"
                     },
@@ -9760,6 +9791,30 @@
                 "required": ["config", "type", "id"],
                 "type": "object"
             },
+            "HomepageGreetingBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "subtitle": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["subtitle"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["greeting"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object",
+                "description": "Day-part greeting (\"Good afternoon, Ada\") with an optional line under it.\nThe AI hero has its own built-in greeting; this is the standalone one for\npages that don't lead with a composer."
+            },
             "HomepageCollectionItemRef": {
                 "properties": {
                     "uuid": {
@@ -9941,7 +9996,7 @@
                 "required": ["config", "type", "id"],
                 "type": "object"
             },
-            "HomepageQuickAction": {
+            "HomepageQuickActionTarget": {
                 "anyOf": [
                     {
                         "properties": {
@@ -10005,6 +10060,22 @@
                         "type": "object"
                     }
                 ]
+            },
+            "HomepageQuickAction": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HomepageQuickActionTarget"
+                    },
+                    {
+                        "properties": {
+                            "primary": {
+                                "type": "boolean"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ],
+                "description": "Any quick action can be promoted to the row's primary one, which renders\nas the same chip inverted. Optional so older configs still load."
             },
             "HomepageQuickActionsBlock": {
                 "properties": {
@@ -10085,6 +10156,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/HomepageAskAiHeroBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageGreetingBlock"
                     },
                     {
                         "$ref": "#/components/schemas/HomepageCollectionBlock"
@@ -15759,11 +15833,18 @@
                     "appUuid": {
                         "type": "string"
                     },
-                    "imageIds": {
+                    "fileIds": {
                         "items": {
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "imageIds": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "deprecated": true
                     },
                     "template": {
                         "$ref": "#/components/schemas/DataAppTemplate"
@@ -15976,37 +16057,30 @@
                         },
                         "required": ["default", "label", "name", "type"],
                         "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "default": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "group": {
-                                "type": "string"
-                            },
-                            "label": {
-                                "type": "string"
-                            },
-                            "name": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["palette"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["default", "label", "name", "type"],
-                        "type": "object"
                     }
                 ]
             },
+            "DataAppVizPaletteDeclaration": {
+                "properties": {
+                    "group": {
+                        "type": "string",
+                        "description": "Tab to place the picker in, matching a config option `group`."
+                    }
+                },
+                "type": "object",
+                "description": "Declared by a viz that colours from the resolved Lightdash palette. Not a\nconfig option: it carries no value of its own, it only asks the config panel\nfor the standard palette picker, whose choice is stored as the chart's\npalette and delivered on `colorPalette`. There is one palette per chart, so\na viz either declares this or it does not."
+            },
             "DataAppVizSchema": {
                 "properties": {
+                    "colorPalette": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppVizPaletteDeclaration"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Null when the viz colours nothing from the resolved palette."
+                    },
                     "configOptions": {
                         "items": {
                             "$ref": "#/components/schemas/DataAppVizConfigOption"
@@ -16020,7 +16094,7 @@
                         "type": "array"
                     }
                 },
-                "required": ["configOptions", "fields"],
+                "required": ["colorPalette", "configOptions", "fields"],
                 "type": "object",
                 "description": "The full declaration a data app viz emits: data-binding fields + config form."
             },
@@ -16179,11 +16253,18 @@
             },
             "ApiClarifyAppRequest": {
                 "properties": {
-                    "imageIds": {
+                    "fileIds": {
                         "items": {
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "imageIds": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "deprecated": true
                     },
                     "dashboard": {
                         "$ref": "#/components/schemas/AppDashboardReference"
@@ -16204,15 +16285,32 @@
                 "required": ["prompt"],
                 "type": "object"
             },
-            "ApiSuccess__imageId-string__": {
+            "ApiSuccess__fileId-string--imageId_deprecated-true_-string--filename_description-Sanitizedoriginalfilename.canonicalizedserver-side._-string--mimeType_description-NormalizedMIMEtypeasstoredonthestagedS3object._-string__": {
                 "properties": {
                     "results": {
                         "properties": {
+                            "mimeType": {
+                                "type": "string",
+                                "description": "Normalized MIME type as stored on the staged S3 object."
+                            },
+                            "filename": {
+                                "type": "string",
+                                "description": "Sanitized original filename, canonicalized server-side."
+                            },
                             "imageId": {
+                                "type": "string",
+                                "deprecated": true
+                            },
+                            "fileId": {
                                 "type": "string"
                             }
                         },
-                        "required": ["imageId"],
+                        "required": [
+                            "mimeType",
+                            "filename",
+                            "imageId",
+                            "fileId"
+                        ],
                         "type": "object"
                     },
                     "status": {
@@ -16224,8 +16322,8 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ApiAppImageUploadResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__imageId-string__"
+            "ApiAppFileUploadResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__fileId-string--imageId_deprecated-true_-string--filename_description-Sanitizedoriginalfilename.canonicalizedserver-side._-string--mimeType_description-NormalizedMIMEtypeasstoredonthestagedS3object._-string__"
             },
             "Exclude_DataAppTemplate.custom_": {
                 "type": "string",
@@ -16272,6 +16370,22 @@
                 },
                 "required": ["imageId"],
                 "type": "object"
+            },
+            "AppVersionFileResource": {
+                "properties": {
+                    "mimeType": {
+                        "type": "string"
+                    },
+                    "filename": {
+                        "type": "string"
+                    },
+                    "fileId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["mimeType", "filename", "fileId"],
+                "type": "object",
+                "description": "A non-image file attached to a generation request (JSON, Tableau workbook,\nmarkdown, code, PDF…). Filename and MIME type are canonicalized server-side\nfrom the staged S3 object at version creation, so the chat can render a\nnamed chip without touching S3."
             },
             "AppVersionChartResource": {
                 "properties": {
@@ -16368,6 +16482,12 @@
                     "charts": {
                         "items": {
                             "$ref": "#/components/schemas/AppVersionChartResource"
+                        },
+                        "type": "array"
+                    },
+                    "files": {
+                        "items": {
+                            "$ref": "#/components/schemas/AppVersionFileResource"
                         },
                         "type": "array"
                     },
@@ -20081,6 +20201,9 @@
                     },
                     "slug": {
                         "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -20094,7 +20217,8 @@
                     "terms",
                     "rawMemory",
                     "title",
-                    "slug"
+                    "slug",
+                    "uuid"
                 ],
                 "type": "object"
             },
@@ -30562,6 +30686,22 @@
             "ApiAiDeepResearchEventsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchEventsPage_"
             },
+            "ApiUpdateAiAgentMemoryStatusResponse": {
+                "$ref": "#/components/schemas/ApiSuccessEmpty"
+            },
+            "AiAgentMemoryEditableStatus": {
+                "type": "string",
+                "enum": ["active", "retired"]
+            },
+            "ApiUpdateAiAgentMemoryStatusRequest": {
+                "properties": {
+                    "status": {
+                        "$ref": "#/components/schemas/AiAgentMemoryEditableStatus"
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
             "Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_": {
                 "properties": {
                     "uuid": {
@@ -30764,6 +30904,206 @@
             "AiAgentAdminSortField": {
                 "type": "string",
                 "enum": ["createdAt", "title"]
+            },
+            "Pick_AiAgentEvaluationRunSummary.runUuid-or-status-or-createdAt-or-completedAt_": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "runUuid": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["pending", "running", "failed", "completed"]
+                    },
+                    "completedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "required": ["createdAt", "runUuid", "status", "completedAt"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "AiAgentAdminEvalSummary": {
+                "properties": {
+                    "latestRun": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_AiAgentEvaluationRunSummary.runUuid-or-status-or-createdAt-or-completedAt_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "promptCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "project": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "agent": {
+                        "$ref": "#/components/schemas/Pick_AiAgentSummary.uuid-or-name-or-imageUrl_"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "evalUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "latestRun",
+                    "promptCount",
+                    "project",
+                    "agent",
+                    "updatedAt",
+                    "createdAt",
+                    "description",
+                    "title",
+                    "evalUuid"
+                ],
+                "type": "object"
+            },
+            "AiAgentAdminEvalsSummary": {
+                "properties": {
+                    "evals": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentAdminEvalSummary"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["evals"],
+                "type": "object"
+            },
+            "KnexPaginatedData_AiAgentAdminEvalsSummary_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/AiAgentAdminEvalsSummary"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiSuccess_KnexPaginatedData_AiAgentAdminEvalsSummary__": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_AiAgentAdminEvalsSummary_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentAdminEvalsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_AiAgentAdminEvalsSummary__"
+            },
+            "AiAgentAdminEvalPrompt": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "threadUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "expectedResponse": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "prompt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "evalPromptUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "threadUuid",
+                    "expectedResponse",
+                    "prompt",
+                    "evalPromptUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess__prompts-AiAgentAdminEvalPrompt-Array__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "prompts": {
+                                "items": {
+                                    "$ref": "#/components/schemas/AiAgentAdminEvalPrompt"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["prompts"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentAdminEvalPromptsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__prompts-AiAgentAdminEvalPrompt-Array__"
             },
             "McpActivityStatus": {
                 "type": "string",
@@ -36542,6 +36882,9 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "sourceSchedulerUuid": {
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -37654,7 +37997,8 @@
                     "cleanExpiredPreviews",
                     "ingestProjectContext",
                     "compactUsageEvents",
-                    "pollEmailWhitelabelVerification"
+                    "pollEmailWhitelabelVerification",
+                    "cleanWarehouseConnectCodes"
                 ]
             },
             "BaseSchedulerLog": {
@@ -50427,7 +50771,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.1.1",
+        "version": "1.17.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -62271,6 +62615,64 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/aiAgentMemories/{memoryUuid}/status": {
+            "patch": {
+                "operationId": "updateAiAgentMemoryStatus",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUpdateAiAgentMemoryStatusResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Changes whether a memory is available to the AI agent.",
+                "summary": "Update memory status",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "memoryUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiUpdateAiAgentMemoryStatusRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/aiAgents/admin/threads": {
             "get": {
                 "operationId": "getAllThreads",
@@ -62407,6 +62809,143 @@
                         "schema": {
                             "type": "string",
                             "enum": ["asc", "desc"]
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/aiAgents/admin/evals": {
+            "get": {
+                "operationId": "getAllEvals",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentAdminEvalsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get all AI agent evaluations for admin",
+                "summary": "List AI agent evaluations",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "projectUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "agentUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "search",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "sortField",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/AiAgentAdminSortField"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "sortDirection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["asc", "desc"]
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/aiAgents/admin/evals/{evalUuid}/prompts": {
+            "get": {
+                "operationId": "getAdminEvalPrompts",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentAdminEvalPromptsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the prompts of an AI agent evaluation for admin",
+                "summary": "List AI agent evaluation prompts",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "evalUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
@@ -63771,7 +64310,7 @@
                         }
                     }
                 },
-                "description": "Retrieves credentials deposited against a connect code created by the\ncurrent user. Returns them once and deletes the code",
+                "description": "Retrieves credentials deposited against a connect code created by the\ncurrent user. Returns them until the code expires; expired codes are\ndeleted by a scheduled cleanup job",
                 "summary": "Claim connect code",
                 "tags": ["Projects"],
                 "security": [],
@@ -69510,6 +70049,14 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "projectUuid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]

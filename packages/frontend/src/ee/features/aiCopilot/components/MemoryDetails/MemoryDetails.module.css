@@ -9,6 +9,10 @@
     min-width: 0;
 }
 
+.statusCalloutText {
+    font-size: var(--mantine-font-size-xs);
+}
+
 .modalTitle {
     color: var(--mantine-color-ldGray-9);
     font-size: 16px;
@@ -188,6 +192,24 @@
 
 .statusDot[data-status='active'] {
     background: var(--mantine-color-teal-6);
+}
+
+.statusTrigger {
+    border-radius: var(--mantine-radius-sm);
+    padding: 3px 5px;
+    margin: -3px -5px;
+}
+
+.statusTrigger:hover {
+    background: light-dark(
+        var(--mantine-color-ldGray-1),
+        var(--mantine-color-dark-5)
+    );
+}
+
+.statusTrigger:focus-visible {
+    outline: 2px solid var(--mantine-color-indigo-5);
+    outline-offset: 2px;
 }
 
 .slug {

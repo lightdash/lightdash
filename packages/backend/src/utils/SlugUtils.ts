@@ -1,6 +1,7 @@
 import { assertUnreachable, generateSlug } from '@lightdash/common';
 import { Knex } from 'knex';
 import { customAlphabet as createCustomNanoid } from 'nanoid';
+import { AppsTableName } from '../database/entities/apps';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
@@ -8,6 +9,7 @@ import { SavedSqlTableName } from '../database/entities/savedSql';
 import { SpaceTableName } from '../database/entities/spaces';
 
 type SlugTables =
+    | typeof AppsTableName
     | typeof SavedChartsTableName
     | typeof SavedSqlTableName
     | typeof DashboardsTableName
@@ -18,6 +20,21 @@ type SlugTables =
 // to avoid clashing with that lock space.
 const CONTENT_AS_CODE_SLUG_LOCK_NAMESPACE = 2;
 const SPACE_ACCESS_LOCK_NAMESPACE = 3;
+
+const MAX_GENERATED_SAVED_CHART_SLUG_LENGTH = 255;
+
+const getSavedChartSlugCandidate = (
+    baseSlug: string,
+    increment: number,
+): string => {
+    if (increment === 0) return baseSlug;
+
+    const suffix = `-${increment}`;
+    return `${baseSlug.slice(
+        0,
+        MAX_GENERATED_SAVED_CHART_SLUG_LENGTH - suffix.length,
+    )}${suffix}`;
+};
 
 /**
  * Take a transaction-scoped Postgres advisory lock keyed on (projectUuid, slug).
@@ -104,39 +121,30 @@ export const generateUniqueSlugScopedToProject = async (
     tableName: SlugTables,
     name: string,
 ) => {
-    const baseSlug = generateSlug(name);
+    const generatedSlug = generateSlug(name);
+    const baseSlug =
+        tableName === AppsTableName
+            ? generatedSlug.slice(0, 255)
+            : generatedSlug;
     let matchingSlugs: string[];
     switch (tableName) {
-        case SavedChartsTableName:
-            // NOTE: no `deleted_at IS NULL` filter here because
-            // we need to check for soft deleted charts as well
-            matchingSlugs = await trx(SavedChartsTableName)
-                .leftJoin(
-                    DashboardsTableName,
-                    `${DashboardsTableName}.dashboard_uuid`,
-                    `${SavedChartsTableName}.dashboard_uuid`,
-                )
-                .innerJoin(SpaceTableName, function spaceJoin() {
-                    this.on(
-                        `${SpaceTableName}.space_id`,
-                        '=',
-                        `${DashboardsTableName}.space_id`,
-                    ).orOn(
-                        `${SpaceTableName}.space_id`,
-                        '=',
-                        `${SavedChartsTableName}.space_id`,
-                    );
-                })
-                .innerJoin(
-                    ProjectTableName,
-                    `${SpaceTableName}.project_id`,
-                    `${ProjectTableName}.project_id`,
-                )
-                .where(`${ProjectTableName}.project_uuid`, projectUuid)
-                .select(`${SavedChartsTableName}.slug`)
-                .where(`${SavedChartsTableName}.slug`, 'like', `${baseSlug}%`)
-                .pluck(`${SavedChartsTableName}.slug`);
-            break;
+        case SavedChartsTableName: {
+            let increment = 0;
+            for (;;) {
+                const candidate = getSavedChartSlugCandidate(
+                    baseSlug,
+                    increment,
+                );
+                // eslint-disable-next-line no-await-in-loop
+                const existing = await trx(SavedChartsTableName)
+                    .select(`${SavedChartsTableName}.saved_query_id`)
+                    .where(`${SavedChartsTableName}.project_uuid`, projectUuid)
+                    .where(`${SavedChartsTableName}.slug`, candidate)
+                    .first();
+                if (!existing) return candidate;
+                increment += 1;
+            }
+        }
         case DashboardsTableName:
             matchingSlugs = await trx(DashboardsTableName)
                 .innerJoin(
@@ -161,6 +169,13 @@ export const generateUniqueSlugScopedToProject = async (
                 .where(`${SavedSqlTableName}.slug`, 'like', `${baseSlug}%`)
                 .pluck(`${SavedSqlTableName}.slug`);
             break;
+        case AppsTableName:
+            matchingSlugs = await trx(AppsTableName)
+                .where(`${AppsTableName}.project_uuid`, projectUuid)
+                .select(`${AppsTableName}.slug`)
+                .where(`${AppsTableName}.slug`, 'like', `${baseSlug}%`)
+                .pluck(`${AppsTableName}.slug`);
+            break;
         case SpaceTableName:
             throw new Error('Not implemented');
         default:
@@ -170,11 +185,15 @@ export const generateUniqueSlugScopedToProject = async (
             );
     }
 
-    let slug = generateSlug(name);
+    let slug = baseSlug;
     let inc = 0;
     while (matchingSlugs.includes(slug)) {
         inc += 1;
-        slug = `${baseSlug}-${inc}`; // generate new slug with number suffix
+        const suffix = `-${inc}`;
+        slug =
+            tableName === AppsTableName
+                ? `${baseSlug.slice(0, 255 - suffix.length)}${suffix}`
+                : `${baseSlug}${suffix}`;
     }
     return slug;
 };

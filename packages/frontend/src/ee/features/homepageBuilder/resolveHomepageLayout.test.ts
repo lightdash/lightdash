@@ -59,6 +59,8 @@ const makeBlock = (
         case 'favorites':
         case 'recent':
             return { id, type, config: { title: 't' } };
+        case 'greeting':
+            return { id, type, config: { subtitle: 's' } };
         default:
             return assertUnreachable(type, 'Unknown homepage block type');
     }
@@ -342,7 +344,7 @@ describe('resolveHomepageLayout', () => {
             expect(rows[1].columns.map((c) => c.block.id)).toEqual(['r', 'f']);
         });
 
-        it('never hoists a hero — the ask-ai row stays in flow at composer width', () => {
+        it('never hoists a hero — the ask-ai row stays in flow, full width', () => {
             const config = makeConfig([
                 [block('a', 'ask-ai-hero')],
                 [block('c', 'collection')],
@@ -352,7 +354,7 @@ describe('resolveHomepageLayout', () => {
             });
             expect(hero).toBeNull();
             expect(rows.map((r) => r.id)).toEqual(['row-0', 'row-1']);
-            expect(rows[0].widthTier).toBe('composer');
+            expect(rows[0].widthTier).toBe('full');
         });
 
         it('applies the same fit and width math as view for visible content', () => {
@@ -623,12 +625,12 @@ describe('build surface — uniform editing width', () => {
         expect(rows.map((r) => r.widthTier)).toEqual(['full', 'full', 'full']);
     });
 
-    it('leaves the composer at its own width — that is its design', () => {
+    it('gives the composer the full editing width like every other block', () => {
         const { rows } = resolveHomepageLayout(
             makeConfig([[block('a', 'ask-ai-hero')], [block('t', 'markdown')]]),
             { surface: 'build' },
         );
-        expect(rows[0].widthTier).toBe('composer');
+        expect(rows[0].widthTier).toBe('full');
         expect(rows[1].widthTier).toBe('full');
     });
 
@@ -676,7 +678,7 @@ describe('row alignment — narrow rows meet the page edge', () => {
         expect(rows.map((r) => r.align)).toEqual(['center', 'center']);
     });
 
-    it('keeps the ask-ai composer centred on the build surface', () => {
+    it('keeps the ask-ai composer full width on the build surface', () => {
         // The published page pulls a leading hero into its own centred hero
         // section; the build surface keeps it in flow, where it must not get
         // demoted to the left edge like other narrow rows.
@@ -687,7 +689,7 @@ describe('row alignment — narrow rows meet the page edge', () => {
             ]),
             { surface: 'build' },
         );
-        expect(rows[0].widthTier).toBe('composer');
+        expect(rows[0].widthTier).toBe('full');
         expect(rows[0].align).toBe('center');
     });
 

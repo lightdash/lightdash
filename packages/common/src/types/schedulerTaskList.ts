@@ -55,7 +55,12 @@ export type AppGeneratePipelineJobPayload = TraceTaskBase & {
     version: number;
     prompt: string;
     template?: DataAppTemplate; // starter template selected on creation; absent on iteration
+    /** @deprecated Use `fileIds` — still read so jobs enqueued before the
+     *  rename keep working after a deploy. */
     imageIds?: string[];
+    // Staged attachment ids (images, PDFs, text files). Type and filename are
+    // resolved from the staged S3 object's ContentType/metadata at write time.
+    fileIds?: string[];
     isIteration: boolean;
     // Upgrade-as-iteration: the worker destroys the app's sandbox (carrying
     // the Claude session best-effort) so this run cold-starts on the current
@@ -182,6 +187,7 @@ export const SCHEDULER_TASKS = {
     INGEST_PROJECT_CONTEXT: 'ingestProjectContext',
     COMPACT_USAGE_EVENTS: 'compactUsageEvents',
     POLL_EMAIL_WHITELABEL: 'pollEmailWhitelabelVerification',
+    CLEAN_WAREHOUSE_CONNECT_CODES: 'cleanWarehouseConnectCodes',
     ...EE_SCHEDULER_TASKS,
 } as const;
 
@@ -228,6 +234,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.INGEST_PROJECT_CONTEXT]: TraceTaskBase;
     [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: TraceTaskBase;
     [SCHEDULER_TASKS.POLL_EMAIL_WHITELABEL]: TraceTaskBase;
+    [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: TraceTaskBase;
     [SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER]: AiAgentReviewClassifierJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK]: AiAgentReviewWritebackJobPayload;

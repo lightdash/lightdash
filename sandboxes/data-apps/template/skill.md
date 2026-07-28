@@ -2,6 +2,8 @@
 
 You are building a React data app that queries the Lightdash semantic layer. This file is your reference for the environment, SDK, and data model.
 
+**Building a single reusable chart rather than an app?** Read `.claude/skills/reusable-visualization/SKILL.md` before writing any code. A reusable visualization runs no query of its own — the host hands it rows, a field mapping, config option values and a colour palette — so the data and filter APIs below do not apply to it. That skill is the contract for those builds and overrides this guide wherever the two differ. Everything else here (environment, components, visual design) still applies.
+
 ## Iteration mindset
 
 This pipeline is built for iteration — the user refines the app with follow-up prompts, and you have the full conversation history on every iteration. **Favor a responsive first build over upfront perfection.** Hit the core ask and ship; let the user tell you what to add.
@@ -47,7 +49,17 @@ Available at `@/components/ui/<name>`:
 
 ## Semantic Layer (dbt models)
 
-The available data models are defined in dbt YAML files at **`/tmp/dbt-repo/models/`**. Read these to discover every model, dimension, metric, join, and parameter available to you. **Never guess field names** — use only what's in the YAML. When a dimension or metric has `ai_hints`, follow that guidance when deciding which field best matches the user's intent; hints supplement names, labels, and descriptions. (Parameters live in a `parameters:` block under `meta:` / `config.meta:`, or in `lightdash.config.yml` — see [Parameters](#parameters).)
+The available data models are defined in dbt YAML files at **`/tmp/dbt-repo/models/`** — one file per model, plus an index. **Never guess field names** — use only what's in the YAML. When a dimension or metric has `ai_hints`, follow that guidance when deciding which field best matches the user's intent; hints supplement names, labels, and descriptions. (Parameters live in a `parameters:` block under `meta:` / `config.meta:`, or in `lightdash.config.yml` — see [Parameters](#parameters).)
+
+### Finding the right models
+
+Projects range from a handful of models to well over a thousand, so the directory is indexed rather than inlined:
+
+1. **Read `/tmp/dbt-repo/models/_index.md` first.** It lists every model, most-queried first, with its file name, dimension/metric counts, joined tables, and description.
+2. **Read only the model files the app actually needs**, e.g. `Read /tmp/dbt-repo/models/orders.yml`. Each file holds that model's complete dimensions, metrics, joins, and parameters.
+3. **Grep when the index isn't enough.** If you know a field name but not its model, `Grep` the directory for it. A wide model may be split across `<name>.yml`, `<name>.part2.yml`, … — the last line of each part points at the next.
+
+**Never read every model file, and never page through a file with `offset`/`limit`** — pick the model from the index and read that one file whole.
 
 ### Reading dbt YAML
 
@@ -184,13 +196,13 @@ const revenueQuery = query('orders')
     .limit(10);
 
 export function RevenueBySegment() {
-    const { data, format, loading, error } = useLightdash(revenueQuery);
+    const { data, format, loading, error, lineage } = useLightdash(revenueQuery);
 
     if (loading) return <p className="text-sm text-muted-foreground">Loading...</p>;
     if (error) return <p className="text-sm text-destructive">Error: {error.message}</p>;
 
     return (
-        <div className="space-y-2">
+        <div className="space-y-2" {...lineage}>
             {data.map((row, i) => (
                 <div key={i} className="flex justify-between">
                     <span>{format(row, 'customer_segment')}</span>
@@ -297,6 +309,7 @@ If the dbt YAML declares a `parameters:` block (under a model's `meta:` / `confi
 | `totalResults` | `number \| null` | Total rows returned by the loaded source query. Use for export labels/counts. |
 | `loading` | `boolean` | True while query is in flight. |
 | `error` | `Error \| null` | Query error. |
+| `lineage` | `LineageProps` | **Spread on the root element of every rendered query block** (`<div {...lineage}>`). Stamps the block so the host's Inspect data button can trace it back to this query — without it that button stays disabled. |
 | `refetch` | `() => void` | Re-run the query on demand. |
 | `queryUuid` | `string \| null` | The async Lightdash query UUID for the loaded source query. Rarely needed directly. |
 | `getUnderlyingData` | `({ row, metric, limit? }) => Promise<{ rows, columns, format, queryUuid }>` | Fetch raw rows behind an aggregated metric value. Call from a user action, never on initial render. |
@@ -717,10 +730,10 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export function RevenueCard() {
-    const { data, format, loading, error } = useLightdash(revenueQuery);
+    const { data, format, loading, error, lineage } = useLightdash(revenueQuery);
 
     return (
-        <Card>
+        <Card {...lineage}>
             <CardHeader>
                 <CardTitle>Revenue</CardTitle>
             </CardHeader>
@@ -792,8 +805,8 @@ export function RevenueBySegment() {
         () => baseRevenueQuery.filters(filtersFor(EXPLORE)),
         [filtersFor],
     );
-    const { data, format, loading } = useLightdash(q);
-    // ...
+    const { data, format, loading, lineage } = useLightdash(q);
+    // ...spread {...lineage} on the block's root element
 }
 ```
 
@@ -1143,6 +1156,8 @@ The action-menu example above shows typical `drillDown()` usage. For the full AP
 | `.limit()` too low | Silently truncates rows — charts end early, tables incomplete | Estimate row count from the grain, set limit above that |
 | Building queries inside render | Infinite re-fetching | Define queries at module scope or memoize them |
 | Forgetting to apply global filters to a query | Chart shows unfiltered data while the rest of the page is filtered → contradictory results | Every `useLightdash()` call must pass `filtersFor(EXPLORE)` into `.filters([...])` via `useMemo` |
+| Forgetting to spread `lineage` on a query block | The host's Inspect data button stays disabled for that block | Destructure `lineage` from `useLightdash()` and spread it on the block's root element |
+| Spreading `lineage` onto a component that swallows unknown props | The stamp never reaches the DOM, so the block looks wired but Inspect data still can't trace it | Spread onto a plain element (`<div {...lineage}>`) or a component that forwards rest props to its root element (all `@/components/ui` primitives do) |
 | Calling `addFilter` without an `explore` tag | Filter has no explore → the `filtersFor(otherExplore)` lookup never returns it, or (worse) you broadcast it everywhere → `FieldReferenceError` like `regional_sales_status` not found | Always include `explore: EXPLORE` on every `addFilter` call |
 | Using `filters` (raw) instead of `filtersFor(EXPLORE)` | Sends filters from other explores into this query → SDK qualifies the field name to the wrong explore → `FieldReferenceError` | Always select via `filtersFor(EXPLORE)`; never pass `allFilters` into `.filters()` |
 | Hard-coding the explore string in two places | Chart and its action menu disagree → filter sets but never applies | Define `const EXPLORE = '...'` at the top of the file and reuse it for both `query(EXPLORE)` and `addFilter({ ..., explore: EXPLORE })` |

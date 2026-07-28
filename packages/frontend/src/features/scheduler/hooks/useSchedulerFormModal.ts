@@ -427,6 +427,9 @@ export const useSchedulerFormModal = ({
             createdBy: user.userUuid,
             // Carry the (possibly unsaved) AI settings so send-now runs them.
             aiAugmentation: form.values.aiAugmentation,
+            // In edit mode, carry the saved scheduler's uuid so delivery
+            // links can open the delivery.
+            sourceSchedulerUuid: isEditMode ? schedulerUuid : undefined,
         };
 
         track({ name: EventName.SCHEDULER_SEND_NOW_BUTTON });
@@ -442,6 +445,7 @@ export const useSchedulerFormModal = ({
         track,
         sendNow,
         formResource?.type,
+        schedulerUuid,
     ]);
 
     const isMutating = isEditMode

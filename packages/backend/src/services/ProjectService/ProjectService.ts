@@ -5008,6 +5008,7 @@ export class ProjectService extends BaseService {
         await this.analyticsModel.addChartViewEvent(
             savedChart.uuid,
             account.user.id,
+            dashboardUuid ? { source: 'dashboard', dashboardUuid } : undefined,
         );
 
         const availableFieldIds = getAvailableFilterFieldIds(explore);
@@ -5847,6 +5848,7 @@ export class ProjectService extends BaseService {
 
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.fileStorageClient,
+            projectUuid,
         )(
             `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
             async (writer) => {
@@ -5870,7 +5872,6 @@ export class ProjectService extends BaseService {
                     },
                 );
             },
-            this.fileStorageClient,
         );
 
         await sshTunnel.disconnect();
@@ -5958,6 +5959,7 @@ export class ProjectService extends BaseService {
 
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.fileStorageClient,
+            projectUuid,
         )(
             `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
             async (writer) => {
@@ -6051,7 +6053,6 @@ export class ProjectService extends BaseService {
                     writer(currentTransformedRow);
                 }
             },
-            this.fileStorageClient,
         );
 
         await sshTunnel.disconnect();
@@ -6099,6 +6100,9 @@ export class ProjectService extends BaseService {
 
         const downloadFile =
             await this.downloadFileModel.getDownloadFile(fileId);
+        if (downloadFile.projectUuid !== projectUuid) {
+            throw new NotFoundError('Cannot find file');
+        }
         switch (downloadFile.type) {
             case DownloadFileType.JSONL:
                 return fs.createReadStream(downloadFile.path);
@@ -9094,7 +9098,19 @@ export class ProjectService extends BaseService {
             chartUrl: string;
         }[]
     > {
-        // TODO implement permissions
+        const project = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         const chartSummaries = await this.savedChartModel.find({
             projectUuid,
         });

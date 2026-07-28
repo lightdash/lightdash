@@ -168,12 +168,14 @@ describe('AppGenerateService.clarifyApp for the data app viz template', () => {
             DATA_APP_VIZ_TEMPLATE,
             [{ uuid: 'chart-1', includeSampleData: false, linkLive: false }],
             undefined,
-            ['image-1', 'image-2'],
+            ['file-1', 'file-2'],
         );
 
         const { userMessage } = sentMessages();
         expect(userMessage).toContain('Chart: "Revenue by month"');
-        expect(userMessage).toContain('2 images attached as design reference');
+        expect(userMessage).toContain(
+            '2 files attached (design references or documents)',
+        );
     });
 
     it('routes to the viz system prompt, not the app one', async () => {
@@ -240,35 +242,5 @@ describe('AppGenerateService.clarifyApp for app templates', () => {
         expect(userMessage).toContain(`App kind: ${template ?? 'custom'}`);
 
         expect(system).toBe(CLARIFY_APP_SYSTEM_PROMPT);
-    });
-});
-
-// Guards the prompt text itself. A data app viz has no say over the query, so
-// the viz prompt must never invite a question the user cannot answer at build
-// time — these are the assertions that would catch app framing creeping back in.
-describe('CLARIFY_VIZ_SYSTEM_PROMPT', () => {
-    it('keeps the shared bias against asking anything', () => {
-        expect(CLARIFY_VIZ_SYSTEM_PROMPT).toContain(
-            'DEFAULT TO ASKING NOTHING',
-        );
-    });
-
-    it('carries none of the app prompt data or layout guidance', () => {
-        expect(CLARIFY_VIZ_SYSTEM_PROMPT).not.toContain(
-            'Which tables or metrics to query',
-        );
-        expect(CLARIFY_VIZ_SYSTEM_PROMPT).not.toContain(
-            'Default time range, when',
-        );
-        expect(CLARIFY_VIZ_SYSTEM_PROMPT).not.toContain('single-page vs tabs');
-        expect(CLARIFY_VIZ_SYSTEM_PROMPT).not.toContain('layout density');
-        expect(CLARIFY_VIZ_SYSTEM_PROMPT).not.toContain('App kind context');
-    });
-
-    it('scopes the askable set to the component and its declared fields', () => {
-        // The three cases GLITCH-639 calls out as genuinely viz-shaped.
-        expect(CLARIFY_VIZ_SYSTEM_PROMPT).toMatch(/chart type/i);
-        expect(CLARIFY_VIZ_SYSTEM_PROMPT).toMatch(/series\/breakdown/i);
-        expect(CLARIFY_VIZ_SYSTEM_PROMPT).toMatch(/one metric or several/i);
     });
 });

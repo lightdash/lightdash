@@ -18,11 +18,19 @@ deploy:
         # (DB_DIVERT=false, computed from changed files in pr.yml).
         SNAPSHOT=""
         if [ "${DB_DIVERT:-true}" = "true" ]; then
-          SNAPSHOT=$(kubectl get volumesnapshots -n db-snapshot \
+          # The refresh workflow publishes several identical copies; pick one
+          # at random so concurrent previews spread their restores across GCP
+          # snapshot resources (GCP rate-limits disk creation per snapshot),
+          # and a retried deploy naturally lands on a different copy
+          CANDIDATES=$(kubectl get volumesnapshots -n db-snapshot \
             -l app.kubernetes.io/part-of=lightdash-preview-db \
             --sort-by=.metadata.creationTimestamp \
             -o jsonpath='{range .items[?(@.status.readyToUse==true)]}{.metadata.name}{"\n"}{end}' \
-            2>/dev/null | tail -n 1 || true)
+            2>/dev/null | tail -n 3 || true)
+          COUNT=$(echo "$CANDIDATES" | grep -c . || true)
+          if [ "$COUNT" -gt 0 ]; then
+            SNAPSHOT=$(echo "$CANDIDATES" | sed -n "$(( $(date +%s) % COUNT + 1 ))p")
+          fi
         fi
         if [ -n "$SNAPSHOT" ]; then
           echo "Diverting preview database to snapshot db-snapshot/$SNAPSHOT"
@@ -46,4 +54,22 @@ deploy:
         # entrypoint always re-runs against the recreated database
         kubectl delete deployment lightdash-preview --ignore-not-found --wait
     - name: Deploying compose...
-      command: okteto deploy -f docker/docker-compose.preview.yml
+      command: |
+        set -e
+        if [ -n "${DB_SNAPSHOT_NAME:-}" ]; then
+          # Divert must never break preview creation: cloning can fail at
+          # deploy time (e.g. GCP throttles disk creation per source snapshot
+          # when several previews deploy at once). The explicit timeout keeps
+          # a clone that hangs in Pending from eating the whole pipeline
+          # window, so the fallback below always gets its turn: recreate the
+          # volume blank and take the full migrate + seed path instead.
+          if ! okteto deploy -f docker/docker-compose.preview.yml --timeout 18m; then
+            echo "Diverted deploy failed: retrying with a blank database volume"
+            kubectl delete statefulset db-preview --ignore-not-found --wait
+            kubectl delete pvc db-data --ignore-not-found --wait
+            export DB_SNAPSHOT_NAME="" DB_SNAPSHOT_NAMESPACE=""
+            okteto deploy -f docker/docker-compose.preview.yml --timeout 20m
+          fi
+        else
+          okteto deploy -f docker/docker-compose.preview.yml
+        fi

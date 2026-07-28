@@ -1,4 +1,5 @@
 import {
+    type AiAgentAdminEvalFilters,
     type AiAgentAdminFilters,
     type AiAgentAdminMemoryFilters,
     type AiAgentAdminMemorySort,
@@ -6,6 +7,8 @@ import {
     type AiAgentReviewItemSummary,
     type AiAgentReviewItemStatus,
     type ApiAiAgentAdminConversationsResponse,
+    type ApiAiAgentAdminEvalPromptsResponse,
+    type ApiAiAgentAdminEvalsResponse,
     type ApiAiAgentAdminMemoriesResponse,
     type ApiAiAgentAdminPromptActivityResponse,
     type ApiAiAgentReviewItemActivityResponse,
@@ -112,6 +115,77 @@ export const useInfiniteAiAgentAdminThreads = (
         ...infinityQueryOpts,
     });
 };
+
+export type AiAgentAdminEvalsArgs = {
+    filters: AiAgentAdminEvalFilters;
+    sort: AiAgentAdminSort;
+    pagination: {
+        pageSize?: number;
+        page?: number;
+    };
+};
+
+const getAiAgentAdminEvals = async (
+    args: AiAgentAdminEvalFilters & {
+        sortField: AiAgentAdminSort['field'];
+        sortDirection: AiAgentAdminSort['direction'];
+    } & {
+        pageSize?: number;
+        page?: number;
+    },
+) => {
+    const params = createQueryString(args);
+    return lightdashApi<ApiAiAgentAdminEvalsResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/evals?${params}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useInfiniteAiAgentAdminEvals = (
+    args: AiAgentAdminEvalsArgs,
+    infinityQueryOpts: UseInfiniteQueryOptions<
+        ApiAiAgentAdminEvalsResponse['results'],
+        ApiError
+    > = {},
+) =>
+    useInfiniteQuery<ApiAiAgentAdminEvalsResponse['results'], ApiError>({
+        queryKey: ['ai-agent-admin-evals', args],
+        queryFn: ({ pageParam }) =>
+            getAiAgentAdminEvals({
+                ...args.filters,
+                sortField: args.sort.field,
+                sortDirection: args.sort.direction,
+                ...args.pagination,
+                page: (pageParam as number) ?? 1,
+            }),
+        getNextPageParam: (lastPage) => {
+            if (lastPage.pagination) {
+                return lastPage.pagination.page <
+                    lastPage.pagination.totalPageCount
+                    ? lastPage.pagination.page + 1
+                    : undefined;
+            }
+        },
+        ...infinityQueryOpts,
+    });
+
+const getAiAgentAdminEvalPrompts = async (evalUuid: string) =>
+    lightdashApi<ApiAiAgentAdminEvalPromptsResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/evals/${encodeURIComponent(evalUuid)}/prompts`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useAiAgentAdminEvalPrompts = (evalUuid: string | undefined) =>
+    useQuery<ApiAiAgentAdminEvalPromptsResponse['results'], ApiError>({
+        queryKey: ['ai-agent-admin-eval-prompts', evalUuid],
+        queryFn: () => getAiAgentAdminEvalPrompts(evalUuid!),
+        enabled: !!evalUuid,
+        staleTime: 30 * 1000,
+    });
 
 export type AiAgentAdminMemoriesArgs = {
     filters: AiAgentAdminMemoryFilters;

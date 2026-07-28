@@ -8,6 +8,8 @@ import type {
     ApiAgentOnboardingRunResponse,
     ApiAgentSuggestionsResponse,
     ApiAiAgentAdminConversationsResponse,
+    ApiAiAgentAdminEvalPromptsResponse,
+    ApiAiAgentAdminEvalsResponse,
     ApiAiAgentAdminMemoriesResponse,
     ApiAiAgentAdminPromptActivityResponse,
     ApiAiAgentArtifactResponse,
@@ -1000,6 +1002,7 @@ export type UpdateUserArgs = {
     timezone: string | null;
     /* Explicit gradient placeholder override; null falls back to the deterministic gradient. */
     avatarGradient: UserAvatarColorValue | null;
+    howDidYouHearAboutUs: string;
 };
 
 export type ApiUserAvatarResponse = {
@@ -1269,6 +1272,8 @@ type ApiResults =
     | ApiAiAgentProjectThreadSummaryListResponse['results']
     | Account
     | ApiAiAgentAdminConversationsResponse['results']
+    | ApiAiAgentAdminEvalPromptsResponse['results']
+    | ApiAiAgentAdminEvalsResponse['results']
     | ApiAiAgentAdminMemoriesResponse['results']
     | ApiAiAgentAdminPromptActivityResponse['results']
     | ApiMcpActivityResponse['results']

@@ -4,6 +4,7 @@ import {
     DbtVersionOptionLatest,
     defineUserAbility,
     DimensionType,
+    DownloadFileType,
     DuckdbConnectionType,
     FeatureFlags,
     FilterOperator,
@@ -23,10 +24,12 @@ import {
     WarehouseTypes,
     type ChartSummary,
     type CreateWarehouseCredentials,
+    type DownloadFile,
     type Explore,
     type PossibleAbilities,
     type RegisteredAccount,
 } from '@lightdash/common';
+import { Readable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
@@ -282,7 +285,9 @@ const getMockedProjectService = (
     overrides: Partial<
         Pick<
             ConstructorParameters<typeof ProjectService>[0],
-            'spacePermissionService' | 'provisionPlaygroundProject'
+            | 'spacePermissionService'
+            | 'provisionPlaygroundProject'
+            | 'downloadFileModel'
         >
     > = {},
 ) =>
@@ -311,7 +316,8 @@ const getMockedProjectService = (
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
         emailModel: emailModel as unknown as EmailModel,
         schedulerClient: schedulerClient as unknown as SchedulerClient,
-        downloadFileModel: {} as unknown as DownloadFileModel,
+        downloadFileModel:
+            overrides.downloadFileModel ?? ({} as unknown as DownloadFileModel),
         fileStorageClient: {} as FileStorageClient,
         groupsModel: {} as GroupsModel,
         tagsModel: tagsModel as unknown as TagsModel,
@@ -2892,6 +2898,39 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('getCustomMetrics', () => {
+        test('returns custom metrics when the user can view the project', async () => {
+            (
+                savedChartModel.find as import('vitest').Mock
+            ).mockResolvedValueOnce([]);
+
+            const result = await service.getCustomMetrics(
+                user,
+                defaultProject.projectUuid,
+            );
+
+            expect(result).toEqual([]);
+            expect(savedChartModel.find).toHaveBeenCalledWith({
+                projectUuid: defaultProject.projectUuid,
+            });
+        });
+
+        test('throws ForbiddenError without querying charts when the user cannot view the project', async () => {
+            const restrictedUser = {
+                ...user,
+                ability: new Ability<PossibleAbilities>([]),
+            } as unknown as SessionUser;
+
+            await expect(
+                service.getCustomMetrics(
+                    restrictedUser,
+                    defaultProject.projectUuid,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(savedChartModel.find).not.toHaveBeenCalled();
+        });
+    });
+
     describe('getUserAttributes', () => {
         // vi.clearAllMocks() in the outer afterEach does not drain
         // mockImplementationOnce queues — reset the email mock per test so
@@ -3100,6 +3139,69 @@ describe('ProjectService', () => {
                     credentials,
                 }),
             ).rejects.toThrowError(ForbiddenError);
+        });
+    });
+
+    describe('getFileStream', () => {
+        const getServiceWithDownloadFile = (downloadFile: DownloadFile) =>
+            getMockedProjectService(lightdashConfigMock, {
+                downloadFileModel: {
+                    getDownloadFile: vi.fn(async () => downloadFile),
+                } as unknown as DownloadFileModel,
+            });
+
+        it('returns a stream when the file belongs to the requested project', async () => {
+            const serviceWithFile = getServiceWithDownloadFile({
+                nanoid: 'file-id',
+                path: __filename,
+                createdAt: new Date(),
+                type: DownloadFileType.JSONL,
+                projectUuid: projectSummary.projectUuid,
+            });
+
+            const stream = await serviceWithFile.getFileStream(
+                user,
+                projectSummary.projectUuid,
+                'file-id',
+            );
+
+            expect(stream).toBeInstanceOf(Readable);
+        });
+
+        it('throws NotFoundError when the file belongs to a different project', async () => {
+            const serviceWithFile = getServiceWithDownloadFile({
+                nanoid: 'file-id',
+                path: '/tmp/file-id.jsonl',
+                createdAt: new Date(),
+                type: DownloadFileType.JSONL,
+                projectUuid: 'another-project-uuid',
+            });
+
+            await expect(
+                serviceWithFile.getFileStream(
+                    user,
+                    projectSummary.projectUuid,
+                    'file-id',
+                ),
+            ).rejects.toThrowError(NotFoundError);
+        });
+
+        it('throws NotFoundError when the file has no owning project', async () => {
+            const serviceWithFile = getServiceWithDownloadFile({
+                nanoid: 'file-id',
+                path: '/tmp/file-id.jsonl',
+                createdAt: new Date(),
+                type: DownloadFileType.JSONL,
+                projectUuid: null,
+            });
+
+            await expect(
+                serviceWithFile.getFileStream(
+                    user,
+                    projectSummary.projectUuid,
+                    'file-id',
+                ),
+            ).rejects.toThrowError(NotFoundError);
         });
     });
 });

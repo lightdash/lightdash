@@ -35,16 +35,28 @@ export const useDeepResearchComposer = ({
             setSelectedMcpServerUuids([]);
             return;
         }
-        if (
-            !mcpServersQuery.data ||
-            initializedSelectionKeyRef.current === selectionKey
-        ) {
+        if (!mcpServersQuery.data) {
             return;
         }
-        initializedSelectionKeyRef.current = selectionKey;
-        setSelectedMcpServerUuids(
-            mcpServersQuery.data.map((server) => server.uuid),
+        if (initializedSelectionKeyRef.current !== selectionKey) {
+            initializedSelectionKeyRef.current = selectionKey;
+            setSelectedMcpServerUuids([]);
+            return;
+        }
+
+        const availableMcpServerUuids = new Set(
+            mcpServersQuery.data
+                .filter(isDeepResearchMcpServerReady)
+                .map((server) => server.uuid),
         );
+        setSelectedMcpServerUuids((selectedUuids) => {
+            const availableSelectedUuids = selectedUuids.filter((uuid) =>
+                availableMcpServerUuids.has(uuid),
+            );
+            return availableSelectedUuids.length === selectedUuids.length
+                ? selectedUuids
+                : availableSelectedUuids;
+        });
     }, [selectionKey, mcpServersQuery.data]);
 
     const hasUnavailableSelection = (mcpServersQuery.data ?? []).some(

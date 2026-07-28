@@ -343,6 +343,11 @@ export type CreateSchedulerAndTargets = Omit<
     // worker can run it without a persisted row. Never written to the scheduler
     // table (persisted separately via the ai-augmentation sub-resource).
     aiAugmentation?: SchedulerAiAugmentation | null;
+    // Transient: "send now" from the edit modal of a saved scheduler carries
+    // that scheduler's uuid so delivery links can open the delivery. Only used
+    // for link building — must not reclassify the payload as a saved scheduler
+    // (send-now filter/batch semantics key off schedulerUuid being absent).
+    sourceSchedulerUuid?: string;
 };
 
 export type CreateSchedulerAndTargetsWithoutIds = Omit<
@@ -636,6 +641,11 @@ export const getSchedulerUuid = (
     data: CreateSchedulerAndTargets | Pick<Scheduler, 'schedulerUuid'>,
 ): string | undefined =>
     'schedulerUuid' in data ? data.schedulerUuid : undefined;
+
+export const getSourceSchedulerUuid = (
+    data: CreateSchedulerAndTargets | Pick<Scheduler, 'schedulerUuid'>,
+): string | undefined =>
+    'sourceSchedulerUuid' in data ? data.sourceSchedulerUuid : undefined;
 
 export enum LightdashPage {
     DASHBOARD = 'dashboard',

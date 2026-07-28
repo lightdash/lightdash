@@ -89,7 +89,12 @@ export class Compaction {
         return threadMessages.slice(compactedThroughIndex + 1);
     }
 
-    static serializeConversation(messages: AiAgentMessage[]): string {
+    static serializeConversation(
+        messages: AiAgentMessage[],
+        options?: {
+            deepResearchReportsByPromptUuid?: ReadonlyMap<string, string>;
+        },
+    ): string {
         const lines: string[] = [];
 
         for (const message of messages) {
@@ -101,6 +106,12 @@ export class Compaction {
             } else {
                 if (message.message) {
                     lines.push(`[Assistant]: ${message.message}`);
+                }
+
+                const deepResearchReport =
+                    options?.deepResearchReportsByPromptUuid?.get(message.uuid);
+                if (deepResearchReport) {
+                    lines.push(`[Deep research report]: ${deepResearchReport}`);
                 }
 
                 if (message.toolCalls.length > 0) {

@@ -80,6 +80,20 @@ export const SDK_FEATURES: SdkFeature[] = [
         description:
             'Receive query context when app visualizations are embedded in dashboards.',
     },
+    {
+        key: 'viz-config-options',
+        label: 'Visualization config options',
+        description:
+            "Let viewers adjust the visualization from the Lightdash config panel — toggles, dropdowns, numbers, text and colours — and take series colours from the chart's palette, without regenerating the app.",
+        wiring: 'Declare configOptions (and colorPalette, if the viz colours series) in the viz schema, then read options[name] and colorPalette from useVizContext().',
+    },
+    {
+        key: 'delivery',
+        label: 'Data in scheduled deliveries',
+        description:
+            "Include the app's query results as .csv/.xlsx in scheduled deliveries, instead of only a screenshot. Offer it when an app is used for reporting.",
+        wiring: 'Call useDelivery(q) alongside each useLightdash(q) whose data should be delivered; without it the delivery format stays image-only.',
+    },
 ];
 
 export const SDK_FEATURE_KEYS: string[] = SDK_FEATURES.map((f) => f.key);

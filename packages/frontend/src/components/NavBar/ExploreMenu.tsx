@@ -138,7 +138,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             >
                                 <LargeMenuItem
                                     component={Link}
-                                    title="App"
+                                    title="Data App"
                                     description="Build an interactive app powered by your data."
                                     to={`/projects/${projectUuid}/apps/generate`}
                                     icon={IconAppWindow}

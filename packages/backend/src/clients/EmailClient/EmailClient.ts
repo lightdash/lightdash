@@ -432,8 +432,9 @@ export default class EmailClient {
             });
         }
 
+        const safeName = sanitizeHtml(schedulerName);
         const message = `
-            <p>Your Google Sheets sync <strong>"${schedulerName}"</strong> failed.</p>
+            <p>Your Google Sheets sync <strong>"${safeName}"</strong> failed.</p>
             <br />
             <br />
             <br />
@@ -482,8 +483,9 @@ export default class EmailClient {
 
         const urlWithRef = appendCorrelationRef(schedulerUrl, correlationId);
 
+        const safeName = sanitizeHtml(schedulerName);
         const message = `
-            <p>Your scheduled delivery <strong>"${schedulerName}"</strong> failed to send.</p>
+            <p>Your scheduled delivery <strong>"${safeName}"</strong> failed to send.</p>
             <br />
             <br />
             <br />
@@ -577,8 +579,9 @@ export default class EmailClient {
             )
             .join('');
 
+        const safeName = sanitizeHtml(schedulerName);
         const message = `
-            <p>Your scheduled delivery <strong>"${schedulerName}"</strong> failed to deliver to ${failedCount} of ${totalTargets} ${deliveryTypeLabel} target${
+            <p>Your scheduled delivery <strong>"${safeName}"</strong> failed to deliver to ${failedCount} of ${totalTargets} ${deliveryTypeLabel} target${
                 totalTargets > 1 ? 's' : ''
             }.</p>
             <br />
@@ -757,7 +760,7 @@ export default class EmailClient {
             context: {
                 title,
                 hasMessage: !!message,
-                message: message && marked(message),
+                message: message && sanitizeHtml(marked(message)),
                 imageUrl: useCidImage ? 'cid:chart-image' : imageUrl,
                 description,
                 date,
@@ -812,7 +815,7 @@ export default class EmailClient {
                 title,
                 description,
                 hasMessage: !!message,
-                message: message && marked(message),
+                message: message && sanitizeHtml(marked(message)),
                 date,
                 frequency,
                 url,
@@ -886,7 +889,7 @@ export default class EmailClient {
                 title,
                 description,
                 hasMessage: !!message,
-                message: message && marked(message),
+                message: message && sanitizeHtml(marked(message)),
                 date,
                 frequency,
                 csvUrls,
@@ -1019,7 +1022,7 @@ export default class EmailClient {
             template: 'genericNotification',
             context: {
                 title,
-                message: marked(message),
+                message: sanitizeHtml(marked(message)),
                 host: this.lightdashConfig.siteUrl,
             },
             text: `${title}\n\n${message}`,

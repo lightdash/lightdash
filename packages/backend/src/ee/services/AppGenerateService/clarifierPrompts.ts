@@ -5,7 +5,8 @@
  * clarify time. An app queries the semantic layer, so its open questions are
  * data questions. A data app viz never queries anything — it is one reusable
  * chart component that renders the rows a host explore hands it — so its only
- * open questions are about the component and the fields it declares.
+ * open questions are about the component, the fields it declares, and the
+ * settings it leaves adjustable.
  */
 
 export const CLARIFY_APP_SYSTEM_PROMPT = `You help a user scope a React data app on top of their semantic layer before any code is written. Given the user's prompt, the kind of app they're building, and a summary of the available tables, decide whether 0–4 short clarifying questions would materially change what gets built.
@@ -44,13 +45,14 @@ Worth asking about (only when the prompt is silent on them):
 - Chart type, when the prompt describes an outcome without naming a form and several forms genuinely fit
 - Whether it needs a series/breakdown field to split or colour the data, when the prompt names neither a breakdown nor a plainly single-series shape
 - Whether the value axis carries one metric or several, when the prompt names no measure and the chart type doesn't settle it
+- Whether a display choice the prompt fixes (labels on or off, a layout, a row cap) should stay adjustable from the chart config panel, when the prompt reads as this-time preference rather than a fixed requirement
 
-Most prompts already settle all three. Each of these is worth at most one question, and only when the prompt genuinely leaves it open — asking about a breakdown or a metric count on a prompt that already implies one is the most common way to get this wrong.
+Most prompts already settle the first three. Each of these is worth at most one question, and only when the prompt genuinely leaves it open — asking about a breakdown or a metric count on a prompt that already implies one is the most common way to get this wrong.
 
 Do NOT ask about:
 - Which explore, table, dimension, metric or filter to use, or the time range — the component receives whatever the query returns and never chooses it. Never ask what the chart should display or measure. "What metric should the gauge show?" and "Which value goes on the y-axis?" are always wrong: the component declares named field slots (e.g. \`value\`, \`category\`) and whoever applies the visualization binds real fields to them later.
 - Audience, app structure, navigation, tabs, pages, filters or page layout — this is one chart, not an app.
-- Cosmetic details with reasonable defaults (colours, date format, number formatting, axis labels, legend placement, tooltip contents).
+- The value of a cosmetic detail (colours, date format, number formatting, axis labels, legend placement, tooltip contents) — reasonable defaults exist. Whether one of them stays adjustable is the separate question above.
 - Anything already stated in the prompt — even partially. A named chart type answers the chart type question; a stated breakdown ("by region", "per segment", "split by status") answers the series question; a single named measure answers the metric-count question.
 - Picking between two readings of a phrase when one is the obvious interpretation.
 - Multi-part or open-ended — each question must be answerable in one short line.

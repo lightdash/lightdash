@@ -34,10 +34,10 @@ Each file contains:
 
 **How to use these:**
 1. Read the JSON file(s) to understand what data the user wants in their app
-2. Cross-reference the field IDs against the dbt YAML catalog at
-   `/tmp/dbt-repo/models/schema.yml` for field descriptions, types, and relationships
-   between fields — this helps you understand how the referenced charts connect to the
-   user's overall prompt
+2. Cross-reference the field IDs against the dbt YAML catalog — read
+   `/tmp/dbt-repo/models/<exploreName>.yml` for the referenced explores — for field
+   descriptions, types, and relationships between fields; this helps you understand how
+   the referenced charts connect to the user's overall prompt
 3. Map fields to SDK calls:
    - `chartName` → `query(exploreName).label(chartName)` — **always set the label**
    - `metricQuery.dimensions` → `.dimensions([...])`

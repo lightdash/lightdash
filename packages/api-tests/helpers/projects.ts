@@ -178,7 +178,7 @@ export async function createProject(
             type: 'dbt',
             project_dir: process.env.DBT_PROJECT_DIR || '/usr/app/dbt',
         },
-        dbtVersion: 'v1.7',
+        dbtVersion: 'v1.11',
         warehouseConnection,
     });
     expect(resp.status).toBe(200);

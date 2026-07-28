@@ -103,6 +103,27 @@ describe('useRecommendedActions', () => {
         });
     });
 
+    it('reports no pending actions while source control is still loading', () => {
+        vi.mocked(useApp).mockReturnValue({
+            health: { data: { hasGithub: true } },
+            user: {
+                data: {
+                    ability: { can: () => true },
+                },
+            },
+        } as unknown as ReturnType<typeof useApp>);
+        vi.mocked(useGithubConfig).mockReturnValue({
+            data: undefined,
+            isInitialLoading: true,
+        } as ReturnType<typeof useGithubConfig>);
+
+        const { result } = renderHook(() =>
+            useRecommendedActions('project-uuid'),
+        );
+
+        expect(result.current.hasPendingActions).toBe(false);
+    });
+
     it('shows no source-control annotation when nothing is connected', () => {
         vi.mocked(useApp).mockReturnValue({
             health: { data: { hasGitlab: true } },
@@ -128,6 +149,34 @@ describe('useRecommendedActions', () => {
         ).toBeNull();
     });
 
+    describe('new-onboarding gate', () => {
+        it('has no pending actions while new-onboarding is disabled', () => {
+            const { result } = renderHook(() =>
+                useRecommendedActions('project-uuid'),
+            );
+
+            expect(result.current.visibleActions).toContain(
+                'connect-warehouse',
+            );
+            expect(result.current.hasPendingActions).toBe(false);
+        });
+
+        it('has pending actions once new-onboarding is enabled', () => {
+            vi.mocked(useServerFeatureFlag).mockImplementation(
+                (flag) =>
+                    ({
+                        data: { enabled: flag === FeatureFlags.NewOnboarding },
+                    }) as ReturnType<typeof useServerFeatureFlag>,
+            );
+
+            const { result } = renderHook(() =>
+                useRecommendedActions('project-uuid'),
+            );
+
+            expect(result.current.hasPendingActions).toBe(true);
+        });
+    });
+
     describe('on a playground project', () => {
         beforeEach(() => {
             vi.mocked(useOrganization).mockReturnValue({
@@ -146,14 +195,13 @@ describe('useRecommendedActions', () => {
             } as unknown as ReturnType<typeof useProjects>);
         });
 
-        it('keeps connect-warehouse as the only visible action', () => {
+        it('offers no actions so the setup checklist stays hidden', () => {
             const { result } = renderHook(() =>
                 useRecommendedActions('playground-uuid'),
             );
 
-            expect(result.current.visibleActions).toEqual([
-                'connect-warehouse',
-            ]);
+            expect(result.current.visibleActions).toEqual([]);
+            expect(result.current.hasPendingActions).toBe(false);
         });
 
         it('does not count the playground as a connected warehouse', () => {
@@ -164,7 +212,6 @@ describe('useRecommendedActions', () => {
             expect(
                 result.current.statuses['connect-warehouse'].isComplete,
             ).toBe(false);
-            expect(result.current.hasPendingActions).toBe(true);
         });
 
         it('completes connect-warehouse once a real project exists', () => {

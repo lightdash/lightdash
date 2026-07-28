@@ -22,6 +22,7 @@ import {
     formatNumberValue,
     getCustomFormatFromLegacy,
 } from '../utils/formatting';
+import { assignSeriesZByOrder } from './helpers/seriesZOrder';
 import {
     getAxisLabelStyle,
     getAxisLineStyle,
@@ -899,6 +900,9 @@ export class CartesianChartDataModel {
 
         // Show legend when there are multiple series
         const showLegend = transformedData.valuesColumns.length > 1;
+
+        // Series-list order controls paint order, same as explore charts
+        series = assignSeriesZByOrder(series);
 
         const spec = {
             // Snap time-axis ticks in UTC to match the UTC label formatter;

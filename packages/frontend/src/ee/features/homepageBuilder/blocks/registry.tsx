@@ -10,6 +10,7 @@ import {
     IconSpeakerphone,
     IconStar,
     type Icon,
+    IconSun,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -20,6 +21,7 @@ import {
 import { AskAiHeroBlockBuild, AskAiHeroBlockView } from './AskAiHeroBlock';
 import { CollectionBlockBuild, CollectionBlockView } from './CollectionBlock';
 import { FavoritesBlockBuild, FavoritesBlockView } from './FavoritesBlock';
+import { GreetingBlockBuild, GreetingBlockView } from './GreetingBlock';
 import { MarkdownBlockBuild, MarkdownBlockView } from './MarkdownBlock';
 import { MetricsBlockBuild, MetricsBlockView } from './MetricsBlock';
 import { getDefaultQuickActions } from './quickActionDefaults';
@@ -61,6 +63,21 @@ export const blockLibrary: BlockDefinition[] = [
         Build: AskAiHeroBlockBuild,
     },
     {
+        type: 'greeting',
+        label: 'Greeting',
+        description: 'A time-of-day welcome, personalised per viewer.',
+        icon: IconSun,
+        create: () => ({
+            id: uuidv4(),
+            type: 'greeting',
+            config: {
+                subtitle: 'Pick up where you left off, or start something new.',
+            },
+        }),
+        View: GreetingBlockView,
+        Build: GreetingBlockBuild,
+    },
+    {
         type: 'quick-actions',
         label: 'Quick actions',
         description: 'Primary CTA cards — tailor the main action per audience.',
@@ -68,7 +85,7 @@ export const blockLibrary: BlockDefinition[] = [
         create: () => ({
             id: uuidv4(),
             type: 'quick-actions',
-            config: { actions: getDefaultQuickActions(true) },
+            config: { actions: getDefaultQuickActions(false) },
         }),
         View: QuickActionsBlockView,
         Build: QuickActionsBlockBuild,

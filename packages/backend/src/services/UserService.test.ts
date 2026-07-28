@@ -355,6 +355,95 @@ describe('UserService', () => {
         });
     });
 
+    describe('completeUserSetup', () => {
+        test('persists and tracks a trimmed answer', async () => {
+            await userService.completeUserSetup(sessionUser, {
+                jobTitle: '',
+                howDidYouHearAboutUs: '  A podcast  ',
+                enableEmailDomainAccess: false,
+                isMarketingOptedIn: true,
+                isTrackingAnonymized: false,
+            });
+
+            expect(vi.mocked(userModel.updateUser)).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                undefined,
+                {
+                    isSetupComplete: true,
+                    isTrackingAnonymized: false,
+                    isMarketingOptedIn: true,
+                    howDidYouHearAboutUs: 'A podcast',
+                },
+            );
+            expect(vi.mocked(analyticsMock.track)).toHaveBeenCalledWith({
+                event: 'hear_about_us.submitted',
+                userId: sessionUser.userUuid,
+                properties: {
+                    organizationId: sessionUser.organizationUuid,
+                    onboardingFlow: 'legacy',
+                    answered: true,
+                    answer: 'A podcast',
+                },
+            });
+        });
+
+        test('persists and tracks a skipped answer', async () => {
+            await userService.completeUserSetup(sessionUser, {
+                jobTitle: '',
+                howDidYouHearAboutUs: '',
+                enableEmailDomainAccess: false,
+                isMarketingOptedIn: true,
+                isTrackingAnonymized: false,
+            });
+
+            expect(vi.mocked(userModel.updateUser)).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                undefined,
+                {
+                    isSetupComplete: true,
+                    isTrackingAnonymized: false,
+                    isMarketingOptedIn: true,
+                    howDidYouHearAboutUs: '',
+                },
+            );
+            expect(vi.mocked(analyticsMock.track)).toHaveBeenCalledWith({
+                event: 'hear_about_us.submitted',
+                userId: sessionUser.userUuid,
+                properties: {
+                    organizationId: sessionUser.organizationUuid,
+                    onboardingFlow: 'legacy',
+                    answered: false,
+                    answer: null,
+                },
+            });
+        });
+
+        test('does not track an absent answer', async () => {
+            await userService.completeUserSetup(sessionUser, {
+                jobTitle: '',
+                enableEmailDomainAccess: false,
+                isMarketingOptedIn: true,
+                isTrackingAnonymized: false,
+            });
+
+            expect(vi.mocked(userModel.updateUser)).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                undefined,
+                {
+                    isSetupComplete: true,
+                    isTrackingAnonymized: false,
+                    isMarketingOptedIn: true,
+                    howDidYouHearAboutUs: undefined,
+                },
+            );
+            expect(vi.mocked(analyticsMock.track)).not.toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'hear_about_us.submitted',
+                }),
+            );
+        });
+    });
+
     describe('delete', () => {
         const orglessActor: SessionUser = {
             ...sessionUser,
@@ -632,11 +721,10 @@ describe('UserService', () => {
             });
         });
 
-        test('rejects and consumes an expired invite without activating the user', async () => {
-            vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce({
-                ...validInviteLink,
-                expiresAt: new Date('2000-01-01'),
-            });
+        test('rejects an expired invite without activating the user', async () => {
+            vi.mocked(inviteLinkModel.getByCode).mockRejectedValueOnce(
+                new ExpiredError('Invite link expired'),
+            );
             const service = createUserService(lightdashConfigMock);
 
             await expect(
@@ -645,9 +733,6 @@ describe('UserService', () => {
                 ),
             ).rejects.toThrow(new ExpiredError('Invite link expired'));
 
-            expect(inviteLinkModel.deleteByCode).toHaveBeenCalledWith(
-                validInviteLink.inviteCode,
-            );
             expect(
                 userModel.activateUserWithoutPassword,
             ).not.toHaveBeenCalled();
@@ -917,9 +1002,10 @@ describe('UserService', () => {
                 userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
                 userModel.hasPassword.mockResolvedValueOnce(false);
                 userModel.hasOpenIdIdentity.mockResolvedValueOnce(false);
-                emailModel.getPrimaryEmailStatus.mockResolvedValueOnce(
-                    activeOtp(),
-                );
+                const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+                emailModel.getPrimaryEmailStatus
+                    .mockResolvedValueOnce(activeOtp(0, twoMinutesAgo))
+                    .mockResolvedValueOnce(activeOtp(0, twoMinutesAgo));
 
                 await service.requestEmailOtpLogin('email');
 
@@ -932,6 +1018,27 @@ describe('UserService', () => {
                         onboardingFlow: 'new',
                     },
                 });
+            });
+
+            test('does not re-issue an OTP within the resend interval', async () => {
+                const service = createUserService(lightdashConfigMock, {
+                    featureFlagModel: createFeatureFlagModel(true),
+                });
+                userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
+                userModel.hasPassword.mockResolvedValueOnce(false);
+                userModel.hasOpenIdIdentity.mockResolvedValueOnce(false);
+                emailModel.getPrimaryEmailStatus.mockResolvedValueOnce(
+                    activeOtp(),
+                );
+
+                await expect(
+                    service.requestEmailOtpLogin('email'),
+                ).resolves.toBeUndefined();
+
+                expect(emailModel.createPrimaryEmailOtp).not.toHaveBeenCalled();
+                expect(
+                    emailClient.sendOneTimePasscodeEmail,
+                ).not.toHaveBeenCalled();
             });
         });
 
@@ -1184,6 +1291,83 @@ describe('UserService', () => {
                         onboardingFlow: 'new',
                     },
                 });
+            });
+        });
+
+        describe('onboarding step gating', () => {
+            const verifyEmailAs = async (user: SessionUser) => {
+                const service = createUserService(lightdashConfigMock, {
+                    featureFlagModel: createFeatureFlagModel(true),
+                });
+                const emailStatus = activeOtp();
+                emailModel.getPrimaryEmailStatusByUserAndOtp.mockResolvedValueOnce(
+                    emailStatus,
+                );
+                emailModel.verifyUserEmailIfExists.mockResolvedValueOnce([
+                    { email: emailStatus.email },
+                ]);
+
+                await service.getPrimaryEmailStatus(user, '123456');
+
+                return emailStatus;
+            };
+
+            test('emits the verified step when verifying during onboarding', async () => {
+                const onboardingUser: SessionUser = {
+                    ...sessionUser,
+                    isSetupComplete: false,
+                };
+
+                const emailStatus = await verifyEmailAs(onboardingUser);
+
+                expect(analyticsMock.track).toHaveBeenCalledWith({
+                    userId: onboardingUser.userUuid,
+                    event: 'user.verified',
+                    properties: {
+                        email: emailStatus.email,
+                        location: 'onboarding',
+                        isTrackingAnonymized:
+                            onboardingUser.isTrackingAnonymized,
+                        method: 'otp',
+                        onboardingFlow: 'new',
+                    },
+                });
+                expect(analyticsMock.track).toHaveBeenCalledWith({
+                    userId: onboardingUser.userUuid,
+                    event: 'onboarding.step_completed',
+                    properties: {
+                        step: 'verified',
+                        stepIndex: 2,
+                        onboardingFlow: 'new',
+                        organizationId: onboardingUser.organizationUuid,
+                    },
+                });
+            });
+
+            test('does not emit the verified step when verifying from settings', async () => {
+                const settingsUser: SessionUser = {
+                    ...sessionUser,
+                    isSetupComplete: true,
+                };
+
+                const emailStatus = await verifyEmailAs(settingsUser);
+
+                expect(analyticsMock.track).toHaveBeenCalledWith({
+                    userId: settingsUser.userUuid,
+                    event: 'user.verified',
+                    properties: {
+                        email: emailStatus.email,
+                        location: 'settings',
+                        isTrackingAnonymized: settingsUser.isTrackingAnonymized,
+                        method: 'otp',
+                        onboardingFlow: 'new',
+                    },
+                });
+                expect(analyticsMock.track).not.toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        event: 'onboarding.step_completed',
+                    }),
+                );
             });
         });
     });

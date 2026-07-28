@@ -43,7 +43,7 @@ const queryConfigBaseSchema = z.object({
         .number()
         .nullable()
         .describe(
-            'The total number of data points / rows allowed on the chart.',
+            'The total number of data points / rows allowed on the chart. null means this tool\'s maximum, not "no data" — use it unless the user asked for a specific number of rows. Row limits documented for other tools do not apply here.',
         ),
 });
 

@@ -5,27 +5,31 @@ import type {
 } from '@lightdash/common';
 import {
     Accordion,
-    Alert,
+    ActionIcon,
     Anchor,
     Badge,
     Box,
     Divider,
-    getDefaultZIndex,
     Group,
     Stack,
     Text,
+    Tooltip,
 } from '@mantine-8/core';
 import {
     IconArrowRight,
     IconExternalLink,
     IconHistory,
+    IconInfoCircle,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
+import Callout from '../../../../../components/common/Callout';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { parseAiAgentMemorySections } from '../../utils/memory';
+import { MEMORY_SCOPE_LABELS } from '../Admin/memoryScope';
 import styles from './MemoryDetails.module.css';
+import { MemoryStatusAction, MemoryStatusMenu } from './MemoryStatusControls';
 
 type Memory = ApiAiAgentMemoryResponse['results'];
 
@@ -41,12 +45,12 @@ const getObjectLabel = (object: AiProjectContextTypedObjectRef) =>
 const getObjectExplore = (object: AiProjectContextTypedObjectRef) =>
     object.type === 'explore' ? object.name : object.explore;
 
-const RailRow: FC<{ label: string; children: ReactNode }> = ({
+const RailRow: FC<{ label: ReactNode; children: ReactNode }> = ({
     label,
     children,
 }) => (
     <Group className={styles.railRow} wrap="nowrap" gap="sm">
-        <Text className={styles.railLabel}>{label}</Text>
+        <Box className={styles.railLabel}>{label}</Box>
         <Box className={styles.railValue}>{children}</Box>
     </Group>
 );
@@ -119,17 +123,23 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
         <Box className={styles.layout}>
             <Stack className={styles.main} gap={0}>
                 {memory.status !== 'active' ? (
-                    <Alert
+                    <Callout
                         mb="xl"
                         color="gray"
-                        variant="light"
+                        variant="info"
                         title={`This memory is ${memory.status}`}
                         icon={<IconHistory size={17} />}
+                        classNames={{
+                            title: styles.statusCalloutText,
+                            message: styles.statusCalloutText,
+                        }}
                     >
                         {replacementPath ? (
                             <Anchor
                                 component={Link}
                                 to={replacementPath}
+                                c="ldGray.8"
+                                fz="xs"
                                 fw={600}
                             >
                                 View the current memory
@@ -137,7 +147,7 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                         ) : (
                             'It remains available for audit history.'
                         )}
-                    </Alert>
+                    </Callout>
                 ) : null}
 
                 <Stack gap="md">
@@ -227,13 +237,38 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
 
             <Stack className={styles.rail} gap={0}>
                 <RailRow label="Status">
-                    <Group gap={8} wrap="nowrap">
-                        <Box
-                            className={styles.statusDot}
-                            data-status={memory.status}
-                        />
-                        <Text className={styles.railText}>{memory.status}</Text>
-                    </Group>
+                    <MemoryStatusMenu
+                        projectUuid={projectUuid}
+                        memoryUuid={memory.uuid}
+                        slug={memory.slug}
+                        status={memory.status}
+                    />
+                </RailRow>
+                <RailRow
+                    label={
+                        <Group gap="two" wrap="nowrap">
+                            Scope
+                            <Tooltip
+                                label="Scope guides how the agent uses this memory. All memories remain private to the user by default."
+                                multiline
+                                w={260}
+                                withinPortal
+                            >
+                                <ActionIcon
+                                    aria-label="About memory scope"
+                                    color="gray"
+                                    size="xs"
+                                    variant="transparent"
+                                >
+                                    <IconInfoCircle size={13} />
+                                </ActionIcon>
+                            </Tooltip>
+                        </Group>
+                    }
+                >
+                    <Text className={styles.railText}>
+                        {MEMORY_SCOPE_LABELS[memory.scope]}
+                    </Text>
                 </RailRow>
                 <RailRow label="Saved">
                     <Text className={styles.railText}>
@@ -346,9 +381,16 @@ export const MemoryDetailsModal: FC<MemoryDetailsModalProps> = ({
             </Text>
         }
         cancelLabel={false}
-        modalRootProps={{ zIndex: getDefaultZIndex('overlay') }}
         modalBodyProps={{ py: 'lg' }}
         bodyScrollAreaMaxHeight="calc(85vh - 120px)"
+        headerActions={
+            <MemoryStatusAction
+                projectUuid={projectUuid}
+                memoryUuid={memory.uuid}
+                slug={memory.slug}
+                status={memory.status}
+            />
+        }
     >
         <MemoryDetails
             memory={memory}

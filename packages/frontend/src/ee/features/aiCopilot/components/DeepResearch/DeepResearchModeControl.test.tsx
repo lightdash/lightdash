@@ -58,10 +58,10 @@ describe('DeepResearchModeControl', () => {
         ).toBeInTheDocument();
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         expect(
-            screen.getByText('Agent context and project data'),
-        ).toBeInTheDocument();
+            screen.queryByText('Agent context and project data'),
+        ).not.toBeInTheDocument();
         expect(
-            screen.getByText('This agent has no MCP servers attached.'),
+            screen.getByText('This agent has no MCP servers available.'),
         ).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Start research' }),
@@ -77,5 +77,24 @@ describe('DeepResearchModeControl', () => {
                 name: 'Deep research settings',
             }),
         ).not.toBeInTheDocument();
+    });
+
+    it('renders the compact control with reusable toolbar classes', () => {
+        renderWithProviders(
+            <DeepResearchModeControl
+                mode="ask"
+                onModeChange={() => undefined}
+                variant="compact"
+                classNames={{ root: 'toolbar', label: 'toolbar-label' }}
+            />,
+        );
+
+        const control = screen.getByRole('button', {
+            name: 'Deep research',
+        });
+        expect(control).toHaveClass('toolbar');
+        expect(control.querySelector('.toolbar-label')).toHaveTextContent(
+            'Deep research',
+        );
     });
 });

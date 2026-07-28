@@ -7,6 +7,7 @@ import {
     type WarehouseTypes,
 } from '@lightdash/common';
 import type * as rudderSDK from 'rudder-sdk-js';
+import { type PlaygroundSetupFailure } from '../../components/ProjectConnection/ProjectConnectFlow/playgroundSetupFailure';
 import {
     type CategoryName,
     type EventName,
@@ -76,8 +77,6 @@ type GenericEvent = {
         | EventName.METRICS_CATALOG_TREES_EDGE_REMOVED
         | EventName.METRICS_CATALOG_TREES_CANVAS_MODE_CLICKED
         | EventName.BIGQUERY_SSO_SIGNIN_CLICKED
-        | EventName.SNOWFLAKE_CLI_SSO_COMMAND_COPIED
-        | EventName.PLAYGROUND_PROJECT_ENTERED
         | EventName.AGENT_SETUP_PROMPT_COPIED;
     properties?: {};
 };
@@ -86,6 +85,21 @@ type SetupInviteSentEvent = {
     name: EventName.SETUP_INVITE_SENT;
     properties: {
         organizationId: string;
+    };
+};
+
+type PlaygroundProjectEnteredEvent = {
+    name: EventName.PLAYGROUND_PROJECT_ENTERED;
+    properties: {
+        organizationId: string;
+    };
+};
+
+type PlaygroundProjectSetupFailedEvent = {
+    name: EventName.PLAYGROUND_PROJECT_SETUP_FAILED;
+    properties: {
+        organizationId: string;
+        failureType: PlaygroundSetupFailure;
     };
 };
 
@@ -604,6 +618,7 @@ type CreateProjectButtonClickedEvent = {
         warehouse: WarehouseTypes;
         authenticationType?: string;
         warehouseOnly?: boolean;
+        onboardingFlow: 'legacy' | 'new';
     };
 };
 
@@ -613,6 +628,7 @@ type CreateProjectFailedEvent = {
         warehouse: WarehouseTypes;
         errorType: string;
         warehouseOnly?: boolean;
+        onboardingFlow: 'legacy' | 'new';
     };
 };
 
@@ -620,6 +636,7 @@ type SignupFormSubmittedEvent = {
     name: EventName.SIGNUP_FORM_SUBMITTED;
     properties: {
         variant: 'email_only' | 'password';
+        onboardingFlow: 'legacy' | 'new';
     };
 };
 
@@ -655,8 +672,10 @@ type OrganizationBrandDetectedEvent = {
 type OnboardingWarehouseSelectedEvent = {
     name: EventName.ONBOARDING_WAREHOUSE_SELECTED;
     properties: {
+        organizationId: string;
         warehouse: string;
         tier: 'popular' | 'all' | 'other';
+        onboardingFlow: 'legacy' | 'new';
     };
 };
 
@@ -667,10 +686,26 @@ type BigquerySsoSigninCompletedEvent = {
     };
 };
 
+type SnowflakeCliSsoCommandCopiedEvent = {
+    name: EventName.SNOWFLAKE_CLI_SSO_COMMAND_COPIED;
+    properties: {
+        onboardingFlow: 'legacy' | 'new';
+    };
+};
+
+type SnowflakeCliSsoConnectCompletedEvent = {
+    name: EventName.SNOWFLAKE_CLI_SSO_CONNECT_COMPLETED;
+    properties: {
+        success: boolean;
+        onboardingFlow: 'legacy' | 'new';
+    };
+};
+
 type OnboardingProjectReadyStartExploringClickedEvent = {
     name: EventName.ONBOARDING_PROJECT_READY_START_EXPLORING_CLICKED;
     properties: {
         projectId: string;
+        onboardingFlow: 'legacy' | 'new';
     };
 };
 
@@ -708,6 +743,8 @@ type CreateProjectColumnsDefinedButtonClickedEvent = {
 export type EventData =
     | GenericEvent
     | SetupInviteSentEvent
+    | PlaygroundProjectEnteredEvent
+    | PlaygroundProjectSetupFailedEvent
     | CreateProjectButtonClickedEvent
     | CreateProjectFailedEvent
     | SignupFormSubmittedEvent
@@ -717,6 +754,8 @@ export type EventData =
     | OrganizationBrandDetectedEvent
     | OnboardingWarehouseSelectedEvent
     | BigquerySsoSigninCompletedEvent
+    | SnowflakeCliSsoCommandCopiedEvent
+    | SnowflakeCliSsoConnectCompletedEvent
     | OnboardingProjectReadyStartExploringClickedEvent
     | HomepageAskSubmittedEvent
     | HomepageRecommendedActionImpressionEvent

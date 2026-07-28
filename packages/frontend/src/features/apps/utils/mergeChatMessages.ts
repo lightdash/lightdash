@@ -16,11 +16,17 @@ export type ChatConnection = {
     alias: string;
 };
 
+/** A non-image attachment on a user bubble, rendered as a filename chip. */
+export type ChatAttachedFile = {
+    filename: string;
+};
+
 export type ChatMessage = {
     role: 'user' | 'assistant';
     content: string;
     imagePreviewUrls: string[];
     imageResourceIds: string[];
+    files: ChatAttachedFile[];
     charts: ChatChart[];
     externalConnections: ChatConnection[];
     dashboardName: string | null;

@@ -44,6 +44,10 @@ type Props = {
      *  When `onToggleLineage` is omitted, the toggle is hidden. */
     lineageEnabled?: boolean;
     lineageAvailable?: boolean;
+    /** The bundle's manifest reports the lineage capability — so an
+     *  unavailable toggle means missing app wiring, not a stale SDK, and the
+     *  tooltip advises asking the agent instead of upgrading. */
+    lineageSupportedBySdk?: boolean;
     onToggleLineage?: () => void;
     /** External-connection fetches for the "Requests" tab. The tab is always
      *  shown (even at zero) so it survives a clear and surfaces the feature. */
@@ -98,6 +102,7 @@ const AppInspectorPanel: FC<Props> = ({
     focusedQueryUuid,
     lineageEnabled,
     lineageAvailable,
+    lineageSupportedBySdk,
     onToggleLineage,
     externalRequests,
     onClearExternalRequests,
@@ -233,7 +238,9 @@ const AppInspectorPanel: FC<Props> = ({
                             <Tooltip
                                 label={
                                     !lineageAvailable
-                                        ? 'Inspect data is not available in this app version — upgrade the app (regenerate it) to enable it'
+                                        ? lineageSupportedBySdk
+                                            ? "Inspect data isn't wired into this app yet — ask the agent to add it"
+                                            : 'Inspect data is not available in this app version — upgrade the app to enable it'
                                         : lineageEnabled
                                           ? 'Inspect data: on'
                                           : 'Inspect data'

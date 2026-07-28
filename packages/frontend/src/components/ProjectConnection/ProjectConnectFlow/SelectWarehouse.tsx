@@ -80,12 +80,16 @@ const SelectWarehouse: FC<SelectWarehouseProps> = ({
                                               track({
                                                   name: EventName.ONBOARDING_WAREHOUSE_SELECTED,
                                                   properties: {
+                                                      organizationId:
+                                                          organization?.organizationUuid ??
+                                                          '',
                                                       warehouse: item.key,
                                                       tier:
                                                           item.key ===
                                                           OtherWarehouse.Other
                                                               ? 'other'
                                                               : 'all',
+                                                      onboardingFlow: 'legacy',
                                                   },
                                               });
                                               onSelect(item.key);

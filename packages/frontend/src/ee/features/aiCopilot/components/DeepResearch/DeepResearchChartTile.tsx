@@ -216,6 +216,7 @@ export const DeepResearchChartTile = ({
                         selectedChartType={chart.chartConfig.defaultVizType}
                         displayFields={false}
                         displayFilters={false}
+                        loadExplore={chart.source === 'warehouse'}
                         headerContent={
                             displayFilterPills ? (
                                 <AgentVisualizationFilters

@@ -370,6 +370,7 @@ export * from './utils/virtualView';
 export * from './utils/warehouse';
 export * from './visualizations/CartesianChartDataModel';
 export * from './visualizations/helpers/getCartesianAxisFormatterConfig';
+export * from './visualizations/helpers/seriesZOrder';
 export * from './visualizations/helpers/styles/axisStyles';
 export * from './visualizations/helpers/styles/barChartStyles';
 export * from './visualizations/helpers/styles/gridStyles';
@@ -602,6 +603,7 @@ export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
 export const CompleteUserSchema = z.object({
     organizationName: getOrganizationNameSchema().optional(),
     jobTitle: z.string().min(0),
+    howDidYouHearAboutUs: z.string().trim().max(1000).optional(),
     enableEmailDomainAccess: z.boolean().default(false),
     isMarketingOptedIn: z.boolean().default(true),
     isTrackingAnonymized: z.boolean().default(false),

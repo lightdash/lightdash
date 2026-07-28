@@ -70,7 +70,9 @@ const buildArguments = () => {
         catalogFieldMap: {},
         numberOfCategoriesApplied: 0,
     }));
-    const getByOrganizationUuid = vi.fn(async () => ({
+    const getByOrganizationUuid = vi.fn<
+        ProvisionPlaygroundProjectArguments['onboardingModel']['getByOrganizationUuid']
+    >(async () => ({
         ranQueryAt: null,
         shownSuccessAt: null,
         playgroundProjectDeletedAt: null,
@@ -133,6 +135,17 @@ describe('provisionPlaygroundProject', () => {
             'Playground projects are not available',
         );
         expect(mocks.getAllByOrganizationUuid).not.toHaveBeenCalled();
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'playground_project.skipped',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: null,
+                trigger: 'invite_expert',
+                onboardingFlow: 'legacy',
+                reason: 'new_onboarding_flag_disabled',
+            },
+        });
     });
 
     it('repairs an existing playground cache idempotently', async () => {
@@ -149,6 +162,17 @@ describe('provisionPlaygroundProject', () => {
             projectUuid,
             expect.any(Array),
         );
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'playground_project.skipped',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                trigger: 'invite_expert',
+                onboardingFlow: 'new',
+                reason: 'playground_already_exists',
+            },
+        });
     });
 
     it('returns an existing real project without creating a playground', async () => {
@@ -159,6 +183,17 @@ describe('provisionPlaygroundProject', () => {
             created: false,
         });
         expect(mocks.createWithoutCompile).not.toHaveBeenCalled();
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'playground_project.skipped',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                trigger: 'invite_expert',
+                onboardingFlow: 'new',
+                reason: 'organization_has_project',
+            },
+        });
     });
 
     it('does not disclose an existing project the user cannot view', async () => {
@@ -171,6 +206,42 @@ describe('provisionPlaygroundProject', () => {
             'User does not have permission to view an existing project',
         );
         expect(mocks.createWithoutCompile).not.toHaveBeenCalled();
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'playground_project.skipped',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: null,
+                trigger: 'invite_expert',
+                onboardingFlow: 'new',
+                reason: 'no_project_access',
+            },
+        });
+    });
+
+    it('skips provisioning when the playground was previously removed', async () => {
+        const mocks = buildArguments();
+        mocks.args.onboardingModel.getByOrganizationUuid.mockResolvedValue({
+            ranQueryAt: null,
+            shownSuccessAt: null,
+            playgroundProjectDeletedAt: now,
+        });
+
+        await expect(provisionPlaygroundProject(mocks.args)).rejects.toThrow(
+            'Playground project was previously removed',
+        );
+        expect(mocks.createWithoutCompile).not.toHaveBeenCalled();
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'playground_project.skipped',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: null,
+                trigger: 'invite_expert',
+                onboardingFlow: 'new',
+                reason: 'playground_previously_removed',
+            },
+        });
     });
 
     it('creates the playground and caches bundled explores', async () => {
@@ -201,11 +272,17 @@ describe('provisionPlaygroundProject', () => {
             organizationUuid,
             expect.any(Function),
         );
-        expect(mocks.track).toHaveBeenCalledWith(
-            expect.objectContaining({
-                event: 'playground_project.provisioned',
-            }),
-        );
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'playground_project.provisioned',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                trigger: 'invite_expert',
+                onboardingFlow: 'new',
+                catalogIndexErrorType: null,
+            },
+        });
         expect(mocks.validatePlaygroundDatabase).toHaveBeenCalledWith(
             path.resolve(
                 __dirname,
@@ -244,7 +321,7 @@ describe('provisionPlaygroundProject', () => {
         );
     });
 
-    it('still provisions when catalog indexing fails', async () => {
+    it('still provisions when catalog indexing fails, tracking the error type', async () => {
         const mocks = buildArguments();
         mocks.indexCatalog.mockRejectedValue(new Error('Catalog unavailable'));
 
@@ -252,7 +329,17 @@ describe('provisionPlaygroundProject', () => {
             projectUuid,
             created: true,
         });
-        expect(mocks.track).toHaveBeenCalledOnce();
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'playground_project.provisioned',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                trigger: 'invite_expert',
+                onboardingFlow: 'new',
+                catalogIndexErrorType: 'Error',
+            },
+        });
     });
 
     it('does not create a project when bundle validation fails', async () => {
@@ -265,6 +352,17 @@ describe('provisionPlaygroundProject', () => {
             'Invalid DuckDB bundle',
         );
         expect(mocks.createWithoutCompile).not.toHaveBeenCalled();
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'playground_project.failed',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: null,
+                trigger: 'invite_expert',
+                onboardingFlow: 'new',
+                errorType: 'Error',
+            },
+        });
     });
 
     it('removes a newly created project when explore caching fails', async () => {
@@ -277,6 +375,16 @@ describe('provisionPlaygroundProject', () => {
             'Cache unavailable',
         );
         expect(mocks.deleteProject).toHaveBeenCalledWith(projectUuid);
-        expect(mocks.track).not.toHaveBeenCalled();
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'playground_project.failed',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                trigger: 'invite_expert',
+                onboardingFlow: 'new',
+                errorType: 'Error',
+            },
+        });
     });
 });

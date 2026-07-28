@@ -81,6 +81,10 @@ export type {
     InspectSelectedMessage,
 } from './inspector';
 
+// Scheduled-delivery declarations (data apps)
+export { useDelivery } from './delivery';
+export type { DeliveryQuery } from './delivery';
+
 // Google Sheets export (data apps)
 export { exportToSheets } from './exportToSheets';
 export type {
@@ -88,7 +92,7 @@ export type {
     ExportToSheetsResult,
 } from './exportToSheets';
 
-// Data app viz render context (host-pushed rows + field mapping)
+// Data app viz render context (host-pushed rows + field mapping + config options)
 export {
     VizContextProvider,
     useVizContext,
@@ -98,6 +102,7 @@ export {
 export type {
     VizContext,
     VizContextCell,
+    VizContextOptionValue,
     VizContextRow,
     DataAppVizContextMessage,
     VizContextRequestMessage,

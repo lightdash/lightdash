@@ -1,6 +1,10 @@
 import {
     AgentToolOutput,
     AiAgentAdminConversationsSummary,
+    AiAgentAdminEvalFilters,
+    AiAgentAdminEvalPrompt,
+    AiAgentAdminEvalsSummary,
+    AiAgentAdminEvalSummary,
     AiAgentAdminFilters,
     AiAgentAdminPromptActivityPoint,
     AiAgentAdminSort,
@@ -3294,6 +3298,238 @@ export class AiAgentModel {
                 threads,
             },
             pagination,
+        };
+    }
+
+    async findAdminEvalsPaginated({
+        organizationUuid,
+        paginateArgs,
+        filters,
+        sort,
+    }: {
+        organizationUuid: string;
+        paginateArgs?: KnexPaginateArgs;
+        filters?: AiAgentAdminEvalFilters;
+        sort?: AiAgentAdminSort;
+    }): Promise<KnexPaginatedData<AiAgentAdminEvalsSummary>> {
+        const evalPromptCountQuery = this.database(AiEvalPromptTableName)
+            .select([
+                'ai_eval_uuid',
+                this.database.raw('COUNT(*)::integer as prompt_count'),
+            ])
+            .groupBy('ai_eval_uuid');
+
+        const evalLatestRunQuery = this.database(AiEvalRunTableName)
+            .distinctOn('ai_eval_uuid')
+            .select([
+                'ai_eval_uuid',
+                'ai_eval_run_uuid as latest_run_uuid',
+                'status as latest_run_status',
+                'created_at as latest_run_created_at',
+                'completed_at as latest_run_completed_at',
+            ])
+            .orderBy('ai_eval_uuid')
+            .orderBy('created_at', 'desc');
+
+        const query = this.database
+            .with('eval_prompt_count', evalPromptCountQuery)
+            .with('eval_latest_run', evalLatestRunQuery)
+            .select<
+                {
+                    ai_eval_uuid: DbAiEval['ai_eval_uuid'];
+                    title: DbAiEval['title'];
+                    description: DbAiEval['description'];
+                    created_at: DbAiEval['created_at'];
+                    updated_at: DbAiEval['updated_at'];
+                    agent_uuid: AiAgent['uuid'];
+                    agent_name: AiAgent['name'];
+                    agent_image_url: AiAgent['imageUrl'];
+                    project_uuid: DbProject['project_uuid'];
+                    project_name: DbProject['name'];
+                    prompt_count: number | null;
+                    latest_run_uuid: DbAiEvalRun['ai_eval_run_uuid'] | null;
+                    latest_run_status: DbAiEvalRun['status'] | null;
+                    latest_run_created_at: DbAiEvalRun['created_at'] | null;
+                    latest_run_completed_at: DbAiEvalRun['completed_at'];
+                }[]
+            >([
+                `${AiEvalTableName}.ai_eval_uuid`,
+                `${AiEvalTableName}.title`,
+                `${AiEvalTableName}.description`,
+                `${AiEvalTableName}.created_at`,
+                `${AiEvalTableName}.updated_at`,
+                `${AiAgentTableName}.ai_agent_uuid as agent_uuid`,
+                `${AiAgentTableName}.name as agent_name`,
+                `${AiAgentTableName}.image_url as agent_image_url`,
+                `${ProjectTableName}.project_uuid`,
+                `${ProjectTableName}.name as project_name`,
+                'eval_prompt_count.prompt_count',
+                'eval_latest_run.latest_run_uuid',
+                'eval_latest_run.latest_run_status',
+                'eval_latest_run.latest_run_created_at',
+                'eval_latest_run.latest_run_completed_at',
+            ])
+            .from(AiEvalTableName)
+            .join(
+                AiAgentTableName,
+                `${AiEvalTableName}.agent_uuid`,
+                `${AiAgentTableName}.ai_agent_uuid`,
+            )
+            .join(
+                ProjectTableName,
+                `${AiAgentTableName}.project_uuid`,
+                `${ProjectTableName}.project_uuid`,
+            )
+            .leftJoin(
+                'eval_prompt_count',
+                `${AiEvalTableName}.ai_eval_uuid`,
+                'eval_prompt_count.ai_eval_uuid',
+            )
+            .leftJoin(
+                'eval_latest_run',
+                `${AiEvalTableName}.ai_eval_uuid`,
+                'eval_latest_run.ai_eval_uuid',
+            )
+            .where(`${AiAgentTableName}.organization_uuid`, organizationUuid);
+
+        if (filters) {
+            if (filters.projectUuids && filters.projectUuids.length > 0) {
+                void query.whereIn(
+                    `${AiAgentTableName}.project_uuid`,
+                    filters.projectUuids,
+                );
+            }
+            if (filters.agentUuids && filters.agentUuids.length > 0) {
+                void query.whereIn(
+                    `${AiEvalTableName}.agent_uuid`,
+                    filters.agentUuids,
+                );
+            }
+            if (filters.search) {
+                void query.where(
+                    `${AiEvalTableName}.title`,
+                    'ILIKE',
+                    `%${filters.search}%`,
+                );
+            }
+        }
+
+        const sortField = sort?.field ?? 'createdAt';
+        const sortDirection = sort?.direction ?? 'desc';
+        switch (sortField) {
+            case 'title':
+                void query.orderBy(`${AiEvalTableName}.title`, sortDirection);
+                break;
+            case 'createdAt':
+            default:
+                void query.orderBy(
+                    `${AiEvalTableName}.created_at`,
+                    sortDirection,
+                );
+        }
+
+        const { pagination, data } = await KnexPaginate.paginate(
+            query,
+            paginateArgs,
+        );
+
+        const evals: AiAgentAdminEvalSummary[] = data.map((row) => ({
+            evalUuid: row.ai_eval_uuid,
+            title: row.title,
+            description: row.description,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+            agent: {
+                uuid: row.agent_uuid,
+                name: row.agent_name,
+                imageUrl: row.agent_image_url,
+            },
+            project: {
+                uuid: row.project_uuid,
+                name: row.project_name,
+            },
+            promptCount: row.prompt_count || 0,
+            latestRun:
+                row.latest_run_uuid &&
+                row.latest_run_status &&
+                row.latest_run_created_at
+                    ? {
+                          runUuid: row.latest_run_uuid,
+                          status: row.latest_run_status,
+                          createdAt: row.latest_run_created_at,
+                          completedAt: row.latest_run_completed_at,
+                      }
+                    : null,
+        }));
+
+        return {
+            data: {
+                evals,
+            },
+            pagination,
+        };
+    }
+
+    async findAdminEvalPrompts({
+        organizationUuid,
+        evalUuid,
+    }: {
+        organizationUuid: string;
+        evalUuid: string;
+    }): Promise<{
+        projectUuid: string;
+        prompts: AiAgentAdminEvalPrompt[];
+    } | null> {
+        const evalRecord = await this.database(AiEvalTableName)
+            .join(
+                AiAgentTableName,
+                `${AiEvalTableName}.agent_uuid`,
+                `${AiAgentTableName}.ai_agent_uuid`,
+            )
+            .where(`${AiEvalTableName}.ai_eval_uuid`, evalUuid)
+            .where(`${AiAgentTableName}.organization_uuid`, organizationUuid)
+            .select<{ project_uuid: string }[]>(
+                `${AiAgentTableName}.project_uuid`,
+            )
+            .first();
+
+        if (!evalRecord) return null;
+
+        const prompts = await this.database(AiEvalPromptTableName)
+            .leftJoin(
+                AiPromptTableName,
+                `${AiEvalPromptTableName}.ai_prompt_uuid`,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+            )
+            .where(`${AiEvalPromptTableName}.ai_eval_uuid`, evalUuid)
+            .orderBy(`${AiEvalPromptTableName}.created_at`, 'asc')
+            .select<
+                {
+                    ai_eval_prompt_uuid: string;
+                    prompt: string | null;
+                    expected_response: string | null;
+                    ai_thread_uuid: string | null;
+                    created_at: Date;
+                }[]
+            >([
+                `${AiEvalPromptTableName}.ai_eval_prompt_uuid`,
+                this.database.raw(
+                    `COALESCE(${AiEvalPromptTableName}.prompt, ${AiPromptTableName}.prompt) as prompt`,
+                ),
+                `${AiEvalPromptTableName}.expected_response`,
+                `${AiEvalPromptTableName}.ai_thread_uuid`,
+                `${AiEvalPromptTableName}.created_at`,
+            ]);
+
+        return {
+            projectUuid: evalRecord.project_uuid,
+            prompts: prompts.map((row) => ({
+                evalPromptUuid: row.ai_eval_prompt_uuid,
+                prompt: row.prompt,
+                expectedResponse: row.expected_response,
+                threadUuid: row.ai_thread_uuid,
+                createdAt: row.created_at,
+            })),
         };
     }
 
