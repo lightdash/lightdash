@@ -1465,4 +1465,200 @@ describe('AiAgentMemoryModel integration', () => {
             ['orders'],
         );
     });
+
+    it.each(['superseded', 'retired'] as const)(
+        'skips a thread whose memory is %s and keeps it out of the next sweep',
+        async (status) => {
+            const activity = new Date('2026-07-22T05:00:00Z');
+            const threadUuid = await createThread();
+            await createPrompt(threadUuid, activity);
+            const memory = await model.upsertSourceThreadMemory(
+                memoryInput(threadUuid),
+            );
+            await database(AiAgentMemoryTableName)
+                .where('ai_agent_memory_uuid', memory.ai_agent_memory_uuid)
+                .update({ status });
+
+            const distillCall = vi.fn<AiAgentMemoryDistillCall>();
+            const service = buildService(distillCall);
+            await expect(
+                service.distillThread({
+                    organizationUuid: SEED_ORG_1.organization_uuid,
+                    projectUuid: SEED_PROJECT.project_uuid,
+                    userUuid: 'system',
+                    threadUuid,
+                    sweptUpdatedAt: activity.toISOString(),
+                }),
+            ).resolves.toBe('skipped');
+            expect(distillCall).not.toHaveBeenCalled();
+
+            await expect(
+                database(AiAgentThreadDistillTableName)
+                    .where('ai_thread_uuid', threadUuid)
+                    .first(),
+            ).resolves.toMatchObject({
+                outcome: 'skipped',
+                distill_prompt_hash: null,
+                distilled_up_to: activity,
+            });
+            const rows = await database(AiAgentMemoryTableName).where(
+                'source_thread_uuid',
+                threadUuid,
+            );
+            expect(rows).toHaveLength(1);
+            expect(rows[0]).toMatchObject({
+                ai_agent_memory_uuid: memory.ai_agent_memory_uuid,
+                slug: memory.slug,
+                status,
+            });
+
+            const candidates = await model.findThreadsDueForDistill({
+                idleBefore: new Date(activity.getTime() + 6 * 60 * 60 * 1000),
+                activityFloor: new Date(
+                    activity.getTime() - 24 * 60 * 60 * 1000,
+                ),
+            });
+            expect(
+                candidates.some((row) => row.threadUuid === threadUuid),
+            ).toBe(false);
+        },
+    );
+
+    it('re-distills threads with an active memory row or none at all', async () => {
+        const activity = new Date('2026-07-22T05:00:00Z');
+        const citedAt = new Date('2026-07-22T04:00:00Z');
+        const [withMemory, withoutMemory] = await Promise.all([
+            createThread(),
+            createThread(),
+        ]);
+        await Promise.all([
+            createPrompt(withMemory, activity),
+            createPrompt(withoutMemory, activity),
+        ]);
+        const existing = await model.upsertSourceThreadMemory(
+            memoryInput(withMemory),
+        );
+        await database(AiAgentMemoryTableName)
+            .where('ai_agent_memory_uuid', existing.ai_agent_memory_uuid)
+            .update({ cited_count: 4, last_cited_at: citedAt });
+
+        const distillCall = vi
+            .fn<AiAgentMemoryDistillCall>()
+            .mockResolvedValue({
+                result: {
+                    type: 'memory',
+                    thread_summary: 'The user corrected the revenue rule.',
+                    slug: 'gross-revenue',
+                    title: 'Gross revenue convention',
+                    raw_memory: 'Use gross revenue.',
+                    terms: ['gross revenue'],
+                    objects: [],
+                    scope: 'user',
+                },
+            });
+        const service = buildService(distillCall);
+        const payload = {
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            userUuid: 'system',
+            sweptUpdatedAt: activity.toISOString(),
+        };
+
+        await expect(
+            service.distillThread({ ...payload, threadUuid: withMemory }),
+        ).resolves.toBe('memory');
+        await expect(
+            service.distillThread({ ...payload, threadUuid: withoutMemory }),
+        ).resolves.toBe('memory');
+        expect(distillCall).toHaveBeenCalledTimes(2);
+
+        const kept = await database(AiAgentMemoryTableName).where(
+            'source_thread_uuid',
+            withMemory,
+        );
+        expect(kept).toHaveLength(1);
+        expect(kept[0]).toMatchObject({
+            ai_agent_memory_uuid: existing.ai_agent_memory_uuid,
+            slug: existing.slug,
+            raw_memory: 'Use gross revenue.',
+            status: 'active',
+            cited_count: 4,
+            last_cited_at: citedAt,
+        });
+
+        const created = await database(AiAgentMemoryTableName).where(
+            'source_thread_uuid',
+            withoutMemory,
+        );
+        expect(created).toHaveLength(1);
+        expect(created[0]).toMatchObject({
+            raw_memory: 'Use gross revenue.',
+            status: 'active',
+        });
+    });
+
+    it('re-distills in place when an active row sits beside a superseded one', async () => {
+        const activity = new Date('2026-07-22T05:00:00Z');
+        const threadUuid = await createThread();
+        await createPrompt(threadUuid, activity);
+        const superseded = await model.upsertSourceThreadMemory(
+            memoryInput(threadUuid),
+        );
+        await database(AiAgentMemoryTableName)
+            .where('ai_agent_memory_uuid', superseded.ai_agent_memory_uuid)
+            .update({ status: 'superseded' });
+        const active = await model.upsertSourceThreadMemory(
+            memoryInput(threadUuid),
+        );
+
+        const distillCall = vi
+            .fn<AiAgentMemoryDistillCall>()
+            .mockResolvedValue({
+                result: {
+                    type: 'memory',
+                    thread_summary: 'The user corrected the revenue rule.',
+                    slug: 'gross-revenue',
+                    title: 'Gross revenue convention',
+                    raw_memory: 'Use gross revenue.',
+                    terms: ['gross revenue'],
+                    objects: [],
+                    scope: 'user',
+                },
+            });
+        await expect(
+            buildService(distillCall).distillThread({
+                organizationUuid: SEED_ORG_1.organization_uuid,
+                projectUuid: SEED_PROJECT.project_uuid,
+                userUuid: 'system',
+                threadUuid,
+                sweptUpdatedAt: activity.toISOString(),
+            }),
+        ).resolves.toBe('memory');
+
+        const rows = await database(AiAgentMemoryTableName).where(
+            'source_thread_uuid',
+            threadUuid,
+        );
+        expect(rows).toHaveLength(2);
+        expect(
+            rows.find(
+                (row) =>
+                    row.ai_agent_memory_uuid ===
+                    superseded.ai_agent_memory_uuid,
+            ),
+        ).toMatchObject({
+            status: 'superseded',
+            raw_memory: 'Use net revenue.',
+        });
+        expect(
+            rows.find(
+                (row) =>
+                    row.ai_agent_memory_uuid === active.ai_agent_memory_uuid,
+            ),
+        ).toMatchObject({
+            slug: active.slug,
+            status: 'active',
+            raw_memory: 'Use gross revenue.',
+        });
+    });
 });

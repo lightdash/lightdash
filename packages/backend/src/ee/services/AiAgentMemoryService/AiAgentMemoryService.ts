@@ -489,6 +489,20 @@ export class AiAgentMemoryService extends BaseService {
         return outcome;
     }
 
+    /** Single definition site for the ledger row every skip cause writes. */
+    private async recordSkip(
+        threadUuid: string,
+        distilledUpTo: Date,
+    ): Promise<'skipped'> {
+        await this.aiAgentMemoryModel.upsertThreadDistill({
+            aiThreadUuid: threadUuid,
+            outcome: 'skipped',
+            distillPromptHash: null,
+            distilledUpTo,
+        });
+        return 'skipped';
+    }
+
     private async runDistillThread(
         payload: AiAgentMemoryDistillJobPayload,
         abortSignal?: AbortSignal,
@@ -544,13 +558,18 @@ export class AiAgentMemoryService extends BaseService {
                     turn.assistantText !== null,
             )
         ) {
-            await this.aiAgentMemoryModel.upsertThreadDistill({
-                aiThreadUuid: thread.threadUuid,
-                outcome: 'skipped',
-                distillPromptHash: null,
-                distilledUpTo: sweptUpdatedAt,
-            });
-            return 'skipped';
+            return this.recordSkip(thread.threadUuid, sweptUpdatedAt);
+        }
+
+        // A thread whose memory was consolidated away or retired stops feeding
+        // memory: the one-active-row index would let a re-distill insert a
+        // second active row beside the row that replaced it.
+        const memoryState =
+            await this.aiAgentMemoryModel.resolveSourceThreadMemoryState(
+                thread.threadUuid,
+            );
+        if (memoryState === 'inactive') {
+            return this.recordSkip(thread.threadUuid, sweptUpdatedAt);
         }
 
         let failureStage: AiAgentMemoryGenerationFailedEvent['properties']['failureStage'] =
@@ -589,6 +608,15 @@ export class AiAgentMemoryService extends BaseService {
                 organizationUuid: thread.organizationUuid,
                 threadUuid: thread.threadUuid,
             });
+            // Re-read: the status can flip while the LLM call is in flight, and
+            // the upsert would then insert a second active row.
+            if (
+                (await this.aiAgentMemoryModel.resolveSourceThreadMemoryState(
+                    thread.threadUuid,
+                )) === 'inactive'
+            ) {
+                return await this.recordSkip(thread.threadUuid, sweptUpdatedAt);
+            }
             const memory =
                 await this.aiAgentMemoryModel.upsertSourceThreadMemory({
                     organizationUuid: thread.organizationUuid,
