@@ -280,6 +280,8 @@ export class UserService extends BaseService {
 
     private readonly emailOneTimePasscodeMaxAttempts = 5;
 
+    private readonly emailOneTimePasscodeResendIntervalSeconds = 60;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -2079,6 +2081,9 @@ export class UserService extends BaseService {
         const emailStatus = await this.emailModel.createPrimaryEmailOtp({
             passcode,
             userUuid: user.userUuid,
+            resetAttemptsIfOtpCreatedBefore: new Date(
+                Date.now() - this.emailOneTimePasscodeExpirySeconds * 1000,
+            ),
         });
         await this.emailClient.sendOneTimePasscodeEmail({
             recipient: emailStatus.email,
@@ -2147,6 +2152,16 @@ export class UserService extends BaseService {
             !user ||
             !user.isActive ||
             !(await this.isStrictlyPasswordlessUser(user, normalizedEmail))
+        ) {
+            return;
+        }
+        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        if (
+            emailStatus.otp &&
+            Date.now() - emailStatus.otp.createdAt.getTime() <
+                this.emailOneTimePasscodeResendIntervalSeconds * 1000
         ) {
             return;
         }
